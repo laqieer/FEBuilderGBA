@@ -1029,3 +1029,5312 @@ ROMファイルを開いて編集を開始してください。
 
 :Type to filter editors...
 エディタを検索...
+
+# ========================================================================
+# Avalonia English-keyed translations (added for issue #356)
+# Auto-generated from term dictionary + en.txt reverse map.
+# Source: zh.txt direct-English-keyed entries missing from ja.txt + Phase 6
+# gap-sweep Untranslated literals.
+# ========================================================================
+
+:(select a command)
+(コマンドを選択)
+
+:0x Address
+0x アドレス
+
+:10-Split Image:
+10-Split 画像:
+
+:A Support Song:
+A Support 曲:
+
+:AI ASM Call Talk
+AIアセンブリ会話呼出
+
+:AI Coordinate Editor
+AI座標エディタ
+
+:AI Item Performance
+AIアイテム実行
+
+:AI Map Settings
+AIマップ設定
+
+:AI Pointer:
+AIポインタ:
+
+:AI Range Editor
+AI範囲エディタ
+
+:AI Script Editor
+AIスクリプトエディタ
+
+:AI Staff Performance
+AI杖実行
+
+:AI Steal Item Logic
+AI盗む論理
+
+:AI Targeting
+AI対象
+
+:AI Tiles Evaluation
+AIタイル評価
+
+:AI Units Evaluation
+AI ユニット Evaluation
+
+:ASM Code Editor
+ASM Code エディタ
+
+:ASM Insertion Tool
+ASM Insertion ツール
+
+:ASM Pointer:
+ASM ポインタ:
+
+:Ability 1 (B40):
+特性1
+
+:Ability 1:
+特性1
+
+:Ability 2 (B41):
+特性2
+
+:Ability 2:
+特性2
+
+:Ability 3 (B42):
+特性3
+
+:Ability 3:
+特性3
+
+:Ability 4 (B43):
+特性4
+
+:Ability 4:
+特性4
+
+:Abort merge. Cancel all merge changes.
+Abort merge. キャンセル all merge changes.
+
+:About Instrument Selection
+情報 Instrument 選択
+
+:Actions
+行動
+
+:Add EndGuards on export
+追加 EndGuards on export
+
+:Add Map Change
+追加 マップ変更
+
+:Add Text Reference
+追加 Text 参照
+
+:Add backup ROM location
+追加 backup ROM location
+
+:Address Range
+アドレス 範囲
+
+:Address:
+アドレス
+
+:Advanced Class 1:
+Advanced クラス 1:
+
+:Advanced Class 2:
+Advanced クラス 2:
+
+:Advanced Class 3:
+Advanced クラス 3:
+
+:Advanced Class 4:
+Advanced クラス 4:
+
+:Affinity Type:
+属性 タイプ:
+
+:Affinity:
+属性:
+
+:All Files
+全て ファイル
+
+:All Palette Files
+全て パレット ファイル
+
+:Ally/Enemy Color:
+味方/敵 色:
+
+:Alpha Name:
+Alpha 名前:
+
+:Anim Type:
+Anim タイプ:
+
+:Anima (B25):
+理
+
+:Anima (B49):
+理
+
+:Anima:
+理
+
+:Animation # (W2):
+アニメ # (W2):
+
+:Animation Creator
+アニメ Creator
+
+:Animation Data Details
+アニメ Data Details
+
+:Animation Frame Viewer
+アニメ Frame ビューア
+
+:Animation Interval:
+アニメーション間隔
+
+:Animation Name:
+アニメ 名前:
+
+:Animation Number:
+アニメ Number:
+
+:Animation Pointer:
+戦闘時アニメ
+
+:Animation Ptr (D0):
+アニメ Ptr (D0):
+
+:Animation Table Summary
+アニメ Table Summary
+
+:Animation preview area
+アニメ preview area
+
+:Anime Pointer:
+Anime ポインタ:
+
+:Anime Type:
+Anime タイプ:
+
+:Append
+追加
+
+:Append Map Style
+追加 マップ Style
+
+:Area of Effect Range
+Area of 効果 範囲
+
+:Arena Class Editor
+Arena クラスエディタ
+
+:Arena Enemy Weapon Editor
+アリーナ敵武器 エディタ
+
+:Armory Pointer:
+Armory ポインタ:
+
+:Attack Bonus:
+Attack ボーナス:
+
+:Audio Tools
+Audio ツール
+
+:Author:
+著者
+
+:Avoid Bonus:
+回避 ボーナス:
+
+:Axe (B22):
+斧
+
+:Axe (B46):
+斧
+
+:Axe:
+斧
+
+:B Support Song:
+B Support 曲:
+
+:B10: Tile animation 2 (PLIST)
+B10: タイル animation 2 (PLIST)
+
+:B116: Event ID (PLIST)
+B116: イベント ID (PLIST)
+
+:B11: Map change (PLIST)
+B11: マップ change (PLIST)
+
+:B120: Event ID (PLIST)
+B120: イベント ID (PLIST)
+
+:B128: Chapter number
+B128: 章 number
+
+:B13: Battle preparation
+B13: 戦闘 preparation
+
+:B13: Battle preparation (X)
+B13: 戦闘 preparation (X)
+
+:B142: Defense unit mark
+B142: 守備 unit mark
+
+:B146: Defense unit mark
+B146: 守備 unit mark
+
+:B14: Chapter title image
+B14: 章 title image
+
+:B15: Chapter title image 2
+B15: 章 title image 2
+
+:B15: Chapter title image 2 (X)
+B15: 章 title image 2 (X)
+
+:B19: Battle BG
+B19: 戦闘背景
+
+:B19: Battle BG lookup
+B19: 戦闘背景 lookup
+
+:B6: Palette (PLIST)
+B6: パレット (PLIST)
+
+:B8: Map pointer (PLIST)
+B8: マップ pointer (PLIST)
+
+:B9: Tile animation 1 (PLIST)
+B9: タイル animation 1 (PLIST)
+
+:BG Image Select
+BG 画像 選択
+
+:BGM / Music
+BGM / 音楽
+
+:Background Image Editor
+背景 画像エディタ
+
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+背景画像セレクタ.\r\n選択 a background image from the available BG entries in the ROM.
+
+:Backup History (newest on top)
+バックアップ History (newest on top)
+
+:Base Class
+Base クラス
+
+:Base Class 1:
+基本クラス1
+
+:Base Class 2 (trainee only):
+Base クラス 2 (trainee only):
+
+:Base Stats
+ベースステータス
+
+:Base Stats:
+ベースステータス:
+
+:Base Weapon Levels (B20-B26):
+Base 武器レベル (B20-B26):
+
+:Basic Info
+Basic 情報
+
+:Batch Address Convert
+Batch アドレス Convert
+
+:Battle Animation Editor
+戦闘アニメ エディタ
+
+:Battle Anime (P52):
+戦闘アニメ (P52):
+
+:Battle Anime:
+戦闘アニメ:
+
+:Battle BG:
+戦闘背景:
+
+:Battle Background Editor
+戦闘 背景 エディタ
+
+:Battle Dialogue (FE6)
+戦闘 Dialogue (FE6)
+
+:Battle Dialogue (FE7)
+戦闘 Dialogue (FE7)
+
+:Battle Dialogue Editor
+戦闘 Dialogue エディタ
+
+:Battle Screen Layout
+戦闘 Screen Layout
+
+:Battle Talk (Main)
+戦闘 会話 (Main)
+
+:Battle Terrain Editor
+戦闘地形 エディタ
+
+:Big CG Editor
+Big CG エディタ
+
+:Binary Editor
+バイナリ エディタ
+
+:Bonus:
+ボーナス:
+
+:Boss BGM Editor
+ボスBGM エディタ
+
+:Bow (B23):
+弓
+
+:Bow (B47):
+弓
+
+:Bow:
+弓
+
+:Breakable Wall HP / Difficulty Ratings
+Breakable Wall HP / 難易度 Ratings
+
+:Browse MIDI File...
+参照 MIDI ファイル...
+
+:Browse...
+参照...
+
+:Build (B10):
+ビルド (B10):
+
+:C Support Song:
+C Support 曲:
+
+:C-Skill Rechain
+C-スキル Rechain
+
+:C-String Editor
+C-String エディタ
+
+:CC Branch Editor
+クラスチェンジ分岐 エディタ
+
+:CG Editor (FE7U)
+CG エディタ (FE7U)
+
+:CG Image Editor
+CG 画像エディタ
+
+:CON:
+体格
+
+:CP / Pointer
+CP / ポインタ
+
+:CSA Magic Creator
+CSA 魔法 Creator
+
+:Cancel Action:
+キャンセル 行動:
+
+:Center X:
+中央 X:
+
+:Center Y:
+中央 Y:
+
+:Change Pointer:
+Change ポインタ:
+
+:Chapter / Transporter / Victory
+章 / Transporter / Victory
+
+:Chapter ID 1:
+章 ID 1:
+
+:Chapter ID 2:
+章 ID 2:
+
+:Chapter ID:
+ワープする章
+
+:Chapter Image Ptr:
+章 画像 Ptr:
+
+:Chapter Index:
+章 インデックス:
+
+:Chapter Title Editor
+章タイトル エディタ
+
+:Chapter Title FE7 Editor
+章タイトル FE7 エディタ
+
+:Chapter Title Text IDs
+章タイトル Text IDs
+
+:Chapter number (B128):
+章 number (B128):
+
+:Check Update
+Check 更新
+
+:Class # (B4):
+クラス # (B4):
+
+:Class Card
+クラス Card
+
+:Class Card:
+クラス Card:
+
+:Class Editor (FE6)
+クラス能力
+
+:Class ID (u8):
+クラス ID (u8):
+
+:Class ID 1:
+クラス ID 1:
+
+:Class ID 2:
+クラス ID 2:
+
+:Class ID 3:
+クラス ID 3:
+
+:Class ID 4:
+クラス ID 4:
+
+:Class ID 5:
+クラス ID 5:
+
+:Class ID:
+クラス ID:
+
+:Class List Editor
+クラス List エディタ
+
+:Class Name:
+クラス 名前:
+
+:Class Skill Pointer:
+クラス スキル ポインタ:
+
+:Class Skill:
+クラススキル
+
+:Class Type:
+クラス タイプ:
+
+:Class:
+クラス
+
+:Clear Condition (display only)
+クリア Condition (display only)
+
+:Clear Conditions
+クリア Conditions
+
+:Color Grid (16 colors):
+色 Grid (16 colors):
+
+:Color/ID (u32@8):
+色/ID (u32@8):
+
+:Color:
+色
+
+:Command 0x85 Pointer
+Command 0x85 ポインタ
+
+:Commander:
+指揮官
+
+:Community:
+コミニティ
+
+:Composite Skill Pointer:
+Composite スキル ポインタ:
+
+:Condition Class 1:
+Condition クラス 1:
+
+:Condition Class 2:
+Condition クラス 2:
+
+:Condition Class 3:
+Condition クラス 3:
+
+:Condition Class 4:
+Condition クラス 4:
+
+:Condition Item 1:
+Condition アイテム 1:
+
+:Condition Item 2:
+Condition アイテム 2:
+
+:Condition Item 3:
+Condition アイテム 3:
+
+:Condition Item 4:
+Condition アイテム 4:
+
+:Condition Unit 1:
+Condition ユニット 1:
+
+:Condition Unit 2:
+Condition ユニット 2:
+
+:Condition Unit 3:
+Condition ユニット 3:
+
+:Condition Unit 4:
+Condition ユニット 4:
+
+:Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed
+Condition: 00=Died, 01=Wounded/左, 02=Wounded/Stayed
+
+:Config Pointer:
+構成 ポインタ:
+
+:Configuration
+構成
+
+:Content Type
+Content タイプ
+
+:Coord Pointer:
+Coord ポインタ:
+
+:Coordinate X:
+座標X
+
+:Coordinate Y:
+座標Y
+
+:Coordinates:
+座標
+
+:Copy (No $ / GBA / Rad / BreakPoint)
+コピー (いいえ $ / GBA / Rad / BreakPoint)
+
+:Copy Address
+コピー アドレス
+
+:Copy Current
+コピー Current
+
+:Copy Hex Data
+コピー 16進 Data
+
+:Copy Name
+コピー 名前
+
+:Copy as Hex
+コピー as 16進
+
+:Copy as Little Endian
+コピー as Little Endian
+
+:Cost Type:
+Cost タイプ:
+
+:Count:
+読込数
+
+:Counter Damage Warning:
+Counter ダメージ 警告:
+
+:Crit Avoid Bonus:
+Crit 回避 ボーナス:
+
+:Crit Bonus:
+Crit ボーナス:
+
+:Cross-Platform Preview (Avalonia)
+クロスプラットフォームプレビュー (Avalonia)
+
+:Cross-References:
+Cross-参照:
+
+:Current Address:
+Current アドレス:
+
+:Current Name:
+現在の名前
+
+:Cursor Select Action:
+Cursor 選択 行動:
+
+:Custom Battle Animation
+カスタム 戦闘アニメ
+
+:Custom Build Tool
+カスタム ビルド ツール
+
+:Custom Programs
+カスタム Programs
+
+:DEF:
+守備
+
+:Damage Effect:
+ダメージエフェクト
+
+:Dark (B51):
+闇
+
+:Dark:
+闇
+
+:Data Address\r\n(if pointer)
+Data アドレス\r\n(if pointer)
+
+:Data Address:
+Data アドレス:
+
+:Data Pointer:
+Data ポインタ:
+
+:Data Size:
+データ個数
+
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+Data size mismatch.\r\n(DataCount/2) % 幅 != 0
+
+:Default Text ID:
+デフォルト Text ID:
+
+:Default Value:
+デフォルト Value:
+
+:Defense Bonus:
+守備 ボーナス:
+
+:Defense:
+防御
+
+:Demon King Summon Editor
+魔王 Summon エディタ
+
+:Desc ID (W2):
+説明 ID (W2):
+
+:Desc ID:
+説明 ID:
+
+:Description (Text ID):
+説明 (Text ID):
+
+:Description Text ID:
+説明 Text ID:
+
+:Description:
+説明
+
+:Destination Palette:
+Destination パレット:
+
+:Developer Translation Tool
+Developer Translation ツール
+
+:Development Tools
+Development ツール
+
+:Difficulty Pointers (D96-D108)
+難易度 ポインタ (D96-D108)
+
+:Difficulty Ratings
+難易度 Ratings
+
+:Difficulty Settings
+難易度 設定
+
+:Difficulty Value
+難易度 Value
+
+:Direct Sound Instruments
+Direct 音 Instruments
+
+:Direction values: 00=Left, 01=Right, 02=Down, 03=Up, 04=End, 09=Highlight, 0A=Collision mark, 0C=Speed change
+Direction values: 00=左, 01=右, 02=下, 03=上, 04=End, 09=Highlight, 0A=Collision mark, 0C=速さ change
+
+:Directory:
+ディレクトリ:
+
+:Disassembled Script
+Disassembled スクリプト
+
+:Disassembly Dump All
+Disassembly Dump 全て
+
+:Display Weapon:
+Display 武器:
+
+:Dmg Effect (B31):
+Dmg 効果 (B31):
+
+:Down RMenuPointer:
+下 RMenuPointer:
+
+:Drum Part Pointer
+Drum Part ポインタ
+
+:Duty / Length:
+Duty / 長さ:
+
+:Edit Classes
+編集 クラス
+
+:Edit Items
+編集 アイテム
+
+:Edit Skill Config
+編集 スキル 構成
+
+:Edit Skills
+編集 スキル
+
+:Edit Text:
+編集 Text:
+
+:Edit Units
+編集 ユニット
+
+:Edit character portraits, battle animations, CGs, and sprite graphics.
+編集 character portraits, battle animations, CGs, and sprite graphics.
+
+:Edit event scripts that control story scenes, cutscenes, and gameplay triggers.
+編集 event scripts that control story scenes, cutscenes, and gameplay triggers.
+
+:Edit in-game dialogue, menus, and all text strings in the ROM.
+編集 in-game dialogue, menus, and all text strings in the ROM.
+
+:Edit playable and enemy unit stats, class data, and support relationships.
+編集 playable and enemy unit stats, class data, and support relationships.
+
+:Edit weapons, items, their effects, shops, and promotions.
+編集 weapons, items, their effects, shops, and promotions.
+
+:Editors
+エディタ
+
+:Effect ID:
+効果 ID:
+
+:Effect Pointer:
+効果 ポインタ:
+
+:Effect Routine:
+効果 Routine:
+
+:Effective (P16):
+特効 (P16):
+
+:Effective Against
+特効 Against
+
+:Effectiveness (Skill Systems Rework)
+特効 (スキル Systems Rework)
+
+:Effectiveness Rework - Class Type
+特効 Rework - クラス タイプ
+
+:Elapsed Time:
+経過時間
+
+:Eliwood Hard (D100):
+エリウッドハード
+
+:Eliwood Normal (D96):
+エリウッドノーマル
+
+:Ending Event Editor
+Ending イベント エディタ
+
+:Enemy Class Priority:
+敵 クラス Priority:
+
+:Enemy Distance Priority:
+敵 Distance Priority:
+
+:Enemy Remaining HP Priority:
+敵 Remaining HP Priority:
+
+:English Name Pointer:
+English 名前 ポインタ:
+
+:Error Report
+エラー Report
+
+:Event / Fortune Teller
+イベント / Fortune Teller
+
+:Event / World Map (B116-B135)
+イベント / ワールドマップ (B116-B135)
+
+:Event Branch Flag:
+イベント Branch Flag:
+
+:Event Command Function Pointer Table
+イベント Command Function ポインタ Table
+
+:Event Command Function Pointer Table (FE7)
+イベント Command Function ポインタ Table (FE7)
+
+:Event Command Function Pointer:
+イベント Command Function ポインタ:
+
+:Event Condition Editor
+イベント条件 エディタ
+
+:Event Conditions (Main)
+イベント条件 (Main)
+
+:Event Error Display
+イベント エラー Display
+
+:Event Pointer (FE6)
+イベントポインタ
+
+:Event Pointer (FE7)
+イベントポインタ
+
+:Event Pointer (u32@0):
+イベント ポインタ (u32@0):
+
+:Event Pointer:
+イベントポインタ
+
+:Event Script (Main)
+イベントスクリプト (Main)
+
+:Event Script Editor
+イベントスクリプト エディタ
+
+:Event Script Inner Control
+イベントスクリプト Inner Control
+
+:Event Template 1
+イベント Template 1
+
+:Event Template 2
+イベント Template 2
+
+:Event Template 3
+イベント Template 3
+
+:Event Template 4
+イベント Template 4
+
+:Event Template 5
+イベント Template 5
+
+:Event Template 6
+イベント Template 6
+
+:Event Template Implementation
+イベント Template Implementation
+
+:Event Unit Placement (FE8)
+イベントユニット Placement (FE8)
+
+:Event Units
+イベントユニット
+
+:Events
+イベント
+
+:Exit Pointer:
+終了 ポインタ:
+
+:Experience Rating
+経験値 Rating
+
+:Export All Texts (TSV)
+エクスポート 全て Texts (TSV)
+
+:Export Events in EA format
+エクスポート イベント in EA format
+
+:Export Face
+エクスポート Face
+
+:Export Frame PNG
+エクスポート Frame PNG
+
+:Export Image
+画像取出
+
+:Export MIDI
+エクスポート MIDI
+
+:Export Main Tables
+エクスポート Main Tables
+
+:Export Mini
+エクスポート Mini
+
+:Export PAL
+エクスポート PAL
+
+:Export PNG
+エクスポート PNG
+
+:Export Palette
+パレット取出
+
+:Export Sheet
+エクスポート Sheet
+
+:Export TSV
+エクスポート TSV
+
+:Export TSV...
+エクスポート TSV...
+
+:Export Text (TSV)
+エクスポート Text (TSV)
+
+:Export Tile Sheet PNG...
+エクスポート タイル Sheet PNG...
+
+:Export Undo Buffer
+エクスポート 元に戻す Buffer
+
+:Export World Map Events (selected) in EA format
+エクスポート ワールドマップ イベント (selected) in EA format
+
+:Export World Map Events in EA format
+エクスポート ワールドマップ イベント in EA format
+
+:Export changes made to the ROM in this session.
+エクスポート changes made to the ROM in this session.
+
+:Export events in EA format.
+エクスポート events in EA format.
+
+:Extend PLIST Range
+Extend PLIST 範囲
+
+:External Tools
+External ツール
+
+:Extra Unit (FE8U)
+Extra ユニット (FE8U)
+
+:Extra Unit Editor
+Extra ユニットエディタ
+
+:FE-Repo-Music Remote URL
+FE-Repo-音楽 Remote URL
+
+:File name:
+ファイル name:
+
+:Filter commands...
+フィルター commands...
+
+:Filter patches by name, tag, or author...
+フィルター patches by name, tag, or author...
+
+:Filter text:
+フィルター text:
+
+:Find
+検索
+
+:First Reference
+最初 参照
+
+:First byte = type (0-3), rest = unit/class IDs. Null-terminated.
+最初 byte = type (0-3), rest = unit/class IDs. Null-terminated.
+
+:Flag Name Editor
+Flag 名前 エディタ
+
+:Flag Usage Viewer
+Flag 利用 ビューア
+
+:Font Editor (Chinese)
+Font エディタ (Chinese)
+
+:Footstep Sounds Editor
+Footstep 音 エディタ
+
+:For import, use Run > Event Assembler Add.
+For import, use 実行 > イベント Assembler 追加.
+
+:Force Sortie Editor
+Force Sortie エディタ
+
+:Force Update
+Force 更新
+
+:Frame:
+フレーム
+
+:Free Map Type:
+Free マップ タイプ:
+
+:Free Space Address:
+Free Space アドレス:
+
+:From Unit:
+From ユニット:
+
+:Function Pointer:
+関数ポインタ
+
+:GBA Color (W0):
+GBAカラー
+
+:GBA ROM Files
+GBA ROM ファイル
+
+:GBA Raw Palette
+GBA Raw パレット
+
+:GIMP GPL Palette
+GIMP GPL パレット
+
+:Generate Patch
+Generate パッチ
+
+:Generic Enemy Portraits
+Generic 敵 顔画像
+
+:Git Executable Path
+Git Executable パス
+
+:Give Up
+Give 上
+
+:Growth Caps / Promotion Bonuses
+Growth Caps / クラスチェンジ Bonuses
+
+:Growth Rate 10:
+成長率 10:
+
+:Growth Rate 1:
+成長率 1:
+
+:Growth Rate 2:
+成長率 2:
+
+:Growth Rate 3:
+成長率 3:
+
+:Growth Rate 4:
+成長率 4:
+
+:Growth Rate 5:
+成長率 5:
+
+:Growth Rate 6:
+成長率 6:
+
+:Growth Rate 7:
+成長率 7:
+
+:Growth Rate 8:
+成長率 8:
+
+:Growth Rate 9:
+成長率 9:
+
+:Growth Rate Bonuses
+成長率 Bonuses
+
+:Growth Rates (%)
+成長率 (%)
+
+:Growth Rates (%):
+成長率 (%):
+
+:HP
+HP
+
+:Haiku Event Editor
+Haiku イベント エディタ
+
+:Header Byte:
+ヘッダ Byte:
+
+:Header Priority:
+ヘッダ Priority:
+
+:Header Reverb:
+ヘッダ Reverb:
+
+:Header:
+ヘッダ:
+
+:Hector Hard (D108):
+ヘクトルハード
+
+:Hector Normal (D104):
+ヘクトルノーマル
+
+:Height:
+高さ
+
+:Held Item Skill Pointer:
+Held アイテム スキル ポインタ:
+
+:Help Text ID:
+ヘルプ Text ID:
+
+:Hex Text Palette
+16進 Text パレット
+
+:Hex:
+16進:
+
+:Hide this error
+非表示 this error
+
+:Hit (B22):
+当てる
+
+:Hit Bonus:
+命中 ボーナス:
+
+:Hit Color:
+命中 色:
+
+:Icon (B29):
+アイコン
+
+:Icon Index:
+Icon インデックス:
+
+:Icon:
+アイコン
+
+:Identifier:
+識別子
+
+:Identity
+身分
+
+:Identity / Misc
+身分 / その他
+
+:Image (D0):
+画像
+
+:Image Address:
+画像アドレス
+
+:Image Files
+画像 ファイル
+
+:Image Form Reference
+画像 Form 参照
+
+:Image Pointer:
+画像 ポインタ:
+
+:Image Source:
+画像 Source:
+
+:Image Sub-Menu
+画像 Sub-Menu
+
+:Image Type:
+画像 タイプ:
+
+:Image Viewer
+画像 ビューア
+
+:Import Image
+画像読込
+
+:Import MIDI
+インポート MIDI
+
+:Import PAL
+インポート PAL
+
+:Import PNG
+インポート PNG
+
+:Import Palette
+画像からパレット読込
+
+:Import TSV
+インポート TSV
+
+:Import TSV...
+インポート TSV...
+
+:Import Text (TSV)
+インポート Text (TSV)
+
+:Import Texts (TSV)
+インポート Texts (TSV)
+
+:Import as one picture (auto-generate map_config from this image)
+インポート as one picture (auto-generate map_config from this image)
+
+:Import image only (do not import palette)
+インポート image only (do not import palette)
+
+:Import image with palette (recommended)
+インポート image with palette (recommended)
+
+:Import to ROM (Experimental)
+インポート to ROM (Experimental)
+
+:Info:
+情報:
+
+:Initial Configuration
+Initial 構成
+
+:Install Patch
+Install パッチ
+
+:Instrument Editor
+Instrument エディタ
+
+:Instrument Selection
+Instrument 選択
+
+:Instrument Set:
+楽器セット
+
+:Item # (B6):
+アイテム # (B6):
+
+:Item (Staff):
+アイテム (Staff):
+
+:Item 1:
+所持品1
+
+:Item 2:
+所持品2
+
+:Item 3:
+所持品3
+
+:Item 4:
+所持品4
+
+:Item Editor (FE6)
+アイテム
+
+:Item Effect Pointer Editor
+アイテム 効果 ポインタ エディタ
+
+:Item Effectiveness (Main)
+アイテム 特効 (Main)
+
+:Item Effectiveness Editor
+アイテム 特効 エディタ
+
+:Item ID:
+アイテムID
+
+:Item Name Text ID:
+アイテム 名前 Text ID:
+
+:Item Promotion Editor
+アイテム クラスチェンジ エディタ
+
+:Item Shop Editor
+アイテム ショップ エディタ
+
+:Item Stat Bonuses Editor
+アイテム能力ボーナス エディタ
+
+:Item Usage Pointer Editor
+アイテム 利用 ポインタ エディタ
+
+:Item Weapon Effect Editor
+アイテム武器効果 エディタ
+
+:Item/Weapon Icon Viewer
+アイテム/武器 Icon ビューア
+
+:Item:
+道具
+
+:Japanese Name Length:
+Japanese 名前 長さ:
+
+:Japanese Name Pointer:
+日本語名ポインタ先
+
+:Key Map Pointer:
+Key マップポインタ:
+
+:LZ77 Compression Tool
+LZ77 Compression ツール
+
+:Lance (B21):
+槍
+
+:Lance (B45):
+槍
+
+:Lance:
+槍
+
+:Leader Unit ID:
+Leader ユニット ID:
+
+:Left RMenuPointer:
+左 RMenuPointer:
+
+:Length Byte:
+長さ Byte:
+
+:Length:
+長さ:
+
+:Lethal Damage Priority:
+Lethal ダメージ Priority:
+
+:Level/Growth:
+レベル/Growth:
+
+:Level:
+レベル
+
+:Light (B26):
+光
+
+:Light (B50):
+光
+
+:Light:
+光
+
+:Link Arena Deny Unit Editor
+リンクアリーナ拒否 ユニットエディタ
+
+:Linked Name:
+Linked 名前:
+
+:Load
+読み込み
+
+:Load as FE6 (Binding Blade - Japan)
+読み込み as FE6 (Binding Blade - Japan)
+
+:Load as FE7J (Blazing Blade - Japan)
+読み込み as FE7J (Blazing Blade - Japan)
+
+:Load as FE7U (Blazing Blade - US)
+読み込み as FE7U (Blazing Blade - US)
+
+:Load as FE8J (Sacred Stones - Japan)
+読み込み as FE8J (Sacred Stones - Japan)
+
+:Load as FE8U (Sacred Stones - US)
+読み込み as FE8U (Sacred Stones - US)
+
+:Load as Other (Unknown)
+読み込み as その他 (Unknown)
+
+:Lock Type / ID:
+Lock タイプ / ID:
+
+:Loop Start Byte:
+Loop 開始 Byte:
+
+:Lower Class Anim Color
+Lower クラス Anim 色
+
+:Lower Class Anime:
+Lower クラス Anime:
+
+:Lower Class Palette:
+Lower クラス パレット:
+
+:Luck:
+運
+
+:MIDI File Metadata
+MIDI ファイル Metadata
+
+:Magic Effect Editor (FEditor)
+魔法 効果 エディタ (FEditor)
+
+:Magic Effect:
+魔法 効果:
+
+:Magic/??
+魔法/??
+
+:Main Portrait
+Main 顔画像
+
+:Mant Animation
+Mant アニメ
+
+:Manually configure from Options screen
+Manually configure from オプション screen
+
+:Map Action Animation
+マップ 行動 アニメ
+
+:Map Change (Main)
+マップ変更 (Main)
+
+:Map Change Editor
+マップ変更 エディタ
+
+:Map Change Event Editor
+マップ変更 イベント エディタ
+
+:Map Chip Import
+マップ Chip インポート
+
+:Map Data Pointer:
+マップ Data ポインタ:
+
+:Map Effect Pointer:
+マップ 効果 ポインタ:
+
+:Map Exit Point (Main)
+マップ 出口 (Main)
+
+:Map Exit Point Editor
+マップ 出口 エディタ
+
+:Map Face (32x32)
+マップ Face (32x32)
+
+:Map Face:
+マップ Face:
+
+:Map ID:
+マップID
+
+:Map Load Functions (FE8)
+マップ 読み込み Functions (FE8)
+
+:Map Name Text IDs
+マップ 名前 Text IDs
+
+:Map Picture Box
+マップ Picture Box
+
+:Map Pointer
+マップポインタ
+
+:Map Pointer (Main)
+マップポインタ (Main)
+
+:Map Pointer Editor
+マップポインタ エディタ
+
+:Map Pointer:
+マップポインタ:
+
+:Map Properties
+マップ属性
+
+:Map Resize
+マップ Resize
+
+:Map Setting Difficulty Extra
+マップ 設定 難易度 Extra
+
+:Map Settings (FE7JP)
+マップ設定 (FE7JP)
+
+:Map Settings (Main)
+マップ設定 (Main)
+
+:Map Style / PLIST
+マップ Style / PLIST
+
+:Map Style Editor
+マップ Style エディタ
+
+:Map Tile Animation Editor
+マップ タイルアニメ エディタ
+
+:Map Tile Animation Type 1
+マップ タイルアニメ タイプ 1
+
+:Map Tile Animation Type 2 (Palette)
+マップ タイルアニメ タイプ 2 (パレット)
+
+:Map Tile Data Pointer:
+マップ タイル Data ポインタ:
+
+:Maps each unit index to a description text ID (2 bytes per entry).
+マップ each unit index to a description text ID (2 bytes per entry).
+
+:Menu Command Editor
+Menu Command エディタ
+
+:Menu Definition Editor
+Menu Definition エディタ
+
+:Mine:
+地雷
+
+:Mini Portrait
+Mini 顔画像
+
+:Mini-Map Terrain
+Mini-マップ Terrain
+
+:Monster Item Editor
+Monster アイテムエディタ
+
+:Monster Probability Editor
+魔物確率 エディタ
+
+:Mouth:
+口
+
+:Move Cost (FE6) Editor
+移動コスト (FE6) エディタ
+
+:Move Cost (P56):
+移動コスト (P56):
+
+:Move Cost Editor
+移動コスト エディタ
+
+:Move Cost Rain (P60):
+移動コスト Rain (P60):
+
+:Move Cost Snow (P64):
+移動コスト Snow (P64):
+
+:Multi Sample Pointers
+Multi サンプル ポインタ
+
+:Music
+音楽
+
+:Name Char 0:
+名前 Char 0:
+
+:Name Char 10:
+名前 Char 10:
+
+:Name Char 11:
+名前 Char 11:
+
+:Name Char 1:
+名前 Char 1:
+
+:Name Char 2:
+名前 Char 2:
+
+:Name Char 3:
+名前 Char 3:
+
+:Name Char 4:
+名前 Char 4:
+
+:Name Char 5:
+名前 Char 5:
+
+:Name Char 6:
+名前 Char 6:
+
+:Name Char 7:
+名前 Char 7:
+
+:Name Char 8:
+名前 Char 8:
+
+:Name Char 9:
+名前 Char 9:
+
+:Name ID (W0):
+名前 ID (W0):
+
+:Name ID:
+名前 ID:
+
+:Name Pointer:
+名前 ポインタ:
+
+:Name Text ID:
+名前 Text ID:
+
+:Name:
+名前
+
+:New Name:
+新しい名前
+
+:Next Node (Eirika 2nd):
+次へ Node (Eirika 2nd):
+
+:Next Node (Eirika):
+次へ Node (Eirika):
+
+:Next Node (Ephraim 2nd):
+次へ Node (Ephraim 2nd):
+
+:Next Node (Ephraim):
+次へ Node (Ephraim):
+
+:No animation data found for this ID (ID=0 or invalid pointer chain).
+いいえ animation data found for this ID (ID=0 or invalid pointer chain).
+
+:No file selected
+いいえ file selected
+
+:No recent files
+いいえ recent files
+
+:No song selected
+いいえ song selected
+
+:No tile selected
+いいえ tile selected
+
+:No$GBA SYM
+いいえ$GBA SYM
+
+:Normal Mode Penalty
+Normal モード ペナルティ
+
+:Note
+注意
+
+:OAM Sprite Editor
+OAM スプライト エディタ
+
+:OAM Sprite Viewer
+OAM スプライト ビューア
+
+:OBJ Tile Pointer:
+OBJ タイル ポインタ:
+
+:OK
+OK
+
+:OP Class Alpha Name (FE6 Extra)
+OP クラス Alpha 名前 (FE6 Extra)
+
+:OP Class Alpha Name (FE6) Editor
+OP クラス Alpha 名前 (FE6) エディタ
+
+:OP Class Alpha Name Editor
+OP クラス Alpha 名前 エディタ
+
+:OP Class Demo (FE7) Editor
+OPクラスデモ (FE7) エディタ
+
+:OP Class Demo (FE7U) Editor
+OPクラスデモ (FE7U) エディタ
+
+:OP Class Demo (FE8U) Editor
+OPクラスデモ (FE8U) エディタ
+
+:OP Class Demo Editor
+OPクラスデモ エディタ
+
+:OP Class Font (FE8U) Editor
+OPクラスフォント (FE8U) エディタ
+
+:OP Class Font Editor
+OPクラスフォント エディタ
+
+:OP Prologue Editor
+OPプロローグ エディタ
+
+:One Picture Import
+One Picture インポート
+
+:Open Community
+開く Community
+
+:Open Info File
+開く 情報 ファイル
+
+:Open Last Selected File
+開く 最後 選択済 ファイル
+
+:Open Patch
+開く パッチ
+
+:Open ROM
+ROMを開く
+
+:Open map change settings
+開く map change settings
+
+:Open the map change configuration screen to edit existing map change entries.
+開く the map change configuration screen to edit existing map change entries.
+
+:Option ID (u8@0):
+オプション ID (u8@0):
+
+:Option Type:
+オプション タイプ:
+
+:Order:
+順序:
+
+:Other ROM Ref
+その他 ROM Ref
+
+:Other ROM\r\nData Address
+その他 ROM\r\nData アドレス
+
+:Other Text Strings
+その他 Text Strings
+
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (ポインタ List) assigns a numeric ID to each map.\r\n選択 an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+
+:PNG Image
+PNG 画像
+
+:Page Down
+Page 下
+
+:Page Up
+Page 上
+
+:Palette (D8):
+パレット
+
+:Palette / Custom Animation:
+パレット / カスタム アニメ:
+
+:Palette Address:
+パレットアドレス
+
+:Palette Change Colors
+パレット Change 色
+
+:Palette Clipboard
+パレット Clipboard
+
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+パレット Clipboard マネージャ stores and retrieves palette data.\r\nコピー palettes between different graphics entries or save them for later use.
+
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+パレット 色 エディタ allows editing individual colors in a 16-color GBA palette.\r\n選択 a palette slot to modify its RGB values.
+
+:Palette Data Pointer:
+パレット Data ポインタ:
+
+:Palette Error Display
+パレット エラー Display
+
+:Palette ID:
+パレットID
+
+:Palette Mismatch
+パレット Mismatch
+
+:Palette Pointer:
+パレット ポインタ:
+
+:Palette Ptr (P12):
+パレット Ptr (P12):
+
+:Palette Ptr:
+パレット Ptr:
+
+:Palette Swap
+パレット Swap
+
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+パレット Swap exchanges palette assignments between entries.\r\n選択 source and destination palette slots to exchange their color data.
+
+:Palette Transparency Error
+パレット Transparency エラー
+
+:Palette:
+パレット
+
+:Paste
+貼付
+
+:Patch Details
+パッチ Details
+
+:Patch Filter
+パッチ フィルター
+
+:Patch Review
+パッチ Review
+
+:Patch Uninstall
+パッチ Uninstall
+
+:Patch2 Remote URL
+パッチ2 Remote URL
+
+:Path Data Pointer:
+パス Data ポインタ:
+
+:Path Move Pointer:
+パス Move ポインタ:
+
+:Path Movement Editor
+パス 移動 エディタ
+
+:Penalty:
+ペナルティ:
+
+:Personal Skill:
+個別スキル
+
+:Pick...
+選択...
+
+:Pointers (D96-D108)
+ポインタ (D96-D108)
+
+:Pointers / Movement / Terrain
+ポインタ / 移動 / Terrain
+
+:Portrait (W8):
+顔
+
+:Portrait Editor (FE6)
+顔画像
+
+:Portrait Image Editor
+顔画像 画像エディタ
+
+:Portrait Import Wizard
+顔画像 インポート Wizard
+
+:Portrait:
+顔
+
+:Post-Clear Icon:
+クリア後アイコン
+
+:Pre-Clear Icon:
+クリア前アイコン
+
+:Preview:
+プレビュー
+
+:Procs Script Editor
+Procs スクリプト エディタ
+
+:Project Information
+Project 情報
+
+:Promo Class
+Promo クラス
+
+:Promotion Class 1:
+クラスチェンジ クラス 1:
+
+:Promotion Class 2:
+クラスチェンジ クラス 2:
+
+:Promotion target class per source class
+クラスチェンジ target class per source class
+
+:RAM Rewrite Tool
+RAM Rewrite ツール
+
+:RAM Rewrite Tool (MAP)
+RAM Rewrite ツール (MAP)
+
+:RES:
+魔防
+
+:ROM Animation Viewer
+ROM アニメ ビューア
+
+:ROM Diff Tool
+ROM Diff ツール
+
+:ROM Information
+ROM 情報
+
+:ROM Rebuild Tool
+ROM Rebuild ツール
+
+:ROM Translation Tool
+ROM Translation ツール
+
+:ROM and Configuration Information
+ROM and 構成 情報
+
+:Random Chest Items
+ランダム宝箱 アイテム
+
+:Range (B25):
+射程
+
+:Raw Hex:
+Raw 16進:
+
+:Recent Files
+Recent ファイル
+
+:Record Address:
+Record アドレス:
+
+:Record Size:
+Record サイズ:
+
+:Recover ROM Header
+復元 ROM ヘッダ
+
+:Reference Data:
+参照データ
+
+:Reference Text:
+参照 Text:
+
+:Refresh
+更新
+
+:Refresh Map
+更新 マップ
+
+:Resistance
+魔防
+
+:Resistance:
+魔防:
+
+:Resolved Name:
+Resolved 名前:
+
+:Retreat AI:
+退避AI
+
+:Revert to This Version
+Revert to This バージョン
+
+:Right RMenuPointer:
+右 RMenuPointer:
+
+:Run Dump
+実行 Dump
+
+:SKL:
+ 技 
+
+:SPD:
+速さ
+
+:Sappy (Sound Editor)
+Sappy (サウンドエディタ)
+
+:Save Image Ptr:
+保存 画像 Ptr:
+
+:Save Merged ROM
+保存 Merged ROM
+
+:Save Patch File
+保存 パッチ ファイル
+
+:Save ROM
+保存 ROM
+
+:Save to File...
+保存 to ファイル...
+
+:Script Template Browser
+スクリプト Template Browser
+
+:Search Content
+検索 Content
+
+:Search disassembly output by argument pattern.
+検索 disassembly output by argument pattern.
+
+:Search editors...
+検索 editors...
+
+:Search in text content...
+検索 in text content...
+
+:Search prefix
+検索 prefix
+
+:Search...
+検索...
+
+:Search:
+検索
+
+:Secret Shop Pointer:
+Secret ショップ ポインタ:
+
+:Section:
+セクション
+
+:Select Category...
+選択 Category...
+
+:Select Event Script Category
+選択 イベントスクリプト Category
+
+:Select Text Script Category
+選択 Text スクリプト Category
+
+:Select an animation to view OAM sprites.
+選択 an animation to view OAM sprites.
+
+:Select an output format and run the disassembly dump.
+選択 an output format and run the disassembly dump.
+
+:Select file
+選択 file
+
+:Select source image...
+選択 source image...
+
+:Selected ROM Info
+選択済 ROM 情報
+
+:Selected Record
+選択済 Record
+
+:Selection Text 1:
+選択 Text 1:
+
+:Selection Text 2:
+選択 Text 2:
+
+:Self Remaining HP Warning:
+Self Remaining HP 警告:
+
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\n参照: feuniverse.us difficulty stat changes
+
+:Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
+Sets the priority of items that thief AI will try to steal. アイテム at the top of the list have the highest priority.
+
+:Setup Steps
+設定 Steps
+
+:Setup Wizard
+設定 Wizard
+
+:Ship Setting:
+Ship 設定:
+
+:Show All
+表示 全て
+
+:Show All Works
+表示 全て Works
+
+:Show Frame:
+表示 Frame:
+
+:Show Subtitles
+表示 Subtitles
+
+:Show subtitle window even when there are no subtitles
+表示 subtitle window even when there are no subtitles
+
+:Sim Level:
+Sim レベル:
+
+:Simple Menu (Easy Mode)
+Simple Menu (簡単モード)
+
+:Size:
+サイズ
+
+:Skill Assignment (Class)
+スキル Assignment (クラス)
+
+:Skill Assignment (Unit)
+スキル Assignment (ユニット)
+
+:Skill Assignment - Class (CSkillSys)
+スキル Assignment - クラス (CSkillSys)
+
+:Skill Assignment - Unit (CSkillSys)
+スキル Assignment - ユニット (CSkillSys)
+
+:Skill Assignment - Unit (FE8N)
+スキル Assignment - ユニット (FE8N)
+
+:Skill Config (SkillSystem)
+スキル 構成 (SkillSystem)
+
+:Skill Configuration (CSkillSys 0.9.x)
+スキル 構成 (CSkillSys 0.9.x)
+
+:Skill Configuration (FE8N v2)
+スキル 構成 (FE8N v2)
+
+:Skill Configuration (FE8N v3)
+スキル 構成 (FE8N v3)
+
+:Skill Configuration (FE8N)
+スキル 構成 (FE8N)
+
+:Skill Name:
+スキル名
+
+:Skill Set 1:
+スキル Set 1:
+
+:Skill Set 2:
+スキル Set 2:
+
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+スキル system editors require a compatible skill patch to be installed.\r\nUse the パッチ マネージャ to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N スキル System
+
+:Skill:
+スキル
+
+:Slide Search
+Slide 検索
+
+:SoX (Sound eXchange)
+SoX (音 eXchange)
+
+:Song Exchange Tool
+曲 Exchange ツール
+
+:Song Header Pointer:
+曲 ヘッダ ポインタ:
+
+:Song ID 1 (u16@0):
+曲 ID 1 (u16@0):
+
+:Song ID 2 (u16@2):
+曲 ID 2 (u16@2):
+
+:Song ID:
+曲 ID:
+
+:Song Length:
+曲の長さ
+
+:Song Name (Text ID):
+曲 名前 (Text ID):
+
+:Song Table (Main)
+曲テーブル (Main)
+
+:Song Table Editor
+曲テーブル エディタ
+
+:Song Tracks
+曲 Tracks
+
+:Sort Order:
+ソート順
+
+:Sort:
+ソート
+
+:Source Directory
+Source ディレクトリ
+
+:Source Palette:
+Source パレット:
+
+:Special (B1):
+特殊
+
+:Specifies the AoE attack range mask. Center point is where the attack detonates. Set attacked tiles to 1, others to 0.
+Specifies the AoE attack range mask. 中央 point is where the attack detonates. Set attacked tiles to 1, others to 0.
+
+:Speed
+速さ
+
+:Speed:
+速さ:
+
+:Sprite Tile Sheet
+スプライト タイル Sheet
+
+:Staff (B24):
+基本武器:杖
+
+:Staff (B48):
+基本武器:杖
+
+:Staff Roll Editor
+Staff Roll エディタ
+
+:Staff:
+基本武器:杖
+
+:Start Base Point ID:
+開始 Base Point ID:
+
+:Start Palette Index:
+開始 パレット インデックス:
+
+:Start X:
+開始 X:
+
+:Start Y:
+開始 Y:
+
+:Stat Bonus (P12):
+能力 ボーナス (P12):
+
+:Stat Bonuses (Skill Systems)
+能力ボーナス (スキル Systems)
+
+:Stat Bonuses Preview
+能力ボーナス Preview
+
+:State:
+状態
+
+:Stats / Bonuses
+能力 / Bonuses
+
+:Status
+ステータス
+
+:Status Option Order Editor
+ステータス オプション 順序 エディタ
+
+:Status Parameters Editor
+ステータス Parameters エディタ
+
+:Status R-Menu Editor
+ステータス R-Menu エディタ
+
+:Status Screen Options
+ステータス Screen オプション
+
+:Status Units Menu Editor
+ステータス ユニット Menu エディタ
+
+:Status:
+ステータス:
+
+:Step 1: Select your clean Fire Emblem GBA ROM file.
+Step 1: 選択 your clean Fire Emblem GBA ROM file.
+
+:Step 2: Choose your preferred language for the editor interface.
+Step 2: 選択 your preferred language for the editor interface.
+
+:String 0:
+文字列0
+
+:String 1:
+文字列1
+
+:String 2:
+文字列2
+
+:String 3:
+文字列3
+
+:String 4:
+文字列4
+
+:String 5:
+文字列5
+
+:String 6:
+文字列6
+
+:String 7:
+文字列7
+
+:String Pointer:
+文字列ポインタ
+
+:Summon Unit Editor
+Summon ユニットエディタ
+
+:Summoned Unit:
+呼びされるユニット
+
+:Support / Talk:
+Support / 会話:
+
+:Support Attribute Editor
+支援属性 エディタ
+
+:Support Class:
+支援クラス
+
+:Support Partner 1:
+支援相手1
+
+:Support Partner 2:
+支援相手2
+
+:Support Talk (FE6)
+支援会話 (FE6)
+
+:Support Talk (FE7)
+支援会話 (FE7)
+
+:Support Unit Editor
+支援ユニット エディタ
+
+:Support Units (FE6)
+支援ユニット (FE6)
+
+:Surround Warning:
+Surround 警告:
+
+:Sword (B20):
+剣
+
+:Sword (B44):
+剣
+
+:Sword:
+剣
+
+:System Area Gradation Color Viewer
+System Area Gradation 色 ビューア
+
+:System Icon Viewer
+System Icon ビューア
+
+:TSA Animation Editor
+TSA アニメ エディタ
+
+:TSA Animation Editor v2
+TSA アニメ エディタ v2
+
+:TSA Error
+TSA エラー
+
+:TSA Pointer:
+TSA ポインタ:
+
+:TSA Tile Editor
+TSA タイル エディタ
+
+:TSA w/ Header (P8):
+TSA w/ ヘッダ (P8):
+
+:Table Pointer:
+Table ポインタ:
+
+:Talk Group Editor
+会話 Group エディタ
+
+:Talk Group:
+会話 Group:
+
+:Target Class ID:
+Target クラス ID:
+
+:Terrain Avoid (P68):
+Terrain 回避 (P68):
+
+:Terrain Battle Floor:
+Terrain 戦闘 Floor:
+
+:Terrain Left:
+Terrain 左:
+
+:Terrain Name (English)
+地形名 (English)
+
+:Terrain Name Editor
+地形名 エディタ
+
+:Terrain Name Text ID:
+地形名 Text ID:
+
+:Terrain Name:
+地形名:
+
+:Terrain Right:
+Terrain 右:
+
+:Test Play in Emulator
+テスト Play in Emulator
+
+:Test play selected ROM in emulator
+テスト play selected ROM in emulator
+
+:Text ID:
+ID テキスト
+
+:Tile Data Ptr:
+タイル Data Ptr:
+
+:Tile Editor (click on map to select)
+タイル エディタ (click on map to select)
+
+:Tile ID (hex):
+タイル ID (hex):
+
+:Tile Offset:
+タイル Offset:
+
+:Tile Override Warning
+タイル Override 警告
+
+:Tile Sheet (Reference):
+タイル Sheet (参照):
+
+:Tile:
+タイル
+
+:Tiles X:
+タイル X:
+
+:Tiles Y:
+タイル Y:
+
+:Tileset Append
+Tileset 追加
+
+:Title Image Ptr:
+タイトル 画像 Ptr:
+
+:Title Index:
+タイトル インデックス:
+
+:To Unit:
+To ユニット:
+
+:Top
+上
+
+:Trainee Class (trainee only):
+Trainee クラス (trainee only):
+
+:Type (B7):
+種類
+
+:Type Name:
+タイプ 名前:
+
+:Type:
+種類
+
+:UPS Patch Applier
+UPS パッチ Applier
+
+:UPS Patch Creator
+UPS パッチ Creator
+
+:UPS Patch Files
+UPS パッチ ファイル
+
+:Undo
+元に戻す
+
+:Undo Buffer
+元に戻す Buffer
+
+:Undo History Viewer
+元に戻す History ビューア
+
+:Unit Action Pointers
+ユニット 行動 ポインタ
+
+:Unit Allocation Editor
+ユニット Allocation エディタ
+
+:Unit Color Assignment
+ユニット 色 Assignment
+
+:Unit Data Pointer:
+ユニット Data ポインタ:
+
+:Unit Editor (FE6)
+ユニットエディタ (FE6)
+
+:Unit Editor (Main)
+ユニットエディタ (Main)
+
+:Unit Face (96x80)
+ユニット Face (96x80)
+
+:Unit Face:
+ユニット Face:
+
+:Unit Groups
+ユニット Groups
+
+:Unit Growth:
+ユニット Growth:
+
+:Unit Height Adjustment
+ユニット 高さ Adjustment
+
+:Unit ID:
+部隊表ID
+
+:Unit Info Pointer:
+ユニット 情報 ポインタ:
+
+:Unit Info:
+ユニット 情報:
+
+:Unit Item Drop Editor
+ユニット アイテム Drop エディタ
+
+:Unit List Pointer:
+ユニット List ポインタ:
+
+:Unit Move Icon
+ユニット Move Icon
+
+:Unit Palette Assignment
+ユニット パレット Assignment
+
+:Unit Palette Editor
+ユニット パレット エディタ
+
+:Unit Simulation Control
+ユニット Simulation Control
+
+:Unit Skill Pointer:
+ユニット スキル ポインタ:
+
+:Unit Skill:
+ユニット スキル:
+
+:Unit Wait Icon
+ユニット Wait Icon
+
+:Unit/Class Pointer:
+ユニット/クラス ポインタ:
+
+:Unit:
+ユニット
+
+:Units (FE7) Editor
+ユニット (FE7) エディタ
+
+:Units Short Text Editor
+ユニット Short テキストエディタ
+
+:Unknown (D20):
+不明
+
+:Unknown 1:
+不明1
+
+:Unknown 2 (W2):
+不明2
+
+:Unknown 2:
+不明2
+
+:Unknown ROM Version
+Unknown ROM バージョン
+
+:Up RMenuPointer:
+上 RMenuPointer:
+
+:Update Checker
+更新 Checker
+
+:Upper Class Anim Color
+Upper クラス Anim 色
+
+:Upper Class Anime:
+Upper クラス Anime:
+
+:Upper Class Palette:
+Upper クラス パレット:
+
+:Usability Pointer:
+Usability ポインタ:
+
+:Use ASM Map for search
+Use ASM マップ for search
+
+:Use Desc (W4):
+Use 説明 (W4):
+
+:Use Effect (B30):
+Use 効果 (B30):
+
+:Uses (B20):
+耐久
+
+:Vendor Pointer:
+Vendor ポインタ:
+
+:Version:
+バージョン
+
+:View tile graphics from ROM. Enter addresses and click Draw.
+表示 tile graphics from ROM. Enter addresses and click Draw.
+
+:Visual Map Editor
+Visual マップエディタ
+
+:W112: Map name 1
+W112: マップ name 1
+
+:W114: Map name 2
+W114: マップ name 2
+
+:W114: Map name 2 (X)
+W114: マップ name 2 (X)
+
+:W136: Clear condition (display only)
+W136: クリア condition (display only)
+
+:W136: Clear condition text
+W136: クリア condition text
+
+:W140: Clear condition text
+W140: クリア condition text
+
+:W20: Difficulty adjustment
+W20: 難易度 adjustment
+
+:W22: Player phase BGM
+W22: プレイヤー phase BGM
+
+:W24: Enemy phase BGM
+W24: 敵 phase BGM
+
+:W28: Player phase BGM 2
+W28: プレイヤー phase BGM 2
+
+:W28: Player phase BGM 2 (X)
+W28: プレイヤー phase BGM 2 (X)
+
+:W30: Enemy phase BGM 2
+W30: 敵 phase BGM 2
+
+:W30: Enemy phase BGM 2 (X)
+W30: 敵 phase BGM 2 (X)
+
+:W34: Player phase BGM flag 4
+W34: プレイヤー phase BGM flag 4
+
+:W36: Enemy phase BGM flag 4
+W36: 敵 phase BGM flag 4
+
+:Warning Level
+警告 レベル
+
+:Warning: Effectiveness pointer is null (P16=0). Consider allocating.
+警告: 特効 pointer is null (P16=0). Consider allocating.
+
+:Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
+警告: 能力ボーナス pointer is null (P12=0). Consider allocating.
+
+:Wave Pointer:
+Wave ポインタ:
+
+:Wave Track Import
+Wave Track インポート
+
+:Weapon ID:
+武器 ID:
+
+:Weapon Item Skill Pointer:
+武器 アイテム スキル ポインタ:
+
+:Weapon Levels
+武器レベル
+
+:Weapon Lock (Vennou) Editor
+武器ロック (Vennou) エディタ
+
+:Weapon Properties
+武器 プロパティ
+
+:Weapon Rank Levels (B44-B51)
+武器ランク レベル (B44-B51)
+
+:Weapon Ranks:
+武器ランク:
+
+:Weapon Triangle Editor
+武器三角 エディタ
+
+:Weapon Type (B0):
+武器タイプ (B0):
+
+:Weapon Type 1:
+武器タイプ 1:
+
+:Weapon Type 2:
+武器タイプ 2:
+
+:Weapon Type:
+武器タイプ:
+
+:Weapon effectiveness 2x/3x class list (FE8 only)
+武器 effectiveness 2x/3x class list (FE8 only)
+
+:Weapon triangle bonus/penalty data
+武器 triangle bonus/penalty data
+
+:Weight (B23):
+ウェイト
+
+:Width:
+幅
+
+:World Map BGM Editor
+ワールドマップ BGM エディタ
+
+:World Map Event Editor
+ワールドマップ イベント エディタ
+
+:World Map Image (FE6)
+WMAP画像
+
+:World Map Image (FE7)
+WMAP画像
+
+:World Map Monster Editor
+ワールドマップ Monster エディタ
+
+:World Map Paths
+ワールドマップ Paths
+
+:World Map Point Editor
+ワールドマップ Point エディタ
+
+:Write Pointer
+Write ポインタ
+
+:Write Tile
+Write タイル
+
+:Yes Text ID:
+はい Text ID:
+
+:You can change these settings later from the Options menu.
+You can change these settings later from the オプション menu.
+
+:Zoom:
+拡大
+
+:[No palette data in clipboard]
+[いいえ palette data in clipboard]
+
+:[Palette color grid - 16 color slots]
+[パレット color grid - 16 color slots]
+
+# ----- Phase 6 untranslated literals (no language had them) -----
+
+:Text ID for this class's display name (click to open Text Viewer)
+このクラスの表示名のテキストID (クリックでテキストビューアを開く)
+
+:Text ID for this class's description (click to open Text Viewer)
+このクラスの説明のテキストID (クリックでテキストビューアを開く)
+
+:Decoded description text
+デコードされた説明テキスト
+
+:Desc
+説明
+
+:Open text viewer for this description
+この説明のテキストビューアを開く
+
+:Internal class number
+内部クラス番号
+
+:Level required for promotion (0=unpromoted)
+クラスチェンジに必要なレベル (0=未CC)
+
+:Map sprite index when idle
+アイドル時マップスプライトインデックス
+
+:Walking speed on the map
+マップ上の歩行速度
+
+:Portrait graphic index (click to open Portrait Viewer)
+顔画像グラフィックインデックス (クリックで顔画像ビューアを開く)
+
+:Sort Order (B10):
+ソート順
+
+:Sort order for class list
+クラスリストのソート順
+
+:Base HP for this class
+このクラスのベースHP
+
+:Con (B17):
+体格 (B17):
+
+:Base constitution
+ベース体格
+
+:Mov (B18):
+移動 (B18):
+
+:Base movement range
+ベース移動範囲
+
+:Stat Caps (Max Values)
+能力上限 (最大値)
+
+:Max HP (B19):
+最大HP
+
+:Maximum HP stat cap for this class
+このクラスの最大HP能力上限
+
+:Max Str (B20):
+最大力 (B20):
+
+:Max Skl (B21):
+最大技 (B21):
+
+:Max Spd (B22):
+最大速さ (B22):
+
+:Max Def (B23):
+最大守備 (B23):
+
+:Max Res (B24):
+最大魔防 (B24):
+
+:Max Con (B25):
+最大体格 (B25):
+
+:Power (B26):
+力と魔力
+
+:Class power / EXP correction value
+クラスパワー / 経験値補正値
+
+:Promotion Gains (CC Bonus)
+クラスチェンジボーナス
+
+:HP bonus gained on class change
+クラスチェンジで得られるHPボーナス
+
+:Pointer to battle animation data
+戦闘アニメデータへのポインタ
+
+:Pointer to terrain movement cost table
+地形移動コストテーブルへのポインタ
+
+:Export all classes to a TSV file
+全クラスをTSVファイルにエクスポート
+
+:Import classes from a TSV file
+TSVファイルからクラスをインポート
+
+:Open skill assignment editor for this class
+このクラスのスキル割当エディタを開く
+
+:Text ID for this item's display name (click to open Text Viewer)
+このアイテムの表示名のテキストID (クリックでテキストビューアを開く)
+
+:Text ID for the item description (click to open Text Viewer)
+このアイテムの説明のテキストID (クリックでテキストビューアを開く)
+
+:Text ID for the item usage description (click to open Text Viewer)
+このアイテムの使用説明のテキストID (クリックでテキストビューアを開く)
+
+:Decoded usage description text
+デコードされた使用説明テキスト
+
+:Open text viewer for this usage description
+この使用説明のテキストビューアを開く
+
+:Internal item number (unique ID)
+内部アイテム番号 (一意ID)
+
+:Weapon type (Sword, Lance, Axe, etc.)
+武器タイプ (剣・槍・斧など)
+
+:Pointer to stat bonuses when equipped
+装備時の能力ボーナスへのポインタ
+
+:Pointer to effectiveness list (bonus vs. classes)
+特効リスト (クラス特効) へのポインタ
+
+:Number of uses before the item breaks
+アイテムが壊れるまでの使用回数
+
+:Attack power
+攻撃力
+
+:Hit rate bonus
+命中率ボーナス
+
+:Item weight (reduces attack speed)
+アイテム重量 (攻撃速度を減少)
+
+:Critical hit rate bonus
+必殺率ボーナス
+
+:Attack range (encoded as min-max)
+攻撃範囲 (最小-最大としてエンコード)
+
+:Base item price
+ベースアイテム価格
+
+:Effect when using the item
+アイテム使用時の効果
+
+:Special effect applied on hit
+命中時に適用される特殊効果
+
+:Weapon experience gained per use
+使用ごとに得られる武器経験値
+
+:Export all items to a TSV file
+全アイテムをTSVファイルにエクスポート
+
+:Import items from a TSV file
+TSVファイルからアイテムをインポート
+
+:Open skill configuration editor
+スキル構成エディタを開く
+
+:Text ID for the unit's display name (click to open Text Viewer)
+ユニットの表示名のテキストID (クリックでテキストビューアを開く)
+
+:Text ID for the unit's description (click to open Text Viewer)
+ユニットの説明のテキストID (クリックでテキストビューアを開く)
+
+:Unique identifier for this unit
+このユニットの一意識別子
+
+:The unit's class (click to open Class Editor)
+ユニットのクラス (クリックでクラスエディタを開く)
+
+:Pick class from editor
+エディタからクラスを選択
+
+:Unit or class name associated with this portrait ID
+この顔画像IDに関連するユニットまたはクラス名
+
+:Pick portrait from editor
+エディタから顔画像を選択
+
+:Map sprite face index
+マップスプライト顔インデックス
+
+:Elemental affinity for support bonuses
+支援ボーナスの属性
+
+:Starting level of this unit
+このユニットの開始レベル
+
+:Base Hit Points (signed offset from class base)
+ベースHP (クラスベースからの符号付きオフセット)
+
+:Base Strength/Magic (signed offset from class base)
+ベース力/魔法 (クラスベースからの符号付きオフセット)
+
+:Percent chance of HP increasing on level up
+レベルアップ時にHPが上昇する確率
+
+:Support & Other
+支援とその他
+
+:Export all units to a TSV file
+全ユニットをTSVファイルにエクスポート
+
+:Import units from a TSV file
+TSVファイルからユニットをインポート
+
+:Open skill assignment editor for this unit
+このユニットのスキル割当エディタを開く
+
+:Text ID for the unit's description
+ユニットの説明のテキストID
+
+:Click to open Class Editor
+クリックでクラスエディタを開く
+
+:Click to open Portrait Viewer
+クリックで顔画像ビューアを開く
+
+:Text ID for the item's description
+アイテムの説明のテキストID
+
+:Data Address\r\n(if pointer)
+データアドレス\r\n(ポインタの場合)
+
+:Other ROM\r\nData Address
+他のROM\r\nデータアドレス
+
+:Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
+現在のROMを別バージョンと比較して、\r\nFE7とFE8で共有される画像やプログラムなどの\r\n特定のデータを見つけます。
+
+:Click to open Unit Editor
+クリックでユニットエディタを開く
+
+:Pick unit from editor
+エディタからユニットを選択
+
+:Click to open Song Table
+クリックで曲テーブルを開く
+
+:References (units, classes, items):
+参照 (ユニット・クラス・アイテム):
+
+:Other reference sources (maps, events, supports, …) not yet ported. Track full parity in a follow-up issue.
+その他の参照元 (マップ・イベント・支援など) は未実装。完全なパリティはフォローアップissueで追跡。
+
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+背景画像セレクタ。\r\nROMの利用可能な背景エントリから背景画像を選択してください。
+
+:Preview (Frame 0):
+プレビュー (フレーム0):
+
+:Click to open Item Editor
+クリックでアイテムエディタを開く
+
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+データサイズの不一致。\r\n(DataCount/2) % Width != 0
+
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (ポインタリスト) は各マップに数値IDを割り当てます。\r\n未使用のPLIST番号を選択して新しいマップポインタエントリを追加してください。\r\nPLIST IDはマップデータを内部的に参照するために使用されます。
+
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+難易度調整値を設定します。\r\nハードブーストはハードモードで敵の能力を増加させます。\r\nペナルティは通常モードとイージーモードで敵の能力を減少させます。\r\n\r\n参考: feuniverse.us difficulty stat changes
+
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+パレットカラーエディタは16色GBAパレットの個別の色を編集できます。\r\nパレットスロットを選択してそのRGB値を変更します。
+
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+パレットクリップボードマネージャはパレットデータを保存および取得します。\r\n異なるグラフィックエントリ間でパレットをコピーするか、後で使用するために保存します。
+
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+パレットスワップはエントリ間のパレット割当を交換します。\r\nソースとデスティネーションのパレットスロットを選択してその色データを交換します。
+
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+スキルシステムエディタは互換性のあるスキルパッチがインストールされている必要があります。\r\n最初にパッチマネージャを使用してスキルシステムパッチをインストールしてください。\r\n\r\nサポートされるスキルシステム: CSkillSys, FE8N Skill System
+
+# ----- Long-form entries (3 extra) for #356 untranslated coverage -----
+
+:Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
+復元のために、このパッチがインストールされる前のROMを選択してください。\r\n\r\nこの機能は信頼できるアンインストールを保証しません。\r\n失敗する可能性があるため、事前にバックアップを取ってください。\r\nまた、パッチコードは削除できますが、関連データは常に削除できるとは限りません。\r\nその場合、数百バイトの損失が発生する可能性があります。ご了承ください。
+
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
+ROMのテキストエンコーディングテーブルでエンコードできない文字は、ゲーム内で表示エラーを引き起こします。\r\n\r\n一般的な問題:\r\n  - ROMのサポートされた文字セット外の文字を使用\r\n  - 特殊なUnicode文字を含む外部ソースからテキストを貼り付け\r\n  - 有効なエスケープシーケンスではない制御文字を使用\r\n\r\n問題を解決するには、以下のオプションのいずれかを選択してください。
+
+:Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be <= 4095, otherwise instant movement occurs.
+経過時間は、このノードでユニットが停止する時間を制御します。値が小さいほど停止が長くなります。総移動には4096時間単位が使用されます。すべてのノードの経過時間の合計は4095以下である必要があります。そうでない場合、即時移動が発生します。
+
+
+# ----- Round 2 backfill (#356) -----
+
+:D0: CP
+D0: CP
+
+:W4: Object type (PLIST)
+W4: オブジェクトタイプ (PLIST)
+
+:B7: Chipset config (PLIST)
+B7: チップセット構成 (PLIST)
+
+:B12: Fog level
+B12: 霧レベル
+
+:B16: Initial X coordinate
+B16: 初期X座標
+
+:B17: Initial Y coordinate
+B17: 初期Y座標
+
+:B18: Weather
+B18: 天候
+
+:B44: Breakable wall HP
+B44: 壊れる壁のHP
+
+:Asset Rating
+資産レーティング
+
+:B45: A Eliwood Normal
+B45: A エリウッド 通常
+
+:W62: A Eliwood Normal
+W62: A エリウッド 通常
+
+:B46: A Eliwood Hard
+B46: A エリウッド 困難
+
+:W64: A Eliwood Hard
+W64: A エリウッド 困難
+
+:B47: A Hector Normal
+B47: A ヘクトル 通常
+
+:W66: A Hector Normal
+W66: A ヘクトル 通常
+
+:B48: A Hector Hard
+B48: A ヘクトル 困難
+
+:W68: A Hector Hard
+W68: A ヘクトル 困難
+
+:Strategy Rating
+戦略レーティング
+
+:B49: B Eliwood Normal
+B49: B エリウッド 通常
+
+:W70: B Eliwood Normal
+W70: B エリウッド 通常
+
+:B50: B Eliwood Hard
+B50: B エリウッド 困難
+
+:W72: B Eliwood Hard
+W72: B エリウッド 困難
+
+:B51: B Hector Normal
+B51: B ヘクトル 通常
+
+:W74: B Hector Normal
+W74: B ヘクトル 通常
+
+:B52: B Hector Hard
+B52: B ヘクトル 困難
+
+:W76: B Hector Hard
+W76: B ヘクトル 困難
+
+:B53: C Eliwood Normal
+B53: C エリウッド 通常
+
+:W78: C Eliwood Normal
+W78: C エリウッド 通常
+
+:B54: C Eliwood Hard
+B54: C エリウッド 困難
+
+:W80: C Eliwood Hard
+W80: C エリウッド 困難
+
+:B55: C Hector Normal
+B55: C ヘクトル 通常
+
+:W82: C Hector Normal
+W82: C ヘクトル 通常
+
+:B56: C Hector Hard
+B56: C ヘクトル 困難
+
+:W84: C Hector Hard
+W84: C ヘクトル 困難
+
+:B57: D Eliwood Normal
+B57: D エリウッド 通常
+
+:W86: D Eliwood Normal
+W86: D エリウッド 通常
+
+:B58: D Eliwood Hard
+B58: D エリウッド 困難
+
+:W88: D Eliwood Hard
+W88: D エリウッド 困難
+
+:B59: D Hector Normal
+B59: D ヘクトル 通常
+
+:W90: D Hector Normal
+W90: D ヘクトル 通常
+
+:B60: D Hector Hard
+B60: D ヘクトル 困難
+
+:W92: D Hector Hard
+W92: D ヘクトル 困難
+
+:Write
+書き込み
+
+:W40: Prologue BGM (Eliwood)
+W40: Prologue BGM (エリウッド)
+
+:W42: Prologue BGM (Hector)
+W42: Prologue BGM (ヘクトル)
+
+:Breakable Wall HP / Unknowns
+Breakable 壁 HP / Unknowns
+
+:W112: Eliwood title text
+W112: エリウッド title text
+
+:W114: Hector title text
+W114: ヘクトル title text
+
+:W116: Eliwood title text 2
+W116: エリウッド title text 2
+
+:W118: Hector title text 2
+W118: ヘクトル title text 2
+
+:W124: Fortune text (Eliwood)
+W124: Fortune text (エリウッド)
+
+:W126: Fortune text (Hector)
+W126: Fortune text (ヘクトル)
+
+:B134: Transporter Eliwood X
+B134: Transporter エリウッド X
+
+:B135: Transporter Hector X
+B135: Transporter ヘクトル X
+
+:B136: Transporter Eliwood Y
+B136: Transporter エリウッド Y
+
+:B137: Transporter Hector Y
+B137: Transporter ヘクトル Y
+
+:W120: Fortune text (Eliwood)
+W120: Fortune text (エリウッド)
+
+:W122: Fortune text (Hector)
+W122: Fortune text (ヘクトル)
+
+:B130: Transporter Eliwood X
+B130: Transporter エリウッド X
+
+:B131: Transporter Hector X
+B131: Transporter ヘクトル X
+
+:B132: Transporter Eliwood Y
+B132: Transporter エリウッド Y
+
+:B133: Transporter Hector Y
+B133: Transporter ヘクトル Y
+
+:Apply
+適用
+
+:Growth Rates
+成長率
+
+:Jump
+ジャンプ
+
+:Support Partners
+支援パートナー
+
+:Partner 1:
+パートナー1:
+
+:Partner 2:
+パートナー2:
+
+:Partner 3:
+パートナー3:
+
+:Partner 4:
+パートナー4:
+
+:Partner 5:
+パートナー5:
+
+:Partner 6:
+パートナー6:
+
+:Partner 7:
+パートナー7:
+
+:Initial Values
+初期値
+
+:Initial Value 1:
+初期値1:
+
+:Initial Value 2:
+初期値2:
+
+:Initial Value 3:
+初期値3:
+
+:Initial Value 4:
+初期値4:
+
+:Initial Value 5:
+初期値5:
+
+:Initial Value 6:
+初期値6:
+
+:Initial Value 7:
+初期値7:
+
+:Initial Value 8:
+Initial 値 8:
+
+:Initial Value 9:
+Initial 値 9:
+
+:Initial Value 10:
+Initial 値 10:
+
+:Partner Count / Separator
+パートナー数 / 区切り
+
+:Partner Count:
+パートナー数:
+
+:Cancel
+キャンセル
+
+:Separator 1:
+区切り1:
+
+:Separator 2:
+区切り2:
+
+:Write Positions
+書き込み Positions
+
+:Min Value:
+Min 値:
+
+:Max Value:
+Max 値:
+
+:Search Options
+検索 Options
+
+:Coord Count:
+Coord 読込数:
+
+:Track Count:
+Track 読込数:
+
+:Write to ROM
+ROMに書き込み
+
+:Value:
+値:
+
+:Sound Room Editor
+サウンドルーム Editor
+
+:Frame Count:
+Frame 読込数:
+
+:Write Record
+書き込み Record
+
+:Hard Boost
+困難 Boost
+
+:Easy Mode Penalty
+簡単 Mode Penalty
+
+:Data Count:
+Data 読込数:
+
+:Reload
+再取得
+
+:Jump To
+ジャンプ To
+
+:Always Accessible:
+常に利用可能:
+
+:Battle Animation Palette
+Battle Animation パレット
+
+:Palette Editor
+パレット Editor
+
+:Write Notification
+書き込み Notification
+
+:Write Text
+書き込み Text
+
+# ----- Round 3 backfill (#356) -----
+
+:Word Bit Flags (32-bit)
+ワードビットフラグ (32ビット)
+
+:Byte 0:
+バイト0:
+
+:Bit 0  (0x01)
+ビット 0  (0x01)
+
+:Bit 1  (0x02)
+ビット 1  (0x02)
+
+:Bit 2  (0x04)
+ビット 2  (0x04)
+
+:Bit 3  (0x08)
+ビット 3  (0x08)
+
+:Bit 4  (0x10)
+ビット 4  (0x10)
+
+:Bit 5  (0x20)
+ビット 5  (0x20)
+
+:Bit 6  (0x40)
+ビット 6  (0x40)
+
+:Bit 7  (0x80)
+ビット 7  (0x80)
+
+:Byte 1:
+バイト1:
+
+:Bit 8  (0x01)
+ビット 8  (0x01)
+
+:Bit 9  (0x02)
+ビット 9  (0x02)
+
+:Bit 10 (0x04)
+ビット 10 (0x04)
+
+:Bit 11 (0x08)
+ビット 11 (0x08)
+
+:Bit 12 (0x10)
+ビット 12 (0x10)
+
+:Bit 13 (0x20)
+ビット 13 (0x20)
+
+:Bit 14 (0x40)
+ビット 14 (0x40)
+
+:Bit 15 (0x80)
+ビット 15 (0x80)
+
+:Byte 2:
+バイト2:
+
+:Bit 16 (0x01)
+ビット 16 (0x01)
+
+:Bit 17 (0x02)
+ビット 17 (0x02)
+
+:Bit 18 (0x04)
+ビット 18 (0x04)
+
+:Bit 19 (0x08)
+ビット 19 (0x08)
+
+:Bit 20 (0x10)
+ビット 20 (0x10)
+
+:Bit 21 (0x20)
+ビット 21 (0x20)
+
+:Bit 22 (0x40)
+ビット 22 (0x40)
+
+:Bit 23 (0x80)
+ビット 23 (0x80)
+
+:Byte 3:
+バイト3:
+
+:Bit 24 (0x01)
+ビット 24 (0x01)
+
+:Bit 25 (0x02)
+ビット 25 (0x02)
+
+:Bit 26 (0x04)
+ビット 26 (0x04)
+
+:Bit 27 (0x08)
+ビット 27 (0x08)
+
+:Bit 28 (0x10)
+ビット 28 (0x10)
+
+:Bit 29 (0x20)
+ビット 29 (0x20)
+
+:Bit 30 (0x40)
+ビット 30 (0x40)
+
+:Bit 31 (0x80)
+ビット 31 (0x80)
+
+:Promo Lv (B5):
+CCレベル (B5):
+
+:Wait Icon (B6):
+待機アイコン (B6):
+
+:Walk Spd (B7):
+歩行速度 (B7):
+
+:Str (B12):
+力 (B12):
+
+:Skl (B13):
+技 (B13):
+
+:Spd (B14):
+速さ (B14):
+
+:Def (B15):
+守備 (B15):
+
+:Res (B16):
+魔防 (B16):
+
+:Str (B28):
+力 (B28):
+
+:Skl (B29):
+技 (B29):
+
+:Spd (B30):
+速さ (B30):
+
+:Def (B31):
+守備 (B31):
+
+:Res (B32):
+魔防 (B32):
+
+:Lck (B33):
+幸運 (B33):
+
+:Str (b35):
+力 (b35):
+
+:Skl (b36):
+技 (b36):
+
+:Spd (b37):
+速さ (b37):
+
+:Def (b38):
+守備 (b38):
+
+:Res (b39):
+魔防 (b39):
+
+:Ability Flags
+特性フラグ
+
+:Terrain Def (P72):
+Terrain 守備 (P72):
+
+:Terrain Res (P76):
+Terrain 魔防 (P76):
+
+:W26: NPC phase BGM
+W26: NPCフェーズBGM
+
+:W32: NPC phase BGM 2
+W32: NPCフェーズBGM 2
+
+:W38: ???
+W38: ???
+
+:W40: ???
+W40: ???
+
+:W42: ???
+W42: ???
+
+:B61: Unknown
+B61: 不明
+
+:B61: ??
+B61: ??
+
+:W94: Unknown
+W94: 不明
+
+:W94: ??
+W94: ??
+
+:B117: World map auto event
+B117: ワールドマップ自動イベント
+
+:W118: Fortune text (opening)
+W118: 占いテキスト (開始)
+
+:W124: Fortune text (confirm)
+W124: 占いテキスト (確認)
+
+:B126: Fortune portrait
+B126: 占い顔画像
+
+:B127: Fortune fee
+B127: 占い料金
+
+:B129: Prep screen Ch no. 1
+B129: 準備画面 章番号1
+
+:B134: Victory BGM enemy count
+B134: 勝利BGM敵数
+
+:B135: Blackout before start
+B135: 開始前の暗転
+
+:W138: Detail clear condition
+W138: 詳細クリア条件
+
+:Display Flags (B140-B147)
+表示フラグ (B140-B147)
+
+:B140: Special display
+B140: 特殊表示
+
+:B141: Turn count display
+B141: ターン数表示
+
+:B143: Escape marker X
+B143: 脱出マーカーX
+
+:B144: Escape marker Y
+B144: 脱出マーカーY
+
+:B145: ??
+B145: ??
+
+:B146: ??
+B146: ??
+
+:B147: ??
+B147: ??
+
+:B16: Padding
+B16: パディング
+
+:B17: Padding
+B17: パディング
+
+:W38: Prologue BGM (Common)
+W38: プロローグBGM (共通)
+
+:B121: World map auto event
+B121: ワールドマップ自動イベント
+
+:W122: Fortune text (opening)
+W122: 占いテキスト (開始)
+
+:W128: Fortune text (confirm)
+W128: 占いテキスト (確認)
+
+:B130: Fortune portrait
+B130: 占い顔画像
+
+:B131: Fortune fee
+B131: 占い料金
+
+:B132: Prep screen Ch no. 1
+B132: 準備画面 章番号1
+
+:B133: Prep screen Ch no. 2
+B133: 準備画面 章番号2
+
+:B138: Victory BGM enemy count
+B138: 勝利BGM敵数
+
+:B139: Darken before start
+B139: 開始前の暗転
+
+:W142: Detail clear condition
+W142: 詳細クリア条件
+
+:Display Flags (B144-B151)
+表示フラグ (B144-B151)
+
+:B144: Special display
+B144: 特殊表示
+
+:B145: Turn count display
+B145: ターン数表示
+
+:B147: Escape marker X
+B147: 脱出マーカーX
+
+:B148: Escape marker Y
+B148: 脱出マーカーY
+
+:B149: ??
+B149: ??
+
+:B150: ??
+B150: ??
+
+:B151: ??
+B151: ??
+
+:Auto-backup ROM before saving
+保存前にROMを自動バックアップ
+
+:W32: NPC phase BGM 2 (X)
+W32: NPCフェーズBGM 2 (X)
+
+:D Rating
+Dレーティング
+
+:B118: ??
+B118: ??
+
+:B134: Enemies for victory BGM
+B134: 勝利BGMの敵
+
+:W138: Detail clear condition (display only)
+W138: 詳細クリア条件 (表示のみ)
+
+:Wave Pointer + ADSR
+波形 ポインタ + ADSR
+
+:Attack:
+攻撃:
+
+:Square Wave Parameters + ADSR
+Square 波形 Parameters + ADSR
+
+:Noise Parameters + ADSR
+ノイズ Parameters + ADSR
+
+:Sub-Instrument Ptr:
+Sub-楽器 Ptr:
+
+:Unknown instrument type. Raw 12-byte data is shown in the header byte field.
+不明 instrument type. Raw 12-byte data is shown in the header byte field.
+
+:Crit (B24):
+必殺 (B24):
+
+:Unknown 39:
+不明 39:
+
+:Ability Flags:
+特性フラグ:
+
+:Unknown Fields:
+不明 Fields:
+
+:Unknown 49:
+不明 49:
+
+:Unknown 50:
+不明 50:
+
+:Unknown 51:
+不明 51:
+
+:Unknown 8:
+不明 8:
+
+:Unknown 9:
+不明 9:
+
+:Unknown 10:
+不明 10:
+
+:Unknown 11:
+不明 11:
+
+:Unknown 12:
+不明 12:
+
+:Unknown 13:
+不明 13:
+
+:Unknown 14:
+不明 14:
+
+:Unknown 15:
+不明 15:
+
+:Unknown 16:
+不明 16:
+
+:Unknown 17:
+不明 17:
+
+:Unknown 18:
+不明 18:
+
+:Unknown 19:
+不明 19:
+
+:Close
+閉じる
+
+:Next
+次へ
+
+:Byte 4:
+バイト4:
+
+:Unknown Routine:
+不明 Routine:
+
+:Common editing tasks organized by category. Click any button to open its editor.
+共通 editing tasks organized by category. Click any button to open its editor.
+
+:Battle Animations
+戦闘 Animations
+
+:Bit 0 (0x01)
+ビット 0 (0x01)
+
+:Bit 1 (0x02)
+ビット 1 (0x02)
+
+:Bit 2 (0x04)
+ビット 2 (0x04)
+
+:Bit 3 (0x08)
+ビット 3 (0x08)
+
+:Bit 4 (0x10)
+ビット 4 (0x10)
+
+:Bit 5 (0x20)
+ビット 5 (0x20)
+
+:Bit 6 (0x40)
+ビット 6 (0x40)
+
+:Bit 7 (0x80)
+ビット 7 (0x80)
+
+:Pointer
+ポインタ
+
+:Comparison Size
+Comparison サイズ
+
+:Auto Tracking
+自動追跡
+
+:Item Font
+アイテム Font
+
+:Padding (B25):
+パディング (B25):
+
+:Padding (B26):
+パディング (B26):
+
+:Padding (B27):
+パディング (B27):
+
+:AI1 Primary:
+AI1 主要:
+
+:AI2 Secondary:
+AI2 副次:
+
+:AI3 Target/Recovery:
+AI3 対象/回復:
+
+:AI4 Retreat:
+AI4 撤退:
+
+:Emulator Memory
+Emulator メモリ
+
+:Unknown (byte 1):
+不明 (byte 1):
+
+:Unknown (byte 3):
+不明 (byte 3):
+
+:Unknown (bytes 6-7):
+不明 (bytes 6-7):
+
+:Unknown (byte 15):
+不明 (byte 15):
+
+:Song Track Editor
+曲 Track エディタ
+
+:Padding (B7):
+パディング (B7):
+
+:AI 1:
+AI 1:
+
+:AI 2:
+AI 2:
+
+:Target/Recovery AI:
+Target/復元 AI:
+
+:C Support Text:
+C支援テキスト:
+
+:B Support Text:
+B支援テキスト:
+
+:A Support Text:
+A支援テキスト:
+
+:Padding 1:
+パディング 1:
+
+:Padding 2:
+パディング 2:
+
+:Str/Mag
+力/Mag
+
+:Padding
+パディング
+
+:Unknown (byte 9):
+不明 (byte 9):
+
+:Unknown (byte 10):
+不明 (byte 10):
+
+:Unknown (byte 11):
+不明 (byte 11):
+
+:Left
+左
+
+:Right
+右
+
+:Uninstall Patch
+Uninstall パッチ
+
+:Current Instrument Set
+Current 楽器 Set
+
+:Padding:
+パディング:
+
+:Map Name
+マップ Name
+
+:Hide
+非表示
+
+:Unknown (0x02):
+不明 (0x02):
+
+:Unknown (0x03):
+不明 (0x03):
+
+:Unknown 0 (W0):
+不明 0 (W0):
+
+:Unknown 4 (W4):
+不明 4 (W4):
+
+:Unknown 6 (W6):
+不明 6 (W6):
+
+:Assign new map change
+新しいマップ変更を割り当て
+
+:Assign a new map change ID. A new PLIST entry will be allocated automatically.
+新しいマップ変更IDを割り当てます。新しいPLISTエントリが自動的に割り当てられます。
+
+:Warning
+警告
+
+:Anti-Huffman
+アンチハフマン
+
+:Encoding Table
+エンコーディング Table
+
+:Decompile Result
+Decompile 結果
+
+:Copy to Clipboard
+コピー to Clipboard
+
+:Select File
+Select ファイル
+
+:Open UPS Patch
+開く UPS パッチ
+
+:Online Manual
+Online 手動
+
+:Padding (B6):
+パディング (B6):
+
+:Padding 1 (W4):
+パディング 1 (W4):
+
+:Padding 2 (W6):
+パディング 2 (W6):
+
+:Unknown 3:
+不明 3:
+
+:Copy as Pointer
+コピー as ポインタ
+
+:Change Project Name
+Change プロジェクト Name
+
+:Color Reduction Tool
+Color Reduction ツール
+
+:Unknown (offset 4):
+不明 (offset 4):
+
+:Map Size
+マップ サイズ
+
+:Unknown (0x07):
+不明 (0x07):
+
+:Unknown (0x12):
+不明 (0x12):
+
+:Packed Memory Slot
+Packed メモリ Slot
+
+:Unknown 7:
+不明 7:
+
+:Automatically configure with Init Wizard
+初期化ウィザードで自動構成
+
+:World Map Image
+World マップ 画像
+
+# ----- Round 4 backfill (#356) -----
+
+:General
+一般
+
+:Language
+言語
+
+:Submodule Remote URLs (advanced)
+サブモジュールリモートURL (上級)
+
+:Leave blank for defaults. Set custom URLs for forks/mirrors.
+デフォルトの場合は空白のままにしてください。フォーク/ミラーのカスタムURLを設定します。
+
+:FE-Repo Remote URL
+FE-RepoリモートURL
+
+:Enable auto-save (saves to .autosave.gba sidecar file)
+自動保存を有効にする (.autosave.gba サイドカーファイルに保存)
+
+:Interval (minutes):
+間隔 (分):
+
+:Emulation
+エミュレーション
+
+:Emulator
+エミュレータ
+
+:Emulator 2
+エミュレータ2
+
+:Program 1
+プログラム1
+
+:Program 2
+プログラム2
+
+:Program 3
+プログラム3
+
+:mid2agb
+mid2agb
+
+:gba_mus_riper
+gba_mus_riper
+
+:midfix4agb
+midfix4agb
+
+:DevkitPro ARM EABI
+DevkitPro ARM EABI
+
+:GoldRoad ASM
+GoldRoad ASM
+
+:CFLAGS
+CFLAGS
+
+:RetDec Decompiler
+RetDec デコンパイラ
+
+:Python 3
+Python 3
+
+:FECLIB
+FECLIB
+
+:Source Code
+ソースコード
+
+:Might (B21):
+威力 (B21):
+
+:Price (W26):
+価格 (W26):
+
+:Rank (B28):
+ランク (B28):
+
+:Buy Price:
+購入価格:
+
+:Sell Price:
+売却価格:
+
+:Wep Exp (B32):
+武器経験値 (B32):
+
+:Unk33 (B33):
+不明33 (B33):
+
+:Unk34 (B34):
+不明34 (B34):
+
+:Unk35 (B35):
+不明35 (B35):
+
+:Forge Price:
+鍛造価格:
+
+:Trait Flags
+特性フラグ
+
+:Trait 1 (B8):
+特性1 (B8):
+
+:Trait 2 (B9):
+特性2 (B9):
+
+:Trait 3 (B10):
+特性3 (B10):
+
+:Trait 4 (B11):
+特性4 (B11):
+
+:Warnings
+警告
+
+:Decay:
+ディケイ:
+
+:Sustain:
+サステイン:
+
+:Release:
+リリース:
+
+:Sweep:
+スイープ:
+
+:Envelope Step:
+エンベロープステップ:
+
+:Period:
+周期:
+
+:Mouth Frames (32x16 x6)
+Mouth フレーム (32x16 x6)
+
+:Eye Frames (32x16 x2)
+Eye フレーム (32x16 x2)
+
+:Mouth Frames:
+Mouth フレーム数:
+
+:Frame Ptr:
+フレーム Ptr:
+
+:Frame Data:
+フレーム Data:
+
+:X Position:
+X 位置:
+
+:Y Position:
+Y 位置:
+
+:Move Costs
+移動 Costs
+
+:Lint Check
+Lint チェック
+
+:HP (B11):
+HP (B11):
+
+:HP (B27):
+HP (B27):
+
+:HP (b34):
+HP (b34):
+
+:Growth Simulator
+成長シミュレータ
+
+:Calculate Growth
+成長を計算
+
+:Trait 1 (flags):
+特性1 (flags):
+
+:Trait 2 (flags):
+特性2 (flags):
+
+:Trait 3 (flags):
+特性3 (flags):
+
+:Trait 4 (flags):
+特性4 (flags):
+
+:Disassemble
+逆アセンブル
+
+:Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
+エミュレータ memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
+
+:Move to Free Space
+移動 to Free Space
+
+:Move
+移動
+
+:Install Anyway
+インストール Anyway
+
+:Short Bit Flags (16-bit)
+ショートビットフラグ (16ビット)
+
+:Low byte:
+下位バイト:
+
+:High byte:
+上位バイト:
+
+:End X:
+終了 X:
+
+:End Y:
+終了 Y:
+
+:Position
+位置
+
+:Rendered Frame:
+Rendered フレーム:
+
+:Uninstall
+アンインストール
+
+:Start
+開始
+
+:Check for Updates
+チェック for Updates
+
+:Struct Dump Selector
+Struct Dump セレクタ
+
+:Move Direction:
+移動 Direction:
+
+:Move:
+移動:
+
+:Base Point ID:
+Base ポイント ID:
+
+:Terrain Move Costs (65 terrains: 0x00 - 0x40):
+Terrain 移動 Costs (65 terrains: 0x00 - 0x40):
+
+:Terrain Move Costs (51 entries):
+Terrain 移動 Costs (51 entries):
+
+:End Base Point ID:
+終了 Base ポイント ID:
+
+# ----- Round 5 backfill (#356) -----
+
+:Id 0:
+ID 0:
+
+:Id 1:
+ID 1:
+
+:Id 2:
+ID 2:
+
+:Id 3:
+ID 3:
+
+:Id 4:
+ID 4:
+
+:Id 5:
+ID 5:
+
+:Id 6:
+ID 6:
+
+:Id 7:
+ID 7:
+
+:Id 8:
+ID 8:
+
+:Id 9:
+ID 9:
+
+:Id 10:
+ID 10:
+
+:Id 11:
+ID 11:
+
+:Three-Way ROM Merge
+3方向ROMマージ
+
+:Original ROM:
+オリジナルROM:
+
+:My ROM:
+私のROM:
+
+:Their ROM:
+彼らのROM:
+
+:Merge
+マージ
+
+:Merge Statistics
+マージ統計
+
+:My changes:
+私の変更:
+
+:Their changes:
+彼らの変更:
+
+:Both (same):
+両方 (同じ):
+
+:Conflict bytes:
+コンフリクトバイト:
+
+:Conflicts (resolve each: Mine or Theirs)
+コンフリクト (それぞれ解決: 私のものか彼らのものか)
+
+:Decoded:
+デコード済:
+
+:HP Growth:
+HP成長率:
+
+:STR Growth:
+力成長率:
+
+:SKL Growth:
+技成長率:
+
+:SPD Growth:
+速さ成長率:
+
+:DEF Growth:
+守備成長率:
+
+:RES Growth:
+魔防成長率:
+
+:LCK Growth:
+幸運成長率:
+
+:Support Data Ptr:
+支援データポインタ:
+
+:Resolved:
+解決済:
+
+:Section Ptr:
+セクションポインタ:
+
+:OAM (R→L) Ptr:
+OAM (右→左) ポインタ:
+
+:OAM (L→R) Ptr:
+OAM (左→右) ポインタ:
+
+:OAM Data:
+OAMデータ:
+
+:Prev
+前
+
+:Play
+再生
+
+:Total animations: --
+総アニメ数: --
+
+:FE-Repo
+FE-Repo
+
+:Mouth X:
+口X:
+
+:Mouth Y:
+口Y:
+
+:Eye X:
+目X:
+
+:Eye Y:
+目Y:
+
+:Unused (B25):
+未使用 (B25):
+
+:Unused (B26):
+未使用 (B26):
+
+:Unused (B27):
+未使用 (B27):
+
+:Style Data:
+スタイルデータ:
+
+:Menu Command Ptr:
+メニューコマンドポインタ:
+
+:OnInit Routine:
+OnInitルーチン:
+
+:OnEnd Routine:
+OnEndルーチン:
+
+:On B Press Routine:
+Bボタン押下ルーチン:
+
+:On R Press Routine:
+Rボタン押下ルーチン:
+
+:On HelpBox Routine:
+ヘルプボックスルーチン:
+
+:ID Text:
+IDテキスト:
+
+:Columns:
+列:
+
+:Rows:
+行:
+
+:On/Off Text 1:
+オン/オフテキスト1:
+
+:On/Off Text 2:
+オン/オフテキスト2:
+
+:Icon ID:
+アイコンID:
+
+:Character Code Table
+文字コードテーブル
+
+:Lists all character codes in the ROM's text encoding table.
+ROMのテキストエンコーディングテーブルのすべての文字コードを一覧表示します。
+
+:Char Code (ASCII):
+文字コード (ASCII):
+
+:Terminator (FFFF):
+ターミネータ (FFFF):
+
+:Character Display:
+文字表示:
+
+:Serif Font
+セリフフォント
+
+:Shops
+ショップ
+
+:Promotions
+クラスチェンジ
+
+:Configure chapter settings, map layouts, terrain, and movement costs.
+章の設定、マップレイアウト、地形、移動コストを構成します。
+
+:Manage background music, sound effects, and the in-game sound room.
+BGM、効果音、ゲーム内サウンドルームを管理します。
+
+:Advanced utilities: hex editing, patching, ROM diagnostics, and more.
+高度なユーティリティ: 16進編集、パッチ適用、ROM診断など。
+
+:Compare two ROMs and generate a patch of changed regions
+2つのROMを比較し、変更領域のパッチを生成
+
+:Modified ROM:
+変更されたROM:
+
+:Regions:
+領域:
+
+:Changed bytes:
+変更バイト:
+
+:Probability 1:
+確率1:
+
+:Probability 2:
+確率2:
+
+:Probability 3:
+確率3:
+
+:Unused 2:
+未使用 2:
+
+:Unused 3:
+未使用 3:
+
+:Mouth Coord:
+口 Coord:
+
+:Unused (B14):
+未使用 (B14):
+
+:Unused (B15):
+未使用 (B15):
+
+:Simulate to LV:
+LVまでシミュレート:
+
+:Support Ptr:
+支援ポインタ:
+
+:Talk:
+会話:
+
+:Unused:
+未使用:
+
+:Play only this track
+再生 only this track
+
+:Play all tracks
+再生 all tracks
+
+:Step 3: Configure paths for external tools (emulators, assemblers).
+ステップ 3: 構成 paths for external tools (emulators, assemblers).
+
+:Step 4: Review settings and begin editing.
+ステップ 4: Review settings and begin editing.
+
+:Unused 1:
+未使用 1:
+
+:Terrain BG Lookup Table
+Terrain 背景 Lookup Table
+
+:Terrain BG Lookup
+Terrain 背景 Lookup
+
+:Expand List
+Expand 一覧
+
+:Byte Bit Flags (8-bit)
+Byte ビットフラグ (8ビット)
+
+# ----- Round 6 backfill (#356) -----
+
+:Text Dictionary
+テキスト辞書
+
+:Text ID 1:
+テキストID1:
+
+:Text ID 2:
+テキストID2:
+
+:Flag 1:
+フラグ1:
+
+:Flag 2:
+フラグ2:
+
+:Text to Speech
+テキスト読み上げ
+
+:Enter or paste text to have it read aloud using the system TTS engine.
+テキストを入力または貼り付けて、システムのTTSエンジンで読み上げます。
+
+:Ready
+準備完了
+
+:Speak
+読み上げ
+
+:Enter text here...
+ここにテキストを入力...
+
+:ED Senseki Comment
+エンディング戦績コメント
+
+:Conversation Text 1:
+会話テキスト1:
+
+:Conversation Text 2:
+会話テキスト2:
+
+:Conversation Text 3:
+会話テキスト3:
+
+:Batch
+バッチ
+
+:What Is
+とは
+
+:Little Endian
+リトルエンディアン
+
+:Match Method
+マッチ方法
+
+:NumBlks:
+ブロック数:
+
+:Priority:
+優先度:
+
+:Reverb:
+リバーブ:
+
+:Tracks
+トラック
+
+:StatusMenuTextStruct:
+ステータスメニューテキスト構造体:
+
+:Bitmap:
+ビットマップ:
+
+:Indent:
+インデント:
+
+:String Text:
+文字列テキスト:
+
+:Partner 8:
+パートナー8:
+
+:Partner 9:
+パートナー9:
+
+:Partner 10:
+パートナー10:
+
+:Separator:
+区切り:
+
+:Insert Command...
+コマンドを挿入...
+
+:Commands
+コマンド
+
+:Parameters
+パラメータ
+
+:Disassembly Argument Grep
+ディスアセンブリ引数Grep
+
+:Pattern:
+パターン:
+
+:Enter search pattern...
+検索パターンを入力...
+
+:Condition Slot
+条件スロット
+
+:Records
+レコード
+
+:Flag ID:
+フラグID:
+
+:Do you want to hide this error?
+このエラーを非表示にしますか?
+
+:Reason for hiding:
+非表示理由:
+
+:Reason for hiding
+非表示理由
+
+:Usability Routine:
+使用可能性ルーチン:
+
+:Draw Routine:
+描画ルーチン:
+
+:Per-Turn Callback:
+ターン毎のコールバック:
+
+:Platform Notice
+プラットフォームに関するお知らせ
+
+:RAM rewriting requires Windows P/Invoke to access emulator process memory and is not available in the cross-platform Avalonia version.
+RAM書き換えはエミュレータプロセスメモリにアクセスするためにWindows P/Invokeが必要であり、クロスプラットフォームのAvaloniaバージョンでは利用できません。
+
+:Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+この機能にはFEBuilderGBAのWindows (WinForms) バージョンを使用してください。
+
+:This view allows selecting the instrument set (voicegroup) used when importing MIDI or .s files into the ROM. The instrument set determines which GBA sound samples are mapped to MIDI program changes.
+このビューでは、MIDIや.sファイルをROMにインポートする際に使用される楽器セット (voicegroup) を選択できます。楽器セットは、どのGBAサウンドサンプルがMIDIプログラム変更にマップされるかを決定します。
+
+:Not Yet Implemented
+未実装
+
+:Text ID (TID):
+テキストID (TID):
+
+:Loop Routine:
+ループルーチン:
+
+:Getter Routine:
+ゲッタールーチン:
+
+:Vanilla ROM
+バニラROM
+
+:Older ↓
+古い ↓
+
+:Use this ROM as the last stable baseline and get differences
+このROMを最後の安定したベースラインとして使用して差分を取得
+
+:The latest EA may not dump extended area data. In that case, use EA ver9.
+最新のEAは拡張エリアデータをダンプしない場合があります。その場合は、EA ver9を使用してください。
+
+:Data
+データ
+
+:Dumps unit, class, item, and other tables.
+ユニット、クラス、アイテム、その他のテーブルをダンプします。
+
+:Subtitle Overlay
+字幕オーバーレイ
+
+:Subtitle Text:
+字幕テキスト:
+
+:Enter subtitle text...
+字幕テキストを入力...
+
+:Template ROM FROM
+テンプレートROM FROM
+
+:Template ROM TO
+テンプレートROM TO
+
+:Translation Data
+翻訳データ
+
+:DisASM
+DisASM
+
+:IDA MAP
+IDA MAP
+
+:This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
+この機能は、実行中のGBAエミュレータプロセスのメモリを読み取るためにWindows固有のAPIを使用してライブデバッグします。この機能にはFEBuilderGBAのWindows (WinForms) バージョンを使用してください。
+
+:LZ77 Compressed
+LZ77圧縮
+
+:Draw
+描画
+
+:Reverse search
+逆検索
+
+:Preparation shop item list
+準備ショップアイテムリスト
+
+:Quantity/Uses:
+数量/使用回数:
+
+:Change Records
+変更レコード
+
+:Change ID:
+変更ID:
+
+:Probability 4:
+確率4:
+
+:Probability 5:
+確率5:
+
+:ROM Data Sections
+ROM データ Sections
+
+:Configures enemy AI to trigger a talk event (like FE7 Farina).
+敵AIが会話イベントを発動するように構成します (FE7のファリナのように)。
+
+:Specifies the function that determines whether AI will use an item.
+AIがアイテムを使用するかを決定する関数を指定します。
+
+:Specifies the function that determines whether AI will use a staff.
+AIが杖を使用するかを決定する関数を指定します。
+
+:Current Turn Priority:
+Current Turn 優先度:
+
+:Condition:
+条件:
+
+:Force Little Endian
+Force リトルエンディアン
+
+:Probability %:
+確率 %:
+
+:Bulk Track Change
+Bulk トラック 変更
+
+:Track Change
+トラック 変更
+
+:RMenu Text ID:
+RMenu テキストID:
+
+# ----- Final manual entries (#356) -----
+
+:Enter the PLIST number for the new map pointer entry.
+新しいマップポインタエントリのPLIST番号を入力してください。
+
+:PLIST ID:
+PLIST ID:
+
+:Overriding map style data may cause visual artifacts. Are you sure?
+マップスタイルデータをオーバーライドすると視覚的な異常が発生する可能性があります。よろしいですか?
+
+:Override
+オーバーライド
+
+:Split Menu Definition
+分割メニュー定義
+
+:Style:
+スタイル:
+
+:Tags:
+タグ:
+
+:Unmet Dependencies
+未解決の依存関係
+
+:Resources
+リソース
+
+:Select
+選択
+
+:Categories
+カテゴリ
+
+:Text Detail:
+テキスト詳細:
+
+:Configures skill text details for the SkillSystem patch.
+SkillSystemパッチのスキルテキスト詳細を構成します。
+
+:Compile
+コンパイル
+
+:Enter ARM/Thumb ASM code here...
+ここにARM/Thumb ASMコードを入力...
+
+:Create
+作成
+
+:Enter animation name
+アニメ名を入力
+
+:Update
+更新
+
+:Insert New
+新規挿入
+
+:Continue merging without closing.
+閉じずにマージを続行します。
+
+:Force close with current results.
+現在の結果で強制的に閉じます。
+
+:Checks if a unit is within the range from (X1,Y1) to (X2,Y2).
+ユニットが (X1,Y1) から (X2,Y2) の範囲内にいるかをチェックします。
+
+:Upstream Chain (classes that promote to this one):
+アップストリームチェーン (このクラスにクラスチェンジするクラス):
+
+:Table:
+テーブル:
+
+:Dump Struct to Text
+構造体をテキストにダンプ
+
+:The following error has occurred.
+以下のエラーが発生しました。
+
+:Squad:
+分隊:
+
+:Reserved (0x06):
+予約済み (0x06):
+
+:Reserved (B1-B3):
+予約済み (B1-B3):
+
+:Spell Menu Extensions
+呪文メニュー拡張
+
+:Insert
+挿入
+
+:Marked Addresses
+マークされたアドレス
+
+:Skip
+スキップ
+
+:TSA (D4):
+TSA (D4):
+
+:System Area Graphics
+システムエリアグラフィック
+
+:Interpolated Picture Box
+補間されたピクチャボックス
+
+:Indirect effect pointer table
+間接効果ポインタテーブル
+
+:Function pointers for item usability checks
+アイテム使用可能性チェックの関数ポインタ
+
+:Motion:
+モーション:
+
+:Do you want to create additional map changes?
+追加のマップ変更を作成しますか?
+
+:Resize
+リサイズ
+
+:Function pointers called when entering each map chapter.
+各マップ章に入ったときに呼ばれる関数ポインタ。
+
+:New PLIST Popup
+新規PLISTポップアップ
+
+:Do you want to append a new map style entry? This will add a new tileset configuration at the end of the list.
+新しいマップスタイルエントリを追加しますか? これによりリストの末尾に新しいタイルセット構成が追加されます。
+
+:Terrain Floor Lookup Table
+地形床ルックアップテーブル
+
+:Terrain Floor Lookup
+地形床ルックアップ
+
+:Raw Bytes:
+生のバイト:
+
+:Drop Rate:
+ドロップ率:
+
+:This tool relocates data to free ROM space.
+このツールは空きROM領域にデータを再配置します。
+
+:Direct Injection Notify
+直接注入通知
+
+:Clipboard Contents:
+クリップボードの内容:
+
+:Swap
+スワップ
+
+:Enter filter keywords...
+フィルターキーワードを入力...
+
+:ROM without patch
+パッチなしのROM
+
+:Rewrite RAM values for map data in a running emulator.
+実行中のエミュレータでマップデータのRAM値を書き換えます。
+
+:Assigns a skill to each class via the SkillSystem patch.
+SkillSystemパッチを介して各クラスにスキルを割り当てます。
+
+:Assigns a skill to each unit via the SkillSystem patch.
+SkillSystemパッチを介して各ユニットにスキルを割り当てます。
+
+:Null-terminated list of class IDs (1 byte per entry).
+Null終端のクラスIDリスト (エントリごとに1バイト)。
+
+:Frequency Hz*1024:
+周波数 Hz*1024:
+
+:Priority (PlayerType):
+優先度 (PlayerType):
+
+:MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file metadata above, but importing MIDI data into the ROM may produce unexpected results.
+ROMへのMIDI書き戻しはまだ完全には実装されていません。上記でMIDIファイルのメタデータをプレビューできますが、MIDIデータをROMにインポートすると予期しない結果になる可能性があります。
+
+:BGM ID:
+BGM ID:
+
+:Display Cond ASM:
+表示条件ASM:
+
+:Summoner:
+召喚者:
+
+:Special:
+特別:
+
+:GBA 15-bit color palette entries for move/attack/staff range display.
+移動/攻撃/杖の範囲表示のためのGBA 15ビットカラーパレットエントリ。
+
+:Bad Character Detected
+不正な文字を検出
+
+:Text Escape Sequences
+テキストエスケープシーケンス
+
+:Enter reference text...
+参照テキストを入力...
+
+:Work Support
+作業サポート
+
+:Unmodified ROM
+未変更のROM
+
+:Enter new project name
+新規プロジェクト名を入力
+
+:Problem Reporter
+問題レポータ
+
+:Do not show this message again
+このメッセージを再表示しない
+
+:Avalonia Cross-Platform Edition
+Avaloniaクロスプラットフォーム版
+
+:Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library.
+楽器セットの選択はAvalonia UIではまだ利用できません。MIDIインポート用に異なる楽器セットを選択するには、WinForms版を使用してください。この機能にはPatchUtil.SearchInstrumentSetをクロスプラットフォームCoreライブラリに移植する必要があります。
+
+
+:No data loaded.
+データが読み込まれていません。
+
+:This editor edits a unit-short-text table referenced by a pointer; it must be opened from a POINTER_UNITSSHORTTEXT event-script argument or a FELint follow-up. A vanilla ROM has no such table — patches like EVENTSCRIPT_SimpleEscape add one.
+このエディタはポインタで参照されるユニットショートテキストテーブルを編集します。POINTER_UNITSSHORTTEXTイベントスクリプト引数またはFELintフォローアップから開く必要があります。バニラROMにはそのようなテーブルはありません。EVENTSCRIPT_SimpleEscapeのようなパッチが追加します。
+
+:Units Short Text Editor
+ユニットショートテキストエディタ
+
+:Maps each unit index to a description text ID (2 bytes per entry).
+各ユニットインデックスを説明テキストID (エントリごとに2バイト) にマップします。
+
+
+:Decompress
+解凍する
+
+:Compress
+圧縮する
+
+:Erase
+消去
+
+:Other ROM:
+他のROM:
+
+:Minimum number of matching bytes required to end a diff run.
+差分の終端と判定する最小一致バイト数。
+
+:Recover Miss Match:
+不一致リカバリー:
+
+:Collect free space (FE8 only — keeps free-area diffs as a single block)
+空き領域を集約する（FE8のみ — 空き領域の差分を1ブロックにまとめます）
+
+:Make Binary Patch
+バイナリパッチを作成
+
+:Compares the current loaded ROM against another ROM and writes a binary patch (NAME=/TYPE=BIN/BINF: lines) plus .bin sidecars to the chosen output folder.
+現在ロード中のROMと別のROMを比較し、バイナリパッチ（NAME=/TYPE=BIN/BINF: 行）と.binサイドカーを指定の出力フォルダに書き出します。
+
+:ROM A:
+ROM A:
+
+:ROM B:
+ROM B:
+
+:Make 3-Way Binary Patch
+3ウェイ バイナリパッチを作成
+
+:Emits bytes that ROM A and ROM B agree on but the current ROM lacks. Useful when two modded ROMs share a feature absent from your base.
+ROM AとROM Bが一致するが現在のROMには無いバイトを出力します。2つの改造ROMが共通で持つ機能をベースROMに移植する際に便利です。
+
+:SRC Address:
+SRCアドレス:
+
+:DEST:
+DEST:
+
+:Extracts LZ77-compressed data from the loaded ROM (when SRC is <<THIS ROM>>) or from a file, and writes the raw bytes to DEST. Debug feature.
+ロード中のROM（SRCが<<THIS ROM>>の場合）またはファイルからLZ77圧縮データを展開し、生バイトをDESTに書き出します。デバッグ機能です。
+
+:Compresses a file using LZ77 and writes the compressed bytes to DEST. Debug feature.
+ファイルをLZ77で圧縮し、圧縮後のバイトをDESTに書き出します。デバッグ機能です。
+
+:FROM:
+FROM:
+
+:Zero Clear This Region
+この範囲をゼロクリア
+
+:Fills the specified ROM range with zero bytes. Dangerous — low-address writes require confirmation. Undo is tracked.
+指定されたROM範囲をゼロバイトで埋めます。危険な操作 — 低位アドレスへの書き込みは確認が必要です。Undoは記録されます。
+
+:Base64 Text to File
+Base64テキスト → ファイル
+
+:File to Base64 Text
+ファイル → Base64テキスト
+
+:Paste base64 text, or use 'File to Base64 Text' to encode a file.
+base64テキストを貼り付けるか、「ファイル → Base64テキスト」でファイルをエンコードしてください。
+
+:Weapon effectiveness 2x/3x class list (per item)
+武器特効 2倍/3倍 クラスリスト（アイテムごと）
+
+:Selected:
+選択中:
+
+:Effective against (classes)
+特効対象（クラス）
+
+:Expand List (+1 slot)
+リストを拡張（+1スロット）
+
+:Items sharing this effectiveness list
+この特効リストを共有するアイテム
+
+:This data is shared with other items. Forking will isolate the current item's edits.
+このデータは他のアイテムと共有されています。フォークすると現在のアイテムの編集が独立します。
+
+:Make Independent Copy
+独立したコピーを作成
+
+:Items in Shop
+ショップの商品
+
+:Shop Address:
+ショップアドレス:
+
+:Slot Address:
+スロットアドレス:
+
+:Append Slot
+スロットを追加
+
+:Add a new item slot at the end of this shop's list. Will relocate the list if there is no slack.
+このショップのリストの末尾に新しいアイテムスロットを追加します。余裕が無い場合はリストを再配置します。
+
+:Remove Last Slot
+最終スロットを削除
+
+:Rescan the ROM for shops (use after editing events).
+ROMを再スキャンしてショップを検出します（イベント編集後に使用してください）。
+
+:Promotion target classes per CC item
+CCアイテムごとのCC先クラス
+
+:IER patch is installed. Promotion targets must be configured via Patch Manager.
+IERパッチがインストールされています。CC先はパッチマネージャーから設定してください。
+
+:Open Patch Manager
+パッチマネージャーを開く
+
+:Promotes (classes)
+CC先（クラス）
+
+:Edit
+編集
+
+:Conversation Viewer
+会話ビューア
+
+:Simple Conversation Viewer (read-only)
+シンプル会話ビューア（読み取り専用）
+
+:Source Unit:
+ソースユニット:
+
+:Open Unit
+ユニットを開く
+
+:Open Support
+支援を開く

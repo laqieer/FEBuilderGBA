@@ -496,6 +496,35 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             IReadOnlyDictionary<string, string> reverseEnMap,
             IReadOnlyDictionary<string, string> forwardMap)
         {
+            if (HasTranslationOne(englishLiteral, reverseEnMap, forwardMap))
+                return true;
+
+            // Issue #356: Avalonia AXAML literals decoded from `&#x0a;` XML
+            // entities use bare LF, while translation files use literal `\r\n`
+            // (CRLF after parsing). Try CRLF-normalised and LF-normalised
+            // variants before giving up — mirrors the runtime fallback added
+            // to `MyTranslateResourceLow.str()`.
+            if (englishLiteral.IndexOf('\n') >= 0 || englishLiteral.IndexOf('\r') >= 0)
+            {
+                string crlfForm = englishLiteral
+                    .Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
+                if (!string.Equals(crlfForm, englishLiteral, StringComparison.Ordinal) &&
+                    HasTranslationOne(crlfForm, reverseEnMap, forwardMap))
+                    return true;
+                string lfForm = englishLiteral.Replace("\r\n", "\n").Replace("\r", "\n");
+                if (!string.Equals(lfForm, englishLiteral, StringComparison.Ordinal) &&
+                    HasTranslationOne(lfForm, reverseEnMap, forwardMap))
+                    return true;
+            }
+
+            return false;
+        }
+
+        static bool HasTranslationOne(
+            string englishLiteral,
+            IReadOnlyDictionary<string, string> reverseEnMap,
+            IReadOnlyDictionary<string, string> forwardMap)
+        {
             // 1. Direct lookup — some entries are keyed by English directly.
             string normalised = NormalizeKey(englishLiteral);
             if (TryLookup(forwardMap, englishLiteral, normalised, out var direct) &&

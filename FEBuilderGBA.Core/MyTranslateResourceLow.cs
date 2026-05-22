@@ -25,13 +25,14 @@ namespace FEBuilderGBA
         public string str(string src)
         {
             string dest;
+            string japaneseKey;
+
             // 1. Direct lookup (Japanese keys — WinForms backward compat)
             if (Dic.TryGetValue(src, out dest))
             {
                 return dest;
             }
             // 2. Reverse chain: English key → Japanese key → target translation
-            string japaneseKey;
             if (ReverseEnglishMap.TryGetValue(src, out japaneseKey))
             {
                 if (Dic.TryGetValue(japaneseKey, out dest))
@@ -48,6 +49,39 @@ namespace FEBuilderGBA
                     return dest;
                 return japaneseKey;
             }
+
+            // 2c. Newline normalisation (issue #356): Avalonia AXAML literals
+            //     decoded from `&#x0a;` XML entities use bare LF, while the
+            //     translation files use literal `\r\n` (which the parser
+            //     decodes to CRLF). Without normalisation, the LF runtime
+            //     key would never match the CRLF stored key. Try both LF→CRLF
+            //     and CRLF→LF conversions before giving up.
+            if (src.IndexOf('\n') >= 0 || src.IndexOf('\r') >= 0)
+            {
+                // Normalise to CRLF (LF → CRLF) for direct + reverse lookup
+                string crlfForm = src.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
+                if (crlfForm != src)
+                {
+                    if (Dic.TryGetValue(crlfForm, out dest)) return dest;
+                    if (ReverseEnglishMap.TryGetValue(crlfForm, out japaneseKey))
+                    {
+                        if (Dic.TryGetValue(japaneseKey, out dest)) return dest;
+                        return japaneseKey;
+                    }
+                }
+                // Normalise to LF (CRLF → LF) for direct + reverse lookup
+                string lfForm = src.Replace("\r\n", "\n").Replace("\r", "\n");
+                if (lfForm != src)
+                {
+                    if (Dic.TryGetValue(lfForm, out dest)) return dest;
+                    if (ReverseEnglishMap.TryGetValue(lfForm, out japaneseKey))
+                    {
+                        if (Dic.TryGetValue(japaneseKey, out dest)) return dest;
+                        return japaneseKey;
+                    }
+                }
+            }
+
             // 3. Pass-through
             return src;
         }

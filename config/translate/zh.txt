@@ -15581,8 +15581,8 @@ BGM ID:
 :Background Image Editor
 背景图像编辑器
 
-:Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
-Background Image Selector.&#10;Choose a background image from the available BG entries in the ROM.
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
 
 :Backup History (newest on top)
 备份历史(最新在上)
@@ -15980,8 +15980,8 @@ CSA魔法创建器
 :Character Display:
 字符显示:
 
-:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
-Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.&#x0a;&#x0a;Common issues:&#x0a;  - Using characters outside the ROM's supported character set&#x0a;  - Pasting text from external sources with special Unicode characters&#x0a;  - Using control characters that are not valid escape sequences&#x0a;&#x0a;Please choose one of the options below to resolve the issue.
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
+Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
 
 :Check Update
 检查更新
@@ -16076,8 +16076,8 @@ Command 0x85指针
 :Community:
 社区:
 
-:Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
-Compare current ROM against another version to locate&#x0a;specific data such as images or programs that are&#x0a;shared between FE7 and FE8.
+:Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
+Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
 
 :Compare two ROMs and generate a patch of changed regions
 比较两个ROM并生成已更改区域的补丁
@@ -16283,8 +16283,8 @@ D0: CP
 :Dark:
 暗:
 
-:Data Address&#x0a;(if pointer)
-Data Address&#x0a;(if pointer)
+:Data Address\r\n(if pointer)
+Data Address\r\n(if pointer)
 
 :Data Address:
 数据地址:
@@ -16298,8 +16298,8 @@ Data Address&#x0a;(if pointer)
 :Data Size:
 数据大小:
 
-:Data size mismatch.&#x0a;(DataCount/2) % Width != 0
-Data size mismatch.&#x0a;(DataCount/2) % Width != 0
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+Data size mismatch.\r\n(DataCount/2) % Width != 0
 
 :Decay:
 衰减:
@@ -17822,8 +17822,8 @@ On/Off Text 2:
 :Other ROM Ref
 其他ROM引用
 
-:Other ROM&#x0a;Data Address
-Other ROM&#x0a;Data Address
+:Other ROM\r\nData Address
+Other ROM\r\nData Address
 
 :Other Text Strings
 其他文本字符串
@@ -17834,8 +17834,8 @@ Other ROM&#x0a;Data Address
 :Overriding map style data may cause visual artifacts. Are you sure?
 覆盖地图样式数据可能导致视觉异常。确定吗？
 
-:PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
-PLIST (Pointer List) assigns a numeric ID to each map.&#x0a;Choose an unused PLIST number to add a new map pointer entry.&#x0a;The PLIST ID is used internally to reference map data.
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
 
 :PLIST ID:
 PLIST ID:
@@ -17897,11 +17897,11 @@ Padding:
 :Palette Clipboard
 调色板剪贴板
 
-:Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
-Palette Clipboard Manager stores and retrieves palette data.&#10;Copy palettes between different graphics entries or save them for later use.
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
 
-:Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
-Palette Color Editor allows editing individual colors in a 16-color GBA palette.&#10;Select a palette slot to modify its RGB values.
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
 
 :Palette Data Pointer:
 调色板数据指针:
@@ -17927,8 +17927,8 @@ Palette Color Editor allows editing individual colors in a 16-color GBA palette.
 :Palette Swap
 调色板交换
 
-:Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
-Palette Swap exchanges palette assignments between entries.&#10;Select source and destination palette slots to exchange their color data.
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
 
 :Palette Transparency Error
 调色板透明度错误
@@ -18032,8 +18032,8 @@ Patch2 Remote URL
 :Play only this track
 仅播放此音轨
 
-:Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
-Please select the ROM from before this patch was installed for recovery.&#x0a;&#x0a;This feature does not guarantee a reliable uninstallation.&#x0a;It may fail, so please make a backup beforehand.&#x0a;Also, while the patch code can be removed, associated data may not always be removable.&#x0a;In that case, there may be a loss of a few hundred bytes. Please understand.
+:Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
+Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
 
 :Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
 Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
@@ -18401,8 +18401,8 @@ Separator 2:
 :Separator:
 分隔符:
 
-:Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
-Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
 
 :Sets the priority of items that thief AI will try to steal. Items at the top of the list have the highest priority.
 设置盗贼AI尝试偷取物品的优先级。列表顶部的物品具有最高优先级。
@@ -18488,8 +18488,8 @@ Skill Set 1:
 :Skill Set 2:
 Skill Set 2:
 
-:Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
-Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
 
 :Skill:
 技能:
@@ -18766,9 +18766,6 @@ String 7:
 
 :Summoner:
 召唤者:
-
-:Support &amp; Other
-Support &amp; Other
 
 :Support / Talk:
 支援 / 对话:
@@ -19861,3 +19858,454 @@ GIMP GPL 调色板
 
 :JASC-PAL (Aseprite/GIMP)
 JASC-PAL (Aseprite/GIMP)
+
+# ========================================================================
+# Avalonia untranslated literals (added for issue #356)
+# Auto-generated from term dictionary for the 96 in-scope literals.
+# Source: Phase 6 gap-sweep Untranslated section.
+# ========================================================================
+
+:Text ID for this class's display name (click to open Text Viewer)
+此兵种显示名称的文本ID (点击打开文本浏览器)
+
+:Text ID for this class's description (click to open Text Viewer)
+此兵种说明的文本ID (点击打开文本浏览器)
+
+:Decoded description text
+解码的说明文本
+
+:Desc
+说明
+
+:Open text viewer for this description
+打开此说明的文本浏览器
+
+:Internal class number
+内部兵种编号
+
+:Level required for promotion (0=unpromoted)
+转职所需等级 (0=未转职)
+
+:Map sprite index when idle
+空闲时地图精灵索引
+
+:Walking speed on the map
+地图上的行走速度
+
+:Portrait graphic index (click to open Portrait Viewer)
+头像图形索引 (点击打开头像浏览器)
+
+:Sort Order (B10):
+排序顺序 (B10):
+
+:Sort order for class list
+兵种列表的排序顺序
+
+:Base HP for this class
+此兵种的基础HP
+
+:Con (B17):
+体格 (B17):
+
+:Base constitution
+基础体格
+
+:Mov (B18):
+移动 (B18):
+
+:Base movement range
+基础移动范围
+
+:Stat Caps (Max Values)
+属性上限 (最大值)
+
+:Max HP (B19):
+最大HP (B19):
+
+:Maximum HP stat cap for this class
+此兵种的最大HP上限
+
+:Max Str (B20):
+最大力量 (B20):
+
+:Max Skl (B21):
+最大技术 (B21):
+
+:Max Spd (B22):
+最大速度 (B22):
+
+:Max Def (B23):
+最大防御 (B23):
+
+:Max Res (B24):
+最大魔防 (B24):
+
+:Max Con (B25):
+最大体格 (B25):
+
+:Power (B26):
+实力 (B26):
+
+:Class power / EXP correction value
+兵种实力 / 经验值修正值
+
+:Promotion Gains (CC Bonus)
+转职加成
+
+:HP bonus gained on class change
+转职获得的HP加成
+
+:Pointer to battle animation data
+战斗动画数据指针
+
+:Pointer to terrain movement cost table
+地形移动消耗表指针
+
+:Export all classes to a TSV file
+将所有兵种导出到TSV文件
+
+:Import classes from a TSV file
+从TSV文件导入兵种
+
+:Open skill assignment editor for this class
+打开此兵种的技能分配编辑器
+
+:Text ID for this item's display name (click to open Text Viewer)
+此物品显示名称的文本ID (点击打开文本浏览器)
+
+:Text ID for the item description (click to open Text Viewer)
+此物品说明的文本ID (点击打开文本浏览器)
+
+:Text ID for the item usage description (click to open Text Viewer)
+此物品用法说明的文本ID (点击打开文本浏览器)
+
+:Decoded usage description text
+解码的用法说明文本
+
+:Open text viewer for this usage description
+打开此用法说明的文本浏览器
+
+:Internal item number (unique ID)
+内部物品编号 (唯一ID)
+
+:Weapon type (Sword, Lance, Axe, etc.)
+武器类型 (剑、枪、斧等)
+
+:Pointer to stat bonuses when equipped
+装备时属性加成指针
+
+:Pointer to effectiveness list (bonus vs. classes)
+特效列表指针 (兵种特效)
+
+:Number of uses before the item breaks
+物品损坏前的使用次数
+
+:Attack power
+攻击力
+
+:Hit rate bonus
+命中率加成
+
+:Item weight (reduces attack speed)
+物品重量 (降低攻击速度)
+
+:Critical hit rate bonus
+必杀率加成
+
+:Attack range (encoded as min-max)
+攻击范围 (编码为最小-最大)
+
+:Base item price
+物品基础价格
+
+:Effect when using the item
+使用物品时的效果
+
+:Special effect applied on hit
+命中时应用的特殊效果
+
+:Weapon experience gained per use
+每次使用获得的武器经验
+
+:Export all items to a TSV file
+将所有物品导出到TSV文件
+
+:Import items from a TSV file
+从TSV文件导入物品
+
+:Open skill configuration editor
+打开技能配置编辑器
+
+:Text ID for the unit's display name (click to open Text Viewer)
+单位显示名称的文本ID (点击打开文本浏览器)
+
+:Text ID for the unit's description (click to open Text Viewer)
+单位说明的文本ID (点击打开文本浏览器)
+
+:Unique identifier for this unit
+此单位的唯一标识符
+
+:The unit's class (click to open Class Editor)
+单位的兵种 (点击打开兵种编辑器)
+
+:Pick class from editor
+从编辑器中选择兵种
+
+:Unit or class name associated with this portrait ID
+与此头像ID关联的单位或兵种名称
+
+:Pick portrait from editor
+从编辑器中选择头像
+
+:Map sprite face index
+地图精灵脸部索引
+
+:Elemental affinity for support bonuses
+支援加成的属性
+
+:Starting level of this unit
+此单位的初始等级
+
+:Base Hit Points (signed offset from class base)
+基础HP (相对兵种基础的有符号偏移)
+
+:Base Strength/Magic (signed offset from class base)
+基础力量/魔法 (相对兵种基础的有符号偏移)
+
+:Percent chance of HP increasing on level up
+升级时HP上升的百分比
+
+:Support & Other
+支援与其他
+
+:Export all units to a TSV file
+将所有单位导出到TSV文件
+
+:Import units from a TSV file
+从TSV文件导入单位
+
+:Open skill assignment editor for this unit
+打开此单位的技能分配编辑器
+
+:Text ID for the unit's description
+单位说明的文本ID
+
+:Click to open Class Editor
+点击打开兵种编辑器
+
+:Click to open Portrait Viewer
+点击打开头像浏览器
+
+:Text ID for the item's description
+物品说明的文本ID
+
+:Data Address\r\n(if pointer)
+数据地址\r\n(如果是指针)
+
+:Other ROM\r\nData Address
+其他ROM\r\n数据地址
+
+:Compare current ROM against another version to locate\r\nspecific data such as images or programs that are\r\nshared between FE7 and FE8.
+将当前ROM与另一个版本比较以定位\r\n特定数据,例如FE7和FE8之间共享的\r\n图像或程序。
+
+:Click to open Unit Editor
+点击打开单位编辑器
+
+:Pick unit from editor
+从编辑器中选择单位
+
+:Click to open Song Table
+点击打开曲目表
+
+:References (units, classes, items):
+引用 (单位、兵种、物品):
+
+:Other reference sources (maps, events, supports, …) not yet ported. Track full parity in a follow-up issue.
+其他引用源 (地图、事件、支援等) 尚未移植。完整对等性在后续issue中跟踪。
+
+:Background Image Selector.\r\nChoose a background image from the available BG entries in the ROM.
+背景图像选择器。\r\n从ROM中可用的背景条目中选择一个背景图像。
+
+:Preview (Frame 0):
+预览 (第0帧):
+
+:Click to open Item Editor
+点击打开物品编辑器
+
+:Data size mismatch.\r\n(DataCount/2) % Width != 0
+数据大小不匹配。\r\n(DataCount/2) % Width != 0
+
+:PLIST (Pointer List) assigns a numeric ID to each map.\r\nChoose an unused PLIST number to add a new map pointer entry.\r\nThe PLIST ID is used internally to reference map data.
+PLIST (指针列表) 为每个地图分配数字ID。\r\n选择一个未使用的PLIST编号以添加新的地图指针条目。\r\nPLIST ID在内部用于引用地图数据。
+
+:Set the difficulty adjustment value.\r\nHard Boost increases enemy stats in Hard mode.\r\nPenalties reduce enemy stats in Normal and Easy modes.\r\n\r\nReference: feuniverse.us difficulty stat changes
+设置难度调整值。\r\n困难加成在困难模式下提升敌人属性。\r\n惩罚在普通和简单模式下降低敌人属性。\r\n\r\n参考: feuniverse.us difficulty stat changes
+
+:Palette Color Editor allows editing individual colors in a 16-color GBA palette.\r\nSelect a palette slot to modify its RGB values.
+调色板颜色编辑器允许编辑16色GBA调色板中的各个颜色。\r\n选择一个调色板槽以修改其RGB值。
+
+:Palette Clipboard Manager stores and retrieves palette data.\r\nCopy palettes between different graphics entries or save them for later use.
+调色板剪贴板管理器存储和检索调色板数据。\r\n在不同的图形条目之间复制调色板或保存以供以后使用。
+
+:Palette Swap exchanges palette assignments between entries.\r\nSelect source and destination palette slots to exchange their color data.
+调色板交换在条目之间交换调色板分配。\r\n选择源和目标调色板槽以交换其颜色数据。
+
+:Skill system editors require a compatible skill patch to be installed.\r\nUse the Patch Manager to install a skill system patch first.\r\n\r\nSupported skill systems: CSkillSys, FE8N Skill System
+技能系统编辑器需要安装兼容的技能补丁。\r\n请首先使用补丁管理器安装一个技能系统补丁。\r\n\r\n支持的技能系统: CSkillSys, FE8N Skill System
+
+# ----- Long-form entries (3 extra) for #356 untranslated coverage -----
+
+:Please select the ROM from before this patch was installed for recovery.\r\n\r\nThis feature does not guarantee a reliable uninstallation.\r\nIt may fail, so please make a backup beforehand.\r\nAlso, while the patch code can be removed, associated data may not always be removable.\r\nIn that case, there may be a loss of a few hundred bytes. Please understand.
+请选择此补丁安装前的ROM以进行恢复。\r\n\r\n此功能不保证可靠的卸载。\r\n可能会失败，因此请事先备份。\r\n此外，虽然可以删除补丁代码，但相关数据可能并不总是可以删除。\r\n在这种情况下，可能会丢失几百字节。请理解。
+
+:Characters that cannot be encoded in the ROM's text encoding table will cause display errors in-game.\r\n\r\nCommon issues:\r\n  - Using characters outside the ROM's supported character set\r\n  - Pasting text from external sources with special Unicode characters\r\n  - Using control characters that are not valid escape sequences\r\n\r\nPlease choose one of the options below to resolve the issue.
+无法在ROM文本编码表中编码的字符将导致游戏内显示错误。\r\n\r\n常见问题:\r\n  - 使用ROM支持字符集之外的字符\r\n  - 粘贴包含特殊Unicode字符的外部来源文本\r\n  - 使用非有效转义序列的控制字符\r\n\r\n请选择以下选项之一以解决问题。
+
+:Elapsed Time controls how long the unit pauses at this node. Lower values = longer pause. Total movement uses 4096 time units. Sum of all elapsed times across nodes must be <= 4095, otherwise instant movement occurs.
+经过时间控制单位在此节点停顿的时长。值越小停顿越长。总移动使用4096时间单位。所有节点经过时间之和必须 <= 4095，否则瞬时移动发生。
+
+
+:No data loaded.
+未加载数据。
+
+:This editor edits a unit-short-text table referenced by a pointer; it must be opened from a POINTER_UNITSSHORTTEXT event-script argument or a FELint follow-up. A vanilla ROM has no such table — patches like EVENTSCRIPT_SimpleEscape add one.
+此编辑器编辑由指针引用的单位短文本表;必须从POINTER_UNITSSHORTTEXT事件脚本参数或FELint后续操作打开。原版ROM没有此类表 — 例如EVENTSCRIPT_SimpleEscape补丁会添加一个。
+
+:Units Short Text Editor
+单位短文本编辑器
+
+:Maps each unit index to a description text ID (2 bytes per entry).
+将每个单位索引映射到描述文本ID (每个条目2字节)。
+
+
+:Other ROM:
+其他ROM:
+
+:Minimum number of matching bytes required to end a diff run.
+结束差分块所需的最小匹配字节数。
+
+:Recover Miss Match:
+错配恢复:
+
+:Collect free space (FE8 only — keeps free-area diffs as a single block)
+合并空闲区域（仅 FE8 — 将空闲区差分保留为单个块）
+
+:Make Binary Patch
+生成二进制补丁
+
+:Compares the current loaded ROM against another ROM and writes a binary patch (NAME=/TYPE=BIN/BINF: lines) plus .bin sidecars to the chosen output folder.
+将当前加载的ROM与另一个ROM对比，生成二进制补丁（NAME=/TYPE=BIN/BINF: 行）及.bin副文件到指定的输出文件夹。
+
+:ROM A:
+ROM A:
+
+:ROM B:
+ROM B:
+
+:Make 3-Way Binary Patch
+生成三方二进制补丁
+
+:Emits bytes that ROM A and ROM B agree on but the current ROM lacks. Useful when two modded ROMs share a feature absent from your base.
+输出 ROM A 和 ROM B 一致但当前 ROM 缺失的字节。当两个修改版 ROM 共享基准 ROM 没有的功能时很有用。
+
+:SRC Address:
+SRC 地址:
+
+:DEST:
+DEST:
+
+:Extracts LZ77-compressed data from the loaded ROM (when SRC is <<THIS ROM>>) or from a file, and writes the raw bytes to DEST. Debug feature.
+从当前加载的 ROM（当 SRC 为 <<THIS ROM>> 时）或文件中提取 LZ77 压缩数据，并将原始字节写入 DEST。调试功能。
+
+:Compresses a file using LZ77 and writes the compressed bytes to DEST. Debug feature.
+使用 LZ77 压缩文件并将压缩后的字节写入 DEST。调试功能。
+
+:FROM:
+FROM:
+
+:Zero Clear This Region
+将该区域清零
+
+:Fills the specified ROM range with zero bytes. Dangerous — low-address writes require confirmation. Undo is tracked.
+将指定的 ROM 范围填充为零字节。危险操作 — 写入低位地址需要确认。撤销已记录。
+
+:Base64 Text to File
+Base64 文本 → 文件
+
+:File to Base64 Text
+文件 → Base64 文本
+
+:Paste base64 text, or use 'File to Base64 Text' to encode a file.
+粘贴 base64 文本，或使用「文件 → Base64 文本」编码文件。
+
+:Weapon effectiveness 2x/3x class list (per item)
+武器特效 2x/3x 职业列表（每个物品）
+
+:Selected:
+已选:
+
+:Effective against (classes)
+特效目标（职业）
+
+:Expand List (+1 slot)
+扩展列表（+1 槽位）
+
+:Items sharing this effectiveness list
+共享此特效列表的物品
+
+:This data is shared with other items. Forking will isolate the current item's edits.
+此数据与其他物品共享。分叉后当前物品的编辑将独立。
+
+:Make Independent Copy
+创建独立副本
+
+:Items in Shop
+商店内的物品
+
+:Shop Address:
+商店地址:
+
+:Slot Address:
+槽位地址:
+
+:Append Slot
+追加槽位
+
+:Add a new item slot at the end of this shop's list. Will relocate the list if there is no slack.
+在此商店列表末尾添加新的物品槽位。若没有空余则重新分配列表。
+
+:Remove Last Slot
+删除最后一个槽位
+
+:Rescan the ROM for shops (use after editing events).
+重新扫描 ROM 中的商店（在编辑事件后使用）。
+
+:Promotion target classes per CC item
+每个 CC 物品的转职目标职业
+
+:IER patch is installed. Promotion targets must be configured via Patch Manager.
+已安装 IER 补丁。转职目标必须通过补丁管理器配置。
+
+:Open Patch Manager
+打开补丁管理器
+
+:Promotes (classes)
+转职（职业）
+
+:Edit
+编辑
+
+:Conversation Viewer
+对话查看器
+
+:Simple Conversation Viewer (read-only)
+简易对话查看器（只读）
+
+:Source Unit:
+源单位:
+
+:Open Unit
+打开单位
+
+:Open Support
+打开支援

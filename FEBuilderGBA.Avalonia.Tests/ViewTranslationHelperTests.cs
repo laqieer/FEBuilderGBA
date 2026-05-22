@@ -2,7 +2,8 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
-using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA;                       // R (Core type used by R._() lookups)
+using FEBuilderGBA.Avalonia.Services;     // ViewTranslationHelper, TranslatedWindow
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
