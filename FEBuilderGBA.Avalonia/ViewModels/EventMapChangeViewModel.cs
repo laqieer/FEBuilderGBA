@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// fails, this method calls <see cref="ClearEntry"/> to reset
         /// the VM state — preventing a subsequent <see cref="WriteEntry"/>
         /// from writing zeros to the previously selected entry's address
-        /// (Copilot CLI re-review on PR #529).
+        /// (Copilot CLI re-review on issue #423).
         /// </summary>
         /// <returns>true if the load succeeded; false if the map has no
         /// change-data (plist 0/0xFF) or resolution failed.</returns>
@@ -100,9 +100,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <see cref="CurrentAddr"/> + <see cref="IsLoaded"/> so a stray
         /// <see cref="WriteEntry"/> call after a failed
         /// <see cref="LoadEntryForMap"/> short-circuits via the
-        /// <c>CurrentAddr == 0</c> guard. The View should mirror this
-        /// reset by clearing its detail controls when LoadEntryForMap
-        /// returns false.
+        /// <c>CurrentAddr == 0</c> guard. Also resets the read-config
+        /// surface (<see cref="ReadStartAddress"/>, <see cref="ReadCount"/>,
+        /// <see cref="BlockSize"/>) so any UI bound to those properties
+        /// reflects "no entry loaded" consistently (Copilot bot 3rd-pass
+        /// review on issue #423). The View should mirror this reset by
+        /// clearing its detail controls when LoadEntryForMap returns
+        /// false.
         /// </summary>
         public void ClearEntry()
         {
@@ -119,6 +123,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B7 = 0;
             P8 = 0;
             Comment = string.Empty;
+            // Reset the read-config surface so the View doesn't display
+            // the previous selection's ReadStartAddress / ReadCount.
+            ReadStartAddress = 0;
+            ReadCount = 0;
+            BlockSize = SIZE;
         }
 
         // ----------------------------------------------------------------
@@ -164,7 +173,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // sets them per-selected-map (in `MAP_LISTBOX_SelectedIndexChanged`
             // and `InputFormRef.ReInit(addr)`). The Avalonia per-map values
             // are set in `LoadEventMapChange` instead — see Copilot bot
-            // review on PR #529.
+            // review on issue #423.
             BlockSize = SIZE;
             return result;
         }
@@ -184,7 +193,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // forward from there until the 0xFF terminator. Mirror that
             // here so `ReadStartAddress` / `ReadCount` reflect the
             // currently loaded entry rather than the global plist table
-            // (Copilot bot review on PR #529).
+            // (Copilot bot review on issue #423).
             ReadStartAddress = addr;
             ReadCount = CountChangeRecordsFrom(rom, addr);
 

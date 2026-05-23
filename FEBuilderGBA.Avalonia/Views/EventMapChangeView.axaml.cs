@@ -104,7 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
             SelectedAddressBox.Text = $"0x{_vm.SelectAddress:X08}";
             // Refresh the read-config bar too — VM updates these per
             // selected change-data entry (mirrors WF's per-map ReInit;
-            // Copilot bot review on PR #529).
+            // Copilot bot review on issue #423).
             ReadStartAddressBox.Value = _vm.ReadStartAddress;
             ReadCountBox.Value = _vm.ReadCount;
             B0Box.Value = _vm.B0;
@@ -123,6 +123,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = "";
             AddressBox.Value = 0;
+            // Clear the read-config bar too — the VM was just reset by
+            // ClearEntry() so the top bar should reflect "no entry
+            // loaded" instead of carrying the previous map's stale
+            // ReadStartAddress / ReadCount (Copilot bot 3rd-pass
+            // review on issue #423).
+            ReadStartAddressBox.Value = 0;
+            ReadCountBox.Value = 0;
             BlockSizeBox.Text = "";
             SelectedAddressBox.Text = "";
             B0Box.Value = 0;
@@ -159,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // (LoadEntryForMap returned false → VM cleared) and the user
             // then pressing Write, which would otherwise corrupt
             // CurrentAddr=0 (the ROM header). Copilot CLI re-review on
-            // PR #529.
+            // issue #423.
             if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
             {
                 CoreState.Services?.ShowError(

@@ -261,7 +261,7 @@ public class EventMapChangeParityTests
     }
 
     // -----------------------------------------------------------------
-    // Stale-state regression (Copilot CLI re-review on PR #529):
+    // Stale-state regression (Copilot CLI re-review on issue #423):
     // selecting a map with no change-data after a valid map must NOT
     // leave the VM holding the previous entry's CurrentAddr / IsLoaded.
     // Otherwise a subsequent Write would corrupt the previous entry.

@@ -55,7 +55,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         /// <summary>
-        /// Copilot CLI re-review on PR #529: FE6 split-detection must
+        /// Copilot CLI re-review on issue #423: FE6 split-detection must
         /// also fold the FE6-only <c>map_worldmapevent_pointer</c> table
         /// into the comparison. A FE6 ROM where CONFIG differs from
         /// ANIMATION/OBJECT/MAP/CHANGE/EVENT but matches WORLDMAP must
@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         /// <summary>
-        /// Copilot bot review on PR #529: plist == 0 is reserved by
+        /// Copilot bot review on issue #423: plist == 0 is reserved by
         /// WF semantics (`MapPointerForm.GetPListNameSplited` returns
         /// "NULL"). Even if entry 0 of the PLIST table contains a
         /// pointer to valid-looking ROM data, the helper must refuse
@@ -224,7 +224,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         /// <summary>
-        /// Copilot bot review on PR #529: the helper must validate
+        /// Copilot bot review on issue #423: the helper must validate
         /// <paramref name="mapId"/> against the populated map count
         /// (mirrors WF `InputFormRef.IDToAddr` which returns NOT_FOUND
         /// when id >= DataCount). A mapId that produces an in-bounds
@@ -265,7 +265,7 @@ namespace FEBuilderGBA.Core.Tests
         /// <summary>
         /// Build a minimal FE6JP ROM (only FE6 carries the FE6-only
         /// <c>map_worldmapevent_pointer</c> != 0). Used by the FE6 split-detection
-        /// regression test added per Copilot CLI re-review on PR #529.
+        /// regression test added per Copilot CLI re-review on issue #423.
         /// </summary>
         static ROM MakeFe6Rom()
         {

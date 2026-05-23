@@ -72,7 +72,7 @@ namespace FEBuilderGBA
             // base when the ROM is not split. Skipping this check would
             // misclassify FE6 ROMs where CONFIG differs from
             // ANIMATION/OBJECT/MAP/CHANGE/EVENT but matches the world
-            // map as split (Copilot CLI re-review on PR #529).
+            // map as split (Copilot CLI re-review on issue #423).
             if (rom.RomInfo.version == 6 && rom.RomInfo.map_worldmapevent_pointer != 0)
             {
                 uint wmapBase = rom.p32(rom.RomInfo.map_worldmapevent_pointer);
@@ -157,14 +157,24 @@ namespace FEBuilderGBA
 
             uint mapAddr = MapSettingCore.GetMapAddr(rom, mapId);
             if (!U.isSafetyOffset(mapAddr, rom)) return U.NOT_FOUND;
-            if (mapAddr + 12u > (uint)rom.Data.Length) return U.NOT_FOUND;
+
+            // Bound-check the full map-setting record against ROM
+            // length BEFORE calling IsMapSettingValid — that helper
+            // reads up to offset 0x8E (for FE7U layout) so the
+            // previous `+12` check was insufficient for large mapIds
+            // that produced an in-bounds first-byte but truncated
+            // tail. Use the per-version `map_setting_datasize`
+            // (Copilot bot 3rd-pass review on issue #423).
+            uint dataSize = rom.RomInfo.map_setting_datasize;
+            if (dataSize == 0) return U.NOT_FOUND;
+            if (mapAddr + dataSize > (uint)rom.Data.Length) return U.NOT_FOUND;
 
             // Bound-check mapId against the populated map count. WF's
             // `InputFormRef.IDToAddr` returns U.NOT_FOUND when
             // `id >= DataCount`; mirror that here so an out-of-range
             // mapId does not accidentally resolve to an unrelated
             // in-ROM address that happens to satisfy `isSafetyOffset`
-            // (Copilot bot review on PR #529).
+            // (Copilot bot review on issue #423).
             if (!MapSettingCore.IsMapSettingValid(rom, mapAddr)) return U.NOT_FOUND;
 
             uint plist = rom.u8(mapAddr + 11);
@@ -176,7 +186,7 @@ namespace FEBuilderGBA
             // unused). Hard-block both indexes here so a modified ROM
             // that plants a non-null pointer at entry 0 does not
             // accidentally resolve through it (Copilot bot review on
-            // PR #529).
+            // issue #423).
             if (plist == 0u || plist == 0xFFu) return U.NOT_FOUND;
 
             uint target = PlistToOffsetAddr(rom, PlistType.CHANGE, plist, out outPointer);
