@@ -38,7 +38,15 @@ namespace FEBuilderGBA
         /// <summary>Address of the pointer-table slot (where the dim/no-dim/empty pointer lives).</summary>
         public uint TagAddr { get; set; }
 
-        /// <summary>Display name; mirrors WF "0xNN effectName" / "0xNN EMPTY" format.</summary>
+        /// <summary>
+        /// Display name. The Core helper emits the hex id (e.g.
+        /// <c>"0x49"</c>) plus an <c>" EMPTY"</c> suffix for post-original
+        /// data=0 slots. The richer WF <c>"0xNN effectName"</c> format
+        /// (which resolves the effect name from the <c>item_anime_effect_</c>
+        /// dictionary or <c>CommentCache</c>) requires a name resolver that
+        /// is callable from Core; that hook is out of scope here and a
+        /// follow-up for #500 (tracked as a KnownGap on the Avalonia view).
+        /// </summary>
         public string Name { get; set; } = "";
 
         /// <summary>The data pointer stored at <see cref="TagAddr"/> (raw GBA pointer or 0).</summary>
@@ -298,11 +306,16 @@ namespace FEBuilderGBA
                 if (f == U.NOT_FOUND) continue;
 
                 uint pointer = f + (uint)t.Data.Length;
-                outPointer = pointer;
-
                 uint table = rom.p32(pointer);
-                if (!U.isSafetyOffset(table, rom)) continue;
+                if (!U.isSafetyOffset(table, rom))
+                {
+                    // Copilot CLI inline review on PR #547: do NOT leak a
+                    // matched-but-unsafe pointer out of the loop. Reset and
+                    // try the next candidate.
+                    continue;
+                }
 
+                outPointer = pointer;
                 return table;
             }
             return U.NOT_FOUND;

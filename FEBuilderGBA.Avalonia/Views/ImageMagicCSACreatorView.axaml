@@ -110,9 +110,12 @@
             <Label Grid.Row="6" Grid.Column="0" Content="dim" VerticalAlignment="Center" Margin="0,4,0,0" />
             <ComboBox AutomationProperties.AutomationId="ImageMagicCSACreator_Dim_Combo"
                       Grid.Row="6" Grid.Column="1" Name="DimComboBox" Width="160" Margin="0,4,0,0">
-              <ComboBoxItem>dim_pc</ComboBoxItem>
-              <ComboBoxItem>dim</ComboBoxItem>
-              <ComboBoxItem>NULL(EMPTY)</ComboBoxItem>
+              <!-- TextBlock-inside-ComboBoxItem so ViewTranslationHelper
+                   picks them up for ja/zh localization (Copilot CLI inline
+                   review #6 on PR #547). -->
+              <ComboBoxItem><TextBlock Text="dim_pc" /></ComboBoxItem>
+              <ComboBoxItem><TextBlock Text="dim" /></ComboBoxItem>
+              <ComboBoxItem><TextBlock Text="NULL (EMPTY)" /></ComboBoxItem>
             </ComboBox>
 
             <Label Grid.Row="7" Grid.Column="0" Content="Comment" VerticalAlignment="Center" Margin="0,4,0,0" />
@@ -127,8 +130,11 @@
             <Label Grid.Row="9" Grid.Column="0" Content="Zoom" VerticalAlignment="Center" Margin="0,4,0,0" />
             <ComboBox AutomationProperties.AutomationId="ImageMagicCSACreator_Zoom_Combo"
                       Grid.Row="9" Grid.Column="1" Name="ZoomComboBox" Width="160" Margin="0,4,0,0">
-              <ComboBoxItem>Zoom in</ComboBoxItem>
-              <ComboBoxItem>Original size</ComboBoxItem>
+              <!-- TextBlock-inside-ComboBoxItem so ViewTranslationHelper
+                   picks them up for ja/zh localization (Copilot CLI inline
+                   review #7 on PR #547). -->
+              <ComboBoxItem><TextBlock Text="Zoom in" /></ComboBoxItem>
+              <ComboBoxItem><TextBlock Text="Original size" /></ComboBoxItem>
             </ComboBox>
 
             <Label Grid.Row="10" Grid.Column="0" Content="Bin info" VerticalAlignment="Center" Margin="0,4,0,0" />

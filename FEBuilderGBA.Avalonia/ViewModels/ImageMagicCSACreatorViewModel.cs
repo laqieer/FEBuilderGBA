@@ -172,6 +172,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     DimMode = 2;
                 }
 
+                // Load the user comment annotation from CommentCache (mirrors
+                // WF Program.CommentCache.At(csaaddress) - Copilot CLI inline
+                // review #3 on PR #547).
+                Comment = CoreState.CommentCache?.At(addr, "") ?? "";
+
                 BinInfo = $"u32@0=0x{rom.u32(addr + 0):X08} u32@4=0x{rom.u32(addr + 4):X08} u32@8=0x{rom.u32(addr + 8):X08} u32@12=0x{rom.u32(addr + 12):X08} u32@16=0x{rom.u32(addr + 16):X08}";
 
                 IsLoaded = true;
@@ -227,6 +232,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u32(TagAddress, 0);
                 }
             }
+
+            // 3) Persist the user comment annotation back to CommentCache
+            // (mirrors WF WriteMagicName -> Program.CommentCache.Update).
+            // This is outside the ROM undo scope intentionally - the
+            // CommentCache lives in the EtcCache layer, not the ROM bytes
+            // (Copilot CLI inline review #4 on PR #547).
+            CoreState.CommentCache?.Update(CurrentAddr, Comment ?? "");
         }
 
         // ---- IDataVerifiable ----

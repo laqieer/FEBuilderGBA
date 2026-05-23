@@ -107,8 +107,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            // The selection bar shows TWO different addresses (mirrors WF
+            // panel5): AddressBox = the pointer-table slot (TagAddress), and
+            // SelectedAddressLabel = the CSA struct itself (CurrentAddr).
+            // Showing the same address in both was a Copilot CLI inline
+            // review finding on PR #547.
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            AddressBox.Value = _vm.CurrentAddr;
+            AddressBox.Value = _vm.TagAddress;
             SelectedAddressLabel.Content = string.Format("0x{0:X08}", _vm.CurrentAddr);
             P0Box.Text = string.Format("0x{0:X08}", _vm.P0);
             P4Box.Text = string.Format("0x{0:X08}", _vm.P4);
