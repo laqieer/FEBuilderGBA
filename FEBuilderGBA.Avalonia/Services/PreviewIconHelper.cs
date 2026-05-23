@@ -1055,6 +1055,50 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load a 16x16 skill icon for the CSkillSys 0.9.x patch. Unlike the
+        /// SkillSystems patch (which stripes all icons after one base address),
+        /// CSkillSys 0.9.x stores a per-skill GBA pointer at skill-info entry
+        /// offset +0; we dereference that pointer and decode the 4bpp tile at
+        /// the resolved offset.
+        /// </summary>
+        /// <param name="iconGbaPointer">
+        /// Raw u32 read from the skill-info entry at +0. The GBA pointer
+        /// convention applies (high bit set). We convert via <c>U.toOffset</c>
+        /// before decoding.
+        /// </param>
+        public static IImage LoadCSkillSysIcon(uint iconGbaPointer)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || iconGbaPointer == 0) return null;
+
+            try
+            {
+                uint iconAddr = U.toOffset(iconGbaPointer);
+                if (!U.isSafetyOffset(iconAddr, rom)) return null;
+
+                const uint TILE_SIZE = 128; // 16x16 4bpp = 128 bytes
+                if (iconAddr + TILE_SIZE > (uint)rom.Data.Length) return null;
+
+                // CSkillSys palette pointer is the same as SkillSystems
+                // (mirrors WinForms `SkillPalettePointer = 0x22370`).
+                const uint SKILL_PALETTE_POINTER = 0x22370;
+                if (!U.isSafetyOffset(SKILL_PALETTE_POINTER + 3, rom)) return null;
+
+                uint palAddr = rom.p32(SKILL_PALETTE_POINTER);
+                if (!U.isSafetyOffset(palAddr, rom)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
+
+                return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Load a map action animation thumbnail by rendering the first frame.
         /// The animation pointer is read from the map action animation table entry.
         /// Returns a 64x64 IImage of the first animation frame, or null.

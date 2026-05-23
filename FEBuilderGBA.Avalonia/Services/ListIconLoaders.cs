@@ -545,5 +545,29 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Load a skill icon for the CSkillSys 0.9.x patch. Each skill row
+        /// has its own per-skill icon pointer at entry+0 (different from
+        /// SkillSystem which stripes icons sequentially after a single base).
+        /// We read that pointer from the row's address and dereference.
+        /// Mirrors WinForms `SkillConfigCSkillSystem09xForm.DrawSkillIcon(index)`.
+        /// </summary>
+        public static Bitmap? CSkillSysSkillIconLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return null;
+                uint rowAddr = items[index].addr;
+                if (!U.isSafetyOffset(rowAddr + 4, rom)) return null;
+                uint iconGbaPointer = rom.u32(rowAddr + 0);
+                if (iconGbaPointer == 0) return null;
+                using var img = PreviewIconHelper.LoadCSkillSysIcon(iconGbaPointer);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }
