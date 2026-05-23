@@ -6623,3 +6623,45 @@ TSA
 
 :Expand List (+1 slot)
 リストの拡張 (+1スロット)
+
+:Unit Number:
+ユニット番号
+
+:Primary AI:
+1次AI
+
+:Secondary AI:
+2次AI
+
+:Map Names
+マップ名前
+
+:Event Names
+イベント名前
+
+:Names
+名前
+
+:New Allocation
+新規領域の確保
+
+:Allegiance:
+所属:
+
+:Growth Rate:
+成長率:
+
+:Before Coordinates:
+配置前座標
+
+:After Coordinates:
+配置後座標
+
+:Battle Talk Jump
+交戦時セリフへJump
+
+:Battle BGM Jump
+交戦時BGMへJump
+
+:Death Quote Jump
+死亡時セリフへJump

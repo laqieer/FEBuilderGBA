@@ -20562,6 +20562,48 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :Expand List (+1 slot)
 扩展列表 (+1槽)
 
+:Unit Number:
+单位编号
+
+:Primary AI:
+一次AI
+
+:Secondary AI:
+二次AI
+
+:Map Names
+地图名称
+
+:Event Names
+事件名称
+
+:Names
+名称
+
+:New Allocation
+新建分配
+
+:Allegiance:
+所属:
+
+:Growth Rate:
+成长率:
+
+:Before Coordinates:
+出生坐标
+
+:After Coordinates:
+到达坐标
+
+:Battle Talk Jump
+跳转到战斗对话
+
+:Battle BGM Jump
+跳转到战斗BGM
+
+:Death Quote Jump
+跳转到阵亡台词
+
 :Opening Event
 开场事件
 

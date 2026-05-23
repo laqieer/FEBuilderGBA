@@ -12,8 +12,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     ///         StartX(B4), StartY(B5), EndX(B6), EndY(B7),
     ///         Item1(B8), Item2(B9), Item3(B10), Item4(B11),
     ///         AI1Primary(B12), AI2Secondary(B13), AI3TargetRecovery(B14), AI4Retreat(B15).
+    ///
+    /// B3 (UnitInfo) decomposes into three packed sub-fields per WF
+    /// `InputFormRef.cs:993-1083` (the UNITGROW binding):
+    ///   bit 0       — Growth flag (0 = no growth, 1 = class-dependent)
+    ///   bits 1-2    — Allegiance (0 = Player, 1 = Ally, 2 = Enemy, 3 = Disappear)
+    ///   bits 3-7    — Level (0-31)
     /// </summary>
-    public class EventUnitFE7ViewModel : ViewModelBase, IDataVerifiable
+    public partial class EventUnitFE7ViewModel : ViewModelBase, IDataVerifiable
     {
         // EditorFormRef field definitions
         static readonly string[] FieldNames = new[]
@@ -36,6 +42,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _className = "";
         string _item1Name = "", _item2Name = "", _item3Name = "", _item4Name = "";
         string _ai1Desc = "", _ai2Desc = "", _ai3Desc = "", _ai4Desc = "";
+        string _itemDropDisplay = "";
+        string _comment = "";
+
+        // Currently selected map id — needed by the Haiku jump (B0 + mapId).
+        uint _selectedMapId;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -43,7 +54,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint UnitID { get => _unitID; set => SetField(ref _unitID, value); }
         public uint ClassID { get => _classID; set => SetField(ref _classID, value); }
         public uint LeaderUnitID { get => _leaderUnitID; set => SetField(ref _leaderUnitID, value); }
-        public uint UnitInfo { get => _unitInfo; set => SetField(ref _unitInfo, value); }
+        public uint UnitInfo
+        {
+            get => _unitInfo;
+            set
+            {
+                if (SetField(ref _unitInfo, value))
+                {
+                    // Raise notifications for B3 sub-field properties so any
+                    // bound control (LV/Allegiance/Grow combos) refreshes.
+                    OnPropertyChanged(nameof(UnitInfoLV));
+                    OnPropertyChanged(nameof(UnitInfoAllegiance));
+                    OnPropertyChanged(nameof(UnitInfoGrow));
+                }
+            }
+        }
         public uint StartX { get => _startX; set => SetField(ref _startX, value); }
         public uint StartY { get => _startY; set => SetField(ref _startY, value); }
         public uint EndX { get => _endX; set => SetField(ref _endX, value); }
@@ -69,6 +94,67 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string AI3Desc { get => _ai3Desc; set => SetField(ref _ai3Desc, value); }
         public string AI4Desc { get => _ai4Desc; set => SetField(ref _ai4Desc, value); }
 
+        /// <summary>Item-drop display string, mirroring WF X_ITEMDROP label.</summary>
+        public string ItemDropDisplay { get => _itemDropDisplay; set => SetField(ref _itemDropDisplay, value); }
+
+        /// <summary>
+        /// User annotation persisted through <c>CoreState.CommentCache</c>
+        /// (matches the WF InputFormRef Comment-cache pattern + the Avalonia
+        /// precedent established by ImageBattleBG / ImagePortraitFE6).
+        /// </summary>
+        public string Comment { get => _comment; set => SetField(ref _comment, value); }
+
+        /// <summary>
+        /// The map id whose event-condition block the current group came
+        /// from. Used as the second key for the Haiku jump (WF
+        /// EventHaikuFE7Form.JumpTo takes unit_id + map_id).
+        /// </summary>
+        public uint SelectedMapId { get => _selectedMapId; set => SetField(ref _selectedMapId, value); }
+
+        // ---------------------------------------------------------------
+        // B3 (UnitInfo) decomposition properties — UI sugar over the raw byte.
+        // Each setter recomposes UnitInfo so the byte stays the source of truth.
+        // ---------------------------------------------------------------
+
+        public uint UnitInfoLV
+        {
+            get => U.ParseUnitGrowLV(_unitInfo);
+            set
+            {
+                uint b3 = U.MakeUnitGrowB3(
+                    lv: value,
+                    assign: U.ParseUnitGrowAssign(_unitInfo),
+                    grow: U.ParseUnitGrowGrow(_unitInfo));
+                UnitInfo = b3;
+            }
+        }
+
+        public uint UnitInfoAllegiance
+        {
+            get => U.ParseUnitGrowAssign(_unitInfo);
+            set
+            {
+                uint b3 = U.MakeUnitGrowB3(
+                    lv: U.ParseUnitGrowLV(_unitInfo),
+                    assign: value,
+                    grow: U.ParseUnitGrowGrow(_unitInfo));
+                UnitInfo = b3;
+            }
+        }
+
+        public uint UnitInfoGrow
+        {
+            get => U.ParseUnitGrowGrow(_unitInfo);
+            set
+            {
+                uint b3 = U.MakeUnitGrowB3(
+                    lv: U.ParseUnitGrowLV(_unitInfo),
+                    assign: U.ParseUnitGrowAssign(_unitInfo),
+                    grow: value);
+                UnitInfo = b3;
+            }
+        }
+
         /// <summary>Build the map list (Level 1 navigation).</summary>
         public List<AddrResult> LoadMapList()
         {
@@ -80,6 +166,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return new List<AddrResult>();
+            SelectedMapId = mapId;
             return MapEventUnitCore.GetUnitGroupsForMap(rom, mapId);
         }
 
@@ -137,6 +224,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AI3Desc = MapEventUnitCore.GetAI3Description((byte)AI3TargetRecovery);
             AI4Desc = MapEventUnitCore.GetAI4Description((byte)AI4Retreat);
 
+            // Update item-drop display (mirrors WF UpdateItemDropLabel).
+            ItemDropDisplay = ComputeItemDropDisplay(UnitID, ClassID);
+
+            // Load comment annotation from CoreState.CommentCache (matches the
+            // WF InputFormRef.cs Comment-cache pattern). Comments are keyed
+            // by the entry's byte address.
+            if (CoreState.CommentCache != null
+                && CoreState.CommentCache.TryGetValue(addr, out string commentValue))
+            {
+                Comment = commentValue ?? "";
+            }
+            else
+            {
+                Comment = "";
+            }
+
             IsLoaded = true;
         }
 
@@ -154,6 +257,64 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B12"] = AI1Primary, ["B13"] = AI2Secondary, ["B14"] = AI3TargetRecovery, ["B15"] = AI4Retreat,
             };
             EditorFormRef.WriteFields(rom, addr, values, Fields);
+
+            // Persist the Comment to CoreState.CommentCache. The cache is a
+            // separate annotation store and lives OUTSIDE the ROM undo
+            // scope by precedent (ImagePortraitFE6View.WriteButton_Click,
+            // ImageBattleBGViewModel.WriteCommentToCache).
+            CoreState.CommentCache?.Update(addr, Comment ?? "");
+        }
+
+        /// <summary>
+        /// Mirrors WF EventUnitFE7Form.UpdateItemDropLabel: returns
+        /// localised "Item Drop: drops" / "Item Drop: doesn't drop" based on
+        /// the unit/class characteristic-4 ItemDrop bit (0x08 at offset 43
+        /// in the unit/class struct). Pure UI affordance; ROM is read-only.
+        /// </summary>
+        public static string ComputeItemDropDisplay(uint unitId, uint classId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null) return "";
+
+            uint unitAddr = LookupUnitAddr(rom, unitId);
+            uint classAddr = LookupClassAddr(rom, classId);
+            bool drops = IsItemDropFlag(rom, unitAddr) || IsItemDropFlag(rom, classAddr);
+            return drops ? "Item Drop: drops" : "Item Drop: doesn't drop";
+        }
+
+        static uint LookupUnitAddr(ROM rom, uint unitId)
+        {
+            // Unit table layout: unit_pointer base, 0x34 (52)-byte rows
+            // for FE7. unitId is 1-based for index lookups in WF, so
+            // mirror that: (unitId - 1) * 0x34.
+            if (unitId == 0) return 0;
+            uint p = rom.RomInfo.unit_pointer;
+            if (p == 0) return 0;
+            uint baseAddr = rom.p32(p);
+            if (!U.isSafetyOffset(baseAddr)) return 0;
+            uint rowSize = rom.RomInfo.unit_datasize;
+            if (rowSize == 0) return 0;
+            return baseAddr + (unitId - 1) * rowSize;
+        }
+
+        static uint LookupClassAddr(ROM rom, uint classId)
+        {
+            uint p = rom.RomInfo.class_pointer;
+            if (p == 0) return 0;
+            uint baseAddr = rom.p32(p);
+            if (!U.isSafetyOffset(baseAddr)) return 0;
+            uint rowSize = rom.RomInfo.class_datasize;
+            if (rowSize == 0) return 0;
+            return baseAddr + classId * rowSize;
+        }
+
+        static bool IsItemDropFlag(ROM rom, uint addr)
+        {
+            if (rom == null) return false;
+            if (!U.isSafetyOffset(addr)) return false;
+            if (!U.isSafetyOffset(addr + 43)) return false;
+            uint a = rom.u8(addr + 43);
+            return (a & 0x08) == 0x08;
         }
 
         public int GetListCount() => LoadList().Count;

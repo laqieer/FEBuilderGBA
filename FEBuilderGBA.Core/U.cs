@@ -1088,6 +1088,23 @@ namespace FEBuilderGBA
         // ---- Unit position parsing --------------------------------------------
         public static uint ParseUnitGrowAssign(uint unitgrow) { return (unitgrow >> 1) & 0x3; }
         public static uint ParseUnitGrowLV(uint unitgrow) { return (unitgrow >> 3) & 0x1F; }
+        /// <summary>
+        /// Extract the "growth" flag (bit 0) from the FE6/FE7 event-unit B3
+        /// byte. WF binding lives in <c>InputFormRef.cs</c> at the
+        /// <c>UNITGROW.GROW</c> case where <c>(id &amp; 0xFE) | (grow &amp; 0x01)</c>
+        /// is the round-trip composer.
+        /// </summary>
+        public static uint ParseUnitGrowGrow(uint unitgrow) { return unitgrow & 0x1; }
+        /// <summary>
+        /// Compose the three packed fields of the FE6/FE7 B3 byte: lv (bits
+        /// 3-7), allegiance (bits 1-2), growth-flag (bit 0). Masks each
+        /// input so callers can pass values larger than the field width
+        /// without corrupting siblings.
+        /// </summary>
+        public static uint MakeUnitGrowB3(uint lv, uint assign, uint grow)
+        {
+            return (grow & 0x1) | ((assign & 0x3) << 1) | ((lv & 0x1F) << 3);
+        }
         public static uint ParsePosY32(uint unitpos) { return (unitpos >> 16) & 0xFFFF; }
         public static uint ParsePosX32(uint unitpos) { return (unitpos) & 0xFFFF; }
         public static uint ParsePosY16(uint unitpos) { return (unitpos >> 8) & 0xFF; }
