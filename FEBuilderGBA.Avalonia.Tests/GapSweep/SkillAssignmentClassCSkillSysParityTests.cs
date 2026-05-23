@@ -193,10 +193,11 @@ public class SkillAssignmentClassCSkillSysParityTests
             CoreState.ROM = rom;
             byte[] bytes = rom.Data;
             uint baseAddr = 0x00820000u;
-            bytes[baseAddr + 0] = 0x01; bytes[baseAddr + 1] = 0x10;
-            bytes[baseAddr + 2] = 0x02; bytes[baseAddr + 3] = 0x20;
-            bytes[baseAddr + 4] = 0x03; bytes[baseAddr + 5] = 0x30;
-            bytes[baseAddr + 6] = 0xFF; bytes[baseAddr + 7] = 0xFF;
+            int b = (int)baseAddr;
+            bytes[b + 0] = 0x01; bytes[b + 1] = 0x10;
+            bytes[b + 2] = 0x02; bytes[b + 3] = 0x20;
+            bytes[b + 4] = 0x03; bytes[b + 5] = 0x30;
+            bytes[b + 6] = 0xFF; bytes[b + 7] = 0xFF;
             var vm = new SkillAssignmentClassCSkillSysViewModel();
             var rows = vm.LoadN1List(baseAddr);
             Assert.Equal(3, rows.Count);
@@ -210,9 +211,10 @@ public class SkillAssignmentClassCSkillSysParityTests
             CoreState.ROM = rom;
             byte[] bytes = rom.Data;
             uint baseAddr = 0x00820000u;
-            bytes[baseAddr + 0] = 0x01; bytes[baseAddr + 1] = 0x10;
-            bytes[baseAddr + 2] = 0x02; bytes[baseAddr + 3] = 0x20;
-            bytes[baseAddr + 4] = 0x00; bytes[baseAddr + 5] = 0x00;
+            int b = (int)baseAddr;
+            bytes[b + 0] = 0x01; bytes[b + 1] = 0x10;
+            bytes[b + 2] = 0x02; bytes[b + 3] = 0x20;
+            bytes[b + 4] = 0x00; bytes[b + 5] = 0x00;
             var vm = new SkillAssignmentClassCSkillSysViewModel();
             var rows = vm.LoadN1List(baseAddr);
             Assert.Equal(2, rows.Count);
@@ -256,10 +258,11 @@ public class SkillAssignmentClassCSkillSysParityTests
         try {
             CoreState.ROM = rom;
             uint entry = 0x00800000u;
-            rom.Data[entry + 0] = 0x42;
-            rom.Data[entry + 1] = 0x00;
-            rom.Data[entry + 2] = 0xCC;
-            rom.Data[entry + 3] = 0xDD;
+            int e = (int)entry;
+            rom.Data[e + 0] = 0x42;
+            rom.Data[e + 1] = 0x00;
+            rom.Data[e + 2] = 0xCC;
+            rom.Data[e + 3] = 0xDD;
             var vm = new SkillAssignmentClassCSkillSysViewModel();
             vm.LoadEntry(entry);
             Assert.Equal(entry, vm.CurrentAddr);
@@ -275,10 +278,11 @@ public class SkillAssignmentClassCSkillSysParityTests
             CoreState.ROM = rom;
             byte[] bytes = rom.Data;
             uint baseAddr = 0x00820000u;
+            int b = (int)baseAddr;
             // Plant 10 valid 2-byte entries (no terminator).
             for (int i = 0; i < 10; i++) {
-                bytes[baseAddr + i * 2] = (byte)(1 + i);
-                bytes[baseAddr + i * 2 + 1] = (byte)(0x10 + i);
+                bytes[b + i * 2] = (byte)(1 + i);
+                bytes[b + i * 2 + 1] = (byte)(0x10 + i);
             }
             var vm = new SkillAssignmentClassCSkillSysViewModel();
             vm.N1ReadCount = 4;
@@ -296,22 +300,25 @@ public class SkillAssignmentClassCSkillSysParityTests
             // For this test we use ReadStartAddress override directly.
             byte[] bytes = rom.Data;
             uint customBase = 0x00800000u;
+            int cb = (int)customBase;
             // Plant a class-data table at rom.RomInfo.class_pointer so ComputeClassCount returns >0.
             if (rom.RomInfo != null && rom.RomInfo.class_pointer != 0) {
                 uint slot = rom.RomInfo.class_pointer;
-                BitConverter.GetBytes(0x00100000u | 0x08000000u).CopyTo(bytes, slot);
+                BitConverter.GetBytes(0x00100000u | 0x08000000u).CopyTo(bytes, (int)slot);
                 // 5 valid class entries + 0 sentinel at +4 of entry 5 to terminate.
                 uint classBase = 0x00100000u;
                 uint cds = rom.RomInfo.class_datasize;
+                int classBaseInt = (int)classBase;
+                int cdsInt = (int)cds;
                 for (int i = 0; i < 5; i++) {
-                    bytes[classBase + i * cds + 4] = 0x01;
+                    bytes[classBaseInt + i * cdsInt + 4] = 0x01;
                 }
-                bytes[classBase + 5 * cds + 4] = 0x00;
+                bytes[classBaseInt + 5 * cdsInt + 4] = 0x00;
             }
 
             // Plant 6 W0 entries at our custom base (4 bytes each).
             for (int i = 0; i < 6; i++) {
-                bytes[customBase + i * 4] = (byte)(0x10 + i);
+                bytes[cb + i * 4] = (byte)(0x10 + i);
             }
 
             var vm = new SkillAssignmentClassCSkillSysViewModel();
@@ -332,14 +339,15 @@ public class SkillAssignmentClassCSkillSysParityTests
             // Plant a class-data table so ComputeClassCount returns ~10.
             if (rom.RomInfo != null && rom.RomInfo.class_pointer != 0) {
                 uint slot = rom.RomInfo.class_pointer;
-                BitConverter.GetBytes(0x00100000u | 0x08000000u).CopyTo(bytes, slot);
-                uint classBase = 0x00100000u;
-                uint cds = rom.RomInfo.class_datasize;
+                BitConverter.GetBytes(0x00100000u | 0x08000000u).CopyTo(bytes, (int)slot);
+                int classBase = (int)0x00100000u;
+                int cds = (int)rom.RomInfo.class_datasize;
                 for (int i = 0; i < 10; i++) bytes[classBase + i * cds + 4] = 0x01;
                 bytes[classBase + 10 * cds + 4] = 0x00;
             }
             uint customBase = 0x00800000u;
-            for (int i = 0; i < 10; i++) bytes[customBase + i * 4] = (byte)(0x10 + i);
+            int cb = (int)customBase;
+            for (int i = 0; i < 10; i++) bytes[cb + i * 4] = (byte)(0x10 + i);
 
             var vm = new SkillAssignmentClassCSkillSysViewModel();
             vm.ReadStartAddress = customBase;
@@ -370,12 +378,12 @@ public class SkillAssignmentClassCSkillSysParityTests
             byte[] bytes = rom.Data;
             // Plant a u32 GBA pointer at gpSkillInfos so p32 -> 0x00400000.
             uint slot = SkillAssignmentClassCSkillSysViewModel.gpSkillInfos;
-            BitConverter.GetBytes(0x00400000u | 0x08000000u).CopyTo(bytes, slot);
+            BitConverter.GetBytes(0x00400000u | 0x08000000u).CopyTo(bytes, (int)slot);
             // Plant a u32 GBA pointer at skill-info entry +0 for id=5
             uint baseAddr = 0x00400000u;
             uint id = 5;
             uint entryAddr = baseAddr + SkillAssignmentClassCSkillSysViewModel.SKILL_INFO_SIZE * id;
-            BitConverter.GetBytes(0xCAFEBABEu).CopyTo(bytes, entryAddr);
+            BitConverter.GetBytes(0xCAFEBABEu).CopyTo(bytes, (int)entryAddr);
             uint p = SkillAssignmentClassCSkillSysViewModel.ResolveSkillIconGbaPointer(rom, id);
             Assert.Equal(0xCAFEBABEu, p);
         } finally { CoreState.ROM = prevRom; }
