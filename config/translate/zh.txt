@@ -20505,6 +20505,21 @@ ASM 指针地址:
 :Show Example (Frame 3)
 显示示例 (帧3)
 
+:Comment
+注释
+
+:Image
+图像
+
+:TSA
+TSA
+
+:References
+引用位置
+
+:Read Start Address
+读取起始地址
+
 :Open Source File
 打开源文件
 
@@ -20513,6 +20528,12 @@ ASM 指针地址:
 
 :Write
 写入
+
+:Open Source Folder
+打开源文件夹
+
+:Expand List (+1 slot)
+扩展列表 (+1槽)
 
 :Reload
 重新加载

@@ -111,6 +111,11 @@ namespace FEBuilderGBA.Avalonia
             CoreState.LintCache = new HeadlessEtcCache();
             CoreState.WorkSupportCache = new HeadlessEtcCache();
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
+            // ResourceCache is string-keyed (different shape from the
+            // IEtcCache uint-keyed caches above) — back it with the
+            // EtcCacheResource WF type directly. Used by ImageBattleBG +
+            // image-import views to record source-file paths.
+            CoreState.ResourceCache ??= new FEBuilderGBA.EtcCacheResource();
 
             // Load config
             string configPath = Path.Combine(baseDir, "config", "config.xml");

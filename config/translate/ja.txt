@@ -6543,7 +6543,22 @@ ASMポインタアドレス:
 :Address
 アドレス
 
+:Comment
+コメント
+
+:Image
+画像
+
+:TSA
+TSA
+
+:References
+参照箇所
+
 :Top Address
+先頭アドレス
+
+:Read Start Address
 先頭アドレス
 
 :Read Count
@@ -6581,3 +6596,9 @@ ASMポインタアドレス:
 
 :The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.
 ワールドマップの拠点を地図から選択した時に実行されるイベントを設定します。\r\nFE8では、ワールドマップをプレイヤーが自由に移動できます。\r\nそのため、次のステージの紹介は、拠点を選択した瞬間に行う必要があります。
+
+:Open Source Folder
+ソースフォルダーを開く
+
+:Expand List (+1 slot)
+リストの拡張 (+1スロット)
