@@ -31,12 +31,17 @@ using Avalonia.VisualTree;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
 [Collection("SharedState")]
 public class DataVerifyEmptyNumericUpDownTests
 {
+    readonly ITestOutputHelper _output;
+
+    public DataVerifyEmptyNumericUpDownTests(ITestOutputHelper output) => _output = output;
+
     /// <summary>
     /// Returns the names of every effectively-visible NumericUpDown whose
     /// Value is null. This mirrors the predicate
@@ -85,6 +90,19 @@ public class DataVerifyEmptyNumericUpDownTests
         }
     }
 
+    /// <summary>
+    /// Returns true if the ROM is available, logs a SKIP message otherwise.
+    /// xUnit doesn't natively support "Skipped" results from inside test bodies,
+    /// but emitting via ITestOutputHelper makes the skip visible in CI logs
+    /// (per Copilot PR #545 review #3 — silent `return` is not visible).
+    /// </summary>
+    bool RomAvailable(string version)
+    {
+        if (TestRomLocator.FindRom(version) != null) return true;
+        _output.WriteLine($"SKIP: {version}.gba not found in roms/ or ROMS_DIR — data-verify NUD regression test cannot run for {version}.");
+        return false;
+    }
+
     // -----------------------------------------------------------------
     // Root cause #1 — hex FormatString on NumericUpDown.
     // These four editors carry a `FormatString="X8"` ReadStartAddressBox /
@@ -95,7 +113,7 @@ public class DataVerifyEmptyNumericUpDownTests
     [AvaloniaFact]
     public void MapTerrainBGLookupTableView_NoEmptyNumericUpDowns_FE6()
     {
-        if (TestRomLocator.FindRom("FE6") == null) return;
+        if (!RomAvailable("FE6")) return;
         RomTestHelper.WithRom("FE6", () =>
         {
             var empty = OpenAndCollectEmptyNuds<MapTerrainBGLookupTableView>();
@@ -107,7 +125,7 @@ public class DataVerifyEmptyNumericUpDownTests
     [AvaloniaFact]
     public void MapTerrainFloorLookupTableView_NoEmptyNumericUpDowns_FE6()
     {
-        if (TestRomLocator.FindRom("FE6") == null) return;
+        if (!RomAvailable("FE6")) return;
         RomTestHelper.WithRom("FE6", () =>
         {
             var empty = OpenAndCollectEmptyNuds<MapTerrainFloorLookupTableView>();
@@ -119,7 +137,7 @@ public class DataVerifyEmptyNumericUpDownTests
     [AvaloniaFact]
     public void ImageBGView_NoEmptyNumericUpDowns_FE6()
     {
-        if (TestRomLocator.FindRom("FE6") == null) return;
+        if (!RomAvailable("FE6")) return;
         RomTestHelper.WithRom("FE6", () =>
         {
             var empty = OpenAndCollectEmptyNuds<ImageBGView>();
@@ -131,7 +149,7 @@ public class DataVerifyEmptyNumericUpDownTests
     [AvaloniaFact]
     public void ImageBattleBGView_NoEmptyNumericUpDowns_FE6()
     {
-        if (TestRomLocator.FindRom("FE6") == null) return;
+        if (!RomAvailable("FE6")) return;
         RomTestHelper.WithRom("FE6", () =>
         {
             var empty = OpenAndCollectEmptyNuds<ImageBattleBGView>();
@@ -150,7 +168,7 @@ public class DataVerifyEmptyNumericUpDownTests
     [AvaloniaFact]
     public void CCBranchEditorView_NoEmptyNumericUpDowns_FE8U()
     {
-        if (TestRomLocator.FindRom("FE8U") == null) return;
+        if (!RomAvailable("FE8U")) return;
         RomTestHelper.WithRom("FE8U", () =>
         {
             var empty = OpenAndCollectEmptyNuds<CCBranchEditorView>();
@@ -162,7 +180,7 @@ public class DataVerifyEmptyNumericUpDownTests
     [AvaloniaFact]
     public void MonsterItemViewerView_NoEmptyNumericUpDowns_FE8U()
     {
-        if (TestRomLocator.FindRom("FE8U") == null) return;
+        if (!RomAvailable("FE8U")) return;
         RomTestHelper.WithRom("FE8U", () =>
         {
             var empty = OpenAndCollectEmptyNuds<MonsterItemViewerView>();

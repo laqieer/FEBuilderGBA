@@ -1437,12 +1437,25 @@ namespace FEBuilderGBA.Tests.Unit
             var controlsDir = Path.Combine(AvaloniaDir, "Controls");
             var violations = new List<string>();
 
+            // Loud assert that both target directories exist. Without this,
+            // a miscomputed AvaloniaDir would silently leave axamlFiles empty
+            // and the test would falsely pass (Copilot PR #545 review #1).
+            Assert.True(Directory.Exists(viewsDir),
+                $"Avalonia Views directory not found at '{viewsDir}'. " +
+                $"AvaloniaDir resolves to '{AvaloniaDir}' — verify the test fixture.");
+            Assert.True(Directory.Exists(controlsDir),
+                $"Avalonia Controls directory not found at '{controlsDir}'. " +
+                $"AvaloniaDir resolves to '{AvaloniaDir}' — verify the test fixture.");
+
             // Compose the list of AXAML files from both directories.
             var axamlFiles = new List<string>();
-            if (Directory.Exists(viewsDir))
-                axamlFiles.AddRange(Directory.GetFiles(viewsDir, "*.axaml"));
-            if (Directory.Exists(controlsDir))
-                axamlFiles.AddRange(Directory.GetFiles(controlsDir, "*.axaml"));
+            axamlFiles.AddRange(Directory.GetFiles(viewsDir, "*.axaml"));
+            axamlFiles.AddRange(Directory.GetFiles(controlsDir, "*.axaml"));
+
+            // Sanity: at least one AXAML file must exist; otherwise the scan
+            // is a no-op and the test fails loudly (Copilot PR #545 review #1).
+            Assert.True(axamlFiles.Count > 0,
+                $"No AXAML files found under {viewsDir} or {controlsDir} — the guard would scan nothing.");
 
             // Hex format pattern — matches "X" or "x" optionally followed by digits.
             // Case-insensitive because `decimal.ToString("x*")` throws the same
@@ -1461,9 +1474,13 @@ namespace FEBuilderGBA.Tests.Unit
                 {
                     doc = System.Xml.Linq.XDocument.Load(file);
                 }
-                catch (System.Xml.XmlException)
+                catch (System.Xml.XmlException ex)
                 {
-                    continue; // Malformed AXAML is a separate concern.
+                    // Malformed AXAML must fail the test — otherwise a broken
+                    // file could hide a hex FormatString and the guard would
+                    // silently miss it (Copilot PR #545 review #2).
+                    violations.Add($"{Path.GetFileName(file)}: malformed XML — {ex.Message}");
+                    continue;
                 }
 
                 // Find any NumericUpDown element (regardless of namespace) whose
@@ -1484,8 +1501,9 @@ namespace FEBuilderGBA.Tests.Unit
             }
 
             Assert.True(violations.Count == 0,
-                $"NumericUpDown controls with hex FormatString (decimal.ToString(\"X*\") throws FormatException) — " +
-                $"{violations.Count} violation(s): " + string.Join(", ", violations));
+                $"NumericUpDown FormatString guard found {violations.Count} violation(s) " +
+                $"(hex format on decimal NumericUpDown OR malformed AXAML): " +
+                string.Join(", ", violations));
         }
 
         [Fact]
