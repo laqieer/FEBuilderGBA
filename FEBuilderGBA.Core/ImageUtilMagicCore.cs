@@ -225,35 +225,11 @@ namespace FEBuilderGBA
             return count - 1;
         }
 
-        /// <summary>
-        /// Original WF data accessor — used by the WF shim in
-        /// <c>FEBuilderGBA/ImageUtilMagic.cs</c> to keep its current
-        /// cache machinery while delegating the detection logic here.
-        /// </summary>
-        internal static (string name, string ver, uint addr, byte[] data, uint dim, uint no_dim)[] GetPatchSignatures()
-        {
-            var result = new (string, string, uint, byte[], uint, uint)[PatchSignatures.Length];
-            for (int i = 0; i < PatchSignatures.Length; i++)
-            {
-                var e = PatchSignatures[i];
-                result[i] = (e.name, e.ver, e.addr, e.data, e.dim, e.no_dim);
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// CSA signature accessor for the WF shim. See
-        /// <see cref="GetPatchSignatures"/>.
-        /// </summary>
-        internal static (string name, string ver, byte[] data)[] GetCsaSignatures()
-        {
-            var result = new (string, string, byte[])[CsaSignatures.Length];
-            for (int i = 0; i < CsaSignatures.Length; i++)
-            {
-                var e = CsaSignatures[i];
-                result[i] = (e.name, e.ver, e.data);
-            }
-            return result;
-        }
+        // NOTE: GetPatchSignatures / GetCsaSignatures accessor helpers
+        // were initially defined here for the WF shim but were never
+        // wired (Copilot CLI re-review on PR #554). The WF shim in
+        // FEBuilderGBA/ImageUtilMagic.cs delegates directly to
+        // SearchMagicSystem / FindCSASpellTable above, which already
+        // expose all the information the WF cache needs.
     }
 }

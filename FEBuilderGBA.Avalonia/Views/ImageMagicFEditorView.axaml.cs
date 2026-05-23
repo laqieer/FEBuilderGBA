@@ -182,12 +182,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
 
-                // Reload so the entry list / patch notice reflect the
-                // new state (e.g. switching from EMPTY to dim moves the
-                // row in/out of the listing).
+                // Reload the entry list AND the current entry so the
+                // listing reflects the new state (e.g. switching from
+                // EMPTY to dim adds/removes the row from the listing
+                // via LoadList's filter pass), then re-display the
+                // freshly-saved row. (Copilot CLI re-review on PR #554
+                // noted that reloading only the entry didn't refresh
+                // the list as the original comment claimed.)
                 _vm.IsLoading = true;
                 try
                 {
+                    EntryList.SetItems(_vm.LoadList());
                     _vm.LoadEntry(reloadCsa, reloadSlot);
                     UpdateUI();
                 }

@@ -412,11 +412,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
 
             uint a = CurrentAddr;
-            // CurrentAddr is the pointer-table slot; the P0..P16 fields
-            // shown in GetDataReport mirror the WF DragTargetPanel
-            // spinners. The completeness cross-check expects offsets
-            // 0/4/8/12/16 off CurrentAddr — these stay in-range and are
-            // valid ROM reads.
+            // CurrentAddr is the CSA spell-table entry address (mirrors
+            // WF AddrResult.addr) — the 20-byte struct holds P0..P16
+            // as u32 fields at offsets 0/4/8/12/16. The completeness
+            // cross-check uses these offsets directly. (PointerSlotAddr
+            // separately holds the WF AddrResult.tag value.)
             var result = new Dictionary<string, string>
             {
                 ["addr"] = string.Format("0x{0:X08}", a),

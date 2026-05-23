@@ -58,6 +58,11 @@ namespace FEBuilderGBA
                 baseaddr = U.NOT_FOUND;
                 dimaddr = U.NOT_FOUND;
                 nodimaddr = U.NOT_FOUND;
+                // Reset CSA cache fields so a previously-populated cache
+                // doesn't leak stale addresses to callers if ClearCache()
+                // wasn't called (Copilot CLI re-review on PR #554).
+                g_Cache_CSASpellTableAddr = U.NOT_FOUND;
+                g_Cache_CSASpellTablePointer = U.NOT_FOUND;
                 g_Cache_magic_system_enum = magic_system_enum.NO;
                 return g_Cache_magic_system_enum;
             }
