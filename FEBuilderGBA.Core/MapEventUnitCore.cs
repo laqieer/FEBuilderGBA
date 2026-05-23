@@ -247,7 +247,10 @@ namespace FEBuilderGBA
         public static uint CountEventUnitRows(ROM rom, uint baseAddr)
         {
             if (rom?.RomInfo == null) return 0;
-            if (!U.isSafetyOffset(baseAddr)) return 0;
+            // Use the rom-pinned safety overload so the bounds check matches
+            // the ROM actually being walked (avoids issues when CoreState.ROM
+            // differs from the supplied rom in headless / multi-ROM tooling).
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
             uint dataSize = rom.RomInfo.eventunit_data_size;
             if (dataSize == 0) return 0;
             uint romLen = (uint)rom.Data.Length;
@@ -462,7 +465,13 @@ namespace FEBuilderGBA
             if (blockSize == 0)
                 return U.NOT_FOUND;
 
-            if (!U.isSafetyOffset(oldBase))
+            // ROM-pinned safety checks so the bounds match the rom being
+            // mutated (CoreState.ROM may differ in tests / multi-ROM tooling).
+            if (!U.isSafetyOffset(oldBase, rom))
+                return U.NOT_FOUND;
+            if (!U.isSafetyOffset(eventPointerSlot, rom))
+                return U.NOT_FOUND;
+            if (eventPointerSlot + 4 > (uint)rom.Data.Length)
                 return U.NOT_FOUND;
             if (oldBase + oldCount * blockSize > (uint)rom.Data.Length)
                 return U.NOT_FOUND;
@@ -495,13 +504,17 @@ namespace FEBuilderGBA
             // EventUnitFE7Form.cs:485-490). Remaining bytes already zero
             // because FindFreeSpace returns regions filled with 0x00 or 0xFF;
             // for 0xFF fill we need to explicitly zero the rest of each row.
+            // Allocate the zero buffer ONCE (Copilot review #522 third pass —
+            // cast the uint blockSize to int via checked() so the intent is
+            // explicit, and reuse the buffer across iterations).
+            int blockSizeInt = checked((int)blockSize);
+            byte[] zeroBuffer = new byte[blockSizeInt];
             for (uint i = oldCount; i < newCount; i++)
             {
                 uint rowAddr = newBase + i * blockSize;
                 // Write the full block as zeros first (handles 0xFF fill),
                 // then plant the starter bytes.
-                byte[] rowZero = new byte[blockSize];
-                rom.write_range(rowAddr, rowZero);
+                rom.write_range(rowAddr, zeroBuffer);
                 rom.write_u8(rowAddr + 0, 0x01);
                 rom.write_u8(rowAddr + 1, 0x01);
             }
@@ -511,8 +524,7 @@ namespace FEBuilderGBA
             // explicit zero row makes the table well-terminated regardless
             // of whether FindFreeSpace returned a 0x00- or 0xFF-filled region.
             uint termAddr = newBase + newCount * blockSize;
-            byte[] termRow = new byte[blockSize];
-            rom.write_range(termAddr, termRow);
+            rom.write_range(termAddr, zeroBuffer);
 
             // 4. Repoint the event-unit pointer slot.
             rom.write_p32(eventPointerSlot, newBase);
@@ -574,7 +586,7 @@ namespace FEBuilderGBA
             if (pointerSlot == 0) return 0;
 
             uint baseAddr = rom.p32(pointerSlot);
-            if (!U.isSafetyOffset(baseAddr)) return 0;
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
 
             uint romLen = (uint)rom.Data.Length;
             const uint blockSize = 8;
@@ -647,7 +659,7 @@ namespace FEBuilderGBA
         {
             if (pointerSlot == 0) return 0;
             uint baseAddr = rom.p32(pointerSlot);
-            if (!U.isSafetyOffset(baseAddr)) return 0;
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
 
             uint romLen = (uint)rom.Data.Length;
             for (int i = 0; i < 256; i++)
@@ -694,7 +706,7 @@ namespace FEBuilderGBA
         {
             if (pointerSlot == 0) return 0;
             uint baseAddr = rom.p32(pointerSlot);
-            if (!U.isSafetyOffset(baseAddr)) return 0;
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
 
             uint romLen = (uint)rom.Data.Length;
             uint unitOnlyFallback = 0;

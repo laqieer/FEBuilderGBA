@@ -74,7 +74,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(address);
                 UpdateUI();
-                AddrLabel.Text = string.Format("0x{0:X08} (jumped — see #431 table-2)", _vm.CurrentAddr);
+                // Keep AddrLabel as a pure address string (Copilot review
+                // #522 third pass — the English suffix wasn't picked up by
+                // the translation layer). The detail panel shows the entry.
+                Log.Notify("EventBattleTalkFE7View.NavigateTo: loaded table-2 entry at 0x" + address.ToString("X8"));
             }
             catch (Exception ex)
             {

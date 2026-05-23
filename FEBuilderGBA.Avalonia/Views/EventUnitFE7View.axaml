@@ -71,17 +71,9 @@
             <TextBlock Text="LV:" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_LV_Input" FormatString="0" Name="LVBox" Minimum="0" Maximum="31" Width="80" />
             <TextBlock Text="Allegiance:" VerticalAlignment="Center" Margin="8,0,0,0" />
-            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_Allegiance_Combo" Name="AllegianceCombo" Width="120">
-              <ComboBoxItem>Player</ComboBoxItem>
-              <ComboBoxItem>Ally</ComboBoxItem>
-              <ComboBoxItem>Enemy</ComboBoxItem>
-              <ComboBoxItem>Disappear</ComboBoxItem>
-            </ComboBox>
+            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_Allegiance_Combo" Name="AllegianceCombo" Width="120" />
             <TextBlock Text="Growth Rate:" VerticalAlignment="Center" Margin="8,0,0,0" />
-            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_GrowthRate_Combo" Name="GrowthRateCombo" Width="140">
-              <ComboBoxItem>No Growth</ComboBoxItem>
-              <ComboBoxItem>Class Dependent</ComboBoxItem>
-            </ComboBox>
+            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_GrowthRate_Combo" Name="GrowthRateCombo" Width="140" />
           </StackPanel>
 
           <!-- Before Coordinates panel (mirrors WF EVENTUNIT_BEFORE_COORD) -->
@@ -91,10 +83,7 @@
             <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_StartX_Input" FormatString="0" Name="StartXBox" Minimum="0" Maximum="255" Width="80" />
             <TextBlock Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
             <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_StartY_Input" FormatString="0" Name="StartYBox" Minimum="0" Maximum="255" Width="80" />
-            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_PosSync_Combo" Name="PosSyncCombo" Width="220" Margin="12,0,0,0">
-              <ComboBoxItem>Sync After with Before</ComboBoxItem>
-              <ComboBoxItem>Before and After independent</ComboBoxItem>
-            </ComboBox>
+            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_PosSync_Combo" Name="PosSyncCombo" Width="220" Margin="12,0,0,0" />
           </StackPanel>
 
           <!-- After Coordinates panel (mirrors WF EVENTUNIT_AFTER_COORD) -->

@@ -53,11 +53,16 @@ public class MapEventUnitCoreExpansionTests
         try
         {
             CoreState.ROM = rom;
-            uint origPointerSlot = 0x00800000u; // we passed this to MakeFe7uWithUnitTable
+            // Use a dedicated pointer slot (Copilot review #522 third pass —
+            // the slot is a 4-byte pointer location, distinct from the
+            // table base it points to).
+            uint pointerSlot = 0x200; // must be >= 0x200 to satisfy U.isSafetyOffset
+            uint tableAddr = 0x00800000u;
+            BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(rom.Data, pointerSlot);
             uint newBase = MapEventUnitCore.ExpandUnitList(
                 rom,
-                eventPointerSlot: origPointerSlot,
-                oldBase: origPointerSlot,
+                eventPointerSlot: pointerSlot,
+                oldBase: tableAddr,
                 oldCount: 4,
                 newCount: 10);
 
@@ -88,16 +93,19 @@ public class MapEventUnitCoreExpansionTests
         try
         {
             CoreState.ROM = rom;
-            uint origPointerSlot = 0x00800000u;
+            // Use a dedicated pointer slot (Copilot review #522 third pass).
+            uint pointerSlot = 0x200; // must be >= 0x200 to satisfy U.isSafetyOffset
+            uint tableAddr = 0x00800000u;
+            BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(rom.Data, pointerSlot);
 
             // Snapshot original rows BEFORE expansion.
             byte[] origRows = new byte[4 * 16];
-            Array.Copy(rom.Data, origPointerSlot, origRows, 0, 4 * 16);
+            Array.Copy(rom.Data, tableAddr, origRows, 0, 4 * 16);
 
             uint newBase = MapEventUnitCore.ExpandUnitList(
                 rom,
-                eventPointerSlot: origPointerSlot,
-                oldBase: origPointerSlot,
+                eventPointerSlot: pointerSlot,
+                oldBase: tableAddr,
                 oldCount: 4,
                 newCount: 10);
             Assert.NotEqual(U.NOT_FOUND, newBase);
@@ -126,7 +134,7 @@ public class MapEventUnitCoreExpansionTests
             // verify the helper accepts a slot+oldBase and rewrites it).
             // For this test, allocate a 4-byte slot at 0x100 and put a
             // pointer there.
-            uint pointerSlot = 0x100;
+            uint pointerSlot = 0x200; // must be >= 0x200 to satisfy U.isSafetyOffset
             uint tableAddr = 0x00800000u;
             BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(rom.Data, pointerSlot);
 
@@ -204,7 +212,7 @@ public class MapEventUnitCoreExpansionTests
 
         var rom = new ROM();
         rom.LoadLow("synthetic-fe7u.gba", bytes, "AE7E01");
-        uint origPointerSlot = 0x100;
+        uint origPointerSlot = 0x200; // must be >= 0x200 to satisfy U.isSafetyOffset
         uint tableAddr = 0x00800000u;
         for (int i = 0; i < 4; i++)
         {

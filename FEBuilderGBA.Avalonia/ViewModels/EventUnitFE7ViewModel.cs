@@ -329,7 +329,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint unitAddr = LookupUnitAddr(rom, unitId);
             uint classAddr = LookupClassAddr(rom, classId);
             bool drops = IsItemDropFlag(rom, unitAddr) || IsItemDropFlag(rom, classAddr);
-            return drops ? "Item Drop: drops" : "Item Drop: doesn't drop";
+            // Use R._() so the runtime translation layer can localize the
+            // status text (Copilot review #522 third pass — these strings
+            // appear directly in the GUI, not just logs).
+            return drops ? R._("Item Drop: drops") : R._("Item Drop: doesn't drop");
         }
 
         static uint LookupUnitAddr(ROM rom, uint unitId)

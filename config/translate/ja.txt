@@ -6665,3 +6665,33 @@ TSA
 
 :Death Quote Jump
 死亡時セリフへJump
+
+:Player
+自軍
+
+:Ally
+友軍
+
+:Enemy
+敵軍
+
+:Disappear
+消滅
+
+:No Growth
+成長させない
+
+:Class Dependent
+クラス依存
+
+:Sync After with Before
+配置後も同時に変更
+
+:Before and After independent
+配置後、配置前は別々
+
+:Item Drop: drops
+アイテムドロップ: ドロップする
+
+:Item Drop: doesn't drop
+アイテムドロップ: ドロップしない

@@ -20604,6 +20604,36 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :Death Quote Jump
 跳转到阵亡台词
 
+:Player
+玩家方
+
+:Ally
+友军
+
+:Enemy
+敌军
+
+:Disappear
+消失
+
+:No Growth
+不成长
+
+:Class Dependent
+依赖职业
+
+:Sync After with Before
+出生坐标与到达坐标同步
+
+:Before and After independent
+出生与到达坐标独立
+
+:Item Drop: drops
+物品掉落: 掉落
+
+:Item Drop: doesn't drop
+物品掉落: 不掉落
+
 :Opening Event
 开场事件
 

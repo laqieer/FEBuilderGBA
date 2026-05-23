@@ -37,6 +37,27 @@ namespace FEBuilderGBA.Avalonia.Views
             GroupListBox.SelectionChanged += GroupListBox_SelectionChanged;
             UnitListBox.SelectionChanged += UnitListBox_SelectionChanged;
 
+            // Populate combos with R._-translated entries so ja/zh users
+            // see localised labels (Copilot review #522 third pass —
+            // ViewTranslationHelper does not scan ComboBoxItem content).
+            AllegianceCombo.ItemsSource = new[]
+            {
+                R._("Player"),
+                R._("Ally"),
+                R._("Enemy"),
+                R._("Disappear"),
+            };
+            GrowthRateCombo.ItemsSource = new[]
+            {
+                R._("No Growth"),
+                R._("Class Dependent"),
+            };
+            PosSyncCombo.ItemsSource = new[]
+            {
+                R._("Sync After with Before"),
+                R._("Before and After independent"),
+            };
+
             // Wire B3 sub-field combos to live-update UnitInfoBox via the VM.
             LVBox.ValueChanged += LVBox_ValueChanged;
             AllegianceCombo.SelectionChanged += AllegianceCombo_SelectionChanged;
@@ -336,6 +357,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
                 uint hitAddr = MapEventUnitCore.FindBattleTalkFE7UnitIdAddress(rom, unitId);
+                if (hitAddr == 0)
+                {
+                    // No match in either FE7 BattleTalk table — log and
+                    // no-op so we don't open the editor at address 0
+                    // (Copilot review #522 third pass).
+                    Log.Notify("EventUnitFE7View.JumpBattleTalk_Click: no BattleTalk entry found for unit " + unitId.ToString());
+                    return;
+                }
                 WindowManager.Instance.Navigate<EventBattleTalkFE7View>(hitAddr);
             }
             catch (Exception ex)
@@ -352,6 +381,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
                 uint hitAddr = MapEventUnitCore.FindBossBGMFE7UnitIdAddress(rom, unitId);
+                if (hitAddr == 0)
+                {
+                    Log.Notify("EventUnitFE7View.JumpBattleBGM_Click: no BossBGM entry found for unit " + unitId.ToString());
+                    return;
+                }
                 WindowManager.Instance.Navigate<SoundBossBGMViewerView>(hitAddr);
             }
             catch (Exception ex)
@@ -369,6 +403,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
                 uint hitAddr = MapEventUnitCore.FindHaikuFE7Address(rom, unitId, mapId);
+                if (hitAddr == 0)
+                {
+                    Log.Notify("EventUnitFE7View.JumpHaiku_Click: no Haiku entry found for unit " + unitId.ToString());
+                    return;
+                }
                 WindowManager.Instance.Navigate<EventHaikuFE7View>(hitAddr);
             }
             catch (Exception ex)
