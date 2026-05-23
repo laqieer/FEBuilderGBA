@@ -314,7 +314,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address)
         {
-            // address is a map id; select that map in the list. Best-effort.
+            // `address` is a ROM address — specifically the map-list entry's
+            // pointer-slot address as produced by
+            // `MapExitPointCore.ListMapEntries` (each AddrResult.addr is the
+            // 4-byte slot in the pointer table, not a map-id index). The
+            // sibling SelectFirstItem() path covers the no-deep-link case.
+            // (Copilot PR #531 third-pass review on view-cs line 317 —
+            // comment said "map id" but the AddressListControl matches by
+            // .addr.)
             MapList.SelectAddress(address);
         }
 

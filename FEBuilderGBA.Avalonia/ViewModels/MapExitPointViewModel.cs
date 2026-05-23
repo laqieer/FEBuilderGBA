@@ -138,7 +138,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint exitPointer = rom.u32(mapPointerSlotAddr);
             if (!U.isPointer(exitPointer))
             {
-                IsBlank = true;
+                // Invalid / unexpected slot value (e.g. NULL, garbage). WF
+                // `MapExitPointForm.AddressList_SelectedIndexChanged` returns
+                // early in this case — it does NOT enter the
+                // blank-marker / NewAlloc branch. Mirror that here: surface
+                // an empty sub-list, mark the slot as not-allocated, but
+                // leave IsBlank false so the NewAlloc affordance stays
+                // hidden (the user shouldn't repoint a corrupt slot via
+                // the standard "no exits" path) — Copilot PR #531 third-pass
+                // review on viewmodel line 145.
+                IsBlank = false;
                 IsAllocated = false;
                 CurrentExitPointAddr = U.NOT_FOUND;
                 return new List<AddrResult>();
@@ -146,6 +155,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint exitOffset = U.toOffset(exitPointer);
             if (MapExitPointCore.IsBlankPointer(rom, exitOffset))
             {
+                // ONLY the version-specific blank marker counts as the
+                // allocatable "no exits" state. (Copilot review #1 above.)
                 IsBlank = true;
                 IsAllocated = false;
                 CurrentExitPointAddr = exitOffset;

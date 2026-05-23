@@ -245,6 +245,7 @@ public class MapExitPointCoreTests
     {
         ROM rom = MakeFe8uWithExitTable();
         var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
         try
         {
             CoreState.ROM = rom;
@@ -275,7 +276,11 @@ public class MapExitPointCoreTests
         }
         finally
         {
+            // Restore both shared-state slots so the SharedState test collection
+            // doesn't leak this test's `CoreState.Undo` into the next test
+            // (Copilot PR #531 third-pass review on test line 252).
             CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
         }
     }
 
@@ -326,6 +331,7 @@ public class MapExitPointCoreTests
         // actually captured the writes).
         ROM rom = MakeFe8uWithExitTable();
         var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
         try
         {
             CoreState.ROM = rom;
@@ -348,7 +354,10 @@ public class MapExitPointCoreTests
         }
         finally
         {
+            // Restore both shared-state slots (Copilot PR #531 third-pass
+            // review on test line 333).
             CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
         }
     }
 }
