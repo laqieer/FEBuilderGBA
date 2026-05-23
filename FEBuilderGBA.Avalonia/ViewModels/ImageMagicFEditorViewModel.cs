@@ -329,6 +329,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RefreshPatchState();
             }
 
+            // VM-level patch-absence guard (Copilot CLI re-review on
+            // PR #554). The view's Write_Click already short-circuits,
+            // but Write() is public/test-callable and could otherwise
+            // wipe vanilla magic-effect pointer slots via the
+            // DimPointerKind.Empty branch. Mirrors WF WriteDim()'s
+            // assertion that ar.tag != 0 + the patch being present.
+            if (!_magicSystemDetected) return;
+
             // Persist dim/no-dim/empty pointer to the pointer-table slot.
             // WF: `Program.ROM.write_p32(ar.tag, this.DimAddr)` etc.
             if (PointerSlotAddr != 0u)

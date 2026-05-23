@@ -363,6 +363,47 @@ public class ImageMagicFEditorParityTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    /// <summary>
+    /// Regression test (Copilot CLI re-review on PR #554):
+    /// When the FEditor/SCA_Creator magic-system patch is NOT
+    /// detected, `Write()` must bail out and leave the
+    /// pointer-table slot untouched. Without the VM-level guard,
+    /// `DimPointerKind.Empty` would call `rom.write_u32(slot, 0)`
+    /// and wipe a vanilla magic-effect pointer.
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_NoPatch_LeavesPointerSlotUntouched()
+    {
+        ROM rom = MakeMinimalFe8uRom(); // no FEditor signature planted
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
+            // Plant a known vanilla pointer (e.g. an existing GBA
+            // pointer to an in-bounds offset) so we can verify it
+            // survives the Write().
+            uint vanillaValue = 0x08200000u; // GBA pointer to 0x00200000.
+            BitConverter.GetBytes(vanillaValue).CopyTo(rom.Data, pointerSlot);
+
+            var vm = new ImageMagicFEditorViewModel();
+            vm.RefreshPatchState(); // sets _magicSystemDetected = false
+            Assert.False(vm.MagicSystemDetected);
+
+            vm.CurrentAddr = csaEntry;
+            vm.PointerSlotAddr = pointerSlot;
+            vm.DimPointer = ImageMagicFEditorViewModel.DimPointerKind.Empty;
+            vm.Write();
+
+            // VM-level guard MUST have short-circuited Write() so the
+            // pointer-slot value is unchanged.
+            uint afterWrite = rom.u32(pointerSlot);
+            Assert.Equal(vanillaValue, afterWrite);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     [Fact]
     public void ViewModel_Write_PersistsCommentToCache()
     {
@@ -375,15 +416,22 @@ public class ImageMagicFEditorParityTests
         try
         {
             CoreState.ROM = rom;
+            // Plant FEditor signature so the VM-level patch guard
+            // doesn't bail out before persisting (Copilot CLI re-review
+            // on PR #554 #1).
+            PlantFEditorSignatureFe8u(rom);
             var fake = new FakeEtcCache();
             CoreState.CommentCache = fake;
 
             uint pointerSlot = 0x00400000u;
             uint csaEntry = 0x00410000u;
             var vm = new ImageMagicFEditorViewModel();
+            vm.RefreshPatchState();
             vm.CurrentAddr = csaEntry;
             vm.PointerSlotAddr = pointerSlot;
-            vm.DimPointer = ImageMagicFEditorViewModel.DimPointerKind.Empty;
+            // DimPc maps to DimAddr per WF semantics — safer than Empty
+            // because Empty writes 0 to the slot.
+            vm.DimPointer = ImageMagicFEditorViewModel.DimPointerKind.DimPc;
             vm.Comment = "test comment";
             vm.Write();
 
