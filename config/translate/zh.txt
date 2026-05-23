@@ -21486,6 +21486,73 @@ OBJ+BG 从左到右
 :Open the class-change branch editor for this class (FE8 only)
 打开此职业的转职分支编辑器 (仅 FE8)
 
+# AIScriptView additions (#410)
+:Parameter 1
+参数1
+
+:Parameter 2
+参数2
+
+:Parameter 3
+参数3
+
+:Parameter 4
+参数4
+
+:Parameter 5
+参数5
+
+:Binary Code
+二进制代码
+
+:Import From File
+从文件导入
+
+:Export To File
+导出到文件
+
+:Switch
+切换
+
+:Read Byte Count
+读取字节数
+
+:Re-read
+重新读取
+
+:Detail Address
+详细地址
+
+:Script Bytes:
+脚本字节:
+
+:Disassembly
+反汇编
+
+:Description
+描述
+
+:Script Change
+指令变更
+
+:Remove
+删除
+
+:New Insert
+新增插入
+
+:Update
+更新
+
+:Close
+关闭
+
+:0=AI1
+0=AI1
+
+:1=AI2
+1=AI2
+
 # ItemEditorView additions (#409)
 :Indirect Weapon Effect
 间接武器特效

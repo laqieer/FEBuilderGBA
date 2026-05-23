@@ -1383,13 +1383,18 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void MainWindow_AIScriptButton_OpensCategoySelectView()
+        public void MainWindow_AIScriptButton_OpensAIScriptView()
         {
+            // PR #410 re-wires the main "AI Script" button to open the
+            // master/detail AIScriptView (parity with WF MainFE8Form ->
+            // AIScriptForm). The previous wiring incorrectly opened
+            // AIScriptCategorySelectView, which is the WF
+            // AIScriptCategorySelectForm — a sub-dialog of the master
+            // editor, NOT the front-door entry point. This test asserts
+            // the corrected wiring.
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
-            // The AI Script main entry point must open the category select view, not the placeholder
-            Assert.Contains("Open<AIScriptCategorySelectView>", src);
-            // Ensure the old placeholder wiring is gone from the click handler
-            Assert.DoesNotContain("OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptView>", src);
+            Assert.Contains("OpenAIScript_Click", src);
+            Assert.Contains("WindowManager.Instance.Open<AIScriptView>()", src);
         }
 
         [Fact]
@@ -1403,11 +1408,16 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void MainWindow_FormRegistry_WiresScriptViewsToCategorySelects()
+        public void MainWindow_FormRegistry_WiresAIScriptViewDirectly_ProcsScriptViewToCategorySelect()
         {
+            // PR #410: the registry entry for AIScriptView now opens
+            // AIScriptView (the master/detail editor), parity with WF
+            // MainFE8Form's "AI Script" button. ProcsScript still uses
+            // the category-select front-door because its master/detail
+            // editor has not yet been rebuilt — that's a separate
+            // follow-up.
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
-            // The form registry entries for AIScriptView and ProcsScriptView should open category select views
-            Assert.Contains("(\"AIScriptView\", () => wm.Open<AIScriptCategorySelectView>())", src);
+            Assert.Contains("(\"AIScriptView\", () => wm.Open<AIScriptView>())", src);
             Assert.Contains("(\"ProcsScriptView\", () => wm.Open<ProcsScriptCategorySelectView>())", src);
         }
 

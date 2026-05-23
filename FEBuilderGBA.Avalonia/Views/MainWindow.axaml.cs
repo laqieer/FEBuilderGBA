@@ -1924,7 +1924,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ("EventScriptTemplateView", () => wm.Open<EventScriptTemplateView>()),
 
                 // AI Script Editors
-                ("AIScriptView", () => wm.Open<AIScriptCategorySelectView>()),
+                ("AIScriptView", () => wm.Open<AIScriptView>()),
                 ("AIASMCALLTALKView", () => wm.Open<AIASMCALLTALKView>()),
                 ("AIASMCoordinateView", () => wm.Open<AIASMCoordinateView>()),
                 ("AIASMRangeView", () => wm.Open<AIASMRangeView>()),
@@ -2898,7 +2898,11 @@ namespace FEBuilderGBA.Avalonia.Views
         private void OpenEventScriptTemplate_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<EventScriptTemplateView>();
 
         // ===================== AI Script Editors =====================
-        private void OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptCategorySelectView>();
+        // PR #410: the main "AI Script" button opens the master/detail
+        // AIScriptView (parity with WF MainFE8Form -> AIScriptForm). The
+        // category-select dialog is reached internally from AIScriptView's
+        // Script Change button, not from the main menu.
+        private void OpenAIScript_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIScriptView>();
         private void OpenAIASMCALLTALK_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMCALLTALKView>();
         private void OpenAIASMCoordinate_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMCoordinateView>();
         private void OpenAIASMRange_Click(object? sender, RoutedEventArgs e) => WindowManager.Instance.Open<AIASMRangeView>();

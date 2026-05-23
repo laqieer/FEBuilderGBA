@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T16:07:49Z"
-git-sha: 1f20893bb
+generated: "2026-05-23T22:58:37Z"
+git-sha: ff33c1a38
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 49 |
-| MissingAvManifest (backlog) | 337 |
+| Match | 53 |
+| MissingAvManifest (backlog) | 333 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 8 |
 
@@ -199,7 +199,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `AIScriptForm` | `AIScriptView` | `—` | `ClassFE6Form` | `ClassFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `ClassForm` | `ClassFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `DisASMForm` | `DisASMView` |
-| `AIScriptForm` | `AIScriptView` | `—` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitForm` | `UnitEditorView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitFE6Form` | `UnitFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitFE7Form` | `UnitFE7View` |
@@ -306,9 +305,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SongExchangeForm` | `SongExchangeView` | `—` | `SongExchangeForm` | `SongExchangeView` |
 | `SongInstrumentForm` | `SongInstrumentView` | `—` | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongExchangeForm` | `SongExchangeView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportMidiForm` | `SongTrackImportMidiView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportSelectInstrumentForm` | `SongTrackImportSelectInstrumentView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportWaveForm` | `SongTrackImportWaveView` |
@@ -441,6 +437,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
+| `AIScriptForm` | `AIScriptView` | `JumpToPointerToolCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
@@ -475,6 +472,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `PointerToolForm` | `PointerToolView` | `JumpToBatchInput` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
 | `PointerToolForm` | `PointerToolView` | `JumpToCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `PointerToolForm` | `PointerToolView` | `JumpToSelf` | `PointerToolForm` | `PointerToolView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongExchange` | `SongExchangeForm` | `SongExchangeView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackAllChangeTrack` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackChangeTrack` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |
