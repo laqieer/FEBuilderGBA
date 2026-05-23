@@ -28,6 +28,8 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _suppressFilterChange;
         bool _suppressNListChange;
 
+        // Window title shown in the editor dock (matches the AXAML Title
+        // attribute so screenshot / UIAutomation tools can locate the view).
         public string ViewTitle => "Map Tile Animation Type 2 (Palette)";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
