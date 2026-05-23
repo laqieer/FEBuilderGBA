@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Phase 1 / Phase 4 / Phase 5 gap-sweep regression tests for
-// EventUnitFE7View (#431, PR #522).
+// EventUnitFE7View (closes #431 via PR #522).
 //
 // Covers the 39 gaps the issue called out:
 //   - 36 missing WF-only labels (density / labels)
