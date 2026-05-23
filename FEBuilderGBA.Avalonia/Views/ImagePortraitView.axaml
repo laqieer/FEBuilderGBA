@@ -153,9 +153,11 @@
                     Grid.Row="8" Grid.Column="2" Grid.ColumnSpan="2" Name="StatusCombo"
                     Width="180" Margin="8,2,0,2"
                     SelectionChanged="StatusCombo_SelectionChanged">
-            <ComboBoxItem>0 = Close Mouth (deprecated)</ComboBoxItem>
-            <ComboBoxItem>1 = Normal</ComboBoxItem>
-            <ComboBoxItem>6 = Close Eyes</ComboBoxItem>
+            <!-- Status options are wrapped in TextBlock so ViewTranslationHelper
+                 picks them up for ja/zh localization (Copilot bot review on PR #527). -->
+            <ComboBoxItem><TextBlock Text="0 = Close Mouth (deprecated)" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="1 = Normal" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="6 = Close Eyes" /></ComboBoxItem>
           </ComboBox>
 
           <!-- Row 9: Unused25 (B25) -->

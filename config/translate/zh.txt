@@ -20813,3 +20813,12 @@ mug_exceed 图块2 Y:
 
 :Tile 2
 图块2
+
+:0 = Close Mouth (deprecated)
+0 = 关嘴 (不推荐)
+
+:1 = Normal
+1 = 正常
+
+:6 = Close Eyes
+6 = 闭眼
