@@ -11,7 +11,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Start Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count:" VerticalAlignment="Center" />
@@ -29,7 +29,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Address_Input"
-                       FormatString="X8" Name="AddressBox" Width="120"
+                       FormatString="0" Name="AddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
@@ -104,7 +104,7 @@
                  Content="Skill Name:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Column="1"
                          AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillName_Input"
-                         FormatString="X4" Name="SkillNameBox"
+                         FormatString="0" Name="SkillNameBox"
                          Minimum="0" Maximum="65535" />
           <TextBox Grid.Column="2"
                    AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillNameText_Input"
@@ -118,7 +118,7 @@
                  Content="Description:" VerticalAlignment="Center" />
           <NumericUpDown Grid.Column="1"
                          AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Description_Input"
-                         FormatString="X4" Name="DescriptionBox"
+                         FormatString="0" Name="DescriptionBox"
                          Minimum="0" Maximum="65535" />
           <TextBox Grid.Column="2"
                    AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_DescriptionText_Input"
@@ -139,7 +139,7 @@
                values are pasted in (Copilot CLI inline review on PR #516). -->
           <NumericUpDown Grid.Column="1"
                          AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationPointer_Input"
-                         FormatString="X8" Name="AnimationPointerBox"
+                         FormatString="0" Name="AnimationPointerBox"
                          Minimum="0" Maximum="4294967295" />
           <Button Grid.Column="2"
                   AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationImport_Button"
@@ -177,7 +177,7 @@
                      Content="Frame" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="1"
                              AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ShowFrame_Input"
-                             FormatString="X2" Name="ShowFrameUpDown" Width="80"
+                             FormatString="0" Name="ShowFrameUpDown" Width="80"
                              Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
             </Grid>
             <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">

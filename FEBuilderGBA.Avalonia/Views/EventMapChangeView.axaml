@@ -12,7 +12,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Top Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="EventMapChange_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count" VerticalAlignment="Center" />
@@ -31,7 +31,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="EventMapChange_Address_Input"
-                       FormatString="X8" Name="AddressBox" Width="110"
+                       FormatString="0" Name="AddressBox" Width="110"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
@@ -70,12 +70,14 @@
         </Grid>
 
         <!-- B0: Number — WF NumericUpDown is Hexadecimal=true (per Designer.cs).
-             Mirror with FormatString="X2" so the displayed value is hex like
-             the unknown-byte fields below. -->
+             Avalonia NumericUpDown.Value is decimal? and decimal.ToString("X*")
+             throws FormatException, so we use FormatString="0" (decimal) until a
+             hex-capable NUD ships (gap-sweep follow-up). The other unknown-byte
+             fields below use the same decimal format for consistency. -->
         <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="Number:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B0_Input"
-                         Grid.Column="1" Name="B0Box" FormatString="X2" Width="80"
+                         Grid.Column="1" Name="B0Box" FormatString="0" Width="80"
                          Minimum="0" Maximum="255" HorizontalAlignment="Left" />
         </Grid>
 
@@ -109,19 +111,19 @@
         <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="??" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B5_Input"
-                         Grid.Column="1" Name="B5Box" FormatString="X2" Width="80"
+                         Grid.Column="1" Name="B5Box" FormatString="0" Width="80"
                          Minimum="0" Maximum="255" HorizontalAlignment="Left" />
         </Grid>
         <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="??" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B6_Input"
-                         Grid.Column="1" Name="B6Box" FormatString="X2" Width="80"
+                         Grid.Column="1" Name="B6Box" FormatString="0" Width="80"
                          Minimum="0" Maximum="255" HorizontalAlignment="Left" />
         </Grid>
         <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="??" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B7_Input"
-                         Grid.Column="1" Name="B7Box" FormatString="X2" Width="80"
+                         Grid.Column="1" Name="B7Box" FormatString="0" Width="80"
                          Minimum="0" Maximum="255" HorizontalAlignment="Left" />
         </Grid>
 

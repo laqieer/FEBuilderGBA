@@ -11,7 +11,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Top Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count" VerticalAlignment="Center" />
@@ -33,7 +33,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_Address_Input"
-                       FormatString="X8" Name="AddressBox" Width="120"
+                       FormatString="0" Name="AddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
@@ -116,7 +116,7 @@
             <Grid ColumnDefinitions="80,120,80,80,120,*" RowDefinitions="Auto,Auto,Auto">
               <Label Grid.Row="0" Grid.Column="0" Content="Address" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_NAddress_Input"
-                             Grid.Row="0" Grid.Column="1" FormatString="X8" Name="NAddressBox"
+                             Grid.Row="0" Grid.Column="1" FormatString="0" Name="NAddressBox"
                              Minimum="0" Maximum="4294967295" IsEnabled="False" />
               <Label Grid.Row="0" Grid.Column="2" Content="Size:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_NBlockSize_Input"
@@ -153,7 +153,7 @@
                        Content="GBA Color" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="MapTileAnimation2_NW0_Input"
-                               FormatString="X4" Name="NGbaBox"
+                               FormatString="0" Name="NGbaBox"
                                Minimum="0" Maximum="65535" IsReadOnly="True" />
                 <Label Grid.Row="1" Grid.Column="0" Content="R" />
                 <NumericUpDown Grid.Row="1" Grid.Column="1"

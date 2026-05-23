@@ -12,9 +12,9 @@
         <Label Content="Cond:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="MapExitPoint_Filter_Combo"
                   Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="140"
+                       FormatString="0" Name="ReadStartAddressBox" Width="140"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Button AutomationProperties.AutomationId="MapExitPoint_ReloadList_Button"
@@ -27,7 +27,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Leave Pointer" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_ExitPointer_Input"
-                       FormatString="X8" Name="ExitPointerBox" Width="140"
+                       FormatString="0" Name="ExitPointerBox" Width="140"
                        Minimum="0" Maximum="4294967295"
                        VerticalAlignment="Center" />
         <Label Content="Count" VerticalAlignment="Center" />
@@ -80,7 +80,7 @@
           <Grid ColumnDefinitions="180,180,*" RowDefinitions="Auto,Auto,Auto">
             <Label Grid.Row="0" Grid.Column="0" Content="Address" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Addr_Input"
-                           FormatString="X8" Grid.Row="0" Grid.Column="1"
+                           FormatString="0" Grid.Row="0" Grid.Column="1"
                            Name="AddressBox" Minimum="0" Maximum="65535999"
                            IsEnabled="False" VerticalAlignment="Center" />
 
@@ -110,7 +110,7 @@
 
               <Label Grid.Row="1" Grid.Column="0" Content="Direction" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Input"
-                             FormatString="X2" Grid.Row="1" Grid.Column="2"
+                             FormatString="0" Grid.Row="1" Grid.Column="2"
                              Name="EscapeMethodBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
               <ComboBox AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Combo"
                         Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
@@ -118,7 +118,7 @@
 
               <Label Grid.Row="2" Grid.Column="0" Content="00 (Flag)" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Flag_Input"
-                             FormatString="X2" Grid.Row="2" Grid.Column="2"
+                             FormatString="0" Grid.Row="2" Grid.Column="2"
                              Name="FlagBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="MapExitPoint_FlagName_Input"
                        Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2"

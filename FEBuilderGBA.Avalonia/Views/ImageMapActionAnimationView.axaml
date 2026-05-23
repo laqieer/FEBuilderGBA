@@ -9,9 +9,9 @@
     <!-- Row 0: top read-config bar (mirrors WF panel3: 先頭アドレス / 読込数 / 再取得) -->
     <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count" VerticalAlignment="Center" />
@@ -29,7 +29,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_Address_Input"
-                       FormatString="X8" Name="AddressBox" Width="120"
+                       FormatString="0" Name="AddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
@@ -117,7 +117,7 @@
                      Content="Frame:" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="1"
                              AutomationProperties.AutomationId="ImageMapActionAnimation_ShowFrame_Input"
-                             FormatString="X2" Name="ShowFrameUpDown" Width="80"
+                             FormatString="0" Name="ShowFrameUpDown" Width="80"
                              Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
             </Grid>
             <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">

@@ -12,9 +12,9 @@
         <Label Content="Filter:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Filter_Combo"
                   Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Count" VerticalAlignment="Center" />
@@ -32,7 +32,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_Item_Address_Input"
-                       FormatString="X8" Name="ItemAddressBox" Width="120"
+                       FormatString="0" Name="ItemAddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Block Size:" VerticalAlignment="Center" />
@@ -67,7 +67,7 @@
                Range = full u32 so any valid GBA pointer (0x08000000..0x0AFFFFFF) fits. -->
           <Label Grid.Row="0" Grid.Column="0" Content="Usability Pointer:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_UsabilityPointer_Input"
-                         FormatString="X8" Grid.Row="0" Grid.Column="1"
+                         FormatString="0" Grid.Row="0" Grid.Column="1"
                          Name="UsabilityPointerBox" Width="160"
                          Minimum="0" Maximum="4294967295"
                          VerticalAlignment="Center" HorizontalAlignment="Left" />

@@ -12,9 +12,9 @@
         <Label Content="Condition:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="MapTerrainBGLookupTable_Filter_Combo"
                   Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapTerrainBGLookupTable_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Count" VerticalAlignment="Center" />
@@ -37,7 +37,7 @@
         <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto">
           <Label Grid.Row="0" Grid.Column="0" Content="Address:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MapTerrainBGLookupTable_Item_Address_Input"
-                         FormatString="X8" Grid.Row="0" Grid.Column="1"
+                         FormatString="0" Grid.Row="0" Grid.Column="1"
                          Name="ItemAddressBox" Minimum="0" Maximum="65535999"
                          IsEnabled="False" VerticalAlignment="Center" />
 

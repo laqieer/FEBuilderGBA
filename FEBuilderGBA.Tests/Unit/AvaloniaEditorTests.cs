@@ -1414,28 +1414,95 @@ namespace FEBuilderGBA.Tests.Unit
         // ------------------------------------------------------------------ NumericUpDown FormatString regression
 
         /// <summary>
-        /// Avalonia NumericUpDown.Value is decimal? — the "X" hex format specifier
-        /// is not supported for decimal type and causes FormatException during rendering,
-        /// which prevents ALL NumericUpDown controls in the panel from displaying values.
-        /// This test ensures no AXAML file uses FormatString="X".
+        /// Avalonia NumericUpDown.Value is decimal? — ANY hex format specifier
+        /// ("X", "X2", "X4", "X8", …) is not supported for decimal type and causes
+        /// FormatException during rendering, which prevents ALL NumericUpDown
+        /// controls assigned after the throwing one from displaying values.
+        ///
+        /// Original guard (issue #58) only caught the bare "X" format. The
+        /// 2026-05-22 scheduled E2E failures (#498/#502/#509/#514/#515) showed
+        /// "X8" was still leaking through. This guard parses each AXAML as XML
+        /// and inspects every NumericUpDown element's FormatString attribute,
+        /// so it catches every hex variant AND is immune to false positives
+        /// from narrative XML comments that quote `FormatString="X*"`.
+        ///
+        /// Scans both `FEBuilderGBA.Avalonia/Views/` AND
+        /// `FEBuilderGBA.Avalonia/Controls/` so shared controls like
+        /// `IdFieldControl` are covered.
         /// </summary>
         [Fact]
         public void NoAxamlFile_UsesHexFormatString_OnNumericUpDown()
         {
             var viewsDir = Path.Combine(AvaloniaDir, "Views");
+            var controlsDir = Path.Combine(AvaloniaDir, "Controls");
             var violations = new List<string>();
 
-            foreach (var file in Directory.GetFiles(viewsDir, "*.axaml"))
+            // Loud assert that both target directories exist. Without this,
+            // a miscomputed AvaloniaDir would silently leave axamlFiles empty
+            // and the test would falsely pass (Copilot PR #545 review #1).
+            Assert.True(Directory.Exists(viewsDir),
+                $"Avalonia Views directory not found at '{viewsDir}'. " +
+                $"AvaloniaDir resolves to '{AvaloniaDir}' — verify the test fixture.");
+            Assert.True(Directory.Exists(controlsDir),
+                $"Avalonia Controls directory not found at '{controlsDir}'. " +
+                $"AvaloniaDir resolves to '{AvaloniaDir}' — verify the test fixture.");
+
+            // Compose the list of AXAML files from both directories.
+            var axamlFiles = new List<string>();
+            axamlFiles.AddRange(Directory.GetFiles(viewsDir, "*.axaml"));
+            axamlFiles.AddRange(Directory.GetFiles(controlsDir, "*.axaml"));
+
+            // Sanity: at least one AXAML file must exist; otherwise the scan
+            // is a no-op and the test fails loudly (Copilot PR #545 review #1).
+            Assert.True(axamlFiles.Count > 0,
+                $"No AXAML files found under {viewsDir} or {controlsDir} — the guard would scan nothing.");
+
+            // Hex format pattern — matches "X" or "x" optionally followed by digits.
+            // Case-insensitive because `decimal.ToString("x*")` throws the same
+            // FormatException as the uppercase variant (Copilot PR #545 review).
+            var hexFormat = new System.Text.RegularExpressions.Regex(
+                "^X\\d*$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            foreach (var file in axamlFiles)
             {
-                var content = File.ReadAllText(file);
-                if (content.Contains("FormatString=\"X\"") && content.Contains("NumericUpDown"))
+                // Parse as XML to inspect actual attributes (not raw text). This
+                // automatically excludes comments and inner text, which is what
+                // Copilot CLI review point 3 flagged on plan v1.
+                System.Xml.Linq.XDocument doc;
+                try
                 {
-                    violations.Add(Path.GetFileName(file));
+                    doc = System.Xml.Linq.XDocument.Load(file);
+                }
+                catch (System.Xml.XmlException ex)
+                {
+                    // Malformed AXAML must fail the test — otherwise a broken
+                    // file could hide a hex FormatString and the guard would
+                    // silently miss it (Copilot PR #545 review #2).
+                    violations.Add($"{Path.GetFileName(file)}: malformed XML — {ex.Message}");
+                    continue;
+                }
+
+                // Find any NumericUpDown element (regardless of namespace) whose
+                // FormatString attribute matches the hex pattern.
+                foreach (var el in doc.Descendants())
+                {
+                    if (el.Name.LocalName != "NumericUpDown") continue;
+                    var fmt = el.Attribute("FormatString")?.Value;
+                    if (fmt == null) continue;
+                    if (hexFormat.IsMatch(fmt))
+                    {
+                        var name = el.Attribute("Name")?.Value
+                                ?? el.Attribute(System.Xml.Linq.XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value
+                                ?? "(unnamed)";
+                        violations.Add($"{Path.GetFileName(file)}:{name} FormatString=\"{fmt}\"");
+                    }
                 }
             }
 
             Assert.True(violations.Count == 0,
-                $"These AXAML files use FormatString=\"X\" on NumericUpDown (incompatible with decimal type): " +
+                $"NumericUpDown FormatString guard found {violations.Count} violation(s) " +
+                $"(hex format on decimal NumericUpDown OR malformed AXAML): " +
                 string.Join(", ", violations));
         }
 
