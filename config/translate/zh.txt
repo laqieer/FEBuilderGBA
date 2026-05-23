@@ -20391,6 +20391,9 @@ LZ77 重新压缩 (2026 以后)
 :Hex Address
 开始地址
 
+:Address (decimal)
+开始地址 (十进制)
+
 :Jump to the background of battle animation
 跳转到战斗动画的背景
 
