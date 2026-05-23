@@ -210,14 +210,18 @@
                           AutomationProperties.AutomationId="OPClassDemoFE7_N2_Command_Combo"
                           Name="N2CommandCombo" Margin="0,4,0,0" Width="420" HorizontalAlignment="Left"
                           SelectionChanged="N2CommandCombo_SelectionChanged">
-                  <ComboBoxItem Content="1=Ranged attack anime" />
-                  <ComboBoxItem Content="2=Ranged critical anime" />
-                  <ComboBoxItem Content="3=Set anime state to 'hit effect applied'" />
-                  <ComboBoxItem Content="4=Ranged attack anime (alt)" />
-                  <ComboBoxItem Content="5=Wait N frames (arg = N/60 sec)" />
-                  <ComboBoxItem Content="6=Ranged evade anime" />
-                  <ComboBoxItem Content="7=Hit effect applied (FE8 unused)" />
-                  <ComboBoxItem Content="8=Wait for C01/C02/C18 cmd" />
+                  <!-- Wrap each option in a TextBlock so ViewTranslationHelper
+                       (which scans TextBlock.Text + Label.Content) can localize
+                       these labels. Plain ComboBoxItem.Content strings are not
+                       scanned by the helper. -->
+                  <ComboBoxItem><TextBlock Text="1=Ranged attack anime" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="2=Ranged critical anime" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="3=Set anime state to 'hit effect applied'" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="4=Ranged attack anime (alt)" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="5=Wait N frames (arg = N/60 sec)" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="6=Ranged evade anime" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="7=Hit effect applied (FE8 unused)" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="8=Wait for C01/C02/C18 cmd" /></ComboBoxItem>
                 </ComboBox>
 
                 <Label Grid.Row="2" Grid.Column="0"

@@ -354,8 +354,12 @@ public class OPClassDemoFE7ParityTests
             // P28 points at 0x08100300 - synthetic anime block at 0x100300:
             //   row 0: cmd=0x01 arg=0x10 (ranged attack, wait 16)
             //   row 1: cmd=0x05 arg=0x20 (wait 32 frames)
-            //   row 2: cmd=0x08 arg=0x00 (wait for command - terminator)
-            // ScanN2 stops when cmd == 0x00, so we should see 3 entries.
+            //   row 2: cmd=0x08 arg=0x00 (real command "wait for cmd
+            //                              C01/C02/C18", arg unused)
+            //   row 3: cmd=0x00 arg=0x00 (TERMINATOR - iteration stops here)
+            // LoadN2List stops when cmd == 0x00, so we should see exactly 3
+            // entries (rows 0-2 inclusive; the row-3 terminator is the
+            // actual stop marker and is not enumerated).
             Assert.Equal(3, vm.N2Entries.Count);
             Assert.Equal(0x01u, vm.N2Entries[0].Command);
             Assert.Equal(0x10u, vm.N2Entries[0].Argument);
