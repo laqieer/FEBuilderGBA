@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T16:09:30Z"
-git-sha: 5bf1167c1
+generated: "2026-05-23T19:46:09Z"
+git-sha: 590692680
 sweep-type: jumps
 ---
 
@@ -38,9 +38,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---:|
 | Total rows | 429 |
 | Match | 49 |
-| MissingAvManifest (backlog) | 338 |
+| MissingAvManifest (backlog) | 337 |
 | NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 7 |
+| KnownGap (issue-tagged) | 8 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -48,6 +48,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---|---|---|---|---|
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
+| `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `JumpToToolAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
@@ -251,7 +252,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageChapterTitleFE7Form` | `ImageChapterTitleFE7View` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageGenericEnemyPortraitForm` | `ImageGenericEnemyPortraitView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
-| `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |

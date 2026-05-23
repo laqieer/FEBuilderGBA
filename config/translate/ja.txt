@@ -7417,3 +7417,64 @@ OBBGLeftToRight
 
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 FEditor / SCA_Creator 魔法システムパッチが検出されません。パッチマネージャーからパッチをインストールしてください。
+
+# UnitEditorView additions (issue #413)
+:[HardCoding]
+[ハードコード]
+
+:Export/Import Options
+エクスポート/インポート オプション
+
+:Use Clipboard
+クリップボードを使用
+
+:Include UID
+UIDを含む
+
+:Include Header
+ヘッダ行を含む
+
+:Include Name
+名前を含む
+
+:Include Base Stats
+初期能力を含む
+
+:Include Growths
+成長率を含む
+
+:Include Wep Level
+武器LVを含む
+
+:Growths as Decimal
+成長率を小数で出力
+
+:Export All
+すべてエクスポート
+
+:Export Selected
+選択中をエクスポート
+
+:Import All
+すべてインポート
+
+:Import Selected
+選択中をインポート
+
+:Export all units to a CSV file or clipboard
+すべてのユニットをCSVファイルまたはクリップボードへエクスポート
+
+:Export the selected unit to a CSV file or clipboard
+選択中のユニットをCSVファイルまたはクリップボードへエクスポート
+
+:Import all units from a CSV file or clipboard
+すべてのユニットをCSVファイルまたはクリップボードからインポート
+
+:Import the selected unit from a CSV file or clipboard
+選択中のユニットをCSVファイルまたはクリップボードからインポート
+
+:Import Units CSV
+ユニットCSVをインポート
+
+:Import Unit CSV
+ユニットCSVをインポート
