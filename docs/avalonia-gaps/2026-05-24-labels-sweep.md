@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T23:12:33Z"
-git-sha: 336fc0fa6
+generated: "2026-05-23T23:42:42Z"
+git-sha: 924ecdd46
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4541 |
-| Total AV-only labels | 3119 |
-| Total common labels | 159 |
+| Total WF-only labels | 4540 |
+| Total AV-only labels | 3146 |
+| Total common labels | 160 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -3450,41 +3450,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write Anime Command`
 - `Write Glyph Entry`
 
-### AIScriptForm
-WF labels: **24** · AV labels: **2** · WF-only: **24** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Close`
-- `アドレス`
-- `コメント`
-- `バイナリコード`
-- `パラメータ1`
-- `パラメータ2`
-- `パラメータ3`
-- `パラメータ4`
-- `パラメータ5`
-- `ファイルからインポート`
-- `ファイルへエクスポート`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `切替`
-- `削除`
-- `名前`
-- `命令変更`
-- `変更`
-- `新規挿入`
-- `書き込み`
-- `説明`
-- `読込バイト数`
-- `読込数`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `AI Script Editor`
-
 ### WorldMapPointForm
 WF labels: **24** · AV labels: **21** · WF-only: **24** · AV-only: **21** · Common: **0** · Density verdict: **Low** (WF 51 / AV 41)
 
@@ -3537,6 +3502,67 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Ship Setting:`
 - `Vendor Pointer:`
 - `World Map Point Editor`
+- `Write`
+
+### AIScriptForm
+WF labels: **24** · AV labels: **30** · WF-only: **23** · AV-only: **29** · Common: **1** · Density verdict: **Medium** (WF 37 / AV 49)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `コメント`
+- `バイナリコード`
+- `パラメータ1`
+- `パラメータ2`
+- `パラメータ3`
+- `パラメータ4`
+- `パラメータ5`
+- `ファイルからインポート`
+- `ファイルへエクスポート`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `切替`
+- `削除`
+- `名前`
+- `命令変更`
+- `変更`
+- `新規挿入`
+- `書き込み`
+- `説明`
+- `読込バイト数`
+- `読込数`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0`
+- `0x00000000`
+- `Address`
+- `Binary Code`
+- `Comment`
+- `Description`
+- `Detail Address`
+- `Disassembly`
+- `Export To File`
+- `Import From File`
+- `List Expand`
+- `Name`
+- `New Insert`
+- `Parameter 1`
+- `Parameter 2`
+- `Parameter 3`
+- `Parameter 4`
+- `Parameter 5`
+- `Re-read`
+- `Read Byte Count`
+- `Read Count`
+- `Reload`
+- `Remove`
+- `Script Bytes:`
+- `Script Change`
+- `Switch`
+- `Top Address`
+- `Update`
 - `Write`
 
 ### EDFE7Form

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T23:12:35Z"
-git-sha: 336fc0fa6
+generated: "2026-05-23T23:42:44Z"
+git-sha: 924ecdd46
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 431 |
-| Match | 59 |
-| MissingAvManifest (backlog) | 329 |
+| Match | 60 |
+| MissingAvManifest (backlog) | 328 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 8 |
 
@@ -199,7 +199,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `AIScriptForm` | `AIScriptView` | `—` | `ClassFE6Form` | `ClassFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `ClassForm` | `ClassFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `DisASMForm` | `DisASMView` |
-| `AIScriptForm` | `AIScriptView` | `—` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitForm` | `UnitEditorView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitFE6Form` | `UnitFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitFE7Form` | `UnitFE7View` |
@@ -433,6 +432,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
+| `AIScriptForm` | `AIScriptView` | `JumpToPointerToolCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `ClassForm` | `ClassEditorView` | `JumpToCCBranch_FE8` | `CCBranchForm` | `CCBranchEditorView` |
 | `ClassForm` | `ClassEditorView` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |

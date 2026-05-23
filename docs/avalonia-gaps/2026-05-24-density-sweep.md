@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T23:12:31Z"
-git-sha: 336fc0fa6
+generated: "2026-05-23T23:42:39Z"
+git-sha: 924ecdd46
 sweep-type: density
 ---
 
@@ -20,8 +20,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 217 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 84 |
+| HIGH | |Δ%| ≥ 50 | 216 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 85 |
 | LOW | |Δ%| < 25 | 69 |
 
 ## Ranked Density Deltas
@@ -54,7 +54,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `MapStyleEditorForm` | `MapStyleEditorView` | 153 | 8 | -145 | -94.8% | ListParityHelper |
 | High | `ErrorPaletteTransparentForm` | `ErrorPaletteTransparentView` | 50 | 3 | -47 | -94.0% | Heuristic |
 | High | `ImagePortraitImporterForm` | `ImagePortraitImporterView` | 42 | 3 | -39 | -92.9% | Heuristic |
-| High | `AIScriptForm` | `AIScriptView` | 37 | 3 | -34 | -91.9% | Heuristic |
 | High | `WorldMapImageFE6Form` | `WorldMapImageFE6View` | 36 | 3 | -33 | -91.7% | Heuristic |
 | High | `EventHaikuFE6Form` | `EventHaikuFE6View` | 34 | 3 | -31 | -91.2% | ListParityHelper |
 | High | `FE8SpellMenuExtendsForm` | `FE8SpellMenuExtendsView` | 34 | 3 | -31 | -91.2% | Heuristic |
@@ -290,6 +289,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolWorkSupport_SelectUPSForm` | `ToolWorkSupport_SelectUPSView` | 4 | 5 | 1 | +25.0% | Heuristic |
 | Medium | `ImageBGForm` | `ImageBGView` | 26 | 33 | 7 | +26.9% | ListParityHelper |
 | Medium | `MapTileAnimation2Form` | `MapTileAnimation2View` | 40 | 51 | 11 | +27.5% | ListParityHelper |
+| Medium | `AIScriptForm` | `AIScriptView` | 37 | 49 | 12 | +32.4% | Heuristic |
 | Medium | `SkillAssignmentClassCSkillSysForm` | `SkillAssignmentClassCSkillSysView` | 43 | 57 | 14 | +32.6% | Heuristic |
 | Medium | `SkillAssignmentClassSkillSystemForm` | `SkillAssignmentClassSkillSystemView` | 43 | 57 | 14 | +32.6% | Heuristic |
 | Medium | `HexEditorForm` | `HexEditorView` | 6 | 8 | 2 | +33.3% | Heuristic |
@@ -496,14 +496,6 @@ WF count: **42** · AV count: **3** · Δ: **-39** (-92.9%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImagePortraitImporterView.axaml
 -->
 
-### AIScriptForm
-WF count: **37** · AV count: **3** · Δ: **-34** (-91.9%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/AIScriptForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/AIScriptView.axaml
--->
-
 ### WorldMapImageFE6Form
 WF count: **36** · AV count: **3** · Δ: **-33** (-91.7%).
 
@@ -526,6 +518,14 @@ WF count: **34** · AV count: **3** · Δ: **-31** (-91.2%).
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/FE8SpellMenuExtendsForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/FE8SpellMenuExtendsView.axaml
+-->
+
+### MonsterWMapProbabilityForm
+WF count: **66** · AV count: **6** · Δ: **-60** (-90.9%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/MonsterWMapProbabilityForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MonsterWMapProbabilityViewerView.axaml
 -->
 
 ## Unpaired Orphans

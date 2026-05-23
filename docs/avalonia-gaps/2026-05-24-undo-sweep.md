@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T23:12:43Z"
-git-sha: 336fc0fa6
+generated: "2026-05-23T23:42:47Z"
+git-sha: 924ecdd46
 sweep-type: undo
 ---
 
@@ -217,8 +217,8 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 | File | Line | Method | Write | Note |
 |---|---:|---|---|---|
 | `FEBuilderGBA.Avalonia/Services/ClassCsvManager.cs` | 208 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'ClassCsvManager' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/Services/ClassCsvManager.cs` | 223 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'ClassCsvManager' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/Services/ClassCsvManager.cs` | 236 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'ClassCsvManager' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/Services/ClassCsvManager.cs` | 230 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'ClassCsvManager' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/Services/ClassCsvManager.cs` | 243 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'ClassCsvManager' has no UndoService field/property/local |
 
 ### `UnitCsvManager` — 3 callsites
 
@@ -460,8 +460,8 @@ miss that surfaced as an unjustified zero-row warning before the fix).
 
 Classes with at least one detected write: 171.
 
-Writable VMs (matching the triplet convention): 143.  
-Writable VMs with zero detected ROM writes: 2.
+Writable VMs (matching the triplet convention): 144.  
+Writable VMs with zero detected ROM writes: 3.
 
 ### Writable VMs with zero detected ROM writes (warning)
 
@@ -474,5 +474,6 @@ recognise — see `WriteMethodNames` + `IsRomReceiver` in
 
 | ViewModel | Action |
 |---|---|
+| `AIScriptViewModel` | Verify ROM-write API; extend scanner pattern set if needed |
 | `ItemEffectivenessViewerViewModel` | Verify ROM-write API; extend scanner pattern set if needed |
 | `ItemPromotionViewerViewModel` | Verify ROM-write API; extend scanner pattern set if needed |
