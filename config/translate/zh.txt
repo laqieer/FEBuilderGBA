@@ -21239,3 +21239,38 @@ to:
 :Level-up Skill Top Address
 等级提升获得技能的起始地址
 
+:拡大して描画
+缩放并绘制
+
+:拡大しないで描画
+不缩放绘制
+
+:表示例
+显示示例
+
+:dim_pc
+dim_pc
+
+:dim
+dim
+
+:NULL (EMPTY)
+NULL (EMPTY)
+
+:FrameData
+FrameData
+
+:OBJRightToLeft
+OBJRightToLeft
+
+:OBJLeftToRight
+OBJLeftToRight
+
+:OBJBGRightToLeft
+OBJBGRightToLeft
+
+:OBBGLeftToRight
+OBBGLeftToRight
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+未检测到 FEditor / SCA_Creator 魔法系统补丁。请通过补丁管理器安装补丁。

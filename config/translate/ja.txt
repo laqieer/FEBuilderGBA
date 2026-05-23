@@ -7337,3 +7337,50 @@ Hard only (LV+128)
 :Level-up Skill Top Address
 レベルアップで取得するスキルの先頭アドレス
 
+:サンプル
+サンプル
+
+:インターネットから新しいリソースを探す
+インターネットから新しいリソースを探す
+
+:拡大して描画
+拡大して描画
+
+:拡大しないで描画
+拡大しないで描画
+
+:表示例
+表示例
+
+:dim_pc
+dim_pc
+
+:dim
+dim
+
+:NULL (EMPTY)
+NULL (EMPTY)
+
+:FrameData
+FrameData
+
+:OBJRightToLeft
+OBJRightToLeft
+
+:OBJLeftToRight
+OBJLeftToRight
+
+:OBJBGRightToLeft
+OBJBGRightToLeft
+
+:OBBGLeftToRight
+OBBGLeftToRight
+
+:魔法アニメの書出し
+魔法アニメの書出し
+
+:魔法アニメの読込
+魔法アニメの読込
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+FEditor / SCA_Creator 魔法システムパッチが検出されません。パッチマネージャーからパッチをインストールしてください。
