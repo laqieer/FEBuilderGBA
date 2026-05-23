@@ -63,7 +63,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint trackCount = rom.u8(headerAddr);
                 if (trackCount == 0 || trackCount > 16) continue;
 
-                string name = $"0x{i:X02} Song {i}";
+                // Use the real song name (same as LoadFullList below).
+                string songName = NameResolver.GetSongName((uint)i);
+                string name = string.IsNullOrEmpty(songName)
+                    ? $"0x{i:X02} Song {i}"
+                    : $"0x{i:X02} {songName}";
                 result.Add(new AddrResult(headerAddr, name, (uint)i));
 
                 // Load the first valid song for data-verify standalone init
@@ -124,7 +128,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isSafetyOffset(headerAddr) || headerAddr + 8 > romLen)
                     continue;
 
-                string name = $"0x{i:X02} Song {i}";
+                // Use the real song name from the resource cache (mirrors
+                // WF's `SongTableForm.GetSongName((uint)i)` so songs share
+                // identical display labels across the master list and the
+                // SongTable editor).
+                string songName = NameResolver.GetSongName((uint)i);
+                string name = string.IsNullOrEmpty(songName)
+                    ? $"0x{i:X02} Song {i}"
+                    : $"0x{i:X02} {songName}";
                 result.Add(new AddrResult(headerAddr, name, (uint)i));
             }
 

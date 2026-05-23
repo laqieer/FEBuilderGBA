@@ -7,11 +7,18 @@
 //       (`InputFormRef.JumpForm<SongExchangeForm>(songId)` — passes the song
 //        index)
 //   - AllTracksLabel_Click     -> SongTrackAllChangeTrackForm
-//       (`InputFormRef.JumpFormLow<SongTrackAllChangeTrackForm>()` — modal
-//        dialog scoped to the current song's header address)
+//       (`InputFormRef.JumpFormLow<SongTrackAllChangeTrackForm>()` then
+//        `f.Init((uint)P4.Value, this.Tracks)` — WF passes the instrument-
+//        set pointer + the full Tracks list. The Avalonia callsite passes
+//        `_vm.InstrumentAddr` since `Navigate<T>(uint)` cannot carry a
+//        Tracks payload today; surfacing Tracks requires extending the
+//        navigation seam and is out of scope for #412.)
 //   - TrackLabelN_Click        -> SongTrackChangeTrackForm
-//       (`InputFormRef.JumpFormLow<SongTrackChangeTrackForm>()` — modal
-//        dialog scoped to the clicked track index)
+//       (`InputFormRef.JumpFormLow<SongTrackChangeTrackForm>()` then
+//        `f.Init((uint)P4.Value, this.Tracks[no])` — WF passes the
+//        instrument-set pointer + the single clicked track. The Avalonia
+//        callsite passes the track's resolved DATA offset
+//        (`TrackInfo.DataOffset`, mirroring WF's `SongUtil.Track.basepointer`).)
 //
 // The remaining three WF callsites — `SongTrackImportMidiForm`,
 // `SongTrackImportWaveForm`, `SongTrackImportSelectInstrumentForm` — are

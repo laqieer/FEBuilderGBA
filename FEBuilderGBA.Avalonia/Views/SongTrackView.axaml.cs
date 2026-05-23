@@ -150,12 +150,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     lb.ItemsSource = new[] { t.Status, $"Ptr@0x{t.PointerOffset:X06}" };
                     lbl.IsEnabled = true;
                     lbl.Opacity = 1.0;
+                    lb.IsEnabled = true;
+                    lb.Opacity = 1.0;
                 }
                 else
                 {
                     lb.ItemsSource = Array.Empty<string>();
                     lbl.IsEnabled = false;
                     lbl.Opacity = 0.4;
+                    // Also disable + dim the ListBox itself so empty columns
+                    // are not focusable (Copilot bot review #2 / PR #558).
+                    lb.IsEnabled = false;
+                    lb.Opacity = 0.4;
                 }
             }
 
@@ -230,7 +236,15 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
             try
             {
-                WindowManager.Instance.Navigate<SongTrackAllChangeTrackView>(_vm.CurrentAddr);
+                // In WinForms, `SongTrackAllChangeTrackForm.Init(P4, Tracks)`
+                // takes the instrument-set pointer and the full Tracks list.
+                // The Avalonia target view can't yet accept a Tracks list
+                // through Navigate, so we pass the instrument-set address
+                // (the closest single-uint context). When the target editor
+                // becomes fully functional this navigation may also need
+                // a `Tracks` payload — out of scope for #412. (Copilot bot
+                // review #4 / PR #558.)
+                WindowManager.Instance.Navigate<SongTrackAllChangeTrackView>(_vm.InstrumentAddr);
             }
             catch (Exception ex)
             {
@@ -252,11 +266,22 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                // The track's pointer offset is the address that SongTrackChangeTrack
-                // edits. Pass it as the navigation address — the target view
-                // resolves its own scope via that address.
+                // In WinForms, `SongTrackChangeTrackForm.Init(..., this.Tracks[no])`
+                // operates on the track's *data* address (`SongUtil.Track.basepointer`).
+                // The Avalonia ChangeTrack target editor will need that same
+                // scope once it becomes functional, so we pass DataOffset
+                // (the resolved track-data ROM offset) — NOT PointerOffset
+                // (the address of the 4-byte pointer slot in the song header)
+                // which is meaningful only for the host editor. Guard against
+                // invalid pointers / DataOffset == 0 (Copilot bot review #3 /
+                // PR #558).
                 var track = _vm.Tracks[trackOneBased - 1];
-                WindowManager.Instance.Navigate<SongTrackChangeTrackView>(track.PointerOffset);
+                if (!track.IsValid || track.DataOffset == 0)
+                {
+                    Log.Error($"SongTrackView.TrackLabel_Click: track {trackOneBased} has invalid DataOffset");
+                    return;
+                }
+                WindowManager.Instance.Navigate<SongTrackChangeTrackView>(track.DataOffset);
             }
             catch (Exception ex)
             {
