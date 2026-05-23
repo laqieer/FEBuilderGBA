@@ -922,7 +922,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("SupportUnitEditorView.axaml", 1100, 900)]
         [InlineData("SupportAttributeView.axaml", 1169, 497)]
         [InlineData("SupportTalkView.axaml", 1279, 720)]
-        [InlineData("UnitFE6View.axaml", 934, 661)]
+        [InlineData("UnitFE6View.axaml", 934, 700)]
         [InlineData("UnitFE7View.axaml", 1409, 900)]
         [InlineData("ItemFE6View.axaml", 1408, 856)]
         [InlineData("MoveCostFE6View.axaml", 1536, 634)]
