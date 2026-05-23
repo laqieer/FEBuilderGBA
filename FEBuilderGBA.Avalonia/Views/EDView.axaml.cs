@@ -100,7 +100,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 Retreat_AddressBox.Value = addr;
                 Retreat_SelectedAddressLabel.Content = $"0x{addr:X08}";
                 Retreat_UnitIdBox.Value = _vm.RetreatUnitId;
-                try { Retreat_UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.RetreatUnitId); }
+                try { Retreat_UnitIdBox.NameText = ResolveUnitNameForUid(_vm.RetreatUnitId); }
                 catch { /* leave prior text */ }
                 Retreat_ConditionBox.Value = _vm.RetreatCondition;
                 Retreat_B2Box.Value = _vm.RetreatB2;
@@ -181,14 +181,14 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint addr = UnitAddrFor(Retreat_UnitIdBox.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) Retreat_UnitIdBox.Value = (uint)result.Index;
+                if (result != null) Retreat_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error("EDView.RetreatUnitId_Pick failed: {0}", ex.Message); }
         }
 
         void RetreatUnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { Retreat_UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            try { Retreat_UnitIdBox.NameText = ResolveUnitNameForUid(e.NewValue); }
             catch { /* leave prior text */ }
         }
 
@@ -214,7 +214,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 Epithet_AddressBox.Value = addr;
                 Epithet_SelectedAddressLabel.Content = $"0x{addr:X08}";
                 Epithet_UnitIdBox.Value = _vm.EpithetUnitId;
-                try { Epithet_UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.EpithetUnitId); }
+                try { Epithet_UnitIdBox.NameText = ResolveUnitNameForUid(_vm.EpithetUnitId); }
                 catch { /* leave prior text */ }
                 Epithet_EpithetTextIdBox.Value = _vm.EpithetTextId;
                 RefreshEpithetTextPreview(_vm.EpithetTextId);
@@ -304,14 +304,14 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint addr = UnitAddrFor(Epithet_UnitIdBox.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) Epithet_UnitIdBox.Value = (uint)result.Index;
+                if (result != null) Epithet_UnitIdBox.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error("EDView.EpithetUnitId_Pick failed: {0}", ex.Message); }
         }
 
         void EpithetUnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { Epithet_UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            try { Epithet_UnitIdBox.NameText = ResolveUnitNameForUid(e.NewValue); }
             catch { /* leave prior text */ }
         }
 
@@ -358,9 +358,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 Epilogue_UnitId1Box.Value = _vm.EpilogueUnitId1;
                 Epilogue_UnitId2Box.Value = _vm.EpilogueUnitId2;
-                try { Epilogue_UnitId1Box.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.EpilogueUnitId1); }
+                try { Epilogue_UnitId1Box.NameText = ResolveUnitNameForUid(_vm.EpilogueUnitId1); }
                 catch { /* leave prior text */ }
-                try { Epilogue_UnitId2Box.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.EpilogueUnitId2); }
+                try { Epilogue_UnitId2Box.NameText = ResolveUnitNameForUid(_vm.EpilogueUnitId2); }
                 catch { /* leave prior text */ }
                 Epilogue_StoryFlagBox.Value = _vm.EpilogueStoryFlag;
                 Epilogue_EpilogueTextIdBox.Value = _vm.EpilogueTextId;
@@ -486,14 +486,14 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId1Box.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) Epilogue_UnitId1Box.Value = (uint)result.Index;
+                if (result != null) Epilogue_UnitId1Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error("EDView.EpilogueUnitId1_Pick failed: {0}", ex.Message); }
         }
 
         void EpilogueUnitId1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { Epilogue_UnitId1Box.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            try { Epilogue_UnitId1Box.NameText = ResolveUnitNameForUid(e.NewValue); }
             catch { /* leave prior text */ }
         }
 
@@ -514,14 +514,14 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint addr = UnitAddrFor(Epilogue_UnitId2Box.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) Epilogue_UnitId2Box.Value = (uint)result.Index;
+                if (result != null) Epilogue_UnitId2Box.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error("EDView.EpilogueUnitId2_Pick failed: {0}", ex.Message); }
         }
 
         void EpilogueUnitId2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { Epilogue_UnitId2Box.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            try { Epilogue_UnitId2Box.NameText = ResolveUnitNameForUid(e.NewValue); }
             catch { /* leave prior text */ }
         }
 
@@ -530,16 +530,21 @@ namespace FEBuilderGBA.Avalonia.Views
         // ============================================================
 
         /// <summary>
-        /// Resolve a unit id to its ROM entry address (for the
-        /// IdFieldControl Jump/Pick affordances). Preserves the FE6
-        /// dummy-entry skip from the original OnUnitIdLinkClick.
-        /// Returns 0 when ROM is unavailable or the entry would fall
-        /// outside ROM bounds.
+        /// Resolve a stored ED <c>unitId</c> (1-based, where <c>0</c> is
+        /// the table terminator) to its ROM entry address for the
+        /// IdFieldControl Jump/Pick affordances. The unit-table index is
+        /// <c>unitId - 1</c> - this matches WF <c>UnitForm.GetUnitName</c>
+        /// and <c>InputFormRef.IDToAddr</c> which both decrement
+        /// internally. Returns 0 when ROM is unavailable, <c>unitId == 0</c>,
+        /// or the entry would fall outside ROM bounds. Copilot PR #561
+        /// bot review (off-by-one finding).
         /// </summary>
         static uint UnitAddrFor(uint unitId)
         {
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null) return 0;
+            if (unitId == 0) return 0;
+            uint tableIndex = unitId - 1;
             uint unitPtr = rom.RomInfo.unit_pointer;
             if (unitPtr == 0) return 0;
             uint baseAddr = rom.p32(unitPtr);
@@ -547,10 +552,23 @@ namespace FEBuilderGBA.Avalonia.Views
             uint dataSize = rom.RomInfo.unit_datasize;
             if (dataSize == 0) return 0;
             if (rom.RomInfo.version == 6) baseAddr += dataSize;
-            uint entryAddr = baseAddr + unitId * dataSize;
+            uint entryAddr = baseAddr + tableIndex * dataSize;
             if (!U.isSafetyOffset(entryAddr, rom)) return 0;
             if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
             return entryAddr;
+        }
+
+        /// <summary>
+        /// Resolve a stored ED UnitId to its display name. ED tables
+        /// store UnitIds as 1-based (0 = terminator); the unit-table
+        /// index is uid-1. <see cref="SupportUnitNavigation.ResolveUnitTableName"/>
+        /// expects a 0-based table index, so we decrement first and
+        /// guard the 0 case. Mirrors <see cref="EDViewModel.GetUnitNameForUid"/>.
+        /// </summary>
+        static string ResolveUnitNameForUid(uint uid)
+        {
+            if (uid == 0) return "";
+            return SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, uid - 1);
         }
 
         // ============================================================

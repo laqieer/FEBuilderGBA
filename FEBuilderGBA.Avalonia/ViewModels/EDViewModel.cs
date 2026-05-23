@@ -181,7 +181,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 (addr) => rom.u32(addr) != 0x00,
                 (addr) => {
                     uint uid = rom.u8(addr);
-                    return $"{U.ToHexString(uid)} {NameResolver.GetUnitName(uid)}";
+                    return $"{U.ToHexString(uid)} {GetUnitNameForUid(uid)}";
                 });
         }
 
@@ -256,7 +256,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     uint uid = rom.u8(addr);
                     uint textId = rom.u32(addr + 4);
                     string textPreview = textId != 0 ? NameResolver.GetTextById(textId) : "";
-                    return $"{U.ToHexString(uid)} {NameResolver.GetUnitName(uid)} {textPreview}".Trim();
+                    return $"{U.ToHexString(uid)} {GetUnitNameForUid(uid)} {textPreview}".Trim();
                 });
         }
 
@@ -340,12 +340,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     uint flag = rom.u8(addr);
                     uint uid1 = rom.u8(addr + 1);
                     uint uid2 = rom.u8(addr + 2);
-                    string name1 = NameResolver.GetUnitName(uid1);
+                    string name1 = GetUnitNameForUid(uid1);
                     if (flag == 1)
                         return $"{U.ToHexString(uid1)} {name1}";
                     if (flag == 2)
-                        return $"{U.ToHexString(uid1)} {name1} & {U.ToHexString(uid2)} {NameResolver.GetUnitName(uid2)}";
-                    return $"{U.ToHexString(uid1)} {name1} ?? {U.ToHexString(uid2)} {NameResolver.GetUnitName(uid2)}";
+                        return $"{U.ToHexString(uid1)} {name1} & {U.ToHexString(uid2)} {GetUnitNameForUid(uid2)}";
+                    return $"{U.ToHexString(uid1)} {name1} ?? {U.ToHexString(uid2)} {GetUnitNameForUid(uid2)}";
                 });
             return _epilogueList;
         }
@@ -469,6 +469,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // ============================================================
         // Private helpers
         // ============================================================
+
+        /// <summary>
+        /// Resolve a stored ED UnitId to a display name. ED tables (and
+        /// every other WF unit-id field) store a 1-based id where `0` is
+        /// reserved as the list terminator; the underlying unit-table
+        /// index is `uid - 1`. This matches WF `UnitForm.GetUnitName(uid)`
+        /// which decrements internally. Without the decrement,
+        /// `NameResolver.GetUnitName` (which is 0-based) returns the
+        /// next-higher-indexed unit's name. Copilot PR #561 bot review
+        /// (9 inline threads).
+        /// </summary>
+        static string GetUnitNameForUid(uint uid)
+        {
+            if (uid == 0) return "";
+            return NameResolver.GetUnitName(uid - 1);
+        }
 
         /// <summary>
         /// After <see cref="DataExpansionCore.ExpandTable"/> appends a

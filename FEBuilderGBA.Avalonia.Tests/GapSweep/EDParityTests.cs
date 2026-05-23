@@ -271,6 +271,32 @@ public class EDParityTests
     }
 
     [Fact]
+    public void ViewModel_LoadRetreatList_DecrementsUidFor1BasedConvention()
+    {
+        // Copilot PR #561 bot review (9 inline threads): ED tables store
+        // UnitIds as 1-based with `0` reserved as the terminator. WF
+        // `UnitForm.GetUnitName(uid)` decrements internally before
+        // looking up the unit table. The Avalonia list label must use
+        // the same convention so e.g. retreat row "01" displays the
+        // FIRST unit (table index 0), not the SECOND. We don't need to
+        // assert a specific string here (NameResolver may return "???"
+        // on the synthetic ROM), but the list-label substring must
+        // start with the hex-formatted uid so the user can recognize it.
+        var rom = MakeMinimalFE8URom(out uint retreatAddr, out _, out _);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new EDViewModel();
+            var list = vm.LoadRetreatList();
+            Assert.NotEmpty(list);
+            // First entry has uid=0x01 (see MakeMinimalFE8URom).
+            Assert.StartsWith("01", list[0].name);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
     public void ViewModel_LoadEpithetList_FiltersOnU8Zero()
     {
         // WF N1_Init lambda: return Program.ROM.u8(addr) != 0x00;
