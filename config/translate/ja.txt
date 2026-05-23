@@ -6983,3 +6983,123 @@ Core 抽出待ち - #524 で追跡中
 
 :/60 (sec)
 /60 (秒)
+
+:Simple
+簡易
+
+:Detail
+詳細
+
+:Static-Text ROM FROM
+定型文ROM FROM
+
+:Static-Text ROM TO
+定型文ROM TO
+
+:Extra Font ROM
+追加フォント ROM
+
+:Without a file, only static texts are translated.
+無指定の場合は定型文のみ翻訳します。
+
+:Override JP Font
+日本語フォントの上書き
+
+:Start Translation
+翻訳開始
+
+:Pending Core extraction - tracked by #536
+Core抽出待ち - #536 で追跡中
+
+:Translates the ROM. Uses Japanese and English ROMs to convert unchanged text automatically. Simple mode is fully automatic - it imports missing fonts, adjusts menu lengths, and similar. All processing takes about ten minutes.
+ROMの翻訳を行います。日本語ROMと英語ROMを利用して、無変更のテキストを自動的に変換します。簡易モードでは、全自動で翻訳します。不足しているフォントのインポートや、メニューの長さなどを自動的に調整します。全ての処理が終わるのに、10分ほど時間がかかるので、少しお待ちください。
+
+:Export All Text
+全テキストの書出し
+
+:Writes all texts to a text file.
+すべてのテキストをテキストファイルに書きだします。
+
+:Translate before Export
+翻訳して書き出す
+
+:Translate static texts (extract from FROM ROM and TO ROM, use as translation reference)
+定型文の翻訳(FROM ROMと TO ROMから、定型文を取得し、翻訳の参考にする)
+
+:OneLiner
+OneLiner
+
+:from:
+from:
+
+:to:
+to:
+
+:Only acquire modified text
+改造されたテキストのみ取得する
+
+:Export All Texts
+全テキストの書出し
+
+:Import All Text
+全テキストの読込
+
+:Rewrites all texts with the contents of the specified file. Requires the anti-Huffman and DrawMultibyte/DrawSingleByte patches. After it finishes, import any missing fonts separately.
+すべてのテキストを、指定されたファイルの内容で書き換えます。利用するには、anti-HuffmanとDrawMultibye/DrawSingleByteパッチが必要です。処理が終わったら、別途、足りないフォントを取り込んでください。
+
+:Import All Texts
+全テキストの読込
+
+:Font
+フォント
+
+:Copies fonts that the current ROM is missing from the fonts in the ROM below.
+現行ROMに足りないフォントを、以下のROMにあるフォントからコピーする
+
+:Auto-Generate Missing Fonts
+足りないフォントの自動生成
+
+:Use Font Name
+利用フォント
+
+:Change
+変更
+
+:Import Font
+フォント取込
+
+:ja=日本語
+ja=日本語
+
+:en=英語
+en=英語
+
+:zh-CN=中国語
+zh-CN=中国語
+
+:zh-CN=中国語 簡体
+zh-CN=中国語 簡体
+
+:zh-TW=中国語 繁体
+zh-TW=中国語 繁体
+
+:es=スペイン語
+es=スペイン語
+
+:hi=ヒンディー語
+hi=ヒンディー語
+
+:ar=アラビア語
+ar=アラビア語
+
+:pt=ポルトガル語
+pt=ポルトガル語
+
+:ru=ロシア語
+ru=ロシア語
+
+:fr=フランス語
+fr=フランス語
+
+:eo=エスペランド語
+eo=エスペランド語

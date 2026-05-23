@@ -1,21 +1,280 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ToolTranslateROMView"
-        Title="ROM Translation Tool" Width="928" Height="760"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ToolTranslateROM_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="ROM Translation Tool" Width="940" Height="780"
+        SizeToContent="Manual">
+  <TabControl AutomationProperties.AutomationId="ToolTranslateROM_TabControl">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="ROM Translation Tool" FontSize="18" FontWeight="Bold" />
+    <!-- =============== Simple tab (mirrors WF tabPage1 / panel1) =============== -->
+    <TabItem AutomationProperties.AutomationId="ToolTranslateROM_Simple_Tab" Header="Simple">
+      <ScrollViewer>
+        <StackPanel Spacing="6" Margin="8">
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+          <!-- FROM ROM row -->
+          <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto" Margin="0,2">
+            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+              <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_SimpleFromRom_Label"
+                         Text="{Binding FromRomLabel, FallbackValue='Static-Text ROM FROM'}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBox AutomationProperties.AutomationId="ToolTranslateROM_SimpleFromRom_Input"
+                     Grid.Column="1" Margin="4,0"
+                     Text="{Binding FromRomPath}" />
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleFromRom_Button"
+                    Grid.Column="2" Content=".." Width="40"
+                    Click="SimpleFromRomBrowse_Click" />
+          </Grid>
+
+          <!-- TO ROM row -->
+          <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto" Margin="0,2">
+            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+              <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_SimpleToRom_Label"
+                         Text="{Binding ToRomLabel, FallbackValue='Static-Text ROM TO'}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBox AutomationProperties.AutomationId="ToolTranslateROM_SimpleToRom_Input"
+                     Grid.Column="1" Margin="4,0"
+                     Text="{Binding ToRomPath}" />
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleToRom_Button"
+                    Grid.Column="2" Content=".." Width="40"
+                    Click="SimpleToRomBrowse_Click" />
+          </Grid>
+
+          <!-- Extra Font ROM row -->
+          <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto" Margin="0,2">
+            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+              <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_ExtraFontRom_Label"
+                         Text="Extra Font ROM"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBox AutomationProperties.AutomationId="ToolTranslateROM_ExtraFontRom_Input"
+                     Grid.Column="1" Margin="4,0"
+                     Text="{Binding ExtraFontRomPath}" />
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_ExtraFontRom_Button"
+                    Grid.Column="2" Content=".." Width="40"
+                    Click="ExtraFontRomBrowse_Click" />
+          </Grid>
+
+          <!-- Translate Data row -->
+          <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto" Margin="0,2">
+            <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+              <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_TranslateData_Label"
+                         Text="Translation Data"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBox AutomationProperties.AutomationId="ToolTranslateROM_TranslateData_Input"
+                     Grid.Column="1" Margin="4,0"
+                     Text="{Binding TranslateDataPath}"
+                     Watermark="Without a file, only static texts are translated." />
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_TranslateData_Button"
+                    Grid.Column="2" Content=".." Width="40"
+                    Click="TranslateDataBrowse_Click" />
+          </Grid>
+
+          <!-- JP Font override checkbox (hidden when !is_multibyte && version >= 7) -->
+          <CheckBox AutomationProperties.AutomationId="ToolTranslateROM_SimpleOverrideJpFont_Check"
+                    Content="Override JP Font"
+                    IsChecked="{Binding SimpleOverrideJpFont}"
+                    IsVisible="{Binding ShowJpFontOverride}"
+                    Margin="200,4,0,4" />
+
+          <!-- Action button (disabled until #536) -->
+          <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleFire_Button"
+                  Content="Start Translation"
+                  Click="SimpleFire_Click"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #536"
+                  HorizontalAlignment="Stretch" Height="50"
+                  Margin="0,8" />
+
+          <!-- Explanation block -->
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="0,8,0,0">
+            <TextBlock TextWrapping="Wrap"
+                       Text="Translates the ROM. Uses Japanese and English ROMs to convert unchanged text automatically. Simple mode is fully automatic - it imports missing fonts, adjusts menu lengths, and similar. All processing takes about ten minutes." />
+          </Border>
+
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+
+    <!-- =============== Detail tab (mirrors WF tabPage2) =============== -->
+    <TabItem AutomationProperties.AutomationId="ToolTranslateROM_Detail_Tab" Header="Detail">
+      <ScrollViewer>
+        <StackPanel Spacing="8" Margin="8">
+
+          <!-- ============ Export group (mirrors customColorGroupBox3 + 4) ============ -->
+          <Expander AutomationProperties.AutomationId="ToolTranslateROM_ExportGroup_Expander"
+                    Header="Export All Text" IsExpanded="True">
+            <StackPanel Spacing="6" Margin="8">
+
+              <TextBlock TextWrapping="Wrap"
+                         Text="Writes all texts to a text file." />
+
+              <!-- Auto-translate inside-group block (customColorGroupBox4) -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+                <StackPanel Spacing="6">
+                  <Label Content="Translate before Export" FontWeight="SemiBold" />
+
+                  <CheckBox AutomationProperties.AutomationId="ToolTranslateROM_UseAutoTranslate_Check"
+                            Content="Translate static texts (extract from FROM ROM and TO ROM, use as translation reference)"
+                            IsChecked="{Binding UseAutoTranslate}" />
+
+                  <CheckBox AutomationProperties.AutomationId="ToolTranslateROM_OneLiner_Check"
+                            Content="OneLiner"
+                            IsChecked="{Binding OneLinerCheck}" />
+
+                  <!-- TranslatePanel: enabled AND visible only when UseAutoTranslate is on.
+                       Mirrors WF `useAutoTranslateCheckBox_CheckedChanged` which sets both
+                       TranslatePanel.Enabled and TranslatePanel.Visible. -->
+                  <StackPanel Spacing="6"
+                              IsEnabled="{Binding UseAutoTranslate}"
+                              IsVisible="{Binding UseAutoTranslate}">
+
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+                        <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_FromLanguage_Label"
+                                   Text="from:" VerticalAlignment="Center" />
+                      </Border>
+                      <ComboBox AutomationProperties.AutomationId="ToolTranslateROM_FromLanguage_Combo"
+                                Width="200"
+                                ItemsSource="{Binding FromLanguageItems}"
+                                SelectedIndex="{Binding FromLanguageIndex}" />
+                      <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+                        <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_ToLanguage_Label"
+                                   Text="to:" VerticalAlignment="Center" />
+                      </Border>
+                      <ComboBox AutomationProperties.AutomationId="ToolTranslateROM_ToLanguage_Combo"
+                                Width="200"
+                                ItemsSource="{Binding ToLanguageItems}"
+                                SelectedIndex="{Binding ToLanguageIndex}" />
+                    </StackPanel>
+
+                    <!-- Detail FROM ROM row -->
+                    <Grid ColumnDefinitions="200,*,Auto" Margin="0,2">
+                      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                        <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_DetailFromRom_Label"
+                                   Text="{Binding FromRomLabel, FallbackValue='Static-Text ROM FROM'}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                      <TextBox AutomationProperties.AutomationId="ToolTranslateROM_DetailFromRom_Input"
+                               Grid.Column="1" Margin="4,0"
+                               Text="{Binding FromRomPath}" />
+                      <Button AutomationProperties.AutomationId="ToolTranslateROM_DetailFromRom_Button"
+                              Grid.Column="2" Content=".." Width="40"
+                              Click="DetailFromRomBrowse_Click" />
+                    </Grid>
+
+                    <!-- Detail TO ROM row -->
+                    <Grid ColumnDefinitions="200,*,Auto" Margin="0,2">
+                      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                        <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_DetailToRom_Label"
+                                   Text="{Binding ToRomLabel, FallbackValue='Static-Text ROM TO'}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                      <TextBox AutomationProperties.AutomationId="ToolTranslateROM_DetailToRom_Input"
+                               Grid.Column="1" Margin="4,0"
+                               Text="{Binding ToRomPath}" />
+                      <Button AutomationProperties.AutomationId="ToolTranslateROM_DetailToRom_Button"
+                              Grid.Column="2" Content=".." Width="40"
+                              Click="DetailToRomBrowse_Click" />
+                    </Grid>
+
+                    <CheckBox AutomationProperties.AutomationId="ToolTranslateROM_ModifiedOnly_Check"
+                              Content="Only acquire modified text"
+                              IsChecked="{Binding ModifiedTextOnly}" />
+                  </StackPanel>
+
+                </StackPanel>
+              </Border>
+
+              <Button AutomationProperties.AutomationId="ToolTranslateROM_ExportAllText_Button"
+                      Content="Export All Texts"
+                      Click="ExportAllText_Click"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #536"
+                      HorizontalAlignment="Stretch" Height="36"
+                      Margin="0,4,0,0" />
+            </StackPanel>
+          </Expander>
+
+          <!-- ============ Import group (mirrors customColorGroupBox1) ============ -->
+          <Expander AutomationProperties.AutomationId="ToolTranslateROM_ImportGroup_Expander"
+                    Header="Import All Text" IsExpanded="True">
+            <StackPanel Spacing="6" Margin="8">
+
+              <TextBlock TextWrapping="Wrap"
+                         Text="Rewrites all texts with the contents of the specified file. Requires the anti-Huffman and DrawMultibyte/DrawSingleByte patches. After it finishes, import any missing fonts separately." />
+
+              <CheckBox AutomationProperties.AutomationId="ToolTranslateROM_OverrideJpFont_Check"
+                        Content="Override JP Font"
+                        IsChecked="{Binding OverrideJpFont}"
+                        IsVisible="{Binding ShowJpFontOverride}"
+                        HorizontalAlignment="Right" />
+
+              <Button AutomationProperties.AutomationId="ToolTranslateROM_ImportAllText_Button"
+                      Content="Import All Texts"
+                      Click="ImportAllText_Click"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #536"
+                      HorizontalAlignment="Stretch" Height="36" />
+            </StackPanel>
+          </Expander>
+
+          <!-- ============ Font group (mirrors customColorGroupBox2) ============ -->
+          <Expander AutomationProperties.AutomationId="ToolTranslateROM_FontGroup_Expander"
+                    Header="Font" IsExpanded="True">
+            <StackPanel Spacing="6" Margin="8">
+
+              <TextBlock TextWrapping="Wrap"
+                         Text="Copies fonts that the current ROM is missing from the fonts in the ROM below." />
+
+              <!-- Font ROM picker row -->
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBox AutomationProperties.AutomationId="ToolTranslateROM_FontRom_Input"
+                         Grid.Column="0" Margin="0,0,4,0"
+                         Text="{Binding FontRomPath}"
+                         IsEnabled="{Binding IsFontRomPickerEnabled}" />
+                <Button AutomationProperties.AutomationId="ToolTranslateROM_FontRom_Button"
+                        Grid.Column="1" Content=".." Width="40"
+                        IsEnabled="{Binding IsFontRomPickerEnabled}"
+                        Click="FontRomBrowse_Click" />
+              </Grid>
+
+              <CheckBox AutomationProperties.AutomationId="ToolTranslateROM_FontAutoGenerate_Check"
+                        Content="Auto-Generate Missing Fonts"
+                        IsChecked="{Binding FontAutoGenerate}" />
+
+              <!-- Use Font Name row (visible only when FontAutoGenerate is on) -->
+              <Grid ColumnDefinitions="200,*,Auto" IsVisible="{Binding FontAutoGenerate}">
+                <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                  <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_UseFontName_Label"
+                             Text="Use Font Name"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBox AutomationProperties.AutomationId="ToolTranslateROM_UseFontName_Input"
+                         Grid.Column="1" Margin="4,0"
+                         Text="{Binding UseFontName}"
+                         IsReadOnly="True" />
+                <Button AutomationProperties.AutomationId="ToolTranslateROM_UseFontName_Button"
+                        Grid.Column="2" Content="Change" Width="80"
+                        Click="UseFontName_Click"
+                        IsEnabled="False"
+                        ToolTip.Tip="Pending Core extraction - tracked by #536" />
+              </Grid>
+
+              <Button AutomationProperties.AutomationId="ToolTranslateROM_ImportFont_Button"
+                      Content="Import Font"
+                      Click="ImportFont_Click"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #536"
+                      HorizontalAlignment="Stretch" Height="36"
+                      Margin="0,4,0,0" />
+            </StackPanel>
+          </Expander>
+
+        </StackPanel>
+      </ScrollViewer>
+    </TabItem>
+
+  </TabControl>
 </Window>
