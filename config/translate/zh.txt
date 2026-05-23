@@ -20918,3 +20918,90 @@ Core 抽取待中 - 追踪于 #524
 
 :/60 (sec)
 /60 (秒)
+
+:Simple
+简易
+
+:Detail
+详细
+
+:Static-Text ROM FROM
+定型文ROM FROM
+
+:Static-Text ROM TO
+定型文ROM TO
+
+:Extra Font ROM
+追加字体 ROM
+
+:Translation Data
+翻译数据
+
+:Without a file, only static texts are translated.
+未指定时仅翻译定型文。
+
+:Override JP Font
+覆盖日文字体
+
+:Start Translation
+开始翻译
+
+:Pending Core extraction - tracked by #536
+等待 Core 抽离 - 由 #536 跟踪
+
+:Translates the ROM. Uses Japanese and English ROMs to convert unchanged text automatically. Simple mode is fully automatic - it imports missing fonts, adjusts menu lengths, and similar. All processing takes about ten minutes.
+翻译 ROM。使用日文 ROM 和英文 ROM，自动转换未修改的文本。简易模式为全自动翻译，会自动导入缺失字体并调整菜单长度等。整个处理大约需要 10 分钟，请耐心等待。
+
+:Export All Text
+全文本导出
+
+:Writes all texts to a text file.
+将所有文本写入到文本文件。
+
+:Translate before Export
+翻译后导出
+
+:Translate static texts (extract from FROM ROM and TO ROM, use as translation reference)
+翻译定型文（从 FROM ROM 和 TO ROM 中提取定型文，作为翻译参考）
+
+:OneLiner
+OneLiner
+
+:from:
+from:
+
+:to:
+to:
+
+:Only acquire modified text
+仅获取已改造的文本
+
+:Export All Texts
+全文本导出
+
+:Import All Text
+全文本导入
+
+:Rewrites all texts with the contents of the specified file. Requires the anti-Huffman and DrawMultibyte/DrawSingleByte patches. After it finishes, import any missing fonts separately.
+使用指定文件的内容重写所有文本。需要 anti-Huffman 和 DrawMultibyte/DrawSingleByte 补丁。处理完成后请单独导入缺失字体。
+
+:Import All Texts
+全文本导入
+
+:Font
+字体
+
+:Copies fonts that the current ROM is missing from the fonts in the ROM below.
+从下方 ROM 的字体中复制当前 ROM 缺失的字体。
+
+:Auto-Generate Missing Fonts
+自动生成缺失字体
+
+:Use Font Name
+使用字体
+
+:Change
+更改
+
+:Import Font
+导入字体
