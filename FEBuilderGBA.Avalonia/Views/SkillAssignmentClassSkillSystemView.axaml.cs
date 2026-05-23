@@ -58,7 +58,6 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                uint cachedIconBase = _vm.IconBaseAddress;
                 // Use ClassIconLoader (one wait-icon per class index) to mirror the WF AddressList
                 // OwnerDraw=DrawClassAndText (Copilot bot review on PR #555).
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));

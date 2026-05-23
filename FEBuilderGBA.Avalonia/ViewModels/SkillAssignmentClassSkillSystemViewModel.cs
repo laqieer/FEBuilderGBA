@@ -408,6 +408,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         void RecomputeVisibilityFlags(ROM rom)
         {
             if (rom == null) { IsZeroPointer = false; IsIndependenceVisible = false; return; }
+            // WF parity: SkillAssignmentClassSkillSystemForm.ShowExtraControlPanel
+            // explicitly hides both ZeroPointerPanel and IndependencePanel when
+            // AddressList.SelectedIndex == 0 (the index-0 row is the
+            // sentinel/unused class slot). Mirror that behavior here.
             if (SelectedId == 0)
             {
                 IsZeroPointer = false;

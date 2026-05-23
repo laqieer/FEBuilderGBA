@@ -117,7 +117,7 @@ namespace FEBuilderGBA
 
                 uint a = (uint)(found + sig.Pattern.Length + sig.Skip);
                 a = a + extraSkip;
-                if (!U.isSafetyOffset(a, rom)) continue;
+                if (!U.isSafetyOffset(a + 3, rom)) continue;
 
                 uint p = rom.u32(a);
                 if (!U.isSafetyPointer(p, rom)) continue;
