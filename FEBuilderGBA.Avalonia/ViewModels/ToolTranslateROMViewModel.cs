@@ -44,7 +44,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool UseAutoTranslate { get => _useAutoTranslate; set => SetField(ref _useAutoTranslate, value); }
         public bool OneLinerCheck { get => _oneLinerCheck; set => SetField(ref _oneLinerCheck, value); }
         public bool ModifiedTextOnly { get => _modifiedTextOnly; set => SetField(ref _modifiedTextOnly, value); }
-        public bool FontAutoGenerate { get => _fontAutoGenerate; set => SetField(ref _fontAutoGenerate, value); }
+        public bool FontAutoGenerate
+        {
+            get => _fontAutoGenerate;
+            set
+            {
+                if (SetField(ref _fontAutoGenerate, value))
+                {
+                    // IsFontRomPickerEnabled is derived from FontAutoGenerate, so
+                    // raise its change notification when the source flips. Avalonia
+                    // binding negation (`!FontAutoGenerate`) is unreliable and not
+                    // used elsewhere in the repo - prefer a derived property.
+                    OnPropertyChanged(nameof(IsFontRomPickerEnabled));
+                }
+            }
+        }
+
+        /// <summary>
+        /// True when the user has manually opted out of font auto-generation and is
+        /// providing a Font ROM path themselves. Drives `IsEnabled` on the FontRom
+        /// TextBox and Browse button so the WF behavior (`FontROMTextBox.Enabled =
+        /// !FontAutoGenelateCheckBox.Checked`) is preserved without using a
+        /// negation operator inside an Avalonia `{Binding ...}` expression.
+        /// </summary>
+        public bool IsFontRomPickerEnabled => !FontAutoGenerate;
 
         // --- Language combo state + items ---
         int _fromLanguageIndex;
@@ -55,40 +78,67 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// FROM-language combo items, mirrors WF Designer's Translate_from items
-        /// at index order: 0=ja, 1=en, 2=zh-CN. Exposed as an instance property
-        /// so Avalonia data binding can resolve `{Binding FromLanguageItems}`.
+        /// at index order: 0=ja, 1=en, 2=zh-CN. Each item is the literal WF
+        /// Japanese-suffixed key (e.g. "ja=日本語") that gets pushed through
+        /// `R._(...)` so the visible display follows the active UI language
+        /// without breaking the `lang=Name` prefix parsing the WF action code
+        /// uses (`U.InnerSplit(text, "=", 0)`).
         /// </summary>
-        public string[] FromLanguageItems => FromLanguageItemsArray;
+        public string[] FromLanguageItems
+        {
+            get
+            {
+                var arr = new string[FromLanguageItemsRaw.Length];
+                for (int i = 0; i < FromLanguageItemsRaw.Length; i++)
+                {
+                    arr[i] = R._(FromLanguageItemsRaw[i]);
+                }
+                return arr;
+            }
+        }
 
         /// <summary>
-        /// TO-language combo items, mirrors WF Designer's Translate_to items.
-        /// Exposed as an instance property for binding.
+        /// TO-language combo items - same WF-keyed convention as FromLanguageItems.
         /// </summary>
-        public string[] ToLanguageItems => ToLanguageItemsArray;
-
-        /// <summary>Backing array for FROM languages. Public-static so parity tests can
-        /// reference the canonical list without instantiating the VM.</summary>
-        public static readonly string[] FromLanguageItemsArray =
+        public string[] ToLanguageItems
         {
-            "ja=Japanese",
-            "en=English",
-            "zh-CN=Chinese (Simplified)",
+            get
+            {
+                var arr = new string[ToLanguageItemsRaw.Length];
+                for (int i = 0; i < ToLanguageItemsRaw.Length; i++)
+                {
+                    arr[i] = R._(ToLanguageItemsRaw[i]);
+                }
+                return arr;
+            }
+        }
+
+        /// <summary>
+        /// Raw FROM language keys - exposed as static so parity tests can reach
+        /// the canonical list without instantiating the VM or going through
+        /// the translation layer.
+        /// </summary>
+        public static readonly string[] FromLanguageItemsRaw =
+        {
+            "ja=日本語",
+            "en=英語",
+            "zh-CN=中国語",
         };
 
-        /// <summary>Backing array for TO languages.</summary>
-        public static readonly string[] ToLanguageItemsArray =
+        /// <summary>Raw TO language keys.</summary>
+        public static readonly string[] ToLanguageItemsRaw =
         {
-            "ja=Japanese",
-            "en=English",
-            "zh-CN=Chinese (Simplified)",
-            "zh-TW=Chinese (Traditional)",
-            "es=Spanish",
-            "hi=Hindi",
-            "ar=Arabic",
-            "pt=Portuguese",
-            "ru=Russian",
-            "fr=French",
-            "eo=Esperanto",
+            "ja=日本語",
+            "en=英語",
+            "zh-CN=中国語 簡体",
+            "zh-TW=中国語 繁体",
+            "es=スペイン語",
+            "hi=ヒンディー語",
+            "ar=アラビア語",
+            "pt=ポルトガル語",
+            "ru=ロシア語",
+            "fr=フランス語",
+            "eo=エスペランド語",
         };
 
         // --- ROM-name display labels (mirrors WF MakeROMName) ---

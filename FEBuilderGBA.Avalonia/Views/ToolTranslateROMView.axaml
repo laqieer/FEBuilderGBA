@@ -6,7 +6,7 @@
   <TabControl AutomationProperties.AutomationId="ToolTranslateROM_TabControl">
 
     <!-- =============== Simple tab (mirrors WF tabPage1 / panel1) =============== -->
-    <TabItem AutomationProperties.AutomationId="ToolTranslateROM_SimpleTab" Header="Simple">
+    <TabItem AutomationProperties.AutomationId="ToolTranslateROM_Simple_Tab" Header="Simple">
       <ScrollViewer>
         <StackPanel Spacing="6" Margin="8">
 
@@ -20,7 +20,7 @@
             <TextBox AutomationProperties.AutomationId="ToolTranslateROM_SimpleFromRom_Input"
                      Grid.Column="1" Margin="4,0"
                      Text="{Binding FromRomPath}" />
-            <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleFromRom_Browse"
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleFromRom_Button"
                     Grid.Column="2" Content=".." Width="40"
                     Click="SimpleFromRomBrowse_Click" />
           </Grid>
@@ -35,7 +35,7 @@
             <TextBox AutomationProperties.AutomationId="ToolTranslateROM_SimpleToRom_Input"
                      Grid.Column="1" Margin="4,0"
                      Text="{Binding ToRomPath}" />
-            <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleToRom_Browse"
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleToRom_Button"
                     Grid.Column="2" Content=".." Width="40"
                     Click="SimpleToRomBrowse_Click" />
           </Grid>
@@ -50,7 +50,7 @@
             <TextBox AutomationProperties.AutomationId="ToolTranslateROM_ExtraFontRom_Input"
                      Grid.Column="1" Margin="4,0"
                      Text="{Binding ExtraFontRomPath}" />
-            <Button AutomationProperties.AutomationId="ToolTranslateROM_ExtraFontRom_Browse"
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_ExtraFontRom_Button"
                     Grid.Column="2" Content=".." Width="40"
                     Click="ExtraFontRomBrowse_Click" />
           </Grid>
@@ -66,7 +66,7 @@
                      Grid.Column="1" Margin="4,0"
                      Text="{Binding TranslateDataPath}"
                      Watermark="Without a file, only static texts are translated." />
-            <Button AutomationProperties.AutomationId="ToolTranslateROM_TranslateData_Browse"
+            <Button AutomationProperties.AutomationId="ToolTranslateROM_TranslateData_Button"
                     Grid.Column="2" Content=".." Width="40"
                     Click="TranslateDataBrowse_Click" />
           </Grid>
@@ -98,12 +98,13 @@
     </TabItem>
 
     <!-- =============== Detail tab (mirrors WF tabPage2) =============== -->
-    <TabItem AutomationProperties.AutomationId="ToolTranslateROM_DetailTab" Header="Detail">
+    <TabItem AutomationProperties.AutomationId="ToolTranslateROM_Detail_Tab" Header="Detail">
       <ScrollViewer>
         <StackPanel Spacing="8" Margin="8">
 
           <!-- ============ Export group (mirrors customColorGroupBox3 + 4) ============ -->
-          <Expander Header="Export All Text" IsExpanded="True">
+          <Expander AutomationProperties.AutomationId="ToolTranslateROM_ExportGroup_Expander"
+                    Header="Export All Text" IsExpanded="True">
             <StackPanel Spacing="6" Margin="8">
 
               <TextBlock TextWrapping="Wrap"
@@ -154,7 +155,7 @@
                       <TextBox AutomationProperties.AutomationId="ToolTranslateROM_DetailFromRom_Input"
                                Grid.Column="1" Margin="4,0"
                                Text="{Binding FromRomPath}" />
-                      <Button AutomationProperties.AutomationId="ToolTranslateROM_DetailFromRom_Browse"
+                      <Button AutomationProperties.AutomationId="ToolTranslateROM_DetailFromRom_Button"
                               Grid.Column="2" Content=".." Width="40"
                               Click="DetailFromRomBrowse_Click" />
                     </Grid>
@@ -169,7 +170,7 @@
                       <TextBox AutomationProperties.AutomationId="ToolTranslateROM_DetailToRom_Input"
                                Grid.Column="1" Margin="4,0"
                                Text="{Binding ToRomPath}" />
-                      <Button AutomationProperties.AutomationId="ToolTranslateROM_DetailToRom_Browse"
+                      <Button AutomationProperties.AutomationId="ToolTranslateROM_DetailToRom_Button"
                               Grid.Column="2" Content=".." Width="40"
                               Click="DetailToRomBrowse_Click" />
                     </Grid>
@@ -193,7 +194,8 @@
           </Expander>
 
           <!-- ============ Import group (mirrors customColorGroupBox1) ============ -->
-          <Expander Header="Import All Text" IsExpanded="True">
+          <Expander AutomationProperties.AutomationId="ToolTranslateROM_ImportGroup_Expander"
+                    Header="Import All Text" IsExpanded="True">
             <StackPanel Spacing="6" Margin="8">
 
               <TextBlock TextWrapping="Wrap"
@@ -215,7 +217,8 @@
           </Expander>
 
           <!-- ============ Font group (mirrors customColorGroupBox2) ============ -->
-          <Expander Header="Font" IsExpanded="True">
+          <Expander AutomationProperties.AutomationId="ToolTranslateROM_FontGroup_Expander"
+                    Header="Font" IsExpanded="True">
             <StackPanel Spacing="6" Margin="8">
 
               <TextBlock TextWrapping="Wrap"
@@ -226,10 +229,10 @@
                 <TextBox AutomationProperties.AutomationId="ToolTranslateROM_FontRom_Input"
                          Grid.Column="0" Margin="0,0,4,0"
                          Text="{Binding FontRomPath}"
-                         IsEnabled="{Binding !FontAutoGenerate}" />
-                <Button AutomationProperties.AutomationId="ToolTranslateROM_FontRom_Browse"
+                         IsEnabled="{Binding IsFontRomPickerEnabled}" />
+                <Button AutomationProperties.AutomationId="ToolTranslateROM_FontRom_Button"
                         Grid.Column="1" Content=".." Width="40"
-                        IsEnabled="{Binding !FontAutoGenerate}"
+                        IsEnabled="{Binding IsFontRomPickerEnabled}"
                         Click="FontRomBrowse_Click" />
               </Grid>
 
