@@ -102,9 +102,14 @@
 
         <!-- Warning banner (only visible when WarningMessage is non-empty).
              Mirrors WF `DetailErrorMessageBox` reserve-BG / 255-color
-             warning surface. -->
-        <Border Name="WarningPanel" BorderBrush="OrangeRed" BorderThickness="1"
-                Background="#FFFFE0E0" Margin="0,8,0,0" Padding="8"
+             warning surface. Uses the shared `WarningBackgroundBrush` /
+             `WarningBorderBrush` so the banner reads correctly in both
+             light and dark mode (AvaloniaDarkModeTests). -->
+        <Border Name="WarningPanel"
+                Background="{DynamicResource WarningBackgroundBrush}"
+                BorderBrush="{DynamicResource WarningBorderBrush}"
+                BorderThickness="1"
+                Margin="0,8,0,0" Padding="8"
                 IsVisible="False">
           <TextBlock AutomationProperties.AutomationId="ImageBG_Warning_Label"
                      Name="WarningMessageText" TextWrapping="Wrap" />
