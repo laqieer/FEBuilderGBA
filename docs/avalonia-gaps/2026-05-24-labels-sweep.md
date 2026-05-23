@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T18:55:32Z"
-git-sha: ef359d2a5
+generated: "2026-05-23T21:14:21Z"
+git-sha: be12e414b
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4586 |
-| Total AV-only labels | 3029 |
-| Total common labels | 114 |
+| Total WF-only labels | 4567 |
+| Total AV-only labels | 3052 |
+| Total common labels | 133 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -62,11 +62,11 @@ Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative 
 | 13 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
 | 14 | `ItemForm` | `ItemEditorView` | 45 | 71 | 0 |
 | 15 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 16 | `UnitForm` | `UnitEditorView` | 45 | 70 | 4 |
-| 17 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
-| 18 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
-| 19 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 20 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 16 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
+| 17 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
+| 18 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 19 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 20 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1838,130 +1838,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `OBJ Tile Pointer:`
 - `Write`
 
-### UnitForm
-WF labels: **49** · AV labels: **74** · WF-only: **45** · AV-only: **70** · Common: **4** · Density verdict: **Medium** (WF 183 / AV 127)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `[HardCoding]`
-- `Export All`
-- `Export Selected`
-- `Growths as Decimal`
-- `ID`
-- `Import All`
-- `Import Selected`
-- `Include Base Stats`
-- `Include Growths`
-- `Include Header`
-- `Include Name`
-- `Include UID`
-- `Include Wep Level`
-- `Size:`
-- `Use Clipboard`
-- `アドレス`
-- `シミュレーション`
-- `スキル`
-- `マップ顔`
-- `ユニットソート順`
-- `ユニット別パレットへジャンプ`
-- `ユニット別能力`
-- `会話グループ`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `守備`
-- `属性:-`
-- `幸運`
-- `成長率(%)`
-- ` 技 `
-- `支援クラス`
-- `支援データ`
-- `攻撃`
-- `書き込み`
-- `武器LV`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `顔`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Ability Flags`
-- `Address:`
-- `Affinity:`
-- `Anima:`
-- `Axe:`
-- `Base Hit Points (signed offset from class base)`
-- `Base Stats`
-- `Base Strength/Magic (signed offset from class base)`
-- `Bow:`
-- `Byte 1:`
-- `Byte 2:`
-- `Byte 3:`
-- `Byte 4:`
-- `Calculate Growth`
-- `Class ID:`
-- `Con:`
-- `Dark:`
-- `Decoded description text`
-- `Def:`
-- `Desc`
-- `Desc ID:`
-- `Edit Skills`
-- `Elemental affinity for support bonuses`
-- `Export all units to a TSV file`
-- `Export TSV`
-- `Growth Rates (%)`
-- `Growth Simulator`
-- `Identity`
-- `Import TSV`
-- `Import units from a TSV file`
-- `Jump`
-- `Lance:`
-- `Lck:`
-- `Light:`
-- `Map Face:`
-- `Map sprite face index`
-- `Name:`
-- `Name ID:`
-- `Open skill assignment editor for this unit`
-- `Open Support`
-- `Open text viewer for this description`
-- `Percent chance of HP increasing on level up`
-- `Pick class from editor`
-- `Pick portrait from editor`
-- `Pick...`
-- `Portrait:`
-- `Portrait graphic index (click to open Portrait Viewer)`
-- `Res:`
-- `Simulate to LV:`
-- `Skl:`
-- `Sort:`
-- `Spd:`
-- `Staff:`
-- `Starting level of this unit`
-- `Str:`
-- `Support & Other`
-- `Support Ptr:`
-- `Sword:`
-- `Talk:`
-- `Text ID for the unit's description (click to open Text Viewer)`
-- `Text ID for the unit's display name (click to open Text Viewer)`
-- `The unit's class (click to open Class Editor)`
-- `Undo`
-- `Unique identifier for this unit`
-- `Unit Editor`
-- `Unit ID:`
-- `Unit or class name associated with this portrait ID`
-- `Warnings`
-- `Weapon Levels`
-- `Write`
-
 ### ItemFE6Form
 WF labels: **44** · AV labels: **30** · WF-only: **44** · AV-only: **30** · Common: **0** · Density verdict: **High** (WF 121 / AV 53)
 
@@ -3073,6 +2949,121 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Item Skill Pointer:`
 - `Write`
 
+### UnitForm
+WF labels: **49** · AV labels: **93** · WF-only: **31** · AV-only: **75** · Common: **18** · Density verdict: **Low** (WF 183 / AV 146)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `ID`
+- `アドレス`
+- `シミュレーション`
+- `スキル`
+- `マップ顔`
+- `ユニットソート順`
+- `ユニット別パレットへジャンプ`
+- `ユニット別能力`
+- `会話グループ`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `守備`
+- `属性:-`
+- `幸運`
+- `成長率(%)`
+- ` 技 `
+- `支援クラス`
+- `支援データ`
+- `攻撃`
+- `書き込み`
+- `武器LV`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `顔`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Ability Flags`
+- `Affinity:`
+- `Anima:`
+- `Axe:`
+- `Base Hit Points (signed offset from class base)`
+- `Base Stats`
+- `Base Strength/Magic (signed offset from class base)`
+- `Bow:`
+- `Byte 1:`
+- `Byte 2:`
+- `Byte 3:`
+- `Byte 4:`
+- `Calculate Growth`
+- `Class ID:`
+- `Con:`
+- `Dark:`
+- `Decoded description text`
+- `Def:`
+- `Desc`
+- `Desc ID:`
+- `Edit Skills`
+- `Elemental affinity for support bonuses`
+- `Export all units to a CSV file or clipboard`
+- `Export the selected unit to a CSV file or clipboard`
+- `Export/Import Options`
+- `Growth Rates (%)`
+- `Growth Simulator`
+- `Identity`
+- `Import all units from a CSV file or clipboard`
+- `Import the selected unit from a CSV file or clipboard`
+- `Jump`
+- `Lance:`
+- `Lck:`
+- `Light:`
+- `Map Face:`
+- `Map sprite face index`
+- `Name:`
+- `Name ID:`
+- `Open skill assignment editor for this unit`
+- `Open Support`
+- `Open text viewer for this description`
+- `Percent chance of HP increasing on level up`
+- `Pick class from editor`
+- `Pick portrait from editor`
+- `Pick...`
+- `Portrait:`
+- `Portrait graphic index (click to open Portrait Viewer)`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res:`
+- `Selected Address:`
+- `Simulate to LV:`
+- `Skl:`
+- `Sort:`
+- `Spd:`
+- `Staff:`
+- `Starting level of this unit`
+- `Str:`
+- `Support & Other`
+- `Support Ptr:`
+- `Sword:`
+- `Talk:`
+- `Text ID for the unit's description (click to open Text Viewer)`
+- `Text ID for the unit's display name (click to open Text Viewer)`
+- `The unit's class (click to open Class Editor)`
+- `This unit is referenced by hardcoded ASM. Click to view related patches.`
+- `Undo`
+- `Unique identifier for this unit`
+- `Unit Editor`
+- `Unit ID:`
+- `Unit or class name associated with this portrait ID`
+- `Warnings`
+- `Weapon Levels`
+- `Write`
+
 ### ImageTSAEditorForm
 WF labels: **30** · AV labels: **2** · WF-only: **30** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 100 / AV 3)
 
@@ -3520,44 +3511,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `AI Script Editor`
-
-### SkillAssignmentClassCSkillSysForm
-WF labels: **24** · AV labels: **5** · WF-only: **24** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 43 / AV 7)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `EnemyOnly(LV+64)`
-- `Hard only (LV+128)`
-- `Normal&&Hard (LV+96)`
-- `PlayerOnly(LV+32)`
-- `Size:`
-- `このテーブルは、複数のクラスで参照されています。`
-- `アドレス`
-- `クラススキル`
-- `スキル`
-- `リストの拡張`
-- `レベル`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `書き込み`
-- `習得レベル`
-- `習得レベルとスキルの詳細は、ここをクリックしてください。`
-- `習得レベルの内訳`
-- `読込数`
-- `選択アドレス:`
-- `選択クラスの分離独立`
-- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Class Skill:`
-- `Skill Assignment - Class (CSkillSys)`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
-- `Write`
 
 ### WorldMapPointForm
 WF labels: **24** · AV labels: **21** · WF-only: **24** · AV-only: **21** · Common: **0** · Density verdict: **Low** (WF 51 / AV 41)
@@ -4567,6 +4520,57 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `X Position:`
 - `Y Position:`
+
+### SkillAssignmentClassCSkillSysForm
+WF labels: **24** · AV labels: **28** · WF-only: **19** · AV-only: **23** · Common: **5** · Density verdict: **Medium** (WF 43 / AV 57)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `このテーブルは、複数のクラスで参照されています。`
+- `アドレス`
+- `クラススキル`
+- `スキル`
+- `リストの拡張`
+- `レベル`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `書き込み`
+- `習得レベル`
+- `習得レベルとスキルの詳細は、ここをクリックしてください。`
+- `習得レベルの内訳`
+- `読込数`
+- `選択アドレス:`
+- `選択クラスの分離独立`
+- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Acquired Level`
+- `Acquired Level Breakdown`
+- `Address:`
+- `Bulk Export`
+- `Bulk Import`
+- `Class Skill`
+- `Click here for acquired level and skill details`
+- `Detach Selected Class (make independent)`
+- `Expand List`
+- `Level:`
+- `Level is set to 255.\nWhen a class is reached via CC from a base class, this skill cannot be obtained.\nOnly when this class is LOADed can this skill be held.`
+- `Level-up Skill Table Address`
+- `Name`
+- `No level-up skill area is allocated for this class.\nPress the "Expand List" button to allocate one.`
+- `Read Count:`
+- `Reload`
+- `Selected:`
+- `Skill`
+- `Skill Assignment - Class (CSkillSys 3.00).\nThis editor requires the CSkillSys 3.00+ skill system patch to be installed.\nUse the Patch Manager to install the CSkillSys 3.00 patch first.`
+- `Skill Assignment - Class (CSkillSys)`
+- `Start Address:`
+- `This table is referenced by multiple classes.`
+- `Write`
 
 ### SkillAssignmentClassSkillSystemForm
 WF labels: **24** · AV labels: **27** · WF-only: **19** · AV-only: **22** · Common: **5** · Density verdict: **Medium** (WF 43 / AV 57)

@@ -21334,3 +21334,64 @@ OBBGLeftToRight
 
 :All Tracks (Score) - click to bulk-change all tracks
 乐谱 - 单击批量更改所有轨道
+
+# UnitEditorView additions (issue #413)
+:[HardCoding]
+[硬编码]
+
+:Export/Import Options
+导出/导入选项
+
+:Use Clipboard
+使用剪贴板
+
+:Include UID
+包含 UID
+
+:Include Header
+包含表头
+
+:Include Name
+包含名称
+
+:Include Base Stats
+包含基础属性
+
+:Include Growths
+包含成长率
+
+:Include Wep Level
+包含武器等级
+
+:Growths as Decimal
+成长率以小数表示
+
+:Export All
+全部导出
+
+:Export Selected
+导出选定项
+
+:Import All
+全部导入
+
+:Import Selected
+导入选定项
+
+:Export all units to a CSV file or clipboard
+将所有单位导出至 CSV 文件或剪贴板
+
+:Export the selected unit to a CSV file or clipboard
+将选定单位导出至 CSV 文件或剪贴板
+
+:Import all units from a CSV file or clipboard
+从 CSV 文件或剪贴板导入所有单位
+
+:Import the selected unit from a CSV file or clipboard
+从 CSV 文件或剪贴板导入选定单位
+
+:Import Units CSV
+导入单位 CSV
+
+:Import Unit CSV
+导入单位 CSV

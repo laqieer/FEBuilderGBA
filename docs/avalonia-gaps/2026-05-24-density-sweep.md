@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T19:34:31Z"
-git-sha: 2b4688aa1
+generated: "2026-05-23T21:14:13Z"
+git-sha: be12e414b
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 220 |
+| HIGH | |Δ%| ≥ 50 | 219 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 64 |
+| LOW | |Δ%| < 25 | 65 |
 
 ## Ranked Density Deltas
 
@@ -79,7 +79,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `EDFE6Form` | `EDFE6View` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `ToolASMInsertForm` | `ToolASMInsertView` | 19 | 3 | -16 | -84.2% | Heuristic |
-| High | `SkillAssignmentClassCSkillSysForm` | `SkillAssignmentClassCSkillSysView` | 43 | 7 | -36 | -83.7% | Heuristic |
 | High | `PaletteSwapForm` | `PaletteSwapView` | 49 | 8 | -41 | -83.7% | Heuristic |
 | High | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` | 18 | 3 | -15 | -83.3% | Heuristic |
 | High | `SongInstrumentForm` | `SongInstrumentView` | 323 | 54 | -269 | -83.3% | Heuristic |
@@ -207,7 +206,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ItemForm` | `ItemEditorView` | 128 | 88 | -40 | -31.3% | ListParityHelper |
 | Medium | `SupportAttributeForm` | `SupportAttributeView` | 29 | 20 | -9 | -31.0% | ListParityHelper |
 | Medium | `WelcomeForm` | `WelcomeView` | 13 | 9 | -4 | -30.8% | Heuristic |
-| Medium | `UnitForm` | `UnitEditorView` | 183 | 127 | -56 | -30.6% | ListParityHelper |
 | Medium | `BigCGForm` | `BigCGViewerView` | 20 | 14 | -6 | -30.0% | ListParityHelper |
 | Medium | `SkillSystemsEffectivenessReworkClassTypeForm` | `SkillSystemsEffectivenessReworkClassTypeView` | 10 | 7 | -3 | -30.0% | Heuristic |
 | Medium | `WorldMapPathForm` | `WorldMapPathView` | 24 | 17 | -7 | -29.2% | ListParityHelper |
@@ -223,6 +221,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolAllWorkSupportForm` | `ToolAllWorkSupportView` | 4 | 3 | -1 | -25.0% | Heuristic |
 | Medium | `ToolUPSPatchSimpleForm` | `ToolUPSPatchSimpleView` | 4 | 3 | -1 | -25.0% | Heuristic |
 | Low | `StatusParamForm` | `StatusParamView` | 27 | 21 | -6 | -22.2% | ListParityHelper |
+| Low | `UnitForm` | `UnitEditorView` | 183 | 146 | -37 | -20.2% | ListParityHelper |
 | Low | `HowDoYouLikePatchForm` | `HowDoYouLikePatchView` | 5 | 4 | -1 | -20.0% | Heuristic |
 | Low | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` | 35 | 28 | -7 | -20.0% | ListParityHelper |
 | Low | `MapTerrainNameForm` | `TerrainNameEditorView` | 10 | 8 | -2 | -20.0% | ListParityHelper |
@@ -292,6 +291,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolWorkSupport_SelectUPSForm` | `ToolWorkSupport_SelectUPSView` | 4 | 5 | 1 | +25.0% | Heuristic |
 | Medium | `ImageBGForm` | `ImageBGView` | 26 | 33 | 7 | +26.9% | ListParityHelper |
 | Medium | `MapTileAnimation2Form` | `MapTileAnimation2View` | 40 | 51 | 11 | +27.5% | ListParityHelper |
+| Medium | `SkillAssignmentClassCSkillSysForm` | `SkillAssignmentClassCSkillSysView` | 43 | 57 | 14 | +32.6% | Heuristic |
 | Medium | `SkillAssignmentClassSkillSystemForm` | `SkillAssignmentClassSkillSystemView` | 43 | 57 | 14 | +32.6% | Heuristic |
 | Medium | `HexEditorForm` | `HexEditorView` | 6 | 8 | 2 | +33.3% | Heuristic |
 | Medium | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | 30 | 40 | 10 | +33.3% | Heuristic |
