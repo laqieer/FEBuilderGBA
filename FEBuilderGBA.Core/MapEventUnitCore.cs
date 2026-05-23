@@ -424,8 +424,10 @@ namespace FEBuilderGBA
         ///     <see cref="ROM.FindFreeSpace"/>.</item>
         ///   <item>Copy the <paramref name="oldCount"/> existing rows to
         ///     the new region byte-for-byte.</item>
-        ///   <item>Initialize each new row with <c>B0=0x01, B1=0x01</c>
-        ///     (matches EventUnitFE7Form.cs:485-490 starter bytes).</item>
+        ///   <item>Initialize each new row with <c>B0=0x01</c> (always) and
+        ///     <c>B1 = starterB1</c> (defaults to <c>0x01</c> for FE7 per
+        ///     EventUnitFE7Form.cs:485-490; FE8 callers pass <c>0x02</c>
+        ///     per WF EventUnitForm.AddressListExpandsEvent).</item>
         ///   <item>Repoint the <paramref name="eventPointerSlot"/> to the
         ///     new region via <see cref="ROM.write_p32(uint,uint)"/>.</item>
         /// </list>

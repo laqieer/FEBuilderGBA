@@ -353,15 +353,21 @@ public class EventUnitParityTests
     public void ViewModel_ItemDropDisplay_ChangesWithW4ExtBit()
     {
         var vm = new EventUnitViewModel();
-        // No drop bit -> "doesn't drop"
+        // No drop bit -> R._("Item Drop: doesn't drop")
         vm.UnitGrowth = 0;
-        Assert.Contains("doesn't drop", vm.ItemDropDisplay);
+        string noDropDisplay = vm.ItemDropDisplay;
 
-        // Set drop bit -> "drops"
+        // Set drop bit -> R._("Item Drop: drops")
         vm.UnitGrowth = (2u << 12);
-        Assert.Contains("drops", vm.ItemDropDisplay);
-        // Must not contain "doesn't" — strict match (Copilot review v1 #2).
-        Assert.DoesNotContain("doesn't", vm.ItemDropDisplay);
+        string dropDisplay = vm.ItemDropDisplay;
+
+        // Both must match the localized R._-resolved strings (so the test
+        // stays green under ja/zh translations too — Copilot bot review
+        // round 2 #3).
+        Assert.Equal(R._("Item Drop: doesn't drop"), noDropDisplay);
+        Assert.Equal(R._("Item Drop: drops"), dropDisplay);
+        // The two states MUST produce different strings (regression guard).
+        Assert.NotEqual(noDropDisplay, dropDisplay);
     }
 
     // -----------------------------------------------------------------
