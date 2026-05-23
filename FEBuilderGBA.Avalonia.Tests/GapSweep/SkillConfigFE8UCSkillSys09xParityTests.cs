@@ -416,16 +416,21 @@ public class SkillConfigFE8UCSkillSys09xParityTests
 
     static void WriteU32(byte[] bytes, uint offset, uint value)
     {
-        bytes[offset] = (byte)(value & 0xFF);
-        bytes[offset + 1] = (byte)((value >> 8) & 0xFF);
-        bytes[offset + 2] = (byte)((value >> 16) & 0xFF);
-        bytes[offset + 3] = (byte)((value >> 24) & 0xFF);
+        // Take an int offset internally - C# array indexers want Int32, and
+        // forcing the cast at the call site documents the intent (Copilot
+        // bot review on PR #516). Range was already validated by the caller.
+        int o = checked((int)offset);
+        bytes[o] = (byte)(value & 0xFF);
+        bytes[o + 1] = (byte)((value >> 8) & 0xFF);
+        bytes[o + 2] = (byte)((value >> 16) & 0xFF);
+        bytes[o + 3] = (byte)((value >> 24) & 0xFF);
     }
 
     static void WriteU16(byte[] bytes, uint offset, ushort value)
     {
-        bytes[offset] = (byte)(value & 0xFF);
-        bytes[offset + 1] = (byte)((value >> 8) & 0xFF);
+        int o = checked((int)offset);
+        bytes[o] = (byte)(value & 0xFF);
+        bytes[o + 1] = (byte)((value >> 8) & 0xFF);
     }
 
     /// <summary>
