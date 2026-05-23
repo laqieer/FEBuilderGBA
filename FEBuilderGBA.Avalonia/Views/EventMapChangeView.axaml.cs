@@ -149,6 +149,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // Refuse the write when no entry is loaded — protects against
+            // the Map Names list selecting a map with no change-data
+            // (LoadEntryForMap returned false → VM cleared) and the user
+            // then pressing Write, which would otherwise corrupt
+            // CurrentAddr=0 (the ROM header). Copilot CLI re-review on
+            // PR #529.
+            if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
+            {
+                CoreState.Services?.ShowError(
+                    "No map-change entry is selected. Select a map with change-data before writing.");
+                return;
+            }
+
             _undoService.Begin("Edit Map Change");
             try
             {

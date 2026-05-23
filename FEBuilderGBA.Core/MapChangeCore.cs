@@ -33,6 +33,17 @@ namespace FEBuilderGBA
         /// any pair of (CONFIG, ANIMATION, OBJECT, MAP, CHANGE, EVENT)
         /// pointer tables resolves to a different base address — i.e. the
         /// ROM has been expanded so each plist type has its own block.
+        ///
+        /// For FE6 (<c>RomInfo.version == 6</c>) the WinForms
+        /// <c>MapPointerForm.IsPlistSplits</c> also compares against the
+        /// FE6-only <c>map_worldmapevent_pointer</c> table. That match
+        /// is included here so a FE6 ROM that splits everything but the
+        /// world-map pointer is correctly classified as "not split"
+        /// (matching WF behaviour). Without this branch the Core helper
+        /// would return <c>true</c> in cases WF returns <c>false</c>,
+        /// inflating <see cref="GetPlistLimit"/> from the vanilla
+        /// per-ROM value to 256 and accepting PLIST indexes that WF
+        /// would reject.
         /// </summary>
         public static bool IsPlistSplit(ROM rom)
         {
@@ -54,6 +65,17 @@ namespace FEBuilderGBA
 
             uint eventBase = rom.p32(rom.RomInfo.map_event_pointer);
             if (configBase == eventBase) return false;
+
+            // FE6-only: the world-map pointer shares the same vanilla
+            // base when the ROM is not split. Skipping this check would
+            // misclassify FE6 ROMs where CONFIG differs from
+            // ANIMATION/OBJECT/MAP/CHANGE/EVENT but matches the world
+            // map as split (Copilot CLI re-review on PR #529).
+            if (rom.RomInfo.version == 6 && rom.RomInfo.map_worldmapevent_pointer != 0)
+            {
+                uint wmapBase = rom.p32(rom.RomInfo.map_worldmapevent_pointer);
+                if (configBase == wmapBase) return false;
+            }
 
             return true;
         }

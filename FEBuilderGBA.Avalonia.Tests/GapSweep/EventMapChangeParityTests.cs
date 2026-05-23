@@ -261,6 +261,112 @@ public class EventMapChangeParityTests
     }
 
     // -----------------------------------------------------------------
+    // Stale-state regression (Copilot CLI re-review on PR #529):
+    // selecting a map with no change-data after a valid map must NOT
+    // leave the VM holding the previous entry's CurrentAddr / IsLoaded.
+    // Otherwise a subsequent Write would corrupt the previous entry.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_LoadEntryForMap_FailureClearsVmState()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            // 1. Load a valid map with change-data.
+            uint validAddr = 0x00900000u;
+            ROM rom = MakeSyntheticFe8uRomWithOneMapAndChangeData(
+                mapChangePlist: 3, changeDataOffset: validAddr);
+            CoreState.ROM = rom;
+
+            var vm = new EventMapChangeViewModel();
+            bool ok = vm.LoadEntryForMap(0u);
+            Assert.True(ok, "Precondition: valid map should load");
+            Assert.Equal(validAddr, vm.CurrentAddr);
+            Assert.True(vm.IsLoaded);
+
+            // 2. Re-plant the per-map plist byte as 0xFF (no change-data)
+            //    and re-call LoadEntryForMap for the same map.
+            rom.Data[(int)0x00800000u + 11] = 0xFF;
+            bool ok2 = vm.LoadEntryForMap(0u);
+            Assert.False(ok2);
+
+            // 3. The VM must have been reset — no stale CurrentAddr that
+            //    a stray WriteEntry would write zeros to.
+            Assert.Equal(0u, vm.CurrentAddr);
+            Assert.False(vm.IsLoaded);
+
+            // 4. WriteEntry must not write anything when the VM is clear
+            //    (the CurrentAddr=0 guard short-circuits).
+            byte[] beforeBytes = new byte[12];
+            Array.Copy(rom.Data, (int)validAddr, beforeBytes, 0, 12);
+            vm.WriteEntry();
+            byte[] afterBytes = new byte[12];
+            Array.Copy(rom.Data, (int)validAddr, afterBytes, 0, 12);
+            Assert.Equal(beforeBytes, afterBytes);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// The View's Write_Click must refuse the write when the VM is in
+    /// the "no entry loaded" state. Verified via the source-string
+    /// check (mirrors View_WriteClick_WrapsInUndoScope's approach
+    /// since opening an Avalonia window in xunit requires the app
+    /// handle).
+    /// </summary>
+    [Fact]
+    public void View_WriteClick_RefusesWhenNoEntryLoaded()
+    {
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventMapChangeView.axaml.cs");
+        Assert.True(File.Exists(codeBehindPath));
+        string source = File.ReadAllText(codeBehindPath);
+
+        // The Write_Click handler must contain a guard that short-circuits
+        // when the VM is in the "no entry loaded" state — before opening
+        // the undo scope. Use the same regex style as the other view
+        // assertions.
+        Assert.Matches(
+            new Regex(@"void\s+Write_Click\([^)]*\)\s*\{[\s\S]*?(!_vm\.IsLoaded|_vm\.CurrentAddr\s*==\s*0)[\s\S]*?return\s*;",
+                RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_ClearEntry_ResetsAllWritableState()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            uint validAddr = 0x00900000u;
+            ROM rom = MakeSyntheticFe8uRomWithOneMapAndChangeData(
+                mapChangePlist: 3, changeDataOffset: validAddr);
+            CoreState.ROM = rom;
+
+            var vm = new EventMapChangeViewModel();
+            vm.LoadEntryForMap(0u);
+            vm.B0 = 0xAA;
+            vm.B1 = 0xBB;
+            vm.P8 = 0x00123456u;
+            vm.Comment = "stash";
+            Assert.True(vm.IsLoaded);
+            Assert.NotEqual(0u, vm.CurrentAddr);
+
+            vm.ClearEntry();
+            Assert.Equal(0u, vm.CurrentAddr);
+            Assert.Equal(0u, vm.SelectAddress);
+            Assert.False(vm.IsLoaded);
+            Assert.Equal(0u, vm.B0);
+            Assert.Equal(0u, vm.B1);
+            Assert.Equal(0u, vm.P8);
+            Assert.Equal(string.Empty, vm.Comment);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
     // Comment cache parity (mirror ImageBG behavior).
     // -----------------------------------------------------------------
 

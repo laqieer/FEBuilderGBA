@@ -73,20 +73,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Resolve the change-data address for the given map ID and load
         /// the underlying 12-byte record into the VM. Mirrors WF
         /// <c>EventMapChangeForm.MAP_LISTBOX_SelectedIndexChanged</c>.
+        ///
+        /// When the map has no change-data (plist 0/0xFF) or resolution
+        /// fails, this method calls <see cref="ClearEntry"/> to reset
+        /// the VM state — preventing a subsequent <see cref="WriteEntry"/>
+        /// from writing zeros to the previously selected entry's address
+        /// (Copilot CLI re-review on PR #529).
         /// </summary>
         /// <returns>true if the load succeeded; false if the map has no
         /// change-data (plist 0/0xFF) or resolution failed.</returns>
         public bool LoadEntryForMap(uint mapId)
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return false;
+            if (rom == null) { ClearEntry(); return false; }
 
             uint addr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, mapId, out _);
-            if (!U.isSafetyOffset(addr, rom)) return false;
-            if (addr + SIZE > (uint)rom.Data.Length) return false;
+            if (!U.isSafetyOffset(addr, rom)) { ClearEntry(); return false; }
+            if (addr + SIZE > (uint)rom.Data.Length) { ClearEntry(); return false; }
 
             LoadEventMapChange(addr);
             return true;
+        }
+
+        /// <summary>
+        /// Reset the VM to the "no entry loaded" state. Crucially clears
+        /// <see cref="CurrentAddr"/> + <see cref="IsLoaded"/> so a stray
+        /// <see cref="WriteEntry"/> call after a failed
+        /// <see cref="LoadEntryForMap"/> short-circuits via the
+        /// <c>CurrentAddr == 0</c> guard. The View should mirror this
+        /// reset by clearing its detail controls when LoadEntryForMap
+        /// returns false.
+        /// </summary>
+        public void ClearEntry()
+        {
+            CurrentAddr = 0;
+            SelectAddress = 0;
+            IsLoaded = false;
+            B0 = 0;
+            B1 = 0;
+            B2 = 0;
+            B3 = 0;
+            B4 = 0;
+            B5 = 0;
+            B6 = 0;
+            B7 = 0;
+            P8 = 0;
+            Comment = string.Empty;
         }
 
         // ----------------------------------------------------------------

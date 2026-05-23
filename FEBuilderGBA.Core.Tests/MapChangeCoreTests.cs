@@ -54,6 +54,57 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(MapChangeCore.IsPlistSplit(rom));
         }
 
+        /// <summary>
+        /// Copilot CLI re-review on PR #529: FE6 split-detection must
+        /// also fold the FE6-only <c>map_worldmapevent_pointer</c> table
+        /// into the comparison. A FE6 ROM where CONFIG differs from
+        /// ANIMATION/OBJECT/MAP/CHANGE/EVENT but matches WORLDMAP must
+        /// be classified as "not split" (matching WF semantics) — so
+        /// <see cref="MapChangeCore.GetPlistLimit"/> returns the vanilla
+        /// default instead of 256.
+        /// </summary>
+        [Fact]
+        public void IsPlistSplit_Fe6WithSharedWorldMapBase_ReturnsFalse()
+        {
+            var rom = MakeFe6Rom();
+            // Each of the 5 non-worldmap pointers gets a unique base —
+            // would normally classify as split — but WORLDMAP shares the
+            // CONFIG base, so the FE6 branch must catch it.
+            uint sharedBase = 0x00800000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, sharedBase | 0x08000000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_tileanime1_pointer, 0x08801000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, 0x08802000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_map_pointer_pointer, 0x08803000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_mapchange_pointer, 0x08804000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_event_pointer, 0x08805000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_worldmapevent_pointer, sharedBase | 0x08000000u);
+
+            Assert.False(MapChangeCore.IsPlistSplit(rom));
+            // ...and so the limit must be the FE6 default, not 256.
+            Assert.Equal(rom.RomInfo.map_map_pointer_list_default_size,
+                MapChangeCore.GetPlistLimit(rom));
+        }
+
+        /// <summary>
+        /// On FE8/FE7 (no world-map pointer set), the new FE6 branch is
+        /// inert. Verify that the split classification still flips on
+        /// the same input that would trigger it before the fix.
+        /// </summary>
+        [Fact]
+        public void IsPlistSplit_Fe8u_FE6BranchIsInert()
+        {
+            var rom = MakeFe8uRom();
+            // Genuinely split tables across the 5 non-FE6 pointers.
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, 0x08800000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_tileanime1_pointer, 0x08801000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, 0x08802000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_map_pointer_pointer, 0x08803000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_mapchange_pointer, 0x08804000u);
+            WriteU32(rom.Data, (int)rom.RomInfo.map_event_pointer, 0x08805000u);
+            // FE8U has map_worldmapevent_pointer = 0 → branch is skipped.
+            Assert.True(MapChangeCore.IsPlistSplit(rom));
+        }
+
         [Fact]
         public void GetPlistLimit_VanillaRom_ReturnsRomDefaultSize()
         {
@@ -162,6 +213,18 @@ namespace FEBuilderGBA.Core.Tests
         {
             var rom = new ROM();
             rom.LoadLow("test-fe8u.gba", new byte[0x1100000], "BE8E01");
+            return rom;
+        }
+
+        /// <summary>
+        /// Build a minimal FE6JP ROM (only FE6 carries the FE6-only
+        /// <c>map_worldmapevent_pointer</c> != 0). Used by the FE6 split-detection
+        /// regression test added per Copilot CLI re-review on PR #529.
+        /// </summary>
+        static ROM MakeFe6Rom()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test-fe6jp.gba", new byte[0x1000000], "AFEJ01");
             return rom;
         }
 
