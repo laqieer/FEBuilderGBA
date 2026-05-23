@@ -62,13 +62,17 @@ namespace FEBuilderGBA
                     var sb = new StringBuilder();
                     sb.Append(U.ToHexString(rom.u8(classBaseSkillAddr)));
 
-                    uint levelupGbaPtr = rom.u32(assignLevelUpAddr);
+                    // WF parity: TSV column 2 is the level-up table OFFSET
+                    // (rom.p32 strips the 0x08000000 high bit). Writing the
+                    // raw u32 would break U.isExtrendsROMArea / write_p32
+                    // round-trip semantics (Copilot CLI review on PR #555).
+                    uint levelupOffset = rom.p32(assignLevelUpAddr);
                     sb.Append('\t');
-                    sb.Append(U.ToHexString(levelupGbaPtr));
+                    sb.Append(U.ToHexString(levelupOffset));
 
-                    if (U.isSafetyPointer(levelupGbaPtr, rom))
+                    if (U.isSafetyOffset(levelupOffset, rom))
                     {
-                        uint levelupBase = U.toOffset(levelupGbaPtr);
+                        uint levelupBase = levelupOffset;
                         if (U.isSafetyOffset(levelupBase, rom))
                         {
                             uint levelupAddr = levelupBase;
@@ -127,10 +131,15 @@ namespace FEBuilderGBA
                     uint skill = U.atoh(sp[0]);
                     rom.write_u8(classBaseSkillAddr, skill);
 
-                    uint levelupGbaPtr = U.atoh(sp[1]);
-                    if (IsExtendedRomArea(rom, levelupGbaPtr) || levelupGbaPtr == 0)
+                    // WF parity: TSV column 2 is an OFFSET. write_p32 expects
+                    // an offset (it re-adds 0x08000000 internally). Compare
+                    // against the ROM's extends_address (as an offset) to
+                    // detect the independence/repoint branch (Copilot CLI
+                    // review on PR #555).
+                    uint levelupOffset = U.atoh(sp[1]);
+                    if (IsExtendedRomAreaOffset(rom, levelupOffset) || levelupOffset == 0)
                     {
-                        rom.write_p32(assignLevelUpAddr, levelupGbaPtr);
+                        rom.write_p32(assignLevelUpAddr, levelupOffset);
                         continue;
                     }
 
@@ -165,12 +174,17 @@ namespace FEBuilderGBA
             return arr[idx] ?? string.Empty;
         }
 
-        static bool IsExtendedRomArea(ROM rom, uint gbaPointer)
+        /// <summary>
+        /// True when the provided ROM OFFSET lies at or past the ROM's
+        /// extends_address threshold. Mirrors WinForms U.isExtrendsROMArea
+        /// applied to an offset value (the value read from TSV column 2,
+        /// which is itself an offset per WF export format).
+        /// </summary>
+        static bool IsExtendedRomAreaOffset(ROM rom, uint offset)
         {
             if (rom == null || rom.RomInfo == null) return false;
             uint extendsOffset = U.toOffset(rom.RomInfo.extends_address);
-            uint asOffset = U.toOffset(gbaPointer);
-            return asOffset >= extendsOffset;
+            return offset >= extendsOffset;
         }
     }
 }

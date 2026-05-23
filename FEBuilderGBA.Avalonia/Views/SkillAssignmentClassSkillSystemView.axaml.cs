@@ -429,11 +429,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void BulkImport_Click(object sender, RoutedEventArgs e)
         {
-            _undoService.Begin("Bulk Import Skill Assignment (Class) data");
+            // Pick the file BEFORE opening the undo scope - the file picker
+            // is async and keeping the ambient-undo scope open across the
+            // await would inadvertently record ROM writes from other UI
+            // actions while the picker is showing (Copilot CLI review on
+            // PR #555).
             try
             {
                 var sp = StorageProvider;
-                if (sp == null) { _undoService.Rollback(); return; }
+                if (sp == null) return;
                 var files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = "Import Skill Assignment (Class) data",
@@ -443,24 +447,34 @@ namespace FEBuilderGBA.Avalonia.Views
                         new FilePickerFileType("TSV") { Patterns = new[] { "*.tsv", "*.SkillAssignmentClass.tsv" } },
                     },
                 });
-                if (files == null || files.Count == 0) { _undoService.Rollback(); return; }
+                if (files == null || files.Count == 0) return;
                 string path = files[0].Path.LocalPath;
-                if (string.IsNullOrEmpty(path)) { _undoService.Rollback(); return; }
-                bool ok = _vm.ImportAllData(path);
-                if (!ok)
+                if (string.IsNullOrEmpty(path)) return;
+
+                // Now open the undo scope and perform the actual import.
+                _undoService.Begin("Bulk Import Skill Assignment (Class) data");
+                try
+                {
+                    bool ok = _vm.ImportAllData(path);
+                    if (!ok)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError("Import failed.");
+                        return;
+                    }
+                    _undoService.Commit();
+                    LoadList();
+                    CoreState.Services?.ShowInfo("Imported.");
+                }
+                catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    CoreState.Services?.ShowError("Import failed.");
-                    return;
+                    Log.Error("SkillAssignmentClassSkillSystemView.BulkImport failed: {0}", ex.Message);
                 }
-                _undoService.Commit();
-                LoadList();
-                CoreState.Services?.ShowInfo("Imported.");
             }
             catch (Exception ex)
             {
-                _undoService.Rollback();
-                Log.Error("SkillAssignmentClassSkillSystemView.BulkImport failed: {0}", ex.Message);
+                Log.Error("SkillAssignmentClassSkillSystemView.BulkImport file picker failed: {0}", ex.Message);
             }
         }
 

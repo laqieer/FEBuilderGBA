@@ -93,9 +93,9 @@ namespace FEBuilderGBA.Core.Tests
             {
                 File.WriteAllLines(path, new[]
                 {
-                    "10\t" + ((LevelUpBaseAddr + 0x100) | 0x08000000u).ToString("X8") + "\t05\t20\t0A\t21",
-                    "11\t" + ((LevelUpBaseAddr + 0x100) | 0x08000000u).ToString("X8") + "\t05\t20\t0A\t21",
-                    "22\t" + ((LevelUpBaseAddr + 0x200) | 0x08000000u).ToString("X8") + "\t18\t33",
+                    "10\t" + (LevelUpBaseAddr + 0x100).ToString("X8") + "\t05\t20\t0A\t21",
+                    "11\t" + (LevelUpBaseAddr + 0x100).ToString("X8") + "\t05\t20\t0A\t21",
+                    "22\t" + (LevelUpBaseAddr + 0x200).ToString("X8") + "\t18\t33",
                     "13\t0",
                 });
 
@@ -127,8 +127,8 @@ namespace FEBuilderGBA.Core.Tests
                 File.WriteAllLines(path, new[]
                 {
                     "AA\t0",
-                    "11\t" + ((LevelUpBaseAddr + 0x100) | 0x08000000u).ToString("X8") + "\t05\t20\t0A\t21",
-                    "12\t" + ((LevelUpBaseAddr + 0x200) | 0x08000000u).ToString("X8") + "\t15\t30",
+                    "11\t" + (LevelUpBaseAddr + 0x100).ToString("X8") + "\t05\t20\t0A\t21",
+                    "12\t" + (LevelUpBaseAddr + 0x200).ToString("X8") + "\t15\t30",
                     "13\t0",
                 });
                 bool importOk = SkillAssignmentClassSkillSystemCore.ImportAllData(
