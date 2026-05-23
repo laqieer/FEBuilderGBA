@@ -123,8 +123,12 @@
                             Content="OneLiner"
                             IsChecked="{Binding OneLinerCheck}" />
 
-                  <!-- TranslatePanel: enabled/visible only when UseAutoTranslate is on -->
-                  <StackPanel Spacing="6" IsEnabled="{Binding UseAutoTranslate}">
+                  <!-- TranslatePanel: enabled AND visible only when UseAutoTranslate is on.
+                       Mirrors WF `useAutoTranslateCheckBox_CheckedChanged` which sets both
+                       TranslatePanel.Enabled and TranslatePanel.Visible. -->
+                  <StackPanel Spacing="6"
+                              IsEnabled="{Binding UseAutoTranslate}"
+                              IsVisible="{Binding UseAutoTranslate}">
 
                     <StackPanel Orientation="Horizontal" Spacing="6">
                       <Border BorderBrush="Gray" BorderThickness="1" Padding="4">

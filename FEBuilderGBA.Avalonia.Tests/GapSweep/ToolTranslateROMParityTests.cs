@@ -263,6 +263,99 @@ public class ToolTranslateROMParityTests
     }
 
     // -----------------------------------------------------------------
+    // WF panel visibility/enabled parity - useAutoTranslateCheckBox controls
+    // BOTH IsEnabled AND IsVisible on the TranslatePanel (mirrors WF
+    // useAutoTranslateCheckBox_CheckedChanged setting Enabled + Visible).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_AutoTranslatePanel_BindsBothEnabledAndVisible()
+    {
+        // The WF behavior is: if UseAutoTranslate is unchecked, the entire
+        // language-combo + Detail-FROM/TO ROM picker block is hidden AND
+        // disabled. Avalonia must bind both attributes; binding only
+        // IsEnabled leaves the controls visible but greyed out.
+        var doc = XDocument.Load(AxamlPath());
+
+        // Find the StackPanel that has both bindings - it's the one
+        // immediately under the OneLiner_Check.
+        var panel = doc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "StackPanel"
+                && e.Attribute("IsEnabled")?.Value == "{Binding UseAutoTranslate}"
+                && e.Attribute("IsVisible")?.Value == "{Binding UseAutoTranslate}");
+
+        Assert.NotNull(panel);
+    }
+
+    // -----------------------------------------------------------------
+    // WF FontAutoGenelate visibility parity - FontAutoGenelateCheckBox
+    // controls FontROM picker IsEnabled (via IsFontRomPickerEnabled VM
+    // property) AND the UseFontName row IsVisible.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_FontRomPicker_BindsIsFontRomPickerEnabled()
+    {
+        // The Font ROM TextBox + Browse Button must bind to the derived
+        // IsFontRomPickerEnabled property, NOT to a `{Binding
+        // !FontAutoGenerate}` negation (which Avalonia handles unreliably).
+        var doc = XDocument.Load(AxamlPath());
+
+        var textBox = doc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "TextBox"
+                && e.Attribute("AutomationProperties.AutomationId")?.Value
+                    == "ToolTranslateROM_FontRom_Input");
+        Assert.NotNull(textBox);
+        Assert.Equal("{Binding IsFontRomPickerEnabled}",
+            textBox!.Attribute("IsEnabled")?.Value);
+
+        var button = doc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "Button"
+                && e.Attribute("AutomationProperties.AutomationId")?.Value
+                    == "ToolTranslateROM_FontRom_Button");
+        Assert.NotNull(button);
+        Assert.Equal("{Binding IsFontRomPickerEnabled}",
+            button!.Attribute("IsEnabled")?.Value);
+    }
+
+    [Fact]
+    public void ViewModel_IsFontRomPickerEnabled_NegatesFontAutoGenerate()
+    {
+        var vm = new ToolTranslateROMViewModel();
+        // Default: FontAutoGenerate=true => IsFontRomPickerEnabled=false.
+        Assert.True(vm.FontAutoGenerate);
+        Assert.False(vm.IsFontRomPickerEnabled);
+
+        vm.FontAutoGenerate = false;
+        Assert.True(vm.IsFontRomPickerEnabled);
+    }
+
+    // -----------------------------------------------------------------
+    // Language combo items - mirror WF Translate_from / Translate_to
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_FromLanguageItemsRaw_HasWfJapaneseKeys()
+    {
+        // WF Designer.cs ships these three items in order: ja, en, zh-CN.
+        Assert.Equal(3, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length);
+        Assert.Equal("ja=日本語", ToolTranslateROMViewModel.FromLanguageItemsRaw[0]);
+        Assert.Equal("en=英語", ToolTranslateROMViewModel.FromLanguageItemsRaw[1]);
+        Assert.Equal("zh-CN=中国語", ToolTranslateROMViewModel.FromLanguageItemsRaw[2]);
+    }
+
+    [Fact]
+    public void ViewModel_ToLanguageItemsRaw_HasWfJapaneseKeys()
+    {
+        // WF Designer.cs ships 11 items: ja, en, zh-CN, zh-TW, es, hi, ar,
+        // pt, ru, fr, eo.
+        Assert.Equal(11, ToolTranslateROMViewModel.ToLanguageItemsRaw.Length);
+        Assert.Equal("ja=日本語", ToolTranslateROMViewModel.ToLanguageItemsRaw[0]);
+        Assert.Equal("en=英語", ToolTranslateROMViewModel.ToLanguageItemsRaw[1]);
+        Assert.Equal("zh-CN=中国語 簡体", ToolTranslateROMViewModel.ToLanguageItemsRaw[2]);
+    }
+
+    // -----------------------------------------------------------------
     // Deferred-button policy - all real-action buttons disabled + tooltip #536
     // -----------------------------------------------------------------
 
