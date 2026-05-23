@@ -212,6 +212,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ? (uint)(_csaSpellTable + 20 * i)
                     : slot;
 
+                // Bounds-check the CSA entry address — a malformed ROM
+                // or unexpected table size could push csaAddr+20 past
+                // EOF (Copilot bot review on PR #554). Skipping such
+                // rows prevents LoadEntry from bailing out and leaving
+                // stale VM state.
+                if (csaAddr + 20 > (uint)rom.Data.Length) break;
+
                 string name = string.Format("0x{0:X02} Magic Effect", i);
 
                 if (dataPtr == 0)

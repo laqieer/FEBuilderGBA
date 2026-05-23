@@ -26,6 +26,22 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImageMagicFEditorView()
         {
             InitializeComponent();
+            // Populate ComboBox items via R._() so ja/zh translations
+            // apply (ViewTranslationHelper doesn't translate
+            // ComboBoxItem.Content). Copilot bot review #3/#4 on PR #554.
+            ZoomCombo.ItemsSource = new[]
+            {
+                R._("Zoom and Draw"),
+                R._("Draw without enlarging"),
+            };
+            ZoomCombo.SelectedIndex = 0;
+            DimCombo.ItemsSource = new[]
+            {
+                R._("dim_pc"),
+                R._("dim"),
+                R._("NULL (EMPTY)"),
+            };
+            DimCombo.SelectedIndex = 0;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -200,7 +216,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 try
                 {
                     EntryList.SetItems(_vm.LoadList());
-                    _vm.LoadEntry(reloadCsa, reloadSlot);
+                    // Re-select the row we just wrote so the entry list
+                    // selection stays in sync with the detail panel.
+                    // SelectAddress raises SelectedAddressChanged which
+                    // calls OnSelected → LoadEntry; no need for the
+                    // direct call (Copilot bot review on PR #554).
+                    EntryList.SelectAddress(reloadCsa);
                     UpdateUI();
                 }
                 finally { _vm.IsLoading = false; _vm.MarkClean(); }

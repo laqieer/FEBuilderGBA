@@ -109,13 +109,13 @@
             <!-- Row 2: zoom combo -->
             <Label Grid.Row="2" Grid.Column="0" Content="Zoom" VerticalAlignment="Center"
                    Margin="0,4,0,0" />
+            <!-- Items populated from code-behind with R._(...) so
+                 ja/zh translations apply (ViewTranslationHelper doesn't
+                 translate ComboBoxItem.Content). -->
             <ComboBox Grid.Row="2" Grid.Column="1"
                       AutomationProperties.AutomationId="ImageMagicFEditor_Zoom_Combo"
-                      Name="ZoomCombo" Width="200" SelectedIndex="0"
-                      HorizontalAlignment="Left" Margin="0,4,0,0">
-              <ComboBoxItem Content="Zoom and Draw" />
-              <ComboBoxItem Content="Draw without enlarging" />
-            </ComboBox>
+                      Name="ZoomCombo" Width="200"
+                      HorizontalAlignment="Left" Margin="0,4,0,0" />
 
             <!-- Row 3: sample-preview label -->
             <Label Grid.Row="3" Grid.Column="0" Content="Display Example" VerticalAlignment="Center"
@@ -131,15 +131,13 @@
         <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
           <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto">
             <Label Grid.Row="0" Grid.Column="0" Content="dim" VerticalAlignment="Center" />
+            <!-- Items populated from code-behind with R._(...) so
+                 ja/zh translations apply. -->
             <ComboBox Grid.Row="0" Grid.Column="1"
                       AutomationProperties.AutomationId="ImageMagicFEditor_Dim_Combo"
                       Name="DimCombo" Width="200"
-                      HorizontalAlignment="Left" SelectedIndex="0"
-                      SelectionChanged="DimCombo_SelectionChanged">
-              <ComboBoxItem Content="dim_pc" />
-              <ComboBoxItem Content="dim" />
-              <ComboBoxItem Content="NULL (EMPTY)" />
-            </ComboBox>
+                      HorizontalAlignment="Left"
+                      SelectionChanged="DimCombo_SelectionChanged" />
 
             <Label Grid.Row="1" Grid.Column="0" Content="Comment" VerticalAlignment="Center"
                    Margin="0,4,0,0" />
