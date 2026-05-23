@@ -117,7 +117,7 @@
                      Content="Frame:" VerticalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="1"
                              AutomationProperties.AutomationId="ImageMapActionAnimation_ShowFrame_Input"
-                             FormatString="0" Name="ShowFrameUpDown" Width="80"
+                             FormatString="X2" Name="ShowFrameUpDown" Width="80"
                              Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
             </Grid>
             <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">

@@ -22,6 +22,10 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImageMapActionAnimationViewModel _vm = new();
         readonly UndoService _undoService = new();
         bool _suppressZoomChange;
+        // Set true while UpdateUI syncs `ShowFrameUpDown.Value` from the VM
+        // — the SelectionChanged handler short-circuits so the compute+render
+        // pair isn't duplicated (Copilot CLI inline review on PR #506).
+        bool _suppressFrameChange;
 
         public string ViewTitle => "Map Action Animation";
         public bool IsLoaded => _vm.IsLoaded;
@@ -107,7 +111,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (_vm.IsAnimationValid)
             {
-                ShowFrameUpDown.Value = _vm.SelectedFrame;
+                // Suppress the ValueChanged handler while we sync the
+                // NumericUpDown from the VM so the compute+render pair
+                // below isn't duplicated by the handler (Copilot CLI
+                // inline review on PR #506 — double-render flicker).
+                _suppressFrameChange = true;
+                try { ShowFrameUpDown.Value = _vm.SelectedFrame; }
+                finally { _suppressFrameChange = false; }
+
                 _vm.ComputeFrameInfo(_vm.SelectedFrame);
                 BinInfoBox.Text = _vm.BinInfoText;
                 // Render the SELECTED frame (mirrors WinForms
@@ -157,6 +168,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ShowFrameUpDown_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
+            if (_suppressFrameChange) return;
             if (!_vm.IsAnimationValid) return;
             _vm.SelectedFrame = (uint)(ShowFrameUpDown.Value ?? 0);
             _vm.ComputeFrameInfo(_vm.SelectedFrame);

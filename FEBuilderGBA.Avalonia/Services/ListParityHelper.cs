@@ -477,10 +477,11 @@ namespace FEBuilderGBA.Avalonia.Services
             // #433 / #500 — ImageMapActionAnimationForm, ImageMagicFEditorForm,
             // and ImageMagicCSACreatorForm all jump to ToolAnimationCreatorForm
             // via X_N_JumpEditor (the "edit animation" affordance). The Avalonia
-            // ToolAnimationCreatorView lives in ContextDependentEditors (no
-            // list-parity port), so without this entry the jump scanner resolves
-            // to "no AV counterpart" and the manifest can never reach
-            // KnownGap / Match status.
+            // ToolAnimationCreatorView is registered in NoListEditors (no
+            // list-parity port — same shape as ToolDiffView, ToolUPSPatchSimpleView,
+            // etc.), so without this entry the jump scanner resolves to "no
+            // AV counterpart" and the manifest can never reach KnownGap /
+            // Match status.
             { "ToolAnimationCreatorView", "ToolAnimationCreatorForm" },
             // #434 — Image*Form (BattleBG, ImageBG, ImageCG family) jumps to
             // these tool/utility views. Both are NoListEditors (above) so the
