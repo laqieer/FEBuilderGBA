@@ -95,36 +95,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         static Dictionary<uint, string> LoadDefaultNamesFromConfig()
         {
-            // Use U.ConfigDataFilename + U.LoadDicResource so we pick up
-            // ROM-specific overrides (`MapActionAnimation_{FE8U}.{lang}.txt`)
-            // and language fallback chain — matches WinForms
-            // `ImageMapActionAnimationForm.GetNameDefaultName` /
-            // `U.LoadDicResource(U.ConfigDataFilename(...))` pattern.
-            // Copilot CLI inline review on PR #506.
-            //
-            // Wrap in try/catch + null-guard around CoreState.Services so a
-            // headless test environment that hasn't wired Services can't
-            // NRE inside U.LoadDicResource's error path (which calls
-            // CoreState.Services.ShowError on file-missing). Falls back to
-            // a hand-rolled parser if the U.* path throws — keeps the test
-            // contract (id=0 -> "Empty", id=1 -> "Break1") stable in CI.
-            try
+            // Use U.ConfigDataFilename + U.LoadDicResource ONLY when
+            // CoreState.ROM is non-null — those helpers internally call
+            // `U.OtherLangLine(line, CoreState.ROM)` which NREs on a null
+            // ROM, and the catch path in `U.LoadDicResource` then dereferences
+            // `CoreState.Services.ShowError` which can also be null in
+            // headless tests. Mirrors WinForms `GetNameDefaultName`
+            // (which only runs after the WF main form is up and a ROM is
+            // loaded). Copilot CLI inline review on PR #506.
+            ROM rom = CoreState.ROM;
+            if (rom != null && rom.RomInfo != null)
             {
-                string path = U.ConfigDataFilename("MapActionAnimation_");
-                if (System.IO.File.Exists(path))
+                try
                 {
-                    return U.LoadDicResource(path);
+                    string path = U.ConfigDataFilename("MapActionAnimation_");
+                    if (System.IO.File.Exists(path))
+                    {
+                        return U.LoadDicResource(path);
+                    }
                 }
-                // Fall through to manual parser below.
-            }
-            catch (Exception ex)
-            {
-                Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig U-path failed: {0}", ex.Message);
+                catch (Exception ex)
+                {
+                    Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig U-path failed: {0}", ex.Message);
+                }
             }
 
             // Fallback: parse the file directly with a hand-rolled loop.
-            // Used when CoreState.Services is null (headless tests) or when
-            // the U.* path raises for any other reason.
+            // Used when CoreState.ROM is null (headless tests with no ROM
+            // available) or when the U.* path raises for any other reason.
             var dic = new Dictionary<uint, string>();
             try
             {
