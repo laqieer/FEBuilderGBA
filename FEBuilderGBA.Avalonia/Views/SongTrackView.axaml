@@ -68,7 +68,7 @@
               <NumericUpDown AutomationProperties.AutomationId="SongTrack_Reverb_Input"
                              Name="ReverbBox" Width="60" Minimum="0" Maximum="255"
                              FormatString="0" VerticalAlignment="Center"
-                             ToolTip.Tip="0x00 = inherit from previous song (default). 0x80 = reverb off. 0xFF = reverb max. Use values 0x80 - 0xFF when reverb is enabled. Vanilla: SFX=0, field FE6=0x9E, FE7=0x80, FE8=0x94." />
+                             ToolTip.Tip="0 (0x00) = inherit from previous song (default). 128 (0x80) = reverb off. 255 (0xFF) = reverb max. Use values in 128-255 (0x80-0xFF) when reverb is enabled. Vanilla: SFX=0, field FE6=158 (0x9E), FE7=128 (0x80), FE8=148 (0x94)." />
               <TextBlock AutomationProperties.AutomationId="SongTrack_LinkInternet_Label"
                          Name="LinkInternetLabel" Text="Search for new resources online"
                          Foreground="Blue" TextDecorations="Underline"

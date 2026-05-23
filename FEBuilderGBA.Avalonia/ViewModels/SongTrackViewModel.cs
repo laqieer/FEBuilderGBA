@@ -177,7 +177,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string TrackInfoText { get => _trackInfoText; set => SetField(ref _trackInfoText, value); }
         /// <summary>WF panel1 read-config: start address of the song table scan
         /// (mirrors WF `ReadStartAddress` NumericUpDown). Editing this and then
-        /// pressing Reload drives `LoadList` against the new base.</summary>
+        /// pressing Reload drives <see cref="LoadFullList"/> against the new
+        /// base (the View's `LoadList` thin-wrapper delegates to it).</summary>
         public uint ReadStartAddress { get => _readStartAddress; set => SetField(ref _readStartAddress, value); }
         /// <summary>WF panel1 read-config: number of song entries to enumerate
         /// (mirrors WF `ReadCount` NumericUpDown). Editing this and then

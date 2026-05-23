@@ -53,21 +53,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address)
         {
-            // When a non-zero context address is passed by the caller (e.g.
-            // `SongTrackView` passing the song index), honor it directly so
-            // the target editor reflects the requested scope instead of
-            // staying pinned at the placeholder `0` row. Falls back to
-            // list-based selection when address is 0 (the standalone "open"
-            // path).
-            if (address != 0)
-            {
-                _vm.LoadEntry(address);
-                UpdateUI();
-            }
-            else
-            {
-                EntryList.SelectAddress(address);
-            }
+            // The caller passes a SONG INDEX (e.g. `SongTrackView` passes
+            // `_vm.SelectedSongIndex`). Song ID 0 is a VALID song index
+            // (the silence song), so we cannot use 0 as a "no context"
+            // sentinel — we always honor the requested context by calling
+            // LoadEntry. The standalone open path also routes through here
+            // with address = 0, which loads the placeholder "0" entry from
+            // the stub list — matching the previous behavior.
+            _vm.LoadEntry(address);
+            UpdateUI();
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

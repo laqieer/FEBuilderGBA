@@ -54,11 +54,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address)
         {
             // When a non-zero context address is passed by the caller (e.g.
-            // `SongTrackView` passing the current song header address), honor
-            // it directly so the target editor reflects the requested scope
-            // instead of staying pinned at the placeholder `0` row.
-            // Falls back to list-based selection when address is 0 (the
-            // standalone "open" path).
+            // `SongTrackView.AllTracks_Click` passing `_vm.InstrumentAddr`
+            // — the instrument-set pointer / P4, matching WF's
+            // `f.Init((uint)P4.Value, this.Tracks)`), honor it directly so
+            // the target editor reflects the requested scope instead of
+            // staying pinned at the placeholder `0` row. Falls back to
+            // list-based selection when address is 0 (the standalone "open"
+            // path).
             if (address != 0)
             {
                 _vm.LoadEntry(address);

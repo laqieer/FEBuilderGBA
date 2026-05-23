@@ -399,12 +399,17 @@ public class SongTrackParityTests
     }
 
     /// <summary>
-    /// Each target view's `NavigateTo(uint address)` must honor a non-zero
-    /// address by loading that entry directly — NOT by trying to select it
-    /// in their stub master list (which only contains an `AddrResult(0)`).
-    /// Without this branch the click handlers would silently navigate to
-    /// the placeholder "0" entry and the user-visible context would be
-    /// lost (Copilot CLI review #1 + laqieer review).
+    /// Each target view's `NavigateTo(uint address)` must call
+    /// `_vm.LoadEntry(address)` so the click handlers actually carry the
+    /// requested context to the target editor (Copilot CLI review #1 +
+    /// laqieer top-level review on PR #558). The exact branching strategy
+    /// differs per view:
+    /// - `SongExchangeView` always calls `LoadEntry(address)` because the
+    ///   caller passes a song INDEX where 0 is a valid value (silence song)
+    ///   — Copilot bot review on PR #558 inline #1.
+    /// - `SongTrackAllChangeTrackView` and `SongTrackChangeTrackView` use
+    ///   `if (address != 0)` because the caller passes a ROM ADDRESS where 0
+    ///   means "no context" (standalone open path).
     /// </summary>
     [Theory]
     [InlineData(typeof(SongExchangeView))]
@@ -412,10 +417,6 @@ public class SongTrackParityTests
     [InlineData(typeof(SongTrackChangeTrackView))]
     public void TargetView_NavigateTo_HandlesNonZeroAddress(Type viewType)
     {
-        // Roslyn-static read of the target View's code-behind: the
-        // NavigateTo body MUST contain a non-zero branch that calls
-        // `LoadEntry(address)` directly instead of going through
-        // EntryList.SelectAddress (which would fail to find the row).
         string repoRoot = FindRepoRoot();
         string viewName = viewType.Name;
         string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
@@ -424,9 +425,9 @@ public class SongTrackParityTests
             $"Target view code-behind missing at {codeBehindPath}");
 
         string source = File.ReadAllText(codeBehindPath);
-        // The non-zero branch must call _vm.LoadEntry(address), NOT just
-        // EntryList.SelectAddress(address) (the original stub behavior).
-        Assert.Contains("if (address != 0)", source);
+        // Every target view's NavigateTo MUST call _vm.LoadEntry(address)
+        // — NOT just EntryList.SelectAddress(address) which would fail to
+        // find the row in the stub master list.
         Assert.Contains("_vm.LoadEntry(address)", source);
     }
 
