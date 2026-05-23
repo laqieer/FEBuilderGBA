@@ -460,6 +460,41 @@ public class WorldMapEventPointerParityTests
     }
 
     [Fact]
+    public void ViewModel_DataReport_And_RawReport_Agree_AfterRowSelection()
+    {
+        // Regression guard for Copilot CLI re-review point — after a row
+        // is selected, GetDataReport() and GetRawRomReport() must report
+        // the per-row pointer in the same form (offset, p32-stripped).
+        // Pre-fix the raw report used u32, causing a 0x08000000 drift
+        // visible in the data-verify dialog.
+        uint slot0Before = 0x08A39768u;
+        uint slot0After = 0x08A39D00u;
+        ROM rom = MakeFe8uWithListSlots(
+            stageClearSlots: new[] { slot0Before },
+            stageSelectSlots: new[] { slot0After });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new WorldMapEventPointerViewModel();
+            uint baseClear = rom.p32(rom.RomInfo.worldmap_event_on_stageclear_pointer);
+            uint baseSelect = rom.p32(rom.RomInfo.worldmap_event_on_stageselect_pointer);
+            vm.LoadBeforeEntry(baseClear);
+            vm.LoadAfterEntry(baseSelect);
+
+            var data = vm.GetDataReport();
+            var raw = vm.GetRawRomReport();
+            // The two reports must agree on the per-row pointer values.
+            Assert.Equal(data["BeforeEventPointer"], raw["BeforePtr@0x00"]);
+            Assert.Equal(data["AfterEventPointer"], raw["AfterPtr@0x00"]);
+            // Sanity: both report 0x00A39xxx (offset form), not 0x08A39xxx.
+            Assert.Equal("0x00A39768", raw["BeforePtr@0x00"]);
+            Assert.Equal("0x00A39D00", raw["AfterPtr@0x00"]);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
     public void ViewModel_UsesCorrectFE8Pointers_NotMapWorldmapEventPointer()
     {
         // Regression guard for the original bug: pre-#432, the view read
