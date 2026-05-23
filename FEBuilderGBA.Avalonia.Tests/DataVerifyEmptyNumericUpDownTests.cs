@@ -28,6 +28,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
 
@@ -60,10 +61,12 @@ public class DataVerifyEmptyNumericUpDownTests
     }
 
     /// <summary>
-    /// Helper: instantiates the view, calls Show() so Opened fires, runs the
-    /// view's SelectFirstItem() (if present) and checks every NumericUpDown.
+    /// Helper: instantiates the view, calls Show() so Opened fires, calls
+    /// SelectFirstItem via the IEditorView interface (compile-time safe —
+    /// avoids the brittleness of reflection if the method name changes),
+    /// and checks every NumericUpDown for null Value.
     /// </summary>
-    static List<string> OpenAndCollectEmptyNuds<TView>() where TView : Window, new()
+    static List<string> OpenAndCollectEmptyNuds<TView>() where TView : Window, IEditorView, new()
     {
         var view = new TView();
         try
@@ -71,8 +74,9 @@ public class DataVerifyEmptyNumericUpDownTests
             view.Show();
             // SelectFirstItem mirrors what the data-verify harness does after
             // the Opened handler runs (MainWindow.RunDataVerify line ~1352).
-            var method = typeof(TView).GetMethod("SelectFirstItem");
-            method?.Invoke(view, null);
+            // Every editor that data-verify exercises implements IEditorView,
+            // so the cast is compile-time enforced.
+            view.SelectFirstItem();
             return FindEmptyVisibleNuds(view);
         }
         finally
