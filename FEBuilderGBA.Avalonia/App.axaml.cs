@@ -111,6 +111,12 @@ namespace FEBuilderGBA.Avalonia
             CoreState.LintCache = new HeadlessEtcCache();
             CoreState.WorkSupportCache = new HeadlessEtcCache();
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
+            // #428: AsmMap cache stub — the WF AsmMapFileAsmCache lives in
+            // FEBuilderGBA.WinForms and depends on the full patch/symbol
+            // pipeline. Avalonia/CLI use this no-op stub so `IsHardCodeUnit`
+            // call sites null-check cleanly and the [HardCoding] hyperlink
+            // simply stays hidden on the unit editors.
+            CoreState.AsmMapFileAsmCache = new HeadlessAsmMapCache();
             // ResourceCache is string-keyed (different shape from the
             // IEtcCache uint-keyed caches above) — back it with the
             // EtcCacheResource WF type directly. Used by ImageBattleBG +
