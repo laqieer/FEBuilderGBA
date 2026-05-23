@@ -41,7 +41,7 @@
 
         <!-- Address + HardCoding warning -->
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock AutomationProperties.AutomationId="UnitEditor_SelectedAddress_PrefixLabel"
+          <TextBlock AutomationProperties.AutomationId="UnitEditor_SelectedAddressPrefix_Label"
                      Name="SelectedAddressPrefixLabel"
                      Text="Selected Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
           <TextBlock AutomationProperties.AutomationId="UnitEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
@@ -312,22 +312,23 @@
                   Header="Export/Import Options" IsExpanded="False" Margin="0,8,0,0">
           <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <!-- Defaults match WF UnitForm: UseClipboard=false, all 7 others=true -->
               <CheckBox AutomationProperties.AutomationId="UnitEditor_UseClipboard_Check"
-                        Grid.Row="0" Grid.Column="0" Name="UseClipboardCheck" Content="Use Clipboard" Margin="0,2" />
+                        Grid.Row="0" Grid.Column="0" Name="UseClipboardCheck" Content="Use Clipboard" Margin="0,2" IsChecked="False" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeHeader_Check"
-                        Grid.Row="0" Grid.Column="1" Name="IncludeHeaderCheck" Content="Include Header" Margin="0,2" />
+                        Grid.Row="0" Grid.Column="1" Name="IncludeHeaderCheck" Content="Include Header" Margin="0,2" IsChecked="True" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeUID_Check"
-                        Grid.Row="1" Grid.Column="0" Name="IncludeUIDCheck" Content="Include UID" Margin="0,2" />
+                        Grid.Row="1" Grid.Column="0" Name="IncludeUIDCheck" Content="Include UID" Margin="0,2" IsChecked="True" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeName_Check"
-                        Grid.Row="1" Grid.Column="1" Name="IncludeNameCheck" Content="Include Name" Margin="0,2" />
+                        Grid.Row="1" Grid.Column="1" Name="IncludeNameCheck" Content="Include Name" Margin="0,2" IsChecked="True" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeBaseStats_Check"
-                        Grid.Row="2" Grid.Column="0" Name="IncludeBaseStatsCheck" Content="Include Base Stats" Margin="0,2" />
+                        Grid.Row="2" Grid.Column="0" Name="IncludeBaseStatsCheck" Content="Include Base Stats" Margin="0,2" IsChecked="True" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeGrowths_Check"
-                        Grid.Row="2" Grid.Column="1" Name="IncludeGrowthsCheck" Content="Include Growths" Margin="0,2" />
+                        Grid.Row="2" Grid.Column="1" Name="IncludeGrowthsCheck" Content="Include Growths" Margin="0,2" IsChecked="True" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeWepLevel_Check"
-                        Grid.Row="3" Grid.Column="0" Name="IncludeWepLevelCheck" Content="Include Wep Level" Margin="0,2" />
+                        Grid.Row="3" Grid.Column="0" Name="IncludeWepLevelCheck" Content="Include Wep Level" Margin="0,2" IsChecked="True" />
               <CheckBox AutomationProperties.AutomationId="UnitEditor_GrowthsAsDecimal_Check"
-                        Grid.Row="3" Grid.Column="1" Name="GrowthsAsDecimalCheck" Content="Growths as Decimal" Margin="0,2" />
+                        Grid.Row="3" Grid.Column="1" Name="GrowthsAsDecimalCheck" Content="Growths as Decimal" Margin="0,2" IsChecked="True" />
             </Grid>
           </Border>
         </Expander>

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T18:44:53Z"
-git-sha: ef359d2a5
+generated: "2026-05-23T19:46:11Z"
+git-sha: 590692680
 sweep-type: undo
 ---
 
@@ -263,9 +263,9 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 
 | File | Line | Method | Write | Note |
 |---|---:|---|---|---|
-| `FEBuilderGBA.Avalonia/Services/UnitCsvManager.cs` | 126 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'UnitCsvManager' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/Services/UnitCsvManager.cs` | 141 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'UnitCsvManager' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/Services/UnitCsvManager.cs` | 154 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'UnitCsvManager' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/Services/UnitCsvManager.cs` | 170 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'UnitCsvManager' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/Services/UnitCsvManager.cs` | 185 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'UnitCsvManager' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/Services/UnitCsvManager.cs` | 198 | `ApplyImportCsv` | `rom.write_u8(addr + o, (uint)(byte)sv)` | class 'UnitCsvManager' has no UndoService field/property/local |
 
 ### `EventForceSortieFE7ViewModel` — 2 callsites
 

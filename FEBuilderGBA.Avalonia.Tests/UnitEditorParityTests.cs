@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationId<TextBlock>(view, "UnitEditor_Size_Label"));
             // Selected-address PREFIX label (the "Selected Address:" caption,
             // distinct from the existing UnitEditor_Addr_Label value).
-            Assert.NotNull(FindByAutomationId<TextBlock>(view, "UnitEditor_SelectedAddress_PrefixLabel"));
+            Assert.NotNull(FindByAutomationId<TextBlock>(view, "UnitEditor_SelectedAddressPrefix_Label"));
         }
 
         // ---- WU3: Export/Import options panel (8 checkboxes + 4 buttons) ----
@@ -91,6 +91,25 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationId<Button>(view, "UnitEditor_ExportSelected_Button"));
             Assert.NotNull(FindByAutomationId<Button>(view, "UnitEditor_ImportAll_Button"));
             Assert.NotNull(FindByAutomationId<Button>(view, "UnitEditor_ImportSelected_Button"));
+        }
+
+        /// <summary>
+        /// CSV option defaults must match WF UnitForm so a freshly-opened
+        /// view + Export All produces useful output, not empty rows.
+        /// WF defaults: UseClipboard=false, all 7 others=true.
+        /// </summary>
+        [AvaloniaFact]
+        public void ExportImportOptions_DefaultsMatchWF()
+        {
+            var view = new UnitEditorView();
+            Assert.False(FindByAutomationId<CheckBox>(view, "UnitEditor_UseClipboard_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_IncludeHeader_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_IncludeUID_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_IncludeName_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_IncludeBaseStats_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_IncludeGrowths_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_IncludeWepLevel_Check")!.IsChecked);
+            Assert.True(FindByAutomationId<CheckBox>(view, "UnitEditor_GrowthsAsDecimal_Check")!.IsChecked);
         }
 
         // ---- HardCoding warning: visibility flips with IAsmMapCache result ----
@@ -426,6 +445,46 @@ namespace FEBuilderGBA.Avalonia.Tests
             string csv = mgr.BuildExportCsv(rom, new[] { baseAddr });
             mgr.ApplyImportCsv(rom, csv, new[] { baseAddr });
             Assert.Equal(0xAB, rom.Data[baseAddr + 40]);
+        }
+
+        /// <summary>
+        /// Multi-row Import All should honor the embedded UID when present
+        /// and route each CSV row to the correct unit address (matches WF
+        /// CsvManager behavior). A reordered CSV must not write stats to
+        /// the wrong unit.
+        /// </summary>
+        [Fact]
+        public void ImportAll_ParsesUidAndRoutesToCorrectRow()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(3);
+            var mgr = new UnitCsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: false, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+
+            // Build the CSV for all 3 rows, then REORDER the rows so UID 2
+            // comes first.
+            var addrs = new[] { baseAddr, baseAddr + dataSize, baseAddr + 2 * dataSize };
+            string csv = mgr.BuildExportCsv(rom, addrs);
+            string[] lines = csv.Split('\n');
+            string reordered = string.Join("\n", new[] { lines[2], lines[0], lines[1], lines[3] });
+
+            // Snapshot unit-2 stats BEFORE import; zero them after.
+            byte[] u2Before = new byte[8];
+            Array.Copy(rom.Data, (int)(baseAddr + 2 * dataSize + 12), u2Before, 0, 8);
+            for (int o = 12; o <= 19; o++)
+            {
+                rom.Data[baseAddr + o] = 0;
+                rom.Data[baseAddr + dataSize + o] = 0;
+                rom.Data[baseAddr + 2 * dataSize + o] = 0;
+            }
+
+            int n = mgr.ApplyImportCsv(rom, reordered, addrs);
+            Assert.Equal(3, n);
+
+            // Unit-2 stats restored despite being the FIRST row in the CSV.
+            for (int o = 12; o <= 19; o++)
+                Assert.Equal(u2Before[o - 12], rom.Data[baseAddr + 2 * dataSize + o]);
         }
 
         static string? FindRepoRoot()

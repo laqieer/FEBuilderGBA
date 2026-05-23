@@ -93,6 +93,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Apply a previously-built CSV text to the ROM. Writes are performed
         /// via the ROM's ambient-undo write methods - the caller is expected
         /// to wrap the call in an <c>UndoService.Begin/Commit</c> scope.
+        ///
+        /// When the CSV contains UIDs (either via <see cref="_includeUID"/>
+        /// alone or embedded as <c>Name(UID)</c>), each row is routed to the
+        /// address indicated by that UID rather than positional order. This
+        /// matches WF <c>CsvManager</c> behavior so a reordered or partial
+        /// CSV imports onto the correct units. Rows without a parseable UID
+        /// fall back to positional mapping.
         /// </summary>
         /// <returns>Number of rows written.</returns>
         public int ApplyImportCsv(ROM rom, string csv, IReadOnlyList<uint> rowAddresses)
@@ -105,16 +112,53 @@ namespace FEBuilderGBA.Avalonia.Services
             // Skip the header line if includeHeader was set.
             int startLine = _includeHeader ? 1 : 0;
             int written = 0;
-            for (int i = 0; i + startLine < lines.Length && i < rowAddresses.Count; i++)
+            // Single-row imports (ExportSelected/ImportSelected) always route to
+            // rowAddresses[0]; multi-row imports honor the embedded UID when
+            // present so a reordered CSV writes to the correct units.
+            bool isSingleRow = rowAddresses.Count == 1;
+            for (int i = 0; i + startLine < lines.Length; i++)
             {
                 string line = lines[i + startLine];
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 string[] cols = line.Split(',');
                 int colIdx = 0;
-                // Skip the leading identifier column (Name(UID) or UID).
-                if (_includeName || _includeUID) colIdx++;
 
-                uint addr = rowAddresses[i];
+                // Determine the destination address. Default = positional
+                // mapping (matches WF behavior when neither UID nor Name is
+                // exported). When _includeUID is set OR _includeName carries
+                // a "Name(UID)" tail, parse the embedded UID and look it up
+                // in rowAddresses by index.
+                uint addr;
+                if (isSingleRow)
+                {
+                    addr = rowAddresses[0];
+                    if (_includeName || _includeUID) colIdx++;
+                }
+                else
+                {
+                    uint? parsedUid = null;
+                    if (_includeName)
+                    {
+                        // Format: "Name(UID)" - split on '(' / ')'.
+                        string[] nameParts = cols[0].Split('(', ')');
+                        if (nameParts.Length >= 2 && uint.TryParse(nameParts[1].Trim(), out uint nuid))
+                            parsedUid = nuid;
+                        colIdx++;
+                    }
+                    else if (_includeUID)
+                    {
+                        if (uint.TryParse(cols[0].Trim(), out uint uuid))
+                            parsedUid = uuid;
+                        colIdx++;
+                    }
+
+                    if (parsedUid.HasValue && parsedUid.Value < rowAddresses.Count)
+                        addr = rowAddresses[(int)parsedUid.Value];
+                    else if (i < rowAddresses.Count)
+                        addr = rowAddresses[i]; // fall back to positional
+                    else
+                        continue; // ran out of target rows
+                }
 
                 if (_includeBaseStats)
                 {
@@ -226,18 +270,24 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Resolve the unit's display name from its name-id (u16 at offset 0).
-        /// In the headless test path this is a best-effort lookup; if name
-        /// resolution fails the empty string is returned.
+        /// Mirrors WF <c>CsvManager.GetUnitNameByAddr</c> via the Avalonia
+        /// <c>NameResolver.GetTextById</c> path (which calls into Core
+        /// <c>FETextDecode</c> when a real ROM + RomInfo are loaded).
+        /// Falls back to the numeric placeholder <c>#{id}</c> for headless
+        /// tests with no RomInfo configured.
         /// </summary>
         static string GetUnitNameAt(ROM rom, uint addr)
         {
             try
             {
-                uint id = rom.u16(addr);
-                // NameResolver may not be available headlessly (no RomInfo).
-                // The shape of the CSV is the only thing tests assert; falling
-                // back to the raw text-id keeps tests stable.
-                return $"#{id}";
+                uint textId = rom.u16(addr);
+                // RomInfo is required for the FETextDecode path; without it
+                // we cannot decode the Huffman-encoded name.
+                if (rom.RomInfo == null) return $"#{textId}";
+                string name = NameResolver.GetTextById(textId);
+                // GetTextById returns "???" if decoding fails - preserve the
+                // numeric fallback in that case so import can still parse.
+                return string.IsNullOrEmpty(name) || name == "???" ? $"#{textId}" : name.Trim();
             }
             catch { return ""; }
         }

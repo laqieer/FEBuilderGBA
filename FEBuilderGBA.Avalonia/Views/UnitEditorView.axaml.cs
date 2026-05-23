@@ -681,7 +681,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 growthsAsDecimal: GrowthsAsDecimalCheck.IsChecked == true);
         }
 
-        /// <summary>Enumerate every unit-row address currently in the AddressList.</summary>
+        /// <summary>
+        /// Enumerate every unit-row address currently in the AddressList.
+        /// Mirrors <c>UnitEditorViewModel.LoadUnitList()</c> by applying the
+        /// FE6 first-entry skip (entry 0 in FE6 is a null/pointer record).
+        /// </summary>
         uint[] GetAllUnitAddresses()
         {
             try
@@ -693,6 +697,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint count = rom.RomInfo.unit_maxcount;
                 uint size = rom.RomInfo.unit_datasize;
                 if (size == 0) size = 52;
+                if (count == 0) count = 0x100;
+                // FE6: skip first entry (matches LoadUnitList() and WF UnitForm).
+                if (rom.RomInfo.version == 6) baseAddr += size;
                 var addrs = new uint[count];
                 for (uint i = 0; i < count; i++) addrs[i] = baseAddr + i * size;
                 return addrs;
@@ -783,6 +790,9 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Populate the address-bar labels with the current ROM's unit-table
         /// metadata. Mirrors WF UnitForm's label1 / label2 / label22 / label23.
+        /// ReadStartAddress is the resolved table base (the value at the
+        /// pointer slot) so it matches the actual data location, not the
+        /// pointer's storage offset.
         /// </summary>
         void UpdateAddressBarInfra()
         {
@@ -790,7 +800,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
-                ReadStartAddressLabel.Text = $"0x{rom.RomInfo.unit_pointer:X8}";
+                uint resolvedBase = rom.p32(rom.RomInfo.unit_pointer);
+                ReadStartAddressLabel.Text = $"0x{resolvedBase:X8}";
                 ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
                 SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
             }
