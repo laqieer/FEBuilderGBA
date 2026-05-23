@@ -44,19 +44,30 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
 
         /// <summary>
-        /// Load the address list. On initial load (initial=true) the
-        /// TopAddress / ReadCount UI boxes are seeded from the ROM's AI
-        /// table pointer and entry count; on user-driven Reload (initial=
-        /// false) the UI values drive the VM scan window so the user can
-        /// adjust the read range, mirroring WF panel3 / panel1 behavior
-        /// (PR #571 Copilot bot review #3).
+        /// Load the address list. On initial load (initial=true) the VM
+        /// scan window is RESET (TopAddress = 0, ReadCount = 0) so
+        /// LoadList() reseeds from the AI{1,2}_pointer table base; the UI
+        /// Top Address box is then set to the RESOLVED base
+        /// (`rom.p32(pointer)`), matching EDView's seeding pattern. On
+        /// user-driven Reload (initial=false) the UI values drive the
+        /// VM scan window so the user can adjust the read range,
+        /// mirroring WF panel3 / panel1 behavior.
+        /// (PR #571 Copilot bot review #1+#2 follow-up.)
         /// </summary>
         void LoadList(bool initial = true)
         {
             _vm.IsLoading = true;
             try
             {
-                if (!initial)
+                if (initial)
+                {
+                    // Reset VM scan window so LoadList() reseeds from
+                    // ai{1,2}_pointer instead of the previous TopAddress
+                    // (which is wrong after a Switch combo change).
+                    _vm.TopAddress = 0;
+                    _vm.ReadCount = 0;
+                }
+                else
                 {
                     // Honor the user-edited Top Address / Read Count.
                     _vm.TopAddress = (uint)(TopAddressBox.Value ?? 0);
@@ -68,15 +79,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 if (initial)
                 {
-                    // Surface auto-detected defaults into the UI.
+                    // Surface RESOLVED defaults: TopAddress shows the
+                    // table base (rom.p32(pointer)), not the pointer
+                    // location itself. Matches EDView's seeding.
                     ROM? rom = CoreState.ROM;
                     if (rom?.RomInfo != null)
                     {
                         uint tablePtr = _vm.FilterIndex == 1
                             ? rom.RomInfo.ai2_pointer
                             : rom.RomInfo.ai1_pointer;
-                        TopAddressBox.Value = tablePtr;
-                        _vm.TopAddress = tablePtr;
+                        uint resolvedBase = rom.p32(tablePtr);
+                        TopAddressBox.Value = resolvedBase;
+                        _vm.TopAddress = resolvedBase;
                     }
                     ReadCountBox.Value = (decimal)items.Count;
                     _vm.ReadCount = (uint)items.Count;
@@ -192,10 +206,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Read the bytes from ROM at CurrentAddr (size = ReadByteCount)
                 // and populate the Disassembly list with 16-byte chunks.
+                // Range check uses inclusive end (<= rom.Data.Length) and
+                // overflow-safe arithmetic so a range that ends EXACTLY at
+                // the ROM boundary still scans correctly (PR #571 Copilot
+                // bot review on follow-up commit thread #3 — `isSafetyOffset`
+                // is strictly `< Data.Length` and would silently no-op at
+                // the boundary).
                 var rom = CoreState.ROM;
                 var items = new System.Collections.Generic.List<string>();
                 if (rom != null && U.isSafetyOffset(_vm.CurrentAddr)
-                    && U.isSafetyOffset(_vm.CurrentAddr + _vm.ReadByteCount))
+                    && (ulong)_vm.CurrentAddr + (ulong)_vm.ReadByteCount
+                        <= (ulong)rom.Data.Length)
                 {
                     uint end = System.Math.Min(_vm.CurrentAddr + _vm.ReadByteCount,
                                                (uint)rom.Data.Length);
