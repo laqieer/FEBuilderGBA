@@ -535,9 +535,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // the u32==0 or u8==0 terminator predicates and would iterate
             // up to the 0x200-row safety limit). The ambient undo scope
             // captures these bytes too.
+            //
+            // SAFETY (Copilot PR #561 re-review): DataExpansionCore.ExpandTable
+            // reserves exactly `(currentCount + 1) * blockSize` bytes from
+            // free space, so the terminator block at offset
+            // `newRowAddr + blockSize` is OUTSIDE the reserved region.
+            // If the free-space run was exactly that size, writing zeros
+            // there would corrupt whatever ROM data follows.
+            // We only write the terminator if the bytes there are still
+            // `0xFF` (i.e. they are still free space) - this is a no-op
+            // for the iterator's predicates either way (0xFF u8 / 0xFFFFFFFF
+            // u32 both pass the "not zero" test and would still cause
+            // 0x200-row run-away), so we skip the terminator write in the
+            // exact-fit edge case and rely on the safety-bound counter
+            // until the user writes new rows that establish a natural
+            // terminator (or expands again and the new run is found).
             uint terminatorAddr = newRowAddr + blockSize;
             if (terminatorAddr + blockSize <= (uint)rom.Data.Length)
-                rom.write_fill(terminatorAddr, blockSize, 0x00);
+            {
+                bool allFreeSpace = true;
+                for (uint i = 0; i < blockSize; i++)
+                {
+                    if (rom.u8(terminatorAddr + i) != 0xFF) { allFreeSpace = false; break; }
+                }
+                if (allFreeSpace)
+                    rom.write_fill(terminatorAddr, blockSize, 0x00);
+            }
         }
 
         /// <summary>Shared list iteration loop with caller-supplied

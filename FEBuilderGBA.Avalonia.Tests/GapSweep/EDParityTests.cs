@@ -643,6 +643,61 @@ public class EDParityTests
     }
 
     [Fact]
+    public void ViewModel_ExpandRetreatList_DoesNotCorruptROMWhenFreeSpaceExactFit()
+    {
+        // Copilot CLI PR #561 re-review: SeedExpandedRow used to write a
+        // zero-fill terminator block AFTER the appended row, which sits
+        // OUTSIDE DataExpansionCore.ExpandTable's reserved
+        // (currentCount + 1) * blockSize region. If the free-space run
+        // is exactly that size and is followed by valid ROM data, the
+        // terminator would corrupt it. The fix only writes the
+        // terminator when the bytes there are still 0xFF (i.e. were
+        // never claimed as data).
+        var rom = MakeMinimalFE8URom(out _, out _, out _);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Re-shape the free space: leave only enough 0xFF for
+            // (currentCount+1) entries, then immediately plant sentinel
+            // bytes representing valid ROM data right after.
+            // currentCount is 3 retreat entries; blockSize=4; so
+            // reserved region needs to be (3+1)*4 = 16 bytes of 0xFF
+            // starting at a 4-byte-aligned offset that FindFreeSpace
+            // will discover first.
+            for (uint i = 0x500000; i < 0x510000; i++)
+                rom.Data[i] = 0x00; // erase the wide free pool
+            // Plant exactly 16 bytes of 0xFF starting at 0x600000.
+            uint sentinelStart = 0x600000;
+            for (uint i = sentinelStart; i < sentinelStart + 16; i++)
+                rom.Data[i] = 0xFF;
+            // Plant deliberate sentinel bytes immediately after (the
+            // "valid ROM data" that must NOT be touched).
+            byte[] sentinel = { 0xDE, 0xAD, 0xBE, 0xEF };
+            for (uint i = 0; i < sentinel.Length; i++)
+                rom.Data[sentinelStart + 16 + i] = sentinel[i];
+
+            var vm = new EDViewModel();
+            var result = vm.ExpandRetreatList();
+            Assert.True(result.Success,
+                $"ExpandRetreatList must succeed; got error: {result.Error}");
+
+            // The sentinel bytes immediately after the (newly relocated)
+            // table must remain untouched. With the buggy version, the
+            // 4-byte terminator block would overwrite the 0xDE 0xAD 0xBE
+            // 0xEF with zeros.
+            // Find the new table location (FindFreeSpace returned
+            // sentinelStart since it was the only 16-byte 0xFF run).
+            Assert.Equal(0xDEu, rom.u8(sentinelStart + 16 + 0));
+            Assert.Equal(0xADu, rom.u8(sentinelStart + 16 + 1));
+            Assert.Equal(0xBEu, rom.u8(sentinelStart + 16 + 2));
+            Assert.Equal(0xEFu, rom.u8(sentinelStart + 16 + 3));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
     public void ViewModel_ExpandEpilogueList_LeavesNewRowVisibleAndEditable()
     {
         var rom = MakeMinimalFE8URom(out _, out _, out _);
