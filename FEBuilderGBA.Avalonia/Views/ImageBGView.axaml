@@ -106,7 +106,7 @@
         <Border Name="WarningPanel" BorderBrush="OrangeRed" BorderThickness="1"
                 Background="#FFFFE0E0" Margin="0,8,0,0" Padding="8"
                 IsVisible="False">
-          <TextBlock AutomationProperties.AutomationId="ImageBG_Warning_Text"
+          <TextBlock AutomationProperties.AutomationId="ImageBG_Warning_Label"
                      Name="WarningMessageText" TextWrapping="Wrap" />
         </Border>
 

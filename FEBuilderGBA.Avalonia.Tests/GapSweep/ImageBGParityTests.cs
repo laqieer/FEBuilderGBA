@@ -477,7 +477,7 @@ public class ImageBGParityTests
             "ImageBG_ExportPng_Button",
             "ImageBG_ExportPal_Button",
             "ImageBG_ImportPal_Button",
-            "ImageBG_Warning_Text",
+            "ImageBG_Warning_Label",
         };
         foreach (var id in required)
         {
