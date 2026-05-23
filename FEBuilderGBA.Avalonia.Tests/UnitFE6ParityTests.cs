@@ -220,22 +220,47 @@ namespace FEBuilderGBA.Avalonia.Tests
                 var lbl = FindByAutomationId<TextBlock>(view, "UnitFE6_HardCoding_Warning_Label");
                 Assert.NotNull(lbl);
 
-                // Default — no selection — stays hidden.
+                // (1) Default — no selection — stays hidden.
                 Assert.False(lbl!.IsVisible);
 
-                // Force-invoke the view's refresh helper via reflection (the
-                // method is private). When EntryList has no selected index
-                // the call returns hidden too (idx<0 short-circuit).
+                // Reflection-fetch the private refresh helper. We'll re-use
+                // this for both branches of the visibility logic.
                 var refresh = typeof(UnitFE6View).GetMethod(
                     "RefreshHardCodingWarning",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 Assert.NotNull(refresh);
+
+                // (2) Force-invoke with no selected index — short-circuits hidden.
                 refresh!.Invoke(view, null);
                 Assert.False(lbl.IsVisible);
 
-                // Now ask the cache directly (the path the handler executes
-                // when a unit IS selected). With our toggling cache, unit-id 1
-                // hits true; the contract used by the view holds.
+                // (3) Populate the EntryList with 3 mock items so we can drive
+                // the selection deterministically (no ROM needed). The
+                // displayed/original index for the first item is 0, so the
+                // 1-based unit id passed to IsHardCodeUnit will be 1 (our
+                // toggle-cache hit). The view's RefreshHardCodingWarning
+                // computes unitId = (selectedOriginalIndex + 1) — verify
+                // the visible=true branch executes.
+                var entryList = view.FindControl<FEBuilderGBA.Avalonia.Controls.AddressListControl>("EntryList");
+                Assert.NotNull(entryList);
+                var items = new System.Collections.Generic.List<AddrResult>
+                {
+                    new AddrResult(0x06076D0, "01 Roy", 0),       // -> unit_id = 1 (hardcoded)
+                    new AddrResult(0x0607700, "02 Clarine", 1),   // -> unit_id = 2 (not hardcoded)
+                    new AddrResult(0x0607730, "03 Fa", 2),        // -> unit_id = 3 (not hardcoded)
+                };
+                entryList!.SetItems(items);   // SelectFirst() auto-selects index 0
+                refresh.Invoke(view, null);
+                Assert.True(lbl.IsVisible,
+                    "RefreshHardCodingWarning should make the [HardCoding] label visible when the selected unit (unit_id=1, 1-based) is hardcoded.");
+
+                // (4) Select the second row -> unit_id=2 (NOT hardcoded). Visible should flip back to false.
+                entryList.SelectByIndex(1);
+                refresh.Invoke(view, null);
+                Assert.False(lbl.IsVisible,
+                    "RefreshHardCodingWarning should hide the [HardCoding] label when the selected unit (unit_id=2, 1-based) is NOT in the cache.");
+
+                // Sanity: cache contract holds.
                 Assert.True(CoreState.AsmMapFileAsmCache!.IsHardCodeUnit(1u));
                 Assert.False(CoreState.AsmMapFileAsmCache!.IsHardCodeUnit(2u));
             }

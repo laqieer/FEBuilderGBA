@@ -428,6 +428,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <c>InputFormRef.ReInit(p32(unit_pointer) + unit_datasize)</c> baseline:
         /// the displayed Read Start Address is the dereferenced data-table
         /// start, with the first (placeholder) entry skipped.
+        ///
+        /// Guards the pointer dereference against unset / out-of-range values
+        /// the same way <see cref="UnitFE6ViewModel.LoadUnitList"/> does — when
+        /// the ROM doesn't have a sensible <c>unit_pointer</c>, we leave the
+        /// labels blank rather than display a bogus offset.
         /// </summary>
         void UpdateAddressBarInfra()
         {
@@ -436,13 +441,28 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
                 uint dataSize = rom.RomInfo.unit_datasize;
-                uint tableStart = rom.p32(rom.RomInfo.unit_pointer);
+                SizeLabel.Text = $"0x{dataSize:X}";
+                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
+
+                // Mirror the LoadUnitList safety checks before dereferencing:
+                // (1) the pointer field itself must be non-zero, and
+                // (2) the dereferenced data-table start must be a safe offset.
+                uint ptr = rom.RomInfo.unit_pointer;
+                if (ptr == 0)
+                {
+                    ReadStartAddressLabel.Text = "";
+                    return;
+                }
+                uint tableStart = rom.p32(ptr);
+                if (!U.isSafetyOffset(tableStart, rom))
+                {
+                    ReadStartAddressLabel.Text = "";
+                    return;
+                }
                 // FE6 InputFormRef.ReInit(p32(unit_pointer) + unit_datasize)
                 // skips entry 0 (the null/placeholder unit).
                 uint baseAddr = tableStart + dataSize;
                 ReadStartAddressLabel.Text = $"0x{baseAddr:X8}";
-                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
-                SizeLabel.Text = $"0x{dataSize:X}";
             }
             catch (Exception ex) { Log.Error("UnitFE6View.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
