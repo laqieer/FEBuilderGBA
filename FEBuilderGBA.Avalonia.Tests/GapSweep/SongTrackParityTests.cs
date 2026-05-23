@@ -399,6 +399,38 @@ public class SongTrackParityTests
     }
 
     /// <summary>
+    /// Each target view's `NavigateTo(uint address)` must honor a non-zero
+    /// address by loading that entry directly — NOT by trying to select it
+    /// in their stub master list (which only contains an `AddrResult(0)`).
+    /// Without this branch the click handlers would silently navigate to
+    /// the placeholder "0" entry and the user-visible context would be
+    /// lost (Copilot CLI review #1 + laqieer review).
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(SongExchangeView))]
+    [InlineData(typeof(SongTrackAllChangeTrackView))]
+    [InlineData(typeof(SongTrackChangeTrackView))]
+    public void TargetView_NavigateTo_HandlesNonZeroAddress(Type viewType)
+    {
+        // Roslyn-static read of the target View's code-behind: the
+        // NavigateTo body MUST contain a non-zero branch that calls
+        // `LoadEntry(address)` directly instead of going through
+        // EntryList.SelectAddress (which would fail to find the row).
+        string repoRoot = FindRepoRoot();
+        string viewName = viewType.Name;
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "Views", $"{viewName}.axaml.cs");
+        Assert.True(File.Exists(codeBehindPath),
+            $"Target view code-behind missing at {codeBehindPath}");
+
+        string source = File.ReadAllText(codeBehindPath);
+        // The non-zero branch must call _vm.LoadEntry(address), NOT just
+        // EntryList.SelectAddress(address) (the original stub behavior).
+        Assert.Contains("if (address != 0)", source);
+        Assert.Contains("_vm.LoadEntry(address)", source);
+    }
+
+    /// <summary>
     /// Feed the 6 WF callsites + 3 AV manifest rows through
     /// JumpParityScanner.ComputeJumpRows and assert exactly 3 Match + 3
     /// MissingAvManifest rows. This is the round-trip proof that the

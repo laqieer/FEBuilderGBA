@@ -51,7 +51,24 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void NavigateTo(uint address)
+        {
+            // When a non-zero context address is passed by the caller (e.g.
+            // `SongTrackView` passing the current song header address), honor
+            // it directly so the target editor reflects the requested scope
+            // instead of staying pinned at the placeholder `0` row.
+            // Falls back to list-based selection when address is 0 (the
+            // standalone "open" path).
+            if (address != 0)
+            {
+                _vm.LoadEntry(address);
+                UpdateUI();
+            }
+            else
+            {
+                EntryList.SelectAddress(address);
+            }
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }

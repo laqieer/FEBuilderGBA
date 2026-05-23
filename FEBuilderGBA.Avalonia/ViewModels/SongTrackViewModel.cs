@@ -104,13 +104,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             if (!U.isSafetyOffset(tableBase)) return new List<AddrResult>();
 
-            uint scanLimit = ReadCount > 0 ? ReadCount : 512u;
+            // Cap scanLimit at int.MaxValue so the int-typed loop counter
+            // can compare safely; in practice ReadCount is bounded to 4096
+            // via the UI NumericUpDown.Maximum, so any clamp is defensive.
+            uint scanLimitUInt = ReadCount > 0 ? ReadCount : 512u;
+            int scanLimit = scanLimitUInt > int.MaxValue ? int.MaxValue : (int)scanLimitUInt;
             var result = new List<AddrResult>();
             uint romLen = (uint)rom.Data.Length;
 
             for (int i = 0; i < scanLimit; i++)
             {
-                uint entryAddr = (uint)(tableBase + i * 8);
+                uint entryAddr = (uint)(tableBase + (uint)i * 8u);
                 if (entryAddr + 8 > romLen) break;
 
                 uint headerPtr = rom.u32(entryAddr);
@@ -127,7 +131,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Surface defaults back to the UI so the read-config bar
             // populates with the auto-detected values on first load.
             if (ReadStartAddress == 0) ReadStartAddress = tableBase;
-            if (ReadCount == 0) ReadCount = scanLimit;
+            if (ReadCount == 0) ReadCount = (uint)scanLimit;
 
             return result;
         }

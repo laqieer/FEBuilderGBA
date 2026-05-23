@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T18:56:13Z"
-git-sha: ef359d2a5
+generated: "2026-05-23T19:35:07Z"
+git-sha: 2b4688aa1
 sweep-type: undo
 ---
 
@@ -491,7 +491,7 @@ miss that surfaced as an unjustified zero-row warning before the fix).
 
 Classes with at least one detected write: 168.
 
-Writable VMs (matching the triplet convention): 141.  
+Writable VMs (matching the triplet convention): 141.
 Writable VMs with zero detected ROM writes: 2.
 
 ### Writable VMs with zero detected ROM writes (warning)

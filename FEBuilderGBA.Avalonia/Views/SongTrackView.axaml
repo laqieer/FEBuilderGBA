@@ -12,7 +12,7 @@
         <TextBlock Text="First Address" VerticalAlignment="Center" Width="100" />
         <NumericUpDown AutomationProperties.AutomationId="SongTrack_ReadStartAddress_Input"
                        Name="ReadStartAddressBox" Width="120" Minimum="0" Maximum="4294967295"
-                       FormatString="X8" VerticalAlignment="Center" />
+                       FormatString="0" VerticalAlignment="Center" />
         <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
         <NumericUpDown AutomationProperties.AutomationId="SongTrack_ReadCount_Input"
                        Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
@@ -34,7 +34,7 @@
             <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
             <NumericUpDown AutomationProperties.AutomationId="SongTrack_Address_Input"
                            Name="AddressBox" Width="120" Minimum="0" Maximum="4294967295"
-                           FormatString="X8" VerticalAlignment="Center" IsReadOnly="True" />
+                           FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
             <TextBlock Text="Size:" VerticalAlignment="Center" Width="40" />
             <TextBox AutomationProperties.AutomationId="SongTrack_BlockSize_Input"
                      Name="BlockSizeBox" Width="60" IsReadOnly="True" VerticalAlignment="Center" />
@@ -80,7 +80,7 @@
               <TextBlock Text="Instrument Set" VerticalAlignment="Center" Width="100" />
               <NumericUpDown AutomationProperties.AutomationId="SongTrack_InstrumentAddr_Input"
                              Name="InstrumentAddrBox" Width="120" Minimum="0" Maximum="4294967295"
-                             FormatString="X8" VerticalAlignment="Center" />
+                             FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="SongTrack_SongExchange_Button"
                       Name="SongExchangeButton" Content="Song Exchange"
                       Width="120" Click="SongExchange_Click" />

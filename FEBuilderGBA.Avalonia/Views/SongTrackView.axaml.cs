@@ -8,7 +8,6 @@
 // manifest and the click-handler wiring — see
 // `SongTrackViewModel.NavigationTargets.cs`.
 using System;
-using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
