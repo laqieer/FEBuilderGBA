@@ -181,14 +181,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Zero the derived list state (ReadStartAddress, ReadCount) so
-        /// callers querying <see cref="GetListCount"/> after a patch uninstall
-        /// don't see stale counts.
+        /// Zero the derived list state (ReadStartAddress, ReadCount) AND
+        /// the per-entry state (CurrentAddr, TextDetail, AnimationPointer,
+        /// ...). Called on every <see cref="LoadList"/> early-return path
+        /// so the View can't accidentally write to a stale address after
+        /// a patch uninstall / ROM swap mid-session. AddressListControl's
+        /// SelectFirst() is a no-op on empty lists - OnSelected/UpdateUI
+        /// won't fire to clear the per-entry state, so the VM must
+        /// defensively reset it here (Copilot bot review on PR #525).
         /// </summary>
         void ResetDerivedListState()
         {
             ReadStartAddress = 0;
             ReadCount = 0;
+
+            // Per-entry state - clearing these prevents the View from
+            // hitting Write against a stale address after the list emptied.
+            CurrentAddr = 0;
+            SelectedId = 0;
+            IsLoaded = false;
+            CanWrite = false;
+            TextDetail = 0;
+            AnimationPointer = 0;
+            IsAnimationValid = false;
+            SelectedFrame = 0;
+            BinInfoText = "";
         }
 
         /// <summary>
