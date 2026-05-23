@@ -2,68 +2,250 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.OPClassDemoFE7View"
-        Title="OP Class Demo (FE7) Editor" Width="1554" Height="867"
+        Title="OP Class Demo (FE7) Editor" Width="1580" Height="1020"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="OPClassDemoFE7_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: Selection bar (mirrors WF AddressPanel) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Address_Input"
+                       FormatString="0" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="32" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="OPClassDemoFE7_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="120" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="OPClassDemoFE7_Write_Button"
+                Name="WriteButton" Content="Write to ROM" Click="Write_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1, Col 0: Address list panel -->
+    <Border Grid.Row="1" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <controls:AddressListControl AutomationProperties.AutomationId="OPClassDemoFE7_Entry_List"
+                                   Name="EntryList" />
+    </Border>
+
+    <!-- Row 1, Col 1: edit panel + N2 sub-list -->
+    <ScrollViewer Grid.Row="1" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="OP Class Demo (FE7) Editor" FontSize="18" FontWeight="Bold" />
-        <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_Unavailable_Label" Name="UnavailableLabel" Text="" Foreground="Orange" />
+        <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_Unavailable_Label"
+                   Name="UnavailableLabel" Text="" Foreground="Orange" />
 
-        <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Main edit panel (mirrors WF panel2 left half: 21 main fields) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <Grid ColumnDefinitions="180,180,*"
+                RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="English Name Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_EnglishNamePtr_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="EnglishNamePtrBox" Minimum="0" Maximum="4294967295" />
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_Addr_Label"
+                       Grid.Row="0" Grid.Column="1" Name="AddrLabel"
+                       FontFamily="Consolas" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Description Text ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_DescTextIdLow_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescTextIdLowBox" Minimum="0" Maximum="65535" />
-          <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_DescTextIdLow_Label" Grid.Row="2" Grid.Column="2" Name="DescTextPreview" Foreground="Gray" FontSize="11"
-                     VerticalAlignment="Center" Margin="4,0,0,0"
-                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="English Name Pointer:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_EnglishNamePtr_Input"
+                           FormatString="0" Grid.Row="1" Grid.Column="1" Name="EnglishNamePtrBox"
+                           Minimum="0" Maximum="4294967295" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Japanese Name Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_JpNamePtr_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="JpNamePtrBox" Minimum="0" Maximum="4294967295" />
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Description Text ID:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_DescTextIdLow_Input"
+                           FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescTextIdLowBox"
+                           Minimum="0" Maximum="65535" />
+            <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7_DescTextIdLow_Label"
+                       Grid.Row="2" Grid.Column="2" Name="DescTextPreview"
+                       Foreground="Gray" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0"
+                       TextTrimming="CharacterEllipsis" MaxWidth="220" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Japanese Name Length:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_JpNameLen_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="JpNameLenBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x06):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown6_Input"
+                           FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown6Box"
+                           Minimum="0" Maximum="65535" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Palette ID:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_PaletteId_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="PaletteIdBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Japanese Name Pointer:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_JpNamePtr_Input"
+                           FormatString="0" Grid.Row="4" Grid.Column="1" Name="JpNamePtrBox"
+                           Minimum="0" Maximum="4294967295" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Display Weapon:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_DisplayWeapon_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="Japanese Name Start:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_JpNameStart_Input"
+                           FormatString="0" Grid.Row="5" Grid.Column="1" Name="JpNameStartBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
-                     AutomationProperties.AutomationId="OPClassDemoFE7_ClassId_Link"
-                     Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
-                     ToolTip.Tip="Click to open Class Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_ClassId_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="ClassIdBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="6" Grid.Column="0" Text="Japanese Name Length:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_JpNameLen_Input"
+                           FormatString="0" Grid.Row="6" Grid.Column="1" Name="JpNameLenBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="Ally/Enemy Color:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_AllyEnemyColor_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="AllyEnemyColorBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="7" Grid.Column="0" Text="Palette ID:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_PaletteId_Input"
+                           FormatString="0" Grid.Row="7" Grid.Column="1" Name="PaletteIdBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Battle Anime:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_BattleAnime_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="BattleAnimeBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="8" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
+                       AutomationProperties.AutomationId="OPClassDemoFE7_ClassId_Link"
+                       Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
+                       ToolTip.Tip="Click to open Class Editor" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_ClassId_Input"
+                           FormatString="0" Grid.Row="8" Grid.Column="1" Name="ClassIdBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="Magic Effect:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_MagicEffect_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="MagicEffectBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="9" Grid.Column="0" Text="Ally/Enemy Color:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_AllyEnemyColor_Input"
+                           FormatString="0" Grid.Row="9" Grid.Column="1" Name="AllyEnemyColorBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="Terrain Left:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_TerrainLeft_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="TerrainLeftBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="10" Grid.Column="0" Text="Battle Anime:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_BattleAnime_Input"
+                           FormatString="0" Grid.Row="10" Grid.Column="1" Name="BattleAnimeBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="Terrain Right:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_TerrainRight_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="TerrainRightBox" Minimum="0" Maximum="255" />
+            <TextBlock Grid.Row="11" Grid.Column="0" Text="Magic Effect:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_MagicEffect_Input"
+                           FormatString="0" Grid.Row="11" Grid.Column="1" Name="MagicEffectBox"
+                           Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="Anime Pointer:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_AnimePtr_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="AnimePtrBox" Minimum="0" Maximum="4294967295" />
-        </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="OPClassDemoFE7_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
+            <TextBlock Grid.Row="12" Grid.Column="0" Text="Unknown (0x13):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown19_Input"
+                           FormatString="0" Grid.Row="12" Grid.Column="1" Name="Unknown19Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="13" Grid.Column="0" Text="Unknown (0x14):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown20_Input"
+                           FormatString="0" Grid.Row="13" Grid.Column="1" Name="Unknown20Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="14" Grid.Column="0" Text="Unknown (0x15):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown21_Input"
+                           FormatString="0" Grid.Row="14" Grid.Column="1" Name="Unknown21Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="15" Grid.Column="0" Text="Unknown (0x16):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown22_Input"
+                           FormatString="0" Grid.Row="15" Grid.Column="1" Name="Unknown22Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="16" Grid.Column="0" Text="Terrain Left:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_TerrainLeft_Input"
+                           FormatString="0" Grid.Row="16" Grid.Column="1" Name="TerrainLeftBox"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="17" Grid.Column="0" Text="Terrain Right:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_TerrainRight_Input"
+                           FormatString="0" Grid.Row="17" Grid.Column="1" Name="TerrainRightBox"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="18" Grid.Column="0" Text="Unknown (0x19):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown25_Input"
+                           FormatString="0" Grid.Row="18" Grid.Column="1" Name="Unknown25Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="19" Grid.Column="0" Text="Unknown (0x1A):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown26_Input"
+                           FormatString="0" Grid.Row="19" Grid.Column="1" Name="Unknown26Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="20" Grid.Column="0" Text="Unknown (0x1B):" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_Unknown27_Input"
+                           FormatString="0" Grid.Row="20" Grid.Column="1" Name="Unknown27Box"
+                           Minimum="0" Maximum="255" />
+
+            <TextBlock Grid.Row="21" Grid.Column="0" Text="Anime Pointer:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_AnimePtr_Input"
+                           FormatString="0" Grid.Row="21" Grid.Column="1" Name="AnimePtrBox"
+                           Minimum="0" Maximum="4294967295" />
+          </Grid>
+        </Border>
+
+        <!-- N2 sub-list panel (mirrors WF groupBox1: animation command sequence) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <Label AutomationProperties.AutomationId="OPClassDemoFE7_N2Panel_Label"
+                   Content="Animation Pointer Target Block" FontWeight="SemiBold" />
+
+            <!-- N2 selection bar (mirrors WF panel3) -->
+            <Grid ColumnDefinitions="100,120,80,80,140,*" RowDefinitions="Auto">
+              <Label Grid.Column="0" Content="Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_N2_Address_Input"
+                             Grid.Column="1" FormatString="0" Name="N2AddressBox"
+                             Minimum="0" Maximum="4294967295" IsEnabled="False" />
+              <Label Grid.Column="2" Content="Size:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_N2_BlockSize_Input"
+                             Grid.Column="3" FormatString="0" Name="N2BlockSizeBox"
+                             Minimum="0" Maximum="65535" IsEnabled="False" Value="2" />
+              <Label Grid.Column="4" Content="Selected Address:" VerticalAlignment="Center" />
+              <Label AutomationProperties.AutomationId="OPClassDemoFE7_N2_SelectedAddress_Label"
+                     Grid.Column="5" Name="N2SelectedAddressLabel"
+                     VerticalAlignment="Center" FontFamily="Consolas" />
+            </Grid>
+
+            <!-- N2 sub-list + command/argument editor row -->
+            <Grid ColumnDefinitions="280,*" RowDefinitions="Auto">
+
+              <!-- N2 list box -->
+              <ListBox AutomationProperties.AutomationId="OPClassDemoFE7_N2_List"
+                       Grid.Column="0" Name="N2ListBox" Height="200"
+                       SelectionChanged="N2List_SelectionChanged" />
+
+              <!-- N2 editor column: command combo + argument numeric -->
+              <Grid Grid.Column="1" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="8,0,0,0">
+                <Label Grid.Row="0" Grid.Column="0"
+                       AutomationProperties.AutomationId="OPClassDemoFE7_N2_CommandHeader_Label"
+                       Content="Command" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="OPClassDemoFE7_N2_CommandRaw_Input"
+                               FormatString="0" Name="N2CommandRawBox"
+                               Minimum="0" Maximum="255" />
+
+                <Label Grid.Row="1" Grid.Column="0" Content="Command Description:" VerticalAlignment="Center" Margin="0,4,0,0" />
+                <ComboBox Grid.Row="1" Grid.Column="1"
+                          AutomationProperties.AutomationId="OPClassDemoFE7_N2_Command_Combo"
+                          Name="N2CommandCombo" Margin="0,4,0,0" Width="420" HorizontalAlignment="Left"
+                          SelectionChanged="N2CommandCombo_SelectionChanged">
+                  <!-- Wrap each option in a TextBlock so ViewTranslationHelper
+                       (which scans TextBlock.Text + Label.Content) can localize
+                       these labels. Plain ComboBoxItem.Content strings are not
+                       scanned by the helper. -->
+                  <ComboBoxItem><TextBlock Text="1=Ranged attack anime" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="2=Ranged critical anime" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="3=Set anime state to 'hit effect applied'" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="4=Ranged attack anime (alt)" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="5=Wait N frames (arg = N/60 sec)" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="6=Ranged evade anime" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="7=Hit effect applied (FE8 unused)" /></ComboBoxItem>
+                  <ComboBoxItem><TextBlock Text="8=Wait for C01/C02/C18 cmd" /></ComboBoxItem>
+                </ComboBox>
+
+                <Label Grid.Row="2" Grid.Column="0"
+                       AutomationProperties.AutomationId="OPClassDemoFE7_N2_WaitLabel_Label"
+                       Name="N2WaitLabel"
+                       Content="Wait Frames" VerticalAlignment="Center" Margin="0,4,0,0" />
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
+                  <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7_N2_Argument_Input"
+                                 FormatString="0" Name="N2ArgumentBox"
+                                 Minimum="0" Maximum="255" Width="100" />
+                  <Label AutomationProperties.AutomationId="OPClassDemoFE7_N2_WaitUnit_Label"
+                         Name="N2WaitUnitLabel" Content="/60 (sec)" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <Button Grid.Row="3" Grid.Column="1"
+                        AutomationProperties.AutomationId="OPClassDemoFE7_N2_Write_Button"
+                        Name="N2WriteButton" Content="Write Animation Command" Margin="0,8,0,0"
+                        HorizontalAlignment="Left"
+                        Click="NWrite_Click" />
+              </Grid>
+            </Grid>
+          </StackPanel>
+        </Border>
+
       </StackPanel>
     </ScrollViewer>
   </Grid>
