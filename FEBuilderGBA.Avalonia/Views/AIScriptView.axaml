@@ -2,20 +2,211 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.AIScriptView"
-        Title="AI Script Editor" Width="1583" Height="831"
+        Title="AI Script Editor" Width="1400" Height="780"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="AIScript_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid RowDefinitions="Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="AI Script Editor" FontSize="18" FontWeight="Bold" />
+    <!-- ===========================================================
+         Top read-config bar (mirrors WF panel3):
+         Filter combo (AI1/AI2 switch), Top Address, Read Count,
+         Reload.
+         =========================================================== -->
+    <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="Switch" VerticalAlignment="Center" Width="60" />
+        <!-- ComboBoxItem content is NOT touched by ViewTranslationHelper, so
+             the items are populated via code-behind with R._() lookups.
+             PR #571 Copilot bot review #6. -->
+        <ComboBox AutomationProperties.AutomationId="AIScript_Filter_Combo"
+                  Name="FilterCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="AIScript_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <TextBlock Text="Top Address" VerticalAlignment="Center" Width="100" />
+        <NumericUpDown AutomationProperties.AutomationId="AIScript_TopAddress_Input"
+                       Name="TopAddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                       FormatString="0" VerticalAlignment="Center" />
+        <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
+        <NumericUpDown AutomationProperties.AutomationId="AIScript_ReadCount_Input"
+                       Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
+                       FormatString="0" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="AIScript_Reload_Button"
+                Name="ReloadButton" Content="Reload" Width="80" Click="Reload_Click" />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="280,*">
+
+      <!-- ===========================================================
+           Master list panel (mirrors WF panel6):
+           Address list + List Expand button.
+           =========================================================== -->
+      <Grid Grid.Column="0" RowDefinitions="*,Auto">
+        <TextBlock Grid.Row="0" Text="Name" FontWeight="SemiBold"
+                   Margin="4,4,4,2" VerticalAlignment="Top" />
+        <controls:AddressListControl AutomationProperties.AutomationId="AIScript_Entry_List"
+                                     Grid.Row="0" Name="EntryList" Margin="4,24,4,4" />
+        <Button AutomationProperties.AutomationId="AIScript_ListExpand_Button"
+                Grid.Row="1" Name="ListExpandButton" Content="List Expand"
+                Margin="4" HorizontalAlignment="Stretch" Click="ListExpand_Click" />
+      </Grid>
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*,Auto">
+
+        <!-- ===========================================================
+             Per-entry write bar (mirrors WF panel5):
+             Address / Read Bytes / Reload / Write
+             =========================================================== -->
+        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
+            <NumericUpDown AutomationProperties.AutomationId="AIScript_Address_Input"
+                           Name="AddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                           FormatString="0" VerticalAlignment="Center" />
+            <TextBlock Text="Read Byte Count" VerticalAlignment="Center" Width="120" />
+            <NumericUpDown AutomationProperties.AutomationId="AIScript_ReadByteCount_Input"
+                           Name="ReadByteCountBox" Width="80" Minimum="0" Maximum="2147483647"
+                           Increment="16" FormatString="0" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="AIScript_ReloadList_Button"
+                    Name="ReloadListButton" Content="Re-read" Width="80"
+                    Click="ReloadList_Click" />
+            <Button AutomationProperties.AutomationId="AIScript_Write_Button"
+                    Name="WriteButton" Content="Write" Width="120"
+                    Click="Write_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- ===========================================================
+             Selected-entry summary (mirrors WF AddressLabel +
+             AddressTextBox).
+             =========================================================== -->
+        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Detail Address" VerticalAlignment="Center" Width="120" />
+            <TextBlock AutomationProperties.AutomationId="AIScript_DetailAddress_Label"
+                       Name="DetailAddressLabel" Text="0x00000000"
+                       Width="140" VerticalAlignment="Center"
+                       PointerPressed="DetailAddress_Click"
+                       Foreground="Blue" TextDecorations="Underline" Cursor="Hand" />
+            <TextBlock Text="Script Bytes:" VerticalAlignment="Center" Width="100" />
+            <TextBlock AutomationProperties.AutomationId="AIScript_ScriptByteCount_Label"
+                       Name="ScriptByteCountLabel" Text="0" Width="80" VerticalAlignment="Center" />
+          </StackPanel>
+        </Border>
+
+        <!-- ===========================================================
+             Script disassembly list (mirrors WF Script ListBox).
+             =========================================================== -->
+        <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
+          <Grid RowDefinitions="Auto,*" Height="180">
+            <TextBlock Grid.Row="0" Text="Disassembly" FontWeight="SemiBold" Margin="0,0,0,2" />
+            <ListBox AutomationProperties.AutomationId="AIScript_Disassembly_List"
+                     Grid.Row="1" Name="DisassemblyList" />
+          </Grid>
+        </Border>
+
+        <!-- ===========================================================
+             Detail panel (mirrors WF ControlPanelCommand + ControlPanel):
+             Comment / ASM bytes / Script command name / 5 param rows /
+             action buttons.
+             =========================================================== -->
+        <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="4,0,4,4">
+          <ScrollViewer>
+            <StackPanel Spacing="4">
+
+              <!-- Comment + ASM byte dump -->
+              <Grid ColumnDefinitions="130,*,140" RowDefinitions="Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Comment" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Comment_Input"
+                         Grid.Row="0" Grid.Column="1" Name="CommentBox" />
+                <Button AutomationProperties.AutomationId="AIScript_ScriptChange_Button"
+                        Grid.Row="0" Grid.Column="2" Grid.RowSpan="2"
+                        Name="ScriptChangeButton" Content="Script Change"
+                        Margin="4,0,0,0" Click="ScriptChange_Click" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Description" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="AIScript_ScriptCodeName_Label"
+                           Grid.Row="1" Grid.Column="1" Name="ScriptCodeNameLabel" />
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Binary Code" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Asm_Input"
+                         Grid.Row="2" Grid.Column="1" Name="AsmBox" />
+              </Grid>
+
+              <!-- 5 parameter rows -->
+              <Grid ColumnDefinitions="130,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+                <TextBlock AutomationProperties.AutomationId="AIScript_Param1_Label"
+                           Grid.Row="0" Grid.Column="0" Name="Param1Label" Text="Parameter 1" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="AIScript_Param1_Input"
+                               Grid.Row="0" Grid.Column="1" Name="Param1Box"
+                               Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Param1Display_Input"
+                         Grid.Row="0" Grid.Column="2" Name="Param1Value" IsReadOnly="True" Margin="4,0,0,0" />
+
+                <TextBlock AutomationProperties.AutomationId="AIScript_Param2_Label"
+                           Grid.Row="1" Grid.Column="0" Name="Param2Label" Text="Parameter 2" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="AIScript_Param2_Input"
+                               Grid.Row="1" Grid.Column="1" Name="Param2Box"
+                               Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Param2Display_Input"
+                         Grid.Row="1" Grid.Column="2" Name="Param2Value" IsReadOnly="True" Margin="4,0,0,0" />
+
+                <TextBlock AutomationProperties.AutomationId="AIScript_Param3_Label"
+                           Grid.Row="2" Grid.Column="0" Name="Param3Label" Text="Parameter 3" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="AIScript_Param3_Input"
+                               Grid.Row="2" Grid.Column="1" Name="Param3Box"
+                               Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Param3Display_Input"
+                         Grid.Row="2" Grid.Column="2" Name="Param3Value" IsReadOnly="True" Margin="4,0,0,0" />
+
+                <TextBlock AutomationProperties.AutomationId="AIScript_Param4_Label"
+                           Grid.Row="3" Grid.Column="0" Name="Param4Label" Text="Parameter 4" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="AIScript_Param4_Input"
+                               Grid.Row="3" Grid.Column="1" Name="Param4Box"
+                               Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Param4Display_Input"
+                         Grid.Row="3" Grid.Column="2" Name="Param4Value" IsReadOnly="True" Margin="4,0,0,0" />
+
+                <TextBlock AutomationProperties.AutomationId="AIScript_Param5_Label"
+                           Grid.Row="4" Grid.Column="0" Name="Param5Label" Text="Parameter 5" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="AIScript_Param5_Input"
+                               Grid.Row="4" Grid.Column="1" Name="Param5Box"
+                               Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
+                <TextBox AutomationProperties.AutomationId="AIScript_Param5Display_Input"
+                         Grid.Row="4" Grid.Column="2" Name="Param5Value" IsReadOnly="True" Margin="4,0,0,0" />
+              </Grid>
+
+              <!-- Action buttons (Update / Remove / New / Close) -->
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                <Button AutomationProperties.AutomationId="AIScript_Update_Button"
+                        Name="UpdateButton" Content="Update" Width="140"
+                        Click="Update_Click" />
+                <Button AutomationProperties.AutomationId="AIScript_Remove_Button"
+                        Name="RemoveButton" Content="Remove" Width="120"
+                        Click="Remove_Click" />
+                <Button AutomationProperties.AutomationId="AIScript_New_Button"
+                        Name="NewButton" Content="New Insert" Width="140"
+                        Click="New_Click" />
+                <Button AutomationProperties.AutomationId="AIScript_Close_Button"
+                        Name="CloseButton" Content="Close" Width="100"
+                        Click="Close_Click" />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+
+        <!-- ===========================================================
+             File export / import bar (mirrors WF EventToFile/FileToEvent).
+             =========================================================== -->
+        <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+            <Button AutomationProperties.AutomationId="AIScript_Import_Button"
+                    Name="ImportButton" Content="Import From File"
+                    Width="180" Click="Import_Click" />
+            <Button AutomationProperties.AutomationId="AIScript_Export_Button"
+                    Name="ExportButton" Content="Export To File"
+                    Width="180" Click="Export_Click" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
   </Grid>
 </Window>
