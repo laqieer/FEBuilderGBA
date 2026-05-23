@@ -157,16 +157,19 @@ public class UnifiedIdFieldMigrationTests
     public void EDView_UnitIdBox_IsIdFieldControl()
     {
         var view = new EDView();
-        Assert.NotNull(view.FindControl<IdFieldControl>("UnitIdBox"));
+        // EDView restructured to 3 tabs per #411 - the original "UnitIdBox"
+        // is now the Retreat tab's "Retreat_UnitIdBox".
+        Assert.NotNull(view.FindControl<IdFieldControl>("Retreat_UnitIdBox"));
     }
 
     [AvaloniaFact]
     public void EDView_UnitIdBox_HasExpectedLabel()
     {
         var view = new EDView();
-        var ctrl = view.FindControl<IdFieldControl>("UnitIdBox");
+        var ctrl = view.FindControl<IdFieldControl>("Retreat_UnitIdBox");
         Assert.NotNull(ctrl);
-        Assert.Equal("Unit ID:", ctrl!.Label);
+        // Label updated to match WF "登場ユニット" / "Appearing Unit" (#411).
+        Assert.Equal("Appearing Unit", ctrl!.Label);
     }
 
     [AvaloniaFact]
@@ -174,7 +177,9 @@ public class UnifiedIdFieldMigrationTests
     {
         var view = new EDView();
         view.Show();
-        try { AssertAutomationIdResolvesToNumericUpDown(view, "ED_UnitId_Input"); }
+        // EDView restructured to 3 tabs per #411 - the AutomationId is now
+        // ED_Retreat_UnitId_Input (one per tab: Retreat / Epithet / Epilogue).
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "ED_Retreat_UnitId_Input"); }
         finally { view.Close(); }
     }
 
@@ -284,9 +289,14 @@ public class UnifiedIdFieldMigrationTests
 
     static void AssertAutomationIdResolvesToNumericUpDown(Window view, string automationId)
     {
+        // GetLogicalDescendants can enumerate the same Control instance twice
+        // when it lives inside a TabControl item (the logical tree traverses
+        // both Header and Content slots), so deduplicate by reference before
+        // asserting uniqueness. Same instance still counts as one match.
         var hits = view.GetLogicalDescendants()
             .OfType<Control>()
             .Where(c => AutomationProperties.GetAutomationId(c) == automationId)
+            .Distinct()
             .ToList();
         Assert.Single(hits);
         Assert.IsType<NumericUpDown>(hits[0]);

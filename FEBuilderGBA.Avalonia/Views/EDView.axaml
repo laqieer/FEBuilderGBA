@@ -2,47 +2,370 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EDView"
-        Title="Ending Event Editor" Width="1200" Height="773"
+        Title="Ending Event Editor" Width="1280" Height="820"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ED_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- Three-tab parity raise (#411) - mirrors WF EDForm.tabControl1.
+       tabPage1 / Retreat:  ed_1_pointer  - 4-byte records (UnitId, Condition, B2, B3)
+       tabPage2 / Epithet:  ed_2_pointer  - 8-byte records (W0 UnitId, D4 TextId)
+       tabPage3 / Epilogue: ed_3a/ed_3b   - 8-byte records (PairFlag, UnitId1, UnitId2, StoryFlag, D4)
+  -->
+  <TabControl AutomationProperties.AutomationId="ED_TabControl">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Ending Event Editor" FontSize="18" FontWeight="Bold" />
+    <!-- ============================================================
+         Tab 1 - Retreat (WF tabPage1 "撤退")
+         ============================================================ -->
+    <TabItem AutomationProperties.AutomationId="ED_Retreat_Tab" Header="Retreat">
+      <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <Grid ColumnDefinitions="200,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="ED_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Row 0: Read-config bar (mirrors WF panel1) -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Top Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_TopAddress_Input"
+                           Name="Retreat_TopAddressBox" FormatString="0"
+                           Minimum="0" Maximum="4294967295" Width="130"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Label Content="Read Count" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_ReadCount_Input"
+                           Name="Retreat_ReadCountBox" FormatString="0"
+                           Minimum="0" Maximum="65535" Width="80"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="ED_Retreat_Reload_Button"
+                    Name="Retreat_ReloadButton" Content="Reload"
+                    Click="ReloadRetreat_Click" />
+          </StackPanel>
+        </Border>
 
-          <!-- #360: replaces "Hyperlink TextBlock + NumericUpDown" with a single
-               IdFieldControl. Host Name="UnitIdBox" preserved. -->
-          <controls:IdFieldControl AutomationProperties.AutomationId="ED_UnitId_Input"
-                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                   Margin="0,2"
-                                   Name="UnitIdBox"
-                                   Label="Unit ID:"
-                                   Maximum="255"
-                                   JumpRequested="UnitId_Jump"
-                                   PickRequested="UnitId_Pick"
-                                   ValueChanged="UnitId_ValueChanged" />
+        <!-- Row 1: Selection bar (mirrors WF AddressPanel) -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_Address_Input"
+                           Name="Retreat_AddressBox" FormatString="0"
+                           Minimum="0" Maximum="4294967295" Width="130"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Label Content="Size:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_BlockSize_Input"
+                           Name="Retreat_BlockSizeBox" FormatString="0"
+                           Minimum="0" Maximum="65535" Width="50"
+                           IsEnabled="False" VerticalAlignment="Center" Value="4" />
+            <Label Content="Selected Address:" VerticalAlignment="Center" />
+            <Label AutomationProperties.AutomationId="ED_Retreat_SelectedAddress_Label"
+                   Name="Retreat_SelectedAddressLabel"
+                   Width="130" VerticalAlignment="Center"
+                   FontFamily="Consolas" />
+            <Button AutomationProperties.AutomationId="ED_Retreat_Write_Button"
+                    Name="Retreat_WriteButton" Content="Write"
+                    Click="WriteRetreat_Click" />
+          </StackPanel>
+        </Border>
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Condition:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="ED_Condition_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ConditionBox" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
-
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="ED_Unknown2_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
-
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="ED_Unknown3_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" Width="200" Margin="0,2" />
+        <!-- Row 2 Col 0: Address list + ListExpand -->
+        <Grid Grid.Row="2" Grid.Column="0" RowDefinitions="*,Auto" Margin="4">
+          <controls:AddressListControl AutomationProperties.AutomationId="ED_Retreat_Entry_List"
+                                       Grid.Row="0" Name="Retreat_EntryList" />
+          <Button AutomationProperties.AutomationId="ED_Retreat_ListExpand_Button"
+                  Grid.Row="1" Name="Retreat_ListExpandButton"
+                  Content="List Expand" HorizontalAlignment="Stretch"
+                  Click="ExpandRetreat_Click" Margin="0,4,0,0" />
         </Grid>
 
-        <TextBlock Text="Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed" FontSize="12" Foreground="Gray" />
+        <!-- Row 2 Col 1: Retreat fields -->
+        <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <Grid ColumnDefinitions="180,*"
+                  RowDefinitions="Auto,Auto,Auto,Auto">
+              <controls:IdFieldControl AutomationProperties.AutomationId="ED_Retreat_UnitId_Input"
+                                       Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Margin="0,2"
+                                       Name="Retreat_UnitIdBox"
+                                       Label="Appearing Unit"
+                                       Maximum="255"
+                                       JumpRequested="RetreatUnitId_Jump"
+                                       PickRequested="RetreatUnitId_Pick"
+                                       ValueChanged="RetreatUnitId_ValueChanged" />
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="ED_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+              <!-- WF L_1 "Retreat Spec 02" label - help text per the FE6/FE8
+                   SetPopupHelp logic in WF EDForm.cs. We render it as a
+                   read-only label header next to the Condition NumericUpDown. -->
+              <Label Grid.Row="1" Grid.Column="0"
+                     AutomationProperties.AutomationId="ED_Retreat_RetreatSpec02_Label"
+                     Name="Retreat_RetreatSpec02Label"
+                     Content="Retreat Spec 02"
+                     VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_Condition_Input"
+                             FormatString="0" Grid.Row="1" Grid.Column="1"
+                             Name="Retreat_ConditionBox"
+                             Minimum="0" Maximum="255" Width="120"
+                             HorizontalAlignment="Left" Margin="0,2" />
+
+              <Label Grid.Row="2" Grid.Column="0" Content="Unknown (0x02):" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_B2_Input"
+                             FormatString="0" Grid.Row="2" Grid.Column="1"
+                             Name="Retreat_B2Box"
+                             Minimum="0" Maximum="255" Width="120"
+                             HorizontalAlignment="Left" Margin="0,2" />
+
+              <Label Grid.Row="3" Grid.Column="0" Content="Unknown (0x03):" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_B3_Input"
+                             FormatString="0" Grid.Row="3" Grid.Column="1"
+                             Name="Retreat_B3Box"
+                             Minimum="0" Maximum="255" Width="120"
+                             HorizontalAlignment="Left" Margin="0,2" />
+            </Grid>
+
+            <TextBlock Text="Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed"
+                       FontSize="12" Foreground="Gray" />
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+    <!-- ============================================================
+         Tab 2 - Epithet (WF tabPage2 "通り名")
+         ============================================================ -->
+    <TabItem AutomationProperties.AutomationId="ED_Epithet_Tab" Header="Epithet">
+      <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
+
+        <!-- Row 0: Read-config bar -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Top Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_TopAddress_Input"
+                           Name="Epithet_TopAddressBox" FormatString="0"
+                           Minimum="0" Maximum="4294967295" Width="130"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Label Content="Read Count" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_ReadCount_Input"
+                           Name="Epithet_ReadCountBox" FormatString="0"
+                           Minimum="0" Maximum="65535" Width="80"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="ED_Epithet_Reload_Button"
+                    Name="Epithet_ReloadButton" Content="Reload"
+                    Click="ReloadEpithet_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Row 1: Selection bar -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_Address_Input"
+                           Name="Epithet_AddressBox" FormatString="0"
+                           Minimum="0" Maximum="4294967295" Width="130"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Label Content="Size:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_BlockSize_Input"
+                           Name="Epithet_BlockSizeBox" FormatString="0"
+                           Minimum="0" Maximum="65535" Width="50"
+                           IsEnabled="False" VerticalAlignment="Center" Value="8" />
+            <Label Content="Selected Address:" VerticalAlignment="Center" />
+            <Label AutomationProperties.AutomationId="ED_Epithet_SelectedAddress_Label"
+                   Name="Epithet_SelectedAddressLabel"
+                   Width="130" VerticalAlignment="Center"
+                   FontFamily="Consolas" />
+            <Button AutomationProperties.AutomationId="ED_Epithet_Write_Button"
+                    Name="Epithet_WriteButton" Content="Write"
+                    Click="WriteEpithet_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Row 2 Col 0: Address list + ListExpand -->
+        <Grid Grid.Row="2" Grid.Column="0" RowDefinitions="*,Auto" Margin="4">
+          <controls:AddressListControl AutomationProperties.AutomationId="ED_Epithet_Entry_List"
+                                       Grid.Row="0" Name="Epithet_EntryList" />
+          <Button AutomationProperties.AutomationId="ED_Epithet_ListExpand_Button"
+                  Grid.Row="1" Name="Epithet_ListExpandButton"
+                  Content="List Expand" HorizontalAlignment="Stretch"
+                  Click="ExpandEpithet_Click" Margin="0,4,0,0" />
+        </Grid>
+
+        <!-- Row 2 Col 1: Epithet fields -->
+        <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <Grid ColumnDefinitions="180,*"
+                  RowDefinitions="Auto,Auto,Auto,Auto">
+
+              <!-- W0: 2-byte UnitId (matches WF N1_W0, NOT a byte). -->
+              <controls:IdFieldControl AutomationProperties.AutomationId="ED_Epithet_UnitId_Input"
+                                       Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Margin="0,2"
+                                       Name="Epithet_UnitIdBox"
+                                       Label="Appearing Unit"
+                                       Maximum="65535"
+                                       JumpRequested="EpithetUnitId_Jump"
+                                       PickRequested="EpithetUnitId_Pick"
+                                       ValueChanged="EpithetUnitId_ValueChanged" />
+
+              <!-- D4: 4-byte text id (matches WF N1_D4 / u32 read). -->
+              <Label Grid.Row="1" Grid.Column="0" Content="Epithet Text" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_EpithetTextId_Input"
+                             FormatString="0" Grid.Row="1" Grid.Column="1"
+                             Name="Epithet_EpithetTextIdBox"
+                             Minimum="0" Maximum="4294967295" Width="160"
+                             HorizontalAlignment="Left" Margin="0,2"
+                             ValueChanged="EpithetTextId_ValueChanged" />
+
+              <!-- Inline text preview, matches WF N1_L_4_TEXT_EDTITLE1
+                   read-only multiline TextBox. -->
+              <TextBlock AutomationProperties.AutomationId="ED_Epithet_EpithetText_Label"
+                         Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                         Name="Epithet_EpithetTextLabel"
+                         Foreground="Gray" FontSize="12"
+                         TextWrapping="Wrap" Margin="0,2" />
+
+              <!-- KnownGap (#411): bytes +2..+3 are reserved padding in the
+                   WF designer; no input control is exposed. Documented here
+                   so future gap-sweep refresh runs don't re-flag them. -->
+              <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                         Text="Bytes +2..+3 are reserved (WF designer doesn't expose)."
+                         FontSize="11" Foreground="DarkGray" FontStyle="Italic"
+                         Margin="0,4,0,0" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+    <!-- ============================================================
+         Tab 3 - Epilogue (WF tabPage3 "その後")
+         ============================================================ -->
+    <TabItem AutomationProperties.AutomationId="ED_Epilogue_Tab" Header="Epilogue">
+      <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
+
+        <!-- Row 0: Read-config bar - includes Eirika/Ephraim filter combo -->
+        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Filter:" VerticalAlignment="Center" />
+            <ComboBox AutomationProperties.AutomationId="ED_Epilogue_Filter_Combo"
+                      Name="Epilogue_FilterCombo" Width="160" SelectedIndex="0"
+                      SelectionChanged="EpilogueFilter_SelectionChanged">
+              <ComboBoxItem Name="Epilogue_FilterItem_Eirika"><TextBlock Text="Eirika Route" /></ComboBoxItem>
+              <ComboBoxItem Name="Epilogue_FilterItem_Ephraim"><TextBlock Text="Ephraim Route" /></ComboBoxItem>
+            </ComboBox>
+            <Label Content="Top Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_TopAddress_Input"
+                           Name="Epilogue_TopAddressBox" FormatString="0"
+                           Minimum="0" Maximum="4294967295" Width="130"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Label Content="Read Count" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_ReadCount_Input"
+                           Name="Epilogue_ReadCountBox" FormatString="0"
+                           Minimum="0" Maximum="65535" Width="80"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="ED_Epilogue_Reload_Button"
+                    Name="Epilogue_ReloadButton" Content="Reload"
+                    Click="ReloadEpilogue_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Row 1: Selection bar -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_Address_Input"
+                           Name="Epilogue_AddressBox" FormatString="0"
+                           Minimum="0" Maximum="4294967295" Width="130"
+                           IsEnabled="False" VerticalAlignment="Center" />
+            <Label Content="Size:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_BlockSize_Input"
+                           Name="Epilogue_BlockSizeBox" FormatString="0"
+                           Minimum="0" Maximum="65535" Width="50"
+                           IsEnabled="False" VerticalAlignment="Center" Value="8" />
+            <Label Content="Selected Address:" VerticalAlignment="Center" />
+            <Label AutomationProperties.AutomationId="ED_Epilogue_SelectedAddress_Label"
+                   Name="Epilogue_SelectedAddressLabel"
+                   Width="130" VerticalAlignment="Center"
+                   FontFamily="Consolas" />
+            <Button AutomationProperties.AutomationId="ED_Epilogue_Write_Button"
+                    Name="Epilogue_WriteButton" Content="Write"
+                    Click="WriteEpilogue_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Row 2 Col 0: Address list + ListExpand -->
+        <Grid Grid.Row="2" Grid.Column="0" RowDefinitions="*,Auto" Margin="4">
+          <controls:AddressListControl AutomationProperties.AutomationId="ED_Epilogue_Entry_List"
+                                       Grid.Row="0" Name="Epilogue_EntryList" />
+          <Button AutomationProperties.AutomationId="ED_Epilogue_ListExpand_Button"
+                  Grid.Row="1" Name="Epilogue_ListExpandButton"
+                  Content="List Expand" HorizontalAlignment="Stretch"
+                  Click="ExpandEpilogue_Click" Margin="0,4,0,0" />
+        </Grid>
+
+        <!-- Row 2 Col 1: Epilogue fields -->
+        <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <Grid ColumnDefinitions="180,*"
+                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+
+              <!-- B0: Designation - 1=Solo, 2=Support (matches WF N2_L_0_COMBO) -->
+              <Label Grid.Row="0" Grid.Column="0" Content="Designation" VerticalAlignment="Center" />
+              <ComboBox AutomationProperties.AutomationId="ED_Epilogue_Designation_Combo"
+                        Grid.Row="0" Grid.Column="1"
+                        Name="Epilogue_DesignationCombo"
+                        Width="200" HorizontalAlignment="Left" Margin="0,2"
+                        SelectionChanged="EpilogueDesignation_SelectionChanged">
+                <ComboBoxItem><TextBlock Text="1=Solo" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="2=Support" /></ComboBoxItem>
+              </ComboBox>
+
+              <!-- B1: UnitId1 -->
+              <controls:IdFieldControl AutomationProperties.AutomationId="ED_Epilogue_UnitId1_Input"
+                                       Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Margin="0,2"
+                                       Name="Epilogue_UnitId1Box"
+                                       Label="Unit"
+                                       Maximum="255"
+                                       JumpRequested="EpilogueUnitId1_Jump"
+                                       PickRequested="EpilogueUnitId1_Pick"
+                                       ValueChanged="EpilogueUnitId1_ValueChanged" />
+
+              <!-- B2: UnitId2 (paired with UnitId1 when Designation==Support) -->
+              <controls:IdFieldControl AutomationProperties.AutomationId="ED_Epilogue_UnitId2_Input"
+                                       Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Margin="0,2"
+                                       Name="Epilogue_UnitId2Box"
+                                       Label="Unit"
+                                       Maximum="255"
+                                       JumpRequested="EpilogueUnitId2_Jump"
+                                       PickRequested="EpilogueUnitId2_Pick"
+                                       ValueChanged="EpilogueUnitId2_ValueChanged" />
+
+              <!-- B3: StoryFlag - the WF designer's N2_J_3 label literally
+                   reads "00" because this byte's meaning isn't documented;
+                   we use "Story Flag" to match our internal naming
+                   (EpilogueStoryFlag), not "Pair Flag" which conflicts with
+                   the B0 Solo/Support pair-designation combo above. -->
+              <Label Grid.Row="3" Grid.Column="0" Content="Story Flag" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_StoryFlag_Input"
+                             FormatString="0" Grid.Row="3" Grid.Column="1"
+                             Name="Epilogue_StoryFlagBox"
+                             Minimum="0" Maximum="255" Width="120"
+                             HorizontalAlignment="Left" Margin="0,2" />
+
+              <!-- D4: EpilogueTextId (DWord, 4 bytes) -->
+              <Label Grid.Row="4" Grid.Column="0" Content="Epilogue Text" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_EpilogueTextId_Input"
+                             FormatString="0" Grid.Row="4" Grid.Column="1"
+                             Name="Epilogue_EpilogueTextIdBox"
+                             Minimum="0" Maximum="4294967295" Width="160"
+                             HorizontalAlignment="Left" Margin="0,2"
+                             ValueChanged="EpilogueTextId_ValueChanged" />
+
+              <!-- Inline text preview, matches WF N2_L_4_TEXT_EDAFTER5
+                   read-only multiline TextBox. -->
+              <TextBlock AutomationProperties.AutomationId="ED_Epilogue_EpilogueText_Label"
+                         Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                         Name="Epilogue_EpilogueTextLabel"
+                         Foreground="Gray" FontSize="12"
+                         TextWrapping="Wrap" Margin="0,2"
+                         MaxHeight="200" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+  </TabControl>
 </Window>

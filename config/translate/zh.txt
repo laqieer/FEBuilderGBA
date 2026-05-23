@@ -21368,3 +21368,47 @@ OBBGLeftToRight
 
 :Import Unit CSV
 导入单位 CSV
+:Retreat
+撤退
+
+:Epithet
+称号
+
+:Epilogue
+后日谈
+
+:Eirika Route
+艾尔克线
+
+:Ephraim Route
+艾佛拉线
+
+:Designation
+指定
+
+:Appearing Unit
+登场单位
+
+:Retreat Spec 02
+撤退指定 02
+
+:Epithet Text
+称号文本
+
+:Epilogue Text
+后日谈文本
+
+:Story Flag
+剧情标记
+
+:Unit
+单位
+
+:1=Solo
+1=单人
+
+:2=Support
+2=支援
+
+:Bytes +2..+3 are reserved (WF designer doesn't expose).
+字节 +2..+3 为保留字段 (WF 设计器不暴露)。
