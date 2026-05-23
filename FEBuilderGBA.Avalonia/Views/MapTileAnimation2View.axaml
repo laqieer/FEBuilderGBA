@@ -2,37 +2,205 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapTileAnimation2View"
-        Title="Tile Animation Type 2" Width="1238" Height="926"
+        Title="Map Tile Animation Type 2 (Palette)" Width="1238" Height="926"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MapTileAnimation2_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: Top read-config bar (mirrors WF panel3) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Top Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="1024"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="MapTileAnimation2_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+        <Label Content="Filter" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="MapTileAnimation2_Filter_Combo"
+                  Name="FilterComboBox" Width="280"
+                  SelectionChanged="FilterCombo_SelectionChanged" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1: selection bar (mirrors WF panel5) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_Address_Input"
+                       FormatString="X8" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="8" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="MapTileAnimation2_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="MapTileAnimation2_Write_Button"
+                Name="WriteButton" Content="Write to ROM" Click="Write_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 2 col 0: Address list panel (mirrors WF panel6) -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="MapTileAnimation2_Name_Label"
+               Content="Name" HorizontalAlignment="Stretch" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="MapTileAnimation2_ListExpand_Button"
+                Name="ListExpandButton" Content="Data Expansion"
+                IsEnabled="False"
+                ToolTip.Tip="Pending Core extraction - tracked by #524"
+                HorizontalAlignment="Stretch" Margin="2"
+                Click="ListExpand_Click" />
+        <controls:AddressListControl AutomationProperties.AutomationId="MapTileAnimation2_Entry_List"
+                                     Name="EntryList" />
+      </DockPanel>
+    </Border>
+
+    <!-- Row 2 col 1: edit panel + palette sub-list + bulk export -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Tile Animation Type 2 (Palette)" FontSize="18" FontWeight="Bold" />
+        <Label Content="Map Tile Animation Type 2 (Palette)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="MapTileAnimation2_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Main edit panel (mirrors WF panel4 top half) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="MapTileAnimation2_Addr_Label"
+                       Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Palette Data Pointer:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <TextBox AutomationProperties.AutomationId="MapTileAnimation2_PaletteDataPointer_Input" Grid.Row="1" Grid.Column="1" Name="PaletteDataPointerBox" Width="160" Margin="0,4,0,0" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Palette Data Pointer:" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="MapTileAnimation2_PaletteDataPointer_Input"
+                     Grid.Row="1" Grid.Column="1" Name="PaletteDataPointerBox" Width="160" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation Interval:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_AnimInterval_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimIntervalBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Animation Interval:" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_AnimInterval_Input"
+                           FormatString="0" Grid.Row="2" Grid.Column="1" Name="AnimIntervalBox"
+                           Minimum="0" Maximum="255" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Data Count:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_DataCount_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DataCountBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Data Count:" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_DataCount_Input"
+                           FormatString="0" Grid.Row="3" Grid.Column="1" Name="DataCountBox"
+                           Minimum="0" Maximum="255" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Start Palette Index:" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_StartPaletteIndex_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="StartPaletteIndexBox" Minimum="0" Maximum="255" Margin="0,4,0,0" />
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Start Palette Index:" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_StartPaletteIndex_Input"
+                           FormatString="0" Grid.Row="4" Grid.Column="1" Name="StartPaletteIndexBox"
+                           Minimum="0" Maximum="255" Margin="0,4,0,0" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" Margin="0,4,0,0" />
-          <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_Unknown7_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown7Box" Minimum="0" Maximum="255" Margin="0,4,0,0" />
-        </Grid>
+            <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_Unknown7_Input"
+                           FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown7Box"
+                           Minimum="0" Maximum="255" Margin="0,4,0,0" />
+          </Grid>
+        </Border>
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="MapTileAnimation2_Write_Button" Content="Write" Click="Write_Click" />
+        <!-- Palette sub-list panel (mirrors WF panel2) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <Label AutomationProperties.AutomationId="MapTileAnimation2_NPanel_Label"
+                   Content="Map Tile Animation Type 2 Palette Sub-Table" FontWeight="SemiBold" />
+
+            <!-- N selection bar (mirrors WF panel7) -->
+            <Grid ColumnDefinitions="80,120,80,80,120,*" RowDefinitions="Auto,Auto,Auto">
+              <Label Grid.Row="0" Grid.Column="0" Content="Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_NAddress_Input"
+                             Grid.Row="0" Grid.Column="1" FormatString="X8" Name="NAddressBox"
+                             Minimum="0" Maximum="4294967295" IsEnabled="False" />
+              <Label Grid.Row="0" Grid.Column="2" Content="Size:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_NBlockSize_Input"
+                             Grid.Row="0" Grid.Column="3" FormatString="0" Name="NBlockSizeBox"
+                             Minimum="0" Maximum="65535" IsEnabled="False" Value="2" />
+
+              <Label Grid.Row="1" Grid.Column="0" Content="Selected Address:" VerticalAlignment="Center" />
+              <Label AutomationProperties.AutomationId="MapTileAnimation2_NSelectedAddress_Label"
+                     Grid.Row="1" Grid.Column="1" Name="NSelectedAddressLabel"
+                     VerticalAlignment="Center" FontFamily="Consolas" />
+              <Button Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
+                      AutomationProperties.AutomationId="MapTileAnimation2_NWrite_Button"
+                      Name="NWriteButton" Content="Write to ROM" Click="NWrite_Click"
+                      HorizontalAlignment="Left" />
+            </Grid>
+
+            <!-- N sub-list + RGB editor row -->
+            <Grid ColumnDefinitions="300,140,140" RowDefinitions="Auto">
+              <ListBox AutomationProperties.AutomationId="MapTileAnimation2_NList"
+                       Grid.Column="0" Name="NPaletteListBox" Height="160"
+                       SelectionChanged="NPaletteList_SelectionChanged" />
+
+              <!-- Color preview square + GBA color -->
+              <Border Grid.Column="1" BorderBrush="DarkGray" BorderThickness="1"
+                      HorizontalAlignment="Center" VerticalAlignment="Top"
+                      Width="80" Height="80" Margin="8,0,0,0">
+                <Panel Name="ColorPreview" />
+              </Border>
+
+              <!-- R/G/B + GBA editor column -->
+              <Grid Grid.Column="2" ColumnDefinitions="40,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="8,0,0,0">
+                <Label Grid.Row="0" Grid.Column="0"
+                       AutomationProperties.AutomationId="MapTileAnimation2_GbaColor_Label"
+                       Content="GBA Color" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="MapTileAnimation2_NW0_Input"
+                               FormatString="X4" Name="NGbaBox"
+                               Minimum="0" Maximum="65535" IsReadOnly="True" />
+                <Label Grid.Row="1" Grid.Column="0" Content="R" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="MapTileAnimation2_NR_Input"
+                               FormatString="0" Name="NRBox"
+                               Minimum="0" Maximum="255" Increment="8"
+                               ValueChanged="NRgb_ValueChanged" />
+                <Label Grid.Row="2" Grid.Column="0" Content="G" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1"
+                               AutomationProperties.AutomationId="MapTileAnimation2_NG_Input"
+                               FormatString="0" Name="NGBox"
+                               Minimum="0" Maximum="255" Increment="8"
+                               ValueChanged="NRgb_ValueChanged" />
+                <Label Grid.Row="3" Grid.Column="0" Content="B" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1"
+                               AutomationProperties.AutomationId="MapTileAnimation2_NB_Input"
+                               FormatString="0" Name="NBBox"
+                               Minimum="0" Maximum="255" Increment="8"
+                               ValueChanged="NRgb_ValueChanged" />
+                <Label Grid.Row="4" Grid.Column="0" Content="00" />
+                <Label Grid.Row="4" Grid.Column="1"
+                       AutomationProperties.AutomationId="MapTileAnimation2_Padding_Label"
+                       Content="(reserved)" />
+              </Grid>
+            </Grid>
+
+            <Button AutomationProperties.AutomationId="MapTileAnimation2_NListExpand_Button"
+                    Name="NListExpandButton" Content="Data Expansion"
+                    IsEnabled="False"
+                    ToolTip.Tip="Pending Core extraction - tracked by #524"
+                    HorizontalAlignment="Left" Margin="0,4,0,0"
+                    Click="NListExpand_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Bulk Import/Export panel (mirrors WF panel8) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button AutomationProperties.AutomationId="MapTileAnimation2_BulkImport_Button"
+                  Name="BulkImportButton" Content="Bulk Import"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #524"
+                  Click="BulkImport_Click" />
+          <Button AutomationProperties.AutomationId="MapTileAnimation2_BulkExport_Button"
+                  Name="BulkExportButton" Content="Bulk Export"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #524"
+                  Click="BulkExport_Click" />
         </StackPanel>
       </StackPanel>
     </ScrollViewer>
