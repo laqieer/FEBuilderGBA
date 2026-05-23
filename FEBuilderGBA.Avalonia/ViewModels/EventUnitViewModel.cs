@@ -9,11 +9,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Provides 3-level navigation: Map -> Unit Group -> Unit.
     ///
     /// Layout: UnitID(B0), ClassID(B1), LeaderUnitID(B2), UnitInfo(B3),
-    ///         UnitGrowth(W4), Reserved6(B6), CoordCount(B7), CoordPointer(D8),
+    ///         UnitPos/W4(B4..B5), Reserved6(B6), AfterCoordCount(B7),
+    ///         AfterCoordPointer(D8..D11),
     ///         Item1(B12), Item2(B13), Item3(B14), Item4(B15),
-    ///         AI1Primary(B16), AI2Secondary(B17), AI3TargetRecovery(B18), AI4Retreat(B19).
+    ///         AI1Primary(B16), AI2Secondary(B17), AI3TargetRecovery(B18),
+    ///         AI4Retreat(B19).
+    ///
+    /// B3 (UnitInfo) decomposes into three packed sub-fields per WF
+    /// <c>InputFormRef.cs</c> (the UNITGROW binding):
+    ///   bit 0       — Growth flag (0 = no growth, 1 = class-dependent)
+    ///   bits 1-2    — Allegiance (0 = Player, 1 = Ally, 2 = Enemy, 3 = Disappear)
+    ///   bits 3-7    — Level (0-31)
+    ///
+    /// W4 (UnitPos) decomposes via U.MakeFe8UnitPos / U.ParseFe8UnitPos*:
+    ///   bits 0-5    — Before X (0-63)
+    ///   bits 6-11   — Before Y (0-63)
+    ///   bits 12-14  — Ext flags (bit 0x2 = Item Drop)
+    ///
+    /// B7/D8 hold the after-coord LIST (count + pointer). Editing the
+    /// LIST itself (multi-coord, the WF FE8CoordListBox) is OUT OF SCOPE
+    /// for this gap-sweep PR — the new view shows B7/D8 read-only.
     /// </summary>
-    public class EventUnitViewModel : ViewModelBase, IDataVerifiable
+    public partial class EventUnitViewModel : ViewModelBase, IDataVerifiable
     {
         // EditorFormRef field definitions
         static readonly string[] FieldNames = new[]
@@ -27,7 +44,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
 
         uint _unitID, _classID, _leaderUnitID, _unitInfo;
-        uint _unitGrowth;
+        uint _unitGrowth; // raw W4 (UnitPos)
         uint _reserved6, _coordCount;
         uint _coordPointer;
         uint _item1, _item2, _item3, _item4;
@@ -37,20 +54,62 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _selectedMapId = uint.MaxValue;
         uint _selectedGroupAddr;
 
+        // Comment annotation
+        string _comment = "";
+
         // Resolved display names
         string _unitName = "";
         string _className = "";
         string _item1Name = "", _item2Name = "", _item3Name = "", _item4Name = "";
         string _ai1Desc = "", _ai2Desc = "", _ai3Desc = "", _ai4Desc = "";
+        string _itemDropDisplay = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        public uint UnitID { get => _unitID; set => SetField(ref _unitID, value); }
-        public uint ClassID { get => _classID; set => SetField(ref _classID, value); }
+        public uint UnitID
+        {
+            get => _unitID;
+            set => SetField(ref _unitID, value);
+        }
+        public uint ClassID
+        {
+            get => _classID;
+            set => SetField(ref _classID, value);
+        }
         public uint LeaderUnitID { get => _leaderUnitID; set => SetField(ref _leaderUnitID, value); }
-        public uint UnitInfo { get => _unitInfo; set => SetField(ref _unitInfo, value); }
-        public uint UnitGrowth { get => _unitGrowth; set => SetField(ref _unitGrowth, value); }
+
+        public uint UnitInfo
+        {
+            get => _unitInfo;
+            set
+            {
+                if (SetField(ref _unitInfo, value))
+                {
+                    OnPropertyChanged(nameof(UnitInfoLV));
+                    OnPropertyChanged(nameof(UnitInfoAllegiance));
+                    OnPropertyChanged(nameof(UnitInfoGrow));
+                }
+            }
+        }
+        public uint UnitGrowth
+        {
+            // Backwards-compat alias for the W4 packed word. New view
+            // surfaces this as the "Unit Pos (W4)" raw input; the
+            // BeforeX/BeforeY/UnitPosExt properties decompose it.
+            get => _unitGrowth;
+            set
+            {
+                if (SetField(ref _unitGrowth, value))
+                {
+                    OnPropertyChanged(nameof(BeforeX));
+                    OnPropertyChanged(nameof(BeforeY));
+                    OnPropertyChanged(nameof(UnitPosExt));
+                    OnPropertyChanged(nameof(ItemDropFlag));
+                    RefreshItemDropDisplay();
+                }
+            }
+        }
         public uint Reserved6 { get => _reserved6; set => SetField(ref _reserved6, value); }
         public uint CoordCount { get => _coordCount; set => SetField(ref _coordCount, value); }
         public uint CoordPointer { get => _coordPointer; set => SetField(ref _coordPointer, value); }
@@ -75,6 +134,148 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string AI3Desc { get => _ai3Desc; set => SetField(ref _ai3Desc, value); }
         public string AI4Desc { get => _ai4Desc; set => SetField(ref _ai4Desc, value); }
 
+        /// <summary>Item-drop display string mirroring WF X_ITEMDROP label.</summary>
+        public string ItemDropDisplay { get => _itemDropDisplay; set => SetField(ref _itemDropDisplay, value); }
+
+        /// <summary>
+        /// User annotation persisted through <c>CoreState.CommentCache</c>
+        /// (matches the WF InputFormRef Comment-cache pattern + the Avalonia
+        /// precedent established by ImageBattleBG / ImagePortraitFE6).
+        /// </summary>
+        public string Comment { get => _comment; set => SetField(ref _comment, value); }
+
+        /// <summary>
+        /// The currently-selected map id, used as the second key by jump
+        /// helpers (BattleTalk + Haiku take unit_id + map_id).
+        /// </summary>
+        public uint SelectedMapId { get => _selectedMapId; set => SetField(ref _selectedMapId, value); }
+
+        /// <summary>
+        /// Base address of the unit-list table for the currently-loaded
+        /// group. <see cref="ExpandUnitListCurrent"/> uses this to identify
+        /// which list to grow.
+        /// </summary>
+        public uint SelectedUnitListBase { get => _selectedGroupAddr; set => SetField(ref _selectedGroupAddr, value); }
+
+        // ---------------------------------------------------------------
+        // B3 (UnitInfo) sub-field properties — UI sugar over the raw byte.
+        // Each setter recomposes UnitInfo so the byte stays the source of truth.
+        // ---------------------------------------------------------------
+
+        public uint UnitInfoLV
+        {
+            get => U.ParseUnitGrowLV(_unitInfo);
+            set
+            {
+                uint b3 = U.MakeUnitGrowB3(
+                    lv: value,
+                    assign: U.ParseUnitGrowAssign(_unitInfo),
+                    grow: U.ParseUnitGrowGrow(_unitInfo));
+                UnitInfo = b3;
+            }
+        }
+
+        public uint UnitInfoAllegiance
+        {
+            get => U.ParseUnitGrowAssign(_unitInfo);
+            set
+            {
+                uint b3 = U.MakeUnitGrowB3(
+                    lv: U.ParseUnitGrowLV(_unitInfo),
+                    assign: value,
+                    grow: U.ParseUnitGrowGrow(_unitInfo));
+                UnitInfo = b3;
+            }
+        }
+
+        public uint UnitInfoGrow
+        {
+            get => U.ParseUnitGrowGrow(_unitInfo);
+            set
+            {
+                uint b3 = U.MakeUnitGrowB3(
+                    lv: U.ParseUnitGrowLV(_unitInfo),
+                    assign: U.ParseUnitGrowAssign(_unitInfo),
+                    grow: value);
+                UnitInfo = b3;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // W4 (UnitPos / UnitGrowth alias) sub-field properties — decompose
+        // the packed word into BeforeX/BeforeY/Ext components via
+        // U.ParseFe8UnitPos* / U.MakeFe8UnitPos.
+        //
+        // Setting any sub-field recomposes UnitGrowth so the packed W4
+        // remains the source of truth. RefreshItemDropDisplay runs whenever
+        // ext changes so the FE8 "Item Drop: drops/doesn't drop" label
+        // stays honest while editing.
+        // ---------------------------------------------------------------
+
+        public uint BeforeX
+        {
+            get => U.ParseFe8UnitPosX(_unitGrowth);
+            set
+            {
+                uint w4 = U.MakeFe8UnitPos(
+                    x: value,
+                    y: U.ParseFe8UnitPosY(_unitGrowth),
+                    ext: U.ParseFe8UnitPosExt(_unitGrowth));
+                UnitGrowth = w4;
+            }
+        }
+
+        public uint BeforeY
+        {
+            get => U.ParseFe8UnitPosY(_unitGrowth);
+            set
+            {
+                uint w4 = U.MakeFe8UnitPos(
+                    x: U.ParseFe8UnitPosX(_unitGrowth),
+                    y: value,
+                    ext: U.ParseFe8UnitPosExt(_unitGrowth));
+                UnitGrowth = w4;
+            }
+        }
+
+        public uint UnitPosExt
+        {
+            get => U.ParseFe8UnitPosExt(_unitGrowth);
+            set
+            {
+                uint w4 = U.MakeFe8UnitPos(
+                    x: U.ParseFe8UnitPosX(_unitGrowth),
+                    y: U.ParseFe8UnitPosY(_unitGrowth),
+                    ext: value);
+                UnitGrowth = w4;
+            }
+        }
+
+        /// <summary>
+        /// Item Drop flag — bit 0x2 of the W4 ext field. Mirrors WF
+        /// EventUnitForm's UpdateItemDropLabel + X_ITEMDROP_Click logic
+        /// (the canonical FE8 source of truth, not unit/class
+        /// characteristics).
+        /// </summary>
+        public bool ItemDropFlag
+        {
+            get => (U.ParseFe8UnitPosExt(_unitGrowth) & 0x2) == 0x2;
+            set
+            {
+                uint ext = U.ParseFe8UnitPosExt(_unitGrowth);
+                if (value)
+                    ext |= 0x2;
+                else
+                    ext = ext & ~0x2u;
+                UnitPosExt = ext;
+            }
+        }
+
+        void RefreshItemDropDisplay()
+        {
+            ItemDropDisplay = ComputeItemDropDisplay(_unitGrowth);
+        }
+
         /// <summary>Build the map list (Level 1 navigation).</summary>
         public List<AddrResult> LoadMapList()
         {
@@ -84,7 +285,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Build the unit group list for a map (Level 2 navigation).</summary>
         public List<AddrResult> LoadUnitGroups(uint mapId)
         {
-            _selectedMapId = mapId;
+            SelectedMapId = mapId;
             ROM rom = CoreState.ROM;
             if (rom == null) return new List<AddrResult>();
             return MapEventUnitCore.GetUnitGroupsForMap(rom, mapId);
@@ -93,7 +294,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Build the unit list from a base address (Level 3 navigation).</summary>
         public List<AddrResult> LoadUnitList(uint baseAddr)
         {
-            _selectedGroupAddr = baseAddr;
+            SelectedUnitListBase = baseAddr;
             ROM rom = CoreState.ROM;
             if (rom == null) return new List<AddrResult>();
             return MapEventUnitCore.EnumerateUnits(rom, baseAddr);
@@ -102,11 +303,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Load unit list from an arbitrary address (manual entry).</summary>
         public List<AddrResult> LoadUnitListFromAddress(uint baseAddr)
         {
-            _selectedMapId = uint.MaxValue;
-            _selectedGroupAddr = baseAddr;
+            SelectedMapId = uint.MaxValue;
+            SelectedUnitListBase = baseAddr;
             ROM rom = CoreState.ROM;
             if (rom == null) return new List<AddrResult>();
             return MapEventUnitCore.EnumerateUnits(rom, baseAddr);
+        }
+
+        /// <summary>
+        /// Expand the currently-loaded unit list by the given number of rows.
+        /// Mirrors the WF AddressListExpandsButton behavior with FE8 starter
+        /// bytes (B0=0x01, B1=0x02) per WF EventUnitForm.AddressListExpandsEvent.
+        /// Returns the new base ROM offset or <see cref="U.NOT_FOUND"/> on failure.
+        ///
+        /// Side-effects on success: <see cref="SelectedUnitListBase"/> updated
+        /// to the new base. The caller MUST open an ambient undo scope before
+        /// invoking this.
+        /// </summary>
+        public uint ExpandUnitListCurrent(uint addRows)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return U.NOT_FOUND;
+            if (SelectedUnitListBase == 0) return U.NOT_FOUND;
+            if (addRows == 0) return U.NOT_FOUND;
+
+            uint slot = MapEventUnitCore.FindEventPointerSlotForUnitList(
+                rom, SelectedMapId, SelectedUnitListBase);
+            if (slot == 0) return U.NOT_FOUND;
+
+            uint oldCount = MapEventUnitCore.CountEventUnitRows(rom, SelectedUnitListBase);
+            if (oldCount == 0) return U.NOT_FOUND;
+            uint newCount = oldCount + addRows;
+
+            // FE8 starter B1 = 0x02 per WF EventUnitForm.AddressListExpandsEvent
+            // (vs FE7's 0x01).
+            uint newBase = MapEventUnitCore.ExpandUnitList(
+                rom, slot, SelectedUnitListBase, oldCount, newCount, starterB1: 0x02);
+            if (newBase == U.NOT_FOUND) return U.NOT_FOUND;
+
+            SelectedUnitListBase = newBase;
+            return newBase;
         }
 
         /// <summary>IDataVerifiable fallback: returns the map list (Level 1) when no specific group is selected.</summary>
@@ -155,6 +391,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AI3Desc = MapEventUnitCore.GetAI3Description((byte)AI3TargetRecovery);
             AI4Desc = MapEventUnitCore.GetAI4Description((byte)AI4Retreat);
 
+            // Update FE8 item-drop display from the W4 ext bit (NOT unit/
+            // class characteristic — the FE8 canonical source is W4@bit12+1).
+            RefreshItemDropDisplay();
+
+            // Load comment annotation from CoreState.CommentCache (matches the
+            // WF InputFormRef.cs Comment-cache pattern). Comments are keyed
+            // by the entry's byte address.
+            if (CoreState.CommentCache != null
+                && CoreState.CommentCache.TryGetValue(addr, out string commentValue))
+            {
+                Comment = commentValue ?? "";
+            }
+            else
+            {
+                Comment = "";
+            }
+
             IsLoaded = true;
         }
 
@@ -172,6 +425,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B16"] = AI1Primary, ["B17"] = AI2Secondary, ["B18"] = AI3TargetRecovery, ["B19"] = AI4Retreat,
             };
             EditorFormRef.WriteFields(rom, addr, values, Fields);
+
+            // Persist the Comment to CoreState.CommentCache. The cache is a
+            // separate annotation store and lives OUTSIDE the ROM undo
+            // scope by precedent (ImagePortraitFE6View.WriteButton_Click,
+            // ImageBattleBGViewModel.WriteCommentToCache, PR #522).
+            CoreState.CommentCache?.Update(addr, Comment ?? "");
+        }
+
+        /// <summary>
+        /// Returns the localized FE8 Item Drop status string for the given
+        /// W4 (UnitPos) value. Mirrors WF EventUnitForm.UpdateItemDropLabel:
+        /// the drop bit is <c>ext &amp; 0x2</c> where ext = bits 12-14 of W4.
+        /// Pure UI affordance; ROM is read-only.
+        /// </summary>
+        public static string ComputeItemDropDisplay(uint w4Word)
+        {
+            uint ext = U.ParseFe8UnitPosExt(w4Word);
+            bool drops = (ext & 0x2) == 0x2;
+            return drops ? R._("Item Drop: drops") : R._("Item Drop: doesn't drop");
         }
 
         public int GetListCount() => LoadList().Count;
