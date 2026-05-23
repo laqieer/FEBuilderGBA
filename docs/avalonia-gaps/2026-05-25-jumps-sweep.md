@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T23:23:09Z"
-git-sha: e2e13099d
+generated: "2026-05-23T00:29:22Z"
+git-sha: aeaa67bd2
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 423 |
-| Match | 18 |
-| MissingAvManifest (backlog) | 365 |
+| Match | 20 |
+| MissingAvManifest (backlog) | 363 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 5 |
 
@@ -258,8 +258,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageBGForm` | `ImageBGView` | `—` | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` |
 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | `—` | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` |
 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
-| `ImageBattleBGForm` | `ImageBattleBGView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
-| `ImageBattleBGForm` | `ImageBattleBGView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageCGFE7UForm` | `ImageCGFE7UView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageCGForm` | `ImageCGView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageChapterTitleFE7Form` | `ImageChapterTitleFE7View` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
@@ -471,6 +469,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToHexEditor` | `HexEditorForm` | `HexEditorView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToPointerTool` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToDecreaseColor` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
+| `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToGraphicsTool` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |

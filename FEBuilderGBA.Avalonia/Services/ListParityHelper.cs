@@ -482,6 +482,12 @@ namespace FEBuilderGBA.Avalonia.Services
             // to "no AV counterpart" and the manifest can never reach
             // KnownGap / Match status.
             { "ToolAnimationCreatorView", "ToolAnimationCreatorForm" },
+            // #434 — Image*Form (BattleBG, ImageBG, ImageCG family) jumps to
+            // these tool/utility views. Both are NoListEditors (above) so the
+            // ListParityHelper.EditorMap doesn't register them; declare the
+            // WF↔AV form pair here so JumpParityScanner can resolve them.
+            { "GraphicsToolView", "GraphicsToolForm" },
+            { "DecreaseColorTSAToolView", "DecreaseColorTSAToolForm" },
         };
 
         /// <summary>

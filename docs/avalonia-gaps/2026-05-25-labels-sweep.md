@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T23:23:08Z"
-git-sha: e2e13099d
+generated: "2026-05-23T00:29:20Z"
+git-sha: aeaa67bd2
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4638 |
-| Total AV-only labels | 2682 |
-| Total common labels | 62 |
+| Total WF-only labels | 4636 |
+| Total AV-only labels | 2692 |
+| Total common labels | 64 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-22-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -4235,44 +4235,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Import PAL`
 - `Import PNG`
 
-### ImageBattleBGForm
-WF labels: **20** · AV labels: **9** · WF-only: **20** · AV-only: **9** · Common: **0** · Density verdict: **High** (WF 26 / AV 13)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
-- `TSA`
-- `アドレス`
-- `グラフィックツール`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `参照箇所`
-- `名前`
-- `書き込み`
-- `減色ツール`
-- `画像`
-- `画像取出し`
-- `画像読込`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Battle Background Editor`
-- `Export PAL`
-- `Image (D0):`
-- `Import PAL`
-- `Import PNG`
-- `Palette (D8):`
-- `TSA (D4):`
-- `Write`
-
 ### MapTileAnimation2Form
 WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 40 / AV 14)
 
@@ -4828,6 +4790,52 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Battle Dialogue (FE7)`
+
+### ImageBattleBGForm
+WF labels: **20** · AV labels: **21** · WF-only: **18** · AV-only: **19** · Common: **2** · Density verdict: **Low** (WF 26 / AV 30)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `グラフィックツール`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `参照箇所`
+- `名前`
+- `書き込み`
+- `減色ツール`
+- `画像`
+- `画像取出し`
+- `画像読込`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Battle Background Editor`
+- `Color Reduce`
+- `Comment`
+- `Expand List (+1 slot)`
+- `Export Image`
+- `Export PAL`
+- `Graphics Tool`
+- `Image`
+- `Import Image`
+- `Import PAL`
+- `Open Source File`
+- `Open Source Folder`
+- `Palette`
+- `Read Count`
+- `Read Start Address`
+- `References`
+- `Reload`
+- `Selected Address:`
+- `Write`
 
 ### ImageCGForm
 WF labels: **18** · AV labels: **6** · WF-only: **18** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 24 / AV 7)

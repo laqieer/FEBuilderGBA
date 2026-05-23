@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T23:23:03Z"
-git-sha: e2e13099d
+generated: "2026-05-23T00:29:17Z"
+git-sha: aeaa67bd2
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 235 |
+| HIGH | |Δ%| ≥ 50 | 234 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 81 |
-| LOW | |Δ%| < 25 | 54 |
+| LOW | |Δ%| < 25 | 55 |
 
 ## Ranked Density Deltas
 
@@ -172,7 +172,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventTalkGroupFE7Form` | `EventTalkGroupFE7View` | 14 | 7 | -7 | -50.0% | Heuristic |
 | High | `EventTemplate5Form` | `EventTemplate5View` | 6 | 3 | -3 | -50.0% | Heuristic |
 | High | `ExtraUnitFE8UForm` | `ExtraUnitFE8UView` | 16 | 8 | -8 | -50.0% | ListParityHelper |
-| High | `ImageBattleBGForm` | `ImageBattleBGView` | 26 | 13 | -13 | -50.0% | ListParityHelper |
 | High | `OAMSPForm` | `OAMSPView` | 6 | 3 | -3 | -50.0% | Heuristic |
 | High | `OPClassDemoFE7Form` | `OPClassDemoFE7View` | 64 | 32 | -32 | -50.0% | ListParityHelper |
 | High | `VersionForm` | `VersionView` | 2 | 1 | -1 | -50.0% | Heuristic |
@@ -289,6 +288,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `UshortBitFlagForm` | `UshortBitFlagView` | 20 | 22 | 2 | +10.0% | Heuristic |
 | Low | `UwordBitFlagForm` | `UwordBitFlagView` | 38 | 42 | 4 | +10.5% | Heuristic |
 | Low | `RAMRewriteToolForm` | `RAMRewriteToolView` | 8 | 9 | 1 | +12.5% | Heuristic |
+| Low | `ImageBattleBGForm` | `ImageBattleBGView` | 26 | 30 | 4 | +15.4% | ListParityHelper |
 | Low | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` | 19 | 22 | 3 | +15.8% | ListParityHelper |
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
