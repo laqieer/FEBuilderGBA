@@ -20852,3 +20852,12 @@ Core 抽取待中 - 追踪于 #524
 
 :Bulk Export
 批量导出
+
+:Number:
+编号：
+
+:Change Data Pointer
+变化数据指针
+
+:Pointer Import
+指针导入

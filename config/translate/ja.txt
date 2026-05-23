@@ -6914,3 +6914,12 @@ Core 抽出待ち - #524 で追跡中
 
 :Bulk Export
 一括エクスポート
+
+:Number:
+番号:
+
+:Change Data Pointer
+変化データポインタ
+
+:Pointer Import
+ポインタインポート

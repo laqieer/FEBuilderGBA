@@ -2,20 +2,177 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventMapChangeView"
-        Title="Map Change Event Editor" Width="1440" Height="797"
+        Title="Map Change Event Editor" Width="1280" Height="760"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventMapChange_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="220,*,220" RowDefinitions="Auto,Auto,*,Auto">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+    <!-- Row 0: Top read-config bar (mirrors WF panel1: Top Address /
+         Read Count / Reload List). Spans all 3 columns. -->
+    <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Top Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="EventMapChange_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="EventMapChange_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="256"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="EventMapChange_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1: AddressPanel (mirrors WF AddressPanel: Address / Size /
+         Selected Address / Write button). Stretches across columns 1+2. -->
+    <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="EventMapChange_Address_Input"
+                       FormatString="X8" Name="AddressBox" Width="110"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="EventMapChange_BlockSize_Input"
+                 Name="BlockSizeBox" Width="60"
+                 IsReadOnly="True" VerticalAlignment="Center" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="EventMapChange_SelectedAddr_Input"
+                 Name="SelectedAddressBox" Width="130"
+                 IsReadOnly="True" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="EventMapChange_Write_Button"
+                Name="WriteButton" Content="Write" Click="Write_Click" Margin="8,0,0,0" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 2 Column 0: Map list (mirrors WF panel5 + MAP_LISTBOX) -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <Grid RowDefinitions="Auto,*">
+        <Label Grid.Row="0" Content="Map Names" FontWeight="Bold" Padding="4" />
+        <ListBox AutomationProperties.AutomationId="EventMapChange_MapList_List"
+                 Grid.Row="1" Name="MapListBox" />
+      </Grid>
+    </Border>
+
+    <!-- Row 2 Column 1: Detail panel (mirrors WF panel2). -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+      <StackPanel Spacing="6" Margin="4">
         <TextBlock Text="Map Change Event Editor" FontSize="18" FontWeight="Bold" />
 
+        <!-- Address label (kept for backward compatibility with existing
+             scripts that look up EventMapChange_Addr_Label). -->
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventMapChange_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventMapChange_Addr_Label"
+                     Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <!-- B0: Number — WF NumericUpDown is Hexadecimal=true (per Designer.cs).
+             Mirror with FormatString="X2" so the displayed value is hex like
+             the unknown-byte fields below. -->
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="Number:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B0_Input"
+                         Grid.Column="1" Name="B0Box" FormatString="X2" Width="80"
+                         Minimum="0" Maximum="255" HorizontalAlignment="Left" />
+        </Grid>
+
+        <!-- B1 (X), B2 (Y): Coordinates -->
+        <Grid ColumnDefinitions="120,Auto,80,Auto,80" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="Coordinates:" VerticalAlignment="Center" />
+          <Label Grid.Column="1" Content="X:" VerticalAlignment="Center" Margin="4,0,4,0" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B1_Input"
+                         Grid.Column="2" Name="B1Box" FormatString="0" Width="76"
+                         Minimum="0" Maximum="255" />
+          <Label Grid.Column="3" Content="Y:" VerticalAlignment="Center" Margin="4,0,4,0" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B2_Input"
+                         Grid.Column="4" Name="B2Box" FormatString="0" Width="76"
+                         Minimum="0" Maximum="255" />
+        </Grid>
+
+        <!-- B3 (W), B4 (H): Size -->
+        <Grid ColumnDefinitions="120,Auto,80,Auto,80" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="Size:" VerticalAlignment="Center" />
+          <Label Grid.Column="1" Content="W:" VerticalAlignment="Center" Margin="4,0,4,0" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B3_Input"
+                         Grid.Column="2" Name="B3Box" FormatString="0" Width="76"
+                         Minimum="0" Maximum="255" />
+          <Label Grid.Column="3" Content="H:" VerticalAlignment="Center" Margin="4,0,4,0" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B4_Input"
+                         Grid.Column="4" Name="B4Box" FormatString="0" Width="76"
+                         Minimum="0" Maximum="255" />
+        </Grid>
+
+        <!-- B5, B6, B7: unknown bytes (WF labels them "??" — preserve) -->
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="??" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B5_Input"
+                         Grid.Column="1" Name="B5Box" FormatString="X2" Width="80"
+                         Minimum="0" Maximum="255" HorizontalAlignment="Left" />
+        </Grid>
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="??" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B6_Input"
+                         Grid.Column="1" Name="B6Box" FormatString="X2" Width="80"
+                         Minimum="0" Maximum="255" HorizontalAlignment="Left" />
+        </Grid>
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="??" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B7_Input"
+                         Grid.Column="1" Name="B7Box" FormatString="X2" Width="80"
+                         Minimum="0" Maximum="255" HorizontalAlignment="Left" />
+        </Grid>
+
+        <!-- P8: Change Data Pointer (GBA pointer) -->
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="Change Data Pointer" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="EventMapChange_P8_Input"
+                   Grid.Column="1" Name="P8Box" Width="140" HorizontalAlignment="Left" />
+        </Grid>
+
+        <!-- Comment -->
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <Label Grid.Column="0" Content="Comment" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="EventMapChange_Comment_Input"
+                   Grid.Column="1" Name="CommentBox" Width="260" HorizontalAlignment="Left" />
+        </Grid>
+
+        <!-- Map Picture placeholder (full rendering deferred; see plan
+             Scope Boundary). The Image keeps an AutomationId so the
+             parity scanner sees the surface; tile rendering is tracked
+             as a follow-up. -->
+        <Border BorderBrush="Gray" BorderThickness="1" Margin="0,8,0,0"
+                MinHeight="180" MinWidth="320">
+          <Image AutomationProperties.AutomationId="EventMapChange_MapPicture_Image"
+                 Name="MapPictureImage" Stretch="None" />
+        </Border>
       </StackPanel>
     </ScrollViewer>
+
+    <!-- Row 2 Column 2: AddressList (kept for backward compat) +
+         Expand-List stub button. -->
+    <Border Grid.Row="2" Grid.Column="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <Grid RowDefinitions="Auto,*,Auto">
+        <Label Grid.Row="0" Content="Names" FontWeight="Bold" Padding="4" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="EventMapChange_Entry_List"
+            Grid.Row="1" Name="EntryList" />
+        <Button AutomationProperties.AutomationId="EventMapChange_ListExpands_Button"
+                Grid.Row="2" Name="ListExpandsButton"
+                HorizontalAlignment="Stretch" Margin="0,4,0,0"
+                Content="Expand List (+1 slot)" Click="ListExpands_Click" />
+      </Grid>
+    </Border>
+
+    <!-- Row 3: Bottom button bar (mirrors WF panel3 — pointer-import
+         action). -->
+    <Border Grid.Row="3" Grid.ColumnSpan="3" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="4">
+        <Button AutomationProperties.AutomationId="EventMapChange_PointerImport_Button"
+                Content="Pointer Import" Click="PointerImport_Click" />
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>
