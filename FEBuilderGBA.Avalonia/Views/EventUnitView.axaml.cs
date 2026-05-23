@@ -184,7 +184,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 TopAddrBox.Text = string.Format("0x{0:X08}", addr);
-                LoadUnitsFromAddress(addr);
+                // Manual-load path: use LoadUnitListFromAddress so the VM
+                // clears SelectedMapId (otherwise BattleTalk/Haiku jumps
+                // and ExpandList resolve against a stale map selection —
+                // Copilot bot review round 3 on PR #540).
+                _unitItems = _vm.LoadUnitListFromAddress(addr);
+                _unitDisplayItems.Clear();
+                foreach (var item in _unitItems)
+                    _unitDisplayItems.Add(item.name);
+                ReadCountBox.Value = _unitItems.Count;
+                ClearDetail();
+                if (_unitItems.Count > 0)
+                    UnitListBox.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
@@ -213,6 +224,12 @@ namespace FEBuilderGBA.Avalonia.Views
             AI4DescLabel.Text = "";
             ItemDropLabel.Text = "";
             CommentBox.Text = "";
+            // Reset VM loaded state so Write_Click cannot commit changes
+            // against a stale CurrentAddr after the user moves to an empty
+            // group (Copilot bot review round 3 on PR #540: WriteEntry
+            // only guards CurrentAddr==0, so we must reset it here).
+            _vm.IsLoaded = false;
+            _vm.CurrentAddr = 0;
         }
 
         void UpdateUI()
