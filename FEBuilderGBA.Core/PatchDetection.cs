@@ -194,6 +194,42 @@ namespace FEBuilderGBA
             return ExtendsBattleBG_extends.NO;
         }
 
+        // ---- BG256-color patch detection (used by ImageBG editor) ----
+
+        /// <summary>
+        /// True when the "BG256Color" patch (FE8J/FE8U) is installed in
+        /// the supplied <paramref name="rom"/>. Mirrors WinForms
+        /// <c>PatchUtil.BG256Color() == BG256ColorPatch.BG256Color</c>.
+        /// Used by the ImageBG editor to decide whether P4=0/1 are
+        /// valid table-row flag values.
+        /// </summary>
+        public static bool HasBG256ColorPatch(ROM rom)
+        {
+            if (rom?.RomInfo == null) return false;
+            PatchTableSt[] table = new PatchTableSt[] {
+                new PatchTableSt{ name="BG256Color", ver = "FE8J", addr = 0xE532, data = new byte[]{0xC0, 0x46, 0xC0, 0x46}},
+                new PatchTableSt{ name="BG256Color", ver = "FE8U", addr = 0xE2DA, data = new byte[]{0xC0, 0x46, 0xC0, 0x46}},
+            };
+            string version = rom.RomInfo.VersionToFilename;
+            foreach (PatchTableSt t in table)
+            {
+                if (t.ver != version) continue;
+                byte[] data = rom.getBinaryData(t.addr, t.data.Length);
+                if (U.memcmp(t.data, data) != 0) continue;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Ambient-ROM overload. Reads <see cref="CoreState.ROM"/> if
+        /// available.
+        /// </summary>
+        public static bool HasBG256ColorPatch()
+        {
+            return HasBG256ColorPatch(CoreState.ROM);
+        }
+
         // ---- Generic patch search helpers ----
 
         public static bool SearchPatchBool(PatchTableSt[] table)

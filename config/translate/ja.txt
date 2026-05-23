@@ -6719,3 +6719,6 @@ Core 抽出待ち - #500 で追跡中。
 
 :preview unavailable - tracked by #500
 プレビュー利用不可 - #500 で追跡中
+
+:Header TSA
+ヘッダ付きTSA

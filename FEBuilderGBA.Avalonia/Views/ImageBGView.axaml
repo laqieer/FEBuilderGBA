@@ -2,27 +2,144 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageBGView"
-        Title="Background Image Editor" Width="904" Height="500"
+        Title="Background Image Editor" Width="1024" Height="560"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageBG_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*,Auto">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Top read-config bar (mirrors WinForms panel1: Read Start Address /
+         Read Count / Reload List) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Read Start Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageBG_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageBG_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="256"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ImageBG_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- AddressList + Expand List button (mirrors WinForms panel6) -->
+    <Grid Grid.Row="1" Grid.Column="0" Margin="4" RowDefinitions="*,Auto">
+      <controls:AddressListControl AutomationProperties.AutomationId="ImageBG_Entry_List"
+                                   Grid.Row="0" Name="EntryList" />
+      <Button AutomationProperties.AutomationId="ImageBG_ListExpands_Button"
+              Grid.Row="1" Name="ListExpandsButton"
+              HorizontalAlignment="Stretch" Margin="0,4,0,0"
+              Content="Expand List (+1 slot)" Click="ListExpands_Click" />
+    </Grid>
+
+    <ScrollViewer Grid.Row="1" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Background Image Editor" FontSize="18" FontWeight="Bold" />
 
+        <!-- AddressPanel mirrors WinForms AddressPanel: Address / Size
+             (BlockSize) / Selected Address / Write -->
+        <Grid ColumnDefinitions="120,140,120,140,Auto" RowDefinitions="Auto">
+          <Label Grid.Row="0" Grid.Column="0" Content="Size:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageBG_BlockSize_Input"
+                   Grid.Row="0" Grid.Column="1" Name="BlockSizeBox"
+                   IsReadOnly="True" VerticalAlignment="Center" />
+          <Label Grid.Row="0" Grid.Column="2" Content="Selected Address:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageBG_SelectedAddr_Input"
+                   Grid.Row="0" Grid.Column="3" Name="SelectedAddressBox"
+                   IsReadOnly="True" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="ImageBG_Write_Button"
+                  Grid.Row="0" Grid.Column="4"
+                  Content="Write" Click="Write_Click" Margin="8,0,0,0" />
+        </Grid>
+
+        <!-- Address label (kept for backward compatibility with existing
+             scripts that look up `ImageBG_Addr_Label`). -->
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageBG_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageBG_Addr_Label"
+                     Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="ImageBG_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
-          <Button AutomationProperties.AutomationId="ImageBG_ExportPng_Button" Content="Export PNG" Click="ExportPng_Click" />
-          <Button AutomationProperties.AutomationId="ImageBG_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
-          <Button AutomationProperties.AutomationId="ImageBG_ImportPal_Button" Content="Import PAL" Click="ImportPal_Click" />
+
+        <!-- Main detail panel: per-pointer rows, Comment, X_REF list -->
+        <Grid ColumnDefinitions="120,200,16,300" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: Image (P0) -->
+          <Label Grid.Row="0" Grid.Column="0" Content="Image" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageBG_ImagePointer_Input"
+                   Grid.Row="0" Grid.Column="1" Name="ImagePointerBox" Width="160" />
+
+          <!-- Row 1: Header TSA (P4) — distinct from plain "TSA" because the
+               raw header-packed layout is the BG-specific format. -->
+          <Label Grid.Row="1" Grid.Column="0" Content="Header TSA" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageBG_TSAPointer_Input"
+                   Grid.Row="1" Grid.Column="1" Name="TSAPointerBox" Width="160" />
+
+          <!-- Row 2: Palette (P8) -->
+          <Label Grid.Row="2" Grid.Column="0" Content="Palette" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageBG_PalettePointer_Input"
+                   Grid.Row="2" Grid.Column="1" Name="PalettePointerBox" Width="160" />
+
+          <!-- Row 3: Comment -->
+          <Label Grid.Row="3" Grid.Column="0" Content="Comment" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageBG_Comment_Input"
+                   Grid.Row="3" Grid.Column="1" Name="CommentBox" Width="160" />
+
+          <!-- Right column: References list spanning all rows -->
+          <Label Grid.Row="0" Grid.Column="3" Content="References" VerticalAlignment="Top" />
+          <ListBox AutomationProperties.AutomationId="ImageBG_References_List"
+                   Grid.Row="1" Grid.Column="3" Grid.RowSpan="4" Name="XRefList"
+                   Height="180" />
+        </Grid>
+
+        <!-- BG preview image -->
+        <Border BorderBrush="Gray" BorderThickness="1" Margin="0,8,0,0"
+                MinHeight="160" MinWidth="240">
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageBG_Image_Image"
+                                    Name="ImageDisplay" />
+        </Border>
+
+        <!-- Warning banner (only visible when WarningMessage is non-empty).
+             Mirrors WF `DetailErrorMessageBox` reserve-BG / 255-color
+             warning surface. -->
+        <Border Name="WarningPanel" BorderBrush="OrangeRed" BorderThickness="1"
+                Background="#FFFFE0E0" Margin="0,8,0,0" Padding="8"
+                IsVisible="False">
+          <TextBlock AutomationProperties.AutomationId="ImageBG_Warning_Text"
+                     Name="WarningMessageText" TextWrapping="Wrap" />
+        </Border>
+
+        <!-- Source-file affordance (mirrors WinForms OpenSourceButton +
+             SelectSourceButton — only visible when a source path is
+             recorded AND the file exists on disk) -->
+        <StackPanel Name="SourceFilePanel" Orientation="Horizontal" Spacing="8"
+                    Margin="0,8,0,0" IsVisible="False">
+          <Button AutomationProperties.AutomationId="ImageBG_OpenSource_Button"
+                  Content="Open Source File" Click="OpenSource_Click" />
+          <Button AutomationProperties.AutomationId="ImageBG_SelectSource_Button"
+                  Content="Open Source Folder" Click="SelectSource_Click" />
         </StackPanel>
-        <controls:GbaImageControl AutomationProperties.AutomationId="ImageBG_Image_Image" Name="ImageDisplay" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
+
+    <!-- Bottom button bar (mirrors WinForms panel3: import/export/tools) -->
+    <Border Grid.Row="2" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="4">
+        <Button AutomationProperties.AutomationId="ImageBG_ImportPng_Button"
+                Content="Import Image" Click="ImportPng_Click" />
+        <Button AutomationProperties.AutomationId="ImageBG_ExportPng_Button"
+                Content="Export Image" Click="ExportPng_Click" />
+        <Button AutomationProperties.AutomationId="ImageBG_DecreaseColor_Button"
+                Content="Color Reduce" Click="DecreaseColor_Click" />
+        <Button AutomationProperties.AutomationId="ImageBG_GraphicsTool_Button"
+                Content="Graphics Tool" Click="GraphicsTool_Click" />
+        <Button AutomationProperties.AutomationId="ImageBG_ExportPal_Button"
+                Content="Export PAL" Click="ExportPal_Click" />
+        <Button AutomationProperties.AutomationId="ImageBG_ImportPal_Button"
+                Content="Import PAL" Click="ImportPal_Click" />
+      </StackPanel>
+    </Border>
+
   </Grid>
 </Window>
