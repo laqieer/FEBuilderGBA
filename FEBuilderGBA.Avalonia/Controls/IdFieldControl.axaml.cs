@@ -132,6 +132,15 @@ namespace FEBuilderGBA.Avalonia.Controls
             // Wire NumericUpDown.ValueChanged → routed ValueChanged event.
             if (ValueBox != null)
             {
+                // Initial sync — the inner NumericUpDown's Value defaults to null
+                // (Avalonia's decimal? default). Without this seed, when the host
+                // writes the same value as the host's StyledProperty default (0u),
+                // OnPropertyChanged never fires (no change → no sync), and the
+                // inner NumericUpDown stays at Value=null. That null surfaces as
+                // `UI_EMPTY` in the --data-verify check (root cause #2 of
+                // #498/#502/#509/#514/#515). Seed the inner Value to 0m so the
+                // control always has a concrete displayable value.
+                ValueBox.Value = (decimal)Value;
                 ValueBox.ValueChanged += OnNumericValueChanged;
             }
             // Propagate the host's AutomationId to the inner controls so E2E

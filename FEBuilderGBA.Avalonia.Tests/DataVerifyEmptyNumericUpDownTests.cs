@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Regression tests for the two root causes behind the 2026-05-22 scheduled E2E
+// failures (#498/#502/#509/#514/#515):
+//
+//   Root cause #1 — `FormatString="X8"` (or X4/X2) on Avalonia's
+//   decimal-typed NumericUpDown throws FormatException when a value is
+//   assigned. The exception interrupts the enclosing code, leaving
+//   downstream NumericUpDown.Value at the default null. The
+//   `--data-verify` UI check then reports `UI_EMPTY` for any NUD whose
+//   Value is null after the view's Opened handler runs.
+//
+//   Root cause #2 — `IdFieldControl.ValueBox` (the inner NumericUpDown)
+//   stays at Value=null when the host's StyledProperty Value default is 0
+//   and the host writes 0 to it (no PropertyChanged event fires).
+//
+// These tests open each affected editor via the headless harness with a
+// ROM loaded, wait for Opened to finish, and assert that every visible,
+// enabled NumericUpDown has a non-null Value — exactly mirroring the
+// production data-verify UI check in MainWindow.CheckNumericUpDownsDisplayValues.
+//
+// Marked [Collection("SharedState")] because the tests mutate
+// CoreState.ROM via RomTestHelper.WithRom.
+using System.Collections.Generic;
+using System.Linq;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
+using FEBuilderGBA.Avalonia.Views;
+using Xunit;
+
+namespace FEBuilderGBA.Avalonia.Tests;
+
+[Collection("SharedState")]
+public class DataVerifyEmptyNumericUpDownTests
+{
+    /// <summary>
+    /// Returns the names of every visible, enabled NumericUpDown whose Value
+    /// is null. This is the exact same predicate MainWindow.CheckNumericUpDownsDisplayValues
+    /// uses to emit `UIVERIFY: {view}|emptyNUDs=...` lines.
+    /// </summary>
+    static List<string> FindEmptyVisibleNuds(Window window)
+    {
+        var empty = new List<string>();
+        foreach (var descendant in window.GetVisualDescendants())
+        {
+            if (descendant is NumericUpDown nud)
+            {
+                if (!nud.IsEffectivelyVisible) continue;
+                if (nud.Value == null)
+                    empty.Add(nud.Name ?? "(unnamed)");
+            }
+        }
+        return empty;
+    }
+
+    /// <summary>
+    /// Helper: instantiates the view, calls Show() so Opened fires, runs the
+    /// view's SelectFirstItem() (if present) and checks every NumericUpDown.
+    /// </summary>
+    static List<string> OpenAndCollectEmptyNuds<TView>() where TView : Window, new()
+    {
+        var view = new TView();
+        try
+        {
+            view.Show();
+            // SelectFirstItem mirrors what the data-verify harness does after
+            // the Opened handler runs (MainWindow.RunDataVerify line ~1352).
+            var method = typeof(TView).GetMethod("SelectFirstItem");
+            method?.Invoke(view, null);
+            return FindEmptyVisibleNuds(view);
+        }
+        finally
+        {
+            view.Close();
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Root cause #1 — hex FormatString on NumericUpDown.
+    // These four editors carry a `FormatString="X8"` ReadStartAddressBox /
+    // ItemAddressBox that throws during the LoadList path, leaving the
+    // subsequent ReadCountBox.Value (FormatString="0") at null.
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void MapTerrainBGLookupTableView_NoEmptyNumericUpDowns_FE6()
+    {
+        if (TestRomLocator.FindRom("FE6") == null) return;
+        RomTestHelper.WithRom("FE6", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<MapTerrainBGLookupTableView>();
+            Assert.True(empty.Count == 0,
+                $"MapTerrainBGLookupTableView (FE6) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    [AvaloniaFact]
+    public void MapTerrainFloorLookupTableView_NoEmptyNumericUpDowns_FE6()
+    {
+        if (TestRomLocator.FindRom("FE6") == null) return;
+        RomTestHelper.WithRom("FE6", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<MapTerrainFloorLookupTableView>();
+            Assert.True(empty.Count == 0,
+                $"MapTerrainFloorLookupTableView (FE6) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    [AvaloniaFact]
+    public void ImageBGView_NoEmptyNumericUpDowns_FE6()
+    {
+        if (TestRomLocator.FindRom("FE6") == null) return;
+        RomTestHelper.WithRom("FE6", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<ImageBGView>();
+            Assert.True(empty.Count == 0,
+                $"ImageBGView (FE6) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    [AvaloniaFact]
+    public void ImageBattleBGView_NoEmptyNumericUpDowns_FE6()
+    {
+        if (TestRomLocator.FindRom("FE6") == null) return;
+        RomTestHelper.WithRom("FE6", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<ImageBattleBGView>();
+            Assert.True(empty.Count == 0,
+                $"ImageBattleBGView (FE6) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    // -----------------------------------------------------------------
+    // Root cause #2 — IdFieldControl inner ValueBox.Value stays null when
+    // the host's Value default (0u) equals the first-item value loaded
+    // from ROM. On FE8U, CCBranch entry 0 has PromotionClass1=0|2=0 and
+    // MonsterItem entry 0 has ItemId=0, both reproducing the trap.
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void CCBranchEditorView_NoEmptyNumericUpDowns_FE8U()
+    {
+        if (TestRomLocator.FindRom("FE8U") == null) return;
+        RomTestHelper.WithRom("FE8U", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<CCBranchEditorView>();
+            Assert.True(empty.Count == 0,
+                $"CCBranchEditorView (FE8U) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    [AvaloniaFact]
+    public void MonsterItemViewerView_NoEmptyNumericUpDowns_FE8U()
+    {
+        if (TestRomLocator.FindRom("FE8U") == null) return;
+        RomTestHelper.WithRom("FE8U", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<MonsterItemViewerView>();
+            Assert.True(empty.Count == 0,
+                $"MonsterItemViewerView (FE8U) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+}

@@ -26,7 +26,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Top Address" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_BaseAddr_Input"
-                           FormatString="X8" Name="BeforeBaseAddrBox" Width="120"
+                           FormatString="0" Name="BeforeBaseAddrBox" Width="120"
                            Minimum="0" Maximum="4294967295"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Read Count" VerticalAlignment="Center" />
@@ -44,7 +44,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Address" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_RowAddr_Input"
-                           FormatString="X8" Name="BeforeRowAddrBox" Width="120"
+                           FormatString="0" Name="BeforeRowAddrBox" Width="120"
                            Minimum="0" Maximum="4294967295"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Size:" VerticalAlignment="Center" />
@@ -67,7 +67,7 @@
             <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto">
               <Label Grid.Row="0" Grid.Column="0" Content="Event Pointer (u32@0):" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_EventPtr_Input"
-                             FormatString="X8" Grid.Row="0" Grid.Column="1"
+                             FormatString="0" Grid.Row="0" Grid.Column="1"
                              Name="BeforeEventPtrBox" Width="160"
                              Minimum="0" Maximum="4294967295"
                              HorizontalAlignment="Left" VerticalAlignment="Center" />
@@ -89,7 +89,7 @@
                           Content="Opening Event" Click="JumpToOpening_Click"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
                   <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_OpeningEvent_Input"
-                                 FormatString="X8" Grid.Row="0" Grid.Column="1"
+                                 FormatString="0" Grid.Row="0" Grid.Column="1"
                                  Name="OpeningEventBox" Width="160"
                                  Minimum="0" Maximum="4294967295"
                                  HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,2" />
@@ -98,7 +98,7 @@
                           Content="Eirika Ending" Click="JumpToEnding1_Click"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
                   <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending1Event_Input"
-                                 FormatString="X8" Grid.Row="1" Grid.Column="1"
+                                 FormatString="0" Grid.Row="1" Grid.Column="1"
                                  Name="Ending1EventBox" Width="160"
                                  Minimum="0" Maximum="4294967295"
                                  HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,2" />
@@ -107,7 +107,7 @@
                           Content="Ephraim Ending" Click="JumpToEnding2_Click"
                           HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
                   <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending2Event_Input"
-                                 FormatString="X8" Grid.Row="2" Grid.Column="1"
+                                 FormatString="0" Grid.Row="2" Grid.Column="1"
                                  Name="Ending2EventBox" Width="160"
                                  Minimum="0" Maximum="4294967295"
                                  HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,2" />
@@ -141,7 +141,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Top Address" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_BaseAddr_Input"
-                           FormatString="X8" Name="AfterBaseAddrBox" Width="120"
+                           FormatString="0" Name="AfterBaseAddrBox" Width="120"
                            Minimum="0" Maximum="4294967295"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Read Count" VerticalAlignment="Center" />
@@ -159,7 +159,7 @@
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
             <Label Content="Address" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_RowAddr_Input"
-                           FormatString="X8" Name="AfterRowAddrBox" Width="120"
+                           FormatString="0" Name="AfterRowAddrBox" Width="120"
                            Minimum="0" Maximum="4294967295"
                            IsReadOnly="True" VerticalAlignment="Center" />
             <Label Content="Size:" VerticalAlignment="Center" />
@@ -182,7 +182,7 @@
             <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto">
               <Label Grid.Row="0" Grid.Column="0" Content="Event Pointer (u32@0):" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_EventPtr_Input"
-                             FormatString="X8" Grid.Row="0" Grid.Column="1"
+                             FormatString="0" Grid.Row="0" Grid.Column="1"
                              Name="AfterEventPtrBox" Width="160"
                              Minimum="0" Maximum="4294967295"
                              HorizontalAlignment="Left" VerticalAlignment="Center" />

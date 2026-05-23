@@ -12,7 +12,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Read Start Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ImageBattleBG_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count" VerticalAlignment="Center" />

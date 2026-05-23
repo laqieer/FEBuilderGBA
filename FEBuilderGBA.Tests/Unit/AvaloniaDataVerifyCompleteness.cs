@@ -143,24 +143,15 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("UI_EMPTY", src);
         }
 
-        /// <summary>
-        /// No AXAML file should use FormatString="X" on NumericUpDown
-        /// because NumericUpDown.Value is decimal? and decimal.ToString("X") throws FormatException.
-        /// </summary>
-        [Fact]
-        public void NoAxaml_UsesHexFormatStringOnNumericUpDown()
-        {
-            var viewsDir = Path.Combine(AvaloniaDir, "Views");
-            foreach (var file in Directory.GetFiles(viewsDir, "*.axaml"))
-            {
-                var content = File.ReadAllText(file);
-                if (content.Contains("NumericUpDown"))
-                {
-                    Assert.False(content.Contains("FormatString=\"X\""),
-                        $"{Path.GetFileName(file)} uses FormatString=\"X\" — incompatible with decimal type");
-                }
-            }
-        }
+        // NOTE: NumericUpDown hex-FormatString check moved to
+        // `AvaloniaEditorTests.NoAxamlFile_UsesHexFormatString_OnNumericUpDown`,
+        // which is now the single authoritative guard. That version uses
+        // XML-attribute parsing (so it's immune to comment false positives)
+        // and matches `X`, `X2`, `X4`, `X8`, … (so it catches the variant that
+        // slipped through and triggered the 2026-05-22 scheduled E2E failures
+        // #498/#502/#509/#514/#515). Scans both `Views/` AND `Controls/`.
+        //
+        // Per Copilot CLI plan-v2 review point 2 — duplicate guards consolidated.
 
         /// <summary>
         /// The data-verify runner must output TEXTVERIFY lines for text encoding verification.

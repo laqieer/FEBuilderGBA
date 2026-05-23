@@ -1414,29 +1414,74 @@ namespace FEBuilderGBA.Tests.Unit
         // ------------------------------------------------------------------ NumericUpDown FormatString regression
 
         /// <summary>
-        /// Avalonia NumericUpDown.Value is decimal? — the "X" hex format specifier
-        /// is not supported for decimal type and causes FormatException during rendering,
-        /// which prevents ALL NumericUpDown controls in the panel from displaying values.
-        /// This test ensures no AXAML file uses FormatString="X".
+        /// Avalonia NumericUpDown.Value is decimal? — ANY hex format specifier
+        /// ("X", "X2", "X4", "X8", …) is not supported for decimal type and causes
+        /// FormatException during rendering, which prevents ALL NumericUpDown
+        /// controls assigned after the throwing one from displaying values.
+        ///
+        /// Original guard (issue #58) only caught the bare "X" format. The
+        /// 2026-05-22 scheduled E2E failures (#498/#502/#509/#514/#515) showed
+        /// "X8" was still leaking through. This guard parses each AXAML as XML
+        /// and inspects every NumericUpDown element's FormatString attribute,
+        /// so it catches every hex variant AND is immune to false positives
+        /// from narrative XML comments that quote `FormatString="X*"`.
+        ///
+        /// Scans both `FEBuilderGBA.Avalonia/Views/` AND
+        /// `FEBuilderGBA.Avalonia/Controls/` so shared controls like
+        /// `IdFieldControl` are covered.
         /// </summary>
         [Fact]
         public void NoAxamlFile_UsesHexFormatString_OnNumericUpDown()
         {
             var viewsDir = Path.Combine(AvaloniaDir, "Views");
+            var controlsDir = Path.Combine(AvaloniaDir, "Controls");
             var violations = new List<string>();
 
-            foreach (var file in Directory.GetFiles(viewsDir, "*.axaml"))
+            // Compose the list of AXAML files from both directories.
+            var axamlFiles = new List<string>();
+            if (Directory.Exists(viewsDir))
+                axamlFiles.AddRange(Directory.GetFiles(viewsDir, "*.axaml"));
+            if (Directory.Exists(controlsDir))
+                axamlFiles.AddRange(Directory.GetFiles(controlsDir, "*.axaml"));
+
+            // Hex format pattern — matches "X" optionally followed by digits.
+            var hexFormat = new System.Text.RegularExpressions.Regex("^X\\d*$");
+
+            foreach (var file in axamlFiles)
             {
-                var content = File.ReadAllText(file);
-                if (content.Contains("FormatString=\"X\"") && content.Contains("NumericUpDown"))
+                // Parse as XML to inspect actual attributes (not raw text). This
+                // automatically excludes comments and inner text, which is what
+                // Copilot CLI review point 3 flagged on plan v1.
+                System.Xml.Linq.XDocument doc;
+                try
                 {
-                    violations.Add(Path.GetFileName(file));
+                    doc = System.Xml.Linq.XDocument.Load(file);
+                }
+                catch (System.Xml.XmlException)
+                {
+                    continue; // Malformed AXAML is a separate concern.
+                }
+
+                // Find any NumericUpDown element (regardless of namespace) whose
+                // FormatString attribute matches the hex pattern.
+                foreach (var el in doc.Descendants())
+                {
+                    if (el.Name.LocalName != "NumericUpDown") continue;
+                    var fmt = el.Attribute("FormatString")?.Value;
+                    if (fmt == null) continue;
+                    if (hexFormat.IsMatch(fmt))
+                    {
+                        var name = el.Attribute("Name")?.Value
+                                ?? el.Attribute(System.Xml.Linq.XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value
+                                ?? "(unnamed)";
+                        violations.Add($"{Path.GetFileName(file)}:{name} FormatString=\"{fmt}\"");
+                    }
                 }
             }
 
             Assert.True(violations.Count == 0,
-                $"These AXAML files use FormatString=\"X\" on NumericUpDown (incompatible with decimal type): " +
-                string.Join(", ", violations));
+                $"NumericUpDown controls with hex FormatString (decimal.ToString(\"X*\") throws FormatException) — " +
+                $"{violations.Count} violation(s): " + string.Join(", ", violations));
         }
 
         [Fact]
