@@ -11,7 +11,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7U_Address_Input"
-                       FormatString="X8" Name="AddressBox" Width="120"
+                       FormatString="0" Name="AddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
@@ -155,7 +155,7 @@
             <Grid ColumnDefinitions="100,120,80,80,140,*" RowDefinitions="Auto">
               <Label Grid.Column="0" Content="Address" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7U_N2_Address_Input"
-                             Grid.Column="1" FormatString="X8" Name="N2AddressBox"
+                             Grid.Column="1" FormatString="0" Name="N2AddressBox"
                              Minimum="0" Maximum="4294967295" IsEnabled="False" />
               <Label Grid.Column="2" Content="Size:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7U_N2_BlockSize_Input"
@@ -182,7 +182,7 @@
                        Content="Command" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="OPClassDemoFE7U_N2_CommandRaw_Input"
-                               FormatString="X2" Name="N2CommandRawBox"
+                               FormatString="0" Name="N2CommandRawBox"
                                Minimum="0" Maximum="255" />
 
                 <Label Grid.Row="1" Grid.Column="0" Content="Command Description:" VerticalAlignment="Center" Margin="0,4,0,0" />
