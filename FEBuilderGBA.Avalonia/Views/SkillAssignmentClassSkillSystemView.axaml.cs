@@ -45,7 +45,7 @@ namespace FEBuilderGBA.Avalonia.Views
         static void DisposeBitmap(ref Bitmap bmp)
         {
             if (bmp == null) return;
-            try { bmp.Dispose(); } catch { }
+            try { bmp.Dispose(); } catch (System.Exception ex) { Log.Debug("SkillAssignmentClassSkillSystemView dispose bmp: {0}", ex.Message); }
             bmp = null;
         }
 
@@ -109,9 +109,21 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateMasterPanelVisibility()
         {
             ZeroPointerPanel.IsVisible = _vm.IsZeroPointer;
+            if (string.IsNullOrEmpty(ZeroPointerText.Text))
+            {
+                ZeroPointerText.Text = R._("No level-up table is allocated for this class.\nPress List Expand to allocate one.");
+            }
             IndependencePanel.IsVisible = _vm.IsIndependenceVisible;
             XLevelAddPanel.IsVisible = _vm.IsClassSkillExtendsActive && !_vm.IsLv255;
             Lv255Panel.IsVisible = _vm.IsLv255;
+            // Set the LV255 info-text from code rather than AXAML so the
+            // l10n scanner does not trip on a multi-line literal that would
+            // not match the existing ja/zh translation entries (which key
+            // by literal backslash-n sequences).
+            if (_vm.IsLv255 && string.IsNullOrEmpty(Lv255InfoBox.Text))
+            {
+                Lv255InfoBox.Text = R._("Level 255 is set.\nIf promoted from a lower class to this one, the skill will NOT be granted.\nThe skill is granted only when LOADed directly as this class.");
+            }
         }
 
         void RefreshClassIcon()
@@ -137,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_classIconBitmap != null && !ReferenceEquals(_classIconBitmap, bmp))
             {
-                try { _classIconBitmap.Dispose(); } catch { }
+                try { _classIconBitmap.Dispose(); } catch (System.Exception ex) { Log.Debug("SkillAssignmentClassSkillSystemView dispose class icon: {0}", ex.Message); }
             }
             _classIconBitmap = bmp;
             SkillIconImage.Source = bmp;
@@ -166,7 +178,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_n1IconBitmap != null && !ReferenceEquals(_n1IconBitmap, bmp))
             {
-                try { _n1IconBitmap.Dispose(); } catch { }
+                try { _n1IconBitmap.Dispose(); } catch (System.Exception ex) { Log.Debug("SkillAssignmentClassSkillSystemView dispose n1 icon: {0}", ex.Message); }
             }
             _n1IconBitmap = bmp;
             N1SkillIconImage.Source = bmp;
@@ -204,11 +216,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void N1EntryList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (N1EntryList.SelectedItem is not AddrResult entry) return;
+            if (N1EntryList.SelectedItem is not SkillAssignmentClassSkillSystemViewModel.LevelUpEntry entry) return;
             try
             {
                 _vm.IsLoading = true;
-                _vm.LoadLevelUpEntry(entry.addr);
+                _vm.LoadLevelUpEntry(entry.Addr);
                 UpdateN1UI();
             }
             catch (Exception ex)

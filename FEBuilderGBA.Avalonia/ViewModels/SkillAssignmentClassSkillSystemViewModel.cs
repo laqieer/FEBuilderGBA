@@ -73,7 +73,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsZeroPointer { get => _isZeroPointer; set => SetField(ref _isZeroPointer, value); }
         public bool IsIndependenceVisible { get => _isIndependenceVisible; set => SetField(ref _isIndependenceVisible, value); }
 
-        public ObservableCollection<AddrResult> LevelUpEntries { get; } = new();
+        public sealed class LevelUpEntry
+        {
+            public uint Addr { get; init; }
+            public string Name { get; init; }
+            public uint Tag { get; init; }
+            public override string ToString() => Name;
+        }
+        public ObservableCollection<LevelUpEntry> LevelUpEntries { get; } = new();
         uint _selectedLevelUpAddr;
         uint _selectedLevelUpId;
         uint _levelUpRaw;
@@ -228,7 +235,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isSafetyOffset(cursor + 1, rom)) break;
                 uint pair = rom.u16(cursor);
                 if (pair == 0 || pair == 0xFFFF) break;
-                LevelUpEntries.Add(new AddrResult(cursor, "0x" + n.ToString("X02"), n));
+                LevelUpEntries.Add(new LevelUpEntry { Addr = cursor, Name = "0x" + n.ToString("X02"), Tag = n });
             }
         }
 
@@ -503,11 +510,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
-            return new Dictionary<string, string>
+            var dict = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0):X02}",
+                ["u8@0x00_ClassSkill"] = $"0x{rom.u8(a + 0):X02}",
             };
+            if (SelectedLevelUpAddr != 0 && U.isSafetyOffset(SelectedLevelUpAddr + 1, rom))
+            {
+                dict["u8@0x00_LevelUpRaw"] = $"0x{rom.u8(SelectedLevelUpAddr + 0):X02}";
+                dict["u8@0x01_LevelUpSkill"] = $"0x{rom.u8(SelectedLevelUpAddr + 1):X02}";
+            }
+            return dict;
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()

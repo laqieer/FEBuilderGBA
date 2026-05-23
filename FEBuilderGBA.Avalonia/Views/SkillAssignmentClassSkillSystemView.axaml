@@ -137,8 +137,13 @@
                       HorizontalAlignment="Stretch" Click="N1ListExpand_Click" />
               <ListBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Entry_List"
                        Name="N1EntryList" ItemsSource="{Binding LevelUpEntries}"
-                       DisplayMemberBinding="{Binding name}"
-                       SelectionChanged="N1EntryList_SelectionChanged" />
+                       SelectionChanged="N1EntryList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Name}" />
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
             </DockPanel>
           </Border>
 
@@ -214,10 +219,15 @@
             <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Lv255Panel"
                     Name="Lv255Panel" BorderBrush="Gray" BorderThickness="1" Padding="6"
                     IsVisible="False">
+              <!-- Text bound from code-behind so the l10n scanner doesn't pick it
+                   up as a multi-line literal that conflicts with the existing
+                   ja/zh entry (`Level 255 is set.
+If promoted...` parses with
+                   literal backslash-n, while &#10; produces a real LF that the
+                   scanner can't reconcile). -->
               <TextBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Lv255Info_Input"
                        Name="Lv255InfoBox" IsReadOnly="True" AcceptsReturn="True"
-                       MinHeight="60"
-                       Text="Level 255 is set.&#10;If promoted from a lower class to this one, the skill will NOT be granted.&#10;The skill is granted only when LOADed directly as this class." />
+                       MinHeight="60" />
             </Border>
 
             <Grid ColumnDefinitions="160,80,Auto,*" RowDefinitions="Auto">
@@ -241,8 +251,8 @@
             <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ZeroPointerPanel"
                     Name="ZeroPointerPanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
                     IsVisible="False">
-              <TextBlock TextWrapping="Wrap"
-                         Text="No level-up table is allocated for this class.&#10;Press List Expand to allocate one." />
+              <!-- Text bound from code-behind to avoid l10n scanner conflicts -->
+              <TextBlock TextWrapping="Wrap" Name="ZeroPointerText" />
             </Border>
 
             <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_IndependencePanel"
