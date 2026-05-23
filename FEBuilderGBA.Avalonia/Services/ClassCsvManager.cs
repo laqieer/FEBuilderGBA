@@ -74,9 +74,25 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Build the CSV text for a set of class-row addresses. Pure function
         /// over ROM bytes - no dialogs, no clipboard. Returns a string ending
-        /// in '\n' per data row (matches WF CsvManager output shape).
+        /// in '\n' per data row (matches WF CsvManager output shape). Emits
+        /// UIDs starting from 0 (matches the WF "Export All" path which uses
+        /// the row index from the InputFormRef iteration).
         /// </summary>
         public string BuildExportCsv(ROM rom, IReadOnlyList<uint> rowAddresses)
+            => BuildExportCsv(rom, rowAddresses, startingUid: 0);
+
+        /// <summary>
+        /// Build the CSV text anchoring the UID column to
+        /// <paramref name="startingUid"/> rather than 0. Used by
+        /// <see cref="ExportSelectedAsync"/> so an exported single row carries
+        /// the SELECTED class's UID (matches WF
+        /// <c>CsvManager.ExportSingle(InputFormRef, index)</c> which passes
+        /// the selected index, not 0). Without this overload, single-row
+        /// export always emitted UID=0, which mis-routes a later
+        /// import-as-multi-row UID-routed CSV. Fix from Copilot CLI inline
+        /// review on PR #570.
+        /// </summary>
+        public string BuildExportCsv(ROM rom, IReadOnlyList<uint> rowAddresses, uint startingUid)
         {
             if (rom == null) throw new ArgumentNullException(nameof(rom));
             if (rowAddresses == null) throw new ArgumentNullException(nameof(rowAddresses));
@@ -85,7 +101,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (_includeHeader)
                 sb.Append(BuildHeader());
             for (int i = 0; i < rowAddresses.Count; i++)
-                sb.Append(BuildDataRow(rom, (uint)i, rowAddresses[i]));
+                sb.Append(BuildDataRow(rom, startingUid + (uint)i, rowAddresses[i]));
             return sb.ToString();
         }
 
@@ -326,12 +342,29 @@ namespace FEBuilderGBA.Avalonia.Services
             await WriteCsvAsync(owner, csv);
         }
 
-        /// <summary>Export a single row. Routes to clipboard or file dialog.</summary>
-        public async Task ExportSelectedAsync(Window owner, ROM rom, uint addr)
+        /// <summary>
+        /// Export a single row at <paramref name="addr"/>. Routes to clipboard
+        /// or file dialog. The exported UID is <paramref name="uid"/> when
+        /// <see cref="_includeUID"/> or <see cref="_includeName"/> is set; the
+        /// default zero-arg overload preserves the legacy uid=0 behavior for
+        /// backwards compatibility (and the headless tests that don't track
+        /// a class id), while the live UI uses the uid-aware overload so a
+        /// later UID-routed multi-row import lands on the correct class
+        /// (Copilot CLI inline review on PR #570).
+        /// </summary>
+        public async Task ExportSelectedAsync(Window owner, ROM rom, uint addr, uint uid)
         {
-            string csv = BuildExportCsv(rom, new[] { addr });
+            string csv = BuildExportCsv(rom, new[] { addr }, startingUid: uid);
             await WriteCsvAsync(owner, csv);
         }
+
+        /// <summary>
+        /// Backwards-compatible overload that exports with UID=0 (matches the
+        /// initial v1 behavior of this PR). Prefer the uid-aware overload in
+        /// new code.
+        /// </summary>
+        public Task ExportSelectedAsync(Window owner, ROM rom, uint addr)
+            => ExportSelectedAsync(owner, rom, addr, uid: 0);
 
         /// <summary>Import all rows from a clipboard or file source.</summary>
         public async Task<int> ImportAllAsync(Window owner, ROM rom, IReadOnlyList<uint> rowAddresses)

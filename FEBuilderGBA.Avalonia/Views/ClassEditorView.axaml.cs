@@ -916,7 +916,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) return;
-                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr);
+                // Pass the SELECTED class id (0-based AddressList index) so
+                // the exported single-row CSV carries the correct UID
+                // (Copilot CLI inline review on PR #570). Falls back to 0
+                // when no selection is resolvable.
+                int idx = ClassList.SelectedOriginalIndex;
+                uint uid = idx >= 0 ? (uint)idx : 0u;
+                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
             }
             catch (Exception ex) { Log.Error("ExportSelected_Click failed: {0}", ex.Message); }
         }
@@ -1004,8 +1010,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Reload_Click(object? sender, RoutedEventArgs e)
         {
+            // LoadList() already calls UpdateAddressBarInfra() on its success
+            // path; the prior duplicate call was redundant (Copilot CLI inline
+            // review on PR #570).
             LoadList();
-            UpdateAddressBarInfra();
         }
 
         // ---- #406: HardCoding warning (parity with WF ClassForm) ----

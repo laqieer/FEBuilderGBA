@@ -445,6 +445,46 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(1, csv.Count(c => c == '\n'));
         }
 
+        /// <summary>
+        /// BuildExportCsv(rom, rowAddresses, startingUid) anchors the emitted
+        /// UID column to <c>startingUid</c> instead of 0. The single-row
+        /// "Export Selected" path uses this so the exported CSV carries the
+        /// selected class's actual id (parity with WF
+        /// <c>CsvManager.ExportSingle(InputFormRef, index)</c> — Copilot CLI
+        /// inline review on PR #570).
+        /// </summary>
+        [Fact]
+        public void Export_WithStartingUid_AnchorsUidColumnToProvidedValue()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(3);
+            var mgr = new ClassCsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: false, includeBaseStats: false, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            // Single-row export of the third class (UID 2), starting at uid=2.
+            uint thirdRowAddr = baseAddr + 2 * dataSize;
+            string csv = mgr.BuildExportCsv(rom, new[] { thirdRowAddr }, startingUid: 2u);
+            string[] lines = csv.Split('\n');
+            Assert.Equal("2", lines[0].Split(',')[0].Trim());
+        }
+
+        /// <summary>
+        /// Verify the default zero-arg BuildExportCsv preserves the v1
+        /// behavior (UID=0) so legacy callers / headless tests aren't
+        /// affected by the new overload.
+        /// </summary>
+        [Fact]
+        public void Export_WithoutStartingUid_RemainsZeroBased()
+        {
+            var (rom, baseAddr, _) = MakeStubRom(1);
+            var mgr = new ClassCsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: false, includeBaseStats: false, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            string csv = mgr.BuildExportCsv(rom, new[] { baseAddr });
+            Assert.Equal("0", csv.Split('\n')[0].Split(',')[0].Trim());
+        }
+
         [Fact]
         public void Import_Roundtrip_PreservesClassShapeBytes()
         {
