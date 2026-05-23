@@ -55,12 +55,14 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Select the row whose address matches <paramref name="address"/>.
         /// If the address sits in a table that this view's <see cref="LoadList"/>
         /// did NOT load (e.g. FE7's secondary table at
-        /// <c>event_ballte_talk2_pointer</c>), fall back to loading the entry
-        /// directly into the VM so the detail panel still shows the user the
-        /// hit row — the caller (e.g. EventUnitFE7View's `JumpBattleTalk_Click`)
-        /// passes the byte address resolved by
-        /// <see cref="MapEventUnitCore.FindBattleTalkFE7UnitIdAddress"/>
-        /// which searches BOTH tables.
+        /// <c>event_ballte_talk2_pointer</c>, which uses 12-byte blocks),
+        /// log the hit and do NOT call LoadEntry — the VM assumes 16-byte
+        /// blocks and would misparse the 12-byte schema (Copilot review
+        /// #522 round 4). The caller (e.g. EventUnitFE7View's
+        /// JumpBattleTalk_Click) gets the hit address via the Core helper
+        /// <see cref="MapEventUnitCore.FindBattleTalkFE7UnitIdAddress"/>;
+        /// the user can manually paste the address into the Address textbox
+        /// if a 12-byte-aware secondary list is added in a follow-up.
         /// </summary>
         public void NavigateTo(uint address)
         {
@@ -68,21 +70,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // Try the primary list first.
             EntryList.SelectAddress(address);
             if (_vm.CurrentAddr == address) return;
-            // Out-of-list address (e.g. table-2 hit) — load the entry directly
-            // so the detail panel reflects the jump target.
-            try
-            {
-                _vm.LoadEntry(address);
-                UpdateUI();
-                // Keep AddrLabel as a pure address string (Copilot review
-                // #522 third pass — the English suffix wasn't picked up by
-                // the translation layer). The detail panel shows the entry.
-                Log.Notify("EventBattleTalkFE7View.NavigateTo: loaded table-2 entry at 0x" + address.ToString("X8"));
-            }
-            catch (Exception ex)
-            {
-                Log.Error("EventBattleTalkFE7View.NavigateTo fallback failed: {0}", ex.Message);
-            }
+            // Out-of-list address (table-2 hit). The Table-2 schema is
+            // 12-byte but the VM assumes 16-byte — loading the entry here
+            // would misparse fields and leave Write enabled against the
+            // wrong schema (Copilot review #522 round 4). Log the hit and
+            // surface a status update via the address label.
+            Log.Notify("EventBattleTalkFE7View.NavigateTo: secondary-table (12-byte) hit at 0x" + address.ToString("X8") + ". Secondary list UI is tracked as a follow-up to PR #522.");
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;

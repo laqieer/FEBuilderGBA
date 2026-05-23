@@ -198,7 +198,9 @@ namespace FEBuilderGBA
                 if (slotAddr + 4 > romLen) break;
 
                 uint unitListAddr = rom.p32(slotAddr);
-                if (!U.isSafetyOffset(unitListAddr)) continue;
+                // ROM-pinned safety check (Copilot review #522 round 4)
+                // — match the bounds against the rom actually being walked.
+                if (!U.isSafetyOffset(unitListAddr, rom)) continue;
                 if (unitListAddr == 0) continue;
 
                 // Verify at least the first byte looks like a unit ID
@@ -273,7 +275,8 @@ namespace FEBuilderGBA
         {
             var result = new List<AddrResult>();
             if (rom?.RomInfo == null) return result;
-            if (!U.isSafetyOffset(baseAddr)) return result;
+            // ROM-pinned safety check (Copilot review #522 round 4).
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             uint dataSize = rom.RomInfo.eventunit_data_size;
             uint romLen = (uint)rom.Data.Length;

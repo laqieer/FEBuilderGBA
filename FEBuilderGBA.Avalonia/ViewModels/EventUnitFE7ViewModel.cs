@@ -55,8 +55,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        public uint UnitID { get => _unitID; set => SetField(ref _unitID, value); }
-        public uint ClassID { get => _classID; set => SetField(ref _classID, value); }
+        public uint UnitID
+        {
+            get => _unitID;
+            set
+            {
+                if (SetField(ref _unitID, value))
+                {
+                    // Refresh the item-drop status when the unit changes
+                    // (Copilot review #522 round 4 — keeps the displayed
+                    // label honest while editing, not just on initial load).
+                    RefreshItemDropDisplay();
+                }
+            }
+        }
+        public uint ClassID
+        {
+            get => _classID;
+            set
+            {
+                if (SetField(ref _classID, value))
+                {
+                    RefreshItemDropDisplay();
+                }
+            }
+        }
+
+        void RefreshItemDropDisplay()
+        {
+            ItemDropDisplay = ComputeItemDropDisplay(_unitID, _classID);
+        }
         public uint LeaderUnitID { get => _leaderUnitID; set => SetField(ref _leaderUnitID, value); }
         public uint UnitInfo
         {

@@ -68,7 +68,52 @@ namespace FEBuilderGBA.Avalonia.Views
             // with WF UNITGROW two-way binding).
             UnitInfoBox.ValueChanged += UnitInfoBox_ValueChanged;
 
+            // Wire StartX/StartY → EndX/EndY sync when PosSyncCombo selects
+            // index 0 ("Sync After with Before") — mirrors WF
+            // EventUnitFE7Form.B4_ValueChanged / B5_ValueChanged
+            // (PosSyncUpdateComboBox.SelectedIndex == 0 → also update B6/B7).
+            // Default to index 1 ("Before and After independent") so editing
+            // doesn't surprise the user. (Copilot review #522 round 4.)
+            PosSyncCombo.SelectedIndex = 1;
+            StartXBox.ValueChanged += StartXBox_ValueChanged;
+            StartYBox.ValueChanged += StartYBox_ValueChanged;
+
+            // Live-refresh the ItemDrop status when UnitID/ClassID change
+            // (Copilot review #522 round 4 — status was only refreshed on
+            // LoadEntry, not while the user was editing).
+            UnitIDBox.ValueChanged += UnitOrClassIdChanged;
+            ClassIDBox.ValueChanged += UnitOrClassIdChanged;
+
             Opened += (_, _) => LoadMapList();
+        }
+
+        void StartXBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            if (PosSyncCombo.SelectedIndex != 0) return;
+            // Sync mode 0 — propagate Before-X to After-X.
+            _suppressUiSync = true;
+            try { EndXBox.Value = StartXBox.Value; }
+            finally { _suppressUiSync = false; }
+        }
+
+        void StartYBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            if (PosSyncCombo.SelectedIndex != 0) return;
+            _suppressUiSync = true;
+            try { EndYBox.Value = StartYBox.Value; }
+            finally { _suppressUiSync = false; }
+        }
+
+        void UnitOrClassIdChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            // Push the new unit/class id into the VM so the VM setter
+            // refreshes ItemDropDisplay; then mirror it onto the label.
+            _vm.UnitID = (uint)(UnitIDBox.Value ?? 0);
+            _vm.ClassID = (uint)(ClassIDBox.Value ?? 0);
+            ItemDropLabel.Text = _vm.ItemDropDisplay;
         }
 
         void LoadMapList()
@@ -466,6 +511,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     _undoService.Commit();
                     Log.Notify("EventUnitFE7View.ExpandList_Click: expanded to new base " + string.Format("0x{0:X08}", newBase));
+                    // Update the cached group entry so re-selecting this
+                    // group doesn't load the stale orphaned table (Copilot
+                    // review #522 round 4). _groupItems entries are
+                    // AddrResult records — replace the selected one's addr
+                    // with the new base.
+                    int gi = GroupListBox.SelectedIndex;
+                    if (gi >= 0 && gi < _groupItems.Count)
+                    {
+                        var old = _groupItems[gi];
+                        _groupItems[gi] = new AddrResult(newBase, old.name, old.tag);
+                    }
                     // Refresh the unit list from the new base so the user sees
                     // the new starter row immediately.
                     LoadUnitsFromAddress(newBase);

@@ -324,23 +324,30 @@ public class EventUnitFE7ParityTests
     }
 
     [Fact]
-    public void EventBattleTalkFE7View_NavigateTo_FallsBackToVmLoadEntry()
+    public void EventBattleTalkFE7View_NavigateTo_LogsSecondaryTableHit()
     {
+        // Copilot review #522 round 4: NavigateTo must NOT call LoadEntry
+        // for secondary-table addresses because the VM assumes 16-byte
+        // blocks but the secondary table uses 12-byte blocks — calling
+        // LoadEntry would misparse fields. The fallback should log + no-op.
         string repoRoot = FindRepoRoot();
         string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "EventBattleTalkFE7View.axaml.cs");
         string source = File.ReadAllText(path);
 
-        // NavigateTo must call _vm.LoadEntry as a fallback so table-2 hits
-        // populate the detail panel even when the list doesn't contain the
-        // address.
+        // Must log the secondary-table hit so the user gets visible
+        // feedback.
         Assert.Matches(
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?Log\.Notify", RegexOptions.Singleline),
+            source);
+        // Must NOT call _vm.LoadEntry (12-byte schema mismatch).
+        Assert.DoesNotMatch(
             new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?_vm\.LoadEntry\(", RegexOptions.Singleline),
             source);
     }
 
     [Fact]
-    public void EventHaikuFE7View_NavigateTo_FallsBackToVmLoadEntry()
+    public void EventHaikuFE7View_NavigateTo_LogsTutorialTableHit()
     {
         string repoRoot = FindRepoRoot();
         string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
@@ -348,6 +355,10 @@ public class EventUnitFE7ParityTests
         string source = File.ReadAllText(path);
 
         Assert.Matches(
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?Log\.Notify", RegexOptions.Singleline),
+            source);
+        // Must NOT misparse 12-byte tutorial rows via LoadEntry.
+        Assert.DoesNotMatch(
             new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?_vm\.LoadEntry\(", RegexOptions.Singleline),
             source);
     }
