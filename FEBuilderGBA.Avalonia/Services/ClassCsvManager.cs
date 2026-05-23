@@ -217,7 +217,14 @@ namespace FEBuilderGBA.Avalonia.Services
                     for (uint o = 27; o <= 33; o++)
                     {
                         if (colIdx >= cols.Length) break;
-                        if (float.TryParse(cols[colIdx].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float fv))
+                        // Accept both invariant culture ("0.25") AND the current
+                        // culture ("0,25" on comma-decimal locales). WF CsvManager
+                        // exports floats via the current culture, so a CSV
+                        // produced on a comma-decimal locale (e.g. de-DE) must
+                        // still import cleanly here. Try invariant first (the
+                        // explicit format this Avalonia port uses), then fall
+                        // back to current culture. Copilot bot inline review.
+                        if (TryParseFloatTolerant(cols[colIdx].Trim(), out float fv))
                         {
                             sbyte sv = (sbyte)Math.Round(fv * divisor);
                             rom.write_u8(addr + o, (uint)(byte)sv);
@@ -244,6 +251,21 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         // ------ private helpers ------
+
+        /// <summary>
+        /// Try to parse a float string using BOTH invariant culture (the
+        /// format this Avalonia port emits) AND the current culture (the
+        /// format WF <c>CsvManager</c> emits). Required because a CSV
+        /// produced by WF on a comma-decimal locale carries values like
+        /// "0,25" that the invariant-culture parser would reject. Copilot
+        /// bot inline review on PR #570.
+        /// </summary>
+        static bool TryParseFloatTolerant(string s, out float result)
+        {
+            if (float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
+            if (float.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out result)) return true;
+            return false;
+        }
 
         string BuildHeader()
         {

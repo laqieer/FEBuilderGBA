@@ -560,6 +560,43 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
+        /// ApplyImportCsv should accept growth values in comma-decimal locale
+        /// format (e.g. "0,25" — what WF <c>CsvManager</c> emits on de-DE).
+        /// The parser falls back to current-culture when invariant-culture
+        /// parse fails (Copilot bot inline review on PR #570).
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_AcceptsCommaDecimalGrowthValues()
+        {
+            var (rom, baseAddr, _) = MakeStubRom(1);
+            // Switch to a comma-decimal culture for the parser fall-back path.
+            // Save/restore the thread culture so we don't pollute sibling tests.
+            var savedCulture = System.Threading.Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture =
+                    System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+                var mgr = new ClassCsvManager(
+                    useClipboard: false, includeUID: false, includeHeader: false,
+                    includeName: false, includeBaseStats: false, includeGrowths: true,
+                    includeWepLevel: false, growthsAsDecimal: true);
+                // 7 growth columns in class shape (HP..LUCK). The TextFieldParser
+                // delimiter is ", " (comma+space), so a comma-decimal value
+                // appears in the CSV as "0,25" with no following space. Each
+                // emits sbyte(round(0.25 * 100)) = 25.
+                string csv = "0,25, 0,25, 0,25, 0,25, 0,25, 0,25, 0,25\n";
+                int n = mgr.ApplyImportCsv(rom, csv, new[] { baseAddr });
+                Assert.Equal(1, n);
+                // Verify the first growth column wrote 25 (parser accepted "0,25").
+                Assert.Equal((sbyte)25, (sbyte)rom.u8(baseAddr + 27));
+            }
+            finally
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = savedCulture;
+            }
+        }
+
+        /// <summary>
         /// ApplyImportCsv should accept quoted fields with embedded commas
         /// (matches WF CsvManager's TextFieldParser semantics).
         /// </summary>
