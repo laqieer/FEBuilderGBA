@@ -82,7 +82,7 @@ public class MapTileAnimation2ParityTests
     public void View_HasPaletteSubList()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MapTileAnimation2_NList\"", axaml);
+        Assert.Contains("AutomationId=\"MapTileAnimation2_NList_List\"", axaml);
         Assert.Contains("AutomationId=\"MapTileAnimation2_NW0_Input\"", axaml);
         Assert.Contains("AutomationId=\"MapTileAnimation2_NR_Input\"", axaml);
         Assert.Contains("AutomationId=\"MapTileAnimation2_NG_Input\"", axaml);
