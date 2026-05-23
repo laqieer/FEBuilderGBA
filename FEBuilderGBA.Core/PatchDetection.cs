@@ -294,5 +294,43 @@ namespace FEBuilderGBA
             g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
             g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
         }
+
+        // ---- OPClassReel patch detectors (extracted from PatchUtil for gap-sweep #419) ----
+        //
+        // The corresponding WinForms cache-bearing wrappers in PatchUtil.cs
+        // delegate to these methods so there's a single source of truth.
+        // No cache here — Avalonia callers re-evaluate per ROM load.
+
+        static readonly PatchTableSt[] OPClassReelAnimationIDOver255Table = new PatchTableSt[] {
+            new PatchTableSt{ name="Over255", ver = "FE8J", addr = 0xB86B0, data = new byte[]{0x59, 0x8A}},
+        };
+
+        /// <summary>
+        /// True when the "Over255" OPClassReel patch (FE8J only) is
+        /// installed in <paramref name="rom"/>. Mirrors WinForms
+        /// <c>PatchUtil.OPClassReelAnimationIDOver255() == Over255</c>.
+        ///
+        /// Returns false on null ROM and on any non-FE8J version
+        /// (signature table only contains FE8J).
+        /// </summary>
+        public static bool OPClassReelAnimationIDOver255Detect(ROM rom)
+        {
+            return SearchPatchBool(rom, OPClassReelAnimationIDOver255Table);
+        }
+
+        static readonly PatchTableSt[] OPClassReelSortPatchTable = new PatchTableSt[] {
+            new PatchTableSt{ name="OPClassReelSort", ver = "FE8J", addr = 0xB8C80, data = new byte[]{0x04, 0x4B, 0x1B, 0x68}},
+            new PatchTableSt{ name="OPClassReelSort", ver = "FE8U", addr = 0xB40EC, data = new byte[]{0x04, 0x4B, 0x1B, 0x68}},
+        };
+
+        /// <summary>
+        /// True when the "OPClassReelSort" patch (FE8J or FE8U) is
+        /// installed in <paramref name="rom"/>. Mirrors WinForms
+        /// <c>PatchUtil.OPClassReelSortPatch() == OPClassReelSort</c>.
+        /// </summary>
+        public static bool OPClassReelSortPatchDetect(ROM rom)
+        {
+            return SearchPatchBool(rom, OPClassReelSortPatchTable);
+        }
     }
 }

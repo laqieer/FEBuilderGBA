@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
@@ -7,10 +8,24 @@ using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// OP Class Demo Editor — Avalonia parity for WinForms OPClassDemoForm.
+    /// Rebuilt for gap-sweep #419: three-pane master-detail layout with two
+    /// sub-lists (Japanese name font glyphs / animation commands) plus
+    /// patch-aware affordances for OPClassReelSort and OPClassReelAnimationIDOver255.
+    /// </summary>
     public partial class OPClassDemoViewerView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly OPClassDemoViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        // N1 sub-list state — Japanese name font glyphs (1 byte each, terminator 0xFF).
+        List<OPClassDemoViewerViewModel.N1Row> _n1Rows = new();
+        uint _n1SelectedAddr;
+
+        // N2 sub-list state — animation commands (2 bytes: Cmd, Arg; terminator Cmd=0x00).
+        List<OPClassDemoViewerViewModel.N2Row> _n2Rows = new();
+        uint _n2SelectedAddr;
 
         public string ViewTitle => "OP Class Demo Editor";
         public bool IsLoaded => _vm.CanWrite;
@@ -20,8 +35,108 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            N1List.SelectedAddressChanged += OnN1Selected;
+            N2List.SelectedAddressChanged += OnN2Selected;
             DescTextIdBox.ValueChanged += OnDescTextIdChanged;
-            Opened += (_, _) => LoadList();
+            DisplayWeaponBox.ValueChanged += OnDisplayWeaponChanged;
+            EnglishNamePtrBox.ValueChanged += OnEnglishNamePtrChanged;
+            PaletteIdBox.ValueChanged += OnPaletteIdChanged;
+            TerrainLeftBox.ValueChanged += OnTerrainLeftChanged;
+            TerrainRightBox.ValueChanged += OnTerrainRightChanged;
+            BattleAnimeBox.ValueChanged += OnBattleAnimeChanged;
+            JpNamePtrBox.ValueChanged += OnJpNamePtrChanged;
+            AnimePtrBox.ValueChanged += OnAnimePtrChanged;
+            N2B0Box.ValueChanged += OnN2B0Changed;
+
+            // Populate combo boxes.
+            AllyEnemyColorCombo.Items.Add("00 = Player");
+            AllyEnemyColorCombo.Items.Add("01 = Enemy");
+            AllyEnemyColorCombo.Items.Add("02 = NPC");
+            AllyEnemyColorCombo.Items.Add("03 = Gray");
+
+            MagicEffectCombo.Items.Add("00 = None");
+            MagicEffectCombo.Items.Add("01 = Fire");
+            MagicEffectCombo.Items.Add("02 = Thunder");
+            MagicEffectCombo.Items.Add("03 = Live");
+            MagicEffectCombo.Items.Add("04 = Light");
+            MagicEffectCombo.Items.Add("05 = Mil");
+            MagicEffectCombo.Items.Add("06 = Manakete");
+            MagicEffectCombo.Items.Add("07 = Monster Magic");
+            MagicEffectCombo.Items.Add("08 = Stone");
+
+            N2CmdCombo.Items.Add("1 = Close-range attack animation");
+            N2CmdCombo.Items.Add("2 = Close-range critical animation");
+            N2CmdCombo.Items.Add("3 = Set anime state to 'hit effect applied'");
+            N2CmdCombo.Items.Add("4 = Long-range attack animation");
+            N2CmdCombo.Items.Add("5 = Wait N frames");
+            N2CmdCombo.Items.Add("6 = Close-range dodge animation");
+            N2CmdCombo.Items.Add("7 = (FE8 unused) Set anime state to 'hit effect applied'");
+            N2CmdCombo.Items.Add("8 = Wait until anime reaches C01/C02/C18");
+
+            AllyEnemyColorCombo.SelectionChanged += (_, _) =>
+            {
+                if (_vm.IsLoading) return;
+                if (AllyEnemyColorCombo.SelectedIndex >= 0)
+                    AllyEnemyColorBox.Value = AllyEnemyColorCombo.SelectedIndex;
+            };
+            AllyEnemyColorBox.ValueChanged += (_, _) =>
+            {
+                if (_vm.IsLoading) return;
+                int v = (int)(AllyEnemyColorBox.Value ?? 0);
+                AllyEnemyColorCombo.SelectedIndex = (v >= 0 && v < AllyEnemyColorCombo.ItemCount) ? v : -1;
+            };
+
+            MagicEffectCombo.SelectionChanged += (_, _) =>
+            {
+                if (_vm.IsLoading) return;
+                if (MagicEffectCombo.SelectedIndex >= 0)
+                    MagicEffectBox.Value = MagicEffectCombo.SelectedIndex;
+            };
+            MagicEffectBox.ValueChanged += (_, _) =>
+            {
+                if (_vm.IsLoading) return;
+                int v = (int)(MagicEffectBox.Value ?? 0);
+                MagicEffectCombo.SelectedIndex = (v >= 0 && v < MagicEffectCombo.ItemCount) ? v : -1;
+            };
+
+            N2CmdCombo.SelectionChanged += (_, _) =>
+            {
+                if (_vm.IsLoading) return;
+                int idx = N2CmdCombo.SelectedIndex;
+                if (idx >= 0)
+                    N2B0Box.Value = idx + 1; // combo entry "1=..." → value 1
+            };
+
+            Opened += (_, _) =>
+            {
+                ApplyPatchAwareUI();
+                LoadList();
+            };
+        }
+
+        // -----------------------------------------------------------------
+        // Patch-aware UI: show ListExpand button only when OPClassReelSort
+        // is installed; show the BattleAnime+1 label only when Over255 is
+        // active (mirrors WF OPClassDemoForm constructor logic).
+        // -----------------------------------------------------------------
+        void ApplyPatchAwareUI()
+        {
+            bool listExpand = _vm.IsReelSortPatchActive;
+            bool over255 = _vm.IsOver255PatchActive;
+            ListExpandButton.IsVisible = listExpand;
+            BattleAnimePlus1Label.IsVisible = over255;
+            if (over255)
+            {
+                PatchNoticeText.Text = "Patch: OPClassReelAnimationIDOver255 active. Battle Anime ID is read from D18.";
+            }
+            else if (listExpand)
+            {
+                PatchNoticeText.Text = "Patch: OPClassReelSort active. Data Expansion enabled.";
+            }
+            else
+            {
+                PatchNoticeText.Text = "";
+            }
         }
 
         void OnDescTextIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -32,10 +147,84 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { DescTextPreview.Text = ""; }
         }
 
+        void OnDisplayWeaponChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(DisplayWeaponBox.Value ?? 0);
+            try { ClassNamePreview.Text = NameResolver.GetClassName(id); }
+            catch { ClassNamePreview.Text = ""; }
+        }
+
+        void OnEnglishNamePtrChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint ptr = (uint)(EnglishNamePtrBox.Value ?? 0);
+            EnglishNamePreview.Text = ptr != 0 ? $"0x{ptr:X08}" : "";
+        }
+
+        void OnPaletteIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(PaletteIdBox.Value ?? 0);
+            PalettePreview.Text = id == 0xFF ? "Default palette" : $"Palette 0x{id:X02}";
+        }
+
+        void OnTerrainLeftChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(TerrainLeftBox.Value ?? 0);
+            TerrainLeftPreview.Text = $"Terrain 0x{id:X02}";
+        }
+
+        void OnTerrainRightChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(TerrainRightBox.Value ?? 0);
+            TerrainRightPreview.Text = $"Terrain 0x{id:X02}";
+        }
+
+        void OnBattleAnimeChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint id = (uint)(BattleAnimeBox.Value ?? 0);
+            BattleAnimePreview.Text = $"Anime 0x{id:X02}";
+        }
+
+        void OnJpNamePtrChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            LoadN1Sublist();
+        }
+
+        void OnAnimePtrChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            LoadN2Sublist();
+        }
+
+        void OnN2B0Changed(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            int val = (int)(N2B0Box.Value ?? 0);
+            // Map command byte → combo index (1..8 → 0..7; anything else → -1).
+            int idx = (val >= 1 && val <= 8) ? val - 1 : -1;
+            if (N2CmdCombo.SelectedIndex != idx)
+                N2CmdCombo.SelectedIndex = idx;
+        }
+
         void LoadList()
         {
             _vm.IsLoading = true;
-            try { var items = _vm.LoadOPClassDemoList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i)); }
+            try
+            {
+                var items = _vm.LoadOPClassDemoList();
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                if (CoreState.ROM?.RomInfo != null)
+                {
+                    ReadStartAddressBox.Value = CoreState.ROM.RomInfo.op_class_demo_pointer;
+                    ReadCountBox.Value = items.Count;
+                }
+            }
             catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadList: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -47,14 +236,89 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadOPClassDemo(addr);
                 UpdateUI();
+                LoadN1Sublist();
+                LoadN2Sublist();
             }
             catch (Exception ex) { Log.Error($"OPClassDemoViewerView.OnSelected: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
+        void LoadN1Sublist()
+        {
+            try
+            {
+                if (_vm.CurrentAddr == 0) { _n1Rows = new(); N1List.SetItems(new List<AddrResult>()); return; }
+                _n1Rows = _vm.LoadN1FontList(_vm.CurrentAddr + 8);
+                var items = new List<AddrResult>();
+                for (int i = 0; i < _n1Rows.Count; i++)
+                {
+                    items.Add(new AddrResult(_n1Rows[i].Addr, $"{i:X2}: 0x{_n1Rows[i].GlyphId:X2}", (uint)i));
+                }
+                N1List.SetItems(items);
+            }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadN1Sublist: {ex.Message}"); }
+        }
+
+        void LoadN2Sublist()
+        {
+            try
+            {
+                if (_vm.CurrentAddr == 0) { _n2Rows = new(); N2List.SetItems(new List<AddrResult>()); return; }
+                _n2Rows = _vm.LoadN2CommandList(_vm.CurrentAddr + 24);
+                var items = new List<AddrResult>();
+                for (int i = 0; i < _n2Rows.Count; i++)
+                {
+                    items.Add(new AddrResult(_n2Rows[i].Addr, $"{i:X2}: Cmd={_n2Rows[i].Command:X2} Arg={_n2Rows[i].Argument}", (uint)i));
+                }
+                N2List.SetItems(items);
+            }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadN2Sublist: {ex.Message}"); }
+        }
+
+        void OnN1Selected(uint addr)
+        {
+            _n1SelectedAddr = addr;
+            N1SelectedAddressBox.Text = $"0x{addr:X08}";
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom != null && addr != 0 && addr < (uint)rom.Data.Length)
+                {
+                    _vm.IsLoading = true;
+                    try { N1B0Box.Value = rom.u8(addr); }
+                    finally { _vm.IsLoading = false; }
+                }
+            }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.OnN1Selected: {ex.Message}"); }
+        }
+
+        void OnN2Selected(uint addr)
+        {
+            _n2SelectedAddr = addr;
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom != null && addr != 0 && addr + 2 <= (uint)rom.Data.Length)
+                {
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        N2B0Box.Value = rom.u8(addr);
+                        N2B1Box.Value = rom.u8(addr + 1);
+                        int val = (int)N2B0Box.Value;
+                        N2CmdCombo.SelectedIndex = (val >= 1 && val <= 8) ? val - 1 : -1;
+                    }
+                    finally { _vm.IsLoading = false; }
+                }
+            }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.OnN2Selected: {ex.Message}"); }
+        }
+
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            AddressBox.Value = _vm.CurrentAddr;
+            SelectedAddressBox.Text = $"0x{_vm.CurrentAddr:X08}";
             EnglishNamePtrBox.Value = _vm.EnglishNamePointer;
             DescTextIdBox.Value = _vm.DescriptionTextId;
             try { DescTextPreview.Text = _vm.DescriptionTextId != 0 ? NameResolver.GetTextById(_vm.DescriptionTextId) : ""; }
@@ -63,6 +327,8 @@ namespace FEBuilderGBA.Avalonia.Views
             JpNameLenBox.Value = _vm.JapaneseNameLength;
             PaletteIdBox.Value = _vm.PaletteId;
             DisplayWeaponBox.Value = _vm.DisplayWeapon;
+            try { ClassNamePreview.Text = NameResolver.GetClassName(_vm.DisplayWeapon); }
+            catch { ClassNamePreview.Text = ""; }
             AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
             BattleAnimeBox.Value = _vm.BattleAnime;
             MagicEffectBox.Value = _vm.MagicEffect;
@@ -70,6 +336,12 @@ namespace FEBuilderGBA.Avalonia.Views
             TerrainLeftBox.Value = _vm.TerrainLeft;
             TerrainRightBox.Value = _vm.TerrainRight;
             AnimePtrBox.Value = _vm.AnimePointer;
+        }
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            ApplyPatchAwareUI();
+            LoadList();
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -97,6 +369,56 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("OP Class Demo data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassDemoViewerView.Write: {ex.Message}"); }
+        }
+
+        void N1_Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite || _n1SelectedAddr == 0) return;
+            _undoService.Begin("Edit OP Class Demo (JP Name Font Glyph)");
+            try
+            {
+                uint glyph = (uint)(N1B0Box.Value ?? 0);
+                _vm.WriteN1Entry(_n1SelectedAddr, glyph);
+                _undoService.Commit();
+                LoadN1Sublist();
+                CoreState.Services?.ShowInfo("JP name font glyph written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassDemoViewerView.N1_Write: {ex.Message}"); }
+        }
+
+        void N2_Write_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanWrite || _n2SelectedAddr == 0) return;
+            _undoService.Begin("Edit OP Class Demo (Animation Command)");
+            try
+            {
+                uint cmd = (uint)(N2B0Box.Value ?? 0);
+                uint arg = (uint)(N2B1Box.Value ?? 0);
+                _vm.WriteN2Entry(_n2SelectedAddr, cmd, arg);
+                _undoService.Commit();
+                LoadN2Sublist();
+                CoreState.Services?.ShowInfo("Animation command written.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassDemoViewerView.N2_Write: {ex.Message}"); }
+        }
+
+        void ListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("Expand OP Class Demo Table");
+            try
+            {
+                var result = _vm.ExpandList();
+                if (!result.Success)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(result.Error ?? "Expansion failed.");
+                    return;
+                }
+                _undoService.Commit();
+                LoadList();
+                CoreState.Services?.ShowInfo($"Table expanded. New base: 0x{result.NewBaseAddress:X08}, new count: {result.NewCount}.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassDemoViewerView.ListExpand: {ex.Message}"); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -874,7 +874,9 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ChapterTitleViewerView.axaml", 1224, 564)]
         [InlineData("SystemIconViewerView.axaml", 966, 656)]
         [InlineData("SystemHoverColorViewerView.axaml", 1238, 604)]
-        [InlineData("OPClassDemoViewerView.axaml", 1429, 848)]
+        // #419 — Width/Height bumped to 1534x878 to accommodate the three-pane
+        // master-detail rebuild added by the gap-sweep parity raise.
+        [InlineData("OPClassDemoViewerView.axaml", 1534, 878)]
         [InlineData("OPClassFontViewerView.axaml", 1179, 475)]
         [InlineData("ItemWeaponEffectViewerView.axaml", 1302, 803)]
         [InlineData("ItemStatBonusesViewerView.axaml", 1291, 587)]

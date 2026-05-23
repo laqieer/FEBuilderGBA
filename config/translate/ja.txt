@@ -7112,3 +7112,74 @@ eo=エスペランド語
 
 :Item Drop Dialog...
 アイテムドロップダイアログ...
+:Command:
+コマンド:
+
+:Display Weapon (Class):
+表示武器 (クラス):
+
+:Ally / Enemy Color:
+自軍/敵軍 カラー:
+
+:Anime Spec Pointer:
+アニメ指定のポインタ:
+
+:Arg (/60 sec):
+引数 (/60 秒):
+
+:Battle Anime (Patch +1):
+戦闘アニメ (パッチ +1):
+
+:Battle Anime:
+戦闘アニメ:
+
+:Data Expansion
+データ拡張
+
+:Description Text ID:
+説明文ID:
+
+:English Name Pointer:
+英語名ポインタ:
+
+:Glyph:
+グリフ:
+
+:Hex Address
+Hex アドレス
+
+:Japanese Name Font Glyphs (pointer P8)
+日本語名フォントグリフ (ポインタ P8)
+
+:Japanese Name Length:
+日本語名の長さ:
+
+:Japanese Name Pointer:
+日本語名ポインタ:
+
+:Magic Effect:
+魔法エフェクト:
+
+:Palette ID:
+パレットID:
+
+:Read Count
+読込数
+
+:Selected Address:
+選択アドレス:
+
+:Terrain (Left Half):
+地形 (左半分):
+
+:Terrain (Right Half):
+地形 (右半分):
+
+:Write Anime Spec Pointer
+アニメ指定ポインタを書き込み
+
+:Write JP Name Pointer
+日本語名ポインタを書き込み
+
+:Animation Commands (pointer P24)
+アニメコマンド (ポインタ P24)

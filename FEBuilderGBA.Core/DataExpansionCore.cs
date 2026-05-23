@@ -185,21 +185,21 @@ namespace FEBuilderGBA
                 newBase = U.Padding4((uint)rom.Data.Length - newTableSize);
             }
 
-            // Copy old table data to new location
-            Array.Copy(rom.Data, oldBase, rom.Data, newBase, oldTableSize);
+            // Copy old table data to new location.
+            // Route through rom.write_range so the ambient-undo scope
+            // captures the pre-copy bytes at newBase (#419 — undo
+            // completeness fix flagged by Copilot CLI plan-review round 3).
+            byte[] copyBytes = rom.getBinaryData(oldBase, oldTableSize);
+            rom.write_range(newBase, copyBytes);
 
-            // Zero-fill the new entry
+            // Zero-fill the new entry — route through rom.write_fill
+            // so the ambient-undo scope captures the bytes that were
+            // there before the fill.
             uint newEntryAddr = newBase + oldTableSize;
-            for (uint i = 0; i < entrySize; i++)
-            {
-                rom.Data[newEntryAddr + i] = 0x00;
-            }
+            rom.write_fill(newEntryAddr, entrySize, 0x00);
 
-            // Clear old table location with 0xFF (free it)
-            for (uint i = 0; i < oldTableSize; i++)
-            {
-                rom.Data[oldBase + i] = 0xFF;
-            }
+            // Clear old table location with 0xFF (free it) — same.
+            rom.write_fill(oldBase, oldTableSize, 0xFF);
 
             // Update the pointer to point to the new location (GBA pointer = offset + 0x08000000)
             rom.write_p32(pointerAddr, newBase);

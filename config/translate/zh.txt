@@ -21014,3 +21014,74 @@ to:
 
 :Item Drop Dialog...
 物品掉落对话框...
+:Command:
+指令：
+
+:Display Weapon (Class):
+显示武器 (职业):
+
+:Ally / Enemy Color:
+我军/敌军 颜色:
+
+:Anime Spec Pointer:
+动画指定指针:
+
+:Arg (/60 sec):
+参数 (/60 秒):
+
+:Battle Anime (Patch +1):
+战斗动画 (补丁 +1):
+
+:Battle Anime:
+战斗动画:
+
+:Data Expansion
+数据扩展
+
+:Description Text ID:
+说明文本ID:
+
+:English Name Pointer:
+英文名指针:
+
+:Glyph:
+字形:
+
+:Hex Address
+十六进制地址
+
+:Japanese Name Font Glyphs (pointer P8)
+日文名字体字形 (指针 P8)
+
+:Japanese Name Length:
+日文名长度:
+
+:Japanese Name Pointer:
+日文名指针:
+
+:Magic Effect:
+魔法效果:
+
+:Palette ID:
+调色板ID:
+
+:Read Count
+读取数
+
+:Selected Address:
+所选地址:
+
+:Terrain (Left Half):
+地形 (左半部):
+
+:Terrain (Right Half):
+地形 (右半部):
+
+:Write Anime Spec Pointer
+写入动画指定指针
+
+:Write JP Name Pointer
+写入日文名指针
+
+:Animation Commands (pointer P24)
+动画指令 (指针 P24)

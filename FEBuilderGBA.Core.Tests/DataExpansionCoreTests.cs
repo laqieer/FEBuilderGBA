@@ -339,5 +339,102 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x33, rom.Data[nb + 6]);
             Assert.Equal(0x44, rom.Data[nb + 7]);
         }
+
+        // ────────────────────────────────────────────────
+        // ExpandTable undo completeness (gap-sweep #419)
+        //
+        // Copilot CLI plan review round 3 caught that the original
+        // ExpandTable implementation used Array.Copy + direct
+        // rom.Data[i] = ... mutations which bypass the ambient-undo
+        // recording. The fix routes the copy / zero-fill / wipe through
+        // rom.write_range / rom.write_fill so all three byte regions
+        // are restored on rollback, in addition to the pointer.
+        // ────────────────────────────────────────────────
+
+        /// <summary>
+        /// Plant the same fixture as <see cref="ExpandTable_PreservesOriginalEntryValues"/>
+        /// inside a `CoreState.ROM = rom` block so `BeginUndoScope`
+        /// records into the ambient slot.
+        /// </summary>
+        [Fact]
+        [Trait("Category", "SharedState")]
+        public void ExpandTable_Rollback_RestoresAllByteRanges()
+        {
+            // We deliberately use Collection-style cleanup inside this
+            // single method to avoid promoting the whole class to
+            // [Collection("SharedState")].
+            ROM? savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeRom(0x200000);
+                CoreState.ROM = rom;
+
+                uint pointerAddr = 0x10;
+                uint tableBase = 0x200;
+                uint entrySize = 4;
+                uint entryCount = 2;
+
+                WritePointer(rom, pointerAddr, tableBase);
+
+                // Entry 0 / 1 — recognizable patterns.
+                rom.Data[tableBase + 0] = 0xAA;
+                rom.Data[tableBase + 1] = 0xBB;
+                rom.Data[tableBase + 2] = 0xCC;
+                rom.Data[tableBase + 3] = 0xDD;
+                rom.Data[tableBase + 4] = 0x11;
+                rom.Data[tableBase + 5] = 0x22;
+                rom.Data[tableBase + 6] = 0x33;
+                rom.Data[tableBase + 7] = 0x44;
+
+                // Free space 256 bytes — enough for 12-byte expanded table.
+                for (int i = 0; i < 256; i++)
+                    rom.Data[0x100200 + i] = 0xFF;
+
+                // Take a deep snapshot of the ROM as the rollback target.
+                byte[] snapshot = new byte[rom.Data.Length];
+                System.Array.Copy(rom.Data, snapshot, rom.Data.Length);
+
+                // Run ExpandTable under BeginUndoScope so the mutations
+                // are tracked.
+                var ud = new Undo.UndoData
+                {
+                    time = System.DateTime.Now,
+                    name = "ExpandTable test",
+                    list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                    filesize = (uint)rom.Data.Length
+                };
+                DataExpansionCore.ExpandResult result;
+                using (ROM.BeginUndoScope(ud))
+                {
+                    result = DataExpansionCore.ExpandTable(rom, pointerAddr, entrySize, entryCount);
+                }
+                Assert.True(result.Success, result.Error);
+                Assert.NotEqual(tableBase, result.NewBaseAddress);
+
+                // Sanity check: after expansion, pointer should match new base.
+                Assert.Equal(result.NewBaseAddress, rom.p32(pointerAddr));
+
+                // Rollback the recorded UndoPositions in reverse order
+                // (mirrors Undo.RollbackROM).
+                for (int i = ud.list.Count - 1; i >= 0; i--)
+                {
+                    var up = ud.list[i];
+                    System.Array.Copy(up.data, 0, rom.Data, up.addr, up.data.Length);
+                }
+
+                // After rollback, every byte must match the pre-expansion snapshot.
+                for (int i = 0; i < snapshot.Length; i++)
+                {
+                    if (snapshot[i] != rom.Data[i])
+                    {
+                        Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
+                    }
+                }
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
     }
 }
