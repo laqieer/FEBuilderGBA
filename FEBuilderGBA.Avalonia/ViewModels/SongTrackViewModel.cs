@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string DisplayText => $"{Label}:  Ptr@0x{PointerOffset:X06}  ->  {Status}";
     }
 
-    public class SongTrackViewModel : ViewModelBase, IDataVerifiable
+    public partial class SongTrackViewModel : ViewModelBase, IDataVerifiable
     {
         public List<AddrResult> LoadList()
         {
@@ -77,6 +77,61 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>
+        /// Full song-table scan driven by the WF-mirror read-config bar
+        /// (`ReadStartAddress` + `ReadCount`). Mirrors the WF
+        /// `InputFormRef.MakeList` behavior with adjustable scan window —
+        /// pressing the Reload button calls this to rebuild the song list
+        /// using the user-edited values. When either field is zero / unset
+        /// the call falls back to default behavior (auto-detect base via
+        /// `sound_table_pointer`, scan up to 512 entries).
+        /// </summary>
+        public List<AddrResult> LoadFullList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return new List<AddrResult>();
+
+            uint tableBase;
+            if (ReadStartAddress != 0)
+            {
+                tableBase = ReadStartAddress;
+            }
+            else
+            {
+                uint tablePtr = rom.RomInfo.sound_table_pointer;
+                if (tablePtr == 0) return new List<AddrResult>();
+                tableBase = rom.p32(tablePtr);
+            }
+            if (!U.isSafetyOffset(tableBase)) return new List<AddrResult>();
+
+            uint scanLimit = ReadCount > 0 ? ReadCount : 512u;
+            var result = new List<AddrResult>();
+            uint romLen = (uint)rom.Data.Length;
+
+            for (int i = 0; i < scanLimit; i++)
+            {
+                uint entryAddr = (uint)(tableBase + i * 8);
+                if (entryAddr + 8 > romLen) break;
+
+                uint headerPtr = rom.u32(entryAddr);
+                if (!U.isPointer(headerPtr)) break;
+
+                uint headerAddr = U.toOffset(headerPtr);
+                if (!U.isSafetyOffset(headerAddr) || headerAddr + 8 > romLen)
+                    continue;
+
+                string name = $"0x{i:X02} Song {i}";
+                result.Add(new AddrResult(headerAddr, name, (uint)i));
+            }
+
+            // Surface defaults back to the UI so the read-config bar
+            // populates with the auto-detected values on first load.
+            if (ReadStartAddress == 0) ReadStartAddress = tableBase;
+            if (ReadCount == 0) ReadCount = scanLimit;
+
+            return result;
+        }
+
         uint _currentAddr;
         bool _isLoaded;
         uint _trackCount;
@@ -86,6 +141,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _instrumentAddr;
         string _trackInfoText = string.Empty;
         ObservableCollection<TrackInfo> _tracks = new();
+        uint _readStartAddress;
+        uint _readCount;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -103,6 +160,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public ObservableCollection<TrackInfo> Tracks { get => _tracks; set => SetField(ref _tracks, value); }
         /// <summary>Summary text describing all tracks.</summary>
         public string TrackInfoText { get => _trackInfoText; set => SetField(ref _trackInfoText, value); }
+        /// <summary>WF panel1 read-config: start address of the song table scan
+        /// (mirrors WF `ReadStartAddress` NumericUpDown). Editing this and then
+        /// pressing Reload drives `LoadList` against the new base.</summary>
+        public uint ReadStartAddress { get => _readStartAddress; set => SetField(ref _readStartAddress, value); }
+        /// <summary>WF panel1 read-config: number of song entries to enumerate
+        /// (mirrors WF `ReadCount` NumericUpDown). Editing this and then
+        /// pressing Reload caps the song table scan length.</summary>
+        public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
 
         public void LoadEntry(uint addr)
         {
@@ -183,6 +248,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 3, (byte)Reverb);
             rom.write_u32(addr + 4, InstrumentAddr);
         }
+
+        /// <summary>
+        /// Currently-selected song's table index (0..N-1). Surfaces the songId
+        /// to the View so SongID-0 write-protection (mirrors WF
+        /// `UseWriteProtectionID00 = true`) and the SongExchange jump can read
+        /// the right id. -1 = nothing selected.
+        /// </summary>
+        public int SelectedSongIndex { get; set; } = -1;
 
         /// <summary>
         /// Export the current song as a MIDI file.

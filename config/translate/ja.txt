@@ -7417,3 +7417,78 @@ OBBGLeftToRight
 
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 FEditor / SCA_Creator 魔法システムパッチが検出されません。パッチマネージャーからパッチをインストールしてください。
+
+:トラック1
+トラック1
+
+:トラック2
+トラック2
+
+:トラック3
+トラック3
+
+:トラック4
+トラック4
+
+:トラック5
+トラック5
+
+:トラック6
+トラック6
+
+:トラック7
+トラック7
+
+:トラック8
+トラック8
+
+:トラック9
+トラック9
+
+:トラック10
+トラック10
+
+:トラック11
+トラック11
+
+:トラック12
+トラック12
+
+:トラック13
+トラック13
+
+:トラック14
+トラック14
+
+:トラック15
+トラック15
+
+:トラック16
+トラック16
+
+:First Address
+先頭アドレス
+
+:Search for new resources online
+インターネットから新しいリソースを探す
+
+:Import Music File
+音楽をファイルから読み込む
+
+:Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.
+MIDIファイルのインポート（プレビューのみ）。完全なインポートディスパッチ（MIDI / Wave / Instrument）はCoreの抽出待ちです。
+
+:Export Music File
+音楽をファイルへ書き出す
+
+:Play in Sappy
+Sappyで再生
+
+:Pending Core extraction (Sappy emulator integration is WinForms-only).
+Coreの抽出待ち（Sappyエミュレータ連携はWinForms専用です）。
+
+:Pending Core extraction (ResourceCache shell integration).
+Coreの抽出待ち（ResourceCacheのシェル連携）。
+
+:All Tracks (Score) - click to bulk-change all tracks
+楽譜 - クリックして全トラックを一括変更

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T16:09:30Z"
-git-sha: 5bf1167c1
+generated: "2026-05-23T18:55:41Z"
+git-sha: ef359d2a5
 sweep-type: jumps
 ---
 
@@ -37,10 +37,10 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 49 |
-| MissingAvManifest (backlog) | 338 |
+| Match | 52 |
+| MissingAvManifest (backlog) | 334 |
 | NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 7 |
+| KnownGap (issue-tagged) | 8 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -48,6 +48,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---|---|---|---|---|
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
+| `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `JumpToToolAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
@@ -251,7 +252,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageChapterTitleFE7Form` | `ImageChapterTitleFE7View` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageGenericEnemyPortraitForm` | `ImageGenericEnemyPortraitView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
-| `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
@@ -306,9 +306,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SongExchangeForm` | `SongExchangeView` | `—` | `SongExchangeForm` | `SongExchangeView` |
 | `SongInstrumentForm` | `SongInstrumentView` | `—` | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongExchangeForm` | `SongExchangeView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportMidiForm` | `SongTrackImportMidiView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportSelectInstrumentForm` | `SongTrackImportSelectInstrumentView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportWaveForm` | `SongTrackImportWaveView` |
@@ -475,6 +472,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `PointerToolForm` | `PointerToolView` | `JumpToBatchInput` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
 | `PointerToolForm` | `PointerToolView` | `JumpToCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `PointerToolForm` | `PointerToolView` | `JumpToSelf` | `PointerToolForm` | `PointerToolView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongExchange` | `SongExchangeForm` | `SongExchangeView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackAllChangeTrack` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackChangeTrack` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |

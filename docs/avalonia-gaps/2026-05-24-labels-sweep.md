@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T16:09:27Z"
-git-sha: 5bf1167c1
+generated: "2026-05-23T18:55:32Z"
+git-sha: ef359d2a5
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4595 |
-| Total AV-only labels | 2957 |
-| Total common labels | 105 |
+| Total WF-only labels | 4586 |
+| Total AV-only labels | 3029 |
+| Total common labels | 114 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -2587,12 +2587,11 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### SongTrackForm
-WF labels: **37** · AV labels: **11** · WF-only: **34** · AV-only: **8** · Common: **3** · Density verdict: **High** (WF 45 / AV 19)
+WF labels: **37** · AV labels: **40** · WF-only: **33** · AV-only: **36** · Common: **4** · Density verdict: **Medium** (WF 45 / AV 63)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `Sappyで再生`
-- `Size:`
 - `アドレス`
 - `インターネットから新しいリソースを探す`
 - `ソースファイルを開く`
@@ -2628,13 +2627,41 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Export MIDI`
-- `Import MIDI`
-- `Instrument Set:`
-- `Song Track Editor`
-- `Track Count:`
-- `Tracks`
+- `0x00 = inherit from previous song (default). 0x80 = reverb off. 0xFF = reverb max. Use values 0x80 - 0xFF when reverb is enabled. Vanilla: SFX=0, field FE6=0x9E, FE7=0x80, FE8=0x94.`
+- `Address`
+- `All Tracks (Score) - click to bulk-change all tracks`
+- `Export Music File`
+- `First Address`
+- `Import Music File`
+- `Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.`
+- `Instrument Set`
+- `Open Source File`
+- `Open Source Folder`
+- `Pending Core extraction (ResourceCache shell integration).`
+- `Pending Core extraction (Sappy emulator integration is WinForms-only).`
+- `Play in Sappy`
+- `Read Count`
+- `Reload`
+- `Search for new resources online`
+- `Selected Address:`
+- `Song Exchange`
+- `Track 1`
+- `Track 10`
+- `Track 11`
+- `Track 12`
+- `Track 13`
+- `Track 14`
+- `Track 15`
+- `Track 16`
+- `Track 2`
+- `Track 3`
+- `Track 4`
+- `Track 5`
+- `Track 6`
+- `Track 7`
+- `Track 8`
+- `Track 9`
+- `Track Count`
 - `Write`
 
 ### UnitFE6Form
@@ -3222,60 +3249,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Palette Editor`
 
-### OPClassDemoFE7Form
-WF labels: **28** · AV labels: **17** · WF-only: **28** · AV-only: **17** · Common: **0** · Density verdict: **High** (WF 64 / AV 32)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60 (秒)`
-- `00`
-- `??`
-- `Commamd`
-- `Size:`
-- `アドレス`
-- `アニメ指定\r\nポインタ書き込み`
-- `アニメ指定のポインタ`
-- `グラフィックツール`
-- `パレットID`
-- `リストの拡張`
-- `使用可能表示武器`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `戦闘アニメ`
-- `敵味方カラー`
-- `日本語名 開始位置`
-- `日本語名の長さ`
-- `日本語名アドレス`
-- `書き込み`
-- `英語ポインタ`
-- `表示地形右半分`
-- `表示地形左半分`
-- `説明文ID`
-- `読込数`
-- `選択アドレス:`
-- `魔法エフェクト`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Ally/Enemy Color:`
-- `Anime Pointer:`
-- `Battle Anime:`
-- `Class ID:`
-- `Click to open Class Editor`
-- `Description Text ID:`
-- `Display Weapon:`
-- `English Name Pointer:`
-- `Japanese Name Length:`
-- `Japanese Name Pointer:`
-- `Magic Effect:`
-- `OP Class Demo (FE7) Editor`
-- `Palette ID:`
-- `Terrain Left:`
-- `Terrain Right:`
-- `Write`
-
 ### StatusOptionForm
 WF labels: **28** · AV labels: **22** · WF-only: **28** · AV-only: **22** · Common: **0** · Density verdict: **Low** (WF 50 / AV 47)
 
@@ -3334,6 +3307,82 @@ AV-only labels (usually fine — layout polish or rewording):
 - `X Position:`
 - `Y Position:`
 - `Yes Text ID:`
+
+### OPClassDemoFE7Form
+WF labels: **28** · AV labels: **41** · WF-only: **27** · AV-only: **40** · Common: **1** · Density verdict: **Low** (WF 64 / AV 78)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60 (秒)`
+- `00`
+- `??`
+- `Commamd`
+- `アドレス`
+- `アニメ指定\r\nポインタ書き込み`
+- `アニメ指定のポインタ`
+- `グラフィックツール`
+- `パレットID`
+- `リストの拡張`
+- `使用可能表示武器`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `戦闘アニメ`
+- `敵味方カラー`
+- `日本語名 開始位置`
+- `日本語名の長さ`
+- `日本語名アドレス`
+- `書き込み`
+- `英語ポインタ`
+- `表示地形右半分`
+- `表示地形左半分`
+- `説明文ID`
+- `読込数`
+- `選択アドレス:`
+- `魔法エフェクト`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `/60 (sec)`
+- `1=Ranged attack anime`
+- `2=Ranged critical anime`
+- `3=Set anime state to 'hit effect applied'`
+- `4=Ranged attack anime (alt)`
+- `5=Wait N frames (arg = N/60 sec)`
+- `6=Ranged evade anime`
+- `7=Hit effect applied (FE8 unused)`
+- `8=Wait for C01/C02/C18 cmd`
+- `Address`
+- `Ally/Enemy Color:`
+- `Animation Pointer Target Block`
+- `Anime Pointer:`
+- `Battle Anime:`
+- `Class ID:`
+- `Click to open Class Editor`
+- `Command`
+- `Command Description:`
+- `Description Text ID:`
+- `English Name Pointer:`
+- `Japanese Name Length:`
+- `Japanese Name Pointer:`
+- `Japanese Name Start:`
+- `Magic Effect:`
+- `OP Class Demo (FE7) Editor`
+- `Palette ID:`
+- `Selected Address:`
+- `Terrain Left:`
+- `Terrain Right:`
+- `Unknown (0x06):`
+- `Unknown (0x13):`
+- `Unknown (0x14):`
+- `Unknown (0x15):`
+- `Unknown (0x16):`
+- `Unknown (0x19):`
+- `Unknown (0x1A):`
+- `Unknown (0x1B):`
+- `Wait Frames`
+- `Write Animation Command`
+- `Write to ROM`
 
 ### OPClassDemoForm
 WF labels: **27** · AV labels: **32** · WF-only: **26** · AV-only: **31** · Common: **1** · Density verdict: **Low** (WF 63 / AV 65)
@@ -3436,42 +3485,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `CSA Magic Creator`
-
-### ImageMagicFEditorForm
-WF labels: **25** · AV labels: **2** · WF-only: **25** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `dim`
-- `FrameData`
-- `OBBGLeftToRight`
-- `OBJBGRightToLeft`
-- `OBJLeftToRight`
-- `OBJRightToLeft`
-- `Size:`
-- `アドレス`
-- `インターネットから新しいリソースを探す`
-- `エディタ`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `フレーム`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-- `魔法アニメの書出し`
-- `魔法アニメの読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Magic Effect Editor (FEditor)`
 
 ### AIScriptForm
 WF labels: **24** · AV labels: **2** · WF-only: **24** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
@@ -4932,6 +4945,56 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Save Image Ptr:`
 - `Title Image Ptr:`
 - `Write`
+
+### ImageMagicFEditorForm
+WF labels: **25** · AV labels: **30** · WF-only: **18** · AV-only: **23** · Common: **7** · Density verdict: **Low** (WF 37 / AV 45)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `インターネットから新しいリソースを探す`
+- `エディタ`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `フレーム`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+- `魔法アニメの書出し`
+- `魔法アニメの読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `(preview deferred - tracked by #500)`
+- `4`
+- `Address`
+- `Comment`
+- `Display Example`
+- `Editor`
+- `Expand List`
+- `Export Magic Animation`
+- `Frame`
+- `Import Magic Animation`
+- `Magic Effect Editor (FEditor)`
+- `Name`
+- `Open Source File`
+- `Open Source Folder`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count`
+- `Reload`
+- `Sample`
+- `Search Internet for new resources`
+- `Selected Address:`
+- `Top Address`
+- `Write to ROM`
+- `Zoom`
 
 ### ItemStatBonusesForm
 WF labels: **19** · AV labels: **15** · WF-only: **18** · AV-only: **14** · Common: **1** · Density verdict: **Low** (WF 35 / AV 28)

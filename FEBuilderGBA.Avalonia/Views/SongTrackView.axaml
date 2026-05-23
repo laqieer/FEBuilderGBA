@@ -2,60 +2,259 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SongTrackView"
-        Title="Song Track Editor" Width="1093" Height="650"
+        Title="Song Track Editor" Width="1200" Height="720"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="SongTrack_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid RowDefinitions="Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Song Track Editor" FontSize="18" FontWeight="Bold" />
-
-        <!-- Header fields -->
-        <Grid ColumnDefinitions="180,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SongTrack_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Track Count:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="SongTrack_TrackCount_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TrackCountBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="NumBlks:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="SongTrack_NumBlks_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NumBlksBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Priority:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="SongTrack_Priority_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="PriorityBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Reverb:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="SongTrack_Reverb_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="ReverbBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Instrument Set:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="SongTrack_InstrumentAddr_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="InstrumentAddrBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Margin="0,2" />
-        </Grid>
-
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="SongTrack_Write_Button" Content="Write" Click="Write_Click" />
-          <Button AutomationProperties.AutomationId="SongTrack_ExportMidi_Button" Content="Export MIDI" Click="ExportMidi_Click" />
-          <Button AutomationProperties.AutomationId="SongTrack_ImportMidi_Button" Content="Import MIDI" Click="ImportMidi_Click" />
-        </StackPanel>
-
-        <!-- Track list -->
-        <Separator Margin="0,8" />
-        <TextBlock Text="Tracks" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock AutomationProperties.AutomationId="SongTrack_TrackSummary_Label" Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
-
-        <ListBox AutomationProperties.AutomationId="SongTrack_TrackList_List" Name="TrackListBox" MinHeight="60" MaxHeight="400">
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <Grid ColumnDefinitions="60,100,Auto,Auto" Margin="2">
-                <TextBlock Grid.Column="0" Text="{Binding Label}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <TextBlock Grid.Column="2" Text="Ptr@" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="Gray" />
-                <TextBlock Grid.Column="3" Text="{Binding PointerOffset, StringFormat=0x{0:X06}}" VerticalAlignment="Center" Foreground="Gray" />
-              </Grid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+    <!-- Top read-config bar: mirrors WF panel1 (ReadStartAddress + ReadCount + Reload) -->
+    <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="First Address" VerticalAlignment="Center" Width="100" />
+        <NumericUpDown AutomationProperties.AutomationId="SongTrack_ReadStartAddress_Input"
+                       Name="ReadStartAddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                       FormatString="X8" VerticalAlignment="Center" />
+        <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
+        <NumericUpDown AutomationProperties.AutomationId="SongTrack_ReadCount_Input"
+                       Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
+                       FormatString="0" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="SongTrack_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Width="80" Click="ReloadList_Click" />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="250,*">
+      <controls:AddressListControl AutomationProperties.AutomationId="SongTrack_Entry_List"
+                                   Grid.Column="0" Name="EntryList" Margin="4" />
+
+      <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+
+        <!-- Master address-write bar: mirrors WF AddressPanel -->
+        <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
+            <NumericUpDown AutomationProperties.AutomationId="SongTrack_Address_Input"
+                           Name="AddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                           FormatString="X8" VerticalAlignment="Center" IsReadOnly="True" />
+            <TextBlock Text="Size:" VerticalAlignment="Center" Width="40" />
+            <TextBox AutomationProperties.AutomationId="SongTrack_BlockSize_Input"
+                     Name="BlockSizeBox" Width="60" IsReadOnly="True" VerticalAlignment="Center" />
+            <TextBlock Text="Selected Address:" VerticalAlignment="Center" Width="120" />
+            <TextBlock AutomationProperties.AutomationId="SongTrack_SelectedAddress_Label"
+                       Name="SelectedAddressLabel" Width="120" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="SongTrack_Write_Button"
+                    Name="WriteButton" Content="Write" Width="160" Click="Write_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Detail panel: header fields + action buttons -->
+        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="4,0,4,4">
+          <StackPanel Spacing="4">
+
+            <!-- Row 1: Track Count / NumBlks / Priority / Reverb / Internet link -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Track Count" VerticalAlignment="Center" Width="80" />
+              <NumericUpDown AutomationProperties.AutomationId="SongTrack_TrackCount_Input"
+                             Name="TrackCountBox" Width="60" Minimum="0" Maximum="255"
+                             FormatString="0" VerticalAlignment="Center" />
+              <TextBlock Text="NumBlks" VerticalAlignment="Center" Width="60" />
+              <NumericUpDown AutomationProperties.AutomationId="SongTrack_NumBlks_Input"
+                             Name="NumBlksBox" Width="60" Minimum="0" Maximum="255"
+                             FormatString="0" VerticalAlignment="Center" />
+              <TextBlock Text="Priority" VerticalAlignment="Center" Width="50" />
+              <NumericUpDown AutomationProperties.AutomationId="SongTrack_Priority_Input"
+                             Name="PriorityBox" Width="60" Minimum="0" Maximum="255"
+                             FormatString="0" VerticalAlignment="Center" />
+              <TextBlock Text="Reverb" VerticalAlignment="Center" Width="50" />
+              <NumericUpDown AutomationProperties.AutomationId="SongTrack_Reverb_Input"
+                             Name="ReverbBox" Width="60" Minimum="0" Maximum="255"
+                             FormatString="0" VerticalAlignment="Center"
+                             ToolTip.Tip="0x00 = inherit from previous song (default). 0x80 = reverb off. 0xFF = reverb max. Use values 0x80 - 0xFF when reverb is enabled. Vanilla: SFX=0, field FE6=0x9E, FE7=0x80, FE8=0x94." />
+              <TextBlock AutomationProperties.AutomationId="SongTrack_LinkInternet_Label"
+                         Name="LinkInternetLabel" Text="Search for new resources online"
+                         Foreground="Blue" TextDecorations="Underline"
+                         Cursor="Hand" PointerPressed="LinkInternet_Click" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Row 2: Instrument Set + 6 action buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Instrument Set" VerticalAlignment="Center" Width="100" />
+              <NumericUpDown AutomationProperties.AutomationId="SongTrack_InstrumentAddr_Input"
+                             Name="InstrumentAddrBox" Width="120" Minimum="0" Maximum="4294967295"
+                             FormatString="X8" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="SongTrack_SongExchange_Button"
+                      Name="SongExchangeButton" Content="Song Exchange"
+                      Width="120" Click="SongExchange_Click" />
+              <Button AutomationProperties.AutomationId="SongTrack_Import_Button"
+                      Name="ImportButton" Content="Import Music File"
+                      Width="140" Click="ImportMidi_Click"
+                      ToolTip.Tip="Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction." />
+              <Button AutomationProperties.AutomationId="SongTrack_Export_Button"
+                      Name="ExportButton" Content="Export Music File"
+                      Width="140" Click="ExportMidi_Click" />
+              <Button AutomationProperties.AutomationId="SongTrack_SappyPlay_Button"
+                      Name="SappyPlayButton" Content="Play in Sappy"
+                      Width="120" IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction (Sappy emulator integration is WinForms-only)." />
+              <Button AutomationProperties.AutomationId="SongTrack_OpenSourceFile_Button"
+                      Name="OpenSourceFileButton" Content="Open Source File"
+                      Width="120" IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction (ResourceCache shell integration)." />
+              <Button AutomationProperties.AutomationId="SongTrack_OpenSourceFolder_Button"
+                      Name="OpenSourceFolderButton" Content="Open Source Folder"
+                      Width="120" IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction (ResourceCache shell integration)." />
+            </StackPanel>
+
+            <!-- All Tracks jump label (clickable, mirrors WF AllTracksLabel) -->
+            <TextBlock AutomationProperties.AutomationId="SongTrack_AllTracks_Label"
+                       Name="AllTracksLabel" Text="All Tracks (Score) - click to bulk-change all tracks"
+                       Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                       PointerPressed="AllTracks_Click" Margin="0,4,0,0" />
+
+            <!-- Per-song track summary -->
+            <TextBlock AutomationProperties.AutomationId="SongTrack_TrackSummary_Label"
+                       Name="TrackSummaryLabel" Text="" Foreground="Gray" Margin="0,0,0,4" />
+          </StackPanel>
+        </Border>
+
+        <!-- 16 explicit track columns -->
+        <!-- Each column is a (clickable TrackLabelN + ListBox TrackN) pair. -->
+        <!-- Static declaration (NOT in DataTemplate) so ControlDensityScanner -->
+        <!-- counts every label and listbox. Copilot CLI plan review v1 #1. -->
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto"
+                      VerticalScrollBarVisibility="Disabled" Margin="4">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel1_Label"
+                         Name="TrackLabel1" Text="Track 1" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="1" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track1_List"
+                       Name="Track1" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel2_Label"
+                         Name="TrackLabel2" Text="Track 2" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="2" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track2_List"
+                       Name="Track2" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel3_Label"
+                         Name="TrackLabel3" Text="Track 3" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="3" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track3_List"
+                       Name="Track3" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel4_Label"
+                         Name="TrackLabel4" Text="Track 4" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="4" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track4_List"
+                       Name="Track4" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel5_Label"
+                         Name="TrackLabel5" Text="Track 5" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="5" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track5_List"
+                       Name="Track5" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel6_Label"
+                         Name="TrackLabel6" Text="Track 6" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="6" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track6_List"
+                       Name="Track6" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel7_Label"
+                         Name="TrackLabel7" Text="Track 7" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="7" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track7_List"
+                       Name="Track7" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel8_Label"
+                         Name="TrackLabel8" Text="Track 8" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="8" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track8_List"
+                       Name="Track8" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel9_Label"
+                         Name="TrackLabel9" Text="Track 9" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="9" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track9_List"
+                       Name="Track9" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel10_Label"
+                         Name="TrackLabel10" Text="Track 10" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="10" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track10_List"
+                       Name="Track10" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel11_Label"
+                         Name="TrackLabel11" Text="Track 11" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="11" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track11_List"
+                       Name="Track11" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel12_Label"
+                         Name="TrackLabel12" Text="Track 12" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="12" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track12_List"
+                       Name="Track12" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel13_Label"
+                         Name="TrackLabel13" Text="Track 13" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="13" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track13_List"
+                       Name="Track13" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel14_Label"
+                         Name="TrackLabel14" Text="Track 14" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="14" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track14_List"
+                       Name="Track14" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel15_Label"
+                         Name="TrackLabel15" Text="Track 15" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="15" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track15_List"
+                       Name="Track15" Height="320" />
+            </StackPanel>
+            <StackPanel Width="100">
+              <TextBlock AutomationProperties.AutomationId="SongTrack_TrackLabel16_Label"
+                         Name="TrackLabel16" Text="Track 16" TextAlignment="Center"
+                         Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                         Tag="16" PointerPressed="TrackLabel_Click" />
+              <ListBox AutomationProperties.AutomationId="SongTrack_Track16_List"
+                       Name="Track16" Height="320" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Grid>
   </Grid>
 </Window>
