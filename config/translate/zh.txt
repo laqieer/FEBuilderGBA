@@ -21308,6 +21308,33 @@ OBBGLeftToRight
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 未检测到 FEditor / SCA_Creator 魔法系统补丁。请通过补丁管理器安装补丁。
 
+:Find new resources online
+从网上获取新资源
+
+:OBJBGLeftToRight
+OBJ+BG 从左到右
+
+:Preview
+预览
+
+:Zoom
+缩放
+
+:Zoom in
+放大
+
+:Frame
+帧
+
+:Import Magic Animation
+导入魔法动画
+
+:Export Magic Animation
+导出魔法动画
+
+:Bin info
+二进制信息
+
 :First Address
 起始地址
 

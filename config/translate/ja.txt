@@ -7418,6 +7418,33 @@ OBBGLeftToRight
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 FEditor / SCA_Creator 魔法システムパッチが検出されません。パッチマネージャーからパッチをインストールしてください。
 
+:Find new resources online
+インターネットから新しいリソースを探す
+
+:OBJBGLeftToRight
+OBJBGLeftToRight
+
+:Preview
+表示例
+
+:Zoom
+拡大
+
+:Zoom in
+拡大して描画
+
+:Frame
+フレーム
+
+:Import Magic Animation
+魔法アニメの読込
+
+:Export Magic Animation
+魔法アニメの書出し
+
+:Bin info
+バイナリ情報
+
 :トラック1
 トラック1
 
