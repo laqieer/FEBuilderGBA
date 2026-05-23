@@ -184,6 +184,62 @@ public class MapEventUnitCoreExpansionTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    [Fact]
+    public void ExpandUnitList_WritesZeroTerminator_AfterExpandedRows()
+    {
+        // Regression for Copilot CLI PR #522 second-pass review: when the
+        // free region returned by FindFreeSpace is filled with 0xFF, the
+        // post-table bytes would look like garbage rows to EnumerateUnits /
+        // WF AddressList. The fix explicitly writes a zero terminator row
+        // at newBase + newCount * blockSize so the table is well-bounded.
+        //
+        // We pre-fill the high half of the ROM with 0xFF, plant our table
+        // at 0x00800000, run the expansion, and assert the byte at
+        // newBase + newCount * blockSize == 0 (terminator).
+        var bytes = new byte[0x1100000];
+        // Fill the high half with 0xFF — simulates the WF "high-half is
+        // empty" allocator path picking a 0xFF-filled free region. Start
+        // past 0x00880000 so the original table at 0x00800000 stays clean.
+        for (int i = 0x880000; i < bytes.Length; i++) bytes[i] = 0xFF;
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe7u.gba", bytes, "AE7E01");
+        uint origPointerSlot = 0x100;
+        uint tableAddr = 0x00800000u;
+        for (int i = 0; i < 4; i++)
+        {
+            int rowBase = checked((int)(tableAddr + (uint)(i * 16)));
+            rom.Data[rowBase + 0] = (byte)(0x10 + i);
+            rom.Data[rowBase + 1] = (byte)(0x20 + i);
+        }
+        BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(rom.Data, origPointerSlot);
+
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint newBase = MapEventUnitCore.ExpandUnitList(
+                rom,
+                eventPointerSlot: origPointerSlot,
+                oldBase: tableAddr,
+                oldCount: 4,
+                newCount: 10);
+            Assert.NotEqual(U.NOT_FOUND, newBase);
+
+            // The terminator row (16 bytes of 0) must sit at newBase + 10*16.
+            uint termAddr = newBase + 10u * 16u;
+            for (int b = 0; b < 16; b++)
+            {
+                Assert.Equal((byte)0x00, rom.Data[termAddr + b]);
+            }
+
+            // CountEventUnitRows must return exactly 10 (terminator stops it).
+            uint actualCount = MapEventUnitCore.CountEventUnitRows(rom, newBase);
+            Assert.Equal(10u, actualCount);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     // -----------------------------------------------------------------
     // FindBattleTalkFE7UnitIdAddress — both tables, both columns
     // -----------------------------------------------------------------

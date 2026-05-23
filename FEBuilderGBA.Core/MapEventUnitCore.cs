@@ -470,8 +470,15 @@ namespace FEBuilderGBA
             // Find a contiguous free region. Start past the high-half so
             // we don't overlap the existing table (BattleAnimeImportCore
             // pattern — also used by ImageBattleBGCore.ExpandList).
+            // Reserve room for the terminator row at the end:
+            // `(newCount + 1) * blockSize` mirrors the WF allocation in
+            // MoveToFreeSapceForm.cs which writes `term_onedata` (a zero
+            // row) after the expanded rows. Without the explicit terminator,
+            // a 0xFF-filled free region would let EnumerateUnits / WF
+            // AddressList read past the table into garbage.
             uint searchStart = (uint)(rom.Data.Length / 2);
-            uint needSize = newCount * blockSize;
+            uint terminatorRows = 1;
+            uint needSize = (newCount + terminatorRows) * blockSize;
             uint newBase = rom.FindFreeSpace(searchStart, needSize);
             if (newBase == U.NOT_FOUND)
             {
@@ -499,7 +506,15 @@ namespace FEBuilderGBA
                 rom.write_u8(rowAddr + 1, 0x01);
             }
 
-            // 3. Repoint the event-unit pointer slot.
+            // 3. Write the zero terminator row after the expanded entries.
+            // EnumerateUnits / CountEventUnitRows stop on UnitID == 0; the
+            // explicit zero row makes the table well-terminated regardless
+            // of whether FindFreeSpace returned a 0x00- or 0xFF-filled region.
+            uint termAddr = newBase + newCount * blockSize;
+            byte[] termRow = new byte[blockSize];
+            rom.write_range(termAddr, termRow);
+
+            // 4. Repoint the event-unit pointer slot.
             rom.write_p32(eventPointerSlot, newBase);
 
             return newBase;
