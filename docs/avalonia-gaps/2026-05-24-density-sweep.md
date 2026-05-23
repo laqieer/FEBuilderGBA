@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T16:09:22Z"
-git-sha: 5bf1167c1
+generated: "2026-05-23T18:43:45Z"
+git-sha: ef359d2a5
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 223 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 85 |
-| LOW | |Δ%| < 25 | 62 |
+| HIGH | |Δ%| ≥ 50 | 221 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 84 |
+| LOW | |Δ%| < 25 | 65 |
 
 ## Ranked Density Deltas
 
@@ -56,7 +56,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ImagePortraitImporterForm` | `ImagePortraitImporterView` | 42 | 3 | -39 | -92.9% | Heuristic |
 | High | `AIScriptForm` | `AIScriptView` | 37 | 3 | -34 | -91.9% | Heuristic |
 | High | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | 37 | 3 | -34 | -91.9% | Heuristic |
-| High | `ImageMagicFEditorForm` | `ImageMagicFEditorView` | 37 | 3 | -34 | -91.9% | ListParityHelper |
 | High | `WorldMapImageFE6Form` | `WorldMapImageFE6View` | 36 | 3 | -33 | -91.7% | Heuristic |
 | High | `EventHaikuFE6Form` | `EventHaikuFE6View` | 34 | 3 | -31 | -91.2% | ListParityHelper |
 | High | `FE8SpellMenuExtendsForm` | `FE8SpellMenuExtendsView` | 34 | 3 | -31 | -91.2% | Heuristic |
@@ -162,7 +161,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventTemplate5Form` | `EventTemplate5View` | 6 | 3 | -3 | -50.0% | Heuristic |
 | High | `ExtraUnitFE8UForm` | `ExtraUnitFE8UView` | 16 | 8 | -8 | -50.0% | ListParityHelper |
 | High | `OAMSPForm` | `OAMSPView` | 6 | 3 | -3 | -50.0% | Heuristic |
-| High | `OPClassDemoFE7Form` | `OPClassDemoFE7View` | 64 | 32 | -32 | -50.0% | ListParityHelper |
 | High | `VersionForm` | `VersionView` | 2 | 1 | -1 | -50.0% | Heuristic |
 | Medium | `ImageChapterTitleForm` | `ChapterTitleViewerView` | 25 | 13 | -12 | -48.0% | ListParityHelper |
 | Medium | `MapEditorForm` | `MapEditorView` | 23 | 12 | -11 | -47.8% | ListParityHelper |
@@ -210,7 +208,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ItemForm` | `ItemEditorView` | 128 | 88 | -40 | -31.3% | ListParityHelper |
 | Medium | `SupportAttributeForm` | `SupportAttributeView` | 29 | 20 | -9 | -31.0% | ListParityHelper |
 | Medium | `WelcomeForm` | `WelcomeView` | 13 | 9 | -4 | -30.8% | Heuristic |
-| Medium | `UnitForm` | `UnitEditorView` | 183 | 127 | -56 | -30.6% | ListParityHelper |
 | Medium | `BigCGForm` | `BigCGViewerView` | 20 | 14 | -6 | -30.0% | ListParityHelper |
 | Medium | `SkillSystemsEffectivenessReworkClassTypeForm` | `SkillSystemsEffectivenessReworkClassTypeView` | 10 | 7 | -3 | -30.0% | Heuristic |
 | Medium | `WorldMapPathForm` | `WorldMapPathView` | 24 | 17 | -7 | -29.2% | ListParityHelper |
@@ -226,6 +223,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolAllWorkSupportForm` | `ToolAllWorkSupportView` | 4 | 3 | -1 | -25.0% | Heuristic |
 | Medium | `ToolUPSPatchSimpleForm` | `ToolUPSPatchSimpleView` | 4 | 3 | -1 | -25.0% | Heuristic |
 | Low | `StatusParamForm` | `StatusParamView` | 27 | 21 | -6 | -22.2% | ListParityHelper |
+| Low | `UnitForm` | `UnitEditorView` | 183 | 146 | -37 | -20.2% | ListParityHelper |
 | Low | `HowDoYouLikePatchForm` | `HowDoYouLikePatchView` | 5 | 4 | -1 | -20.0% | Heuristic |
 | Low | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` | 35 | 28 | -7 | -20.0% | ListParityHelper |
 | Low | `MapTerrainNameForm` | `TerrainNameEditorView` | 10 | 8 | -2 | -20.0% | ListParityHelper |
@@ -284,6 +282,8 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `EventMapChangeForm` | `EventMapChangeView` | 36 | 43 | 7 | +19.4% | ListParityHelper |
 | Low | `MainSimpleMenuEventErrorIgnoreErrorForm` | `MainSimpleMenuEventErrorIgnoreErrorView` | 5 | 6 | 1 | +20.0% | Heuristic |
 | Low | `EventUnitFE7Form` | `EventUnitFE7View` | 66 | 80 | 14 | +21.2% | ListParityHelper |
+| Low | `ImageMagicFEditorForm` | `ImageMagicFEditorView` | 37 | 45 | 8 | +21.6% | ListParityHelper |
+| Low | `OPClassDemoFE7Form` | `OPClassDemoFE7View` | 64 | 78 | 14 | +21.9% | ListParityHelper |
 | Low | `ImagePortraitForm` | `ImagePortraitView` | 63 | 77 | 14 | +22.2% | ListParityHelper |
 | Low | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 48 | 9 | +23.1% | ListParityHelper |
 | Low | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | 34 | 42 | 8 | +23.5% | ListParityHelper |
@@ -512,20 +512,20 @@ WF count: **37** · AV count: **3** · Δ: **-34** (-91.9%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageMagicCSACreatorView.axaml
 -->
 
-### ImageMagicFEditorForm
-WF count: **37** · AV count: **3** · Δ: **-34** (-91.9%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageMagicFEditorForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageMagicFEditorView.axaml
--->
-
 ### WorldMapImageFE6Form
 WF count: **36** · AV count: **3** · Δ: **-33** (-91.7%).
 
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/WorldMapImageFE6Form.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/WorldMapImageFE6View.axaml
+-->
+
+### EventHaikuFE6Form
+WF count: **34** · AV count: **3** · Δ: **-31** (-91.2%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/EventHaikuFE6Form.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EventHaikuFE6View.axaml
 -->
 
 ## Unpaired Orphans

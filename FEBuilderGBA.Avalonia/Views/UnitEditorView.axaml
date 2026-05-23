@@ -4,9 +4,22 @@
         x:Class="FEBuilderGBA.Avalonia.Views.UnitEditorView"
         Title="Unit Editor" Width="934" Height="661"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+  <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
+    <!-- Address-bar infrastructure (top of left column) - matches WF UnitForm
+         "Read Start Address / Read Count / Reload" trio (#413). -->
+    <StackPanel Grid.Row="0" Grid.Column="0" Margin="4,4,4,0" Spacing="2">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="Read Start Address:" FontSize="10" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="UnitEditor_ReadStartAddress_Label" Grid.Column="1" Name="ReadStartAddressLabel" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" />
+      </Grid>
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Text="Read Count:" FontSize="10" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="UnitEditor_ReadCount_Label" Grid.Column="1" Name="ReadCountLabel" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" />
+        <Button AutomationProperties.AutomationId="UnitEditor_Reload_Button" Grid.Column="2" Name="ReloadButton" Content="Reload" FontSize="11" Padding="6,2" Click="Reload_Click" />
+      </Grid>
+    </StackPanel>
     <!-- Address List with preview -->
-    <Grid Grid.Column="0" RowDefinitions="*,Auto">
+    <Grid Grid.Row="1" Grid.Column="0" RowDefinitions="*,Auto">
       <controls:AddressListControl AutomationProperties.AutomationId="UnitEditor_Unit_List" Grid.Row="0" Name="UnitList" Margin="4" />
       <!-- Selected unit mini portrait preview -->
       <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
@@ -22,14 +35,28 @@
     </Grid>
 
     <!-- Editor Panel -->
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <ScrollViewer Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="6" Margin="8">
         <TextBlock Text="Unit Editor" FontSize="18" FontWeight="Bold" />
 
-        <!-- Address -->
+        <!-- Address + HardCoding warning -->
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <TextBlock AutomationProperties.AutomationId="UnitEditor_SelectedAddress_PrefixLabel"
+                     Name="SelectedAddressPrefixLabel"
+                     Text="Selected Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
           <TextBlock AutomationProperties.AutomationId="UnitEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock Text="Size:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="UnitEditor_Size_Label" Name="SizeLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="UnitEditor_HardCoding_Warning_Label"
+                     Name="HardCodingWarningLabel"
+                     Text="[HardCoding]"
+                     Classes="Hyperlink"
+                     Foreground="OrangeRed"
+                     FontWeight="Bold"
+                     IsVisible="False"
+                     VerticalAlignment="Center"
+                     PointerPressed="HardCodingWarning_Click"
+                     ToolTip.Tip="This unit is referenced by hardcoded ASM. Click to view related patches." />
         </StackPanel>
 
         <!-- Identity Section with Portrait -->
@@ -280,15 +307,44 @@
           </StackPanel>
         </Border>
 
+        <!-- Export/Import Options (parity with WF UnitForm CSV checkbox bank) -->
+        <Expander AutomationProperties.AutomationId="UnitEditor_ExportImportOptions_Expander"
+                  Header="Export/Import Options" IsExpanded="False" Margin="0,8,0,0">
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_UseClipboard_Check"
+                        Grid.Row="0" Grid.Column="0" Name="UseClipboardCheck" Content="Use Clipboard" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeHeader_Check"
+                        Grid.Row="0" Grid.Column="1" Name="IncludeHeaderCheck" Content="Include Header" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeUID_Check"
+                        Grid.Row="1" Grid.Column="0" Name="IncludeUIDCheck" Content="Include UID" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeName_Check"
+                        Grid.Row="1" Grid.Column="1" Name="IncludeNameCheck" Content="Include Name" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeBaseStats_Check"
+                        Grid.Row="2" Grid.Column="0" Name="IncludeBaseStatsCheck" Content="Include Base Stats" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeGrowths_Check"
+                        Grid.Row="2" Grid.Column="1" Name="IncludeGrowthsCheck" Content="Include Growths" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_IncludeWepLevel_Check"
+                        Grid.Row="3" Grid.Column="0" Name="IncludeWepLevelCheck" Content="Include Wep Level" Margin="0,2" />
+              <CheckBox AutomationProperties.AutomationId="UnitEditor_GrowthsAsDecimal_Check"
+                        Grid.Row="3" Grid.Column="1" Name="GrowthsAsDecimalCheck" Content="Growths as Decimal" Margin="0,2" />
+            </Grid>
+          </Border>
+        </Expander>
+
         <!-- Buttons -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
           <Button AutomationProperties.AutomationId="UnitEditor_Write_Button" Content="Write" Click="Write_Click" Name="WriteButton" />
           <Button AutomationProperties.AutomationId="UnitEditor_Undo_Button" Content="Undo" Click="Undo_Click" Name="UndoButton" />
           <Border Width="1" Background="Gray" Margin="4,2" />
-          <Button AutomationProperties.AutomationId="UnitEditor_ExportTSV_Button" Content="Export TSV" Click="ExportTSV_Click" FontSize="11" Padding="8,4"
-                  ToolTip.Tip="Export all units to a TSV file" />
-          <Button AutomationProperties.AutomationId="UnitEditor_ImportTSV_Button" Content="Import TSV" Click="ImportTSV_Click" FontSize="11" Padding="8,4"
-                  ToolTip.Tip="Import units from a TSV file" />
+          <Button AutomationProperties.AutomationId="UnitEditor_ExportAll_Button" Content="Export All" Click="ExportAll_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Export all units to a CSV file or clipboard" />
+          <Button AutomationProperties.AutomationId="UnitEditor_ExportSelected_Button" Content="Export Selected" Click="ExportSelected_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Export the selected unit to a CSV file or clipboard" />
+          <Button AutomationProperties.AutomationId="UnitEditor_ImportAll_Button" Content="Import All" Click="ImportAll_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Import all units from a CSV file or clipboard" />
+          <Button AutomationProperties.AutomationId="UnitEditor_ImportSelected_Button" Content="Import Selected" Click="ImportSelected_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Import the selected unit from a CSV file or clipboard" />
           <Border Width="1" Background="Gray" Margin="4,2" />
           <Button AutomationProperties.AutomationId="UnitEditor_EditSkills_Button" Content="Edit Skills" Click="EditSkills_Click" Name="EditSkillsButton"
                   IsVisible="False" FontSize="11" Padding="8,4"

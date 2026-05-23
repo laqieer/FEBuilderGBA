@@ -29,7 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             UnitList.SelectedAddressChanged += OnUnitSelected;
             UnitList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) => { LoadList(); UpdateAddressBarInfra(); };
 
             // Ability flag names are set in LoadList() based on ROM version
 
@@ -264,6 +264,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.CalculateGrowth();
                 GrowthSimLabel.Text = _vm.GrowthSimText;
                 UpdateWarnings();
+                // #413: post-selection UI refresh - HardCoding warning visibility
+                // depends on the selected unit's id.
+                RefreshHardCodingWarning();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -662,22 +665,184 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        async void ExportTSV_Click(object? sender, RoutedEventArgs e)
+        // ---- #413: CSV Export/Import (parity with WF UnitForm CsvManager) ----
+
+        /// <summary>Build a UnitCsvManager from the UI's 8 option checkboxes.</summary>
+        UnitCsvManager MakeCsvManager()
         {
-            await TableExportImportHelper.ExportTableAsync(this, "units");
+            return new UnitCsvManager(
+                useClipboard: UseClipboardCheck.IsChecked == true,
+                includeUID: IncludeUIDCheck.IsChecked == true,
+                includeHeader: IncludeHeaderCheck.IsChecked == true,
+                includeName: IncludeNameCheck.IsChecked == true,
+                includeBaseStats: IncludeBaseStatsCheck.IsChecked == true,
+                includeGrowths: IncludeGrowthsCheck.IsChecked == true,
+                includeWepLevel: IncludeWepLevelCheck.IsChecked == true,
+                growthsAsDecimal: GrowthsAsDecimalCheck.IsChecked == true);
         }
 
-        async void ImportTSV_Click(object? sender, RoutedEventArgs e)
+        /// <summary>Enumerate every unit-row address currently in the AddressList.</summary>
+        uint[] GetAllUnitAddresses()
         {
-            await TableExportImportHelper.ImportTableAsync(this, "units", _undoService, () =>
+            try
             {
-                // Reload the current entry after import
-                if (_vm.CurrentAddr != 0)
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return Array.Empty<uint>();
+                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return Array.Empty<uint>();
+                uint count = rom.RomInfo.unit_maxcount;
+                uint size = rom.RomInfo.unit_datasize;
+                if (size == 0) size = 52;
+                var addrs = new uint[count];
+                for (uint i = 0; i < count; i++) addrs[i] = baseAddr + i * size;
+                return addrs;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("GetAllUnitAddresses failed: {0}", ex.Message);
+                return Array.Empty<uint>();
+            }
+        }
+
+        async void ExportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                var addrs = GetAllUnitAddresses();
+                if (addrs.Length == 0) return;
+                await MakeCsvManager().ExportAllAsync(this, rom, addrs);
+            }
+            catch (Exception ex) { Log.Error("ExportAll_Click failed: {0}", ex.Message); }
+        }
+
+        async void ExportSelected_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) return;
+                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr);
+            }
+            catch (Exception ex) { Log.Error("ExportSelected_Click failed: {0}", ex.Message); }
+        }
+
+        async void ImportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                var addrs = GetAllUnitAddresses();
+                if (addrs.Length == 0) return;
+                _undoService.Begin(R._("Import Units CSV"));
+                int written;
+                try
+                {
+                    written = await MakeCsvManager().ImportAllAsync(this, rom, addrs);
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+                if (written > 0 && _vm.CurrentAddr != 0)
                 {
                     _vm.LoadUnit(_vm.CurrentAddr);
                     UpdateUI();
                 }
-            });
+            }
+            catch (Exception ex) { Log.Error("ImportAll_Click failed: {0}", ex.Message); }
+        }
+
+        async void ImportSelected_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) return;
+                _undoService.Begin(R._("Import Unit CSV"));
+                int written;
+                try
+                {
+                    written = await MakeCsvManager().ImportSelectedAsync(this, rom, _vm.CurrentAddr);
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+                if (written > 0)
+                {
+                    _vm.LoadUnit(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+            }
+            catch (Exception ex) { Log.Error("ImportSelected_Click failed: {0}", ex.Message); }
+        }
+
+        // ---- #413: Address-bar infrastructure ----
+
+        /// <summary>
+        /// Populate the address-bar labels with the current ROM's unit-table
+        /// metadata. Mirrors WF UnitForm's label1 / label2 / label22 / label23.
+        /// </summary>
+        void UpdateAddressBarInfra()
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                ReadStartAddressLabel.Text = $"0x{rom.RomInfo.unit_pointer:X8}";
+                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
+                SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
+            }
+            catch (Exception ex) { Log.Error("UnitEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
+        }
+
+        void Reload_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
+            UpdateAddressBarInfra();
+        }
+
+        // ---- #413: HardCoding warning ----
+
+        /// <summary>
+        /// Refresh the HardCoding-warning hyperlink's visibility based on the
+        /// current unit's id. Mirrors WF UnitForm.CheckHardCodingWarning.
+        /// </summary>
+        void RefreshHardCodingWarning()
+        {
+            try
+            {
+                // AddressList indices are 0-based; WF "Unit id" (used by the
+                // AsmMap cache lookup) is 1-based.
+                int idx = UnitList.SelectedOriginalIndex;
+                if (idx < 0)
+                {
+                    HardCodingWarningLabel.IsVisible = false;
+                    return;
+                }
+                uint unitId = (uint)(idx + 1);
+                bool r = CoreState.AsmMapFileAsmCache?.IsHardCodeUnit(unitId) ?? false;
+                HardCodingWarningLabel.IsVisible = r;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitEditorView.RefreshHardCodingWarning failed: {0}", ex.Message);
+                HardCodingWarningLabel.IsVisible = false;
+            }
+        }
+
+        void HardCodingWarning_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                int idx = UnitList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                uint unitId = (uint)(idx + 1);
+                var pv = WindowManager.Instance.Open<PatchManagerView>();
+                pv.JumpTo($"HARDCODING_UNIT={unitId:X2}", 0);
+            }
+            catch (Exception ex) { Log.Error("UnitEditorView.HardCodingWarning_Click failed: {0}", ex.Message); }
         }
 
         public void EnablePickMode() => UnitList.EnablePickMode();
