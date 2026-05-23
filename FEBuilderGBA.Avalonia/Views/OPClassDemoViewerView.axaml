@@ -13,7 +13,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Hex Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_ReadStart_Input"
-                       FormatString="X8" Name="ReadStartAddressBox" Width="140"
+                       FormatString="0" Name="ReadStartAddressBox" Width="140"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count" VerticalAlignment="Center" />
@@ -34,7 +34,7 @@
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
         <Label Content="Address" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_Addr_Input"
-                       FormatString="X8" Name="AddressBox" Width="140"
+                       FormatString="0" Name="AddressBox" Width="140"
                        Minimum="0" Maximum="65535999"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
@@ -80,7 +80,7 @@
             <!-- Row 0: English (alpha) name pointer -->
             <Label Grid.Row="0" Grid.Column="0" Content="English Name Pointer:" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_EnglishNamePtr_Input"
-                           FormatString="X8" Grid.Row="0" Grid.Column="1"
+                           FormatString="0" Grid.Row="0" Grid.Column="1"
                            Name="EnglishNamePtrBox"
                            Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
             <TextBox AutomationProperties.AutomationId="OPClassDemoViewer_EnglishName_Label"
@@ -100,7 +100,7 @@
             <!-- Row 2: Japanese Name Pointer -->
             <Label Grid.Row="2" Grid.Column="0" Content="Japanese Name Pointer:" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_JpNamePtr_Input"
-                           FormatString="X8" Grid.Row="2" Grid.Column="1"
+                           FormatString="0" Grid.Row="2" Grid.Column="1"
                            Name="JpNamePtrBox"
                            Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
@@ -176,7 +176,7 @@
                    Content="Battle Anime (Patch +1):" VerticalAlignment="Center"
                    Name="BattleAnimePlus1Label" IsVisible="False" />
             <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_Unknown18_Input"
-                           FormatString="X8" Grid.Row="9" Grid.Column="1"
+                           FormatString="0" Grid.Row="9" Grid.Column="1"
                            Name="Unknown18Box"
                            Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
@@ -203,7 +203,7 @@
             <!-- Row 12: Anime Pointer (P24) -->
             <Label Grid.Row="12" Grid.Column="0" Content="Anime Spec Pointer:" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_AnimePtr_Input"
-                           FormatString="X8" Grid.Row="12" Grid.Column="1"
+                           FormatString="0" Grid.Row="12" Grid.Column="1"
                            Name="AnimePtrBox"
                            Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
 
@@ -219,7 +219,7 @@
               <Label Grid.Column="0" Content="Glyph:" VerticalAlignment="Center" />
               <NumericUpDown Grid.Column="1"
                              AutomationProperties.AutomationId="OPClassDemoViewer_N1_B0_Input"
-                             FormatString="X2" Name="N1B0Box"
+                             FormatString="0" Name="N1B0Box"
                              Minimum="0" Maximum="255" Width="80" Margin="4,0" />
               <TextBox Grid.Column="2"
                        AutomationProperties.AutomationId="OPClassDemoViewer_N1_SelectedAddress_Input"
@@ -245,7 +245,7 @@
               <Label Grid.Column="0" Content="Command:" VerticalAlignment="Center" />
               <NumericUpDown Grid.Column="1"
                              AutomationProperties.AutomationId="OPClassDemoViewer_N2_B0_Input"
-                             FormatString="X2" Name="N2B0Box"
+                             FormatString="0" Name="N2B0Box"
                              Minimum="0" Maximum="255" Width="80" Margin="4,0" />
               <ComboBox Grid.Column="2"
                         AutomationProperties.AutomationId="OPClassDemoViewer_N2_Cmd_Combo"
