@@ -7319,10 +7319,10 @@ Normal&Hard (LV+96)
 :Hard only (LV+128)
 Hard only (LV+128)
 
-:Level 255 is set.\nIf promoted from a lower class to this one, the skill will NOT be granted.\nThe skill is granted only when LOADed directly as this class.
+:Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
 レベルに255が設定されています。\r\n下級職からCCして、このクラスになった場合には、このスキルを得ることはできません。\r\nこのクラスでLOADされた場合にのみ、このスキルを持つことができます。
 
-:No level-up table is allocated for this class.\nPress List Expand to allocate one.
+:No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
 領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
 
 :This level-up table is referenced by multiple classes.
@@ -7337,5 +7337,3 @@ Hard only (LV+128)
 :Level-up Skill Top Address
 レベルアップで取得するスキルの先頭アドレス
 
-:Skill system editors require the SkillSystems patch to be installed.\nUse the Patch Manager to install it first.
-スキル拡張 SkillSystems パッチがインストールされていません。\r\nパッチマネージャーからインストールしてください。

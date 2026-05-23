@@ -252,7 +252,7 @@ If promoted...` parses with
                     Name="ZeroPointerPanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
                     IsVisible="False">
               <!-- Text bound from code-behind to avoid l10n scanner conflicts -->
-              <TextBlock TextWrapping="Wrap" Name="ZeroPointerText" />
+              <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ZeroPointerText_Label" TextWrapping="Wrap" Name="ZeroPointerText" />
             </Border>
 
             <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_IndependencePanel"

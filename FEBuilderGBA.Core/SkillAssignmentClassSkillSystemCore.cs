@@ -10,13 +10,14 @@
 //
 // File format (mirrors WF):
 //   one line per class index, tab-separated:
-//     class_skill_u8_hex   levelup_table_gba_pointer_hex
+//     class_skill_u8_hex   levelup_table_offset_hex
 //         [level_u8 skill_u8]+
 //
 //   - First TSV column is the per-class B0 skill byte.
-//   - Second column is the per-class level-up table GBA pointer
-//     (raw u32 read from assignLevelUpBase + 4*classId; GBA pointer
-//     form, NOT a stripped offset).
+//   - Second column is the per-class level-up table OFFSET
+//     (rom.p32(assignLevelUpBase + 4*classId), so the 0x08000000
+//     high bit is stripped). This matches the legacy WinForms
+//     SkillAssignmentClassSkillSystemForm.ExportAllData exactly.
 //   - Remaining columns are level/skill u8 pairs walking the existing
 //     referenced level-up table (max LEVELUP_MAX_ROWS rows).
 //
