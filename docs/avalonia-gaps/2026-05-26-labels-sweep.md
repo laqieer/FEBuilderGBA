@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T01:54:05Z"
-git-sha: 424bc5722
+generated: "2026-05-23T02:27:40Z"
+git-sha: 2451b8f2c
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4634 |
-| Total AV-only labels | 2727 |
-| Total common labels | 66 |
+| Total WF-only labels | 4632 |
+| Total AV-only labels | 2726 |
+| Total common labels | 68 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -2203,114 +2203,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Battle Screen Layout`
 
-### UnitFE7Form
-WF labels: **39** · AV labels: **62** · WF-only: **38** · AV-only: **61** · Common: **1** · Density verdict: **Medium** (WF 160 / AV 106)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `- `
-- `??`
-- `[HardCoding]`
-- `ID`
-- `LV`
-- `Size:`
-- `アドレス`
-- `シミュレーション`
-- `マップ顔`
-- `ユニットソート順`
-- `ユニット別能力`
-- `上位クラス戦闘アニメ色`
-- `上級専用アニメ`
-- `下位クラス戦闘アニメ色`
-- `下級専用アニメ`
-- `会話グループ`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `守備`
-- `属性:-`
-- `幸運`
-- `成長率(%)`
-- ` 技 `
-- `支援クラス`
-- `支援データ`
-- `攻撃`
-- `書き込み`
-- `武器LV`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `顔`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Ability 1:`
-- `Ability 2:`
-- `Ability 3:`
-- `Ability 4:`
-- `Ability Flags:`
-- `Address:`
-- `Affinity:`
-- `Anima:`
-- `Axe:`
-- `Base Stats:`
-- `Bow:`
-- `Click to open Portrait Viewer`
-- `CON:`
-- `Dark:`
-- `Decoded:`
-- `Decoded description text`
-- `DEF:`
-- `DEF Growth:`
-- `Desc`
-- `Description:`
-- `Growth Rates (%):`
-- `HP Growth:`
-- `Lance:`
-- `LCK:`
-- `LCK Growth:`
-- `Level:`
-- `Light:`
-- `Lower Class Anime:`
-- `Lower Class Palette:`
-- `Map Face:`
-- `Name:`
-- `Open Support`
-- `Open text viewer for this description`
-- `Palette / Custom Animation:`
-- `Portrait:`
-- `RES:`
-- `RES Growth:`
-- `SKL:`
-- `SKL Growth:`
-- `Sort Order:`
-- `SPD:`
-- `SPD Growth:`
-- `Staff:`
-- `STR:`
-- `STR Growth:`
-- `Support / Talk:`
-- `Support Data Ptr:`
-- `Sword:`
-- `Talk Group:`
-- `Text ID for the unit's description`
-- `Unit ID:`
-- `Units (FE7) Editor`
-- `Unknown 39:`
-- `Unknown 49:`
-- `Unknown 50:`
-- `Unknown 51:`
-- `Unknown Fields:`
-- `Upper Class Anime:`
-- `Upper Class Palette:`
-- `Weapon Ranks:`
-- `Write`
-
 ### MonsterItemForm
 WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
 
@@ -2561,6 +2453,126 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Sprite Tile Sheet`
 - `Total animations: --`
 - `Weapon Type (B0):`
+- `Write`
+
+### UnitFE7Form
+WF labels: **39** · AV labels: **80** · WF-only: **35** · AV-only: **76** · Common: **4** · Density verdict: **Low** (WF 160 / AV 143)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `??`
+- `ID`
+- `LV`
+- `アドレス`
+- `シミュレーション`
+- `マップ顔`
+- `ユニットソート順`
+- `ユニット別能力`
+- `上位クラス戦闘アニメ色`
+- `上級専用アニメ`
+- `下位クラス戦闘アニメ色`
+- `下級専用アニメ`
+- `会話グループ`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `守備`
+- `属性:-`
+- `幸運`
+- `成長率(%)`
+- ` 技 `
+- `支援クラス`
+- `支援データ`
+- `攻撃`
+- `書き込み`
+- `武器LV`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `顔`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Ability 1:`
+- `Ability 2:`
+- `Ability 3:`
+- `Ability 4:`
+- `Ability Flags:`
+- `Affinity:`
+- `Anima:`
+- `Axe:`
+- `Base Stats:`
+- `Bow:`
+- `Click to open Portrait Viewer`
+- `CON:`
+- `Dark:`
+- `Decoded:`
+- `Decoded description text`
+- `DEF:`
+- `DEF Growth:`
+- `Desc`
+- `Description:`
+- `Growth Rates (%):`
+- `Growth Simulation`
+- `HP Growth:`
+- `Lance:`
+- `LCK:`
+- `LCK Growth:`
+- `Level:`
+- `Light:`
+- `Lower Class Anime:`
+- `Lower Class Palette:`
+- `Magic Ext:`
+- `Map Face:`
+- `Name:`
+- `Open Support`
+- `Open text viewer for this description`
+- `Palette / Custom Animation:`
+- `Portrait:`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `RES:`
+- `RES Growth:`
+- `Selected Address:`
+- `Sim DEF:`
+- `Sim HP:`
+- `Sim LCK:`
+- `Sim Level:`
+- `Sim RES:`
+- `Sim SKL:`
+- `Sim SPD:`
+- `Sim STR:`
+- `SKL:`
+- `SKL Growth:`
+- `Sort Order:`
+- `SPD:`
+- `SPD Growth:`
+- `Staff:`
+- `STR:`
+- `STR Growth:`
+- `Support / Talk:`
+- `Support Data Ptr:`
+- `Sword:`
+- `Talk Group:`
+- `Text ID for the unit's description`
+- `This unit is referenced by hardcoded ASM. Click to view related patches.`
+- `Total Growth %:`
+- `Unit ID:`
+- `Units (FE7) Editor`
+- `Unknown 39:`
+- `Unknown 49:`
+- `Unknown 50:`
+- `Unknown 51:`
+- `Unknown Fields:`
+- `Upper Class Anime:`
+- `Upper Class Palette:`
+- `Weapon Ranks:`
 - `Write`
 
 ### EventUnitFE6Form
@@ -4272,6 +4284,41 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown (0x07):`
 - `Write`
 
+### SkillConfigFE8UCSkillSys09xForm
+WF labels: **20** · AV labels: **6** · WF-only: **20** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 29 / AV 9)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `Size:`
+- `アイコン`
+- `アドレス`
+- `アニメーション`
+- `アニメーション取出`
+- `アニメーション読込`
+- `エディタ`
+- `スキル名`
+- `フレーム`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `詳細`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Description:`
+- `Skill Configuration (CSkillSys 0.9.x)`
+- `Skill Name:`
+- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
+- `Write`
+
 ### SongTableForm
 WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **Medium** (WF 26 / AV 14)
 
@@ -4594,56 +4641,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `X Position:`
 - `Y Position:`
-
-### SkillConfigFE8UCSkillSys09xForm
-WF labels: **20** · AV labels: **23** · WF-only: **19** · AV-only: **22** · Common: **1** · Density verdict: **Medium** (WF 29 / AV 38)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `アイコン`
-- `アドレス`
-- `アニメーション`
-- `アニメーション取出`
-- `アニメーション読込`
-- `エディタ`
-- `スキル名`
-- `フレーム`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `詳細`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Animation`
-- `Animation Export`
-- `Animation Import`
-- `Description:`
-- `Display example`
-- `Editor`
-- `Filter Name`
-- `Frame`
-- `Icon`
-- `Image Export`
-- `Image Import`
-- `Pending Core extraction - tracked by #500.`
-- `Read Count:`
-- `Reload`
-- `Selected Address:`
-- `Skill Configuration (CSkillSys 0.9.x)`
-- `Skill Name:`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
-- `Start Address:`
-- `Write`
-- `Zoom`
 
 ### SongTrackImportMidiForm
 WF labels: **19** · AV labels: **8** · WF-only: **19** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 25 / AV 10)

@@ -10,7 +10,8 @@
     <!-- Top row: Value label + TextBox (WinForms label1 + ValueTextBox) -->
     <StackPanel Orientation="Horizontal" Spacing="8">
       <TextBlock Text="Value:" VerticalAlignment="Center" />
-      <TextBox AutomationProperties.AutomationId="PointerToolCopyTo_ValueText_Input" Name="ValueTextBox" Width="119" Height="25" />
+      <TextBox AutomationProperties.AutomationId="PointerToolCopyTo_ValueText_Input" Name="ValueTextBox" Width="119" Height="25"
+               Text="{Binding SourceAddress, Mode=TwoWay}" />
     </StackPanel>
     <!-- 5 copy buttons stacked vertically (WinForms 404x44 each) -->
     <Button AutomationProperties.AutomationId="PointerToolCopyTo_CopyPointer_Button" Name="CopyPointer" Content="Copy as Pointer" Width="404" Height="44"
@@ -19,7 +20,7 @@
             HorizontalAlignment="Left" Click="CopyClipboard_Click" />
     <Button AutomationProperties.AutomationId="PointerToolCopyTo_CopyLittleEndian_Button" Name="CopyLittleEndian" Content="Copy as Little Endian" Width="404" Height="44"
             HorizontalAlignment="Left" Click="CopyLittleEndian_Click" />
-    <Button AutomationProperties.AutomationId="PointerToolCopyTo_Hex_Button" Name="HexButton" Content="Copy as Hex" Width="404" Height="44"
+    <Button AutomationProperties.AutomationId="PointerToolCopyTo_Hex_Button" Name="HexButton" Content="Open in Hex Editor" Width="404" Height="44"
             HorizontalAlignment="Left" Click="HexButton_Click" />
     <Button AutomationProperties.AutomationId="PointerToolCopyTo_CopyNoDollarGBARadBreakPoint_Button" Name="CopyNoDollGBARadBreakPoint" Content="Copy (No $ / GBA / Rad / BreakPoint)" Width="404" Height="44"
             HorizontalAlignment="Left" Click="CopyNoDoll_Click" />

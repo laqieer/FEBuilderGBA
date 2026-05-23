@@ -8,7 +8,7 @@ using System.Threading;
 
 namespace FEBuilderGBA
 {
-    class AsmMapFileAsmCache
+    class AsmMapFileAsmCache : IAsmMapCache
     {
         AsmMapFile CachedFullMAP = null; //全シンボルが入った構造体 作るのに時間がかかるのでキャッシュしている
                                          //スレッドで作られて、完成したらここにストアされる

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core; // ClassFormCore lives in FEBuilderGBA.Core (#428).
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -228,6 +229,49 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Unk51 = rom.u8(addr + 51);
 
             CanWrite = true;
+        }
+
+        /// <summary>
+        /// Run the growth simulator with the current unit's base stats /
+        /// growth rates / class contribution, then grow to <paramref name="targetLevel"/>.
+        /// Mirrors WF <c>UnitFE7Form.BuildSim() + sim.Grow(level, UnitGrow)</c>:
+        /// unit base + unit growth + class base + class growth (+ magic-split
+        /// extends when the FE7UMAGIC patch is installed).
+        /// Used by the Avalonia Growth-Simulator panel (#428) so users can
+        /// preview the unit's stats at higher levels without launching a
+        /// separate window. Safe when ROM is unloaded (returns a zero sim).
+        /// </summary>
+        public GrowSimulator BuildSimAndGrow(int targetLevel)
+        {
+            var sim = new GrowSimulator();
+            // Unit base — magic-ext base is 0 when no magic-split patch is installed.
+            int magicExtBase = 0;
+            int magicExtGrow = 0;
+            try
+            {
+                if (MagicSplitUtil.SearchMagicSplit() == MagicSplitUtil.magic_split_enum.FE7UMAGIC
+                    && CoreState.ROM != null && CurrentAddr != 0)
+                {
+                    // uid here is the 1-based unit index per the WF helpers.
+                    uint dataSize = CoreState.ROM.RomInfo.unit_datasize;
+                    uint baseAddr = CoreState.ROM.p32(CoreState.ROM.RomInfo.unit_pointer);
+                    if (dataSize > 0 && CurrentAddr >= baseAddr)
+                    {
+                        uint uid = ((CurrentAddr - baseAddr) / dataSize) + 1;
+                        magicExtBase = (int)MagicSplitUtil.GetUnitBaseMagicExtends(uid, CurrentAddr);
+                        magicExtGrow = (int)MagicSplitUtil.GetUnitGrowMagicExtends(uid, CurrentAddr);
+                    }
+                }
+            }
+            catch { /* magic-ext lookup is best-effort */ }
+
+            sim.SetUnitBase((int)Level, HP, Str, Skl, Spd, Def, Res, Lck, magicExtBase);
+            sim.SetUnitGrow((int)GrowHP, (int)GrowSTR, (int)GrowSKL, (int)GrowSPD, (int)GrowDEF, (int)GrowRES, (int)GrowLCK, magicExtGrow);
+            // Class base + growth contribution (matches WinForms BuildSim).
+            ClassFormCore.SetSimClass(ref sim, ClassId, CoreState.ROM);
+            // Grow to the requested simulation level using the unit growth code path.
+            sim.Grow(targetLevel, GrowSimulator.GrowOptionEnum.UnitGrow);
+            return sim;
         }
 
         public void WriteUnit()

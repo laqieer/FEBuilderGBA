@@ -16211,6 +16211,9 @@ Conversation Text 3:
 :Copy as Hex
 复制为十六进制
 
+:Open in Hex Editor
+在十六进制编辑器中打开
+
 :Copy as Little Endian
 复制为小端序
 
@@ -17350,6 +17353,21 @@ LZ77压缩工具
 
 :Load as Other (Unknown)
 加载为其他(未知)
+
+:Load Other ROM
+加载其他ROM
+
+:LDR Match\r\nAddress
+LDR匹配\r\n地址
+
+:LDR Reference
+LDR引用
+
+:Write Target Offset
+写入目标偏移
+
+:ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.
+要在 Address 处作为指针写入的 ROM 偏移（不含 0x08000000 基址）。接受带或不带 0x 前缀的十六进制。
 
 :Lock Type / ID:
 锁定类型 / ID:
@@ -19586,6 +19604,21 @@ W94: Unknown
 :Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
 警告: 属性加成指针为空 (P12=0)。请考虑分配空间。
 
+:Warning: Zero region (direct match)
+警告: 零区域 (直接匹配)
+
+:Warning: Very far from origin (direct match)
+警告: 离源数据太远 (直接匹配)
+
+:Warning: Zero region (LDR match)
+警告: 零区域 (LDR匹配)
+
+:Warning: Very far from origin (LDR match)
+警告: 离源数据太远 (LDR匹配)
+
+:Write pointer value at the address (WriteTarget = ROM offset of target)
+在地址写入指针值 (WriteTarget = 目标的ROM偏移)
+
 :Warnings
 警告
 
@@ -20681,3 +20714,66 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.
 当玩家在世界地图上选择一个据点时运行的事件。\r\nFE8允许玩家在据点之间自由移动，因此下一章的介绍必须在选择据点时发生。
+
+:Growth Simulation
+成长模拟
+
+:Total Growth %:
+总成长率%:
+
+:Sim HP:
+模拟HP:
+
+:Sim STR:
+模拟力量:
+
+:Sim SKL:
+模拟技术:
+
+:Sim SPD:
+模拟速度:
+
+:Sim DEF:
+模拟防御:
+
+:Sim RES:
+模拟魔防:
+
+:Sim LCK:
+模拟幸运:
+
+:Magic Ext:
+魔力扩展:
+
+:Read Start Address:
+读取起始地址:
+
+:This unit is referenced by hardcoded ASM. Click to view related patches.
+此单位被硬编码ASM引用。点击查看相关补丁。
+
+:Animation
+动画
+
+:Editor
+编辑器
+
+:Image Import
+导入图片
+
+:Image Export
+导出图片
+
+:Animation Import
+导入动画
+
+:Animation Export
+导出动画
+
+:Pending Core extraction - tracked by #500.
+等待 Core 抽取 - 跟踪于 #500。
+
+:Animation @ 0x{0:X08} ({1})
+动画 @ 0x{0:X08} ({1})
+
+:preview unavailable - tracked by #500
+预览不可用 - 跟踪于 #500
