@@ -135,6 +135,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry(addr);
                 _vm.RecordSourceFile(filePath);
                 UpdateUI();
+                LoadImage(); // refresh preview after drop import (Copilot bot review on PR #517).
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Image imported successfully.");
             }
