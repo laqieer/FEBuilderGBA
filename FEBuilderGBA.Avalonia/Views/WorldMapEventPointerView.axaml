@@ -2,26 +2,216 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.WorldMapEventPointerView"
-        Title="World Map Event Editor" Width="1219" Height="872"
+        Title="World Map Event Editor" Width="1240" Height="900"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="WorldMapEventPointer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="280,*" RowDefinitions="*,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- ============ Before list panel (panel6 in WF) ============ -->
+    <Border Grid.Row="0" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel LastChildFill="True">
+        <Label DockPanel.Dock="Top" Content="Before (Stage Clear)" FontWeight="Bold" Margin="4" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="WorldMapEventPointer_Before_List"
+            Name="BeforeList" Margin="4" />
+      </DockPanel>
+    </Border>
+
+    <!-- ============ Before detail / write panel ============ -->
+    <ScrollViewer Grid.Row="0" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="World Map Event Editor" FontSize="18" FontWeight="Bold" />
+        <Label Content="World Map Event Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="WorldMapEventPointer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Top read-config bar (mirrors WF panel1) -->
+        <Border BorderBrush="Gray" BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Top Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_BaseAddr_Input"
+                           FormatString="X8" Name="BeforeBaseAddrBox" Width="120"
+                           Minimum="0" Maximum="4294967295"
+                           IsReadOnly="True" VerticalAlignment="Center" />
+            <Label Content="Read Count" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_ReadCount_Input"
+                           FormatString="0" Name="BeforeReadCountBox" Width="80"
+                           Minimum="0" Maximum="512"
+                           IsReadOnly="True" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="WorldMapEventPointer_Before_Reload_Button"
+                    Name="BeforeReloadButton" Content="Reload" Click="ReloadBefore_Click" />
+          </StackPanel>
+        </Border>
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Event Pointer (u32@0):" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_EventPtr_Input" Grid.Row="1" Grid.Column="1" Name="EventPtrBox" Width="200" Margin="0,2" />
-        </Grid>
+        <!-- Address bar (mirrors WF AddressPanel) -->
+        <Border BorderBrush="Gray" BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_RowAddr_Input"
+                           FormatString="X8" Name="BeforeRowAddrBox" Width="120"
+                           Minimum="0" Maximum="4294967295"
+                           IsReadOnly="True" VerticalAlignment="Center" />
+            <Label Content="Size:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_Before_BlockSize_Input"
+                     Name="BeforeBlockSizeBox" Width="80" Text="4"
+                     IsReadOnly="True" VerticalAlignment="Center" />
+            <Label Content="Selected Address:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_Before_SelectAddr_Input"
+                     Name="BeforeSelectAddrBox" Width="130"
+                     IsReadOnly="True" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="WorldMapEventPointer_Before_Write_Button"
+                    Name="BeforeWriteButton" Content="Write" Click="Write_Click" />
+          </StackPanel>
+        </Border>
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="WorldMapEventPointer_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
+        <!-- Per-row Before event pointer editor (mirrors WF panel2) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+          <StackPanel Spacing="6">
+            <Label Content="Event after previous stage clear" FontWeight="Bold" HorizontalAlignment="Center" />
+            <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto">
+              <Label Grid.Row="0" Grid.Column="0" Content="Event Pointer (u32@0):" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_EventPtr_Input"
+                             FormatString="X8" Grid.Row="0" Grid.Column="1"
+                             Name="BeforeEventPtrBox" Width="160"
+                             Minimum="0" Maximum="4294967295"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="WorldMapEventPointer_Before_NewAlloc_Button"
+                      Grid.Row="0" Grid.Column="2" Name="BeforeNewAllocButton"
+                      Content="New Event" Click="BeforeNewAlloc_Click"
+                      VerticalAlignment="Center" Margin="6,0,0,0" />
+            </Grid>
+            <TextBlock TextWrapping="Wrap"
+                       Text="The event runs when the player clears a map. It is responsible for spawning the next world map node and drawing the road to it." />
+
+            <!-- Global events sub-panel (mirrors WF panel8) -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,4,0,0">
+              <StackPanel Spacing="4">
+                <Label Content="Global story events" FontWeight="Bold" HorizontalAlignment="Center" />
+                <Grid ColumnDefinitions="220,*,Auto" RowDefinitions="Auto,Auto,Auto">
+                  <Button AutomationProperties.AutomationId="WorldMapEventPointer_JumpToOpening_Label"
+                          Grid.Row="0" Grid.Column="0" Name="JumpToOpeningButton"
+                          Content="Opening Event" Click="JumpToOpening_Click"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
+                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_OpeningEvent_Input"
+                                 FormatString="X8" Grid.Row="0" Grid.Column="1"
+                                 Name="OpeningEventBox" Width="160"
+                                 Minimum="0" Maximum="4294967295"
+                                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,2" />
+                  <Button AutomationProperties.AutomationId="WorldMapEventPointer_JumpToEnding1_Label"
+                          Grid.Row="1" Grid.Column="0" Name="JumpToEnding1Button"
+                          Content="Eirika Ending" Click="JumpToEnding1_Click"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
+                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending1Event_Input"
+                                 FormatString="X8" Grid.Row="1" Grid.Column="1"
+                                 Name="Ending1EventBox" Width="160"
+                                 Minimum="0" Maximum="4294967295"
+                                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,2" />
+                  <Button AutomationProperties.AutomationId="WorldMapEventPointer_JumpToEnding2_Label"
+                          Grid.Row="2" Grid.Column="0" Name="JumpToEnding2Button"
+                          Content="Ephraim Ending" Click="JumpToEnding2_Click"
+                          HorizontalAlignment="Stretch" VerticalAlignment="Center" Margin="0,2" />
+                  <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Ending2Event_Input"
+                                 FormatString="X8" Grid.Row="2" Grid.Column="1"
+                                 Name="Ending2EventBox" Width="160"
+                                 Minimum="0" Maximum="4294967295"
+                                 HorizontalAlignment="Left" VerticalAlignment="Center" Margin="0,2" />
+                  <Button AutomationProperties.AutomationId="WorldMapEventPointer_WriteGlobalEvents_Button"
+                          Grid.Row="2" Grid.Column="2"
+                          Name="WriteGlobalEventsButton" Content="Write"
+                          Click="WriteGlobalEvents_Click" Margin="6,0,0,0" />
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- ============ After list panel (panel7 in WF) ============ -->
+    <Border Grid.Row="1" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel LastChildFill="True">
+        <Label DockPanel.Dock="Top" Content="After (Stage Select)" FontWeight="Bold" Margin="4" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="WorldMapEventPointer_After_List"
+            Name="AfterList" Margin="4" />
+      </DockPanel>
+    </Border>
+
+    <!-- ============ After detail / write panel ============ -->
+    <ScrollViewer Grid.Row="1" Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <!-- After read-config bar (mirrors WF panel4) -->
+        <Border BorderBrush="Gray" BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Top Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_BaseAddr_Input"
+                           FormatString="X8" Name="AfterBaseAddrBox" Width="120"
+                           Minimum="0" Maximum="4294967295"
+                           IsReadOnly="True" VerticalAlignment="Center" />
+            <Label Content="Read Count" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_ReadCount_Input"
+                           FormatString="0" Name="AfterReadCountBox" Width="80"
+                           Minimum="0" Maximum="512"
+                           IsReadOnly="True" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="WorldMapEventPointer_After_Reload_Button"
+                    Name="AfterReloadButton" Content="Reload" Click="ReloadAfter_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- After address bar (mirrors WF panel5) -->
+        <Border BorderBrush="Gray" BorderThickness="1">
+          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+            <Label Content="Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_RowAddr_Input"
+                           FormatString="X8" Name="AfterRowAddrBox" Width="120"
+                           Minimum="0" Maximum="4294967295"
+                           IsReadOnly="True" VerticalAlignment="Center" />
+            <Label Content="Size:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_After_BlockSize_Input"
+                     Name="AfterBlockSizeBox" Width="80" Text="4"
+                     IsReadOnly="True" VerticalAlignment="Center" />
+            <Label Content="Selected Address:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="WorldMapEventPointer_After_SelectAddr_Input"
+                     Name="AfterSelectAddrBox" Width="130"
+                     IsReadOnly="True" VerticalAlignment="Center" />
+            <Button AutomationProperties.AutomationId="WorldMapEventPointer_After_Write_Button"
+                    Name="AfterWriteButton" Content="Write" Click="WriteAfter_Click" />
+          </StackPanel>
+        </Border>
+
+        <!-- Per-row After event pointer editor (mirrors WF panel3) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+          <StackPanel Spacing="6">
+            <Label Content="Event after stage selection" FontWeight="Bold" HorizontalAlignment="Center" />
+            <Grid ColumnDefinitions="200,*,Auto" RowDefinitions="Auto">
+              <Label Grid.Row="0" Grid.Column="0" Content="Event Pointer (u32@0):" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_EventPtr_Input"
+                             FormatString="X8" Grid.Row="0" Grid.Column="1"
+                             Name="AfterEventPtrBox" Width="160"
+                             Minimum="0" Maximum="4294967295"
+                             HorizontalAlignment="Left" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="WorldMapEventPointer_After_NewAlloc_Button"
+                      Grid.Row="0" Grid.Column="2" Name="AfterNewAllocButton"
+                      Content="New Event" Click="AfterNewAlloc_Click"
+                      VerticalAlignment="Center" Margin="6,0,0,0" />
+            </Grid>
+            <TextBlock TextWrapping="Wrap"
+                       Text="The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected." />
+
+            <!-- Related editor jumps (mirrors WF panel9) -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,4,0,0">
+              <StackPanel Spacing="4">
+                <Label Content="Related Editors" FontWeight="Bold" HorizontalAlignment="Center" />
+                <Button AutomationProperties.AutomationId="WorldMapEventPointer_JumpToWorldMapPoint_Button"
+                        Name="JumpToWorldMapPointButton"
+                        Content="Jump to World Map Points"
+                        Click="JumpToWorldMapPoint_Click"
+                        HorizontalAlignment="Stretch" />
+                <Button AutomationProperties.AutomationId="WorldMapEventPointer_JumpToWorldMapPath_Button"
+                        Name="JumpToWorldMapPathButton"
+                        Content="Jump to World Map Paths (roads)"
+                        Click="JumpToWorldMapPath_Click"
+                        HorizontalAlignment="Stretch" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

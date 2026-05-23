@@ -1047,10 +1047,19 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void WorldMapEventPointerViewModel_UsesWorldMapEventPointer()
+        public void WorldMapEventPointerViewModel_UsesFE8StageEventPointers()
         {
+            // Pre-#432 this assertion accepted `map_worldmapevent_pointer` —
+            // an FE6-only slot that is 0 on FE8, so the editor was dead on
+            // its target platform. The rewrite uses the correct FE8 pointers.
+            // Strip C# line comments before the negative assertion — comments
+            // may legitimately mention the old pointer name to explain the
+            // change history.
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "WorldMapEventPointerViewModel.cs"));
-            Assert.Contains("map_worldmapevent_pointer", src);
+            Assert.Contains("worldmap_event_on_stageclear_pointer", src);
+            Assert.Contains("worldmap_event_on_stageselect_pointer", src);
+            var codeOnly = System.Text.RegularExpressions.Regex.Replace(src, @"//[^\n]*", "");
+            Assert.DoesNotContain("map_worldmapevent_pointer", codeOnly);
         }
 
         // ------------------------------------------------------------------ System Icon Viewer
