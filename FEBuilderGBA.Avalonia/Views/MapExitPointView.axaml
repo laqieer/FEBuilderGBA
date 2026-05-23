@@ -4,24 +4,142 @@
         x:Class="FEBuilderGBA.Avalonia.Views.MapExitPointView"
         Title="Map Exit Point Editor" Width="1607" Height="777"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MapExitPoint_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*,Auto">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Exit Point Editor" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="MapExitPoint_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Exit Pointer:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="MapExitPoint_ExitPointer_Input" Grid.Row="1" Grid.Column="1" Name="ExitPointerBox" Width="120" />
-        </Grid>
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="MapExitPoint_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
+    <!-- Top filter / read-config bar (mirrors WinForms panel1) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Cond:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="MapExitPoint_Filter_Combo"
+                  Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
+        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="140"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="MapExitPoint_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
+
+    <!-- Pointer-write bar across the address area (mirrors WF AddressPanel) -->
+    <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Leave Pointer" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_ExitPointer_Input"
+                       FormatString="X8" Name="ExitPointerBox" Width="140"
+                       Minimum="0" Maximum="4294967295"
+                       VerticalAlignment="Center" />
+        <Label Content="Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="500"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="MapExitPoint_ReloadExits_Button"
+                Name="ReloadExitsButton" Content="Reload Exit Points" Click="ReloadExits_Click" />
+        <Button AutomationProperties.AutomationId="MapExitPoint_WritePointer_Button"
+                Name="WritePointerButton" Content="Write Off Pointer" Click="WritePointer_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Left: map list -->
+    <Border Grid.Row="1" Grid.RowSpan="3" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top" Content="Map Name" />
+        <controls:AddressListControl AutomationProperties.AutomationId="MapExitPoint_Map_List"
+                                     Name="MapList" Margin="2" />
+      </DockPanel>
+    </Border>
+
+    <!-- Right column: split into Exit sub-list + Detail panel + Notice -->
+    <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="200,*" Margin="4">
+
+      <!-- Per-map exit-point sub-list (mirrors WF panel22) -->
+      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="2">
+        <DockPanel>
+          <Label DockPanel.Dock="Top" Content="Name" />
+          <StackPanel DockPanel.Dock="Bottom" Orientation="Vertical" Spacing="2" Margin="2">
+            <Button AutomationProperties.AutomationId="MapExitPoint_NewAlloc_Button"
+                    Name="NewAllocButton" Content="Alloc New Space"
+                    Click="NewAlloc_Click" HorizontalAlignment="Stretch" IsVisible="False" />
+            <Button AutomationProperties.AutomationId="MapExitPoint_ExpandList_Button"
+                    Name="ExpandListButton" Content="Data Expansion"
+                    Click="ExpandList_Click" HorizontalAlignment="Stretch" />
+          </StackPanel>
+          <controls:AddressListControl AutomationProperties.AutomationId="MapExitPoint_Exit_List"
+                                       Name="ExitList" Margin="2" />
+        </DockPanel>
+      </Border>
+
+      <!-- Detail panel (mirrors WF panel3 + panel5) -->
+      <ScrollViewer Grid.Column="1">
+        <StackPanel Spacing="8" Margin="8">
+          <Label Content="Map Exit Point Editor" FontSize="18" FontWeight="Bold" />
+
+          <!-- Address / Size bar (mirrors WF panel5) -->
+          <Grid ColumnDefinitions="180,180,*" RowDefinitions="Auto,Auto,Auto">
+            <Label Grid.Row="0" Grid.Column="0" Content="Address" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Addr_Input"
+                           FormatString="X8" Grid.Row="0" Grid.Column="1"
+                           Name="AddressBox" Minimum="0" Maximum="65535999"
+                           IsEnabled="False" VerticalAlignment="Center" />
+
+            <Label Grid.Row="1" Grid.Column="0" Content="Size:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="MapExitPoint_BlockSize_Input"
+                     Grid.Row="1" Grid.Column="1"
+                     Name="BlockSizeBox" IsReadOnly="True" VerticalAlignment="Center" />
+
+            <Label Grid.Row="2" Grid.Column="0" Content="Selected Address" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="MapExitPoint_SelectedAddress_Input"
+                     Grid.Row="2" Grid.Column="1"
+                     Name="SelectedAddressBox" IsReadOnly="True" VerticalAlignment="Center" />
+          </Grid>
+
+          <!-- Exit Coordinates (mirrors WF N_L_0_MAPXY) -->
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+            <Grid ColumnDefinitions="160,40,80,40,80" RowDefinitions="Auto,Auto,Auto">
+              <Label Grid.Row="0" Grid.Column="0" Content="Coordinates" VerticalAlignment="Center" />
+              <Label Grid.Row="0" Grid.Column="1" Content="X:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_X_Input"
+                             FormatString="0" Grid.Row="0" Grid.Column="2"
+                             Name="ExitXBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <Label Grid.Row="0" Grid.Column="3" Content="Y:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Y_Input"
+                             FormatString="0" Grid.Row="0" Grid.Column="4"
+                             Name="ExitYBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <Label Grid.Row="1" Grid.Column="0" Content="Direction" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Input"
+                             FormatString="X2" Grid.Row="1" Grid.Column="2"
+                             Name="EscapeMethodBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <ComboBox AutomationProperties.AutomationId="MapExitPoint_EscapeMethod_Combo"
+                        Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
+                        Name="EscapeMethodCombo" Width="180" VerticalAlignment="Center" />
+
+              <Label Grid.Row="2" Grid.Column="0" Content="00 (Flag)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_Flag_Input"
+                             FormatString="X2" Grid.Row="2" Grid.Column="2"
+                             Name="FlagBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MapExitPoint_FlagName_Input"
+                       Grid.Row="2" Grid.Column="3" Grid.ColumnSpan="2"
+                       Name="FlagNameBox" IsReadOnly="True" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+
+          <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+            <Button AutomationProperties.AutomationId="MapExitPoint_Write_Button"
+                    Content="Write" Click="Write_Click" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- Filter notice (mirrors WF X_Filter_Note_Message) -->
+    <Border Grid.Row="3" Grid.Column="1" BorderBrush="DarkOrange" BorderThickness="1" Margin="4" Padding="6">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock AutomationProperties.AutomationId="MapExitPoint_FilterNotice_Label"
+                   Name="FilterNoticeText" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>
