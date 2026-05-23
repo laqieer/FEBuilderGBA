@@ -514,6 +514,20 @@ public class SkillConfigSkillSystemParityTests
         // path doesn't error (icon content not asserted - just the iteration).
         WriteU32(bytes, 0x22370, 0x08100000u);
 
+        // Race-condition guard for parallel tests: when CoreState.ROM is set
+        // to this synthetic instance, OTHER parallel non-SharedState tests
+        // (e.g. ViewInstantiationSweepTests.View_CanInstantiate(TextCharCodeView))
+        // may briefly see this ROM and call `rom.RomInfo.mask_pointer` (= 0x6E0
+        // for FE8U) + `rom.u8(0x6E0)`. Plant 0xFF at that byte so their
+        // iteration loop terminates on the first byte (their predicate is
+        // `byte == 0xFF`) rather than fall through to `rom.getString` which
+        // requires `CoreState.SystemTextEncoder`. Without this, the parallel
+        // test can observe a partially-initialised CoreState (ROM set but
+        // encoder not yet wired by our SetUp) and NRE inside the decode path.
+        // This is a parity test concern only - production code installs the
+        // encoder during ROM-load setup so the race is impossible in the app.
+        bytes[0x6E0] = 0xFF;
+
         var rom = new ROM();
         rom.LoadLow("synthetic-skillsystem.gba", bytes, "BE8E01");
         return rom;
