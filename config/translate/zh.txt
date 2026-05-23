@@ -20705,3 +20705,6 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :preview unavailable - tracked by #500
 预览不可用 - 跟踪于 #500
+
+:Header TSA
+带标头的TSA

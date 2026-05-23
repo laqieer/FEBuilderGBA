@@ -170,6 +170,215 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Pack a raw TSA byte array (LZ77-free, 2-byte-per-entry) into the
+        /// header-prefixed format that <c>ImageBGForm</c> / <c>ImageCGForm</c>
+        /// / Big-CG-style editors store in ROM.
+        ///
+        /// **Byte-exact port of WinForms <c>ImageUtil.TSAToHeaderTSA</c>**:
+        /// <list type="bullet">
+        ///   <item>2-byte header at offset 0: <c>[masterHeaderX, masterHeaderY]</c>
+        ///     where <c>masterHeaderX = width / 8 - tsa_width_margin - 1</c> and
+        ///     <c>masterHeaderY = height / 8 - 1</c>. For a 256x160 image with
+        ///     the default margin of 2, that yields <c>0x1D, 0x13</c>.</item>
+        ///   <item>Body fills from offset <c>2 + masterHeaderY * (masterHeaderX + 1) * 2</c>
+        ///     (bottom-to-top, matching Core <c>ImageUtilCore.DecodeHeaderTSA</c>'s
+        ///     decode order). Per-row stride increments by
+        ///     <c>tsa_width_margin * 2</c> for the source TSA, then
+        ///     back-subtracts <c>masterHeaderX * 2</c> and <c>0x42</c>.</item>
+        /// </list>
+        ///
+        /// The output is the byte stream the WF editor writes RAW (no LZ77)
+        /// to the TSA pointer slot, and that <c>DecodeHeaderTSA</c> reads
+        /// back when rendering the preview.
+        /// </summary>
+        /// <param name="tsa">Raw TSA bytes (output of <see cref="EncodeTSA"/>'s
+        ///   <c>TSAData</c> property).</param>
+        /// <param name="width">Pixel width of the source image (multiple of 8).</param>
+        /// <param name="height">Pixel height of the source image (multiple of 8).</param>
+        /// <param name="tsa_width_margin">WF default = 2. Controls how the
+        ///   header subtracts the right-margin tiles. Callers should use 2
+        ///   for BG/CG-style 256x160 entries.</param>
+        public static byte[] EncodeHeaderTSA(byte[] tsa, int width, int height, int tsa_width_margin = 2)
+        {
+            // Argument validation — fail deterministically with empty
+            // output rather than throw IndexOutOfRangeException at
+            // runtime (Copilot bot review on PR #517).
+            if (tsa == null)
+                return new byte[2];
+            if (width % 8 != 0 || height % 8 != 0)
+                return new byte[2];
+            if (width <= 0 || height <= 0)
+                return new byte[2];
+            if (tsa_width_margin < 0)
+                return new byte[2];
+            if (tsa_width_margin > (width / 8) - 1)
+                return new byte[2];
+
+            int masterHeaderX = (width / 8) - tsa_width_margin - 1;
+            int masterHeaderY = (height / 8) - 1;
+            if (masterHeaderX < 0 || masterHeaderY < 0)
+            {
+                return new byte[2]; // empty / degenerate
+            }
+
+            int size = 2 + (masterHeaderX + 1) * (masterHeaderY + 1) * 2;
+            byte[] newtsa = new byte[size];
+
+            newtsa[0] = (byte)masterHeaderX;
+            newtsa[1] = (byte)masterHeaderY;
+
+            int i = 0; // src TSA offset
+            // Start fill at the bottom-most row, matching WF
+            // TSAToHeaderTSA. (The decoder runs the same indexing.)
+            int n = 0x2 + (masterHeaderY * (masterHeaderX + 1)) * 2;
+            if (n > size)
+            {
+                return newtsa;
+            }
+
+            for (int headery = 0; headery <= masterHeaderY; headery++)
+            {
+                for (int headerx = 0; headerx <= masterHeaderX; headerx++)
+                {
+                    if (i + 1 >= tsa.Length)
+                    {
+                        break;
+                    }
+                    ushort tsadata = (ushort)(tsa[i] | (tsa[i + 1] << 8));
+                    if (n + 1 < size)
+                    {
+                        newtsa[n] = (byte)(tsadata & 0xFF);
+                        newtsa[n + 1] = (byte)((tsadata >> 8) & 0xFF);
+                    }
+                    i += 2;
+                    n += 2;
+                }
+                // Per-row WF accounting:
+                //   n += margin * 2  ; then  n -= masterHeaderX * 2 ; then n -= 0x42
+                i = i + tsa_width_margin * 2;
+                n = n + tsa_width_margin * 2;
+                n = n - (masterHeaderX * 2);
+                n = n - (0x42);
+            }
+            return newtsa;
+        }
+
+        /// <summary>
+        /// Full 3-pointer import for editors whose TSA is RAW header-packed
+        /// and palette is RAW (used by <c>ImageBGForm</c> and
+        /// <c>ImageCGForm</c>). Like <see cref="Import3Pointer"/> but writes
+        /// TSA via <see cref="EncodeHeaderTSA"/> + <see cref="WriteRawToROM"/>
+        /// and palette via <see cref="WritePaletteToROM"/>.
+        ///
+        /// **Critical difference from Import3Pointer**: BattleBG compresses
+        /// TSA + palette with LZ77; the generic BG / CG editors do not.
+        /// WF <c>ImageBGForm.ImportButton_Click</c> calls
+        /// <c>WriteImageData(P0, image, useLZ77=true)</c> /
+        /// <c>WriteImageData(P4, tsa, useLZ77=false)</c> /
+        /// <c>WriteImageData(P8, palette, useLZ77=false)</c>.
+        /// </summary>
+        /// <param name="rom">Target ROM.</param>
+        /// <param name="indexedPixels">1 byte per pixel (palette indices, max 15 for 4bpp).</param>
+        /// <param name="gbaPalette">16-color palette (2 bytes per color, 32 bytes total per sub-palette).</param>
+        /// <param name="width">Image width (multiple of 8).</param>
+        /// <param name="height">Image height (multiple of 8).</param>
+        /// <param name="imgPointerAddr">ROM offset of the image pointer slot.</param>
+        /// <param name="tsaPointerAddr">ROM offset of the TSA pointer slot.</param>
+        /// <param name="palPointerAddr">ROM offset of the palette pointer slot.</param>
+        /// <param name="paletteIndex">Sub-palette index for TSA entries (typically 0).</param>
+        /// <param name="tsa_width_margin">WF default = 2 (matches BG/CG width 256).</param>
+        public static ImportResult Import3PointerHeaderTSA(ROM rom, byte[] indexedPixels, byte[] gbaPalette,
+            int width, int height, uint imgPointerAddr, uint tsaPointerAddr, uint palPointerAddr,
+            int paletteIndex = 0, int tsa_width_margin = 2)
+        {
+            var result = new ImportResult();
+            if (rom == null || indexedPixels == null || gbaPalette == null)
+            {
+                result.Error = "Invalid arguments";
+                return result;
+            }
+            // Sanity-check pixel + palette sizes before doing any work
+            // (Copilot bot review on PR #517 — avoid writing malformed
+            // data into ROM on bad inputs).
+            if (width <= 0 || height <= 0 || width % 8 != 0 || height % 8 != 0)
+            {
+                result.Error = "Width/height must be positive multiples of 8";
+                return result;
+            }
+            if (indexedPixels.Length != width * height)
+            {
+                result.Error = $"indexedPixels.Length ({indexedPixels.Length}) does not match width*height ({width * height})";
+                return result;
+            }
+            if (gbaPalette.Length < 32 || gbaPalette.Length % 32 != 0)
+            {
+                result.Error = $"gbaPalette.Length ({gbaPalette.Length}) must be a multiple of 32 (16 colors x 2 bytes)";
+                return result;
+            }
+            // Validate tsa_width_margin against width/8 — Copilot bot
+            // review on PR #517 flagged that an out-of-range margin
+            // would let EncodeHeaderTSA return a 2-byte degenerate
+            // header which we'd then write to ROM as a "successful"
+            // import, leaving the entry broken.
+            if (tsa_width_margin < 0 || tsa_width_margin > (width / 8) - 1)
+            {
+                result.Error = $"tsa_width_margin ({tsa_width_margin}) must be in [0, {(width / 8) - 1}]";
+                return result;
+            }
+
+            // Encode tiles + raw TSA (same path as the LZ77 BattleBG flow).
+            var tsaResult = EncodeTSA(indexedPixels, width, height, paletteIndex);
+            if (tsaResult == null)
+            {
+                result.Error = "Failed to encode TSA data";
+                return result;
+            }
+
+            // Wrap the raw TSA bytes into the WF header-packed layout
+            // (DecodeHeaderTSA reads this format when rendering preview).
+            byte[] headerTsa = EncodeHeaderTSA(tsaResult.TSAData, width, height, tsa_width_margin);
+            // Belt-and-suspenders: if EncodeHeaderTSA returned the 2-byte
+            // degenerate fallback despite our arg validation, refuse to
+            // write rather than corrupt the entry. The combined check
+            // catches any future EncodeHeaderTSA failure mode we add.
+            if (headerTsa == null || headerTsa.Length <= 2)
+            {
+                result.Error = "EncodeHeaderTSA produced a degenerate output; refusing to write";
+                return result;
+            }
+
+            // 1. Image tiles — LZ77 compressed (same as BattleBG path).
+            uint tileAddr = WriteCompressedToROM(rom, tsaResult.TileData, imgPointerAddr);
+            if (tileAddr == U.NOT_FOUND)
+            {
+                result.Error = "Failed to write compressed tile data (no free space)";
+                return result;
+            }
+
+            // 2. TSA — RAW header-packed (the key difference vs LZ77 BattleBG).
+            uint tsaAddr = WriteRawToROM(rom, headerTsa, tsaPointerAddr);
+            if (tsaAddr == U.NOT_FOUND)
+            {
+                result.Error = "Failed to write raw header-TSA (no free space)";
+                return result;
+            }
+
+            // 3. Palette — RAW (no LZ77).
+            uint palAddr = WritePaletteToROM(rom, gbaPalette, palPointerAddr);
+            if (palAddr == U.NOT_FOUND)
+            {
+                result.Error = "Failed to write raw palette (no free space)";
+                return result;
+            }
+
+            result.Success = true;
+            result.TileDataOffset = tileAddr;
+            result.TSADataOffset = tsaAddr;
+            result.PaletteOffset = palAddr;
+            return result;
+        }
+
+        /// <summary>
         /// Write LZ77-compressed data to ROM free space and update a pointer.
         /// Returns the ROM offset where data was written, or U.NOT_FOUND on failure.
         /// </summary>

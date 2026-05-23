@@ -194,6 +194,42 @@ namespace FEBuilderGBA
             return ExtendsBattleBG_extends.NO;
         }
 
+        // ---- BG256-color patch detection (used by ImageBG editor) ----
+
+        /// <summary>
+        /// Static patch table for the "BG256Color" feature (FE8J/FE8U).
+        /// Cached so the array literal is allocated once.
+        /// </summary>
+        static readonly PatchTableSt[] BG256ColorTable = new PatchTableSt[] {
+            new PatchTableSt{ name="BG256Color", ver = "FE8J", addr = 0xE532, data = new byte[]{0xC0, 0x46, 0xC0, 0x46}},
+            new PatchTableSt{ name="BG256Color", ver = "FE8U", addr = 0xE2DA, data = new byte[]{0xC0, 0x46, 0xC0, 0x46}},
+        };
+
+        /// <summary>
+        /// True when the "BG256Color" patch (FE8J/FE8U) is installed in
+        /// the supplied <paramref name="rom"/>. Mirrors WinForms
+        /// <c>PatchUtil.BG256Color() == BG256ColorPatch.BG256Color</c>.
+        /// Used by the ImageBG editor to decide whether P4=0/1 are
+        /// valid table-row flag values.
+        ///
+        /// Delegates to <see cref="SearchPatchBool(ROM, PatchTableSt[])"/>
+        /// so the patch-table scan stays in one place — Copilot bot
+        /// review on PR #517 flagged the inline loop as drift-prone.
+        /// </summary>
+        public static bool HasBG256ColorPatch(ROM rom)
+        {
+            return SearchPatchBool(rom, BG256ColorTable);
+        }
+
+        /// <summary>
+        /// Ambient-ROM overload. Reads <see cref="CoreState.ROM"/> if
+        /// available.
+        /// </summary>
+        public static bool HasBG256ColorPatch()
+        {
+            return HasBG256ColorPatch(CoreState.ROM);
+        }
+
         // ---- Generic patch search helpers ----
 
         public static bool SearchPatchBool(PatchTableSt[] table)
@@ -201,6 +237,38 @@ namespace FEBuilderGBA
             if (CoreState.ROM?.RomInfo == null) return false;
             PatchTableSt p = SearchPatch(table);
             return p.addr != 0;
+        }
+
+        /// <summary>
+        /// ROM-parameterized variant of <see cref="SearchPatchBool(PatchTableSt[])"/>.
+        /// Used by ROM-specific detection helpers (e.g.
+        /// <see cref="HasBG256ColorPatch(ROM)"/>) that need to avoid
+        /// depending on the ambient <see cref="CoreState.ROM"/>.
+        /// (Copilot bot review on PR #517 — single source of truth
+        /// across all patch detections.)
+        /// </summary>
+        public static bool SearchPatchBool(ROM rom, PatchTableSt[] table)
+        {
+            if (rom?.RomInfo == null) return false;
+            PatchTableSt p = SearchPatch(rom, table);
+            return p.addr != 0;
+        }
+
+        /// <summary>
+        /// ROM-parameterized variant of <see cref="SearchPatch(PatchTableSt[])"/>.
+        /// </summary>
+        public static PatchTableSt SearchPatch(ROM rom, PatchTableSt[] table)
+        {
+            if (rom?.RomInfo == null) return default;
+            string version = rom.RomInfo.VersionToFilename;
+            foreach (PatchTableSt t in table)
+            {
+                if (t.ver != version) continue;
+                byte[] data = rom.getBinaryData(t.addr, t.data.Length);
+                if (U.memcmp(t.data, data) != 0) continue;
+                return t;
+            }
+            return default;
         }
 
         public static PatchTableSt SearchPatch(PatchTableSt[] table)

@@ -502,6 +502,10 @@ namespace FEBuilderGBA.Avalonia.Services
             // counterpart" and the navigation manifest never lifts past
             // MissingAvManifest. Copilot bot review on PR #516 (round 4).
             { "SkillConfigFE8UCSkillSys09xView", "SkillConfigCSkillSystem09xForm" },
+            // #429 — ImageBGForm jumps to the BG-mode-select popup (16/255/224)
+            // under the BG256Color patch. Popup is a dialog (NoListEditor);
+            // declare the WF↔AV form pair so JumpParityScanner can resolve it.
+            { "ImageBGSelectPopupView", "ImageBGSelectPopupForm" },
         };
 
         /// <summary>
