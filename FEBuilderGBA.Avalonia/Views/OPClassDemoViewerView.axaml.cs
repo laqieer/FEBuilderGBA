@@ -253,6 +253,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Reset the selected-address gate BEFORE replacing the
+                // list so a follow-up Write button click cannot land on
+                // a stale address from the previous row. (Copilot CLI
+                // re-review on PR #544 #4.)
+                _n1SelectedAddr = 0;
+                _vm.IsLoading = true;
+                try { N1B0Box.Value = 0; }
+                finally { _vm.IsLoading = false; }
+                N1SelectedAddressBox.Text = "";
+
                 if (_vm.CurrentAddr == 0) { _n1Rows = new(); N1List.SetItems(new List<AddrResult>()); return; }
                 _n1Rows = _vm.LoadN1FontList(_vm.CurrentAddr + 8);
                 var items = new List<AddrResult>();
@@ -269,6 +279,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Reset state before replacing the list — see LoadN1Sublist.
+                _n2SelectedAddr = 0;
+                _vm.IsLoading = true;
+                try { N2B0Box.Value = 0; N2B1Box.Value = 0; N2CmdCombo.SelectedIndex = -1; }
+                finally { _vm.IsLoading = false; }
+
                 if (_vm.CurrentAddr == 0) { _n2Rows = new(); N2List.SetItems(new List<AddrResult>()); return; }
                 _n2Rows = _vm.LoadN2CommandList(_vm.CurrentAddr + 24);
                 var items = new List<AddrResult>();
@@ -322,19 +338,33 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            // Every derived preview / combo / inline label must be
+            // populated here because the ValueChanged handlers are
+            // gated by `_vm.IsLoading` during load. (Copilot CLI
+            // re-review on PR #544.)
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             AddressBox.Value = _vm.CurrentAddr;
             SelectedAddressBox.Text = $"0x{_vm.CurrentAddr:X08}";
+
             EnglishNamePtrBox.Value = _vm.EnglishNamePointer;
+            EnglishNamePreview.Text = _vm.EnglishNamePointer != 0
+                ? $"0x{_vm.EnglishNamePointer:X08}" : "";
+
             DescTextIdBox.Value = _vm.DescriptionTextId;
             try { DescTextPreview.Text = _vm.DescriptionTextId != 0 ? NameResolver.GetTextById(_vm.DescriptionTextId) : ""; }
             catch { DescTextPreview.Text = ""; }
+
             JpNamePtrBox.Value = _vm.JapaneseNamePointer;
             JpNameLenBox.Value = _vm.JapaneseNameLength;
+
             PaletteIdBox.Value = _vm.PaletteId;
+            PalettePreview.Text = _vm.PaletteId == 0xFF
+                ? R._("Default palette") : $"Palette 0x{_vm.PaletteId:X02}";
+
             DisplayWeaponBox.Value = _vm.DisplayWeapon;
             try { ClassNamePreview.Text = NameResolver.GetClassName(_vm.DisplayWeapon); }
             catch { ClassNamePreview.Text = ""; }
+
             AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
             // The ValueChanged handler is gated by IsLoading, so sync
             // the combo SelectedIndex explicitly here. (Copilot bot
@@ -343,15 +373,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 int v = (int)_vm.AllyEnemyColor;
                 AllyEnemyColorCombo.SelectedIndex = (v >= 0 && v < AllyEnemyColorCombo.ItemCount) ? v : -1;
             }
+
             BattleAnimeBox.Value = _vm.BattleAnime;
+            BattleAnimePreview.Text = $"Anime 0x{_vm.BattleAnime:X02}";
+
             MagicEffectBox.Value = _vm.MagicEffect;
             {
                 int v = (int)_vm.MagicEffect;
                 MagicEffectCombo.SelectedIndex = (v >= 0 && v < MagicEffectCombo.ItemCount) ? v : -1;
             }
+
             Unknown18Box.Value = _vm.Unknown18;
+
             TerrainLeftBox.Value = _vm.TerrainLeft;
+            TerrainLeftPreview.Text = $"Terrain 0x{_vm.TerrainLeft:X02}";
+
             TerrainRightBox.Value = _vm.TerrainRight;
+            TerrainRightPreview.Text = $"Terrain 0x{_vm.TerrainRight:X02}";
+
             AnimePtrBox.Value = _vm.AnimePointer;
         }
 

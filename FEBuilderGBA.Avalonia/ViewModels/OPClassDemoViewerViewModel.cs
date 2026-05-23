@@ -6,8 +6,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class OPClassDemoViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        // Pointer fields P0/P8/P24 use `rom.p32`/`write_p32` semantics
+        // — store ROM offset (without the 0x08000000 GBA bit). This
+        // mirrors WinForms `OPClassDemoForm` which uses InputFormRef
+        // P-prefix fields for the same slots. (Copilot CLI re-review
+        // on PR #544 flagged D8/D24 as bypassing pointer semantics.)
         static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "B12", "B13", "B14", "B15", "B16", "B17", "D18", "B22", "B23", "D24" });
+            EditorFormRef.DetectFields(new[] { "P0", "D4", "P8", "B12", "B13", "B14", "B15", "B16", "B17", "D18", "B22", "B23", "P24" });
 
         uint _currentAddr;
         bool _canWrite;
@@ -78,9 +83,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             CurrentAddr = addr;
             var v = EditorFormRef.ReadFields(rom, addr, _fields);
-            EnglishNamePointer = v["D0"];
+            EnglishNamePointer = v["P0"];
             DescriptionTextId = v["D4"];
-            JapaneseNamePointer = v["D8"];
+            JapaneseNamePointer = v["P8"];
             JapaneseNameLength = v["B12"];
             PaletteId = v["B13"];
             DisplayWeapon = v["B14"];
@@ -90,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Unknown18 = v["D18"];
             TerrainLeft = v["B22"];
             TerrainRight = v["B23"];
-            AnimePointer = v["D24"];
+            AnimePointer = v["P24"];
             CanWrite = true;
         }
 
@@ -100,10 +105,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             var values = new Dictionary<string, uint>
             {
-                ["D0"] = EnglishNamePointer, ["D4"] = DescriptionTextId, ["D8"] = JapaneseNamePointer,
+                ["P0"] = EnglishNamePointer, ["D4"] = DescriptionTextId, ["P8"] = JapaneseNamePointer,
                 ["B12"] = JapaneseNameLength, ["B13"] = PaletteId, ["B14"] = DisplayWeapon,
                 ["B15"] = AllyEnemyColor, ["B16"] = BattleAnime, ["B17"] = MagicEffect,
-                ["D18"] = Unknown18, ["B22"] = TerrainLeft, ["B23"] = TerrainRight, ["D24"] = AnimePointer,
+                ["D18"] = Unknown18, ["B22"] = TerrainLeft, ["B23"] = TerrainRight, ["P24"] = AnimePointer,
             };
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }

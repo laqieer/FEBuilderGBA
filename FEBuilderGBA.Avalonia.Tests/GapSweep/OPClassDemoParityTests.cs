@@ -187,6 +187,25 @@ public class OPClassDemoParityTests
         Assert.Matches(new Regex(@"void\s+ListExpand_Click[\s\S]*?_vm\.ExpandList\(", RegexOptions.Compiled), source);
     }
 
+    [Fact]
+    public void View_LoadN1Sublist_ResetsSelectedAddressOnEntryChange()
+    {
+        // Copilot CLI re-review on PR #544 #4 — Load*Sublist must reset
+        // _n*SelectedAddr before replacing the list so a stale selection
+        // from the previous row cannot land in a Write_Click against the
+        // wrong address. The handler regex looks for the explicit reset
+        // assignment at the top of each Load*Sublist body.
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+LoadN1Sublist[\s\S]*?_n1SelectedAddr\s*=\s*0", RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_LoadN2Sublist_ResetsSelectedAddressOnEntryChange()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+LoadN2Sublist[\s\S]*?_n2SelectedAddr\s*=\s*0", RegexOptions.Compiled), source);
+    }
+
     // -----------------------------------------------------------------
     // ViewModel sublist walks (synthetic FE8U ROM)
     // -----------------------------------------------------------------
@@ -285,6 +304,111 @@ public class OPClassDemoParityTests
             Assert.Equal(0x00u, rows[0].Argument);
             Assert.Equal(0x03u, rows[2].Command);
             Assert.Equal(0x20u, rows[2].Argument);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Pointer-aware write semantics (P0 / P8 / P24) — issue raised by
+    // Copilot CLI re-review on PR #544. The VM must read JapaneseNamePointer /
+    // AnimePointer as offsets (via rom.p32) and write them back with the
+    // 0x08000000 high bit applied (via rom.write_p32).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_WriteOPClassDemo_StoresJapaneseNamePointer_AsGbaPointer()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new OPClassDemoViewerViewModel();
+            // Plant a valid p0 at the entry so LoadOPClassDemo can be
+            // called later without tripping pointer-safety checks
+            // (not strictly needed here — we test the write path).
+            uint entryAddr = 0x00800000u;
+            vm.CurrentAddr = entryAddr;
+            vm.JapaneseNamePointer = 0x00200000u; // ROM offset, NO high bit.
+            vm.WriteOPClassDemo();
+
+            // Read raw u32: should have GBA 0x08000000 high bit.
+            uint raw = rom.u32(entryAddr + 8);
+            uint decoded = rom.p32(entryAddr + 8);
+            Assert.Equal(0x00200000u | 0x08000000u, raw);
+            Assert.Equal(0x00200000u, decoded);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WriteOPClassDemo_StoresAnimePointer_AsGbaPointer()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new OPClassDemoViewerViewModel();
+            uint entryAddr = 0x00800100u;
+            vm.CurrentAddr = entryAddr;
+            vm.AnimePointer = 0x00300000u;
+            vm.WriteOPClassDemo();
+
+            uint raw = rom.u32(entryAddr + 24);
+            uint decoded = rom.p32(entryAddr + 24);
+            Assert.Equal(0x00300000u | 0x08000000u, raw);
+            Assert.Equal(0x00300000u, decoded);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WriteOPClassDemo_StoresEnglishNamePointer_AsGbaPointer()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new OPClassDemoViewerViewModel();
+            uint entryAddr = 0x00800200u;
+            vm.CurrentAddr = entryAddr;
+            vm.EnglishNamePointer = 0x00400000u;
+            vm.WriteOPClassDemo();
+
+            uint raw = rom.u32(entryAddr + 0);
+            uint decoded = rom.p32(entryAddr + 0);
+            Assert.Equal(0x00400000u | 0x08000000u, raw);
+            Assert.Equal(0x00400000u, decoded);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadOPClassDemo_ReadsPointersAsOffsets()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Plant raw GBA pointer bytes at the test address.
+            uint entryAddr = 0x00800300u;
+            uint gbaPointer = 0x08500000u;
+            BitConverter.GetBytes(gbaPointer).CopyTo(rom.Data, entryAddr + 0);  // P0
+            BitConverter.GetBytes(gbaPointer + 0x1000).CopyTo(rom.Data, entryAddr + 8);  // P8
+            BitConverter.GetBytes(gbaPointer + 0x2000).CopyTo(rom.Data, entryAddr + 24); // P24
+
+            var vm = new OPClassDemoViewerViewModel();
+            vm.LoadOPClassDemo(entryAddr);
+
+            // p32 strips the 0x08000000 high bit, so the ViewModel
+            // observable property must report the OFFSET only.
+            Assert.Equal(0x00500000u, vm.EnglishNamePointer);
+            Assert.Equal(0x00501000u, vm.JapaneseNamePointer);
+            Assert.Equal(0x00502000u, vm.AnimePointer);
         }
         finally { CoreState.ROM = prevRom; }
     }
