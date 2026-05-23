@@ -1084,8 +1084,11 @@ namespace FEBuilderGBA.Avalonia.Services
                     (new byte[] { 0x40, 0x5D, 0x08, 0x49, 0x40, 0x00, 0x40, 0x18, 0x00, 0x88, 0x00, 0x28, 0x00, 0xD1, 0x07, 0x48, 0x21, 0x1C, 0x4C, 0x31 }, 16),
                 };
 
-                const uint start = 0xB00000;
-                const uint end = 0xC00000;
+                // Clamp end to rom.Data.Length so smaller ROMs don't fall
+                // into the U.Grep exception path (Copilot bot review).
+                uint start = 0xB00000;
+                uint end = Math.Min(0xC00000u, (uint)rom.Data.Length);
+                if (start >= end) return U.NOT_FOUND;
 
                 foreach (var (data, skip) in textPatterns)
                 {
@@ -1139,22 +1142,39 @@ namespace FEBuilderGBA.Avalonia.Services
 
             try
             {
-                // Two known ANIME patterns from WinForms `FindSkillPointer("ANIME", 0)`,
-                // ordered by appearance in the WF table (first match wins).
-                // The first WF entry (skip=32) is the primary path; the
-                // second (skip=12) covers older ROMs.
-                var animePatterns = new (byte[] data, uint skip)[]
+                // Three known ANIME patterns from WinForms `FindSkillPointer("ANIME", 0)`,
+                // ordered by appearance in the WF table (first match wins):
+                //   1. skip=32, 16-byte literal pattern (primary path on most ROMs)
+                //   2. skip=16, 64-byte pattern with 0xFF/0xFF wildcards at the
+                //      pointer-table addresses (Copilot bot review on PR #525
+                //      caught the gap - without this, ROMs that match only
+                //      the masked signature wouldn't resolve)
+                //   3. skip=12, 32-byte literal pattern (older ROMs)
+                var animePatterns = new (byte[] data, uint skip, bool hasMask)[]
                 {
-                    (new byte[] { 0x00, 0x2B, 0x00, 0xD1, 0x06, 0x4B, 0x38, 0x1C, 0x9E, 0x46, 0x00, 0xF8, 0x05, 0x48, 0x00, 0x47 }, 32),
-                    (new byte[] { 0x9D, 0x2E, 0x00, 0x08, 0x35, 0x8A, 0x05, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x10, 0xE3, 0x06, 0x08, 0x8C, 0xE5, 0x06, 0x08, 0xC4, 0xAE, 0x02, 0x08, 0x55, 0xA1, 0x05, 0x08 }, 12),
+                    (new byte[] { 0x00, 0x2B, 0x00, 0xD1, 0x06, 0x4B, 0x38, 0x1C, 0x9E, 0x46, 0x00, 0xF8, 0x05, 0x48, 0x00, 0x47 }, 32, false),
+                    (new byte[] { 0x00, 0xD1, 0x33, 0x1C, 0x01, 0x33, 0x38, 0x1C, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xBC, 0x11, 0x48, 0x00, 0x47, 0xF0, 0xBC, 0x10, 0x48, 0x00, 0x47, 0xF0, 0xBC, 0x10, 0x48, 0x00, 0x47, 0x18, 0x47, 0x6D, 0xA1, 0x05, 0x08, 0x35, 0x8A, 0x05, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x10, 0xE3, 0x06, 0x08, 0x8C, 0xE5, 0x06, 0x08, 0xC4, 0xAE, 0x02, 0x08, 0x55, 0xA1, 0x05, 0x08 }, 16, true),
+                    (new byte[] { 0x9D, 0x2E, 0x00, 0x08, 0x35, 0x8A, 0x05, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x10, 0xE3, 0x06, 0x08, 0x8C, 0xE5, 0x06, 0x08, 0xC4, 0xAE, 0x02, 0x08, 0x55, 0xA1, 0x05, 0x08 }, 12, false),
                 };
 
-                const uint start = 0xB00000;
-                const uint end = 0xC00000;
+                // Clamp the scan window to rom.Data.Length so smaller ROMs
+                // don't fall into the U.Grep exception path - matches the
+                // GrepWithMask defensive clamp (Copilot bot review).
+                uint start = 0xB00000;
+                uint end = Math.Min(0xC00000u, (uint)rom.Data.Length);
+                if (start >= end) return U.NOT_FOUND;
 
-                foreach (var (data, skip) in animePatterns)
+                foreach (var (data, skip, hasMask) in animePatterns)
                 {
-                    uint found = U.Grep(rom.Data, data, start, end, 4);
+                    uint found;
+                    if (hasMask)
+                    {
+                        found = GrepWithMask(rom.Data, data, start, end, 4);
+                    }
+                    else
+                    {
+                        found = U.Grep(rom.Data, data, start, end, 4);
+                    }
                     if (found == U.NOT_FOUND) continue;
 
                     uint a = (uint)(found + data.Length + skip);
