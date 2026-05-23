@@ -224,36 +224,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // ----------------------------------------------------------------
         // Write handlers — used by the View's Write_Click handlers inside
-        // an `_undoService.Begin/Commit` scope. Each writes a single
-        // pointer to the row's slot; the global event write touches three
-        // RomInfo pointer locations at once.
+        // an `_undoService.Begin/Commit` scope. Each returns `true` on a
+        // successful write or `false` when a precondition was not met
+        // (no ROM, no row selected, address OOB). The View uses the bool
+        // to decide whether to Commit + show success or skip the undo
+        // entry + show a warning — avoids empty undo entries and
+        // misleading "written" messages (Copilot bot inline review).
         // ----------------------------------------------------------------
-        public void WriteBefore()
+        public bool WriteBefore()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentBeforeAddr == 0) return;
-            if (CurrentBeforeAddr + BlockSize > (uint)rom.Data.Length) return;
+            if (rom == null || CurrentBeforeAddr == 0) return false;
+            if (CurrentBeforeAddr + BlockSize > (uint)rom.Data.Length) return false;
             // P0 convention: `write_p32` re-applies the 0x08000000 mask
             // when the input is an offset; pointer-form values pass
             // through unchanged. Mirrors WF `Program.ROM.write_p32(addr, val)`.
             rom.write_p32(CurrentBeforeAddr, BeforeEventPointer);
+            return true;
         }
 
-        public void WriteAfter()
+        public bool WriteAfter()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAfterAddr == 0) return;
-            if (CurrentAfterAddr + BlockSize > (uint)rom.Data.Length) return;
+            if (rom == null || CurrentAfterAddr == 0) return false;
+            if (CurrentAfterAddr + BlockSize > (uint)rom.Data.Length) return false;
             rom.write_p32(CurrentAfterAddr, AfterEventPointer);
+            return true;
         }
 
-        public void WriteGlobalEvents()
+        public bool WriteGlobalEvents()
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return;
+            if (rom?.RomInfo == null) return false;
             rom.write_p32(rom.RomInfo.oping_event_pointer, OpeningEvent);
             rom.write_p32(rom.RomInfo.ending1_event_pointer, Ending1Event);
             rom.write_p32(rom.RomInfo.ending2_event_pointer, Ending2Event);
+            return true;
         }
 
         // ----------------------------------------------------------------

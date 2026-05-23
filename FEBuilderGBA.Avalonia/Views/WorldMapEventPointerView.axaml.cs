@@ -54,8 +54,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ReloadBefore()
         {
+            // Reload is a read-only action — wrap in an IsLoading scope so
+            // the VM's automatic SetField -> IsDirty propagation doesn't
+            // flip the dirty bit when BaseAddr/ReadCount/etc. change.
+            // Saves/restores the prior IsLoading value to nest correctly
+            // inside InitialLoad's outer scope (Copilot bot inline review).
+            bool prevLoading = _vm.IsLoading;
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadBeforeList();
                 // AddressListControl.SetItems already calls SelectFirst()
                 // internally — no explicit follow-up needed (and avoids
@@ -67,12 +74,15 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapEventPointerView.ReloadBefore failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void ReloadAfter()
         {
+            bool prevLoading = _vm.IsLoading;
             try
             {
+                _vm.IsLoading = true;
                 var items = _vm.LoadAfterList();
                 AfterList.SetItems(items);
                 UpdateReadConfigUI();
@@ -81,6 +91,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapEventPointerView.ReloadAfter failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void ReloadBefore_Click(object? sender, RoutedEventArgs e) => ReloadBefore();
@@ -88,6 +99,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnBeforeSelected(uint addr)
         {
+            // Save/restore the prior IsLoading state instead of forcing
+            // false — InitialLoad sets IsLoading=true, then SetItems
+            // triggers selection events that land here. Forcing false
+            // mid-initialization re-enables dirty tracking too early
+            // (Copilot bot inline review point 2).
+            bool prevLoading = _vm.IsLoading;
             try
             {
                 _vm.IsLoading = true;
@@ -98,11 +115,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapEventPointerView.OnBeforeSelected failed: {0}", ex.Message);
             }
-            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void OnAfterSelected(uint addr)
         {
+            bool prevLoading = _vm.IsLoading;
             try
             {
                 _vm.IsLoading = true;
@@ -113,7 +131,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapEventPointerView.OnAfterSelected failed: {0}", ex.Message);
             }
-            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void UpdateBeforeRowUI()
@@ -147,7 +165,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // ----------------------------------------------------------------
         // Write handlers — three independent paths matching the WF Form's
-        // three Write buttons. Each starts its own undo scope.
+        // three Write buttons. Each starts its own undo scope only after
+        // the VM's Write* method returns true (= a write actually
+        // happened). Returning false means a precondition failed (no row
+        // selected / no ROM); we skip Commit + the success toast to avoid
+        // empty undo entries and misleading "written" messages
+        // (Copilot bot inline review point 3).
         // ----------------------------------------------------------------
         void Write_Click(object? sender, RoutedEventArgs e)
         {
@@ -156,10 +179,17 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit World Map Event Before");
             try
             {
-                _vm.WriteBefore();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services?.ShowInfo("World map event Before pointer written.");
+                if (_vm.WriteBefore())
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services?.ShowInfo("World map event Before pointer written.");
+                }
+                else
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("No Before row selected — nothing to write.");
+                }
             }
             catch (Exception ex)
             {
@@ -175,10 +205,17 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit World Map Event After");
             try
             {
-                _vm.WriteAfter();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services?.ShowInfo("World map event After pointer written.");
+                if (_vm.WriteAfter())
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services?.ShowInfo("World map event After pointer written.");
+                }
+                else
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("No After row selected — nothing to write.");
+                }
             }
             catch (Exception ex)
             {
@@ -195,10 +232,17 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit World Map Global Events");
             try
             {
-                _vm.WriteGlobalEvents();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services?.ShowInfo("Opening / ending event pointers written.");
+                if (_vm.WriteGlobalEvents())
+                {
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services?.ShowInfo("Opening / ending event pointers written.");
+                }
+                else
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("No ROM loaded — cannot write global events.");
+                }
             }
             catch (Exception ex)
             {

@@ -460,6 +460,36 @@ public class WorldMapEventPointerParityTests
     }
 
     [Fact]
+    public void ViewModel_Write_ReturnsFalse_WhenPreconditionsNotMet()
+    {
+        // Regression guard for Copilot bot inline review point 3 — the
+        // VM's Write methods must report whether a write actually happened
+        // so the View can skip empty undo entries / misleading success
+        // toasts when preconditions fail (no row selected, no ROM).
+        var prevRom = CoreState.ROM;
+        try
+        {
+            // No ROM loaded -> all three Write methods return false.
+            CoreState.ROM = null!;
+            var vm = new WorldMapEventPointerViewModel();
+            Assert.False(vm.WriteBefore());
+            Assert.False(vm.WriteAfter());
+            Assert.False(vm.WriteGlobalEvents());
+
+            // ROM loaded but no row selected -> WriteBefore/After return false;
+            // WriteGlobalEvents returns true (it doesn't need a row).
+            ROM rom = MakeFe8uWithGlobalEventSlots();
+            CoreState.ROM = rom;
+            var vm2 = new WorldMapEventPointerViewModel();
+            // CurrentBeforeAddr / CurrentAfterAddr both 0 (no LoadEntry call).
+            Assert.False(vm2.WriteBefore());
+            Assert.False(vm2.WriteAfter());
+            Assert.True(vm2.WriteGlobalEvents());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
     public void ViewModel_DataReport_And_RawReport_Agree_AfterRowSelection()
     {
         // Regression guard for Copilot CLI re-review point — after a row
