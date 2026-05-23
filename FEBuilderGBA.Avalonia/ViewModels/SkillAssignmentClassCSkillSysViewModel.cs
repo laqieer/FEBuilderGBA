@@ -386,8 +386,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (newCount <= oldCount) return oldPointer; // no expansion needed
 
-            // Defensive: round up to next 4-byte boundary for the new buffer.
+            // Defensive: round up to next 4-byte boundary for the new buffer
+            // (mirrors DataExpansionCore's 4-byte-aligned allocation behavior).
             uint newBufferSize = (newCount + 1) * N1_BLOCK_SIZE; // +1 for terminator
+            newBufferSize = (newBufferSize + 3) & ~3u;
             uint newBase = DataExpansionCore.FindFreeSpace(rom, newBufferSize);
             if (newBase == U.NOT_FOUND || !U.isSafetyOffset(newBase)) return 0;
             // Repoint the slot to the new region.
@@ -442,7 +444,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rowCount++;
             }
 
+            // Round up to next 4-byte boundary so the new buffer is aligned
+            // with DataExpansionCore's allocation contract.
             uint bufferSize = (rowCount + 1) * N1_BLOCK_SIZE;
+            bufferSize = (bufferSize + 3) & ~3u;
             uint newBase = DataExpansionCore.FindFreeSpace(rom, bufferSize);
             if (newBase == U.NOT_FOUND || !U.isSafetyOffset(newBase)) return 0;
             rom.write_p32(slotAddr, newBase);

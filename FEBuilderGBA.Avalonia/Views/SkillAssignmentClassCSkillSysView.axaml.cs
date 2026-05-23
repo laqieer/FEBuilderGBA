@@ -156,7 +156,10 @@ namespace FEBuilderGBA.Avalonia.Views
                         {
                             uint ptr = rom.p32(slotAddr);
                             _vm.LevelUpAddr = ptr;
-                            N1LevelUpAddrBox.Value = ptr;
+                            // Display GBA pointer form (0x08xxxxxx) to match WinForms
+                            // SkillAssignmentClassCSkillSysForm.N1_AddressInput.Value,
+                            // even though the internal walker uses the offset form.
+                            N1LevelUpAddrBox.Value = U.toPointer(ptr);
                             LoadN1Sublist(ptr);
                             UpdateIndependencePanels(ar.tag, (uint)_classItems.Count);
                         }
@@ -223,7 +226,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Push the N1 read-count into the VM so its walker honors it.
             // Copilot CLI PR #552 review #2: previously this control was inert.
-            uint addr = (uint)(N1LevelUpAddrBox.Value ?? 0);
+            //
+            // The address box displays the GBA pointer form (0x08xxxxxx) per
+            // WinForms convention; normalize back to the ROM offset before
+            // walking the list so isSafetyOffset() and array indexing work.
+            uint raw = (uint)(N1LevelUpAddrBox.Value ?? 0);
+            uint addr = U.toOffset(raw);
             _vm.LevelUpAddr = addr;
             _vm.N1ReadCount = (uint)(N1ReadCountBox.Value ?? 0);
             LoadN1Sublist(addr);
@@ -336,7 +344,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 if (newBase != 0)
                 {
-                    N1LevelUpAddrBox.Value = newBase;
+                    // Display the GBA pointer form (0x08xxxxxx) for consistency
+                    // with the initial-selection / Reload normalization; keep
+                    // the offset form for the internal walker.
+                    N1LevelUpAddrBox.Value = U.toPointer(newBase);
                     LoadN1Sublist(newBase);
                 }
                 _vm.MarkClean();
@@ -359,7 +370,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 if (newBase != 0)
                 {
-                    N1LevelUpAddrBox.Value = newBase;
+                    // Display the GBA pointer form (0x08xxxxxx) for consistency
+                    // with the initial-selection / Reload normalization; keep
+                    // the offset form for the internal walker.
+                    N1LevelUpAddrBox.Value = U.toPointer(newBase);
                     LoadN1Sublist(newBase);
                 }
                 _vm.MarkClean();
