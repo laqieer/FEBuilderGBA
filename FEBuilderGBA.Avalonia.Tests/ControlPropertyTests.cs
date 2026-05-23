@@ -545,10 +545,11 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             // Address list
             AssertNamedControlExists<AddressListControl>(view, "EntryList", "SongTrackView");
-            AssertNamedControlExists(view, "AddrLabel", "SongTrackView");
-
-            // Track list
-            AssertNamedControlExists<ListBox>(view, "TrackListBox", "SongTrackView");
+            // PR #412 rebuild: SelectedAddressLabel replaces AddrLabel, and the
+            // 16 static Track1..Track16 ListBoxes replace TrackListBox.
+            AssertNamedControlExists(view, "SelectedAddressLabel", "SongTrackView");
+            AssertNamedControlExists<ListBox>(view, "Track1", "SongTrackView");
+            AssertNamedControlExists<ListBox>(view, "Track16", "SongTrackView");
 
             // Write button
             AssertWriteButtonExists(view, "SongTrackView");

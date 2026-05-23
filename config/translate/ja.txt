@@ -7304,20 +7304,53 @@ Hex アドレス
 :Level
 レベル
 
+:Acquired Level
+習得レベル
+
+:Acquired Level Breakdown
+習得レベルの内訳
+
 :Level Breakdown
 習得レベルの内訳
 
+:Level-up Skill Table Address
+レベルアップで取得するスキルの先頭アドレス
+
+:Detach Selected Class (make independent)
+選択クラスの分離独立
+
+:This table is referenced by multiple classes.
+このテーブルは、複数のクラスで参照されています。
+
 :PlayerOnly(LV+32)
-PlayerOnly(LV+32)
+味方のみ(LV+32)
 
 :EnemyOnly(LV+64)
-EnemyOnly(LV+64)
+敵のみ(LV+64)
+
+:Normal&&Hard (LV+96)
+ノーマル&&ハード (LV+96)
 
 :Normal&Hard (LV+96)
-Normal&Hard (LV+96)
+ノーマル&ハード (LV+96)
 
 :Hard only (LV+128)
-Hard only (LV+128)
+ハードのみ (LV+128)
+
+:Click here for acquired level and skill details
+習得レベルとスキルの詳細は、ここをクリックしてください。
+
+:Level is set to 255.\r\nWhen a class is reached via CC from a base class, this skill cannot be obtained.\r\nOnly when this class is LOADed can this skill be held.
+レベルに255が設定されています。\r\n下級職からCCして、このクラスになった場合には、このスキルを得ることはできません。\r\nこのクラスでLOADされた場合にのみ、このスキルを持つことができます。
+
+:No level-up skill area is allocated for this class.\r\nPress the "Expand List" button to allocate one.
+領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
+
+:Skill Assignment - Class (CSkillSys 3.00).\r\nThis editor requires the CSkillSys 3.00+ skill system patch to be installed.\r\nUse the Patch Manager to install the CSkillSys 3.00 patch first.
+スキル_クラス別割当 (CSkillSys 3.00)。\r\nこのエディタを使用するには CSkillSys 3.00+ パッチが必要です。\r\nまずパッチマネージャから CSkillSys 3.00 パッチをインストールしてください。
+
+:Skill Assignment - Class (CSkillSys)
+スキル_クラス別割当 (CSkillSys)
 
 :Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
 レベルに255が設定されています。\r\n下級職からCCして、このクラスになった場合には、このスキルを得ることはできません。\r\nこのクラスでLOADされた場合にのみ、このスキルを持つことができます。
@@ -7411,3 +7444,184 @@ OBJBGLeftToRight
 
 :Bin info
 バイナリ情報
+
+:トラック1
+トラック1
+
+:トラック2
+トラック2
+
+:トラック3
+トラック3
+
+:トラック4
+トラック4
+
+:トラック5
+トラック5
+
+:トラック6
+トラック6
+
+:トラック7
+トラック7
+
+:トラック8
+トラック8
+
+:トラック9
+トラック9
+
+:トラック10
+トラック10
+
+:トラック11
+トラック11
+
+:トラック12
+トラック12
+
+:トラック13
+トラック13
+
+:トラック14
+トラック14
+
+:トラック15
+トラック15
+
+:トラック16
+トラック16
+
+:First Address
+先頭アドレス
+
+:Search for new resources online
+インターネットから新しいリソースを探す
+
+:Import Music File
+音楽をファイルから読み込む
+
+:Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.
+MIDIファイルのインポート（プレビューのみ）。完全なインポートディスパッチ（MIDI / Wave / Instrument）はCoreの抽出待ちです。
+
+:Export Music File
+音楽をファイルへ書き出す
+
+:Play in Sappy
+Sappyで再生
+
+:Pending Core extraction (Sappy emulator integration is WinForms-only).
+Coreの抽出待ち（Sappyエミュレータ連携はWinForms専用です）。
+
+:Pending Core extraction (ResourceCache shell integration).
+Coreの抽出待ち（ResourceCacheのシェル連携）。
+
+:All Tracks (Score) - click to bulk-change all tracks
+楽譜 - クリックして全トラックを一括変更
+
+# UnitEditorView additions (issue #413)
+:[HardCoding]
+[ハードコード]
+
+:Export/Import Options
+エクスポート/インポート オプション
+
+:Use Clipboard
+クリップボードを使用
+
+:Include UID
+UIDを含む
+
+:Include Header
+ヘッダ行を含む
+
+:Include Name
+名前を含む
+
+:Include Base Stats
+初期能力を含む
+
+:Include Growths
+成長率を含む
+
+:Include Wep Level
+武器LVを含む
+
+:Growths as Decimal
+成長率を小数で出力
+
+:Export All
+すべてエクスポート
+
+:Export Selected
+選択中をエクスポート
+
+:Import All
+すべてインポート
+
+:Import Selected
+選択中をインポート
+
+:Export all units to a CSV file or clipboard
+すべてのユニットをCSVファイルまたはクリップボードへエクスポート
+
+:Export the selected unit to a CSV file or clipboard
+選択中のユニットをCSVファイルまたはクリップボードへエクスポート
+
+:Import all units from a CSV file or clipboard
+すべてのユニットをCSVファイルまたはクリップボードからインポート
+
+:Import the selected unit from a CSV file or clipboard
+選択中のユニットをCSVファイルまたはクリップボードからインポート
+
+:Import Units CSV
+ユニットCSVをインポート
+
+:Import Unit CSV
+ユニットCSVをインポート
+
+:Retreat
+撤退
+
+:Epithet
+通り名
+
+:Epilogue
+その後
+
+:Eirika Route
+エイリーク編
+
+:Ephraim Route
+エフラム編
+
+:Designation
+指定
+
+:Appearing Unit
+登場ユニット
+
+:Retreat Spec 02
+撤退指定 02
+
+:Epithet Text
+通り名テキスト
+
+:Epilogue Text
+その後テキスト
+
+:Story Flag
+ストーリーフラグ
+
+:Unit
+ユニット
+
+:1=Solo
+1=一人
+
+:2=Support
+2=支援
+
+:Bytes +2..+3 are reserved (WF designer doesn't expose).
+バイト +2..+3 は予約済み (WFデザイナでは未公開)。

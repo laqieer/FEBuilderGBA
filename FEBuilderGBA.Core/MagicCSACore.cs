@@ -1,16 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Cross-platform helpers for the CSA Magic Creator / FEditor magic engines.
-// Ports the read-only detection / scan logic out of the WinForms
-// `ImageUtilMagic` static class so Avalonia (and any future headless tool)
-// can resolve the magic system kind, dim/no-dim addresses, the CSA spell
-// table address, and walk the CSA entries without depending on
-// System.Windows.Forms or any WF-only helpers.
+// Cross-platform helpers for the CSA Magic Creator editor (CSA-specific
+// scan + per-row layout). The signature tables and detection logic live
+// in `ImageUtilMagicCore` (used by both `ImageMagicFEditor` #418 and
+// this view #417); `MagicCSACore` delegates to that shared helper and
+// layers only the CSA-Creator-specific bits on top:
 //
-// Mirrors:
-//   FEBuilderGBA/ImageUtilMagic.cs (lines 32-183)
+//   - MagicSystemKind:   thin alias of ImageUtilMagicCore.MagicSystem
+//                        (kept for backwards compat with the Avalonia
+//                        view and tests authored before the delegate
+//                        refactor).
+//   - SearchMagicSystem: wraps ImageUtilMagicCore.SearchMagicSystem +
+//                        FindCSASpellTable into a single call that
+//                        ALSO surfaces the CSA-table address and
+//                        pointer slot (the WF "magic_effect_pointer"
+//                        slot the dim/no-dim/empty mode write lands at).
+//   - ComputeSpellDataCount: re-exports ImageUtilMagicCore.GetSpellDataCount
+//                            under the older name the Avalonia view uses.
+//   - CsaEntry + ScanCsaEntries: the CSA-only spell-table walk that
+//                                does not exist anywhere else.
 //
-// Closes the Copilot CLI plan-review #2 blocker on issue #417 (gap-sweep
-// ImageMagicCSACreatorForm parity).
+// Closes Copilot CLI inline review thread on PR #547 (line-316 bounds
+// check + line-31 duplication) by routing through the shared helper.
 using System;
 using System.Collections.Generic;
 
@@ -18,9 +28,10 @@ namespace FEBuilderGBA
 {
     /// <summary>
     /// Magic engine kind detected by <see cref="MagicCSACore.SearchMagicSystem"/>.
-    /// Mirrors WinForms <c>ImageUtilMagic.magic_system_enum</c> values; the
-    /// <c>NoCache</c> sentinel is intentionally omitted because the Core
-    /// helper does not maintain a cache (callers cache externally if needed).
+    /// Thin alias of <see cref="ImageUtilMagicCore.MagicSystem"/> kept for
+    /// API compatibility with code that was authored before the helper
+    /// was consolidated into <c>ImageUtilMagicCore</c> (the Avalonia
+    /// <c>ImageMagicCSACreatorViewModel</c> and the matching tests).
     /// </summary>
     public enum MagicSystemKind
     {
@@ -57,57 +68,31 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
-    /// Stateless read-only helpers for the CSA Magic Creator / FEditor
-    /// detection + spell-table walk. All methods take a <see cref="ROM"/>
-    /// explicitly and never touch global state.
+    /// Stateless read-only helpers for the CSA Magic Creator detection
+    /// + spell-table walk. The detection tables live in
+    /// <see cref="ImageUtilMagicCore"/>; this class is a thin layer that
+    /// exposes the extra <c>csaSpellTable</c>/<c>csaSpellTablePointer</c>
+    /// outputs the WF CSA editor needs PLUS the CSA-specific entry walk.
     /// </summary>
     public static class MagicCSACore
     {
-        // ---- detection table (mirrors WF MagicPatchTableSt list) ----
+        // ---- mapping helpers ----
 
-        readonly struct MagicPatch
+        /// <summary>
+        /// Map the shared <see cref="ImageUtilMagicCore.MagicSystem"/>
+        /// enum onto the CSA-creator-facing <see cref="MagicSystemKind"/>
+        /// alias. <c>FEditorAdv</c> -> <c>FEditor</c>; <c>CsaCreator</c>
+        /// passes through; <c>No</c> -> <c>None</c>.
+        /// </summary>
+        static MagicSystemKind Map(ImageUtilMagicCore.MagicSystem ms)
         {
-            public string Name { get; init; }
-            public string Version { get; init; }
-            public uint Addr { get; init; }
-            public byte[] Data { get; init; }
-            public uint Dim { get; init; }
-            public uint NoDim { get; init; }
+            switch (ms)
+            {
+                case ImageUtilMagicCore.MagicSystem.FEditorAdv: return MagicSystemKind.FEditor;
+                case ImageUtilMagicCore.MagicSystem.CsaCreator: return MagicSystemKind.CsaCreator;
+                default: return MagicSystemKind.None;
+            }
         }
-
-        static readonly MagicPatch[] Patches = new[]
-        {
-            new MagicPatch{ Name="SCA_Creator", Version="FE8U", Addr=0x95d780, Data=new byte[]{0x01,0x00,0x00,0x00,0x90,0xD7,0x95,0x08,0x03,0x00,0x00,0x00,0xD9,0xD8,0x95,0x08}, Dim=0x95d7ed, NoDim=0x95d899 },
-            new MagicPatch{ Name="FEditor",     Version="FE8U", Addr=0x95d780, Data=new byte[]{0x01,0x00,0x00,0x00,0x90,0xD7,0x95,0x08,0x03,0x00,0x00,0x00,0x39,0xD9,0x95,0x08}, Dim=0x95D7ED, NoDim=0x95D8EF },
-            new MagicPatch{ Name="SCA_Creator", Version="FE8J", Addr=0x9cd3bc, Data=new byte[]{0x01,0x00,0x00,0x00,0xCC,0xD3,0x9C,0x08,0x03,0x00,0x00,0x00,0x15,0xD5,0x9C,0x08}, Dim=0x9CD429, NoDim=0x9CD4D5 },
-            new MagicPatch{ Name="SCA_Creator", Version="FE8J", Addr=0x5BDC80, Data=new byte[]{0x01,0x00,0x00,0x00,0xCC,0xD3,0x9C,0x08,0x03,0x00,0x00,0x00,0x15,0xD5,0x9C,0x08}, Dim=0x5BDCED, NoDim=0x5BDD99 },
-            new MagicPatch{ Name="FEditor",     Version="FE8J", Addr=0xEFBE00, Data=new byte[]{0x01,0x00,0x00,0x00,0x10,0xBE,0xEF,0x08,0x03,0x00,0x00,0x00,0xB9,0xBF,0xEF,0x08}, Dim=0xEFBE6D, NoDim=0xEFBF6F },
-            new MagicPatch{ Name="SCA_Creator", Version="FE7U", Addr=0xCB680,  Data=new byte[]{0x19,0x00,0x00,0x00,0x90,0xB6,0x0C,0x08,0x03,0x00,0x00,0x00,0xD9,0xB7,0x0C,0x08}, Dim=0xCB6ED, NoDim=0xCB799 },
-            new MagicPatch{ Name="FEditor",     Version="FE7U", Addr=0xCB680,  Data=new byte[]{0x19,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0xD9,0xB7,0x0C,0x08}, Dim=0xCB699, NoDim=0xCB787 },
-            new MagicPatch{ Name="FEditor",     Version="FE7J", Addr=0xC69B4,  Data=new byte[]{0x19,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x29,0x6B,0x0C,0x08}, Dim=0xC69CD, NoDim=0xC69CD },
-            new MagicPatch{ Name="SCA_Creator", Version="FE6",  Addr=0x2DC078, Data=new byte[]{0x19,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0x61,0xC1,0x2D,0x08}, Dim=0x2DC091, NoDim=0x2dc129 },
-            new MagicPatch{ Name="FEditor",     Version="FE6",  Addr=0x2DC078, Data=new byte[]{0x19,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x03,0x00,0x00,0x00,0xC5,0xC1,0x2D,0x08}, Dim=0x2dc091, NoDim=0x2DC17F },
-        };
-
-        readonly struct SpellTablePatch
-        {
-            public string Name { get; init; }
-            public string Version { get; init; }
-            public byte[] Data { get; init; }
-        }
-
-        static readonly SpellTablePatch[] SpellTables = new[]
-        {
-            new SpellTablePatch{ Name="SCA_Creator", Version="FE8U", Data=new byte[]{0x1C,0x58,0x05,0x08,0x00,0x01,0x00,0x80,0xED,0xD7,0x95,0x08,0x99,0xD8,0x95,0x08} },
-            new SpellTablePatch{ Name="FEditor",     Version="FE8U", Data=new byte[]{0x01,0xB4,0x7D,0xE7,0x34,0xFF,0x03,0x02,0x80,0xD7,0x95,0x08,0x1A,0xE1,0x03,0x02} },
-            new SpellTablePatch{ Name="SCA_Creator", Version="FE8J", Data=new byte[]{0xB8,0x67,0x05,0x08,0x00,0x01,0x00,0x80,0x29,0xD4,0x9C,0x08,0xD5,0xD4,0x9C,0x08} },
-            new SpellTablePatch{ Name="FEditor",     Version="FE8J", Data=new byte[]{0x01,0xB4,0x7D,0xE7,0x34,0xFF,0x03,0x02,0x00,0xBE,0xEF,0x08,0x16,0xE1,0x03,0x02} },
-            new SpellTablePatch{ Name="SCA_Creator", Version="FE7U", Data=new byte[]{0x0C,0x06,0x05,0x08,0x00,0x01,0x00,0x80,0xED,0xB6,0x0C,0x08,0x99,0xB7,0x0C,0x08} },
-            new SpellTablePatch{ Name="FEditor",     Version="FE7U", Data=new byte[]{0x00,0x28,0x17,0xD1,0x18,0xE0,0x70,0xB5,0x05,0x1C,0x00,0x20,0x01,0xB4,0x87,0xE7,0x34,0xFF,0x03,0x02,0x80,0xB6,0x0C,0x08,0x26,0xE0,0x03,0x02} },
-            new SpellTablePatch{ Name="FEditor",     Version="FE7J", Data=new byte[]{0x01,0xB4,0x79,0xE7,0x34,0xFF,0x03,0x02,0xB4,0x69,0x0C,0x08,0xFE,0xDF,0x03,0x02} },
-            new SpellTablePatch{ Name="SCA_Creator", Version="FE6",  Data=new byte[]{0x48,0x19,0x02,0x02,0x00,0x01,0x00,0x80,0x91,0xC0,0x2D,0x08,0x29,0xC1,0x2D,0x08} },
-            new SpellTablePatch{ Name="FEditor",     Version="FE6",  Data=new byte[]{0xE7,0x7D,0xB4,0x01,0x34,0xFF,0x03,0x02,0x80,0xD7,0x95,0x08,0x1A,0xE1,0x03,0x02} },
-        };
 
         // ---- public API ----
 
@@ -118,6 +103,13 @@ namespace FEBuilderGBA
         /// <see cref="U.NOT_FOUND"/>. The returned <c>csaSpellTable</c> and
         /// <c>csaSpellTablePointer</c> reflect the CSA spell-table location
         /// (the table itself, and the pointer slot containing the table addr).
+        ///
+        /// <para>
+        /// Delegates to <see cref="ImageUtilMagicCore.SearchMagicSystem"/>
+        /// (engine detection) and <see cref="ImageUtilMagicCore.FindCSASpellTable"/>
+        /// (table location + bounds-checked p32 read) to avoid keeping a
+        /// duplicate signature table in the Core helper.
+        /// </para>
         /// </summary>
         public static MagicSystemKind SearchMagicSystem(
             ROM rom,
@@ -133,30 +125,19 @@ namespace FEBuilderGBA
             csaSpellTable = U.NOT_FOUND;
             csaSpellTablePointer = U.NOT_FOUND;
 
-            if (rom == null || rom.RomInfo == null || rom.Data == null) return MagicSystemKind.None;
-            string version = rom.RomInfo.VersionToFilename;
-            if (string.IsNullOrEmpty(version)) return MagicSystemKind.None;
+            var detected = ImageUtilMagicCore.SearchMagicSystem(rom,
+                out uint b, out uint d, out uint nd);
+            if (detected == ImageUtilMagicCore.MagicSystem.No) return MagicSystemKind.None;
 
-            foreach (var p in Patches)
-            {
-                if (!string.Equals(p.Version, version, StringComparison.Ordinal)) continue;
-                if (p.Addr + (uint)p.Data.Length > (uint)rom.Data.Length) continue;
-                byte[] data = rom.getBinaryData(p.Addr, p.Data.Length);
-                if (U.memcmp(p.Data, data) != 0) continue;
+            uint table = ImageUtilMagicCore.FindCSASpellTable(rom, detected, out uint pointer);
+            if (pointer == U.NOT_FOUND) return MagicSystemKind.None;
 
-                uint tableAddr = FindCSASpellTable(rom, p.Name, version, out uint tablePtr);
-                if (tablePtr == U.NOT_FOUND) continue;
-
-                baseAddr = p.Addr;
-                dimAddr = p.Dim;
-                noDimAddr = p.NoDim;
-                csaSpellTable = tableAddr;
-                csaSpellTablePointer = tablePtr;
-
-                return p.Name == "FEditor" ? MagicSystemKind.FEditor : MagicSystemKind.CsaCreator;
-            }
-
-            return MagicSystemKind.None;
+            baseAddr = b;
+            dimAddr = d;
+            noDimAddr = nd;
+            csaSpellTable = table;
+            csaSpellTablePointer = pointer;
+            return Map(detected);
         }
 
         /// <summary>
@@ -181,36 +162,24 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Compute the "spell data count" used by the WF CSA editor to bound
-        /// the entry list. Walks the magic-effect pointer table starting at
-        /// <c>magic_effect_original_data_count</c> until it hits a non-pointer
-        /// non-null u32, returning <c>(distance / 4) - 1</c> with a cap of
-        /// <c>0xFD</c>. Mirrors WF <c>ImageUtilMagicFEditor.SpellDataCount</c>.
+        /// the entry list. Delegates to
+        /// <see cref="ImageUtilMagicCore.GetSpellDataCount"/> (the shared
+        /// implementation already mirrors WF
+        /// <c>ImageUtilMagicFEditor.SpellDataCount</c> and is the same
+        /// algorithm).
         /// </summary>
         public static uint ComputeSpellDataCount(ROM rom)
         {
-            if (rom == null || rom.RomInfo == null || rom.Data == null) return 0;
-            uint baseAddr = rom.p32(rom.RomInfo.magic_effect_pointer);
-            if (baseAddr == 0) return 0;
-            uint baseId = rom.RomInfo.magic_effect_original_data_count;
-            uint p = baseAddr + (baseId * 4);
-            uint romLen = (uint)rom.Data.Length;
-            for (; p + 4 < romLen; p += 4)
-            {
-                uint d = rom.u32(p);
-                if (U.isPointerOrNULL(d)) continue;
-                break;
-            }
-            uint count = (p - baseAddr) / 4;
-            if (count == 0) return 0;
-            uint a = count - 1;
-            if (a >= 0xFD) return 0xFD;
-            return count - 1;
+            return ImageUtilMagicCore.GetSpellDataCount(rom);
         }
 
         /// <summary>
         /// Walk the CSA spell table and yield one <see cref="CsaEntry"/> per
         /// slot. Mirrors the WF <c>InputFormRef.MakeList</c> + reader lambda
-        /// inside <c>ImageMagicCSACreatorForm.Init</c>.
+        /// inside <c>ImageMagicCSACreatorForm.Init</c>. The detection /
+        /// pointer-table location is provided by the caller (typically
+        /// from <see cref="SearchMagicSystem"/>); this method only does the
+        /// CSA-specific per-row walk.
         /// </summary>
         /// <param name="rom">Target ROM (must not be null).</param>
         /// <param name="kind">Detected magic system kind. Must be
@@ -288,37 +257,6 @@ namespace FEBuilderGBA
             }
 
             return result;
-        }
-
-        // ---- private helpers ----
-
-        static uint FindCSASpellTable(ROM rom, string type, string version, out uint outPointer)
-        {
-            outPointer = U.NOT_FOUND;
-
-            foreach (var t in SpellTables)
-            {
-                if (t.Name != type) continue;
-                if (t.Version != version) continue;
-
-                uint start = 0x10000;
-                uint f = U.Grep(rom.Data, t.Data, start, 0, 4);
-                if (f == U.NOT_FOUND) continue;
-
-                uint pointer = f + (uint)t.Data.Length;
-                uint table = rom.p32(pointer);
-                if (!U.isSafetyOffset(table, rom))
-                {
-                    // Copilot CLI inline review on PR #547: do NOT leak a
-                    // matched-but-unsafe pointer out of the loop. Reset and
-                    // try the next candidate.
-                    continue;
-                }
-
-                outPointer = pointer;
-                return table;
-            }
-            return U.NOT_FOUND;
         }
     }
 }

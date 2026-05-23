@@ -21206,20 +21206,53 @@ to:
 :Level
 等级
 
+:Acquired Level
+习得等级
+
+:Acquired Level Breakdown
+习得等级明细
+
 :Level Breakdown
 习得等级的细节
 
+:Level-up Skill Table Address
+升级习得技能的起始地址
+
+:Detach Selected Class (make independent)
+将所选职业的数据分离独立
+
+:This table is referenced by multiple classes.
+此表正在被多个职业引用。
+
 :PlayerOnly(LV+32)
-仅玩家(LV+32)
+仅我方(LV+32)
 
 :EnemyOnly(LV+64)
 仅敌方(LV+64)
+
+:Normal&&Hard (LV+96)
+普通&&困难 (LV+96)
 
 :Normal&Hard (LV+96)
 普通&困难(LV+96)
 
 :Hard only (LV+128)
-仅困难(LV+128)
+仅困难 (LV+128)
+
+:Click here for acquired level and skill details
+点此查看习得等级与技能详情
+
+:Level is set to 255.\r\nWhen a class is reached via CC from a base class, this skill cannot be obtained.\r\nOnly when this class is LOADed can this skill be held.
+等级被设为255。\r\n从下级职业CC升级到此职业时，无法获得此技能。\r\n仅在直接以此职业 LOAD 时才能持有该技能。
+
+:No level-up skill area is allocated for this class.\r\nPress the "Expand List" button to allocate one.
+该职业尚未分配升级技能区域。\r\n请按"扩展列表"按钮以分配区域。
+
+:Skill Assignment - Class (CSkillSys 3.00).\r\nThis editor requires the CSkillSys 3.00+ skill system patch to be installed.\r\nUse the Patch Manager to install the CSkillSys 3.00 patch first.
+技能_职业分配 (CSkillSys 3.00)。\r\n此编辑器需要安装 CSkillSys 3.00+ 技能系统补丁。\r\n请先在补丁管理器中安装 CSkillSys 3.00 补丁。
+
+:Skill Assignment - Class (CSkillSys)
+技能_职业分配 (CSkillSys)
 
 :Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
 设置了等级 255。\n如果从低职业升到这个职业，将不会获得此技能。\n只有以这个职业直接载入时才会拥有此技能。
@@ -21301,3 +21334,135 @@ OBJ+BG 从左到右
 
 :Bin info
 二进制信息
+
+:First Address
+起始地址
+
+:Search for new resources online
+在线搜索新资源
+
+:Import Music File
+从文件导入音乐
+
+:Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.
+导入 MIDI 文件（仅预览）。完整的导入分发（MIDI / Wave / Instrument）正在等待 Core 提取。
+
+:Export Music File
+将音乐导出到文件
+
+:Play in Sappy
+在 Sappy 中播放
+
+:Pending Core extraction (Sappy emulator integration is WinForms-only).
+等待 Core 提取（Sappy 模拟器集成仅限 WinForms）。
+
+:Pending Core extraction (ResourceCache shell integration).
+等待 Core 提取（ResourceCache 外壳集成）。
+
+:All Tracks (Score) - click to bulk-change all tracks
+乐谱 - 单击批量更改所有轨道
+
+# UnitEditorView additions (issue #413)
+:[HardCoding]
+[硬编码]
+
+:Export/Import Options
+导出/导入选项
+
+:Use Clipboard
+使用剪贴板
+
+:Include UID
+包含 UID
+
+:Include Header
+包含表头
+
+:Include Name
+包含名称
+
+:Include Base Stats
+包含基础属性
+
+:Include Growths
+包含成长率
+
+:Include Wep Level
+包含武器等级
+
+:Growths as Decimal
+成长率以小数表示
+
+:Export All
+全部导出
+
+:Export Selected
+导出选定项
+
+:Import All
+全部导入
+
+:Import Selected
+导入选定项
+
+:Export all units to a CSV file or clipboard
+将所有单位导出至 CSV 文件或剪贴板
+
+:Export the selected unit to a CSV file or clipboard
+将选定单位导出至 CSV 文件或剪贴板
+
+:Import all units from a CSV file or clipboard
+从 CSV 文件或剪贴板导入所有单位
+
+:Import the selected unit from a CSV file or clipboard
+从 CSV 文件或剪贴板导入选定单位
+
+:Import Units CSV
+导入单位 CSV
+
+:Import Unit CSV
+导入单位 CSV
+:Retreat
+撤退
+
+:Epithet
+称号
+
+:Epilogue
+后日谈
+
+:Eirika Route
+艾尔克线
+
+:Ephraim Route
+艾佛拉线
+
+:Designation
+指定
+
+:Appearing Unit
+登场单位
+
+:Retreat Spec 02
+撤退指定 02
+
+:Epithet Text
+称号文本
+
+:Epilogue Text
+后日谈文本
+
+:Story Flag
+剧情标记
+
+:Unit
+单位
+
+:1=Solo
+1=单人
+
+:2=Support
+2=支援
+
+:Bytes +2..+3 are reserved (WF designer doesn't expose).
+字节 +2..+3 为保留字段 (WF 设计器不暴露)。

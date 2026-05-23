@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Tests.Unit
 
             // Skill Systems
             ("SkillAssignmentUnitCSkillSysView", "SkillAssignmentUnitCSkillSysForm", "SkillAssignmentUnitCSkillSysViewViewModel"),
-            ("SkillAssignmentClassCSkillSysView", "SkillAssignmentClassCSkillSysForm", "SkillAssignmentClassCSkillSysViewViewModel"),
+            ("SkillAssignmentClassCSkillSysView", "SkillAssignmentClassCSkillSysForm", "SkillAssignmentClassCSkillSysViewModel"),
             ("SkillAssignmentUnitFE8NView", "SkillAssignmentUnitFE8NForm", "SkillAssignmentUnitFE8NViewViewModel"),
             ("SkillConfigFE8NSkillView", "SkillConfigFE8NSkillForm", "SkillConfigFE8NSkillViewViewModel"),
             ("SkillConfigFE8NVer2SkillView", "SkillConfigFE8NVer2SkillForm", "SkillConfigFE8NVer2SkillViewViewModel"),
