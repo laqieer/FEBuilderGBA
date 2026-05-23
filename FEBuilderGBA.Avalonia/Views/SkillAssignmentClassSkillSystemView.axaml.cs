@@ -33,6 +33,9 @@ namespace FEBuilderGBA.Avalonia.Views
         public SkillAssignmentClassSkillSystemView()
         {
             InitializeComponent();
+            // Bind DataContext so AXAML {Binding LevelUpEntries} resolves
+            // (Copilot bot review on PR #555).
+            DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
             Closed += (_, _) =>
@@ -56,7 +59,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 uint cachedIconBase = _vm.IconBaseAddress;
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.SkillIconLoader(items, i, cachedIconBase));
+                // Use ClassIconLoader (one wait-icon per class index) to mirror the WF AddressList
+                // OwnerDraw=DrawClassAndText (Copilot bot review on PR #555).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
                 ReadStartAddressBox.Value = _vm.ReadStartAddress;
                 ReadCountBox.Value = _vm.ReadCount;
                 UpdateMasterPanelVisibility();

@@ -181,9 +181,10 @@ namespace FEBuilderGBA
             for (uint pos = start; pos <= limit; pos += blockSize)
             {
                 bool match = true;
+                int basePos = checked((int)pos);
                 for (int j = 0; j < pattern.Length; j++)
                 {
-                    if (!mask[j] && romData[pos + j] != pattern[j])
+                    if (!mask[j] && romData[basePos + j] != pattern[j])
                     {
                         match = false;
                         break;

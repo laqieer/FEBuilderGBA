@@ -150,7 +150,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint addr = assignClassBase + i * MASTER_BLOCK_SIZE;
                 if (!U.isSafetyOffset(addr, rom)) break;
                 if (i >= 0xFE && rom.u8(addr) == 0xFF) break;
-                result.Add(new AddrResult(addr, "0x" + i.ToString("X02"), i));
+                string className = NameResolver.GetClassName(i);
+                string label = string.IsNullOrEmpty(className) || className == "???"
+                    ? "0x" + i.ToString("X02")
+                    : "0x" + i.ToString("X02") + " " + className;
+                result.Add(new AddrResult(addr, label, i));
             }
             ReadCount = (uint)result.Count;
             return result;
@@ -187,7 +191,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 AssignLevelUpPointerLocation = PreviewIconHelper.FindSkillSystemAssignLevelUpPointerLocation();
             if (_iconBaseAddress == 0)
                 IconBaseAddress = PreviewIconHelper.FindSkillSystemIconBaseAddress();
-            IsClassSkillExtendsActive = SkillSystemPatchScanner.IsClassSkillExtends(rom);
+            // IsClassSkillExtendsActive cached in LoadList - do NOT re-scan on every
+            // selection (Copilot bot review on PR #555: full byte-pattern scan is
+            // expensive UI-side work and the value cannot change without a ROM swap).
 
             if (_assignClassBaseAddress == 0 && _assignClassPointerLocation != U.NOT_FOUND)
             {
