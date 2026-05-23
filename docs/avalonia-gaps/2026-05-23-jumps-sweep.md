@@ -1,5 +1,5 @@
 ---
-generated: "2026-05-23T05:36:14Z"
+generated: "2026-05-23T05:33:57Z"
 git-sha: a35299ba6
 sweep-type: jumps
 ---
@@ -37,10 +37,10 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 43 |
-| MissingAvManifest (backlog) | 345 |
+| Match | 40 |
+| MissingAvManifest (backlog) | 347 |
 | NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 6 |
+| KnownGap (issue-tagged) | 7 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -50,6 +50,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
+| `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 
@@ -259,6 +260,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePalletForm` | `ImagePalletView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `—` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
@@ -309,7 +313,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `SongExchangeForm` | `SongExchangeView` | `—` | `SongExchangeForm` | `SongExchangeView` |
 | `SongInstrumentForm` | `SongInstrumentView` | `—` | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongExchangeForm` | `SongExchangeView` |
@@ -460,9 +463,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageBGForm` | `ImageBGView` | `JumpToBGSelectPopup` | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` |
 | `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToDecreaseColor` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToGraphicsTool` | `GraphicsToolForm` | `GraphicsToolView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `JumpToPalette` | `ImagePalletForm` | `ImagePalletView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `JumpToImporter` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `JumpToStatusHeight` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |
