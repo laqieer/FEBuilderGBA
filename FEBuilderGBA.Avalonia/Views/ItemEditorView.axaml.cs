@@ -130,6 +130,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 TryShowListPreview();
                 UpdateWarnings();
+                UpdateHardCodingWarning();
+                UpdateWeaponDebuffsLink();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
@@ -137,6 +139,142 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.IsLoading = false;
                 Log.Error("ItemEditorView.OnItemSelected failed: {0}", ex.Message);
+            }
+        }
+
+        // -- HardCoding warning (#409) ---------------------------------------
+        // Mirrors WF `HardCodingWarningLabel_Click` + `CheckHardCodingWarning`.
+        // The label visibility is driven by Core's IAsmMapCache.IsHardCodeItem
+        // seam; in heads without ASM-map data wired the default returns false
+        // so the label stays hidden (graceful degradation).
+        void UpdateHardCodingWarning()
+        {
+            try
+            {
+                uint id = (uint)(ItemNumberBox.Value ?? 0);
+                bool show = CoreState.AsmMapFileAsmCache?.IsHardCodeItem(id) ?? false;
+                HardCodingWarningLink.IsVisible = show;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.UpdateHardCodingWarning failed: {0}", ex.Message);
+                HardCodingWarningLink.IsVisible = false;
+            }
+        }
+
+        void OnHardCodingLink_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                uint id = (uint)(ItemNumberBox.Value ?? 0);
+                // WF passes the selected list index (not the item id); WF also
+                // formats the filter as `HARDCODING_ITEM=NN` in hex. Mirror
+                // exactly so the receiving PatchManager filter matches.
+                string filter = "HARDCODING_ITEM=" + id.ToString("X2");
+                WindowManager.Instance.Navigate<PatchManagerView>(0);
+                var pmView = WindowManager.Instance.FindOpen<PatchManagerView>();
+                pmView?.JumpTo(filter, 0);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.OnHardCodingLink_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // -- Indirect weapon effect jump (#409) ------------------------------
+        // Mirrors WF `JumpToITEMEFFECT_Click` → ItemWeaponEffectForm.JumpTo(itemId).
+        // The WF receiver SCANS the table for the row whose B0 equals the
+        // selected item id; the table is NOT base + itemId * 16. We mirror the
+        // same scan here so the navigation lands on the correct row.
+        void JumpToWeaponEffect_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint id = (uint)(ItemNumberBox.Value ?? 0);
+                uint addr = FindWeaponEffectAddrForItem(id);
+                // Open the editor regardless of whether a row exists. When the
+                // item has no entry (addr == 0) we navigate to the table base
+                // so the user can scroll/inspect — same UX as WF where the
+                // receiver opens with no row selected.
+                if (addr != 0)
+                    WindowManager.Instance.Navigate<ItemWeaponEffectViewerView>(addr);
+                else
+                    WindowManager.Instance.Navigate<ItemWeaponEffectViewerView>(0);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.JumpToWeaponEffect_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Locate the indirect-weapon-effect table row whose B0 (item id)
+        /// equals <paramref name="itemId"/>. Returns 0 when the item has no
+        /// entry or the ROM is unavailable. Mirrors WF
+        /// `ItemWeaponEffectForm.JumpTo(uint search_item_id)` exactly.
+        /// </summary>
+        public static uint FindWeaponEffectAddrForItem(uint itemId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint ptr = rom.RomInfo.item_effect_pointer;
+            if (ptr == 0) return 0;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            // WF uses InputFormRef.DataCount which lambdas-check for the end
+            // sentinel; mirror with the same termination logic used in
+            // ItemWeaponEffectViewerViewModel.LoadItemWeaponEffectList:
+            //   - addr+15 outside ROM
+            //   - u16(addr) == 0xFFFF
+            //   - i > 10 && four-dword run of zeros
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 16;
+                if (addr + 15 >= (uint)rom.Data.Length) break;
+                if (rom.u16(addr) == 0xFFFF) break;
+                if (i > 10 && rom.u32(addr) == 0 && rom.u32(addr + 4) == 0
+                    && rom.u32(addr + 8) == 0 && rom.u32(addr + 12) == 0) break;
+                if (rom.u8(addr) == itemId)
+                    return addr;
+            }
+            return 0;
+        }
+
+        // -- Debuff Table jump (#409) ----------------------------------------
+        // Mirrors WF `J_33_Click`. Visible only when a SkillSystem patch is
+        // installed; opens Patch Manager filtered on the WeaponDebuffsTable
+        // definition.
+        void UpdateWeaponDebuffsLink()
+        {
+            try
+            {
+                bool show = PatchDetectionService.Instance.HasSkillSystem
+                    && PatchDetectionService.Instance.SkillSystem == PatchDetectionService.SkillSystemType.SkillSystem;
+                WeaponDebuffsLink.IsVisible = show;
+                // WF also renames the field label to "Debuff" when the patch
+                // is present. Apply the same rename so the Avalonia UI gives
+                // the same context the WF user gets.
+                Unk33Label.Text = show ? "Debuff (B33):" : "Unk33 (B33):";
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.UpdateWeaponDebuffsLink failed: {0}", ex.Message);
+                WeaponDebuffsLink.IsVisible = false;
+            }
+        }
+
+        void OnWeaponDebuffsLink_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                WindowManager.Instance.Navigate<PatchManagerView>(0);
+                var pmView = WindowManager.Instance.FindOpen<PatchManagerView>();
+                pmView?.JumpTo("defWeaponDebuffsTable", 0);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemEditorView.OnWeaponDebuffsLink_Click failed: {0}", ex.Message);
             }
         }
 
@@ -164,11 +302,16 @@ namespace FEBuilderGBA.Avalonia.Views
             int wtIdx = _weaponTypeList.FindIndex(x => x.id == _vm.WeaponType);
             WeaponTypeCombo.SelectedIndex = wtIdx >= 0 ? wtIdx : (int)_vm.WeaponType;
 
-            // Trait flags (BitFlagPanel)
+            // Trait flags (BitFlagPanel) + hex preview labels (#409 mirrors
+            // WF "特性1/2/3/4" plus the raw-byte readout).
             Trait1Flags.Value = (byte)_vm.Trait1;
             Trait2Flags.Value = (byte)_vm.Trait2;
             Trait3Flags.Value = (byte)_vm.Trait3;
             Trait4Flags.Value = (byte)_vm.Trait4;
+            Trait1HexLabel.Text = $"= 0x{_vm.Trait1:X02}";
+            Trait2HexLabel.Text = $"= 0x{_vm.Trait2:X02}";
+            Trait3HexLabel.Text = $"= 0x{_vm.Trait3:X02}";
+            Trait4HexLabel.Text = $"= 0x{_vm.Trait4:X02}";
 
             // Pointers
             StatBonusesPtrBox.Text = $"0x{_vm.StatBonusesPtr:X08}";

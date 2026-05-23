@@ -21439,3 +21439,25 @@ OBBGLeftToRight
 
 :Bytes +2..+3 are reserved (WF designer doesn't expose).
 字节 +2..+3 为保留字段 (WF 设计器不暴露)。
+
+# ItemEditorView additions (#409)
+:Indirect Weapon Effect
+间接武器特效
+
+:Open the indirect weapon effect table at the row for this item.
+打开当前道具对应的间接武器特效表行。
+
+:This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.
+此道具被硬编码 ASM 引用。点击以打开按 HARDCODING_ITEM= 过滤的补丁管理器。
+
+:Debuff Table
+减益表
+
+:Open the Patch Manager filtered to the SkillSystem WeaponDebuffsTable definition.
+打开按 SkillSystem WeaponDebuffsTable 定义过滤的补丁管理器。
+
+:Debuff (B33):
+减益 (B33):
+
+:Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
+解码后的能力补正值 (只读 — 通过上方能力补正指针编辑):

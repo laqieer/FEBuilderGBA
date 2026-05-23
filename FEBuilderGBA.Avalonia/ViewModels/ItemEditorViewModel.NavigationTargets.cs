@@ -66,6 +66,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     CommandName: "JumpToEffectivenessVanilla",
                     TargetViewType: typeof(ItemEffectivenessViewerView),
                     TargetAddress: null),
+
+                // Phase 4 (#409): item-form parity jumps — WF
+                // `JumpToITEMEFFECT_Click` / `HardCodingWarningLabel_Click` /
+                // `J_33_Click` (Debuff) targets. The corresponding click
+                // handlers live in ItemEditorView.axaml.cs.
+                new NavigationTarget(
+                    CommandName: "JumpToWeaponEffect",
+                    TargetViewType: typeof(ItemWeaponEffectViewerView),
+                    TargetAddress: null),
+                new NavigationTarget(
+                    CommandName: "JumpToHardcoding",
+                    TargetViewType: typeof(PatchManagerView),
+                    TargetAddress: null),
+                new NavigationTarget(
+                    CommandName: "JumpToWeaponDebuffs",
+                    TargetViewType: typeof(PatchManagerView),
+                    TargetAddress: null),
             };
         }
     }
