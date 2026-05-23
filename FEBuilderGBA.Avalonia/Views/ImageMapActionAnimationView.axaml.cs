@@ -26,6 +26,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // — the SelectionChanged handler short-circuits so the compute+render
         // pair isn't duplicated (Copilot CLI inline review on PR #506).
         bool _suppressFrameChange;
+        // Track the current preview Bitmap so we can dispose it before
+        // replacing — avoids unmanaged-memory growth during frame scrubbing
+        // (Copilot CLI inline review on PR #506).
+        Bitmap? _currentPreviewBitmap;
 
         public string ViewTitle => "Map Action Animation";
         public bool IsLoaded => _vm.IsLoaded;
@@ -36,6 +40,17 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+            // Dispose the last preview Bitmap when the window closes so
+            // unmanaged memory is released — Copilot CLI inline review on
+            // PR #506.
+            Closed += (_, _) =>
+            {
+                if (_currentPreviewBitmap != null)
+                {
+                    try { _currentPreviewBitmap.Dispose(); } catch { /* swallow */ }
+                    _currentPreviewBitmap = null;
+                }
+            };
         }
 
         void LoadList()
@@ -130,13 +145,20 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             else
             {
-                PreviewImage.Source = null;
+                SetPreviewBitmap(null);
                 BinInfoBox.Text = "";
             }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // Early-guard so we don't create no-op undo entries when the
+            // VM hasn't loaded an entry yet — `_vm.Write()` itself returns
+            // immediately on null ROM or CurrentAddr==0, but the
+            // Begin/Commit pair would still push an empty entry into the
+            // undo buffer (Copilot CLI inline review on PR #506).
+            if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+
             _undoService.Begin("Edit Map Action Animation");
             try
             {
@@ -149,6 +171,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageMapActionAnimationView.Write: {0}", ex.Message); }
+        }
+
+        /// <summary>
+        /// Replace `PreviewImage.Source` with <paramref name="bmp"/>,
+        /// disposing the previous Bitmap (if any) first. Tracks the current
+        /// Bitmap in <see cref="_currentPreviewBitmap"/> so unmanaged memory
+        /// doesn't accumulate during frame scrubbing — Copilot CLI inline
+        /// review on PR #506.
+        /// </summary>
+        void SetPreviewBitmap(Bitmap? bmp)
+        {
+            if (_currentPreviewBitmap != null && !ReferenceEquals(_currentPreviewBitmap, bmp))
+            {
+                try { _currentPreviewBitmap.Dispose(); } catch { /* swallow */ }
+            }
+            _currentPreviewBitmap = bmp;
+            PreviewImage.Source = bmp;
         }
 
         /// <summary>
@@ -190,22 +229,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 // anything else. Copilot CLI inline review on PR #506.
                 if (_vm.AnimationPointer == 0)
                 {
-                    PreviewImage.Source = null;
+                    SetPreviewBitmap(null);
                     return;
                 }
                 uint animePtr = U.toOffset(_vm.AnimationPointer);
                 if (!U.isSafetyOffset(animePtr))
                 {
-                    PreviewImage.Source = null;
+                    SetPreviewBitmap(null);
                     return;
                 }
                 using var img = ImageUtilMapActionAnimationCore.DrawFrame(animePtr, _vm.SelectedFrame);
                 Bitmap? bmp = img != null ? ImageConversionHelper.ToAvaloniaBitmap(img) : null;
-                PreviewImage.Source = bmp;
+                SetPreviewBitmap(bmp);
             }
             catch
             {
-                PreviewImage.Source = null;
+                SetPreviewBitmap(null);
             }
         }
 
