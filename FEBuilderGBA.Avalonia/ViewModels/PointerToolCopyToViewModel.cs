@@ -83,18 +83,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Get the source address as a raw hex string suitable for direct
         /// clipboard copy (mirrors WF
-        /// <c>PointerToolCopyToForm.CopyClipboard_Click</c> which copies the
-        /// raw <c>ValueTextBox.Text</c> verbatim — no normalisation). This
-        /// preserves user-typed formatting (e.g. "ABCDEF" stays as "ABCDEF",
-        /// not "0x00ABCDEF") for parity with the WinForms behaviour.
+        /// <c>PointerToolCopyToForm.CopyClipboard_Click</c> which copies
+        /// <c>ValueTextBox.Text</c> verbatim — no normalisation AND no
+        /// trimming). The user-typed value is preserved EXACTLY: leading
+        /// "0x", absent "0x", trailing whitespace, casing, even an empty
+        /// string. The caller is responsible for deciding whether to copy
+        /// an empty payload — WF blindly hands the empty string to
+        /// <c>U.SetClipboardText</c>, so AV must mirror that.
         /// </summary>
         public string GetAsClipboardText()
         {
-            // WF copies ValueTextBox.Text verbatim. We only trim outer
-            // whitespace; the underlying value (with or without the 0x
-            // prefix, leading zeros, casing) is preserved exactly as the
-            // user sees it in the textbox.
-            return (SourceAddress ?? string.Empty).Trim();
+            // True verbatim: do NOT trim, do NOT normalise. WF
+            // PointerToolCopyToForm.CopyClipboard_Click is literally
+            // `U.SetClipboardText(this.ValueTextBox.Text);` — whatever
+            // the textbox contains is what lands on the clipboard.
+            return SourceAddress ?? string.Empty;
         }
 
         /// <summary>

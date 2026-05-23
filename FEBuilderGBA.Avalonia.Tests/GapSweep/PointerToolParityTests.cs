@@ -545,26 +545,34 @@ public class PointerToolParityTests
     }
 
     [Fact]
-    public void PointerToolCopyToViewModel_GetAsClipboardText_ReturnsVerbatim()
+    public void PointerToolCopyToViewModel_GetAsClipboardText_ReturnsTrulyVerbatim()
     {
-        // Copilot bot review (PR #510): WF copies ValueTextBox.Text verbatim
-        // (no normalisation). Avalonia must preserve the same parity so the
-        // clipboard payload matches what the user sees in the textbox.
+        // Copilot bot review (PR #510, re-review): WF copies
+        // ValueTextBox.Text EXACTLY in CopyClipboard_Click — no normalisation
+        // AND no trimming. The previous AV impl trimmed outer whitespace,
+        // breaking parity. The new impl preserves the user-typed value
+        // exactly, including surrounding whitespace, casing, and empty
+        // strings.
         var vm = new PointerToolCopyToViewModel
         {
             SourceAddress = "ABCDEF"
         };
         Assert.Equal("ABCDEF", vm.GetAsClipboardText());
 
-        // With a 0x prefix, the prefix is preserved verbatim too.
+        // 0x prefix preserved verbatim.
         vm.SourceAddress = "0x12345";
         Assert.Equal("0x12345", vm.GetAsClipboardText());
 
-        // Whitespace is trimmed (matches WF U.ToHexString behaviour where
-        // the textbox value is never indented). Surrounding whitespace
-        // breaks clipboard consumers like the no$gba debugger.
+        // Whitespace is PRESERVED (WF copies textbox text raw, leading and
+        // trailing whitespace included — the user might be pasting into a
+        // tool that tolerates whitespace).
         vm.SourceAddress = "  0xABCD  ";
-        Assert.Equal("0xABCD", vm.GetAsClipboardText());
+        Assert.Equal("  0xABCD  ", vm.GetAsClipboardText());
+
+        // Empty SourceAddress returns the empty string (WF behaviour:
+        // `U.SetClipboardText(this.ValueTextBox.Text)` with an empty box).
+        vm.SourceAddress = string.Empty;
+        Assert.Equal(string.Empty, vm.GetAsClipboardText());
     }
 
     [Fact]

@@ -66,8 +66,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // WF copies the textbox content verbatim, so we don't gate on
             // the parser here — the user explicitly asked for "whatever is
             // in the box". An empty clipboard payload is also fine (matches
-            // WF which would copy the empty string).
-            await SetClipboardAsync(_vm.GetAsClipboardText());
+            // WF which would copy the empty string). The
+            // allowEmpty: true flag tells SetClipboardAsync not to bail
+            // out on empty input, mirroring WF
+            // `U.SetClipboardText(this.ValueTextBox.Text)`.
+            await SetClipboardAsync(_vm.GetAsClipboardText(), allowEmpty: true);
             Close("Clipboard");
         }
 
@@ -129,13 +132,21 @@ namespace FEBuilderGBA.Avalonia.Views
             Close("NoDoll");
         }
 
-        async System.Threading.Tasks.Task SetClipboardAsync(string text)
+        async System.Threading.Tasks.Task SetClipboardAsync(string text, bool allowEmpty = false)
         {
             try
             {
                 IClipboard? clipboard = Clipboard;
-                if (clipboard != null && !string.IsNullOrEmpty(text))
-                    await clipboard.SetTextAsync(text);
+                if (clipboard == null) return;
+                // Mirrors WF U.SetClipboardText which copies the string raw
+                // (including the empty string). For the formatted copy modes
+                // (Pointer / LittleEndian / NoDoll) we skip on empty because
+                // the caller should already have raised an "Invalid address"
+                // dialog and returned; the empty payload would just be a
+                // confusing no-op. The Clipboard mode passes
+                // allowEmpty: true to preserve verbatim WF behaviour.
+                if (string.IsNullOrEmpty(text) && !allowEmpty) return;
+                await clipboard.SetTextAsync(text);
             }
             catch (Exception ex)
             {
