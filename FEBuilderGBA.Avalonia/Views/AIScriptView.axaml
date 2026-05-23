@@ -14,11 +14,12 @@
     <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <TextBlock Text="Switch" VerticalAlignment="Center" Width="60" />
+        <!-- ComboBoxItem content is NOT touched by ViewTranslationHelper, so
+             the items are populated via code-behind with R._() lookups.
+             PR #571 Copilot bot review #6. -->
         <ComboBox AutomationProperties.AutomationId="AIScript_Filter_Combo"
-                  Name="FilterCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0">
-          <ComboBoxItem>0=AI1</ComboBoxItem>
-          <ComboBoxItem>1=AI2</ComboBoxItem>
-        </ComboBox>
+                  Name="FilterCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
+
         <TextBlock Text="Top Address" VerticalAlignment="Center" Width="100" />
         <NumericUpDown AutomationProperties.AutomationId="AIScript_TopAddress_Input"
                        Name="TopAddressBox" Width="120" Minimum="0" Maximum="4294967295"

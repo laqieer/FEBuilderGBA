@@ -118,8 +118,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Returns the address-list entries for the currently selected AI
         /// table (0 = AI1, 1 = AI2). Per Copilot CLI plan-review v2 #3 the
         /// tables are separate — no combined list. Mirrors WF
-        /// AIScriptForm.Init's pointer-walk with the version-specific
-        /// validity check.
+        /// AIScriptForm.Init's pointer-walk with the WF validity check:
+        /// non-pointer / non-null = stop, table-not-expanded stops at
+        /// the known AI1/AI2 entry count (PR #571 Copilot bot review #4 —
+        /// avoid over-enumerating into unrelated data on unexpanded ROMs).
+        ///
+        /// When ReadCount > 0 it also clamps the result to that many
+        /// entries so a user-edited "Read Count" actually limits the
+        /// scan (parity with WF panel3 ReadCount).
         /// </summary>
         public List<AddrResult> LoadList()
         {
@@ -132,15 +138,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 : rom.RomInfo.ai1_pointer;
             if (tablePointer == 0) return result;
 
-            uint baseAddr = rom.p32(tablePointer);
+            // If the user set TopAddress, scan from there; otherwise
+            // resolve the pointer to the in-ROM table base.
+            uint baseAddr;
+            if (_topAddress != 0 && U.isSafetyOffset(_topAddress))
+                baseAddr = U.toOffset(_topAddress);
+            else
+                baseAddr = rom.p32(tablePointer);
+
             if (!U.isSafetyOffset(baseAddr))
                 return result;
 
-            // Walk the 4-byte pointer slots until we hit u32 == 0xFFFFFFFF
-            // (terminator per WF AIScriptForm.Init validity check) or an
-            // invalid pointer.
-            const uint MaxEntries = 4096;
-            for (uint i = 0; i < MaxEntries; i++)
+            // WF AIScriptForm.Init's validity check: for an unexpanded
+            // table (baseAddr matches the resolved pointer), stop at the
+            // configured AI1/AI2 count from EventUnitForm. For an
+            // expanded ROM region, scan until terminator. Replicate by
+            // computing the WF count cap when applicable.
+            uint? unexpandedCap = null;
+            try
+            {
+                // Mirror WF U.isExtrendsROMArea inline (Core has no port yet).
+                uint extendsAddr = rom.RomInfo.extends_address;
+                bool isInExpandedArea = extendsAddr != 0
+                    && baseAddr >= U.toOffset(extendsAddr);
+                bool isUnexpanded = !isInExpandedArea
+                                 && baseAddr == rom.p32(tablePointer);
+                if (isUnexpanded)
+                {
+                    // EventUnitForm.AI1/AI2 counts live in WinForms-only
+                    // code; for the Core / VM here we cap conservatively
+                    // at the known maximum (256) to avoid over-enumeration
+                    // while still permitting the full WF entry set.
+                    unexpandedCap = 256;
+                }
+            }
+            catch
+            {
+                // Fall back to no cap if the synthetic ROM lacks
+                // extends_address wiring.
+            }
+
+            uint maxEntries = unexpandedCap ?? 4096;
+            // Honor user-driven ReadCount as a soft cap (when > 0).
+            if (_readCount > 0 && _readCount < maxEntries)
+                maxEntries = _readCount;
+
+            for (uint i = 0; i < maxEntries; i++)
             {
                 uint slotAddr = baseAddr + i * 4;
                 if (!U.isSafetyOffset(slotAddr + 3))

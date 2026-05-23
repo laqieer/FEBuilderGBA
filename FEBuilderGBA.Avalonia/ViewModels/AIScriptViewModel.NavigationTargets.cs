@@ -3,28 +3,32 @@
 //
 // Mirrors the wired WF `AIScriptForm` cross-editor jump callsites that the
 // Avalonia view actually triggers after PR #410. Per Copilot CLI plan-review
-// v2 #1 (the strict reading of `INavigationTargetSource`), manifest rows
-// correspond ONLY to working `WindowManager.Navigate<>` callsites; the
-// heavy AI sub-editors that require modal pick + post-dialog value
-// propagation (AIUnits, AITiles, AIASMCoordinate, AIASMRange,
-// AIASMCALLTALK, AIScriptCategorySelect) stay DELIBERATELY ABSENT until
-// their host runtime wiring lands — `JumpParityScanner` reports them as
-// `MissingAvManifest`, which is the truthful state.
+// v2 #1 AND PR #571 Copilot CLI review #2 (strict reading of
+// `INavigationTargetSource`), manifest rows correspond ONLY to working
+// `WindowManager.Navigate<>` callsites that this PR ACTUALLY wires in the
+// view code-behind.
+//
+// The Unit / Class / DisASM jumps from WF AIScriptForm originate from the
+// per-parameter `ParamLabel_Click` handler (which dispatches on the
+// runtime ArgType of the selected opcode). That dispatch path requires the
+// live opcode disassembly + per-arg ArgType resolution, which is
+// WinForms-coupled today via EventScript.DisAssemble. Until that Core
+// extraction lands, none of those Unit/Class/DisASM jumps actually fire in
+// Avalonia — so this manifest deliberately omits them. The
+// JumpParityScanner correctly reports them as `MissingAvManifest`, which
+// is the truthful state.
+//
+// Same rationale applies to the heavy AI sub-editors (AIUnits, AITiles,
+// AIASMCoordinate, AIASMRange, AIASMCALLTALK, AIScriptCategorySelect) —
+// they are reachable in WF only via the same param-label dispatch.
 //
 // This matches the SongTrack PR #412 precedent (3 import-dispatch flows
-// absent from the manifest while their underlying Core extraction is in
-// flight) and is documented in `INavigationTargetSource.cs` as the contract
-// for manifest entries: each row mirrors a real, wired AV navigation
-// callsite.
+// deliberately absent from the manifest until their underlying Core
+// extraction lands) and is documented in `INavigationTargetSource.cs` as
+// the contract for manifest entries.
 //
-// Wired callsites (with version dispatch in the view code-behind):
-//   - JumpToUnit              -> UnitEditorView    (FE8U / FE8JP)
-//   - JumpToUnitFE7           -> UnitFE7View       (FE7)
-//   - JumpToUnitFE6           -> UnitFE6View       (FE6)
-//   - JumpToClass             -> ClassEditorView   (FE7 / FE8)
-//   - JumpToClassFE6          -> ClassFE6View      (FE6)
-//   - JumpToDisASM            -> DisASMView        (POINTER_ASM args)
-//   - JumpToPointerToolCopyTo -> PointerToolCopyToView (Address double-click)
+// Wired callsite (matches AIScriptView.axaml.cs):
+//   - JumpToPointerToolCopyTo -> PointerToolCopyToView (DetailAddress_Click)
 //
 // `TargetAddress: null` is the sentinel for "manifest declares the jump but
 // the runtime address is determined at click time" — matches the precedent
@@ -41,37 +45,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             return new[]
             {
-                // ---------------- Unit jumps (3-way version dispatch) ----------------
-                new NavigationTarget(
-                    CommandName: "JumpToUnit",
-                    TargetViewType: typeof(UnitEditorView),
-                    TargetAddress: null),
-                new NavigationTarget(
-                    CommandName: "JumpToUnitFE7",
-                    TargetViewType: typeof(UnitFE7View),
-                    TargetAddress: null),
-                new NavigationTarget(
-                    CommandName: "JumpToUnitFE6",
-                    TargetViewType: typeof(UnitFE6View),
-                    TargetAddress: null),
-
-                // ---------------- Class jumps (2-way version dispatch) ----------------
-                new NavigationTarget(
-                    CommandName: "JumpToClass",
-                    TargetViewType: typeof(ClassEditorView),
-                    TargetAddress: null),
-                new NavigationTarget(
-                    CommandName: "JumpToClassFE6",
-                    TargetViewType: typeof(ClassFE6View),
-                    TargetAddress: null),
-
-                // ---------------- DisASM (POINTER_ASM args) ----------------
-                new NavigationTarget(
-                    CommandName: "JumpToDisASM",
-                    TargetViewType: typeof(DisASMView),
-                    TargetAddress: null),
-
                 // ---------------- Address-double-click pointer copy ----------------
+                // The ONLY wired Navigate<> callsite in AIScriptView.axaml.cs.
                 new NavigationTarget(
                     CommandName: "JumpToPointerToolCopyTo",
                     TargetViewType: typeof(PointerToolCopyToView),

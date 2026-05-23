@@ -27,6 +27,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public AIScriptView()
         {
             InitializeComponent();
+            // Populate FilterCombo items via R._() so they pick up ja/zh
+            // translations at runtime — ViewTranslationHelper does not touch
+            // ComboBoxItem.Content (PR #571 Copilot bot review #6).
+            FilterCombo.Items.Add(R._("0=AI1"));
+            FilterCombo.Items.Add(R._("1=AI2"));
+            FilterCombo.SelectedIndex = 0;
+
             EntryList.SelectedAddressChanged += OnSelected;
             FilterCombo.SelectionChanged += FilterCombo_SelectionChanged;
             Opened += (_, _) => LoadList();
@@ -36,23 +43,44 @@ namespace FEBuilderGBA.Avalonia.Views
         // List load + filter (FilterIndex 0 = AI1, 1 = AI2) — Copilot v2 #3
         // -----------------------------------------------------------------
 
-        void LoadList()
+        /// <summary>
+        /// Load the address list. On initial load (initial=true) the
+        /// TopAddress / ReadCount UI boxes are seeded from the ROM's AI
+        /// table pointer and entry count; on user-driven Reload (initial=
+        /// false) the UI values drive the VM scan window so the user can
+        /// adjust the read range, mirroring WF panel3 / panel1 behavior
+        /// (PR #571 Copilot bot review #3).
+        /// </summary>
+        void LoadList(bool initial = true)
         {
             _vm.IsLoading = true;
             try
             {
+                if (!initial)
+                {
+                    // Honor the user-edited Top Address / Read Count.
+                    _vm.TopAddress = (uint)(TopAddressBox.Value ?? 0);
+                    _vm.ReadCount = (uint)(ReadCountBox.Value ?? 0);
+                }
+
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
-                // Surface auto-detected read-config defaults into the UI.
-                ROM? rom = CoreState.ROM;
-                if (rom?.RomInfo != null)
+
+                if (initial)
                 {
-                    uint tablePtr = _vm.FilterIndex == 1
-                        ? rom.RomInfo.ai2_pointer
-                        : rom.RomInfo.ai1_pointer;
-                    TopAddressBox.Value = tablePtr;
+                    // Surface auto-detected defaults into the UI.
+                    ROM? rom = CoreState.ROM;
+                    if (rom?.RomInfo != null)
+                    {
+                        uint tablePtr = _vm.FilterIndex == 1
+                            ? rom.RomInfo.ai2_pointer
+                            : rom.RomInfo.ai1_pointer;
+                        TopAddressBox.Value = tablePtr;
+                        _vm.TopAddress = tablePtr;
+                    }
+                    ReadCountBox.Value = (decimal)items.Count;
+                    _vm.ReadCount = (uint)items.Count;
                 }
-                ReadCountBox.Value = (decimal)items.Count;
             }
             catch (Exception ex)
             {
@@ -75,7 +103,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 int newIndex = FilterCombo.SelectedIndex;
                 if (newIndex == _vm.FilterIndex) return;
                 _vm.FilterIndex = newIndex;
-                LoadList();
+                LoadList(initial: true); // reseed defaults from the new pointer
             }
             catch (Exception ex)
             {
@@ -87,7 +115,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                LoadList();
+                // User-driven reload — honor edited Top Address / Read Count.
+                LoadList(initial: false);
             }
             catch (Exception ex)
             {
@@ -130,32 +159,29 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // Write-back (mirrors WF AllWriteButton_Click)
-        // Wraps every ROM write in UndoService.Begin/Commit per plan WU2.
+        // Write-back. WF AllWriteButton_Click writes the full disassembled
+        // opcode list back; that path is WinForms-coupled via EventScript.
+        // DisAssemble + EventScriptUtil.JisageReorder. Without that, an
+        // Avalonia "Write" can't honestly mutate the ROM, so we tell the
+        // user and short-circuit BEFORE allocating an undo scope (per
+        // PR #571 Copilot bot review #1 — no ghost undo entry, no
+        // misleading "success" toast).
         // -----------------------------------------------------------------
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            if (!_vm.IsLoaded) return;
-
-            _undoService.Begin("Edit AI Script");
-            try
-            {
-                _vm.CurrentAddr = (uint)(AddressBox.Value ?? 0);
-                _vm.ReadByteCount = (uint)(ReadByteCountBox.Value ?? 0);
-                _vm.CommentText = CommentBox.Text ?? "";
-                _vm.AsmText = AsmBox.Text ?? "";
-                _vm.Write();
-                _undoService.Commit();
-                _vm.MarkClean();
-                CoreState.Services.ShowInfo("AI script data written.");
-            }
-            catch (Exception ex)
-            {
-                _undoService.Rollback();
-                Log.Error("AIScriptView.Write_Click failed: {0}", ex.Message);
-            }
+            CoreState.Services.ShowInfo(
+                "AI script Write is not yet implemented in Avalonia. The full opcode write-back requires the WinForms EventScript.DisAssemble pipeline, which is still WinForms-coupled. Use the WinForms editor for AI script writes.");
         }
+
+        // -----------------------------------------------------------------
+        // Re-read mirrors WF N_ReloadListButton_Click: read `bytecount`
+        // bytes starting at `Address` and disassemble them into the
+        // Disassembly list. The actual opcode disassembly path is
+        // WinForms-coupled today; we surface the raw byte dump in the list
+        // so the user has SOMETHING populated and the button does real work
+        // (per PR #571 Copilot bot review #2 — no no-op "re-read").
+        // -----------------------------------------------------------------
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
         {
@@ -163,6 +189,26 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.CurrentAddr = (uint)(AddressBox.Value ?? 0);
                 _vm.ReadByteCount = (uint)(ReadByteCountBox.Value ?? 0);
+
+                // Read the bytes from ROM at CurrentAddr (size = ReadByteCount)
+                // and populate the Disassembly list with 16-byte chunks.
+                var rom = CoreState.ROM;
+                var items = new System.Collections.Generic.List<string>();
+                if (rom != null && U.isSafetyOffset(_vm.CurrentAddr)
+                    && U.isSafetyOffset(_vm.CurrentAddr + _vm.ReadByteCount))
+                {
+                    uint end = System.Math.Min(_vm.CurrentAddr + _vm.ReadByteCount,
+                                               (uint)rom.Data.Length);
+                    for (uint a = _vm.CurrentAddr; a + 16 <= end; a += 16)
+                    {
+                        var sb = new System.Text.StringBuilder();
+                        sb.Append($"0x{a:X06}: ");
+                        for (uint i = 0; i < 16; i++)
+                            sb.Append($"{rom.u8(a + i):X02} ");
+                        items.Add(sb.ToString());
+                    }
+                }
+                DisassemblyList.ItemsSource = items;
                 UpdateUI();
             }
             catch (Exception ex)

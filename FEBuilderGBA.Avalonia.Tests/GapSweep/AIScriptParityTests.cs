@@ -156,12 +156,14 @@ public class AIScriptParityTests
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// Per Copilot CLI plan-review v1 #1: manifest only contains rows for
-    /// wired `WindowManager.Navigate<>` callsites. The deferred AI sub-editors
-    /// (AIUnitsView, AITilesView, AIASMCoordinateView, AIASMRangeView,
-    /// AIASMCALLTALKView, AIScriptCategorySelectView) stay `MissingAvManifest`
-    /// per JumpParityScanner — that's the truthful state until their host
-    /// runtime wiring is added.
+    /// Per Copilot CLI plan-review v1 #1 AND PR #571 Copilot CLI review #2:
+    /// manifest only contains rows for `WindowManager.Navigate<>` callsites
+    /// that this PR ACTUALLY wires in the view code-behind. The deferred
+    /// Unit / Class / DisASM jumps (param-label dispatch) and AI sub-editor
+    /// modals stay `MissingAvManifest` per JumpParityScanner — that's the
+    /// truthful state until the WF EventScript.DisAssemble pipeline gets
+    /// extracted to Core (which is what makes per-arg ArgType jump
+    /// dispatch possible in Avalonia).
     /// </summary>
     [Fact]
     public void NavigationManifest_HasExpectedRows()
@@ -169,18 +171,9 @@ public class AIScriptParityTests
         var vm = new AIScriptViewModel();
         IReadOnlyList<NavigationTarget> targets = vm.GetNavigationTargets();
 
-        // The wired set. Order is irrelevant — convert to a HashSet for set
-        // equality.
-        var expected = new HashSet<string>
-        {
-            "JumpToUnit",
-            "JumpToUnitFE7",
-            "JumpToUnitFE6",
-            "JumpToClass",
-            "JumpToClassFE6",
-            "JumpToDisASM",
-            "JumpToPointerToolCopyTo",
-        };
+        // PR #571 Copilot CLI review #2: shrunk to exactly the one wired
+        // callsite — DetailAddress_Click -> PointerToolCopyToView.
+        var expected = new HashSet<string> { "JumpToPointerToolCopyTo" };
         var actual = new HashSet<string>(targets.Select(t => t.CommandName));
         Assert.Equal(expected, actual);
     }
@@ -201,10 +194,12 @@ public class AIScriptParityTests
     }
 
     /// <summary>
-    /// Per Copilot CLI plan-review v1 #1: the deferred AI sub-editor jumps
-    /// must NOT appear in the manifest — they remain MissingAvManifest in
-    /// the JumpParityScanner output. This is the truthful state until the
-    /// host wiring is implemented (those forms are still WinForms-coupled).
+    /// Per Copilot CLI plan-review v1 #1 AND PR #571 Copilot CLI review #2:
+    /// the deferred jump targets (Unit / Class / DisASM via param-label
+    /// dispatch + AI sub-editor modals) must NOT appear in the manifest —
+    /// they remain MissingAvManifest in the JumpParityScanner output.
+    /// This is the truthful state until the WF EventScript.DisAssemble
+    /// pipeline is extracted to Core.
     /// </summary>
     [Fact]
     public void NavigationManifest_DeferredAISubEditors_NotInManifest()
@@ -213,8 +208,19 @@ public class AIScriptParityTests
         IReadOnlyList<NavigationTarget> targets = vm.GetNavigationTargets();
 
         // None of these deferred targets must be present in the manifest.
+        // Unit / Class / DisASM dispatch happens in WF via the parameter
+        // labels' click handler; AIUnits / AITiles / AIASMCoordinate /
+        // AIASMRange / AIASMCALLTALK / AIScriptCategorySelect open via
+        // ParamLabel_Click or ScriptChangeButton — none of those are wired
+        // in the current Avalonia code-behind.
         Type[] deferredTargets = new[]
         {
+            typeof(UnitEditorView),
+            typeof(UnitFE7View),
+            typeof(UnitFE6View),
+            typeof(ClassEditorView),
+            typeof(ClassFE6View),
+            typeof(DisASMView),
             typeof(AIUnitsView),
             typeof(AITilesView),
             typeof(AIASMCoordinateView),
@@ -252,20 +258,32 @@ public class AIScriptParityTests
     // -----------------------------------------------------------------
 
     [Fact]
-    public void View_WriteHandler_WrapsInUndoScope()
+    public void View_WriteHandler_IsHonestlyDeferred()
     {
-        // Roslyn-static read of the code-behind: Write_Click() must contain
-        // a `_undoService.Begin(` / `_undoService.Commit(` pair (parity with
-        // SongTrackView).
+        // PR #571 Copilot bot review #1: AI script write-back is
+        // WinForms-coupled today (EventScript.DisAssemble +
+        // EventScriptUtil.JisageReorder live in the WinForms assembly).
+        // The Write_Click handler must NOT allocate an undo scope and
+        // emit a false "success" toast; instead it surfaces a clear
+        // "not yet implemented" message so users aren't misled. This
+        // test pins that honest state — when the WinForms write path is
+        // ported to Core, this test should change to assert
+        // `_undoService.Begin( / Commit(` wrap (parity with SongTrack /
+        // EDView).
         string codeBehindPath = CodeBehindPath();
         Assert.True(File.Exists(codeBehindPath), $"Code-behind not found at {codeBehindPath}");
         string code = File.ReadAllText(codeBehindPath);
 
-        Assert.Contains("_undoService.Begin(", code);
-        Assert.Contains("_undoService.Commit(", code);
-        // And the Write_Click handler in particular must be present and call
-        // those.
+        // Write_Click must exist
         Assert.Contains("Write_Click", code);
+        // The undo scope helper exists in the file (e.g. for future use)
+        // but the Write_Click body must NOT call Begin without doing a
+        // real ROM mutation. Sanity: the code-behind owns an UndoService
+        // for future opcode editing, so the field reference is present
+        // but the handler short-circuits.
+        Assert.Contains("UndoService", code);
+        // The honest "not yet implemented" message must be present.
+        Assert.Contains("AI script Write is not yet implemented in Avalonia", code);
     }
 
     [Fact]
@@ -437,7 +455,12 @@ public class AIScriptParityTests
         WriteU32(rom.Data, (int)rom.RomInfo.ai2_pointer, 0x08100100);
 
         // AI1 list (4-byte pointer slots, 3 entries) at 0x100000.
-        ai1PointerSlot = rom.RomInfo.ai1_pointer;
+        // Per PR #571 Copilot bot review #5: the out-param returns the
+        // FIRST POINTER SLOT in the AI table (0x100000), NOT the pointer
+        // location (rom.RomInfo.ai1_pointer). LoadEntry() expects to read
+        // a script pointer at the slot address, follow it, and resolve
+        // CalcLength — so the test must hand it a real slot address.
+        ai1PointerSlot = 0x100000;
         WriteU32(rom.Data, 0x100000, 0x08200000);
         WriteU32(rom.Data, 0x100004, 0x08200010);
         WriteU32(rom.Data, 0x100008, 0x08200020);
@@ -446,7 +469,7 @@ public class AIScriptParityTests
         WriteU32(rom.Data, 0x10000C, 0xFFFFFFFF);
 
         // AI2 list at 0x100100 - 2 entries.
-        ai2PointerSlot = rom.RomInfo.ai2_pointer;
+        ai2PointerSlot = 0x100100;
         WriteU32(rom.Data, 0x100100, 0x08200030);
         WriteU32(rom.Data, 0x100104, 0x08200040);
         WriteU32(rom.Data, 0x100108, 0xFFFFFFFF);

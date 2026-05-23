@@ -21499,3 +21499,9 @@ OBBGLeftToRight
 
 :Close
 关闭
+
+:0=AI1
+0=AI1
+
+:1=AI2
+1=AI2

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T22:11:05Z"
-git-sha: 25a8ee950
+generated: "2026-05-23T22:58:37Z"
+git-sha: ff33c1a38
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 60 |
-| MissingAvManifest (backlog) | 326 |
+| Match | 53 |
+| MissingAvManifest (backlog) | 333 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 8 |
 
@@ -195,6 +195,13 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `AIScriptForm` | `AIScriptView` | `—` | `AIScriptCategorySelectForm` | `AIScriptCategorySelectView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `AITilesForm` | `AITilesView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `AIUnitsForm` | `AIUnitsView` |
+| `AIScriptForm` | `AIScriptView` | `—` | `ClassForm` | `ClassEditorView` |
+| `AIScriptForm` | `AIScriptView` | `—` | `ClassFE6Form` | `ClassFE6View` |
+| `AIScriptForm` | `AIScriptView` | `—` | `ClassForm` | `ClassFE6View` |
+| `AIScriptForm` | `AIScriptView` | `—` | `DisASMForm` | `DisASMView` |
+| `AIScriptForm` | `AIScriptView` | `—` | `UnitForm` | `UnitEditorView` |
+| `AIScriptForm` | `AIScriptView` | `—` | `UnitFE6Form` | `UnitFE6View` |
+| `AIScriptForm` | `AIScriptView` | `—` | `UnitFE7Form` | `UnitFE7View` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
@@ -430,14 +437,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
-| `AIScriptForm` | `AIScriptView` | `JumpToClass` | `ClassForm` | `ClassEditorView` |
-| `AIScriptForm` | `AIScriptView` | `JumpToClassFE6` | `ClassFE6Form` | `ClassFE6View` |
-| `AIScriptForm` | `AIScriptView` | `JumpToClassFE6` | `ClassForm` | `ClassFE6View` |
-| `AIScriptForm` | `AIScriptView` | `JumpToDisASM` | `DisASMForm` | `DisASMView` |
 | `AIScriptForm` | `AIScriptView` | `JumpToPointerToolCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
-| `AIScriptForm` | `AIScriptView` | `JumpToUnit` | `UnitForm` | `UnitEditorView` |
-| `AIScriptForm` | `AIScriptView` | `JumpToUnitFE6` | `UnitFE6Form` | `UnitFE6View` |
-| `AIScriptForm` | `AIScriptView` | `JumpToUnitFE7` | `UnitFE7Form` | `UnitFE7View` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
