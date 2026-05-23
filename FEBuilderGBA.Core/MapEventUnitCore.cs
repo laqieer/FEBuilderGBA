@@ -444,6 +444,11 @@ namespace FEBuilderGBA
         ///   so callers can pass synthesised values in tests.</param>
         /// <param name="oldCount">Currently-loaded number of rows.</param>
         /// <param name="newCount">Desired number of rows after expansion.</param>
+        /// <param name="starterB1">Starter byte planted in B1 of each new
+        ///   row. FE7 uses <c>0x01</c> (default); FE8 callers MUST pass
+        ///   <c>0x02</c> per WF <c>EventUnitForm.AddressListExpandsEvent</c>
+        ///   (which writes <c>B0=0x01, B1=0x02</c> for newly-allocated FE8
+        ///   rows). The B0 starter is always <c>0x01</c>.</param>
         /// <returns>New base ROM offset, or <see cref="U.NOT_FOUND"/> on
         ///   any failure (no partial writes).</returns>
         public static uint ExpandUnitList(
@@ -451,7 +456,8 @@ namespace FEBuilderGBA
             uint eventPointerSlot,
             uint oldBase,
             uint oldCount,
-            uint newCount)
+            uint newCount,
+            byte starterB1 = 0x01)
         {
             if (rom == null || rom.RomInfo == null)
                 return U.NOT_FOUND;
@@ -503,10 +509,15 @@ namespace FEBuilderGBA
             byte[] oldRows = rom.getBinaryData(oldBase, oldCount * blockSize);
             rom.write_range(newBase, oldRows);
 
-            // 2. Initialize new rows with B0=0x01, B1=0x01 (WF
-            // EventUnitFE7Form.cs:485-490). Remaining bytes already zero
-            // because FindFreeSpace returns regions filled with 0x00 or 0xFF;
-            // for 0xFF fill we need to explicitly zero the rest of each row.
+            // 2. Initialize new rows with B0=0x01 (always) and the
+            // caller-supplied starter B1 byte. FE7 callers use 0x01 (WF
+            // EventUnitFE7Form.cs:485-490); FE8 callers pass 0x02 per WF
+            // EventUnitForm.AddressListExpandsEvent. Remaining bytes are
+            // already zero because we write a full zeroBuffer first
+            // (handles 0xFF fill from FindFreeSpace). For FE8 rows the
+            // zeroBuffer also clears B7 (after-coord count) and D8
+            // (after-coord pointer) so the new row has no stale references
+            // to the old table's coord blocks.
             // Allocate the zero buffer ONCE (Copilot review #522 third pass —
             // cast the uint blockSize to int via checked() so the intent is
             // explicit, and reuse the buffer across iterations).
@@ -519,7 +530,7 @@ namespace FEBuilderGBA
                 // then plant the starter bytes.
                 rom.write_range(rowAddr, zeroBuffer);
                 rom.write_u8(rowAddr + 0, 0x01);
-                rom.write_u8(rowAddr + 1, 0x01);
+                rom.write_u8(rowAddr + 1, starterB1);
             }
 
             // 3. Write the zero terminator row after the expanded entries.
@@ -736,6 +747,123 @@ namespace FEBuilderGBA
                 }
             }
             return unitOnlyFallback;
+        }
+
+        // ---------------------------------------------------------------
+        // FE8 jump-target search helpers (#420 — EventUnit jumps)
+        //
+        // FE8 differs from FE7 (PR #522) in:
+        //   - BattleTalk: 16-byte blocks, u16@0/u16@2 unit-id match,
+        //                 u16@4 map filter. Terminator u16==0xFFFF.
+        //   - Haiku: 12-byte blocks, u16@0 unit-id match, u8@3 map filter
+        //            (0xFF = wildcard). Terminator u16==0xFFFF.
+        //   - BossBGM: 8-byte blocks, u8@0 unit-id match. Terminator
+        //              u16==0xFFFF.
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Mirrors <c>EventBattleTalkForm.JumpTo(unit_id, map_id)</c> (FE8):
+        /// search event_ballte_talk_pointer (16-byte blocks, terminator
+        /// u16@0 == 0xFFFF) for the first row whose <c>u16@0</c> OR
+        /// <c>u16@2</c> equals <paramref name="unitId"/>. Prefer full
+        /// (unit + map) match; fall back to unit-only match.
+        ///
+        /// Returns the byte address of the first hit row, or 0 on no match.
+        /// </summary>
+        public static uint FindBattleTalkFE8UnitIdAddress(ROM rom, uint unitId, uint mapId)
+        {
+            if (rom == null || rom.RomInfo == null)
+                return 0;
+
+            uint pointerSlot = rom.RomInfo.event_ballte_talk_pointer;
+            if (pointerSlot == 0) return 0;
+
+            uint baseAddr = rom.p32(pointerSlot);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            uint romLen = (uint)rom.Data.Length;
+            const uint blockSize = 16;
+            uint unitOnlyFallback = 0;
+
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > romLen) break;
+
+                uint u16Term = rom.u16(addr);
+                if (u16Term == 0xFFFF) break; // terminator
+
+                uint c0 = rom.u16(addr + 0);
+                uint c2 = rom.u16(addr + 2);
+                uint mid = rom.u16(addr + 4);
+                if (c0 == unitId || c2 == unitId)
+                {
+                    if (mid == mapId) return addr; // full match
+                    if (unitOnlyFallback == 0) unitOnlyFallback = addr;
+                }
+            }
+            return unitOnlyFallback;
+        }
+
+        /// <summary>
+        /// Mirrors <c>EventHaikuForm.JumpTo(unit_id, map_id)</c> (FE8):
+        /// search event_haiku_pointer (12-byte blocks, terminator
+        /// u16@0 == 0xFFFF) for the first row whose <c>u16@0</c> equals
+        /// <paramref name="unitId"/>. Prefer match where <c>u8@3</c> is
+        /// 0xFF (wildcard) or equals <paramref name="mapId"/>; fall back
+        /// to unit-only.
+        ///
+        /// Returns the byte address of the first hit row, or 0 on no match.
+        /// </summary>
+        public static uint FindHaikuFE8Address(ROM rom, uint unitId, uint mapId)
+        {
+            if (rom == null || rom.RomInfo == null)
+                return 0;
+
+            uint pointerSlot = rom.RomInfo.event_haiku_pointer;
+            if (pointerSlot == 0) return 0;
+
+            uint baseAddr = rom.p32(pointerSlot);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            uint romLen = (uint)rom.Data.Length;
+            const uint blockSize = 12;
+            uint unitOnlyFallback = 0;
+
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > romLen) break;
+
+                uint u16Term = rom.u16(addr);
+                if (u16Term == 0xFFFF) break; // terminator
+
+                uint unitU16 = rom.u16(addr + 0);
+                uint mapU8 = rom.u8(addr + 3);
+                if (unitU16 == unitId)
+                {
+                    if (mapU8 == 0xFF || mapU8 == mapId)
+                    {
+                        return addr; // full match
+                    }
+                    if (unitOnlyFallback == 0) unitOnlyFallback = addr;
+                }
+            }
+            return unitOnlyFallback;
+        }
+
+        /// <summary>
+        /// Mirrors <c>SoundBossBGMForm.JumpTo(unit_id)</c> (FE8 — schema
+        /// identical to FE7): 8-byte blocks, terminator u16@0 == 0xFFFF.
+        /// Searches u8@0 against <paramref name="unitId"/>.
+        ///
+        /// Returns the byte address of the first hit row, or 0 on no match.
+        /// </summary>
+        public static uint FindBossBGMFE8UnitIdAddress(ROM rom, uint unitId)
+        {
+            // FE8 schema identical to FE7 helper — delegate to the
+            // existing implementation to avoid duplicating the loop logic.
+            return FindBossBGMFE7UnitIdAddress(rom, unitId);
         }
     }
 }

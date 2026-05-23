@@ -1113,6 +1113,13 @@ namespace FEBuilderGBA
         {
             return (x & 0x3F) | ((y & 0x3F) << 6) | ((ext & 0x7) << 12);
         }
+        // FE8 W4 (UnitPos) decomposition helpers — mirror MakeFe8UnitPos
+        // packing so callers can split a packed word back into its X, Y, and
+        // ext (flag) components. Used by EventUnitView's W4 sub-panel and by
+        // the ItemDrop status display (Item Drop bit = ext & 0x2).
+        public static uint ParseFe8UnitPosX(uint unitpos) { return unitpos & 0x3F; }
+        public static uint ParseFe8UnitPosY(uint unitpos) { return (unitpos >> 6) & 0x3F; }
+        public static uint ParseFe8UnitPosExt(uint unitpos) { return (unitpos >> 12) & 0x7; }
 
         // ---- Comparer helpers -------------------------------------------------
         public class FunctionalComparer<T> : IComparer<T>
