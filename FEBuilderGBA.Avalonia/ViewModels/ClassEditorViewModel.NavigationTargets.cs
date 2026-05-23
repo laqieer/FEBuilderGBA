@@ -120,11 +120,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Added in #406: FE8-only CC Branch jump (parity with WF
                 // ClassForm.J_5_Click which calls
                 // InputFormRef.JumpForm<CCBranchForm>(SelectedIndex)).
-                // The address slot carries the class id (0-based) — the
-                // CCBranchEditorView resolves to the correct row via
-                // NavigateTo. Skip note: the click handler short-circuits
-                // for non-FE8 ROMs, so the manifest entry is purely
-                // declarative.
+                // The address slot is left null at manifest time — the live
+                // click handler dispatches the current 0-based class id
+                // (`ClassList.SelectedOriginalIndex`) to
+                // `Navigate<CCBranchEditorView>(uint)` at click time. The
+                // manifest records that this jump exists and where it lands,
+                // not the runtime parameter (matches the rest of this VM's
+                // manifest where all `TargetAddress` slots are null because
+                // the addresses are computed per click). Skip note: the
+                // click handler short-circuits for non-FE8 ROMs.
                 new NavigationTarget(
                     CommandName: "JumpToCCBranch_FE8",
                     TargetViewType: typeof(CCBranchEditorView),
