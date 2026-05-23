@@ -14,9 +14,12 @@
 //   and the host writes 0 to it (no PropertyChanged event fires).
 //
 // These tests open each affected editor via the headless harness with a
-// ROM loaded, wait for Opened to finish, and assert that every visible,
-// enabled NumericUpDown has a non-null Value — exactly mirroring the
-// production data-verify UI check in MainWindow.CheckNumericUpDownsDisplayValues.
+// ROM loaded, run Show() (which fires the Opened handler synchronously
+// before returning in Avalonia.Headless), and assert that every
+// effectively-visible NumericUpDown has a non-null Value — mirroring the
+// production data-verify UI check in MainWindow.CheckNumericUpDownsDisplayValues,
+// which also filters only by IsEffectivelyVisible (not IsEnabled — disabled
+// NUDs with stale state are intentionally caught).
 //
 // Marked [Collection("SharedState")] because the tests mutate
 // CoreState.ROM via RomTestHelper.WithRom.
@@ -34,9 +37,12 @@ namespace FEBuilderGBA.Avalonia.Tests;
 public class DataVerifyEmptyNumericUpDownTests
 {
     /// <summary>
-    /// Returns the names of every visible, enabled NumericUpDown whose Value
-    /// is null. This is the exact same predicate MainWindow.CheckNumericUpDownsDisplayValues
-    /// uses to emit `UIVERIFY: {view}|emptyNUDs=...` lines.
+    /// Returns the names of every effectively-visible NumericUpDown whose
+    /// Value is null. This mirrors the predicate
+    /// `MainWindow.CheckNumericUpDownsDisplayValues` uses to emit
+    /// `UIVERIFY: {view}|emptyNUDs=...` lines — `IsEffectivelyVisible` only,
+    /// no `IsEnabled` filter, so disabled NUDs left at `null` still count
+    /// as empty (which is the bug we're guarding against here).
     /// </summary>
     static List<string> FindEmptyVisibleNuds(Window window)
     {

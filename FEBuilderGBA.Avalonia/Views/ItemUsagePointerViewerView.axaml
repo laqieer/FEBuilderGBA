@@ -12,7 +12,7 @@
         <Label Content="Filter:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Filter_Combo"
                   Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadStart_Input"
                        FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="4294967295"

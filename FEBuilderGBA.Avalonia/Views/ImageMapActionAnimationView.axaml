@@ -9,7 +9,7 @@
     <!-- Row 0: top read-config bar (mirrors WF panel3: 先頭アドレス / 読込数 / 再取得) -->
     <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
       <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ImageMapActionAnimation_ReadStart_Input"
                        FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"

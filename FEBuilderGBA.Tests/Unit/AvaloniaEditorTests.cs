@@ -1444,8 +1444,12 @@ namespace FEBuilderGBA.Tests.Unit
             if (Directory.Exists(controlsDir))
                 axamlFiles.AddRange(Directory.GetFiles(controlsDir, "*.axaml"));
 
-            // Hex format pattern — matches "X" optionally followed by digits.
-            var hexFormat = new System.Text.RegularExpressions.Regex("^X\\d*$");
+            // Hex format pattern — matches "X" or "x" optionally followed by digits.
+            // Case-insensitive because `decimal.ToString("x*")` throws the same
+            // FormatException as the uppercase variant (Copilot PR #545 review).
+            var hexFormat = new System.Text.RegularExpressions.Regex(
+                "^X\\d*$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             foreach (var file in axamlFiles)
             {

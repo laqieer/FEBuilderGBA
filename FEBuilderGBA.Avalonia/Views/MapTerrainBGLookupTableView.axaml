@@ -12,7 +12,7 @@
         <Label Content="Condition:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="MapTerrainBGLookupTable_Filter_Combo"
                   Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Hex Address" VerticalAlignment="Center" />
+        <Label Content="Address (decimal)" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="MapTerrainBGLookupTable_ReadStart_Input"
                        FormatString="0" Name="ReadStartAddressBox" Width="120"
                        Minimum="0" Maximum="65535999"
