@@ -123,7 +123,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
+            if (rom?.RomInfo == null)
+            {
+                ResetDerivedListState();
+                return new List<AddrResult>();
+            }
 
             // Re-scan on every LoadList; cheap and avoids stale pointers after
             // a Patch install/uninstall. Bail with an empty list if any of
@@ -137,22 +141,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IconBaseAddress = iconBase;
 
             if (textLoc == U.NOT_FOUND || animeLoc == U.NOT_FOUND || iconBase == 0)
+            {
+                // Copilot bot review: zero derived state on the early-return
+                // path so the view doesn't surface stale start/count values
+                // when the SkillSystems patch is uninstalled in the same
+                // session.
+                ResetDerivedListState();
                 return new List<AddrResult>();
+            }
 
             uint textBase = rom.p32(textLoc);
-            if (!U.isSafetyOffset(textBase, rom)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(textBase, rom))
+            {
+                ResetDerivedListState();
+                return new List<AddrResult>();
+            }
 
             ReadStartAddress = textBase;
 
             var result = new List<AddrResult>();
             // WF predicate: `i < 255`. Iterate the full range; the only
-            // bound is ROM length.
+            // bound is ROM length. We pass `textBase` into `ResolveSkillName`
+            // so the per-row name lookup reuses the scan we already did,
+            // instead of re-running the byte-pattern scan 255 times per
+            // refresh (Copilot bot review: performance flag).
             for (uint i = 0; i < MAX_COUNT; i++)
             {
                 uint addr = textBase + i * SIZE;
                 if (addr + SIZE > (uint)rom.Data.Length) break;
 
-                string skillName = ResolveSkillName(rom, i);
+                string skillName = ResolveSkillName(rom, textBase, i);
                 string label = skillName.Length > 0
                     ? $"0x{i:X02} {skillName}"
                     : $"0x{i:X02}";
@@ -160,6 +178,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             ReadCount = (uint)result.Count;
             return result;
+        }
+
+        /// <summary>
+        /// Zero the derived list state (ReadStartAddress, ReadCount) so
+        /// callers querying <see cref="GetListCount"/> after a patch uninstall
+        /// don't see stale counts.
+        /// </summary>
+        void ResetDerivedListState()
+        {
+            ReadStartAddress = 0;
+            ReadCount = 0;
         }
 
         /// <summary>
@@ -171,15 +200,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// 3) otherwise return empty (the LoadDicResource fallback in WF
         ///    requires a translation file we don't currently consume from
         ///    Avalonia - same trade-off as the FE8N family).
+        ///
+        /// <paramref name="textBase"/> is passed in from <see cref="LoadList"/>
+        /// (which already ran the byte-pattern scan once) so we don't repeat
+        /// the full scan per row - that was a hot-path freeze flagged by
+        /// Copilot bot review.
         /// </summary>
-        static string ResolveSkillName(ROM rom, uint id)
+        static string ResolveSkillName(ROM rom, uint textBase, uint id)
         {
             if (rom == null) return "";
             try
             {
-                uint textLoc = PreviewIconHelper.FindSkillSystemTextPointerLocation();
-                if (textLoc == U.NOT_FOUND) return "";
-                uint textBase = rom.p32(textLoc);
                 if (!U.isSafetyOffset(textBase, rom)) return "";
 
                 uint entryAddr = textBase + SIZE * id;
