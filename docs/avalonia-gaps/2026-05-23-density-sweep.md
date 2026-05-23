@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T03:03:42Z"
-git-sha: f1fdf4e3e
+generated: "2026-05-23T03:29:55Z"
+git-sha: d4a4c4372
 sweep-type: density
 ---
 
@@ -21,8 +21,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 | Verdict | Threshold | Count |
 |---|---|---|
 | HIGH | |Δ%| ≥ 50 | 232 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 83 |
-| LOW | |Δ%| < 25 | 55 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 82 |
+| LOW | |Δ%| < 25 | 56 |
 
 ## Ranked Density Deltas
 
@@ -212,7 +212,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `MapSettingFE7Form` | `MapSettingFE7View` | 229 | 146 | -83 | -36.2% | ListParityHelper |
 | Medium | `MapSettingFE7UForm` | `MapSettingFE7UView` | 233 | 150 | -83 | -35.6% | ListParityHelper |
 | Medium | `UnitFE6Form` | `UnitFE6View` | 152 | 98 | -54 | -35.5% | ListParityHelper |
-| Medium | `UnitFE7Form` | `UnitFE7View` | 160 | 106 | -54 | -33.8% | ListParityHelper |
 | Medium | `HowDoYouLikePatch2Form` | `HowDoYouLikePatch2View` | 6 | 4 | -2 | -33.3% | Heuristic |
 | Medium | `MapTerrainNameEngForm` | `MapTerrainNameEngView` | 12 | 8 | -4 | -33.3% | ListParityHelper |
 | Medium | `MenuCommandForm` | `MenuCommandView` | 39 | 26 | -13 | -33.3% | ListParityHelper |
@@ -254,6 +253,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `AOERANGEForm` | `AOERANGEView` | 15 | 13 | -2 | -13.3% | Heuristic |
 | Low | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` | 41 | 36 | -5 | -12.2% | Heuristic |
 | Low | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` | 9 | 8 | -1 | -11.1% | Heuristic |
+| Low | `UnitFE7Form` | `UnitFE7View` | 160 | 143 | -17 | -10.6% | ListParityHelper |
 | Low | `OPClassAlphaNameFE6Form` | `OPClassAlphaNameFE6View` | 10 | 9 | -1 | -10.0% | ListParityHelper |
 | Low | `RAMRewriteToolMAPForm` | `RAMRewriteToolMAPView` | 11 | 10 | -1 | -9.1% | Heuristic |
 | Low | `ItemStatBonusesSkillSystemsForm` | `ItemStatBonusesSkillSystemsView` | 51 | 47 | -4 | -7.8% | Heuristic |

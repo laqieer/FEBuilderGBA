@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T03:04:07Z"
-git-sha: f1fdf4e3e
+generated: "2026-05-23T03:29:59Z"
+git-sha: d4a4c4372
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4634 |
-| Total AV-only labels | 2738 |
-| Total common labels | 66 |
+| Total WF-only labels | 4631 |
+| Total AV-only labels | 2753 |
+| Total common labels | 69 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-25-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -2203,114 +2203,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Battle Screen Layout`
 
-### UnitFE7Form
-WF labels: **39** · AV labels: **62** · WF-only: **38** · AV-only: **61** · Common: **1** · Density verdict: **Medium** (WF 160 / AV 106)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `- `
-- `??`
-- `[HardCoding]`
-- `ID`
-- `LV`
-- `Size:`
-- `アドレス`
-- `シミュレーション`
-- `マップ顔`
-- `ユニットソート順`
-- `ユニット別能力`
-- `上位クラス戦闘アニメ色`
-- `上級専用アニメ`
-- `下位クラス戦闘アニメ色`
-- `下級専用アニメ`
-- `会話グループ`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `守備`
-- `属性:-`
-- `幸運`
-- `成長率(%)`
-- ` 技 `
-- `支援クラス`
-- `支援データ`
-- `攻撃`
-- `書き込み`
-- `武器LV`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `顔`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Ability 1:`
-- `Ability 2:`
-- `Ability 3:`
-- `Ability 4:`
-- `Ability Flags:`
-- `Address:`
-- `Affinity:`
-- `Anima:`
-- `Axe:`
-- `Base Stats:`
-- `Bow:`
-- `Click to open Portrait Viewer`
-- `CON:`
-- `Dark:`
-- `Decoded:`
-- `Decoded description text`
-- `DEF:`
-- `DEF Growth:`
-- `Desc`
-- `Description:`
-- `Growth Rates (%):`
-- `HP Growth:`
-- `Lance:`
-- `LCK:`
-- `LCK Growth:`
-- `Level:`
-- `Light:`
-- `Lower Class Anime:`
-- `Lower Class Palette:`
-- `Map Face:`
-- `Name:`
-- `Open Support`
-- `Open text viewer for this description`
-- `Palette / Custom Animation:`
-- `Portrait:`
-- `RES:`
-- `RES Growth:`
-- `SKL:`
-- `SKL Growth:`
-- `Sort Order:`
-- `SPD:`
-- `SPD Growth:`
-- `Staff:`
-- `STR:`
-- `STR Growth:`
-- `Support / Talk:`
-- `Support Data Ptr:`
-- `Sword:`
-- `Talk Group:`
-- `Text ID for the unit's description`
-- `Unit ID:`
-- `Units (FE7) Editor`
-- `Unknown 39:`
-- `Unknown 49:`
-- `Unknown 50:`
-- `Unknown 51:`
-- `Unknown Fields:`
-- `Upper Class Anime:`
-- `Upper Class Palette:`
-- `Weapon Ranks:`
-- `Write`
-
 ### MonsterItemForm
 WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
 
@@ -2561,6 +2453,126 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Sprite Tile Sheet`
 - `Total animations: --`
 - `Weapon Type (B0):`
+- `Write`
+
+### UnitFE7Form
+WF labels: **39** · AV labels: **80** · WF-only: **35** · AV-only: **76** · Common: **4** · Density verdict: **Low** (WF 160 / AV 143)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `??`
+- `ID`
+- `LV`
+- `アドレス`
+- `シミュレーション`
+- `マップ顔`
+- `ユニットソート順`
+- `ユニット別能力`
+- `上位クラス戦闘アニメ色`
+- `上級専用アニメ`
+- `下位クラス戦闘アニメ色`
+- `下級専用アニメ`
+- `会話グループ`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `守備`
+- `属性:-`
+- `幸運`
+- `成長率(%)`
+- ` 技 `
+- `支援クラス`
+- `支援データ`
+- `攻撃`
+- `書き込み`
+- `武器LV`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `顔`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Ability 1:`
+- `Ability 2:`
+- `Ability 3:`
+- `Ability 4:`
+- `Ability Flags:`
+- `Affinity:`
+- `Anima:`
+- `Axe:`
+- `Base Stats:`
+- `Bow:`
+- `Click to open Portrait Viewer`
+- `CON:`
+- `Dark:`
+- `Decoded:`
+- `Decoded description text`
+- `DEF:`
+- `DEF Growth:`
+- `Desc`
+- `Description:`
+- `Growth Rates (%):`
+- `Growth Simulation`
+- `HP Growth:`
+- `Lance:`
+- `LCK:`
+- `LCK Growth:`
+- `Level:`
+- `Light:`
+- `Lower Class Anime:`
+- `Lower Class Palette:`
+- `Magic Ext:`
+- `Map Face:`
+- `Name:`
+- `Open Support`
+- `Open text viewer for this description`
+- `Palette / Custom Animation:`
+- `Portrait:`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `RES:`
+- `RES Growth:`
+- `Selected Address:`
+- `Sim DEF:`
+- `Sim HP:`
+- `Sim LCK:`
+- `Sim Level:`
+- `Sim RES:`
+- `Sim SKL:`
+- `Sim SPD:`
+- `Sim STR:`
+- `SKL:`
+- `SKL Growth:`
+- `Sort Order:`
+- `SPD:`
+- `SPD Growth:`
+- `Staff:`
+- `STR:`
+- `STR Growth:`
+- `Support / Talk:`
+- `Support Data Ptr:`
+- `Sword:`
+- `Talk Group:`
+- `Text ID for the unit's description`
+- `This unit is referenced by hardcoded ASM. Click to view related patches.`
+- `Total Growth %:`
+- `Unit ID:`
+- `Units (FE7) Editor`
+- `Unknown 39:`
+- `Unknown 49:`
+- `Unknown 50:`
+- `Unknown 51:`
+- `Unknown Fields:`
+- `Upper Class Anime:`
+- `Upper Class Palette:`
+- `Weapon Ranks:`
 - `Write`
 
 ### EventUnitFE6Form
