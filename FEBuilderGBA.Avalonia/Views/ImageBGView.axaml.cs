@@ -111,7 +111,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (!PreImportGate()) return;
 
-                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 256, 160, 16);
+                // strictSize=true mirrors WF's 256x160 expectation (see
+                // ImportPng_Click comment for rationale).
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 256, 160, 16, strictSize: true);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -280,7 +282,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // but multi-palette BG slots will lose sub-palettes 1-7.
                 // This limitation is called out in the PR Known
                 // Limitations section (#429 / Copilot CLI v3 review).
-                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16);
+                //
+                // strictSize=true mirrors WF's 256x160 (32×20 tile)
+                // expectation. Loading 240x160 would produce
+                // incorrect header-TSA packing under the default
+                // tsa_width_margin=2 (Copilot bot review on PR #517).
+                var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16, strictSize: true);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
 
@@ -328,6 +335,29 @@ namespace FEBuilderGBA.Avalonia.Views
             return 0;
         }
 
+        /// <summary>
+        /// Number of 16-color sub-palettes a normal BG entry occupies
+        /// in ROM. Matches WF `ImageBGForm.GraphicsToolButton_Click`'s
+        /// `paletteCount = 8` for normal-BG mode (and 16 for the
+        /// BG256-patched cutscene modes). The palette byte length is
+        /// <c>SubPalettes × 16 colors × 2 bytes = SubPalettes × 32</c>.
+        /// </summary>
+        const int NormalBgSubPalettes = 8;
+        const int BG256SubPalettes = 16;
+
+        /// <summary>
+        /// Decide how many 16-color sub-palettes the current entry's P8
+        /// palette pointer should reference, based on the mode (BG256
+        /// vs vanilla) detected at LoadEntry time. Used by both
+        /// ExportPal and ImportPal to keep the byte counts honest.
+        /// </summary>
+        int GetExpectedSubPaletteCount()
+        {
+            // BG256-patched + P4 <= 1 ⇒ cutscene mode uses 16 sub-palettes.
+            if (_vm.IsBG256Patched && _vm.P4 <= 1) return BG256SubPalettes;
+            return NormalBgSubPalettes;
+        }
+
         async void ExportPal_Click(object? sender, RoutedEventArgs e)
         {
             try
@@ -339,8 +369,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
                 uint palAddr = U.toOffset(palPtr);
                 if (!U.isSafetyOffset(palAddr)) { CoreState.Services.ShowError("Invalid palette address"); return; }
-                // Read raw palette bytes (not LZ77-decompressed). 16 colors x 2 bytes = 32 bytes.
-                byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
+                // Read multi-row palette bytes (raw — not LZ77). Mirrors
+                // WF: normal BG = 8×16 = 128 colors (256 bytes);
+                // BG256 cutscene = 16×16 = 256 colors (512 bytes).
+                // Copilot bot review on PR #517 flagged the previous
+                // 32-byte-only export as incomplete for multi-palette
+                // entries.
+                int subPalettes = GetExpectedSubPaletteCount();
+                int colorCount = subPalettes * 16;
+                // Validate we have enough ROM bytes for the requested count.
+                uint maxAvailable = (uint)rom.Data.Length - palAddr;
+                int safeColorCount = (int)Math.Min((uint)colorCount, maxAvailable / 2);
+                if (safeColorCount < 16) { CoreState.Services.ShowError("Palette pointer is too close to end of ROM"); return; }
+                byte[] pal = ImageUtilCore.GetPalette(palAddr, safeColorCount);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
                 string path = await FileDialogHelper.SavePaletteFile(this, "bg_palette.pal");
                 if (string.IsNullOrEmpty(path)) return;
@@ -362,6 +403,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
                 byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
                 if (palData.Length < 32) { CoreState.Services.ShowError("Palette too small (need >= 32 bytes)"); return; }
+                if (palData.Length % 32 != 0) { CoreState.Services.ShowError("Palette length must be a multiple of 32 bytes (16 colors × 2 bytes)"); return; }
+                // Validate size against the expected mode. Mismatched
+                // sizes get a clear error rather than a silent truncation
+                // (Copilot bot review on PR #517).
+                int subPalettes = GetExpectedSubPaletteCount();
+                int expectedBytes = subPalettes * 32;
+                if (palData.Length != expectedBytes)
+                {
+                    bool proceed = CoreState.Services?.ShowYesNo(
+                        $"Palette size mismatch: this BG entry expects {expectedBytes} bytes ({subPalettes} sub-palettes); the file has {palData.Length} bytes. Continue with size mismatch?") ?? false;
+                    if (!proceed) return;
+                }
                 uint addr = _vm.CurrentAddr;
                 _undoService.Begin("Import BG Palette");
                 // ImageBG palette is at P8 (addr+8), written RAW (not LZ77).
