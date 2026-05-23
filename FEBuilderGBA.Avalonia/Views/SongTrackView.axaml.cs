@@ -1,5 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SongTrackView — Avalonia parity rebuild for #412. Mirrors `SongTrackForm`
+// layout (panel1 read-config + AddressPanel master-write + panel5 detail +
+// 16 per-track columns) and wires three real cross-editor jumps via
+// `WindowManager.Navigate` (SongExchange / SongTrackAllChangeTrack /
+// SongTrackChangeTrack). The three import-dispatch flows (Midi / Wave /
+// SelectInstrument) stay deferred and explicitly absent from both the
+// manifest and the click-handler wiring — see
+// `SongTrackViewModel.NavigationTargets.cs`.
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
@@ -15,11 +25,56 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Song Track Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
+        // The 16 track ListBox controls — populated in OnSelected from
+        // `_vm.Tracks`. Indexed by 0..15 for direct mapping to track index.
+        ListBox?[] _trackListBoxes = new ListBox?[16];
+        TextBlock?[] _trackLabels = new TextBlock?[16];
+
         public SongTrackView()
         {
             InitializeComponent();
+            ResolveTrackControls();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+        }
+
+        void ResolveTrackControls()
+        {
+            // Resolve the 16 static TrackN / TrackLabelN controls so we don't
+            // FindControl on every selection change.
+            _trackListBoxes[0] = this.FindControl<ListBox>("Track1");
+            _trackListBoxes[1] = this.FindControl<ListBox>("Track2");
+            _trackListBoxes[2] = this.FindControl<ListBox>("Track3");
+            _trackListBoxes[3] = this.FindControl<ListBox>("Track4");
+            _trackListBoxes[4] = this.FindControl<ListBox>("Track5");
+            _trackListBoxes[5] = this.FindControl<ListBox>("Track6");
+            _trackListBoxes[6] = this.FindControl<ListBox>("Track7");
+            _trackListBoxes[7] = this.FindControl<ListBox>("Track8");
+            _trackListBoxes[8] = this.FindControl<ListBox>("Track9");
+            _trackListBoxes[9] = this.FindControl<ListBox>("Track10");
+            _trackListBoxes[10] = this.FindControl<ListBox>("Track11");
+            _trackListBoxes[11] = this.FindControl<ListBox>("Track12");
+            _trackListBoxes[12] = this.FindControl<ListBox>("Track13");
+            _trackListBoxes[13] = this.FindControl<ListBox>("Track14");
+            _trackListBoxes[14] = this.FindControl<ListBox>("Track15");
+            _trackListBoxes[15] = this.FindControl<ListBox>("Track16");
+
+            _trackLabels[0] = this.FindControl<TextBlock>("TrackLabel1");
+            _trackLabels[1] = this.FindControl<TextBlock>("TrackLabel2");
+            _trackLabels[2] = this.FindControl<TextBlock>("TrackLabel3");
+            _trackLabels[3] = this.FindControl<TextBlock>("TrackLabel4");
+            _trackLabels[4] = this.FindControl<TextBlock>("TrackLabel5");
+            _trackLabels[5] = this.FindControl<TextBlock>("TrackLabel6");
+            _trackLabels[6] = this.FindControl<TextBlock>("TrackLabel7");
+            _trackLabels[7] = this.FindControl<TextBlock>("TrackLabel8");
+            _trackLabels[8] = this.FindControl<TextBlock>("TrackLabel9");
+            _trackLabels[9] = this.FindControl<TextBlock>("TrackLabel10");
+            _trackLabels[10] = this.FindControl<TextBlock>("TrackLabel11");
+            _trackLabels[11] = this.FindControl<TextBlock>("TrackLabel12");
+            _trackLabels[12] = this.FindControl<TextBlock>("TrackLabel13");
+            _trackLabels[13] = this.FindControl<TextBlock>("TrackLabel14");
+            _trackLabels[14] = this.FindControl<TextBlock>("TrackLabel15");
+            _trackLabels[15] = this.FindControl<TextBlock>("TrackLabel16");
         }
 
         void LoadList()
@@ -27,8 +82,12 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                var items = _vm.LoadList();
+                var items = _vm.LoadFullList();
                 EntryList.SetItems(items);
+                // Surface auto-detected read-config defaults into the UI.
+                ReadStartAddressBox.Value = _vm.ReadStartAddress;
+                ReadCountBox.Value = _vm.ReadCount;
+                BlockSizeBox.Text = "8";
             }
             catch (Exception ex)
             {
@@ -47,6 +106,12 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadEntry(addr);
+                // The selected AddrResult's `tag` field holds the songId (set
+                // by SongTrackViewModel.LoadFullList()). -1 when nothing
+                // selected so SongID-0 write-protect can still distinguish
+                // "no song" from "song 0".
+                _vm.SelectedSongIndex = EntryList.SelectedItem is AddrResult sel
+                    ? (int)sel.tag : -1;
                 UpdateUI();
             }
             catch (Exception ex)
@@ -62,21 +127,70 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            AddressBox.Value = _vm.CurrentAddr;
+            SelectedAddressLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             TrackCountBox.Value = _vm.TrackCount;
             NumBlksBox.Value = _vm.NumBlks;
             PriorityBox.Value = _vm.Priority;
             ReverbBox.Value = _vm.Reverb;
             InstrumentAddrBox.Value = _vm.InstrumentAddr;
 
-            // Populate track list
-            TrackListBox.ItemsSource = _vm.Tracks;
-            TrackSummaryLabel.Text = $"{_vm.Tracks.Count} track(s) found";
+            // Populate the 16 fixed track columns. Active tracks show the
+            // command-byte preview from _vm.Tracks; inactive columns clear
+            // their items and disable per-track jump click.
+            for (int i = 0; i < 16; i++)
+            {
+                var lb = _trackListBoxes[i];
+                var lbl = _trackLabels[i];
+                if (lb == null || lbl == null) continue;
+
+                if (i < _vm.Tracks.Count)
+                {
+                    var t = _vm.Tracks[i];
+                    lb.ItemsSource = new[] { t.Status, $"Ptr@0x{t.PointerOffset:X06}" };
+                    lbl.IsEnabled = true;
+                    lbl.Opacity = 1.0;
+                    lb.IsEnabled = true;
+                    lb.Opacity = 1.0;
+                }
+                else
+                {
+                    lb.ItemsSource = Array.Empty<string>();
+                    lbl.IsEnabled = false;
+                    lbl.Opacity = 0.4;
+                    // Also disable + dim the ListBox itself so empty columns
+                    // are not focusable (Copilot bot review #2 / PR #558).
+                    lb.IsEnabled = false;
+                    lb.Opacity = 0.4;
+                }
+            }
+
+            TrackSummaryLabel.Text = $"{_vm.Tracks.Count} track(s)";
+        }
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.ReadStartAddress = (uint)(ReadStartAddressBox.Value ?? 0);
+                _vm.ReadCount = (uint)(ReadCountBox.Value ?? 0);
+                LoadList();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.ReloadList_Click failed: {0}", ex.Message);
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
+            // WF parity: SongID 0 is write-protected (UseWriteProtectionID00).
+            if (_vm.SelectedSongIndex == 0)
+            {
+                CoreState.Services.ShowError("Song ID 0 is write-protected (silence song).");
+                return;
+            }
 
             _undoService.Begin("Edit Song Track");
             try
@@ -97,6 +211,106 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("SongTrackView.Write_Click failed: {0}", ex.Message);
             }
         }
+
+        // -----------------------------------------------------------------
+        // Cross-editor jumps. Mirrors the WF jump callsites that this PR
+        // wires in Avalonia. The 3 import flows are NOT wired here — the
+        // navigation manifest stays in lockstep with real behavior.
+        // -----------------------------------------------------------------
+
+        void SongExchange_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded || _vm.SelectedSongIndex < 0) return;
+            try
+            {
+                WindowManager.Instance.Navigate<SongExchangeView>((uint)_vm.SelectedSongIndex);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.SongExchange_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void AllTracks_Click(object? sender, PointerPressedEventArgs e)
+        {
+            if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+            try
+            {
+                // In WinForms, `SongTrackAllChangeTrackForm.Init(P4, Tracks)`
+                // takes the instrument-set pointer and the full Tracks list.
+                // The Avalonia target view can't yet accept a Tracks list
+                // through Navigate, so we pass the instrument-set address
+                // (the closest single-uint context). When the target editor
+                // becomes fully functional this navigation may also need
+                // a `Tracks` payload — out of scope for #412. (Copilot bot
+                // review #4 / PR #558.)
+                WindowManager.Instance.Navigate<SongTrackAllChangeTrackView>(_vm.InstrumentAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.AllTracks_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void TrackLabel_Click(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is not TextBlock tb) return;
+            if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+
+            // Parse the 1-based track index from Tag. Empty columns disable
+            // their label via UpdateUI() — IsEnabled gate guards here too.
+            if (!tb.IsEnabled) return;
+            if (tb.Tag is not string tagStr) return;
+            if (!int.TryParse(tagStr, out int trackOneBased)) return;
+            if (trackOneBased < 1 || trackOneBased > _vm.Tracks.Count) return;
+
+            try
+            {
+                // In WinForms, `SongTrackChangeTrackForm.Init(..., this.Tracks[no])`
+                // operates on the track's *data* address (`SongUtil.Track.basepointer`).
+                // The Avalonia ChangeTrack target editor will need that same
+                // scope once it becomes functional, so we pass DataOffset
+                // (the resolved track-data ROM offset) — NOT PointerOffset
+                // (the address of the 4-byte pointer slot in the song header)
+                // which is meaningful only for the host editor. Guard against
+                // invalid pointers / DataOffset == 0 (Copilot bot review #3 /
+                // PR #558).
+                var track = _vm.Tracks[trackOneBased - 1];
+                if (!track.IsValid || track.DataOffset == 0)
+                {
+                    Log.Error($"SongTrackView.TrackLabel_Click: track {trackOneBased} has invalid DataOffset");
+                    return;
+                }
+                WindowManager.Instance.Navigate<SongTrackChangeTrackView>(track.DataOffset);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.TrackLabel_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
+        {
+            // WF: MainFormUtil.GotoMoreData() — shell-out to the FEBuilderGBA
+            // resource wiki. Avalonia parity is informational for now (the
+            // shell launcher is WinForms-coupled); the label stays clickable
+            // to surface the WF affordance to anyone driving via Automation.
+            try
+            {
+                _ = sender; _ = e;
+                CoreState.Services.ShowInfo("See https://github.com/FEBuilderGBA/FEBuilderGBA/wiki for online music resources.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.LinkInternet_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Export / Import (Midi only — preview). Wave / Instrument / Source
+        // stay disabled until the Core extraction lands; their AXAML
+        // declares the disabled state with explanatory tooltip.
+        // -----------------------------------------------------------------
 
         async void ExportMidi_Click(object? sender, RoutedEventArgs e)
         {

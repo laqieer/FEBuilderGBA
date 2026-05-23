@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T19:46:32Z"
-git-sha: 590692680
+generated: "2026-05-23T21:14:21Z"
+git-sha: be12e414b
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4573 |
-| Total AV-only labels | 3006 |
-| Total common labels | 127 |
+| Total WF-only labels | 4567 |
+| Total AV-only labels | 3052 |
+| Total common labels | 133 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -2463,12 +2463,11 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### SongTrackForm
-WF labels: **37** · AV labels: **11** · WF-only: **34** · AV-only: **8** · Common: **3** · Density verdict: **High** (WF 45 / AV 19)
+WF labels: **37** · AV labels: **40** · WF-only: **33** · AV-only: **36** · Common: **4** · Density verdict: **Medium** (WF 45 / AV 63)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `Sappyで再生`
-- `Size:`
 - `アドレス`
 - `インターネットから新しいリソースを探す`
 - `ソースファイルを開く`
@@ -2504,13 +2503,41 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Export MIDI`
-- `Import MIDI`
-- `Instrument Set:`
-- `Song Track Editor`
-- `Track Count:`
-- `Tracks`
+- `0x00 = inherit from previous song (default). 0x80 = reverb off. 0xFF = reverb max. Use values 0x80 - 0xFF when reverb is enabled. Vanilla: SFX=0, field FE6=0x9E, FE7=0x80, FE8=0x94.`
+- `Address`
+- `All Tracks (Score) - click to bulk-change all tracks`
+- `Export Music File`
+- `First Address`
+- `Import Music File`
+- `Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.`
+- `Instrument Set`
+- `Open Source File`
+- `Open Source Folder`
+- `Pending Core extraction (ResourceCache shell integration).`
+- `Pending Core extraction (Sappy emulator integration is WinForms-only).`
+- `Play in Sappy`
+- `Read Count`
+- `Reload`
+- `Search for new resources online`
+- `Selected Address:`
+- `Song Exchange`
+- `Track 1`
+- `Track 10`
+- `Track 11`
+- `Track 12`
+- `Track 13`
+- `Track 14`
+- `Track 15`
+- `Track 16`
+- `Track 2`
+- `Track 3`
+- `Track 4`
+- `Track 5`
+- `Track 6`
+- `Track 7`
+- `Track 8`
+- `Track 9`
+- `Track Count`
 - `Write`
 
 ### UnitFE6Form
@@ -3484,44 +3511,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `AI Script Editor`
-
-### SkillAssignmentClassCSkillSysForm
-WF labels: **24** · AV labels: **5** · WF-only: **24** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 43 / AV 7)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `EnemyOnly(LV+64)`
-- `Hard only (LV+128)`
-- `Normal&&Hard (LV+96)`
-- `PlayerOnly(LV+32)`
-- `Size:`
-- `このテーブルは、複数のクラスで参照されています。`
-- `アドレス`
-- `クラススキル`
-- `スキル`
-- `リストの拡張`
-- `レベル`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `書き込み`
-- `習得レベル`
-- `習得レベルとスキルの詳細は、ここをクリックしてください。`
-- `習得レベルの内訳`
-- `読込数`
-- `選択アドレス:`
-- `選択クラスの分離独立`
-- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Class Skill:`
-- `Skill Assignment - Class (CSkillSys)`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
-- `Write`
 
 ### WorldMapPointForm
 WF labels: **24** · AV labels: **21** · WF-only: **24** · AV-only: **21** · Common: **0** · Density verdict: **Low** (WF 51 / AV 41)
@@ -4531,6 +4520,57 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `X Position:`
 - `Y Position:`
+
+### SkillAssignmentClassCSkillSysForm
+WF labels: **24** · AV labels: **28** · WF-only: **19** · AV-only: **23** · Common: **5** · Density verdict: **Medium** (WF 43 / AV 57)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `このテーブルは、複数のクラスで参照されています。`
+- `アドレス`
+- `クラススキル`
+- `スキル`
+- `リストの拡張`
+- `レベル`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `書き込み`
+- `習得レベル`
+- `習得レベルとスキルの詳細は、ここをクリックしてください。`
+- `習得レベルの内訳`
+- `読込数`
+- `選択アドレス:`
+- `選択クラスの分離独立`
+- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Acquired Level`
+- `Acquired Level Breakdown`
+- `Address:`
+- `Bulk Export`
+- `Bulk Import`
+- `Class Skill`
+- `Click here for acquired level and skill details`
+- `Detach Selected Class (make independent)`
+- `Expand List`
+- `Level:`
+- `Level is set to 255.\nWhen a class is reached via CC from a base class, this skill cannot be obtained.\nOnly when this class is LOADed can this skill be held.`
+- `Level-up Skill Table Address`
+- `Name`
+- `No level-up skill area is allocated for this class.\nPress the "Expand List" button to allocate one.`
+- `Read Count:`
+- `Reload`
+- `Selected:`
+- `Skill`
+- `Skill Assignment - Class (CSkillSys 3.00).\nThis editor requires the CSkillSys 3.00+ skill system patch to be installed.\nUse the Patch Manager to install the CSkillSys 3.00 patch first.`
+- `Skill Assignment - Class (CSkillSys)`
+- `Start Address:`
+- `This table is referenced by multiple classes.`
+- `Write`
 
 ### SkillAssignmentClassSkillSystemForm
 WF labels: **24** · AV labels: **27** · WF-only: **19** · AV-only: **22** · Common: **5** · Density verdict: **Medium** (WF 43 / AV 57)

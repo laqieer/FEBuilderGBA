@@ -21308,6 +21308,33 @@ OBBGLeftToRight
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 未检测到 FEditor / SCA_Creator 魔法系统补丁。请通过补丁管理器安装补丁。
 
+:First Address
+起始地址
+
+:Search for new resources online
+在线搜索新资源
+
+:Import Music File
+从文件导入音乐
+
+:Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.
+导入 MIDI 文件（仅预览）。完整的导入分发（MIDI / Wave / Instrument）正在等待 Core 提取。
+
+:Export Music File
+将音乐导出到文件
+
+:Play in Sappy
+在 Sappy 中播放
+
+:Pending Core extraction (Sappy emulator integration is WinForms-only).
+等待 Core 提取（Sappy 模拟器集成仅限 WinForms）。
+
+:Pending Core extraction (ResourceCache shell integration).
+等待 Core 提取（ResourceCache 外壳集成）。
+
+:All Tracks (Score) - click to bulk-change all tracks
+乐谱 - 单击批量更改所有轨道
+
 # UnitEditorView additions (issue #413)
 :[HardCoding]
 [硬编码]

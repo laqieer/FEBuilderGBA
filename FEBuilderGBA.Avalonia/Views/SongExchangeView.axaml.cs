@@ -51,7 +51,18 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void NavigateTo(uint address)
+        {
+            // The caller passes a SONG INDEX (e.g. `SongTrackView` passes
+            // `_vm.SelectedSongIndex`). Song ID 0 is a VALID song index
+            // (the silence song), so we cannot use 0 as a "no context"
+            // sentinel — we always honor the requested context by calling
+            // LoadEntry. The standalone open path also routes through here
+            // with address = 0, which loads the placeholder "0" entry from
+            // the stub list — matching the previous behavior.
+            _vm.LoadEntry(address);
+            UpdateUI();
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
     }
 }

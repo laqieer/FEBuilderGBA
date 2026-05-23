@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T19:46:09Z"
-git-sha: 590692680
+generated: "2026-05-23T21:14:28Z"
+git-sha: be12e414b
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 49 |
-| MissingAvManifest (backlog) | 337 |
+| Match | 52 |
+| MissingAvManifest (backlog) | 334 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 8 |
 
@@ -306,9 +306,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SongExchangeForm` | `SongExchangeView` | `—` | `SongExchangeForm` | `SongExchangeView` |
 | `SongInstrumentForm` | `SongInstrumentView` | `—` | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongExchangeForm` | `SongExchangeView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportMidiForm` | `SongTrackImportMidiView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportSelectInstrumentForm` | `SongTrackImportSelectInstrumentView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportWaveForm` | `SongTrackImportWaveView` |
@@ -475,6 +472,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `PointerToolForm` | `PointerToolView` | `JumpToBatchInput` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
 | `PointerToolForm` | `PointerToolView` | `JumpToCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `PointerToolForm` | `PointerToolView` | `JumpToSelf` | `PointerToolForm` | `PointerToolView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongExchange` | `SongExchangeForm` | `SongExchangeView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackAllChangeTrack` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackChangeTrack` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |
