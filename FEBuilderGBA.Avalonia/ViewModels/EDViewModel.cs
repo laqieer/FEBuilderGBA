@@ -457,15 +457,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// every other WF unit-id field) store a 1-based id where `0` is
         /// reserved as the list terminator; the underlying unit-table
         /// index is `uid - 1`. This matches WF `UnitForm.GetUnitName(uid)`
-        /// which decrements internally. Without the decrement,
-        /// `NameResolver.GetUnitName` (which is 0-based) returns the
-        /// next-higher-indexed unit's name. Copilot PR #561 bot review
-        /// (9 inline threads).
+        /// which decrements internally.
+        ///
+        /// Routes through <see cref="SupportUnitNavigation.ResolveUnitTableName"/>
+        /// (NOT `NameResolver.GetUnitName`) so FE6's dummy-entry skip
+        /// (which adds one extra `unit_datasize` to the base before the
+        /// table starts) is applied identically to the View's
+        /// `ResolveUnitNameForUid` helper. Without that skip FE6 ED list
+        /// labels would resolve to the dummy unit / off-by-one vs the
+        /// `IdField` preview the View also renders.
+        ///
+        /// Copilot PR #561 fourth CLI review: cross-platform FE6
+        /// consistency fix.
         /// </summary>
         static string GetUnitNameForUid(uint uid)
         {
             if (uid == 0) return "";
-            return NameResolver.GetUnitName(uid - 1);
+            return SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, uid - 1);
         }
 
         /// <summary>

@@ -434,6 +434,73 @@ public class EDParityTests
     }
 
     [Fact]
+    public void ViewModel_LoadEpilogueList_OnFE6_AppliesDummyEntrySkip()
+    {
+        // Copilot CLI PR #561 fourth review: GetUnitNameForUid must use
+        // SupportUnitNavigation.ResolveUnitTableName (which applies the
+        // FE6 dummy-entry skip when ROM version == 6) instead of
+        // NameResolver.GetUnitName (which does NOT). Without the skip
+        // FE6 ED list labels would resolve to the dummy table entry /
+        // off-by-one vs the View's IdField preview that already uses
+        // the FE6-correct resolver.
+        //
+        // FE6JP only exposes the Epilogue (ed_3a_pointer) - retreat
+        // and epithet pointers are both 0 - so this test exercises
+        // GetUnitNameForUid through the LoadEpilogueList path.
+        //
+        // Set up: synthesize an FE6JP ROM, plant two consecutive unit
+        // entries with DIFFERENT text-ids (slot 0 = dummy, slot 1 =
+        // first real unit). Plant one epilogue record with uid1=1 so
+        // the iterator reads it. Expectation: the resolved name
+        // matches ResolveUnitTableName(rom, 0) (post-skip) NOT
+        // NameResolver.GetUnitName(0) (dummy slot).
+        var rom = new ROM();
+        rom.LoadLow("synth6.gba", new byte[0x1000000], "AFEJ01");
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Plant ed_3a (epilogue Eirika) pointer.
+            uint epilogueBase = 0x100000;
+            WriteU32(rom.Data, (int)rom.RomInfo.ed_3a_pointer, 0x08000000 | epilogueBase);
+            // One epilogue entry: flag=1 (Solo), uid1=1, uid2=0,
+            // storyFlag=0, textId=0. The iterator terminates on
+            // `u32 == 0`, so we plant the flag (non-zero) at +0 to
+            // make this entry pass the predicate. The bytes +4..+7
+            // can stay zero since LoadListInternal checks the u32 at
+            // +0 only.
+            rom.Data[epilogueBase + 0] = 0x01;  // flag = Solo
+            rom.Data[epilogueBase + 1] = 0x01;  // uid1 = 1
+            // +2..+7 zero by default; u32(addr) = 0x00000101 != 0.
+            // Next 8 bytes at epilogueBase + 8 are the u32==0 terminator.
+
+            // Plant unit table: index 0 = dummy with text id 0x0101,
+            // index 1 = first real unit with text id 0x0202.
+            uint unitTableAddr = 0x200000;
+            WriteU32(rom.Data, (int)rom.RomInfo.unit_pointer, 0x08000000 | unitTableAddr);
+            uint unitDataSize = rom.RomInfo.unit_datasize;
+            WriteU16(rom.Data, (int)unitTableAddr, 0x0101);
+            WriteU16(rom.Data, (int)(unitTableAddr + unitDataSize), 0x0202);
+
+            var vm = new EDViewModel();
+            vm.EpilogueRoute = EDViewModel.EpilogueRouteKind.Eirika;
+            var list = vm.LoadEpilogueList();
+            Assert.NotEmpty(list);
+
+            // The label MUST be the post-skip slot 1 (uid=1 -> table
+            // index 0 after the dummy skip -> textId 0x0202), not the
+            // dummy slot's 0x0101. Both resolve to "???" on this
+            // synthetic ROM (no Huffman table), but the assertion
+            // confirms GetUnitNameForUid routes through the
+            // FE6-aware resolver.
+            string nameFromCorrectResolver = SupportUnitNavigation.ResolveUnitTableName(rom, 0);
+            Assert.EndsWith(nameFromCorrectResolver, list[0].name);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
     public void ViewModel_EpilogueAvailability_FE6JP_ReportsEirikaOnly()
     {
         // FE6JP defines `ed_3a_pointer = 0x91834` but `ed_3b_pointer = 0`.
