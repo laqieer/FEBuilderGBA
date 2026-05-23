@@ -6,20 +6,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class EventMapChangeViewModel : ViewModelBase, IDataVerifiable
     {
+        const uint SIZE = 12;
+
+        // The detail-panel field layout. WF Designer.cs declares P8 as a
+        // pointer (NumericUpDown Hexadecimal=true + InputFormRef pointer
+        // semantics) — using "P8" here routes the read/write through
+        // `EditorFormRef.{ReadFields, WriteFields}` which dispatches to
+        // `rom.p32` / `rom.write_p32` for pointer fields, preserving the
+        // GBA 0x08000000 rebase contract. Switching from the previous
+        // "D8" (raw u32) wiring was Copilot CLI v1 blocking concern #1
+        // on the plan review for #423.
         static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "D8" });
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "P8" });
 
         uint _currentAddr;
         bool _isLoaded;
-        uint _b0;
-        uint _b1;
-        uint _b2;
-        uint _b3;
-        uint _b4;
-        uint _b5;
-        uint _b6;
-        uint _b7;
+        uint _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7;
         uint _p8;
+
+        // Read-config bar (mirrors WF panel1 — read-only display).
+        uint _readStartAddress;
+        int _readCount;
+        uint _blockSize = SIZE;
+        uint _selectAddress;
+
+        // Comment (mirrors WF `InputFormRef.OnComment_TextChanged` path).
+        string _comment = string.Empty;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -33,6 +45,56 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint B7 { get => _b7; set => SetField(ref _b7, value); }
         public uint P8 { get => _p8; set => SetField(ref _p8, value); }
 
+        public uint ReadStartAddress { get => _readStartAddress; set => SetField(ref _readStartAddress, value); }
+        public int ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
+        public uint BlockSize { get => _blockSize; set => SetField(ref _blockSize, value); }
+        public uint SelectAddress { get => _selectAddress; set => SetField(ref _selectAddress, value); }
+
+        public string Comment { get => _comment; set => SetField(ref _comment, value); }
+
+        // ----------------------------------------------------------------
+        // Map navigation.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Enumerate every valid map in the loaded ROM. Each AddrResult
+        /// carries the map's settings-record address plus a display name
+        /// for the View's left-hand list. Mirrors WF
+        /// <c>MapSettingForm.MakeMapIDList</c>.
+        /// </summary>
+        public List<AddrResult> LoadMapList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<AddrResult>();
+            return MapSettingCore.MakeMapIDList(rom);
+        }
+
+        /// <summary>
+        /// Resolve the change-data address for the given map ID and load
+        /// the underlying 12-byte record into the VM. Mirrors WF
+        /// <c>EventMapChangeForm.MAP_LISTBOX_SelectedIndexChanged</c>.
+        /// </summary>
+        /// <returns>true if the load succeeded; false if the map has no
+        /// change-data (plist 0/0xFF) or resolution failed.</returns>
+        public bool LoadEntryForMap(uint mapId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+
+            uint addr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, mapId, out _);
+            if (!U.isSafetyOffset(addr, rom)) return false;
+            if (addr + SIZE > (uint)rom.Data.Length) return false;
+
+            LoadEventMapChange(addr);
+            return true;
+        }
+
+        // ----------------------------------------------------------------
+        // List-builder kept for backward compat with the existing
+        // EventMapChange_Entry_List AutomationId. The new flow drives
+        // navigation via LoadMapList → LoadEntryForMap.
+        // ----------------------------------------------------------------
+
         public List<AddrResult> LoadList() => LoadEventMapChangeList();
         public void LoadEntry(uint addr) => LoadEventMapChange(addr);
 
@@ -41,9 +103,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            // EventMapChangeForm loads from map settings: each map has a PLIST for map change data.
-            // Walk map settings to find the first map with a non-zero map change PLIST,
-            // then resolve the PLIST to a ROM address.
             uint mapPtr = rom.RomInfo.map_setting_pointer;
             uint mapDataSize = rom.RomInfo.map_setting_datasize;
             uint mapChangePtr = rom.RomInfo.map_mapchange_pointer;
@@ -51,47 +110,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return new List<AddrResult>();
 
             uint mapBase = rom.p32(mapPtr);
-            if (!U.isSafetyOffset(mapBase)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(mapBase, rom)) return new List<AddrResult>();
 
-            // Walk map change PLIST pointer table to find the first valid entry
             uint plistBase = rom.p32(mapChangePtr);
-            if (!U.isSafetyOffset(plistBase)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(plistBase, rom)) return new List<AddrResult>();
 
-            uint romLen = (uint)rom.Data.Length;
-
-            // Map settings have the map change PLIST at offset 11 (byte)
-            for (int mapId = 0; mapId < 256; mapId++)
+            // Walk maps via the Core helper; return all valid change-data
+            // entries (used by the legacy EntryList path).
+            var maps = MapSettingCore.MakeMapIDList(rom);
+            var result = new List<AddrResult>();
+            foreach (var m in maps)
             {
-                uint mapAddr = (uint)(mapBase + mapId * mapDataSize);
-                if (mapAddr + mapDataSize > romLen) break;
-
-                uint plist = rom.u8(mapAddr + 11);
-                if (plist == 0 || plist == 0xFF) continue;
-
-                // Resolve PLIST: read the pointer at plistBase + plist * 4
-                uint plistEntryAddr = (uint)(plistBase + plist * 4);
-                if (plistEntryAddr + 4 > romLen) continue;
-
-                uint changeAddr = rom.p32(plistEntryAddr);
-                if (!U.isSafetyOffset(changeAddr) || changeAddr + 12 > romLen) continue;
-
-                // Validate: first byte should not be 0xFF (end marker)
+                uint changeAddr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, m.tag, out _);
+                if (!U.isSafetyOffset(changeAddr, rom)) continue;
+                if (changeAddr + SIZE > (uint)rom.Data.Length) continue;
                 if (rom.u8(changeAddr) == 0xFF) continue;
-
-                LoadEventMapChange(changeAddr);
-                return new List<AddrResult> { new AddrResult(changeAddr, $"Map {mapId} Change 0", 0) };
+                result.Add(new AddrResult(changeAddr, $"Map {m.tag} Change", m.tag));
             }
 
-            return new List<AddrResult>();
+            ReadStartAddress = plistBase;
+            ReadCount = result.Count;
+            BlockSize = SIZE;
+            return result;
         }
 
         public void LoadEventMapChange(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + 12 > (uint)rom.Data.Length) return;
+            if (addr + SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            SelectAddress = addr;
+            BlockSize = SIZE;
+
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             B0 = values["B0"];
             B1 = values["B1"];
@@ -101,8 +153,50 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             B5 = values["B5"];
             B6 = values["B6"];
             B7 = values["B7"];
-            P8 = values["D8"];
+            P8 = values["P8"];
+
+            RefreshComment();
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Write the current B0-B7 + P8 fields back to ROM at
+        /// <see cref="CurrentAddr"/>. The caller MUST have opened an
+        /// ambient <see cref="UndoService"/> scope (the View's
+        /// <c>Write_Click</c> handler does this). P8 is written via
+        /// <c>rom.write_p32</c>, NOT raw <c>write_u32</c>.
+        /// </summary>
+        public void WriteEntry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return;
+            var values = new Dictionary<string, uint>
+            {
+                ["B0"] = B0, ["B1"] = B1, ["B2"] = B2, ["B3"] = B3,
+                ["B4"] = B4, ["B5"] = B5, ["B6"] = B6, ["B7"] = B7,
+                ["P8"] = P8,
+            };
+            EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
+        }
+
+        // ----------------------------------------------------------------
+        // Comment cache (mirrors ImageBGViewModel — keyed on CurrentAddr).
+        // ----------------------------------------------------------------
+
+        public void RefreshComment()
+        {
+            var cache = CoreState.CommentCache;
+            if (cache == null) { Comment = string.Empty; return; }
+            Comment = cache.S_At(CurrentAddr) ?? string.Empty;
+        }
+
+        public void SaveComment(string text)
+        {
+            Comment = text ?? string.Empty;
+            var cache = CoreState.CommentCache;
+            if (cache == null) return;
+            if (CurrentAddr == 0) return;
+            cache.Update(CurrentAddr, Comment);
         }
 
         public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;

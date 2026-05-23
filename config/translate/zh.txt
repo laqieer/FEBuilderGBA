@@ -20834,3 +20834,12 @@ mug_exceed 图块2 Y:
 
 :6 = Close Eyes
 6 = 闭眼
+
+:Number:
+编号：
+
+:Change Data Pointer
+变化数据指针
+
+:Pointer Import
+指针导入

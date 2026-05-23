@@ -6896,3 +6896,12 @@ mug_exceed用のタイルをどこに配置するか設定してください:
 
 :05=その場
 05=その場
+
+:Number:
+番号:
+
+:Change Data Pointer
+変化データポインタ
+
+:Pointer Import
+ポインタインポート
