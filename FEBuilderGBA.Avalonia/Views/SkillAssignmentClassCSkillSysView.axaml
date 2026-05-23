@@ -104,7 +104,7 @@
                                Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
                 <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_ReadCount_Input"
                                Grid.Column="2" Name="N1ReadCountBox" FormatString="0"
-                               Minimum="0" Maximum="64" Margin="0,0,8,0" />
+                               Minimum="0" Maximum="256" Margin="0,0,8,0" />
                 <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_ReloadList_Button"
                         Grid.Column="3" Name="N1ReloadListButton" Content="Reload" Click="OnN1ReloadList" MinWidth="80" />
               </Grid>

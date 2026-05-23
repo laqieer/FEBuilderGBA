@@ -49,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public const uint CLASS_BLOCK_SIZE = 4;
         public const uint N1_BLOCK_SIZE = 2;
         public const uint MAX_CLASS_COUNT = 0x100;
-        public const uint MAX_N1_COUNT = 0x40; // WF reads up to 0xFE before terminator; cap defensively.
+        public const uint MAX_N1_COUNT = 0x100; // WF caps at 256 (SkillAssignmentClassCSkillSysForm.Designer.cs N1_ReadCount.Maximum); cap defensively at the same upper bound.
 
         // ---- State ----
         uint _currentAddr;
