@@ -291,7 +291,7 @@
           <TextBlock AutomationProperties.AutomationId="UnitFE7_SimLCK_Label" Grid.Row="4" Grid.Column="1" Name="SimLCKLabel" VerticalAlignment="Center" />
 
           <!-- Magic Ext row — only visible when FE7UMAGIC patch is installed. -->
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Magic Ext:" VerticalAlignment="Center" Name="SimMagicExtPrefixLabel" IsVisible="False" />
+          <TextBlock AutomationProperties.AutomationId="UnitFE7_SimMagicExtPrefix_Label" Grid.Row="5" Grid.Column="0" Text="Magic Ext:" VerticalAlignment="Center" Name="SimMagicExtPrefixLabel" IsVisible="False" />
           <TextBlock AutomationProperties.AutomationId="UnitFE7_SimMagicExt_Label" Grid.Row="5" Grid.Column="1" Name="SimMagicExtLabel" VerticalAlignment="Center" IsVisible="False" />
         </Grid>
 
