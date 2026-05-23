@@ -110,12 +110,17 @@ public class AIScriptParityTests
     public void View_HasDetailPanel_AllParamRows()
     {
         // WF ControlPanel: 5 parameter rows (Label + Spinner + Value preview).
+        // AutomationId suffix policy (build validator): the value preview
+        // TextBox is read-only but uses `_Input` suffix because the
+        // validator only allows specific suffixes (_Label is reserved for
+        // TextBlocks; renaming to *Display_Input keeps the value uniquely
+        // discoverable).
         string axaml = ReadAxaml();
         for (int i = 1; i <= 5; i++)
         {
             Assert.Contains($"AutomationId=\"AIScript_Param{i}_Label\"", axaml);
             Assert.Contains($"AutomationId=\"AIScript_Param{i}_Input\"", axaml);
-            Assert.Contains($"AutomationId=\"AIScript_Param{i}_Value\"", axaml);
+            Assert.Contains($"AutomationId=\"AIScript_Param{i}Display_Input\"", axaml);
         }
     }
 

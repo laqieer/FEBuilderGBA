@@ -138,7 +138,7 @@
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param1_Input"
                                Grid.Row="0" Grid.Column="1" Name="Param1Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
-                <TextBox AutomationProperties.AutomationId="AIScript_Param1_Value"
+                <TextBox AutomationProperties.AutomationId="AIScript_Param1Display_Input"
                          Grid.Row="0" Grid.Column="2" Name="Param1Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param2_Label"
@@ -146,7 +146,7 @@
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param2_Input"
                                Grid.Row="1" Grid.Column="1" Name="Param2Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
-                <TextBox AutomationProperties.AutomationId="AIScript_Param2_Value"
+                <TextBox AutomationProperties.AutomationId="AIScript_Param2Display_Input"
                          Grid.Row="1" Grid.Column="2" Name="Param2Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param3_Label"
@@ -154,7 +154,7 @@
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param3_Input"
                                Grid.Row="2" Grid.Column="1" Name="Param3Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
-                <TextBox AutomationProperties.AutomationId="AIScript_Param3_Value"
+                <TextBox AutomationProperties.AutomationId="AIScript_Param3Display_Input"
                          Grid.Row="2" Grid.Column="2" Name="Param3Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param4_Label"
@@ -162,7 +162,7 @@
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param4_Input"
                                Grid.Row="3" Grid.Column="1" Name="Param4Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
-                <TextBox AutomationProperties.AutomationId="AIScript_Param4_Value"
+                <TextBox AutomationProperties.AutomationId="AIScript_Param4Display_Input"
                          Grid.Row="3" Grid.Column="2" Name="Param4Value" IsReadOnly="True" Margin="4,0,0,0" />
 
                 <TextBlock AutomationProperties.AutomationId="AIScript_Param5_Label"
@@ -170,7 +170,7 @@
                 <NumericUpDown AutomationProperties.AutomationId="AIScript_Param5_Input"
                                Grid.Row="4" Grid.Column="1" Name="Param5Box"
                                Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" />
-                <TextBox AutomationProperties.AutomationId="AIScript_Param5_Value"
+                <TextBox AutomationProperties.AutomationId="AIScript_Param5Display_Input"
                          Grid.Row="4" Grid.Column="2" Name="Param5Value" IsReadOnly="True" Margin="4,0,0,0" />
               </Grid>
 
