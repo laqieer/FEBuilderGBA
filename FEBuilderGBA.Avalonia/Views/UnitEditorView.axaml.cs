@@ -683,8 +683,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Enumerate every unit-row address currently in the AddressList.
-        /// Mirrors <c>UnitEditorViewModel.LoadUnitList()</c> by applying the
-        /// FE6 first-entry skip (entry 0 in FE6 is a null/pointer record).
+        /// Mirrors <c>UnitEditorViewModel.LoadUnitList()</c>: applies the FE6
+        /// first-entry skip (entry 0 in FE6 is a null/pointer record) and
+        /// stops when the next row would overrun the ROM end (matches the
+        /// `addr + dataSize > rom.Data.Length` guard in the VM).
         /// </summary>
         uint[] GetAllUnitAddresses()
         {
@@ -700,9 +702,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (count == 0) count = 0x100;
                 // FE6: skip first entry (matches LoadUnitList() and WF UnitForm).
                 if (rom.RomInfo.version == 6) baseAddr += size;
-                var addrs = new uint[count];
-                for (uint i = 0; i < count; i++) addrs[i] = baseAddr + i * size;
-                return addrs;
+                var addrs = new List<uint>(checked((int)count));
+                for (uint i = 0; i < count; i++)
+                {
+                    uint addr = baseAddr + i * size;
+                    if (addr + size > (uint)rom.Data.Length) break;
+                    addrs.Add(addr);
+                }
+                return addrs.ToArray();
             }
             catch (Exception ex)
             {

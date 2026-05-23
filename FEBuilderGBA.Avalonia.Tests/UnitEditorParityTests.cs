@@ -461,6 +461,48 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
+        /// Header should mirror WF CsvManager.SetupHeader: emits "Name, " only
+        /// when includeName is set; UID alone does NOT introduce a header
+        /// column (the bare numeric still appears in the data row).
+        /// </summary>
+        [Fact]
+        public void Export_IncludeHeader_UidWithoutName_OmitsUidHeader()
+        {
+            var (rom, baseAddr, _) = MakeStubRom(1);
+            var mgr = new UnitCsvManager(
+                useClipboard: false, includeUID: true, includeHeader: true,
+                includeName: false, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            string csv = mgr.BuildExportCsv(rom, new[] { baseAddr });
+            string[] lines = csv.Split('\n');
+            // First line is the header. Must NOT contain "UID".
+            Assert.DoesNotContain("UID", lines[0]);
+            // Header still starts with "HP" because UID column is unnamed.
+            Assert.StartsWith("HP", lines[0]);
+        }
+
+        /// <summary>
+        /// ApplyImportCsv should accept quoted fields with embedded commas
+        /// (matches WF CsvManager's TextFieldParser semantics).
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_AcceptsQuotedFieldsWithEmbeddedComma()
+        {
+            var (rom, baseAddr, _) = MakeStubRom(1);
+            var mgr = new UnitCsvManager(
+                useClipboard: false, includeUID: false, includeHeader: false,
+                includeName: true, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            // Name with an embedded comma must be quoted; the parser should
+            // treat it as a single field (matches WF TextFieldParser).
+            string csv = "\"Eirika, Princess of Renais\", 12, 1, 2, 3, 4, 5, 6, 7\n";
+            int n = mgr.ApplyImportCsv(rom, csv, new[] { baseAddr });
+            // Exactly one row applied; stats[0] = 12.
+            Assert.Equal(1, n);
+            Assert.Equal((sbyte)12, (sbyte)rom.u8(baseAddr + 12));
+        }
+
+        /// <summary>
         /// Multi-row Import All should honor the embedded UID when present
         /// and route each CSV row to the correct unit address (matches WF
         /// CsvManager behavior). A reordered CSV must not write stats to

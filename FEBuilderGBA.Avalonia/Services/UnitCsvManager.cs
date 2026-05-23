@@ -100,6 +100,11 @@ namespace FEBuilderGBA.Avalonia.Services
         /// matches WF <c>CsvManager</c> behavior so a reordered or partial
         /// CSV imports onto the correct units. Rows without a parseable UID
         /// fall back to positional mapping.
+        ///
+        /// The CSV is parsed via <c>Microsoft.VisualBasic.FileIO.TextFieldParser</c>
+        /// with a <c>", "</c> delimiter (matches WF <c>CsvManager.WriteDataToROM</c>).
+        /// This tolerates quoted fields, embedded commas inside quotes, and
+        /// trims whitespace.
         /// </summary>
         /// <returns>Number of rows written.</returns>
         public int ApplyImportCsv(ROM rom, string csv, IReadOnlyList<uint> rowAddresses)
@@ -108,19 +113,36 @@ namespace FEBuilderGBA.Avalonia.Services
             if (csv == null) throw new ArgumentNullException(nameof(csv));
             if (rowAddresses == null) throw new ArgumentNullException(nameof(rowAddresses));
 
-            string[] lines = csv.Split('\n');
+            // Parse via TextFieldParser to match WF CsvManager's tolerant
+            // ", " delimiter handling (quoted fields, embedded commas, trim).
+            var rows = new List<string[]>();
+            using (var sr = new StringReader(csv))
+            using (var parser = new Microsoft.VisualBasic.FileIO.TextFieldParser(sr))
+            {
+                parser.TextFieldType = Microsoft.VisualBasic.FileIO.FieldType.Delimited;
+                parser.Delimiters = new[] { ", " };
+                parser.TrimWhiteSpace = true;
+                parser.HasFieldsEnclosedInQuotes = true;
+                while (!parser.EndOfData)
+                {
+                    string[]? fields;
+                    try { fields = parser.ReadFields(); }
+                    catch { fields = null; }
+                    if (fields == null) continue;
+                    rows.Add(fields);
+                }
+            }
             // Skip the header line if includeHeader was set.
-            int startLine = _includeHeader ? 1 : 0;
+            int startRow = _includeHeader && rows.Count > 0 ? 1 : 0;
             int written = 0;
             // Single-row imports (ExportSelected/ImportSelected) always route to
             // rowAddresses[0]; multi-row imports honor the embedded UID when
             // present so a reordered CSV writes to the correct units.
             bool isSingleRow = rowAddresses.Count == 1;
-            for (int i = 0; i + startLine < lines.Length; i++)
+            for (int i = 0; i + startRow < rows.Count; i++)
             {
-                string line = lines[i + startLine];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                string[] cols = line.Split(',');
+                string[] cols = rows[i + startRow];
+                if (cols.Length == 0 || (cols.Length == 1 && string.IsNullOrWhiteSpace(cols[0]))) continue;
                 int colIdx = 0;
 
                 // Determine the destination address. Default = positional
@@ -209,9 +231,12 @@ namespace FEBuilderGBA.Avalonia.Services
 
         string BuildHeader()
         {
+            // Matches WF CsvManager.SetupHeader: emits "Name, " only when
+            // includeName is set; UID alone does NOT introduce a header column
+            // (the bare numeric UID still appears in the data rows when only
+            // includeUID is set, but the header does not name it).
             var parts = new List<string>();
             if (_includeName) parts.Add("Name");
-            else if (_includeUID) parts.Add("UID");
 
             if (_includeBaseStats)
             {
