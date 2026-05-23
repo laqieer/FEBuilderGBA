@@ -66,7 +66,7 @@ namespace FEBuilderGBA
                     sb.Append('\t');
                     sb.Append(U.ToHexString(levelupGbaPtr));
 
-                    if (U.isSafetyPointer(levelupGbaPtr))
+                    if (U.isSafetyPointer(levelupGbaPtr, rom))
                     {
                         uint levelupBase = U.toOffset(levelupGbaPtr);
                         if (U.isSafetyOffset(levelupBase, rom))

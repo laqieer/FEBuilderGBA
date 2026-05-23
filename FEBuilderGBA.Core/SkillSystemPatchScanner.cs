@@ -120,7 +120,7 @@ namespace FEBuilderGBA
                 if (!U.isSafetyOffset(a, rom)) continue;
 
                 uint p = rom.u32(a);
-                if (!U.isSafetyPointer(p)) continue;
+                if (!U.isSafetyPointer(p, rom)) continue;
 
                 if (type == "LEVELUP")
                 {
@@ -131,9 +131,9 @@ namespace FEBuilderGBA
                     uint data1st = rom.u32(baseAddr + 4);
                     uint data2nd = rom.u32(baseAddr + 8);
 
-                    if (!U.isSafetyPointerOrNull(data0th)) continue;
-                    if (!U.isSafetyPointerOrNull(data1st)) continue;
-                    if (!U.isSafetyPointerOrNull(data2nd)) continue;
+                    if (!IsSafetyPointerOrNull(data0th, rom)) continue;
+                    if (!IsSafetyPointerOrNull(data1st, rom)) continue;
+                    if (!IsSafetyPointerOrNull(data2nd, rom)) continue;
                 }
 
                 return a;
@@ -192,6 +192,13 @@ namespace FEBuilderGBA
                 if (match) return pos;
             }
             return U.NOT_FOUND;
+        }
+        // Local rom-explicit equivalent of U.isSafetyPointerOrNull that
+        // avoids relying on CoreState.ROM (which is null in headless tests).
+        static bool IsSafetyPointerOrNull(uint a, ROM rom)
+        {
+            if (a == 0) return true;
+            return U.isSafetyPointer(a, rom);
         }
     }
 }
