@@ -20678,3 +20678,24 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :This unit is referenced by hardcoded ASM. Click to view related patches.
 此单位被硬编码ASM引用。点击查看相关补丁。
+
+:Animation
+动画
+
+:Editor
+编辑器
+
+:Image Import
+导入图片
+
+:Image Export
+导出图片
+
+:Animation Import
+导入动画
+
+:Animation Export
+导出动画
+
+:Pending Core extraction - tracked by #500.
+等待 Core 抽取 - 跟踪于 #500。

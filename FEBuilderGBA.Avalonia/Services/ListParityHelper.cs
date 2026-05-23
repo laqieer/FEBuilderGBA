@@ -489,6 +489,14 @@ namespace FEBuilderGBA.Avalonia.Services
             // WF↔AV form pair here so JumpParityScanner can resolve them.
             { "GraphicsToolView", "GraphicsToolForm" },
             { "DecreaseColorTSAToolView", "DecreaseColorTSAToolForm" },
+            // #430 — SkillConfigFE8UCSkillSys09xForm jumps to ToolAnimationCreatorForm
+            // via X_N_JumpEditor (same shape as #433). The Avalonia view is in
+            // NoListEditors (patch-dependent, can't build a list without the patch
+            // installed) so the EditorMap layer above doesn't seed it. Without
+            // this entry, the SkillConfigFE8UCSkillSys09xForm WF callsite resolves
+            // to "no AV counterpart" and the navigation manifest never lifts past
+            // MissingAvManifest.
+            { "SkillConfigFE8UCSkillSys09xView", "SkillConfigFE8UCSkillSys09xForm" },
         };
 
         /// <summary>

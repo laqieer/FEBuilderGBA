@@ -6692,3 +6692,24 @@ TSA
 
 :This unit is referenced by hardcoded ASM. Click to view related patches.
 このユニットはハードコードASMから参照されています。関連パッチを表示するにはクリックしてください。
+
+:Animation
+アニメーション
+
+:Editor
+エディタ
+
+:Image Import
+画像読込
+
+:Image Export
+画像取出
+
+:Animation Import
+アニメーション読込
+
+:Animation Export
+アニメーション取出
+
+:Pending Core extraction - tracked by #500.
+Core 抽出待ち - #500 で追跡中。

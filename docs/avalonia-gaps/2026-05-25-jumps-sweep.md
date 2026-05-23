@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T00:49:02Z"
-git-sha: d90805bbb
+generated: "2026-05-23T01:54:08Z"
+git-sha: 424bc5722
 sweep-type: jumps
 ---
 
@@ -36,11 +36,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 429 |
+| Total rows | 430 |
 | Match | 31 |
 | MissingAvManifest (backlog) | 358 |
 | NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 5 |
+| KnownGap (issue-tagged) | 6 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -49,6 +49,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
+| `—` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 

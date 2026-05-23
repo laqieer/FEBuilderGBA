@@ -1,28 +1,189 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8UCSkillSys09xView"
-        Title="Skill Configuration (CSkillSys 0.9.x)" Width="801" Height="611"
+        Title="Skill Configuration (CSkillSys 0.9.x)" Width="900" Height="640"
         SizeToContent="WidthAndHeight">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Skill Configuration (CSkillSys 0.9.x)" FontSize="18" FontWeight="Bold" />
-    <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
-      <TextBlock AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Status_Label" TextWrapping="Wrap" Name="StatusText"
-                 Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
+
+    <!-- Row 0: top read-config bar (mirrors WF panel3: 先頭アドレス / 読込数 / 再取得) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Start Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ReadStart_Input"
+                       FormatString="X8" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="1024"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
     </Border>
 
-    <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto" IsVisible="False" Name="FieldsPanel">
-      <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+    <!-- Row 1: selection bar (mirrors WF panel5: アドレス / Size: / 選択アドレス / 書き込み) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Address_Input"
+                       FormatString="X8" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="8" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Write_Button"
+                Name="WriteButton" Content="Write" Click="WriteButton_Click" />
+      </StackPanel>
+    </Border>
 
-      <TextBlock Grid.Row="1" Grid.Column="0" Text="Skill Name:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillName_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="SkillNameBox" Minimum="0" Maximum="65535" Margin="0,4" />
+    <!-- Row 2 col 0: AddressList + Filter Name -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_FilterName_Label"
+               Content="Filter Name" HorizontalAlignment="Stretch" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Entry_List"
+            Name="EntryList" />
+      </DockPanel>
+    </Border>
 
-      <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Description_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DescriptionBox" Minimum="0" Maximum="65535" Margin="0,4" />
-    </Grid>
+    <!-- Row 2 col 1: edit panel -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+      <StackPanel Spacing="8" Margin="8">
+        <Label Content="Skill Configuration (CSkillSys 0.9.x)" FontSize="18" FontWeight="Bold" />
 
-    <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
-  </StackPanel>
-  </ScrollViewer>
+        <Border Background="{DynamicResource WarningBackgroundBrush}"
+                BorderBrush="{DynamicResource WarningBorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="12">
+          <TextBlock AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Status_Label"
+                     TextWrapping="Wrap" Name="StatusText"
+                     Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
+        </Border>
+
+        <!-- Icon row: label + image + image import/export buttons -->
+        <Grid ColumnDefinitions="100,80,Auto,Auto,Auto" RowDefinitions="Auto">
+          <Label Grid.Column="0"
+                 AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Icon_Label"
+                 Content="Icon" VerticalAlignment="Center" />
+          <Border Grid.Column="1" BorderBrush="DarkGray" BorderThickness="1"
+                  HorizontalAlignment="Left" Padding="2" Width="48" Height="48">
+            <Image AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Icon_Image"
+                   Name="IconImage" Width="40" Height="40" Stretch="Uniform" />
+          </Border>
+          <Button Grid.Column="2"
+                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageImport_Button"
+                  Name="ImageImportButton" Content="Image Import" Margin="8,0,0,0"
+                  Click="ImageImport_Click"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          <Button Grid.Column="3"
+                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageExport_Button"
+                  Name="ImageExportButton" Content="Image Export" Margin="8,0,0,0"
+                  Click="ImageExport_Click"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          <Label Grid.Column="4"
+                 AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_IconAddr_Label"
+                 Name="IconAddrLabel" VerticalAlignment="Center" Margin="12,0,0,0"
+                 FontFamily="Consolas" />
+        </Grid>
+
+        <!-- Skill Name row: text id + resolved name TextBox -->
+        <Grid ColumnDefinitions="100,80,*" RowDefinitions="Auto">
+          <Label Grid.Column="0"
+                 AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillName_Label"
+                 Content="Skill Name:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1"
+                         AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillName_Input"
+                         FormatString="X4" Name="SkillNameBox"
+                         Minimum="0" Maximum="65535" />
+          <TextBox Grid.Column="2"
+                   AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_SkillNameText_Input"
+                   Name="SkillNameTextBox" IsReadOnly="True" Margin="8,0,0,0" />
+        </Grid>
+
+        <!-- Description row: text id + resolved description TextBox (multiline) -->
+        <Grid ColumnDefinitions="100,80,*" RowDefinitions="Auto">
+          <Label Grid.Column="0"
+                 AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Description_Label"
+                 Content="Description:" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1"
+                         AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Description_Input"
+                         FormatString="X4" Name="DescriptionBox"
+                         Minimum="0" Maximum="65535" />
+          <TextBox Grid.Column="2"
+                   AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_DescriptionText_Input"
+                   Name="DescriptionTextBox" IsReadOnly="True" AcceptsReturn="True"
+                   Margin="8,0,0,0" MinHeight="60" />
+        </Grid>
+
+        <!-- Animation row: label + animation pointer + animation import/export buttons -->
+        <Grid ColumnDefinitions="100,120,Auto,Auto" RowDefinitions="Auto">
+          <Label Grid.Column="0"
+                 AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Animation_Label"
+                 Content="Animation" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Column="1"
+                         AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationPointer_Input"
+                         FormatString="X8" Name="AnimationPointerBox"
+                         Minimum="0" Maximum="65535999" />
+          <Button Grid.Column="2"
+                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationImport_Button"
+                  Name="AnimationImportButton" Content="Animation Import" Margin="8,0,0,0"
+                  Click="AnimationImport_Click"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          <Button Grid.Column="3"
+                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationExport_Button"
+                  Name="AnimationExportButton" Content="Animation Export" Margin="8,0,0,0"
+                  Click="AnimationExport_Click"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+        </Grid>
+
+        <!-- Animation preview panel - visible only when D0 resolves safely -->
+        <Border Name="AnimationPanel" BorderBrush="Gray" BorderThickness="1" Padding="8" IsVisible="False">
+          <StackPanel Spacing="6">
+            <Label AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_DisplayExample_Label"
+                   Content="Display example" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto">
+              <Label Grid.Row="0" Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Zoom_Label"
+                     Content="Zoom" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="0" Grid.Column="1"
+                        AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ShowZoom_Combo"
+                        Name="ShowZoomComboBox" Width="160"
+                        SelectionChanged="ShowZoomComboBox_SelectionChanged">
+                <ComboBoxItem>Zoomed</ComboBoxItem>
+                <ComboBoxItem>Original size</ComboBoxItem>
+              </ComboBox>
+              <Label Grid.Row="1" Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Frame_Label"
+                     Content="Frame" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ShowFrame_Input"
+                             FormatString="X2" Name="ShowFrameUpDown" Width="80"
+                             Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
+            </Grid>
+            <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">
+              <Image AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Preview_Image"
+                     Name="PreviewImage" Width="160" Height="120" Stretch="Uniform" />
+            </Border>
+            <TextBox AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_BinInfo_Label"
+                     Name="BinInfoBox" IsReadOnly="True" FontFamily="Consolas" />
+            <Button AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_JumpToEditor_Button"
+                    Name="JumpToEditorButton" Content="Editor"
+                    HorizontalAlignment="Left" Click="JumpToEditor_Click"
+                    ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
 </Window>
