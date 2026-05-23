@@ -7598,3 +7598,57 @@ UIDを含む
 
 :Bytes +2..+3 are reserved (WF designer doesn't expose).
 バイト +2..+3 は予約済み (WFデザイナでは未公開)。
+
+:Parameter 1
+パラメータ1
+
+:Parameter 2
+パラメータ2
+
+:Parameter 3
+パラメータ3
+
+:Parameter 4
+パラメータ4
+
+:Parameter 5
+パラメータ5
+
+:Binary Code
+バイナリコード
+
+:Import From File
+ファイルからインポート
+
+:Export To File
+ファイルへエクスポート
+
+:Switch
+切替
+
+:Read Byte Count
+読込バイト数
+
+:Re-read
+再取得
+
+:Detail Address
+詳細アドレス
+
+:Script Bytes:
+スクリプトバイト:
+
+:Disassembly
+逆アセンブル
+
+:Description
+説明
+
+:Script Change
+命令変更
+
+:Remove
+削除
+
+:New Insert
+新規挿入
