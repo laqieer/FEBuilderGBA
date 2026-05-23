@@ -460,8 +460,23 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 // FE6 InputFormRef.ReInit(p32(unit_pointer) + unit_datasize)
-                // skips entry 0 (the null/placeholder unit).
-                uint baseAddr = tableStart + dataSize;
+                // skips entry 0 (the null/placeholder unit). Guard against
+                // uint wrap (tableStart + dataSize overflowing) and verify
+                // the resulting baseAddr still lands inside the ROM before
+                // displaying it — blank the label otherwise so we never
+                // surface a bogus/wrapped offset.
+                ulong baseAddrChecked = (ulong)tableStart + (ulong)dataSize;
+                if (baseAddrChecked > uint.MaxValue)
+                {
+                    ReadStartAddressLabel.Text = "";
+                    return;
+                }
+                uint baseAddr = (uint)baseAddrChecked;
+                if (!U.isSafetyOffset(baseAddr, rom))
+                {
+                    ReadStartAddressLabel.Text = "";
+                    return;
+                }
                 ReadStartAddressLabel.Text = $"0x{baseAddr:X8}";
             }
             catch (Exception ex) { Log.Error("UnitFE6View.UpdateAddressBarInfra failed: {0}", ex.Message); }
