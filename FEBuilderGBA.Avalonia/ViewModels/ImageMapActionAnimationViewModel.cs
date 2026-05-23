@@ -4,14 +4,33 @@ using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class ImageMapActionAnimationViewModel : ViewModelBase, IDataVerifiable
+    /// <summary>
+    /// ViewModel backing <c>ImageMapActionAnimationView</c>. Declared
+    /// <c>partial</c> so the Phase 4 navigation manifest can live in
+    /// a sibling <c>.NavigationTargets.cs</c> file without dragging the
+    /// <c>FEBuilderGBA.Avalonia.Views</c> namespace into this file
+    /// (#433 gap-sweep parity raise — Copilot CLI plan-review pt 1).
+    /// </summary>
+    public partial class ImageMapActionAnimationViewModel : ViewModelBase, IDataVerifiable
     {
-        const uint SIZE = 8;
+        public const uint SIZE = 8;
 
         uint _currentAddr;
         bool _isLoaded;
         bool _canWrite;
         uint _animationPointer, _padding1, _padding2;
+
+        // Phase 1 (#433) — new fields surfacing the WF-only labels.
+        uint _readStartAddress;
+        uint _readCount;
+        uint _selectedId;
+        string _comment = "";
+        bool _isEmptyEntry;
+        bool _isAnimationValid;
+        uint _selectedFrame;
+        bool _showZoomed = true;
+        int _frameCount;
+        string _binInfoText = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -23,6 +42,126 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Padding1 { get => _padding1; set => SetField(ref _padding1, value); }
         // W6: Padding / reserved
         public uint Padding2 { get => _padding2; set => SetField(ref _padding2, value); }
+
+        // Read-config bar — mirrors WF panel3 (先頭アドレス / 読込数 / 再取得).
+        public uint ReadStartAddress { get => _readStartAddress; set => SetField(ref _readStartAddress, value); }
+        public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
+        public uint BlockSize => SIZE;
+
+        // The selected row's id (0-based, mirrors WF AddressList.SelectedIndex).
+        public uint SelectedId { get => _selectedId; set => SetField(ref _selectedId, value); }
+
+        // WF Comment textbox + label.
+        public string Comment { get => _comment; set => SetField(ref _comment, value ?? ""); }
+
+        // Mirrors WF AddressList_SelectedIndexChanged branches:
+        //   - SelectedIndex <= 0 -> show NOTIFY_KeepEmpty, hide animation panel.
+        //   - SelectedIndex >  0 -> show animation panel iff D0 resolves safely.
+        public bool IsEmptyEntry { get => _isEmptyEntry; set => SetField(ref _isEmptyEntry, value); }
+        public bool IsAnimationValid { get => _isAnimationValid; set => SetField(ref _isAnimationValid, value); }
+
+        // Animation panel state.
+        public uint SelectedFrame { get => _selectedFrame; set => SetField(ref _selectedFrame, value); }
+        public bool ShowZoomed { get => _showZoomed; set => SetField(ref _showZoomed, value); }
+        public int FrameCount { get => _frameCount; set => SetField(ref _frameCount, value); }
+        public string BinInfoText { get => _binInfoText; set => SetField(ref _binInfoText, value ?? ""); }
+
+        // Cache of the default-name lookup table built from
+        // config/data/MapActionAnimation_ALL.txt — mirrors WF
+        // ImageMapActionAnimationForm.GetNameDefaultName.
+        static Dictionary<uint, string>? _defaultNameCache;
+        static readonly object _defaultNameLock = new object();
+
+        /// <summary>
+        /// Read the default human-readable name for the given id from
+        /// <c>config/data/MapActionAnimation_ALL.txt</c>. Cached on first
+        /// load. Returns the empty string when the file is missing or the
+        /// id is not listed.
+        /// </summary>
+        public static string LoadDefaultName(uint id)
+        {
+            if (_defaultNameCache == null)
+            {
+                lock (_defaultNameLock)
+                {
+                    if (_defaultNameCache == null)
+                    {
+                        _defaultNameCache = LoadDefaultNamesFromConfig();
+                    }
+                }
+            }
+            return _defaultNameCache!.TryGetValue(id, out var name) ? name : "";
+        }
+
+        static Dictionary<uint, string> LoadDefaultNamesFromConfig()
+        {
+            // Use U.ConfigDataFilename + U.LoadDicResource ONLY when
+            // CoreState.ROM is non-null — those helpers internally call
+            // `U.OtherLangLine(line, CoreState.ROM)` which NREs on a null
+            // ROM, and the catch path in `U.LoadDicResource` then dereferences
+            // `CoreState.Services.ShowError` which can also be null in
+            // headless tests. Mirrors WinForms `GetNameDefaultName`
+            // (which only runs after the WF main form is up and a ROM is
+            // loaded). Copilot CLI inline review on PR #506.
+            ROM rom = CoreState.ROM;
+            if (rom != null && rom.RomInfo != null)
+            {
+                try
+                {
+                    string path = U.ConfigDataFilename("MapActionAnimation_");
+                    if (System.IO.File.Exists(path))
+                    {
+                        return U.LoadDicResource(path);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig U-path failed: {0}", ex.Message);
+                }
+            }
+
+            // Fallback: parse the file directly with a hand-rolled loop.
+            // Used when CoreState.ROM is null (headless tests with no ROM
+            // available) or when the U.* path raises for any other reason.
+            var dic = new Dictionary<uint, string>();
+            try
+            {
+                string baseDir = CoreState.BaseDirectory ?? AppContext.BaseDirectory;
+                string path = System.IO.Path.Combine(baseDir, "config", "data", "MapActionAnimation_ALL.txt");
+                if (!System.IO.File.Exists(path)) return dic;
+                foreach (string raw in System.IO.File.ReadAllLines(path))
+                {
+                    string line = raw.Trim();
+                    if (line.Length == 0 || line.StartsWith("#")) continue;
+                    int eq = line.IndexOf('=');
+                    if (eq <= 0) continue;
+                    string hex = line.Substring(0, eq).Trim();
+                    string name = line.Substring(eq + 1).Trim();
+                    if (uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out uint id))
+                    {
+                        dic[id] = name;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMapActionAnimationViewModel.LoadDefaultNamesFromConfig fallback failed: {0}", ex.Message);
+            }
+            return dic;
+        }
+
+        /// <summary>
+        /// Reset the static default-name cache. Used by tests that swap
+        /// out <c>CoreState.BaseDirectory</c> between runs so subsequent
+        /// reads pick up the new config root.
+        /// </summary>
+        internal static void ResetDefaultNameCache()
+        {
+            lock (_defaultNameLock)
+            {
+                _defaultNameCache = null;
+            }
+        }
 
         /// <summary>
         /// Find the map action animation pointer table by binary signature search,
@@ -72,6 +211,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(animeP);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
+            // Expose the read-config so the bar widgets can populate.
+            ReadStartAddress = baseAddr;
+
             var result = new List<AddrResult>();
             for (int i = 0; ; i++)
             {
@@ -80,9 +222,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint a = rom.u32(addr);
                 if (!U.isSafetyPointerOrNull(a)) break;
 
-                string name = $"0x{i:X02} Map Action Animation {i}";
+                // Prefer the user-saved comment from CoreState.CommentCache
+                // (matches WinForms `InputFormRef.GetCommentSA(addr)` lookup
+                // in `Init.makeNameAt`); fall back to the per-id default name
+                // when no cached comment is set.
+                string label = "";
+                if (CoreState.CommentCache != null)
+                {
+                    label = CoreState.CommentCache.At(addr) ?? "";
+                }
+                if (label.Length == 0)
+                {
+                    label = LoadDefaultName((uint)i);
+                }
+                string name = label.Length > 0
+                    ? $"0x{i:X02} {label}"
+                    : $"0x{i:X02} Map Action Animation";
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
+            ReadCount = (uint)result.Count;
             return result;
         }
 
@@ -93,13 +251,65 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + SIZE > (uint)rom.Data.Length) return;
 
             CurrentAddr = addr;
+            // If LoadList hasn't run yet (deep-linked NavigateTo), populate
+            // ReadStartAddress lazily by running the signature search once,
+            // then derive SelectedId via the cheap O(1) helper. After
+            // LoadList runs, subsequent LoadEntry calls hit the fast path.
+            if (ReadStartAddress == 0)
+            {
+                uint animeP = FindAnimationPointer(rom);
+                if (animeP != U.NOT_FOUND)
+                {
+                    ReadStartAddress = rom.p32(animeP);
+                }
+            }
+            SelectedId = ComputeIdForAddress(addr);
 
             AnimationPointer = rom.u32(addr + 0);
             Padding1 = rom.u16(addr + 4);
             Padding2 = rom.u16(addr + 6);
 
+            // Default the Comment to the default name when none is set
+            // — mirrors WF AddressList_SelectedIndexChanged behavior.
+            // First check CoreState.CommentCache for a user-saved comment
+            // at this address (matches `Program.CommentCache.At(addr)` in
+            // WF InputFormRef.UI_ReadUIToComment line 5395); fall back to
+            // the per-id default name when no user comment is set.
+            string saved = "";
+            if (CoreState.CommentCache != null)
+            {
+                saved = CoreState.CommentCache.At(addr) ?? "";
+            }
+            Comment = saved.Length > 0 ? saved : LoadDefaultName(SelectedId);
+
+            // Mirror WF NOTIFY_KeepEmpty: ID=0 is reserved as null data.
+            IsEmptyEntry = SelectedId == 0;
+
+            // Animation panel visible iff D0 resolves to a safe ROM offset.
+            uint animePtrOffset = U.toOffset(AnimationPointer);
+            IsAnimationValid = !IsEmptyEntry && U.isSafetyOffset(animePtrOffset, rom);
+
+            // Reset frame to 0 so the UI doesn't keep stale preview state.
+            SelectedFrame = 0;
+
             IsLoaded = true;
             CanWrite = true;
+        }
+
+        /// <summary>
+        /// Given a row address, derive the id (0-based index into the
+        /// pointer table). Returns 0 when the address falls outside the
+        /// expected table window or when LoadList hasn't yet populated
+        /// the cached ReadStartAddress. Cheap O(1) derivation — does NOT
+        /// rescan the ROM (the previous version re-ran the GrepEnd
+        /// signature search on every selection change — Copilot CLI
+        /// inline review on PR #506).
+        /// </summary>
+        uint ComputeIdForAddress(uint addr)
+        {
+            uint baseAddr = ReadStartAddress;
+            if (baseAddr == 0 || addr < baseAddr) return 0;
+            return (addr - baseAddr) / SIZE;
         }
 
         public void Write()
@@ -111,6 +321,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(addr + 0, AnimationPointer);
             rom.write_u16(addr + 4, Padding1);
             rom.write_u16(addr + 6, Padding2);
+
+            // Persist the Comment to CoreState.CommentCache so the next
+            // LoadEntry reads it back. Mirrors WinForms `UI_WriteCommentToUI`
+            // (InputFormRef.cs line 5373) which writes the Comment textbox
+            // through `Program.CommentCache.Update(addr, info_object.Text)`.
+            // Without this, user edits to the Comment textbox are silently
+            // discarded after Write+Reload — Copilot CLI review on PR #506.
+            if (CoreState.CommentCache != null)
+            {
+                CoreState.CommentCache.Update(addr, Comment ?? "");
+            }
+        }
+
+        /// <summary>
+        /// Recompute the BinInfo line for the selected frame using
+        /// <c>ImageUtilMapActionAnimationCore</c>. Mirrors WF
+        /// <c>ShowFrameUpDown_ValueChanged</c> which stashes the
+        /// per-frame log text into the BinInfo readonly textbox.
+        /// </summary>
+        public string ComputeFrameInfo(uint frameIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || !IsAnimationValid)
+            {
+                BinInfoText = "";
+                return BinInfoText;
+            }
+
+            uint animePtr = U.toOffset(AnimationPointer);
+            int count = ImageUtilMapActionAnimationCore.CountFrames(animePtr);
+            FrameCount = count;
+            BinInfoText = $"Frame {frameIndex}/{count} @ 0x{animePtr:X08}";
+            return BinInfoText;
         }
 
         public int GetListCount()
@@ -126,6 +369,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["AnimationPointer"] = $"0x{AnimationPointer:X08}",
                 ["Padding1"] = $"0x{Padding1:X04}",
                 ["Padding2"] = $"0x{Padding2:X04}",
+                ["Comment"] = Comment,
+                ["SelectedId"] = $"0x{SelectedId:X02}",
             };
         }
 

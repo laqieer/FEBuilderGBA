@@ -7,19 +7,50 @@ using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
+    /// <summary>
+    /// Avalonia counterpart of WinForms `ImageMapActionAnimationForm`. The
+    /// Phase 1/4/6 gap-sweep fix (#433) folds the missing read-config bar,
+    /// selection bar, list-expansion affordance, comment textbox, KeepEmpty
+    /// notice, and animation preview panel into the AXAML, and wires the
+    /// click handlers that exist on master to update the new fields. Real
+    /// Export / Import / Source-file controls are tracked as follow-ups
+    /// (#499, #500, #501) — see the navigation manifest in
+    /// `ImageMapActionAnimationViewModel.NavigationTargets.cs`.
+    /// </summary>
     public partial class ImageMapActionAnimationView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
         readonly ImageMapActionAnimationViewModel _vm = new();
         readonly UndoService _undoService = new();
+        bool _suppressZoomChange;
+        // Set true while UpdateUI syncs `ShowFrameUpDown.Value` from the VM
+        // — the SelectionChanged handler short-circuits so the compute+render
+        // pair isn't duplicated (Copilot CLI inline review on PR #506).
+        bool _suppressFrameChange;
+        // Track the current preview Bitmap so we can dispose it before
+        // replacing — avoids unmanaged-memory growth during frame scrubbing
+        // (Copilot CLI inline review on PR #506).
+        Bitmap? _currentPreviewBitmap;
 
         public string ViewTitle => "Map Action Animation";
         public bool IsLoaded => _vm.IsLoaded;
+        public ViewModelBase? DataViewModel => _vm;
 
         public ImageMapActionAnimationView()
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+            // Dispose the last preview Bitmap when the window closes so
+            // unmanaged memory is released — Copilot CLI inline review on
+            // PR #506.
+            Closed += (_, _) =>
+            {
+                if (_currentPreviewBitmap != null)
+                {
+                    try { _currentPreviewBitmap.Dispose(); } catch { /* swallow */ }
+                    _currentPreviewBitmap = null;
+                }
+            };
         }
 
         void LoadList()
@@ -29,12 +60,34 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.MapActionAnimationLoader(items, i));
+                ReadStartAddressBox.Value = _vm.ReadStartAddress;
+                ReadCountBox.Value = _vm.ReadCount;
+
+                // Reset zoom selection AND explicitly sync `PreviewImage.Stretch`
+                // + `_vm.ShowZoomed` because the SelectionChanged handler is
+                // suppressed while we mutate `SelectedIndex`. Without this
+                // explicit sync, reloading after the user picked "Original
+                // size" would leave the preview unzoomed while the combo
+                // showed "Zoomed" — Copilot CLI inline review on PR #506.
+                _suppressZoomChange = true;
+                try
+                {
+                    ShowZoomComboBox.SelectedIndex = 0;
+                    _vm.ShowZoomed = true;
+                    PreviewImage.Stretch = global::Avalonia.Media.Stretch.Uniform;
+                }
+                finally { _suppressZoomChange = false; }
             }
             catch (Exception ex)
             {
                 Log.Error("ImageMapActionAnimationView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
         }
 
         void OnSelected(uint addr)
@@ -54,45 +107,156 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            // Selection-bar widgets — mirror WF panel5.
+            AddressBox.Value = _vm.CurrentAddr;
+            BlockSizeBox.Value = _vm.BlockSize;
+            SelectedAddressLabel.Content = $"0x{_vm.CurrentAddr:X08}";
+
+            // Edit fields.
             AnimationPointerBox.Text = $"0x{_vm.AnimationPointer:X08}";
             Padding1Box.Value = _vm.Padding1;
             Padding2Box.Value = _vm.Padding2;
-            UpdatePreview();
-        }
+            CommentBox.Text = _vm.Comment;
 
-        void UpdatePreview()
-        {
-            try
+            // KeepEmpty notice — ID=0 is reserved as null data.
+            KeepEmptyLabel.IsVisible = _vm.IsEmptyEntry;
+
+            // Animation panel — only when D0 resolves safely.
+            AnimationPanel.IsVisible = _vm.IsAnimationValid;
+
+            if (_vm.IsAnimationValid)
             {
-                if (_vm.AnimationPointer == 0 || !U.isPointer(_vm.AnimationPointer))
-                {
-                    PreviewImage.Source = null;
-                    return;
-                }
-                using var img = PreviewIconHelper.LoadMapActionAnimationThumbnail(_vm.AnimationPointer);
-                Bitmap? bmp = ImageConversionHelper.ToAvaloniaBitmap(img);
-                PreviewImage.Source = bmp;
+                // Suppress the ValueChanged handler while we sync the
+                // NumericUpDown from the VM so the compute+render pair
+                // below isn't duplicated by the handler (Copilot CLI
+                // inline review on PR #506 — double-render flicker).
+                _suppressFrameChange = true;
+                try { ShowFrameUpDown.Value = _vm.SelectedFrame; }
+                finally { _suppressFrameChange = false; }
+
+                _vm.ComputeFrameInfo(_vm.SelectedFrame);
+                BinInfoBox.Text = _vm.BinInfoText;
+                // Render the SELECTED frame (mirrors WinForms
+                // ShowFrameUpDown_ValueChanged on initial load). The earlier
+                // implementation called both UpdatePreview() and
+                // UpdatePreviewForFrame() which raced — Copilot CLI inline
+                // review on PR #506.
+                UpdatePreviewForFrame();
             }
-            catch
+            else
             {
-                PreviewImage.Source = null;
+                SetPreviewBitmap(null);
+                BinInfoBox.Text = "";
             }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // Early-guard so we don't create no-op undo entries when the
+            // VM hasn't loaded an entry yet — `_vm.Write()` itself returns
+            // immediately on null ROM or CurrentAddr==0, but the
+            // Begin/Commit pair would still push an empty entry into the
+            // undo buffer (Copilot CLI inline review on PR #506).
+            if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+
             _undoService.Begin("Edit Map Action Animation");
             try
             {
                 _vm.AnimationPointer = ParseHexText(AnimationPointerBox.Text);
                 _vm.Padding1 = (uint)(Padding1Box.Value ?? 0);
                 _vm.Padding2 = (uint)(Padding2Box.Value ?? 0);
+                _vm.Comment = CommentBox.Text ?? "";
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageMapActionAnimationView.Write: {0}", ex.Message); }
+        }
+
+        /// <summary>
+        /// Replace `PreviewImage.Source` with <paramref name="bmp"/>,
+        /// disposing the previous Bitmap (if any) first. Tracks the current
+        /// Bitmap in <see cref="_currentPreviewBitmap"/> so unmanaged memory
+        /// doesn't accumulate during frame scrubbing — Copilot CLI inline
+        /// review on PR #506.
+        /// </summary>
+        void SetPreviewBitmap(Bitmap? bmp)
+        {
+            if (_currentPreviewBitmap != null && !ReferenceEquals(_currentPreviewBitmap, bmp))
+            {
+                try { _currentPreviewBitmap.Dispose(); } catch { /* swallow */ }
+            }
+            _currentPreviewBitmap = bmp;
+            PreviewImage.Source = bmp;
+        }
+
+        /// <summary>
+        /// List-expansion handler — currently disabled (the button has
+        /// <c>IsEnabled=false</c> in AXAML) because there is no Core helper
+        /// for expanding the map-action-animation pointer table yet. The
+        /// handler stays wired so the AutomationId is enumerable from
+        /// headless tests; the real expansion is tracked by #501.
+        /// </summary>
+        void ListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            // Intentionally no-op until the table-expansion helper lands —
+            // see issue #501. The button is disabled in AXAML; this handler
+            // exists only so the binding/AutomationId surface is complete.
+            Log.Debug("ImageMapActionAnimationView.ListExpand_Click invoked — disabled until #501 lands");
+        }
+
+        void ShowFrameUpDown_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressFrameChange) return;
+            if (!_vm.IsAnimationValid) return;
+            _vm.SelectedFrame = (uint)(ShowFrameUpDown.Value ?? 0);
+            _vm.ComputeFrameInfo(_vm.SelectedFrame);
+            BinInfoBox.Text = _vm.BinInfoText;
+            UpdatePreviewForFrame();
+        }
+
+        void UpdatePreviewForFrame()
+        {
+            try
+            {
+                // Mirror WinForms: accept either a GBA pointer (e.g.
+                // 0x08800000) or a safe ROM offset (e.g. 0x800000). The
+                // earlier guard rejected raw offsets even when
+                // `IsAnimationValid` (offset-based) said the panel should
+                // be visible — leaving the preview blank for user-entered
+                // offsets. `ImageUtilMapActionAnimationCore.DrawFrame`
+                // returns null for un-renderable input so the catch handles
+                // anything else. Copilot CLI inline review on PR #506.
+                if (_vm.AnimationPointer == 0)
+                {
+                    SetPreviewBitmap(null);
+                    return;
+                }
+                uint animePtr = U.toOffset(_vm.AnimationPointer);
+                if (!U.isSafetyOffset(animePtr))
+                {
+                    SetPreviewBitmap(null);
+                    return;
+                }
+                using var img = ImageUtilMapActionAnimationCore.DrawFrame(animePtr, _vm.SelectedFrame);
+                Bitmap? bmp = img != null ? ImageConversionHelper.ToAvaloniaBitmap(img) : null;
+                SetPreviewBitmap(bmp);
+            }
+            catch
+            {
+                SetPreviewBitmap(null);
+            }
+        }
+
+        void ShowZoomComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressZoomChange) return;
+            // SelectedIndex 0 => Zoomed (default), 1 => original size.
+            bool zoomed = ShowZoomComboBox.SelectedIndex == 0;
+            _vm.ShowZoomed = zoomed;
+            PreviewImage.Stretch = zoomed
+                ? global::Avalonia.Media.Stretch.Uniform
+                : global::Avalonia.Media.Stretch.None;
         }
 
         static uint ParseHexText(string? text)
@@ -108,6 +272,5 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
-        public ViewModelBase? DataViewModel => _vm;
     }
 }

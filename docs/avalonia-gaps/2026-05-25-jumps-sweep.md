@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:46:58Z"
-git-sha: ebc2999b0
+generated: "2026-05-23T00:49:02Z"
+git-sha: d90805bbb
 sweep-type: jumps
 ---
 
@@ -36,11 +36,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 423 |
-| Match | 20 |
-| MissingAvManifest (backlog) | 364 |
+| Total rows | 429 |
+| Match | 31 |
+| MissingAvManifest (backlog) | 358 |
 | NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 4 |
+| KnownGap (issue-tagged) | 5 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -48,6 +48,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---|---|---|---|---|
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
+| `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 
@@ -263,7 +264,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageGenericEnemyPortraitForm` | `ImageGenericEnemyPortraitView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
-| `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePalletForm` | `ImagePalletView` |
@@ -409,12 +409,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `VersionForm` | `VersionView` | `—` | `DevTranslateForm` | `DevTranslateView` |
 | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | `—` | `EventScriptForm` | `EventScriptView` |
 | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | `—` | `EventScriptForm` | `EventScriptView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `EventScriptForm` | `EventScriptView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `EventScriptForm` | `EventScriptView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `EventScriptForm` | `EventScriptView` |
 | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `WorldMapPathForm` | `WorldMapPathEditorView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `WorldMapPathForm` | `WorldMapPathView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `WorldMapPointForm` | `WorldMapPointView` |
 | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `WorldMapImageForm` | `WorldMapImageView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
@@ -484,3 +479,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |
 | `SupportUnitFE6Form` | `SupportUnitFE6View` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding1Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding1Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding1Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding2Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding2Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding2Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToOpeningEvent` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToOpeningEvent` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToOpeningEvent` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToWorldMapPath` | `WorldMapPathForm` | `WorldMapPathView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToWorldMapPoint` | `WorldMapPointForm` | `WorldMapPointView` |

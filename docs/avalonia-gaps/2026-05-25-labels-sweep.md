@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-22T22:46:56Z"
-git-sha: ebc2999b0
+generated: "2026-05-23T00:49:00Z"
+git-sha: d90805bbb
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4636 |
-| Total AV-only labels | 2667 |
-| Total common labels | 64 |
+| Total WF-only labels | 4635 |
+| Total AV-only labels | 2711 |
+| Total common labels | 65 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-22-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -3770,6 +3770,63 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Talk`
 - `Write`
 
+### ImagePortraitFE6Form
+WF labels: **23** · AV labels: **27** · WF-only: **22** · AV-only: **26** · Common: **1** · Density verdict: **Low** (WF 34 / AV 42)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `X:`
+- `Y:`
+- `アドレス`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `フレーム`
+- `マップ顔`
+- `ユニット顔`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `口座標`
+- `名前`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Comment:`
+- `Export PAL`
+- `Export PNG`
+- `Import PAL`
+- `Import PNG`
+- `Map Face:`
+- `Map Face (32x32)`
+- `Mouth Coord:`
+- `Mouth X:`
+- `Mouth Y:`
+- `Open Source File`
+- `Palette:`
+- `Portrait Editor (FE6)`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Show Example (Frame 3)`
+- `Show Frame:`
+- `Start Address:`
+- `Unit Face:`
+- `Unit Face (96x80)`
+- `Unused (B14):`
+- `Unused (B15):`
+- `Write`
+
 ### MonsterProbabilityForm
 WF labels: **22** · AV labels: **15** · WF-only: **22** · AV-only: **15** · Common: **0** · Density verdict: **Medium** (WF 38 / AV 28)
 
@@ -3948,48 +4005,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `ROM Translation Tool`
-
-### ImagePortraitFE6Form
-WF labels: **23** · AV labels: **14** · WF-only: **21** · AV-only: **12** · Common: **2** · Density verdict: **Medium** (WF 34 / AV 22)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `Size:`
-- `アドレス`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `フレーム`
-- `マップ顔`
-- `ユニット顔`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `口座標`
-- `名前`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Export PAL`
-- `Export PNG`
-- `Import PAL`
-- `Import PNG`
-- `Map Face:`
-- `Mouth Coord:`
-- `Palette:`
-- `Portrait Editor (FE6)`
-- `Unit Face:`
-- `Unused (B14):`
-- `Unused (B15):`
 
 ### MapExitPointForm
 WF labels: **21** · AV labels: **4** · WF-only: **21** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 32 / AV 6)
@@ -4219,42 +4234,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Export PNG`
 - `Import PAL`
 - `Import PNG`
-
-### ImageMapActionAnimationForm
-WF labels: **20** · AV labels: **7** · WF-only: **20** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 29 / AV 12)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `ID=00 Emptyはnullデータとして予約されています。\r\n0x0以外の値を設定しないでください。`
-- `Size:`
-- `アドレス`
-- `アニメーション`
-- `アニメーション取出`
-- `アニメーション読込`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `フレーム`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Animation Ptr (D0):`
-- `Map Action Animation`
-- `Padding 1 (W4):`
-- `Padding 2 (W6):`
-- `Preview (Frame 0):`
-- `Write`
 
 ### MapTileAnimation2Form
 WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 40 / AV 14)
@@ -4521,6 +4500,52 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Import PNG`
 - `Item/Weapon Icon Viewer`
 - `Palette Pointer:`
+
+### ImageMapActionAnimationForm
+WF labels: **20** · AV labels: **19** · WF-only: **19** · AV-only: **18** · Common: **1** · Density verdict: **Low** (WF 29 / AV 31)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `ID=00 Emptyはnullデータとして予約されています。\r\n0x0以外の値を設定しないでください。`
+- `アドレス`
+- `アニメーション`
+- `アニメーション取出`
+- `アニメーション読込`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `フレーム`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Animation Pointer (D0):`
+- `Comment:`
+- `Display example`
+- `Filter Name`
+- `Frame:`
+- `Hex Address`
+- `ID=00 is reserved as null data. Do not set any value other than 0x0.`
+- `List Expansion`
+- `Map Action Animation`
+- `Not yet implemented — see #501`
+- `Padding 1 (W4):`
+- `Padding 2 (W6):`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Write`
+- `Zoom:`
 
 ### MapChangeForm
 WF labels: **21** · AV labels: **15** · WF-only: **19** · AV-only: **13** · Common: **2** · Density verdict: **Medium** (WF 37 / AV 25)
@@ -5483,36 +5508,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Type:`
 - `Write`
 
-### WorldMapEventPointerForm
-WF labels: **17** · AV labels: **4** · WF-only: **17** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 39 / AV 6)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
-- `アドレス`
-- `エイリークエンディング`
-- `エフラムエンディング`
-- `オープニングイベント`
-- `リストの拡張`
-- `ワールドマップ拠点へJump`
-- `ワールドマップ道へJump`
-- `先頭アドレス`
-- `再取得`
-- `前の拠点クリア後に発生するイベント`
-- `名前`
-- `拠点選択後に発生するイベント`
-- `新規イベント`
-- `書き込み`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Event Pointer (u32@0):`
-- `World Map Event Editor`
-- `Write`
-
 ### EventHaikuFE7Form
 WF labels: **16** · AV labels: **2** · WF-only: **16** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 60 / AV 3)
 
@@ -5800,6 +5795,54 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Title Index:`
 - `Unit:`
 - `Unit ID:`
+- `Write`
+
+### WorldMapEventPointerForm
+WF labels: **17** · AV labels: **24** · WF-only: **16** · AV-only: **23** · Common: **1** · Density verdict: **Low** (WF 39 / AV 48)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `エイリークエンディング`
+- `エフラムエンディング`
+- `オープニングイベント`
+- `リストの拡張`
+- `ワールドマップ拠点へJump`
+- `ワールドマップ道へJump`
+- `先頭アドレス`
+- `再取得`
+- `前の拠点クリア後に発生するイベント`
+- `名前`
+- `拠点選択後に発生するイベント`
+- `新規イベント`
+- `書き込み`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `4`
+- `Address`
+- `After (Stage Select)`
+- `Before (Stage Clear)`
+- `Eirika Ending`
+- `Ephraim Ending`
+- `Event after previous stage clear`
+- `Event after stage selection`
+- `Event Pointer (u32@0):`
+- `Global story events`
+- `Jump to World Map Paths (roads)`
+- `Jump to World Map Points`
+- `New Event`
+- `Opening Event`
+- `Read Count`
+- `Related Editors`
+- `Reload`
+- `Selected Address:`
+- `The event runs when the player clears a map. It is responsible for spawning the next world map node and drawing the road to it.`
+- `The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.`
+- `Top Address`
+- `World Map Event Editor`
 - `Write`
 
 ### EventHaikuFE6Form
