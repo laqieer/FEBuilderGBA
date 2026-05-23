@@ -3,29 +3,33 @@
         x:Class="FEBuilderGBA.Avalonia.Views.EventUnitFE7View"
         Title="Event Unit (FE7)" Width="1902" Height="1047"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="220,220,220,*">
+  <Grid ColumnDefinitions="220,220,260,*">
 
-    <!-- Level 1: Map List -->
+    <!-- Level 1: Map Names list (mirrors WF panel5 / label12) -->
     <DockPanel Grid.Column="0" Margin="4">
-      <TextBlock DockPanel.Dock="Top" Text="Maps" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock DockPanel.Dock="Top" Text="Map Names" FontWeight="Bold" Margin="0,0,0,4" />
       <ListBox AutomationProperties.AutomationId="EventUnitFE7_MapList_List" Name="MapListBox" />
     </DockPanel>
 
-    <!-- Level 2: Unit Group List -->
+    <!-- Level 2: Event Names list (mirrors WF panel11 / label47 / New Allocation) -->
     <DockPanel Grid.Column="1" Margin="4">
-      <TextBlock DockPanel.Dock="Top" Text="Unit Groups" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock DockPanel.Dock="Top" Text="Event Names" FontWeight="Bold" Margin="0,0,0,4" />
+      <Button AutomationProperties.AutomationId="EventUnitFE7_NewAlloc_Button"
+              DockPanel.Dock="Bottom" Content="New Allocation" Name="NewAllocBtn" Click="NewAlloc_Click" Margin="0,4,0,0" />
       <ListBox AutomationProperties.AutomationId="EventUnitFE7_GroupList_List" Name="GroupListBox" />
     </DockPanel>
 
-    <!-- Level 3: Unit List -->
+    <!-- Level 3: Names list (mirrors WF panel12 / label53 / Expand List) -->
     <DockPanel Grid.Column="2" Margin="4">
       <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,4">
-        <TextBlock Text="Units" FontWeight="Bold" />
+        <TextBlock Text="Names" FontWeight="Bold" />
         <StackPanel Orientation="Horizontal" Spacing="4">
           <TextBox AutomationProperties.AutomationId="EventUnitFE7_ManualAddr_Input" Name="ManualAddrBox" Width="120" Watermark="0x Address" />
           <Button AutomationProperties.AutomationId="EventUnitFE7_LoadAddrBtn_Button" Content="Load" Name="LoadAddrBtn" Click="LoadAddr_Click" />
         </StackPanel>
       </StackPanel>
+      <Button AutomationProperties.AutomationId="EventUnitFE7_ExpandList_Button"
+              DockPanel.Dock="Bottom" Content="Expand List" Name="ExpandListBtn" Click="ExpandList_Click" Margin="0,4,0,0" />
       <ListBox AutomationProperties.AutomationId="EventUnitFE7_UnitList_List" Name="UnitListBox" />
     </DockPanel>
 
@@ -34,72 +38,124 @@
       <StackPanel Spacing="6" Margin="8">
         <TextBlock Text="Event Unit (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <!-- Top read-config bar (mirrors WF panel1) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Top Address" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="EventUnitFE7_TopAddr_Input" Name="TopAddrBox" Width="160" IsReadOnly="True" />
+            <TextBlock Text="Read Count" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_ReadCount_Input" FormatString="0" Name="ReadCountBox" Minimum="0" Maximum="999" Width="100" IsReadOnly="True" />
+            <Button AutomationProperties.AutomationId="EventUnitFE7_ReloadList_Button" Content="Reload" Name="ReloadListBtn" Click="ReloadList_Click" Margin="12,0,0,0" />
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="160,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit Number:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_UnitID_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIDBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="EventUnitFE7_UnitName_Label" Grid.Row="1" Grid.Column="2" Name="UnitNameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Class:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_ClassID_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ClassIDBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="EventUnitFE7_ClassName_Label" Grid.Row="2" Grid.Column="2" Name="ClassNameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Leader Unit ID:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Commander:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_LeaderUnitID_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="LeaderUnitIDBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
 
+          <!-- Unit growth sub-panel (LV / Allegiance / Growth Rate / raw B3) -->
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Unit Info:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_UnitInfo_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="UnitInfoBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <StackPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,2,0,2">
+            <TextBlock Text="LV:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_LV_Input" FormatString="0" Name="LVBox" Minimum="0" Maximum="31" Width="80" />
+            <TextBlock Text="Allegiance:" VerticalAlignment="Center" Margin="8,0,0,0" />
+            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_Allegiance_Combo" Name="AllegianceCombo" Width="120" />
+            <TextBlock Text="Growth Rate:" VerticalAlignment="Center" Margin="8,0,0,0" />
+            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_GrowthRate_Combo" Name="GrowthRateCombo" Width="140" />
+          </StackPanel>
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Start X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_StartX_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="StartXBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <!-- Before Coordinates panel (mirrors WF EVENTUNIT_BEFORE_COORD) -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Before Coordinates:" VerticalAlignment="Center" Margin="0,2" />
+          <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="0,2">
+            <TextBlock Text="X:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_StartX_Input" FormatString="0" Name="StartXBox" Minimum="0" Maximum="255" Width="80" />
+            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_StartY_Input" FormatString="0" Name="StartYBox" Minimum="0" Maximum="255" Width="80" />
+            <ComboBox AutomationProperties.AutomationId="EventUnitFE7_PosSync_Combo" Name="PosSyncCombo" Width="220" Margin="12,0,0,0" />
+          </StackPanel>
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Start Y:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_StartY_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="StartYBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <!-- After Coordinates panel (mirrors WF EVENTUNIT_AFTER_COORD) -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="After Coordinates:" VerticalAlignment="Center" Margin="0,2" />
+          <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="0,2">
+            <TextBlock Text="X:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_EndX_Input" FormatString="0" Name="EndXBox" Minimum="0" Maximum="255" Width="80" />
+            <TextBlock Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_EndY_Input" FormatString="0" Name="EndYBox" Minimum="0" Maximum="255" Width="80" />
+          </StackPanel>
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="End X:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_EndX_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="EndXBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <!-- Items -->
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item1_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="Item1Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item1Name_Label" Grid.Row="7" Grid.Column="2" Name="Item1NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="End Y:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_EndY_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="EndYBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item2_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="Item2Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item2Name_Label" Grid.Row="8" Grid.Column="2" Name="Item2NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 1:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item1_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="Item1Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item1Name_Label" Grid.Row="9" Grid.Column="2" Name="Item1NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item3_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="Item3Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item3Name_Label" Grid.Row="9" Grid.Column="2" Name="Item3NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item2_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="Item2Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item2Name_Label" Grid.Row="10" Grid.Column="2" Name="Item2NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item4_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="Item4Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item4Name_Label" Grid.Row="10" Grid.Column="2" Name="Item4NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item3_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="Item3Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item3Name_Label" Grid.Row="11" Grid.Column="2" Name="Item3NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <!-- AI rows -->
+          <TextBlock Grid.Row="11" Grid.Column="0" Text="Primary AI:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI1Primary_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="AI1PrimaryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI1Desc_Label" Grid.Row="11" Grid.Column="2" Name="AI1DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_Item4_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="Item4Box" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_Item4Name_Label" Grid.Row="12" Grid.Column="2" Name="Item4NameLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Secondary AI:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI2Secondary_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="AI2SecondaryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI2Desc_Label" Grid.Row="12" Grid.Column="2" Name="AI2DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="13" Grid.Column="0" Text="AI1 Primary:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI1Primary_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="AI1PrimaryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI1Desc_Label" Grid.Row="13" Grid.Column="2" Name="AI1DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <TextBlock Grid.Row="13" Grid.Column="0" Text="Target/Recovery AI:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI3TargetRecovery_Input" FormatString="0" Grid.Row="13" Grid.Column="1" Name="AI3TargetRecoveryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI3Desc_Label" Grid.Row="13" Grid.Column="2" Name="AI3DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="14" Grid.Column="0" Text="AI2 Secondary:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI2Secondary_Input" FormatString="0" Grid.Row="14" Grid.Column="1" Name="AI2SecondaryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI2Desc_Label" Grid.Row="14" Grid.Column="2" Name="AI2DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <TextBlock Grid.Row="14" Grid.Column="0" Text="Retreat AI:" VerticalAlignment="Center" Margin="0,2" />
+          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI4Retreat_Input" FormatString="0" Grid.Row="14" Grid.Column="1" Name="AI4RetreatBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI4Desc_Label" Grid.Row="14" Grid.Column="2" Name="AI4DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
 
-          <TextBlock Grid.Row="15" Grid.Column="0" Text="AI3 Target/Recovery:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI3TargetRecovery_Input" FormatString="0" Grid.Row="15" Grid.Column="1" Name="AI3TargetRecoveryBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI3Desc_Label" Grid.Row="15" Grid.Column="2" Name="AI3DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
-
-          <TextBlock Grid.Row="16" Grid.Column="0" Text="AI4 Retreat:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="EventUnitFE7_AI4Retreat_Input" FormatString="0" Grid.Row="16" Grid.Column="1" Name="AI4RetreatBox" Minimum="0" Maximum="255" Width="120" HorizontalAlignment="Left" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitFE7_AI4Desc_Label" Grid.Row="16" Grid.Column="2" Name="AI4DescLabel" VerticalAlignment="Center" Margin="8,2,0,2" Foreground="Gray" />
+          <!-- Comment row -->
+          <TextBlock Grid.Row="15" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="EventUnitFE7_Comment_Input" Grid.Row="15" Grid.Column="1" Grid.ColumnSpan="2" Name="CommentBox" Margin="0,2" />
         </Grid>
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-          <Button AutomationProperties.AutomationId="EventUnitFE7_WriteBtn_Button" Content="Write" Name="WriteBtn" Click="Write_Click" />
-        </StackPanel>
+        <!-- Address bar (mirrors WF AddressPanel: Size / Selected Address / Write) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Size:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="EventUnitFE7_BlockSize_Input" Name="BlockSizeBox" Width="80" IsReadOnly="True" Text="0x10" />
+            <TextBlock Text="Selected Address:" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <TextBox AutomationProperties.AutomationId="EventUnitFE7_SelectedAddr_Input" Name="SelectedAddrBox" Width="160" IsReadOnly="True" />
+            <Button AutomationProperties.AutomationId="EventUnitFE7_WriteBtn_Button" Content="Write" Name="WriteBtn" Click="Write_Click" Margin="12,0,0,0" />
+          </StackPanel>
+        </Border>
+
+        <!-- Jump panel (mirrors WF panel10) + Item Drop display -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="EventUnitFE7_JumpBattleTalk_Button" Content="Battle Talk Jump" Name="JumpBattleTalkBtn" Click="JumpBattleTalk_Click" />
+              <Button AutomationProperties.AutomationId="EventUnitFE7_JumpBattleBGM_Button" Content="Battle BGM Jump" Name="JumpBattleBGMBtn" Click="JumpBattleBGM_Click" />
+              <Button AutomationProperties.AutomationId="EventUnitFE7_JumpHaiku_Button" Content="Death Quote Jump" Name="JumpHaikuBtn" Click="JumpHaiku_Click" />
+            </StackPanel>
+            <TextBlock AutomationProperties.AutomationId="EventUnitFE7_ItemDrop_Label" Name="ItemDropLabel" Foreground="Gray" />
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
   </Grid>

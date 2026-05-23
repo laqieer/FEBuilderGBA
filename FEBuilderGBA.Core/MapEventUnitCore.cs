@@ -198,7 +198,9 @@ namespace FEBuilderGBA
                 if (slotAddr + 4 > romLen) break;
 
                 uint unitListAddr = rom.p32(slotAddr);
-                if (!U.isSafetyOffset(unitListAddr)) continue;
+                // ROM-pinned safety check (Copilot review #522 round 4)
+                // — match the bounds against the rom actually being walked.
+                if (!U.isSafetyOffset(unitListAddr, rom)) continue;
                 if (unitListAddr == 0) continue;
 
                 // Verify at least the first byte looks like a unit ID
@@ -211,6 +213,61 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolve the event-condition pointer slot for a map's unit-list base.
+        /// Mirrors the WF EventUnitForm pattern where the GUI needs the slot
+        /// holding the pointer to the unit list (to allow repointing on
+        /// table expansion via <see cref="ExpandUnitList"/>).
+        ///
+        /// Returns the ROM offset of the 4-byte slot whose stored pointer
+        /// matches <paramref name="unitListBase"/>, or 0 if not found.
+        /// </summary>
+        public static uint FindEventPointerSlotForUnitList(ROM rom, uint mapId, uint unitListBase)
+        {
+            if (rom?.RomInfo == null) return 0;
+            uint eventAddr = GetEventAddrForMap(rom, mapId);
+            if (eventAddr == U.NOT_FOUND) return 0;
+
+            var slots = GetCondSlots(rom);
+            uint romLen = (uint)rom.Data.Length;
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (!IsUnitPlacementType(slots[i].Type)) continue;
+                uint slotAddr = (uint)(eventAddr + i * 4);
+                if (slotAddr + 4 > romLen) break;
+                uint p = rom.p32(slotAddr);
+                if (p == unitListBase) return slotAddr;
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Count populated unit-block rows in the list at <paramref name="baseAddr"/>.
+        /// Mirrors WF EventUnitForm.AddressList enumeration: counts rows up to
+        /// the first UnitID == 0x00 (terminator).
+        /// </summary>
+        public static uint CountEventUnitRows(ROM rom, uint baseAddr)
+        {
+            if (rom?.RomInfo == null) return 0;
+            // Use the rom-pinned safety overload so the bounds check matches
+            // the ROM actually being walked (avoids issues when CoreState.ROM
+            // differs from the supplied rom in headless / multi-ROM tooling).
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.eventunit_data_size;
+            if (dataSize == 0) return 0;
+            uint romLen = (uint)rom.Data.Length;
+            uint count = 0;
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)i * dataSize;
+                if (addr + dataSize > romLen) break;
+                if (rom.u8(addr) == 0) break;
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>
         /// Enumerate unit entries from a base address.
         /// Units are stored in fixed-size blocks terminated by UnitID == 0x00.
         /// </summary>
@@ -218,7 +275,8 @@ namespace FEBuilderGBA
         {
             var result = new List<AddrResult>();
             if (rom?.RomInfo == null) return result;
-            if (!U.isSafetyOffset(baseAddr)) return result;
+            // ROM-pinned safety check (Copilot review #522 round 4).
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             uint dataSize = rom.RomInfo.eventunit_data_size;
             uint romLen = (uint)rom.Data.Length;
@@ -341,6 +399,343 @@ namespace FEBuilderGBA
                 case 0x20: return "0x20 Don't move, no move range display (Boss/NullifyMov)";
                 default: return $"0x{ai:X02} Unknown";
             }
+        }
+
+        // ---------------------------------------------------------------
+        // Event-unit list expansion (#431 — EventUnitFE7 gap-sweep)
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Hard cap on the event-unit list size — mirrors the WF
+        /// AddressListExpandsButton suffix on EventUnitFE7Form.Designer.cs
+        /// (suffix is the inclusive max).
+        /// </summary>
+        public const uint EventUnitMaxListCount = 255;
+
+        /// <summary>
+        /// Expand an event-unit pointer table to <paramref name="newCount"/>
+        /// entries. Mirrors the WF EventUnitForm.AddressListExpandsEvent
+        /// behavior in headless / cross-platform form:
+        /// <list type="number">
+        ///   <item>Validate inputs (cap at <see cref="EventUnitMaxListCount"/>,
+        ///     refuse shrinks, refuse zero pointer slot or zero oldCount).</item>
+        ///   <item>Find a contiguous free region big enough for
+        ///     <c>newCount * eventunit_data_size</c> bytes via
+        ///     <see cref="ROM.FindFreeSpace"/>.</item>
+        ///   <item>Copy the <paramref name="oldCount"/> existing rows to
+        ///     the new region byte-for-byte.</item>
+        ///   <item>Initialize each new row with <c>B0=0x01, B1=0x01</c>
+        ///     (matches EventUnitFE7Form.cs:485-490 starter bytes).</item>
+        ///   <item>Repoint the <paramref name="eventPointerSlot"/> to the
+        ///     new region via <see cref="ROM.write_p32(uint,uint)"/>.</item>
+        /// </list>
+        ///
+        /// Undo tracking is recorded through the ROM's ambient undo scope —
+        /// the caller MUST open the scope (Undo.UndoData passed to
+        /// <see cref="ROM.BeginUndoScope"/>) before calling this overload.
+        /// </summary>
+        /// <param name="rom">Target ROM. Must be non-null with valid
+        ///   <c>RomInfo.eventunit_data_size</c>.</param>
+        /// <param name="eventPointerSlot">The 4-byte slot containing the
+        ///   GBA-format pointer to the current table. Will be repointed
+        ///   to the new region on success.</param>
+        /// <param name="oldBase">The current ROM-offset of the table.
+        ///   Trusted (not re-derived from <paramref name="eventPointerSlot"/>)
+        ///   so callers can pass synthesised values in tests.</param>
+        /// <param name="oldCount">Currently-loaded number of rows.</param>
+        /// <param name="newCount">Desired number of rows after expansion.</param>
+        /// <returns>New base ROM offset, or <see cref="U.NOT_FOUND"/> on
+        ///   any failure (no partial writes).</returns>
+        public static uint ExpandUnitList(
+            ROM rom,
+            uint eventPointerSlot,
+            uint oldBase,
+            uint oldCount,
+            uint newCount)
+        {
+            if (rom == null || rom.RomInfo == null)
+                return U.NOT_FOUND;
+            if (eventPointerSlot == 0)
+                return U.NOT_FOUND;
+            if (oldCount == 0)
+                return U.NOT_FOUND;
+            if (newCount <= oldCount)
+                return U.NOT_FOUND; // refuse shrinks and no-ops
+            if (newCount > EventUnitMaxListCount)
+                return U.NOT_FOUND;
+
+            uint blockSize = rom.RomInfo.eventunit_data_size;
+            if (blockSize == 0)
+                return U.NOT_FOUND;
+
+            // ROM-pinned safety checks so the bounds match the rom being
+            // mutated (CoreState.ROM may differ in tests / multi-ROM tooling).
+            if (!U.isSafetyOffset(oldBase, rom))
+                return U.NOT_FOUND;
+            if (!U.isSafetyOffset(eventPointerSlot, rom))
+                return U.NOT_FOUND;
+            if (eventPointerSlot + 4 > (uint)rom.Data.Length)
+                return U.NOT_FOUND;
+            if (oldBase + oldCount * blockSize > (uint)rom.Data.Length)
+                return U.NOT_FOUND;
+
+            // Find a contiguous free region. Start past the high-half so
+            // we don't overlap the existing table (BattleAnimeImportCore
+            // pattern — also used by ImageBattleBGCore.ExpandList).
+            // Reserve room for the terminator row at the end:
+            // `(newCount + 1) * blockSize` mirrors the WF allocation in
+            // MoveToFreeSapceForm.cs which writes `term_onedata` (a zero
+            // row) after the expanded rows. Without the explicit terminator,
+            // a 0xFF-filled free region would let EnumerateUnits / WF
+            // AddressList read past the table into garbage.
+            uint searchStart = (uint)(rom.Data.Length / 2);
+            uint terminatorRows = 1;
+            uint needSize = (newCount + terminatorRows) * blockSize;
+            uint newBase = rom.FindFreeSpace(searchStart, needSize);
+            if (newBase == U.NOT_FOUND)
+            {
+                newBase = rom.FindFreeSpace(0x100, needSize);
+            }
+            if (newBase == U.NOT_FOUND)
+                return U.NOT_FOUND;
+
+            // 1. Copy old rows. Undo captured by ambient scope.
+            byte[] oldRows = rom.getBinaryData(oldBase, oldCount * blockSize);
+            rom.write_range(newBase, oldRows);
+
+            // 2. Initialize new rows with B0=0x01, B1=0x01 (WF
+            // EventUnitFE7Form.cs:485-490). Remaining bytes already zero
+            // because FindFreeSpace returns regions filled with 0x00 or 0xFF;
+            // for 0xFF fill we need to explicitly zero the rest of each row.
+            // Allocate the zero buffer ONCE (Copilot review #522 third pass —
+            // cast the uint blockSize to int via checked() so the intent is
+            // explicit, and reuse the buffer across iterations).
+            int blockSizeInt = checked((int)blockSize);
+            byte[] zeroBuffer = new byte[blockSizeInt];
+            for (uint i = oldCount; i < newCount; i++)
+            {
+                uint rowAddr = newBase + i * blockSize;
+                // Write the full block as zeros first (handles 0xFF fill),
+                // then plant the starter bytes.
+                rom.write_range(rowAddr, zeroBuffer);
+                rom.write_u8(rowAddr + 0, 0x01);
+                rom.write_u8(rowAddr + 1, 0x01);
+            }
+
+            // 3. Write the zero terminator row after the expanded entries.
+            // EnumerateUnits / CountEventUnitRows stop on UnitID == 0; the
+            // explicit zero row makes the table well-terminated regardless
+            // of whether FindFreeSpace returned a 0x00- or 0xFF-filled region.
+            uint termAddr = newBase + newCount * blockSize;
+            rom.write_range(termAddr, zeroBuffer);
+
+            // 4. Repoint the event-unit pointer slot.
+            rom.write_p32(eventPointerSlot, newBase);
+
+            return newBase;
+        }
+
+        // ---------------------------------------------------------------
+        // FE7 jump-target search helpers (#431 — EventUnitFE7 jumps)
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Mirrors <c>EventBattleTalkFE7Form.JumpTo(unitId)</c>: search
+        /// table 1 (event_ballte_talk_pointer, 16-byte blocks, terminator
+        /// u16@0 == 0 || 0xFFFF) for the first row whose B0 OR B1 equals
+        /// <paramref name="unitId"/>; on miss, search table 2
+        /// (event_ballte_talk2_pointer, 12-byte blocks, terminator u8@0
+        /// == 0 || 0xFF) with the same B0/B1 match rule.
+        ///
+        /// Returns the byte address of the first hit row, or 0 on no match.
+        /// </summary>
+        public static uint FindBattleTalkFE7UnitIdAddress(ROM rom, uint unitId)
+        {
+            if (rom == null || rom.RomInfo == null)
+                return 0;
+
+            // Table 1: 16-byte blocks
+            uint hit = SearchUnitIdTable(rom,
+                pointerSlot: rom.RomInfo.event_ballte_talk_pointer,
+                blockSize: 16,
+                unitId: unitId,
+                checkSecondColumn: true,
+                table1: true);
+            if (hit != 0) return hit;
+
+            // Table 2: 12-byte blocks
+            hit = SearchUnitIdTable(rom,
+                pointerSlot: rom.RomInfo.event_ballte_talk2_pointer,
+                blockSize: 12,
+                unitId: unitId,
+                checkSecondColumn: true,
+                table1: false);
+            return hit;
+        }
+
+        /// <summary>
+        /// Mirrors <c>SoundBossBGMForm.JumpTo(unitId)</c>: search
+        /// sound_boss_bgm_pointer (8-byte blocks, terminator u16@0 ==
+        /// 0xFFFF) for the first row whose B0 equals <paramref name="unitId"/>.
+        ///
+        /// Returns the byte address of the first hit row, or 0 on no match.
+        /// </summary>
+        public static uint FindBossBGMFE7UnitIdAddress(ROM rom, uint unitId)
+        {
+            if (rom == null || rom.RomInfo == null)
+                return 0;
+
+            uint pointerSlot = rom.RomInfo.sound_boss_bgm_pointer;
+            if (pointerSlot == 0) return 0;
+
+            uint baseAddr = rom.p32(pointerSlot);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            uint romLen = (uint)rom.Data.Length;
+            const uint blockSize = 8;
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > romLen) break;
+                uint u16 = rom.u16(addr);
+                if (u16 == 0xFFFF) break;
+                uint u = rom.u8(addr);
+                if (u == unitId) return addr;
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Mirrors <c>EventHaikuFE7Form.JumpTo(unitId, mapId)</c>:
+        /// search the main haiku table (event_haiku_pointer, 16-byte
+        /// blocks, terminator u8@0 == 0) for a row matching unitId.
+        /// Match priority:
+        /// <list type="number">
+        ///   <item>Full match: unit == unitId AND (map == mapId OR map == 0x45 wildcard).</item>
+        ///   <item>Unit-only fallback: unit == unitId, first occurrence wins.</item>
+        /// </list>
+        /// On main-table miss, search the two tutorial tables in sequence
+        /// (event_haiku_tutorial_1_pointer + event_haiku_tutorial_2_pointer,
+        /// 12-byte blocks, terminator u8@0 == 0) with the same priority.
+        ///
+        /// Returns the byte address of the first hit row, or 0 on no match.
+        /// </summary>
+        public static uint FindHaikuFE7Address(ROM rom, uint unitId, uint mapId)
+        {
+            if (rom == null || rom.RomInfo == null)
+                return 0;
+
+            // Main table: 16-byte blocks with map/wildcard match rules.
+            uint hit = SearchHaikuTable(rom,
+                pointerSlot: rom.RomInfo.event_haiku_pointer,
+                blockSize: 16,
+                unitId: unitId,
+                mapId: mapId);
+            if (hit != 0) return hit;
+
+            // Tutorial tables (FE7-only): 12-byte blocks.
+            uint p1 = rom.RomInfo.event_haiku_tutorial_1_pointer;
+            uint p2 = rom.RomInfo.event_haiku_tutorial_2_pointer;
+            foreach (uint ptr in new[] { p1, p2 })
+            {
+                if (ptr == 0) continue;
+                hit = SearchHaikuTable(rom,
+                    pointerSlot: ptr,
+                    blockSize: 12,
+                    unitId: unitId,
+                    mapId: mapId);
+                if (hit != 0) return hit;
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Generic unit-id table search used by BattleTalk Table1/Table2.
+        /// </summary>
+        static uint SearchUnitIdTable(
+            ROM rom,
+            uint pointerSlot,
+            uint blockSize,
+            uint unitId,
+            bool checkSecondColumn,
+            bool table1)
+        {
+            if (pointerSlot == 0) return 0;
+            uint baseAddr = rom.p32(pointerSlot);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            uint romLen = (uint)rom.Data.Length;
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > romLen) break;
+
+                // Terminator: Table1 uses u16==0||0xFFFF; Table2 uses
+                // u8@0==0||0xFF (per EventBattleTalkFE7Form.Init).
+                if (table1)
+                {
+                    uint u16 = rom.u16(addr);
+                    if (u16 == 0 || u16 == 0xFFFF) break;
+                }
+                else
+                {
+                    uint u = rom.u8(addr);
+                    if (u == 0 || u == 0xFF) break;
+                }
+
+                uint u0 = rom.u8(addr);
+                if (u0 == unitId) return addr;
+                if (checkSecondColumn)
+                {
+                    uint u1 = rom.u8(addr + 1);
+                    if (u1 == unitId) return addr;
+                }
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Generic haiku-style table search with map/wildcard logic.
+        /// Used by both the main haiku table and the tutorial tables.
+        /// Implements the WF JumpToTable1/Table2 priority: full match
+        /// (exact map or wildcard 0x45) wins; unit-only is fallback.
+        /// </summary>
+        static uint SearchHaikuTable(
+            ROM rom,
+            uint pointerSlot,
+            uint blockSize,
+            uint unitId,
+            uint mapId)
+        {
+            if (pointerSlot == 0) return 0;
+            uint baseAddr = rom.p32(pointerSlot);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            uint romLen = (uint)rom.Data.Length;
+            uint unitOnlyFallback = 0;
+
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > romLen) break;
+
+                uint u0 = rom.u8(addr);
+                if (u0 == 0) break; // terminator
+
+                if (u0 == unitId)
+                {
+                    uint m = rom.u8(addr + 1);
+                    if (m == 0x45 || m == mapId)
+                    {
+                        return addr; // full match
+                    }
+                    if (unitOnlyFallback == 0)
+                    {
+                        unitOnlyFallback = addr;
+                    }
+                }
+            }
+            return unitOnlyFallback;
         }
     }
 }
