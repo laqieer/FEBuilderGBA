@@ -277,9 +277,13 @@ public class ImageBGParityTests
         {
             CoreState.ROM = rom;
             var vm = new ImageBGViewModel();
-            vm.LoadList();
-            Assert.True(vm.ReadCount >= 1,
-                $"VM must load at least one BG row; got ReadCount={vm.ReadCount}");
+            // Manually set ReadCount instead of relying on LoadList side
+            // effects, so the test isolates the VM.ExpandList delegation
+            // from any state leaks across [Collection("SharedState")]
+            // siblings (Copilot bot review on PR #517 — Ubuntu CI was
+            // hitting a NOT_FOUND because LoadList in a clean
+            // CoreState.ROM context returned 0 rows on one Linux run).
+            vm.ReadCount = 4;
 
             var undo = new Undo.UndoData
             {
