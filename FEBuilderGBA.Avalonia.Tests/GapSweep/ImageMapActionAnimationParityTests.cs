@@ -263,10 +263,10 @@ public class ImageMapActionAnimationParityTests
         }
         finally
         {
-            // Restore prior BaseDirectory so we don't leak our overwrite
-            // into parallel tests.
-            if (prevBaseDir != null)
-                CoreState.BaseDirectory = prevBaseDir;
+            // Restore prior BaseDirectory UNCONDITIONALLY (including
+            // null) — leaking our overwrite into subsequent tests
+            // breaks isolation (Copilot CLI inline review on PR #506).
+            CoreState.BaseDirectory = prevBaseDir;
 
             // Reset the static cache so any subsequent test that uses
             // LoadDefaultName picks up the restored BaseDirectory.
@@ -388,12 +388,17 @@ public class ImageMapActionAnimationParityTests
     [Fact]
     public void View_WriteHandler_WrapsInUndoScope()
     {
+        // Assert the Begin/Commit/Rollback CALL PATTERN without pinning
+        // the exact undo-scope label string. The previous version asserted
+        // `_undoService.Begin("Edit Map Action Animation")` which would
+        // fail on harmless refactors that just change the label text —
+        // Copilot CLI inline review on PR #506.
         string repoRoot = FindRepoRoot();
         string sourcePath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "ImageMapActionAnimationView.axaml.cs");
         string source = File.ReadAllText(sourcePath);
 
-        Assert.Contains("_undoService.Begin(\"Edit Map Action Animation\")", source);
+        Assert.Contains("_undoService.Begin(", source);
         Assert.Contains("_undoService.Commit()", source);
         Assert.Contains("_undoService.Rollback()", source);
     }
