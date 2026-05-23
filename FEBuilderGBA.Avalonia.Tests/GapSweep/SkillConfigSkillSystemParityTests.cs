@@ -211,7 +211,23 @@ public class SkillConfigSkillSystemParityTests
                 $"LoadList must populate multiple rows - got {items.Count}");
             Assert.True(vm.ReadStartAddress > 0, "LoadList must populate ReadStartAddress");
         }
-        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            // Race-condition guard for parallel tests: only null out the
+            // encoder if RomFixture (or a previous test) explicitly installed
+            // one. If prevEnc was null (i.e. our test was the first to wire
+            // an encoder for the cross-platform CI run that has no ROM
+            // fixture), keep the HeadlessSystemTextEncoder we installed -
+            // some non-SharedState parallel tests (e.g.
+            // ControlPropertyTests.TextCharCodeView_*) call
+            // `TextCharCodeViewModel.LoadList -> BuildEntryLabel ->
+            // rom.getString -> CoreState.SystemTextEncoder.Decode`. If we
+            // restore to null mid-flight, those tests NRE. The
+            // HeadlessSystemTextEncoder we installed is stateless and safe
+            // to leave in place. (Copilot bot review on PR #525.)
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
     }
 
     [Fact]
@@ -240,7 +256,23 @@ public class SkillConfigSkillSystemParityTests
             Assert.True(vm.IsAnimationValid,
                 "Row 1 in synthetic ROM has a valid animation pointer");
         }
-        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            // Race-condition guard for parallel tests: only null out the
+            // encoder if RomFixture (or a previous test) explicitly installed
+            // one. If prevEnc was null (i.e. our test was the first to wire
+            // an encoder for the cross-platform CI run that has no ROM
+            // fixture), keep the HeadlessSystemTextEncoder we installed -
+            // some non-SharedState parallel tests (e.g.
+            // ControlPropertyTests.TextCharCodeView_*) call
+            // `TextCharCodeViewModel.LoadList -> BuildEntryLabel ->
+            // rom.getString -> CoreState.SystemTextEncoder.Decode`. If we
+            // restore to null mid-flight, those tests NRE. The
+            // HeadlessSystemTextEncoder we installed is stateless and safe
+            // to leave in place. (Copilot bot review on PR #525.)
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
     }
 
     [Fact]
@@ -264,7 +296,23 @@ public class SkillConfigSkillSystemParityTests
             Assert.False(vm.IsAnimationValid,
                 "Row 2 with null animation pointer must report IsAnimationValid = false");
         }
-        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            // Race-condition guard for parallel tests: only null out the
+            // encoder if RomFixture (or a previous test) explicitly installed
+            // one. If prevEnc was null (i.e. our test was the first to wire
+            // an encoder for the cross-platform CI run that has no ROM
+            // fixture), keep the HeadlessSystemTextEncoder we installed -
+            // some non-SharedState parallel tests (e.g.
+            // ControlPropertyTests.TextCharCodeView_*) call
+            // `TextCharCodeViewModel.LoadList -> BuildEntryLabel ->
+            // rom.getString -> CoreState.SystemTextEncoder.Decode`. If we
+            // restore to null mid-flight, those tests NRE. The
+            // HeadlessSystemTextEncoder we installed is stateless and safe
+            // to leave in place. (Copilot bot review on PR #525.)
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
     }
 
     /// <summary>
@@ -315,7 +363,23 @@ public class SkillConfigSkillSystemParityTests
             Assert.Equal(newAnimOffset | 0x08000000u, rawReadBack);
             Assert.Equal(newAnimOffset, offsetReadBack);
         }
-        finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            // Race-condition guard for parallel tests: only null out the
+            // encoder if RomFixture (or a previous test) explicitly installed
+            // one. If prevEnc was null (i.e. our test was the first to wire
+            // an encoder for the cross-platform CI run that has no ROM
+            // fixture), keep the HeadlessSystemTextEncoder we installed -
+            // some non-SharedState parallel tests (e.g.
+            // ControlPropertyTests.TextCharCodeView_*) call
+            // `TextCharCodeViewModel.LoadList -> BuildEntryLabel ->
+            // rom.getString -> CoreState.SystemTextEncoder.Decode`. If we
+            // restore to null mid-flight, those tests NRE. The
+            // HeadlessSystemTextEncoder we installed is stateless and safe
+            // to leave in place. (Copilot bot review on PR #525.)
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
     }
 
     // -----------------------------------------------------------------
