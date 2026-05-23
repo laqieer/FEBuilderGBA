@@ -92,6 +92,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public MagicSystemKind MagicKind => _magicKind;
 
+        /// <summary>Computed spell data count (mirrors WF SpellDataCount).</summary>
+        public uint SpellDataCount => _spellDataCount;
+
         // ---- list / entry loading ----
 
         /// <summary>

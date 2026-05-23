@@ -17,7 +17,7 @@
         <Label Content="Read Count" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_ReadCount_Input"
                        FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="1024"
+                       Minimum="0" Maximum="256"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Button AutomationProperties.AutomationId="ImageMagicCSACreator_ReloadList_Button"
                 Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />

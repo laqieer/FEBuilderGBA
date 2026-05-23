@@ -45,6 +45,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
 
+                // Populate the top read-config bar so the UI reflects the
+                // actual scan state (Copilot bot inline review #1 round 2:
+                // start address = pointer-table base, count = spell-data cap).
+                // The values come from the ViewModel after LoadList resolves
+                // the magic system. If no system is detected, both stay 0.
+                var rom = CoreState.ROM;
+                uint readStart = 0;
+                if (rom?.RomInfo != null && _vm.MagicKind == MagicSystemKind.CsaCreator)
+                {
+                    readStart = rom.p32(rom.RomInfo.magic_effect_pointer);
+                }
+                ReadStartAddressBox.Value = readStart;
+                ReadCountBox.Value = _vm.SpellDataCount;
+
                 if (items.Count == 0)
                 {
                     ClearDetailPanel();
@@ -168,6 +182,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("ImageMagicCSACreatorView.Write failed: {0}", ex.Message);
+                // Surface the error to the user so it's actionable instead
+                // of silently logged (Copilot bot inline review #2 round 2).
+                CoreState.Services?.ShowError($"Write failed: {ex.Message}");
             }
         }
 
