@@ -20780,3 +20780,36 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :Header TSA
 带标头的TSA
+
+:Show Example (Frame 4)
+显示示例 (帧4)
+
+:Jump to Palette
+跳转到调色板
+
+:Jump to Importer
+跳转到导入器
+
+:Jump to Status Height
+跳转到状态画面身高调整
+
+:MugExceed Tile1 X:
+mug_exceed 图块1 X:
+
+:MugExceed Tile1 Y:
+mug_exceed 图块1 Y:
+
+:MugExceed Tile2 X:
+mug_exceed 图块2 X:
+
+:MugExceed Tile2 Y:
+mug_exceed 图块2 Y:
+
+:Set mug_exceed tile positions:
+请设置 mug_exceed 的图块放置位置:
+
+:Tile 1
+图块1
+
+:Tile 2
+图块2

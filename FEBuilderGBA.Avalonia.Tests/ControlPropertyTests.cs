@@ -426,13 +426,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             AssertNamedControlExists<GbaImageControl>(view, "MiniPortraitImage", "ImagePortraitView");
             AssertNamedControlExists<GbaImageControl>(view, "ClassCardImage", "ImagePortraitView");
 
-            // Write button (text is "Write Positions" in ImagePortraitView)
+            // Write button (text changed from "Write Positions" to "Write" in
+            // ImagePortraitView per #424 — full 28-byte struct write replaces
+            // the partial 4-byte mouth/eye write button).
             if (view is ILogical logical)
             {
-                var writeButton = FindButtonWithContent(logical, "Write Positions");
+                var writeButton = FindButtonWithContent(logical, "Write");
                 Assert.True(writeButton != null,
-                    "ImagePortraitView: Expected a 'Write Positions' button");
-                _output.WriteLine("  Write Positions button: found (OK)");
+                    "ImagePortraitView: Expected a 'Write' button");
+                _output.WriteLine("  Write button: found (OK)");
             }
         }
 

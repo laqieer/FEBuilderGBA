@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T04:07:07Z"
-git-sha: 9736681df
+generated: "2026-05-23T05:36:14Z"
+git-sha: a35299ba6
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 37 |
-| MissingAvManifest (backlog) | 351 |
+| Match | 43 |
+| MissingAvManifest (backlog) | 345 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 6 |
 
@@ -231,9 +231,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `EventCondForm` | `EventCondView` | `—` | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` |
 | `EventUnitFE6Form` | `EventUnitFE6View` | `—` | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` |
 | `EventUnitFE6Form` | `EventUnitFE6View` | `—` | `EventHaikuFE6Form` | `EventHaikuFE6View` |
-| `EventUnitFE7Form` | `EventUnitFE7View` | `—` | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` |
-| `EventUnitFE7Form` | `EventUnitFE7View` | `—` | `EventHaikuFE7Form` | `EventHaikuFE7View` |
-| `EventUnitFE7Form` | `EventUnitFE7View` | `—` | `SoundBossBGMForm` | `SoundBossBGMViewerView` |
 | `EventUnitForm` | `EventUnitView` | `—` | `EventBattleTalkForm` | `EventBattleTalkView` |
 | `EventUnitForm` | `EventUnitView` | `—` | `EventHaikuForm` | `EventHaikuView` |
 | `EventUnitForm` | `EventUnitView` | `—` | `EventUnitItemDropForm` | `EventUnitItemDropView` |
@@ -262,9 +259,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePalletForm` | `ImagePalletView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `—` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
@@ -458,11 +452,17 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToHexEditor` | `HexEditorForm` | `HexEditorView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToPointerTool` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `EventUnitFE7Form` | `EventUnitFE7View` | `JumpToBattleTalk` | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` |
+| `EventUnitFE7Form` | `EventUnitFE7View` | `JumpToHaiku` | `EventHaikuFE7Form` | `EventHaikuFE7View` |
+| `EventUnitFE7Form` | `EventUnitFE7View` | `JumpToBattleBGM` | `SoundBossBGMForm` | `SoundBossBGMViewerView` |
 | `ImageBGForm` | `ImageBGView` | `JumpToDecreaseColor` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageBGForm` | `ImageBGView` | `JumpToGraphicsTool` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageBGForm` | `ImageBGView` | `JumpToBGSelectPopup` | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` |
 | `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToDecreaseColor` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToGraphicsTool` | `GraphicsToolForm` | `GraphicsToolView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `JumpToPalette` | `ImagePalletForm` | `ImagePalletView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `JumpToImporter` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `JumpToStatusHeight` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |

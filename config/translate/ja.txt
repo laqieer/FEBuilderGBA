@@ -6794,3 +6794,36 @@ Core 抽出待ち - #500 で追跡中。
 
 :Header TSA
 ヘッダ付きTSA
+
+:Show Example (Frame 4)
+表示例 (フレーム4)
+
+:Jump to Palette
+パレットへJump
+
+:Jump to Importer
+インポーターへJump
+
+:Jump to Status Height
+ステータス画面の背丈調整へJump
+
+:MugExceed Tile1 X:
+mug_exceed タイル1 X:
+
+:MugExceed Tile1 Y:
+mug_exceed タイル1 Y:
+
+:MugExceed Tile2 X:
+mug_exceed タイル2 X:
+
+:MugExceed Tile2 Y:
+mug_exceed タイル2 Y:
+
+:Set mug_exceed tile positions:
+mug_exceed用のタイルをどこに配置するか設定してください:
+
+:Tile 1
+タイル1
+
+:Tile 2
+タイル2

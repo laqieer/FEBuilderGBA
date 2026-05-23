@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T04:07:05Z"
-git-sha: 9736681df
+generated: "2026-05-23T05:36:11Z"
+git-sha: a35299ba6
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4630 |
-| Total AV-only labels | 2771 |
-| Total common labels | 70 |
+| Total WF-only labels | 4625 |
+| Total AV-only labels | 2800 |
+| Total common labels | 75 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -2313,75 +2313,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Item Skill Pointer:`
 - `Write`
 
-### EventUnitFE7Form
-WF labels: **36** · AV labels: **24** · WF-only: **36** · AV-only: **24** · Common: **0** · Density verdict: **Low** (WF 66 / AV 54)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1次AI`
-- `2次AI`
-- `LV:`
-- `Size:`
-- `X:`
-- `Y:`
-- `アイテムドロップ`
-- `アドレス`
-- `イベント名前`
-- `クラス`
-- `コメント`
-- `マップ名前`
-- `ユニット情報`
-- `ユニット番号`
-- `リストの拡張`
-- `交戦時BGMへJump`
-- `交戦時セリフへJump`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `成長率:`
-- `所属:`
-- `所持品1`
-- `所持品2`
-- `所持品3`
-- `所持品4`
-- `指揮官`
-- `新規領域の確保`
-- `書き込み`
-- `標的と回復AI`
-- `死亡時セリフへJump`
-- `読込数`
-- `退避AI`
-- `選択アドレス:`
-- `配置前座標`
-- `配置後座標`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `0x Address`
-- `Address:`
-- `AI1 Primary:`
-- `AI2 Secondary:`
-- `AI3 Target/Recovery:`
-- `AI4 Retreat:`
-- `Class ID:`
-- `End X:`
-- `End Y:`
-- `Event Unit (FE7)`
-- `Item 1:`
-- `Item 2:`
-- `Item 3:`
-- `Item 4:`
-- `Leader Unit ID:`
-- `Load`
-- `Maps`
-- `Start X:`
-- `Start Y:`
-- `Unit Groups`
-- `Unit ID:`
-- `Unit Info:`
-- `Units`
-- `Write`
-
 ### ImageBattleAnimeForm
 WF labels: **35** · AV labels: **29** · WF-only: **35** · AV-only: **29** · Common: **0** · Density verdict: **Medium** (WF 79 / AV 47)
 
@@ -2824,6 +2755,82 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Class OP Demo`
 
+### EventUnitFE7Form
+WF labels: **36** · AV labels: **39** · WF-only: **32** · AV-only: **35** · Common: **4** · Density verdict: **Low** (WF 66 / AV 80)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `1次AI`
+- `2次AI`
+- `アイテムドロップ`
+- `アドレス`
+- `イベント名前`
+- `クラス`
+- `コメント`
+- `マップ名前`
+- `ユニット情報`
+- `ユニット番号`
+- `リストの拡張`
+- `交戦時BGMへJump`
+- `交戦時セリフへJump`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `成長率:`
+- `所属:`
+- `所持品1`
+- `所持品2`
+- `所持品3`
+- `所持品4`
+- `指揮官`
+- `新規領域の確保`
+- `書き込み`
+- `標的と回復AI`
+- `死亡時セリフへJump`
+- `読込数`
+- `退避AI`
+- `選択アドレス:`
+- `配置前座標`
+- `配置後座標`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x Address`
+- `0x10`
+- `Address:`
+- `After Coordinates:`
+- `Allegiance:`
+- `Battle BGM Jump`
+- `Battle Talk Jump`
+- `Before Coordinates:`
+- `Class:`
+- `Commander:`
+- `Comment:`
+- `Death Quote Jump`
+- `Event Names`
+- `Event Unit (FE7)`
+- `Expand List`
+- `Growth Rate:`
+- `Item 1:`
+- `Item 2:`
+- `Item 3:`
+- `Item 4:`
+- `Load`
+- `Map Names`
+- `Names`
+- `New Allocation`
+- `Primary AI:`
+- `Read Count`
+- `Reload`
+- `Retreat AI:`
+- `Secondary AI:`
+- `Selected Address:`
+- `Target/Recovery AI:`
+- `Top Address`
+- `Unit Info:`
+- `Unit Number:`
+- `Write`
+
 ### ImagePortraitForm
 WF labels: **32** · AV labels: **22** · WF-only: **32** · AV-only: **22** · Common: **0** · Density verdict: **Medium** (WF 63 / AV 37)
 
@@ -2888,13 +2895,12 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ImagePortraitForm
-WF labels: **32** · AV labels: **28** · WF-only: **32** · AV-only: **28** · Common: **0** · Density verdict: **Medium** (WF 63 / AV 45)
+WF labels: **32** · AV labels: **47** · WF-only: **31** · AV-only: **46** · Common: **1** · Density verdict: **Low** (WF 63 / AV 74)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `00`
 - `mug_exceed用のタイルをどこに配置するか設定してください`
-- `Size:`
 - `X:`
 - `Y:`
 - `アドレス`
@@ -2929,6 +2935,7 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Class Card`
+- `Comment:`
 - `Export Face`
 - `Export Mini`
 - `Export PAL`
@@ -2939,22 +2946,39 @@ AV-only labels (usually fine — layout polish or rewording):
 - `FE-Repo`
 - `Import PAL`
 - `Import PNG`
+- `Jump to Importer`
+- `Jump to Palette`
+- `Jump to Status Height`
 - `Map Face:`
 - `Map Face (32x32)`
 - `Mouth Frames:`
 - `Mouth Frames (32x16 x6)`
 - `Mouth X:`
 - `Mouth Y:`
+- `MugExceed Tile1 X:`
+- `MugExceed Tile1 Y:`
+- `MugExceed Tile2 X:`
+- `MugExceed Tile2 Y:`
+- `Open Source File`
 - `Palette:`
 - `Portrait Image Editor`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Set mug_exceed tile positions:`
+- `Show Example (Frame 4)`
 - `Show Frame:`
+- `Start Address:`
 - `Status:`
+- `Tile 1`
+- `Tile 2`
 - `Unit Face:`
 - `Unit Face (96x80)`
 - `Unused (B25):`
 - `Unused (B26):`
 - `Unused (B27):`
-- `Write Positions`
+- `Write`
 
 ### SkillConfigFE8NVer2SkillForm
 WF labels: **31** · AV labels: **10** · WF-only: **31** · AV-only: **10** · Common: **0** · Density verdict: **High** (WF 136 / AV 17)
