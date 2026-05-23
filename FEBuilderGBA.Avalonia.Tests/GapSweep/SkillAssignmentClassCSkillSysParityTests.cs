@@ -47,7 +47,7 @@ public class SkillAssignmentClassCSkillSysParityTests
 
     [Fact] public void View_HasMasterClassList() {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassList\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_Class_List\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassList_NameFilter_Label\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassList_Expand_Button\"", axaml);
     }
@@ -57,8 +57,8 @@ public class SkillAssignmentClassCSkillSysParityTests
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassSkillLabel\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassSkill_Input\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillIcon_Image\"", axaml);
-        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillName_Text\"", axaml);
-        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillText_Text\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillName_Label\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillText_Label\"", axaml);
     }
 
     [Fact] public void View_HasAddressWriteBar() {
@@ -94,8 +94,8 @@ public class SkillAssignmentClassCSkillSysParityTests
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_B0_Input\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_B1_Input\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillIcon_Image\"", axaml);
-        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillName_Text\"", axaml);
-        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillText_Text\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillName_Label\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillText_Label\"", axaml);
     }
 
     [Fact] public void View_HasLevelBreakdownPanel() {

@@ -7288,16 +7288,29 @@ Hex アドレス
 
 :Japanese Name Start:
 日本語名 開始位置:
+
+:Skill Assignment (Class)
+スキル_クラス別割当
+
 :Class Skill
 クラススキル
 
-:Acquired Level
+:Acquisition Level
 習得レベル
 
 :Skill
 スキル
 
+:Level
+レベル
+
+:Acquired Level
+習得レベル
+
 :Acquired Level Breakdown
+習得レベルの内訳
+
+:Level Breakdown
 習得レベルの内訳
 
 :Level-up Skill Table Address
@@ -7318,6 +7331,9 @@ Hex アドレス
 :Normal&&Hard (LV+96)
 ノーマル&&ハード (LV+96)
 
+:Normal&Hard (LV+96)
+ノーマル&ハード (LV+96)
+
 :Hard only (LV+128)
 ハードのみ (LV+128)
 
@@ -7335,3 +7351,69 @@ Hex アドレス
 
 :Skill Assignment - Class (CSkillSys)
 スキル_クラス別割当 (CSkillSys)
+
+:Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
+レベルに255が設定されています。\r\n下級職からCCして、このクラスになった場合には、このスキルを得ることはできません。\r\nこのクラスでLOADされた場合にのみ、このスキルを持つことができます。
+
+:No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
+領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
+
+:This level-up table is referenced by multiple classes.
+このテーブルは、複数のクラスで参照されています。
+
+:Make Selected Class Independent
+選択クラスの分離独立
+
+:Click here for level/skill details (opens wiki)
+習得レベルとスキルの詳細は、ここをクリックしてください。
+
+:Level-up Skill Top Address
+レベルアップで取得するスキルの先頭アドレス
+
+:サンプル
+サンプル
+
+:インターネットから新しいリソースを探す
+インターネットから新しいリソースを探す
+
+:拡大して描画
+拡大して描画
+
+:拡大しないで描画
+拡大しないで描画
+
+:表示例
+表示例
+
+:dim_pc
+dim_pc
+
+:dim
+dim
+
+:NULL (EMPTY)
+NULL (EMPTY)
+
+:FrameData
+FrameData
+
+:OBJRightToLeft
+OBJRightToLeft
+
+:OBJLeftToRight
+OBJLeftToRight
+
+:OBJBGRightToLeft
+OBJBGRightToLeft
+
+:OBBGLeftToRight
+OBBGLeftToRight
+
+:魔法アニメの書出し
+魔法アニメの書出し
+
+:魔法アニメの読込
+魔法アニメの読込
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+FEditor / SCA_Creator 魔法システムパッチが検出されません。パッチマネージャーからパッチをインストールしてください。

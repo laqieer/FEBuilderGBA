@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -403,162 +403,47 @@ namespace FEBuilderGBA
 
         public static void ExportAllData(string filename)
         {
-            InputFormRef InputFormRef;
             if (PatchUtil.SearchSkillSystem() != PatchUtil.skill_system_enum.SkillSystem)
             {
                 return;
             }
+            uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
+            uint textP = SkillConfigSkillSystemForm.FindTextPointer();
+            uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
+            uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-            List<string> lines = new List<string>();
+            if (iconP == U.NOT_FOUND || textP == U.NOT_FOUND
+                || assignClassP == U.NOT_FOUND || assignLevelUpP == U.NOT_FOUND)
             {
-                uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-                uint textP = SkillConfigSkillSystemForm.FindTextPointer();
-                uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-                uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
-
-                if (iconP == U.NOT_FOUND)
-                {
-                    return;
-                }
-                if (textP == U.NOT_FOUND)
-                {
-                    return;
-                }
-                if (assignClassP == U.NOT_FOUND)
-                {
-                    return;
-                }
-                if (assignLevelUpP == U.NOT_FOUND)
-                {
-                    return;
-                }
-
-                InputFormRef = Init(null, assignClassP);
-
-                Dictionary<uint, string> skillNames = new Dictionary<uint, string>();
-                InputFormRef N1_InputFormRef = N1_Init(null, skillNames);
-
-                uint classBaseSkillAddr = InputFormRef.BaseAddress;
-                uint assignLevelUpAddr = Program.ROM.p32(assignLevelUpP);
-                for (uint i = 0; i < InputFormRef.DataCount; 
-                    i++, assignLevelUpAddr += 4 , classBaseSkillAddr += 1)
-                {
-                    if (!U.isSafetyOffset(assignLevelUpAddr))
-                    {
-                        break;
-                    }
-
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append(U.ToHexString(Program.ROM.u8(classBaseSkillAddr + 0)));
-
-                    uint levelupList = Program.ROM.p32(assignLevelUpAddr);
-                    sb.Append("\t");
-                    sb.Append(U.ToHexString(levelupList));
-                    if (!U.isSafetyOffset(levelupList))
-                    {
-                        lines.Add(sb.ToString());
-                        continue;
-                    }
-
-                    N1_InputFormRef.ReInitPointer(assignLevelUpAddr);
-                    uint levelupAddr = N1_InputFormRef.BaseAddress;
-                    for (uint n = 0; n < N1_InputFormRef.DataCount; n++, levelupAddr += 2)
-                    {
-                        sb.Append("\t");
-                        sb.Append(U.ToHexString(Program.ROM.u8(levelupAddr + 0)));
-                        sb.Append("\t");
-                        sb.Append(U.ToHexString(Program.ROM.u8(levelupAddr + 1)));
-                    }
-                    lines.Add(sb.ToString());
-                }
+                return;
             }
-            File.WriteAllLines(filename, lines);
+            // Delegate to Core for cross-platform parity (gap-sweep #416).
+            uint assignClassBase = Program.ROM.p32(assignClassP);
+            uint classCount = ClassForm.DataCount();
+            SkillAssignmentClassSkillSystemCore.ExportAllData(
+                Program.ROM, assignClassBase, assignLevelUpP, classCount, filename);
         }
         public static bool ImportAllData(string filename)
         {
-            InputFormRef InputFormRef;
             if (PatchUtil.SearchSkillSystem() != PatchUtil.skill_system_enum.SkillSystem)
             {
                 return false;
             }
+            uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
+            uint textP = SkillConfigSkillSystemForm.FindTextPointer();
+            uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
+            uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
 
-            string[] lines = File.ReadAllLines(filename);
+            if (iconP == U.NOT_FOUND || textP == U.NOT_FOUND
+                || assignClassP == U.NOT_FOUND || assignLevelUpP == U.NOT_FOUND)
             {
-                uint iconP = SkillConfigSkillSystemForm.FindIconPointer();
-                uint textP = SkillConfigSkillSystemForm.FindTextPointer();
-                uint assignClassP = SkillConfigSkillSystemForm.FindAssignClassSkillPointer();
-                uint assignLevelUpP = SkillConfigSkillSystemForm.FindAssignClassLevelUpSkillPointer();
-
-                if (iconP == U.NOT_FOUND)
-                {
-                    return false;
-                }
-                if (textP == U.NOT_FOUND)
-                {
-                    return false;
-                }
-                if (assignClassP == U.NOT_FOUND)
-                {
-                    return false;
-                }
-                if (assignLevelUpP == U.NOT_FOUND)
-                {
-                    return false;
-                }
-
-                InputFormRef = Init(null, assignClassP);
-
-                Dictionary<uint, string> skillNames = new Dictionary<uint, string>();
-                InputFormRef N1_InputFormRef = N1_Init(null, skillNames);
-
-                uint classBaseSkillAddr = InputFormRef.BaseAddress;
-                uint assignLevelUpAddr = Program.ROM.p32(assignLevelUpP);
-                for (uint i = 0; i < InputFormRef.DataCount;
-                    i++, assignLevelUpAddr += 4, classBaseSkillAddr += 1)
-                {
-                    if (!U.isSafetyOffset(assignLevelUpAddr))
-                    {
-                        break;
-                    }
-                    if (i >= lines.Length)
-                    {
-                        break;
-                    }
-                    string[] sp = lines[i].Split('\t');
-                    if (sp.Length < 2)
-                    {
-                        continue;
-                    }
-                    {
-                        uint skill = U.atoh(sp[0]);
-                        Program.ROM.write_u8(classBaseSkillAddr + 0, skill);
-                    }
-
-                    uint levelupSkillAddr = U.atoh(sp[1]);
-                    if (U.isExtrendsROMArea(levelupSkillAddr) || levelupSkillAddr == 0)
-                    {//拡張領域、または0の値が設定されている場合は書き戻す
-                        Program.ROM.write_p32(assignLevelUpAddr, levelupSkillAddr);
-                        continue;
-                    }
-
-                    uint levelupList = Program.ROM.p32(assignLevelUpAddr);
-                    if (!U.isSafetyOffset(levelupList))
-                    {
-                        continue;
-                    }
-
-                    N1_InputFormRef.ReInitPointer(assignLevelUpAddr);
-                    uint levelupAddr = N1_InputFormRef.BaseAddress;
-                    for (uint n = 0; n < N1_InputFormRef.DataCount; n++, levelupAddr += 2)
-                    {
-                        uint level = U.atoh(U.at(sp, 2 + (n * 2) + 0));
-                        uint skill = U.atoh(U.at(sp, 2 + (n * 2) + 1));
-                        Program.ROM.write_u8(levelupAddr + 0 , level);
-                        Program.ROM.write_u8(levelupAddr + 1 , skill);
-                    }
-                }
+                return false;
             }
-            return true;
+            // Delegate to Core for cross-platform parity (gap-sweep #416).
+            uint assignClassBase = Program.ROM.p32(assignClassP);
+            uint classCount = ClassForm.DataCount();
+            return SkillAssignmentClassSkillSystemCore.ImportAllData(
+                Program.ROM, assignClassBase, assignLevelUpP, classCount, filename);
         }
 
         public static int MakeClassSkillButtons(uint cid, Button[] buttons, ToolTipEx tooltip)

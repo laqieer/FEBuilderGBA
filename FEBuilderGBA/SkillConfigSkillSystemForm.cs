@@ -341,11 +341,13 @@ namespace FEBuilderGBA
         }
         static uint IsClassSkillExtendsLow()
         {
-            // Delegated to Core PatchDetection.IsClassSkillExtendsDetect so
-            // both WinForms and Avalonia share a single source of truth
-            // (gap-sweep #415). The 68-byte THUMB byte-pattern + window +
-            // blocksize live in FEBuilderGBA.Core/PatchDetection.cs.
-            return PatchDetection.IsClassSkillExtendsDetect(Program.ROM) ? 1u : 0u;
+            // Delegate to Core scanner (single source of truth for the
+            // ClassSkillExtends signature; mirrors gap-sweep #415/#416 plans).
+            // Both Avalonia (SkillAssignmentClassCSkillSysViewModel,
+            // SkillAssignmentClassSkillSystemViewModel) and WinForms route
+            // through this Core helper so the X_LV add panel + patch banner
+            // appear consistently in both UIs.
+            return SkillSystemPatchScanner.IsClassSkillExtends(Program.ROM) ? 1u : 0u;
         }
 const uint SkillPalettePointer = 0x22370; //オリジナルROMからあるパレット.
         public static uint GetIconAddr(uint index, uint imageBaseAddress)

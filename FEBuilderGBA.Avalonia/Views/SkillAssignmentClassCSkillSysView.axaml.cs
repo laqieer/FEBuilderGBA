@@ -86,7 +86,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateBannerVisibility()
         {
-            // Banner is always visible — gates the form to CSkillSys300.
+            // Banner shows only when the CSkillSys 3.00 patch is NOT detected
+            // (gates the form to CSkillSys300 per MainFE8Form.cs:715 routing).
+            // When the patch is installed the editor is fully functional and
+            // the banner is hidden.
             PatchBanner.IsVisible = !_vm.IsCSkillSys300Active;
             XLevelAddPanel.IsVisible = false; // populated lazily on selection
         }
@@ -366,6 +369,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("SkillAssignmentClassCSkillSysView.OnN1Expand failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// "Expand List" handler for the master class list. WinForms allows
+        /// expanding the class table itself; here we route to the user feedback
+        /// banner because table-resize on the class table is a Patch Manager
+        /// operation (CSkillSys 3.00 ships with a fixed class count). We log
+        /// + show a non-modal status update so the button has visible feedback
+        /// instead of being silently inert (Copilot bot review #5/#6).
+        /// </summary>
+        void OnClassExpand(object? sender, RoutedEventArgs e)
+        {
+            Log.Notify(
+                "SkillAssignmentClassCSkillSysView.OnClassExpand: class-table "
+                + "size is fixed by CSkillSys 3.00 patch. To grow the class "
+                + "table, use Patch Manager -> CSkillSys 3.00 class-count "
+                + "param (mirrors WF SkillAssignmentClassCSkillSysForm stub).");
         }
 
         // -----------------------------------------------------------------

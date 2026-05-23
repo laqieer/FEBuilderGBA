@@ -209,64 +209,8 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(PatchDetection.OPClassReelSortPatchDetect(rom));
         }
 
-        // ---------------------------------------------------------------
-        // IsClassSkillExtendsDetect (added for gap-sweep #415).
-        // Mirrors WF SkillConfigSkillSystemForm.IsClassSkillExtendsLow:
-        // U.Grep over rom.Data for a 68-byte THUMB code pattern in
-        // [0xB00000, 0xC00000) with blocksize=4. Both Avalonia and
-        // WinForms now route through this Core helper so the X_LV add
-        // panel (Level + 4 mode checkboxes) shows in both UIs when and
-        // only when the SkillSystem "class skill extends" patch is installed.
-        // ---------------------------------------------------------------
-        static readonly byte[] CLASS_SKILL_EXTENDS_PATTERN = new byte[] {
-            0xF0, 0xE7, 0x02, 0x2B, 0x12, 0xD0, 0x03, 0x2B, 0x06, 0xD1,
-            0x0D, 0x48, 0x42, 0x21, 0x41, 0x5C, 0x20, 0x22, 0x11, 0x42,
-            0x0A, 0xD1, 0xE5, 0xE7, 0x04, 0x2B, 0x06, 0xD1, 0x08, 0x48,
-            0x14, 0x21, 0x41, 0x5C, 0x40, 0x22, 0x11, 0x42, 0x01, 0xD1,
-            0xDC, 0xE7, 0xDB, 0xE7, 0x63, 0x78, 0x33, 0x70, 0x01, 0x36,
-            0xD7, 0xE7, 0x00, 0x20, 0x30, 0x70, 0x06, 0xBC, 0xF1, 0xBC,
-            0x70, 0x47, 0x00, 0x00, 0xF0, 0xBC, 0x02, 0x02
-        };
-
-        [Fact]
-        public void IsClassSkillExtendsDetect_NullRom_ReturnsFalse()
-        {
-            Assert.False(PatchDetection.IsClassSkillExtendsDetect(null));
-        }
-
-        [Fact]
-        public void IsClassSkillExtendsDetect_PatternAbsent_ReturnsFalse()
-        {
-            var rom = MakeFe8uRom();
-            Assert.False(PatchDetection.IsClassSkillExtendsDetect(rom));
-        }
-
-        [Fact]
-        public void IsClassSkillExtendsDetect_PlantedPattern_ReturnsTrue()
-        {
-            // U.Grep scans [0xB00000, 0xC00000) with blocksize=4, so the
-            // planted offset must be 4-byte aligned within that window.
-            var rom = MakeFe8uRom();
-            const uint plantOffset = 0xB00100;
-            for (int i = 0; i < CLASS_SKILL_EXTENDS_PATTERN.Length; i++)
-            {
-                rom.Data[plantOffset + i] = CLASS_SKILL_EXTENDS_PATTERN[i];
-            }
-            Assert.True(PatchDetection.IsClassSkillExtendsDetect(rom));
-        }
-
-        [Fact]
-        public void IsClassSkillExtendsDetect_PatternOutsideWindow_ReturnsFalse()
-        {
-            // Plant the pattern at 0xA00000 - below the [0xB00000, 0xC00000)
-            // scan window. The detector must NOT find it.
-            var rom = MakeFe8uRom();
-            const uint plantOffset = 0xA00000;
-            for (int i = 0; i < CLASS_SKILL_EXTENDS_PATTERN.Length; i++)
-            {
-                rom.Data[plantOffset + i] = CLASS_SKILL_EXTENDS_PATTERN[i];
-            }
-            Assert.False(PatchDetection.IsClassSkillExtendsDetect(rom));
-        }
+        // CSkillSys "class skill extends" detector tests moved to
+        // SkillSystemPatchScannerTests.cs (single source of truth — see
+        // PatchDetection.cs comment block).
     }
 }

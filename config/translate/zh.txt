@@ -21190,17 +21190,30 @@ to:
 
 :Japanese Name Start:
 日文名起始位置:
+
+:Skill Assignment (Class)
+技能_按职业分配
+
 :Class Skill
 职业技能
 
-:Acquired Level
+:Acquisition Level
 习得等级
 
 :Skill
 技能
 
+:Level
+等级
+
+:Acquired Level
+习得等级
+
 :Acquired Level Breakdown
 习得等级明细
+
+:Level Breakdown
+习得等级的细节
 
 :Level-up Skill Table Address
 升级习得技能的起始地址
@@ -21220,6 +21233,9 @@ to:
 :Normal&&Hard (LV+96)
 普通&&困难 (LV+96)
 
+:Normal&Hard (LV+96)
+普通&困难(LV+96)
+
 :Hard only (LV+128)
 仅困难 (LV+128)
 
@@ -21237,3 +21253,57 @@ to:
 
 :Skill Assignment - Class (CSkillSys)
 技能_职业分配 (CSkillSys)
+
+:Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
+设置了等级 255。\n如果从低职业升到这个职业，将不会获得此技能。\n只有以这个职业直接载入时才会拥有此技能。
+
+:No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
+此职业没有分配等级提升表。\n请按下「列表扩展」按钮以分配。
+
+:This level-up table is referenced by multiple classes.
+此表被多个职业引用。
+
+:Make Selected Class Independent
+分离独立所选职业
+
+:Click here for level/skill details (opens wiki)
+习得等级与技能的详细，请点击这里查看。
+
+:Level-up Skill Top Address
+等级提升获得技能的起始地址
+
+:拡大して描画
+缩放并绘制
+
+:拡大しないで描画
+不缩放绘制
+
+:表示例
+显示示例
+
+:dim_pc
+dim_pc
+
+:dim
+dim
+
+:NULL (EMPTY)
+NULL (EMPTY)
+
+:FrameData
+FrameData
+
+:OBJRightToLeft
+OBJRightToLeft
+
+:OBJLeftToRight
+OBJLeftToRight
+
+:OBJBGRightToLeft
+OBJBGRightToLeft
+
+:OBBGLeftToRight
+OBBGLeftToRight
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+未检测到 FEditor / SCA_Creator 魔法系统补丁。请通过补丁管理器安装补丁。

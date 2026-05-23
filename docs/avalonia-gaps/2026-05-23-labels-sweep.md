@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T05:33:19Z"
-git-sha: a35299ba6
+generated: "2026-05-23T16:06:56Z"
+git-sha: 1f20893bb
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4625 |
-| Total AV-only labels | 2803 |
-| Total common labels | 75 |
+| Total WF-only labels | 4593 |
+| Total AV-only labels | 2965 |
+| Total common labels | 107 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -55,10 +55,10 @@ Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative 
 | 6 | `MapSettingForm` | `MapSettingView` | 78 | 116 | 0 |
 | 7 | `MapSettingFE6Form` | `MapSettingFE6View` | 65 | 2 | 0 |
 | 8 | `ClassForm` | `ClassEditorView` | 57 | 100 | 1 |
-| 9 | `EventUnitForm` | `EventUnitView` | 50 | 24 | 0 |
-| 10 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
-| 11 | `TextForm` | `TextViewerView` | 48 | 13 | 0 |
-| 12 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
+| 9 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
+| 10 | `TextForm` | `TextViewerView` | 48 | 13 | 0 |
+| 11 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
+| 12 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
 | 13 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
 | 14 | `ItemForm` | `ItemEditorView` | 45 | 71 | 0 |
 | 15 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
@@ -1279,89 +1279,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Rank Levels (B44-B51)`
 - `Write`
 
-### EventUnitForm
-WF labels: **50** · AV labels: **24** · WF-only: **50** · AV-only: **24** · Common: **0** · Density verdict: **Medium** (WF 95 / AV 54)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60秒`
-- `1次AI`
-- `2次AI`
-- `??`
-- `Close`
-- `FF`
-- `LV:`
-- `Size:`
-- `X:`
-- `Y:`
-- `↑`
-- `↓`
-- `アイテムドロップ`
-- `アドレス`
-- `イベント名前`
-- `クラス`
-- `コメント`
-- `マップ名前`
-- `ユニット情報`
-- `ユニット番号`
-- `リストの拡張`
-- `交戦時BGMへJump`
-- `交戦時セリフへJump`
-- `先頭アドレス`
-- `再取得`
-- `削除`
-- `名前`
-- `変更`
-- `座標`
-- `待機`
-- `成長率:`
-- `所属:`
-- `所持品1`
-- `所持品2`
-- `所持品3`
-- `所持品4`
-- `指揮官`
-- `新規挿入`
-- `新規領域の確保`
-- `書き込み`
-- `標的と回復AI`
-- `死亡時セリフへJump`
-- `特殊`
-- `移動後座標`
-- `移動速度`
-- `読込数`
-- `追従`
-- `退避AI`
-- `選択アドレス:`
-- `配置後座標格納アドレス`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `0x Address`
-- `Address:`
-- `AI1 Primary:`
-- `AI2 Secondary:`
-- `AI3 Target/Recovery:`
-- `AI4 Retreat:`
-- `Class ID:`
-- `Coord Count:`
-- `Coord Pointer:`
-- `Event Unit Placement (FE8)`
-- `Item 1:`
-- `Item 2:`
-- `Item 3:`
-- `Item 4:`
-- `Leader Unit ID:`
-- `Load`
-- `Maps`
-- `Reserved (0x06):`
-- `Unit Groups`
-- `Unit Growth:`
-- `Unit ID:`
-- `Unit Info:`
-- `Units`
-- `Write`
-
 ### SongInstrumentForm
 WF labels: **51** · AV labels: **22** · WF-only: **50** · AV-only: **21** · Common: **1** · Density verdict: **High** (WF 323 / AV 54)
 
@@ -1569,6 +1486,102 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `World Map Image`
+
+### EventUnitForm
+WF labels: **50** · AV labels: **45** · WF-only: **46** · AV-only: **41** · Common: **4** · Density verdict: **Low** (WF 95 / AV 85)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60秒`
+- `1次AI`
+- `2次AI`
+- `??`
+- `Close`
+- `FF`
+- `↑`
+- `↓`
+- `アイテムドロップ`
+- `アドレス`
+- `イベント名前`
+- `クラス`
+- `コメント`
+- `マップ名前`
+- `ユニット情報`
+- `ユニット番号`
+- `リストの拡張`
+- `交戦時BGMへJump`
+- `交戦時セリフへJump`
+- `先頭アドレス`
+- `再取得`
+- `削除`
+- `名前`
+- `変更`
+- `座標`
+- `待機`
+- `成長率:`
+- `所属:`
+- `所持品1`
+- `所持品2`
+- `所持品3`
+- `所持品4`
+- `指揮官`
+- `新規挿入`
+- `新規領域の確保`
+- `書き込み`
+- `標的と回復AI`
+- `死亡時セリフへJump`
+- `特殊`
+- `移動後座標`
+- `移動速度`
+- `読込数`
+- `追従`
+- `退避AI`
+- `選択アドレス:`
+- `配置後座標格納アドレス`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x Address`
+- `0x14`
+- `Address:`
+- `After Coordinates:`
+- `Allegiance:`
+- `Battle BGM Jump`
+- `Battle Talk Jump`
+- `Before Coordinates:`
+- `Class:`
+- `Commander:`
+- `Comment:`
+- `Count:`
+- `Death Quote Jump`
+- `Drop Item`
+- `Event Names`
+- `Event Unit Placement (FE8)`
+- `Expand List`
+- `Growth Rate:`
+- `Item 1:`
+- `Item 2:`
+- `Item 3:`
+- `Item 4:`
+- `Item Drop Dialog...`
+- `Load`
+- `Map Names`
+- `Names`
+- `New Allocation`
+- `Pointer:`
+- `Primary AI:`
+- `Random Monster`
+- `Read Count`
+- `Reload`
+- `Reserved (0x06):`
+- `Retreat AI:`
+- `Secondary AI:`
+- `Selected Address:`
+- `Target/Recovery AI:`
+- `Top Address`
+- `Unit Info:`
+- `Unit Number:`
+- `Write`
 
 ### ImageUnitPaletteForm
 WF labels: **45** · AV labels: **17** · WF-only: **45** · AV-only: **17** · Common: **0** · Density verdict: **High** (WF 133 / AV 32)
@@ -2895,13 +2908,12 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ImagePortraitForm
-WF labels: **32** · AV labels: **28** · WF-only: **32** · AV-only: **28** · Common: **0** · Density verdict: **Medium** (WF 63 / AV 45)
+WF labels: **32** · AV labels: **50** · WF-only: **31** · AV-only: **49** · Common: **1** · Density verdict: **Low** (WF 63 / AV 77)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `00`
 - `mug_exceed用のタイルをどこに配置するか設定してください`
-- `Size:`
 - `X:`
 - `Y:`
 - `アドレス`
@@ -2934,8 +2946,12 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
+- `0 = Close Mouth (deprecated)`
+- `1 = Normal`
+- `6 = Close Eyes`
 - `Address:`
 - `Class Card`
+- `Comment:`
 - `Export Face`
 - `Export Mini`
 - `Export PAL`
@@ -2946,22 +2962,39 @@ AV-only labels (usually fine — layout polish or rewording):
 - `FE-Repo`
 - `Import PAL`
 - `Import PNG`
+- `Jump to Importer`
+- `Jump to Palette`
+- `Jump to Status Height`
 - `Map Face:`
 - `Map Face (32x32)`
 - `Mouth Frames:`
 - `Mouth Frames (32x16 x6)`
 - `Mouth X:`
 - `Mouth Y:`
+- `MugExceed Tile1 X:`
+- `MugExceed Tile1 Y:`
+- `MugExceed Tile2 X:`
+- `MugExceed Tile2 Y:`
+- `Open Source File`
 - `Palette:`
 - `Portrait Image Editor`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Set mug_exceed tile positions:`
+- `Show Example (Frame 4)`
 - `Show Frame:`
+- `Start Address:`
 - `Status:`
+- `Tile 1`
+- `Tile 2`
 - `Unit Face:`
 - `Unit Face (96x80)`
 - `Unused (B25):`
 - `Unused (B26):`
 - `Unused (B27):`
-- `Write Positions`
+- `Write`
 
 ### SkillConfigFE8NVer2SkillForm
 WF labels: **31** · AV labels: **10** · WF-only: **31** · AV-only: **10** · Common: **0** · Density verdict: **High** (WF 136 / AV 17)
@@ -3303,7 +3336,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Yes Text ID:`
 
 ### OPClassDemoForm
-WF labels: **27** · AV labels: **16** · WF-only: **27** · AV-only: **16** · Common: **0** · Density verdict: **High** (WF 63 / AV 31)
+WF labels: **27** · AV labels: **32** · WF-only: **26** · AV-only: **31** · Common: **1** · Density verdict: **Low** (WF 63 / AV 65)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -3311,7 +3344,6 @@ WF-only labels (candidates for missing fields in AV):
 - `00`
 - `??`
 - `Commamd`
-- `Size:`
 - `アドレス`
 - `アニメ指定\r\nポインタ書き込み`
 - `アニメ指定のポインタ`
@@ -3337,22 +3369,37 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Ally/Enemy Color:`
-- `Anime Pointer:`
+- `28`
+- `Address`
+- `Address (decimal)`
+- `Ally / Enemy Color:`
+- `Animation Commands (pointer P24)`
+- `Anime Spec Pointer:`
+- `Arg (/60 sec):`
 - `Battle Anime:`
+- `Battle Anime (Patch +1):`
+- `Command:`
+- `Data Expansion`
 - `Description Text ID:`
-- `Display Weapon:`
+- `Display Weapon (Class):`
 - `English Name Pointer:`
+- `Glyph:`
+- `Japanese Name Font Glyphs (pointer P8)`
 - `Japanese Name Length:`
 - `Japanese Name Pointer:`
 - `Magic Effect:`
+- `Name`
 - `OP Class Demo Editor`
 - `Palette ID:`
-- `Terrain Left:`
-- `Terrain Right:`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Terrain (Left Half):`
+- `Terrain (Right Half):`
 - `Unknown (0x12):`
 - `Write`
+- `Write Anime Command`
+- `Write Glyph Entry`
 
 ### ImageMagicCSACreatorForm
 WF labels: **25** · AV labels: **2** · WF-only: **25** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
@@ -3390,42 +3437,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `CSA Magic Creator`
 
-### ImageMagicFEditorForm
-WF labels: **25** · AV labels: **2** · WF-only: **25** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `dim`
-- `FrameData`
-- `OBBGLeftToRight`
-- `OBJBGRightToLeft`
-- `OBJLeftToRight`
-- `OBJRightToLeft`
-- `Size:`
-- `アドレス`
-- `インターネットから新しいリソースを探す`
-- `エディタ`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `フレーム`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-- `魔法アニメの書出し`
-- `魔法アニメの読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Magic Effect Editor (FEditor)`
-
 ### AIScriptForm
 WF labels: **24** · AV labels: **2** · WF-only: **24** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
 
@@ -3460,53 +3471,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `AI Script Editor`
-
-### OPClassDemoFE7UForm
-WF labels: **24** · AV labels: **14** · WF-only: **24** · AV-only: **14** · Common: **0** · Density verdict: **High** (WF 56 / AV 26)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60 (秒)`
-- `00`
-- `??`
-- `Commamd`
-- `Size:`
-- `アドレス`
-- `アニメ指定\r\nポインタ書き込み`
-- `アニメ指定のポインタ`
-- `クラス`
-- `パレットID`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `戦闘アニメ`
-- `敵味方カラー`
-- `書き込み`
-- `英語ポインタ`
-- `表示地形右半分`
-- `表示地形左半分`
-- `説明文ID`
-- `読込数`
-- `選択アドレス:`
-- `魔法エフェクト`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Ally/Enemy Color:`
-- `Anime Pointer:`
-- `Battle Anime:`
-- `Class ID:`
-- `Click to open Class Editor`
-- `Description Text ID:`
-- `English Name Pointer:`
-- `Japanese Name Length:`
-- `Magic Effect:`
-- `OP Class Demo (FE7U) Editor`
-- `Terrain Left:`
-- `Terrain Right:`
-- `Write`
 
 ### SkillAssignmentClassCSkillSysForm
 WF labels: **24** · AV labels: **5** · WF-only: **24** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 43 / AV 7)
@@ -3671,6 +3635,74 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `ED (FE7)`
+
+### OPClassDemoFE7UForm
+WF labels: **24** · AV labels: **37** · WF-only: **23** · AV-only: **36** · Common: **1** · Density verdict: **Low** (WF 56 / AV 62)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60 (秒)`
+- `00`
+- `??`
+- `Commamd`
+- `アドレス`
+- `アニメ指定\r\nポインタ書き込み`
+- `アニメ指定のポインタ`
+- `クラス`
+- `パレットID`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `戦闘アニメ`
+- `敵味方カラー`
+- `書き込み`
+- `英語ポインタ`
+- `表示地形右半分`
+- `表示地形左半分`
+- `説明文ID`
+- `読込数`
+- `選択アドレス:`
+- `魔法エフェクト`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `/60 (sec)`
+- `1=Ranged attack anime`
+- `2=Ranged critical anime`
+- `3=Set anime state to 'hit effect applied'`
+- `4=Ranged attack anime (alt)`
+- `5=Wait N frames (arg = N/60 sec)`
+- `6=Ranged evade anime`
+- `7=Hit effect applied (FE8 unused)`
+- `8=Wait for C01/C02/C18 cmd`
+- `Address`
+- `Ally/Enemy Color:`
+- `Animation Pointer Target Block`
+- `Anime Pointer:`
+- `Battle Anime:`
+- `Class ID:`
+- `Click to open Class Editor`
+- `Command`
+- `Command Description:`
+- `Description Text ID:`
+- `English Name Pointer:`
+- `Japanese Name Length:`
+- `Japanese Name Pointer:`
+- `Magic Effect:`
+- `OP Class Demo (FE7U) Editor`
+- `Selected Address:`
+- `Terrain Left:`
+- `Terrain Right:`
+- `Unknown (0x0F):`
+- `Unknown (0x10):`
+- `Unknown (0x11):`
+- `Unknown (0x13):`
+- `Unknown (0x16):`
+- `Unknown (0x17):`
+- `Wait Frames`
+- `Write Animation Command`
+- `Write to ROM`
 
 ### OPClassDemoFE8UForm
 WF labels: **23** · AV labels: **12** · WF-only: **23** · AV-only: **12** · Common: **0** · Density verdict: **High** (WF 50 / AV 24)
@@ -3956,73 +3988,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Talk`
 - `Write`
 
-### ToolTranslateROMForm
-WF labels: **22** · AV labels: **2** · WF-only: **22** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 35 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `..`
-- `from:`
-- `OneLiner`
-- `to:`
-- `すべてのテキストをテキストファイルに書きだします。`
-- `フォント取込`
-- `全テキストの書出し`
-- `全テキストの読込`
-- `利用フォント`
-- `変更`
-- `定型文ROM FROM`
-- `定型文ROM TO`
-- `定型文の翻訳(FROM ROMと TO ROMから、定型文を取得し、翻訳の参考にする)`
-- `改造されたテキストのみ取得する`
-- `日本語フォントの上書き`
-- `現行ROMに足りないフォントを、以下のROMにあるフォントからコピーする`
-- `簡易`
-- `翻訳データ`
-- `翻訳開始`
-- `詳細`
-- `足りないフォントの自動生成`
-- `追加フォント ROM`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `ROM Translation Tool`
-
-### MapExitPointForm
-WF labels: **21** · AV labels: **4** · WF-only: **21** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 32 / AV 6)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `Size:`
-- `X:`
-- `Y:`
-- `これは敵のエスケープポイントです。\r\nNPC用は、左上のコンボボックスを切り替えてください。`
-- `アドレス`
-- `マップ名`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `新規領域の確保`
-- `書き込み`
-- `条件:`
-- `消滅方法`
-- `読込数`
-- `選択アドレス:`
-- `離脱ポインタ`
-- `離脱ポインタ書き込み`
-- `離脱ポイント再取得`
-- `離脱座標`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Exit Pointer:`
-- `Map Exit Point Editor`
-- `Write`
-
 ### MenuCommandForm
 WF labels: **21** · AV labels: **13** · WF-only: **21** · AV-only: **13** · Common: **0** · Density verdict: **Medium** (WF 39 / AV 26)
 
@@ -4218,74 +4183,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Ending Event Editor`
 - `Unknown (0x02):`
 - `Unknown (0x03):`
-- `Write`
-
-### EventMapChangeForm
-WF labels: **20** · AV labels: **2** · WF-only: **20** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 36 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `??`
-- `H:`
-- `size:`
-- `W:`
-- `X:`
-- `Y:`
-- `アドレス`
-- `サイズ`
-- `マップ名前`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `変化データ\r\nポインタ先へのインポート`
-- `変化データポインタ`
-- `座標`
-- `書き込み`
-- `番号`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Map Change Event Editor`
-
-### MapTileAnimation2Form
-WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 40 / AV 14)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `B`
-- `G`
-- `GBAカラー`
-- `R`
-- `Size:`
-- `アドレス`
-- `アニメーション間隔`
-- `データ個数`
-- `リストの拡張`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `書き換えるパレットデータ`
-- `書き換え始めパレット番号`
-- `書き込み`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Animation Interval:`
-- `Data Count:`
-- `Map Tile Animation Type 2 (Palette)`
-- `Palette Data Pointer:`
-- `Start Palette Index:`
-- `Unknown (0x07):`
 - `Write`
 
 ### SongTableForm
@@ -4559,12 +4456,12 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Animation Pointer (D0):`
 - `Comment:`
 - `Display example`
 - `Filter Name`
 - `Frame:`
-- `Hex Address`
 - `ID=00 is reserved as null data. Do not set any value other than 0x0.`
 - `List Expansion`
 - `Map Action Animation`
@@ -4988,6 +4885,60 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Title Image Ptr:`
 - `Write`
 
+### ImageMagicFEditorForm
+WF labels: **25** · AV labels: **34** · WF-only: **18** · AV-only: **27** · Common: **7** · Density verdict: **Low** (WF 37 / AV 45)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `インターネットから新しいリソースを探す`
+- `エディタ`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `フレーム`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+- `魔法アニメの書出し`
+- `魔法アニメの読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `(preview deferred - tracked by #500)`
+- `4`
+- `Address`
+- `Comment`
+- `dim_pc`
+- `Display Example`
+- `Draw without enlarging`
+- `Editor`
+- `Expand List`
+- `Export Magic Animation`
+- `Frame`
+- `Import Magic Animation`
+- `Magic Effect Editor (FEditor)`
+- `Name`
+- `NULL (EMPTY)`
+- `Open Source File`
+- `Open Source Folder`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count`
+- `Reload`
+- `Sample`
+- `Search Internet for new resources`
+- `Selected Address:`
+- `Top Address`
+- `Write to ROM`
+- `Zoom`
+- `Zoom and Draw`
+
 ### ItemStatBonusesForm
 WF labels: **19** · AV labels: **15** · WF-only: **18** · AV-only: **14** · Common: **1** · Density verdict: **Low** (WF 35 / AV 28)
 
@@ -5028,6 +4979,51 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown (byte 11):`
 - `Unknown (byte 9):`
 - `Write`
+
+### MapExitPointForm
+WF labels: **21** · AV labels: **21** · WF-only: **18** · AV-only: **18** · Common: **3** · Density verdict: **Low** (WF 32 / AV 35)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `これは敵のエスケープポイントです。\r\nNPC用は、左上のコンボボックスを切り替えてください。`
+- `アドレス`
+- `マップ名`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `新規領域の確保`
+- `書き込み`
+- `条件:`
+- `消滅方法`
+- `読込数`
+- `選択アドレス:`
+- `離脱ポインタ`
+- `離脱ポインタ書き込み`
+- `離脱ポイント再取得`
+- `離脱座標`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `00 (Flag)`
+- `Address`
+- `Address (decimal)`
+- `Alloc New Space`
+- `Cond:`
+- `Coordinates`
+- `Count`
+- `Data Expansion`
+- `Direction`
+- `Leave Pointer`
+- `Map Exit Point Editor`
+- `Map Name`
+- `Name`
+- `Reload`
+- `Reload Exit Points`
+- `Selected Address`
+- `Write`
+- `Write Off Pointer`
 
 ### PaletteChangeColorsForm
 WF labels: **21** · AV labels: **9** · WF-only: **18** · AV-only: **6** · Common: **3** · Density verdict: **High** (WF 25 / AV 12)
@@ -5132,6 +5128,57 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Support Attribute Editor`
 - `Unknown 7:`
 - `Write`
+
+### ToolTranslateROMForm
+WF labels: **22** · AV labels: **28** · WF-only: **18** · AV-only: **24** · Common: **4** · Density verdict: **Medium** (WF 35 / AV 47)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `すべてのテキストをテキストファイルに書きだします。`
+- `フォント取込`
+- `全テキストの書出し`
+- `全テキストの読込`
+- `利用フォント`
+- `変更`
+- `定型文ROM FROM`
+- `定型文ROM TO`
+- `定型文の翻訳(FROM ROMと TO ROMから、定型文を取得し、翻訳の参考にする)`
+- `改造されたテキストのみ取得する`
+- `日本語フォントの上書き`
+- `現行ROMに足りないフォントを、以下のROMにあるフォントからコピーする`
+- `簡易`
+- `翻訳データ`
+- `翻訳開始`
+- `詳細`
+- `足りないフォントの自動生成`
+- `追加フォント ROM`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Auto-Generate Missing Fonts`
+- `Change`
+- `Copies fonts that the current ROM is missing from the fonts in the ROM below.`
+- `Detail`
+- `Export All Text`
+- `Export All Texts`
+- `Extra Font ROM`
+- `Font`
+- `Import All Text`
+- `Import All Texts`
+- `Import Font`
+- `Only acquire modified text`
+- `Override JP Font`
+- `Pending Core extraction - tracked by #536`
+- `Rewrites all texts with the contents of the specified file. Requires the anti-Huffman and DrawMultibyte/DrawSingleByte patches. After it finishes, import any missing fonts separately.`
+- `Simple`
+- `Start Translation`
+- `Translate before Export`
+- `Translate static texts (extract from FROM ROM and TO ROM, use as translation reference)`
+- `Translates the ROM. Uses Japanese and English ROMs to convert unchanged text automatically. Simple mode is fully automatic - it imports missing fonts, adjusts menu lengths, and similar. All processing… (truncated; see designer file)`
+- `Translation Data`
+- `Use Font Name`
+- `Without a file, only static texts are translated.`
+- `Writes all texts to a text file.`
 
 ### EventBattleTalkForm
 WF labels: **17** · AV labels: **2** · WF-only: **17** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 30 / AV 3)
@@ -5642,13 +5689,13 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Block Size:`
 - `CC Item Editor`
 - `Count`
 - `Filter:`
 - `Function`
 - `Function pointers for item usability checks`
-- `Hex Address`
 - `IER patch detected — configure from Patch Manager.`
 - `Item ID Switch:`
 - `Item Usage Pointer Editor`
@@ -6009,6 +6056,51 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Effectiveness (Skill Systems Rework)`
 
+### MapTileAnimation2Form
+WF labels: **20** · AV labels: **26** · WF-only: **15** · AV-only: **21** · Common: **5** · Density verdict: **Medium** (WF 40 / AV 51)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `GBAカラー`
+- `アドレス`
+- `アニメーション間隔`
+- `データ個数`
+- `リストの拡張`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `書き換えるパレットデータ`
+- `書き換え始めパレット番号`
+- `書き込み`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `(reserved)`
+- `Address`
+- `Animation Interval:`
+- `Bulk Export`
+- `Bulk Import`
+- `Data Count:`
+- `Data Expansion`
+- `Filter`
+- `GBA Color`
+- `Map Tile Animation Type 2 (Palette)`
+- `Map Tile Animation Type 2 Palette Sub-Table`
+- `Name`
+- `Palette Data Pointer:`
+- `Pending Core extraction - tracked by #524`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Start Palette Index:`
+- `Top Address`
+- `Unknown (0x07):`
+- `Write to ROM`
+
 ### MonsterWMapProbabilityForm
 WF labels: **15** · AV labels: **4** · WF-only: **15** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 66 / AV 6)
 
@@ -6160,6 +6252,44 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown 1:`
 - `Unknown 2:`
 - `Unknown 3:`
+- `Write`
+
+### EventMapChangeForm
+WF labels: **20** · AV labels: **21** · WF-only: **14** · AV-only: **15** · Common: **6** · Density verdict: **Low** (WF 36 / AV 43)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `サイズ`
+- `マップ名前`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `変化データ\r\nポインタ先へのインポート`
+- `変化データポインタ`
+- `座標`
+- `書き込み`
+- `番号`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address`
+- `Change Data Pointer`
+- `Comment`
+- `Coordinates:`
+- `Expand List (+1 slot)`
+- `Map Change Event Editor`
+- `Map Names`
+- `Names`
+- `Number:`
+- `Pointer Import`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Top Address`
 - `Write`
 
 ### FontForm
@@ -7554,10 +7684,10 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Battle BG:`
 - `Condition:`
 - `Count`
-- `Hex Address`
 - `Install Patch`
 - `Jump to the floor of battle animation`
 - `Reload`
@@ -7585,9 +7715,9 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Condition:`
 - `Count`
-- `Hex Address`
 - `Install Patch`
 - `Jump to the background of battle animation`
 - `Reload`

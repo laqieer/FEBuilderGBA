@@ -12,7 +12,8 @@
 // PatchUtil.skill_system_enum.CSkillSys300 is detected (MainFE8Form.cs:715).
 // IsClassSkillExtends gating mirrors WF
 // SkillConfigSkillSystemForm.IsClassSkillExtends, now backed by Core
-// PatchDetection.IsClassSkillExtendsDetect so both UIs share one detector.
+// SkillSystemPatchScanner.IsClassSkillExtends so both UIs (and the sister
+// gap-sweep #416 form) share one detector.
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
@@ -101,7 +102,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Recompute patch-active flags from the current CoreState.ROM. Cheap
         /// to call - the only ROM scan is the Core
-        /// <see cref="PatchDetection.IsClassSkillExtendsDetect"/> which is
+        /// <see cref="SkillSystemPatchScanner.IsClassSkillExtends"/> which is
         /// itself cached at the field level.
         /// </summary>
         public void RefreshPatchState()
@@ -119,7 +120,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // tests can pass without spinning up the full service.
             var svc = PatchDetectionService.Instance;
             IsCSkillSys300Active = svc.SkillSystem == PatchDetectionService.SkillSystemType.CSkillSys300;
-            IsClassSkillExtendsActive = PatchDetection.IsClassSkillExtendsDetect(rom);
+            IsClassSkillExtendsActive = SkillSystemPatchScanner.IsClassSkillExtends(rom);
         }
 
         /// <summary>

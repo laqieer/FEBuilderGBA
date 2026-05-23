@@ -19863,3 +19863,30 @@ Hex Text Palette
 
 :JASC-PAL (Aseprite/GIMP)
 JASC-PAL (Aseprite/GIMP)
+
+:dim_pc
+dim_pc
+
+:dim
+dim
+
+:NULL (EMPTY)
+NULL (EMPTY)
+
+:FrameData
+FrameData
+
+:OBJRightToLeft
+OBJRightToLeft
+
+:OBJLeftToRight
+OBJLeftToRight
+
+:OBJBGRightToLeft
+OBJBGRightToLeft
+
+:OBBGLeftToRight
+OBBGLeftToRight
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.

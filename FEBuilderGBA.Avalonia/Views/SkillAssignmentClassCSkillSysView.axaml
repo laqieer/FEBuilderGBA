@@ -42,8 +42,9 @@
             <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ClassList_NameFilter_Label"
                        DockPanel.Dock="Top" Text="Name" Margin="0,0,0,4" FontWeight="Bold" />
             <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ClassList_Expand_Button"
-                    DockPanel.Dock="Bottom" Name="ClassListExpandButton" Content="Expand List" Margin="0,4,0,0" />
-            <ListBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ClassList"
+                    DockPanel.Dock="Bottom" Name="ClassListExpandButton" Content="Expand List"
+                    Click="OnClassExpand" Margin="0,4,0,0" />
+            <ListBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_Class_List"
                      Name="ClassListBox" Height="700" />
           </DockPanel>
         </Border>
@@ -61,10 +62,10 @@
               <Image AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_SkillIcon_Image"
                      Grid.Row="0" Grid.Column="2" Name="SkillIconImage"
                      Width="32" Height="32" Margin="0,0,8,0" />
-              <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_SkillName_Text"
+              <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_SkillName_Label"
                        Grid.Row="0" Grid.Column="3" Name="SkillNameTextBox" IsReadOnly="True"
                        Margin="0,0,8,0" />
-              <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_SkillText_Text"
+              <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_SkillText_Label"
                        Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="6" Name="SkillTextTextBox"
                        IsReadOnly="True" AcceptsReturn="True" Height="60" Margin="0,4,0,0" />
             </Grid>
@@ -75,7 +76,7 @@
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_AddrLabel"
                          Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_Addr_Input"
-                             Grid.Column="1" Name="AddressBox" FormatString="0"
+                             Grid.Column="1" Name="AddressBox" FormatString="0" IsReadOnly="True"
                              Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
               <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_SizeLabel"
                          Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -135,7 +136,8 @@
                   <Border AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_X_LV_255_Panel"
                           Name="XLv255Panel" IsVisible="False"
                           BorderBrush="Goldenrod" BorderThickness="1" Padding="6" CornerRadius="2">
-                    <TextBlock Name="XLv255InfoText" TextWrapping="Wrap"
+                    <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_X_LV_255_Info_Label"
+                               Name="XLv255InfoText" TextWrapping="Wrap"
                                Text="Level is set to 255.&#10;When a class is reached via CC from a base class, this skill cannot be obtained.&#10;Only when this class is LOADed can this skill be held." />
                   </Border>
 
@@ -176,11 +178,11 @@
                     <Image AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillIcon_Image"
                            Grid.Column="2" Name="N1SkillIconImage"
                            Width="32" Height="32" Margin="0,0,8,0" />
-                    <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillName_Text"
+                    <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillName_Label"
                              Grid.Column="3" Name="N1SkillNameTextBox" IsReadOnly="True"
                              Width="200" Margin="0,0,8,0" />
                   </Grid>
-                  <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillText_Text"
+                  <TextBox AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SkillText_Label"
                            Name="N1SkillTextTextBox" IsReadOnly="True" AcceptsReturn="True"
                            Height="60" Margin="0,4,0,0" />
 
@@ -188,7 +190,7 @@
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_AddrLabel"
                                Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
                     <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_Addr_Input"
-                                   Grid.Column="1" Name="N1AddressBox" FormatString="0"
+                                   Grid.Column="1" Name="N1AddressBox" FormatString="0" IsReadOnly="True"
                                    Minimum="0" Maximum="2147483647" Margin="0,0,8,0" />
                     <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_N1_SizeLabel"
                                Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="0,0,8,0" />

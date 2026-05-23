@@ -2,19 +2,218 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageMagicFEditorView"
-        Title="Magic Effect Editor (FEditor)" Width="835" Height="403"
+        Title="Magic Effect Editor (FEditor)" Width="1080" Height="720"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageMagicFEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- Three-row layout: top read-config bar / address-write bar / main 3-pane grid.
+       Mirrors WF panel3 (top read), panel5 (address-write), panel8 (entry list +
+       list-expand), and DragTargetPanel (right detail surface). Gap-sweep fix
+       for #418 — raises AV control count from 3 to 30+. -->
+  <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="250,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- ===== Row 0: top read-config bar (mirrors WF panel3) ===== -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Top Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicFEditor_ReadStart_Input"
+                       FormatString="0" Name="ReadStartAddressBox" Width="140"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicFEditor_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="256"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ImageMagicFEditor_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+        <TextBlock AutomationProperties.AutomationId="ImageMagicFEditor_PatchNotice_Label"
+                   Name="PatchNoticeLabel" Foreground="DarkOrange"
+                   TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" />
+      </StackPanel>
+    </Border>
+
+    <!-- ===== Row 1: main address-write bar (mirrors WF panel5) ===== -->
+    <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicFEditor_Address_Input"
+                       FormatString="0" Name="AddressBox" Width="140"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ImageMagicFEditor_BlockSize_Input"
+                 Name="BlockSizeBox" IsReadOnly="True" Text="4" Width="60"
+                 VerticalAlignment="Center" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ImageMagicFEditor_SelectedAddress_Input"
+                 Name="SelectedAddressBox" IsReadOnly="True" Width="140"
+                 VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ImageMagicFEditor_Write_Button"
+                Name="WriteButton" Content="Write to ROM" Click="Write_Click"
+                Margin="20,0,0,0" />
+        <TextBlock AutomationProperties.AutomationId="ImageMagicFEditor_Addr_Label"
+                   Name="AddrLabel" VerticalAlignment="Center" Margin="20,0,0,0" />
+      </StackPanel>
+    </Border>
+
+    <!-- ===== Row 2 col 0: entry list + List-Expand (mirrors WF panel8) ===== -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="ImageMagicFEditor_NameHeader_Label"
+               Content="Name" />
+        <TextBlock DockPanel.Dock="Bottom"
+                   AutomationProperties.AutomationId="ImageMagicFEditor_LinkInternet_Label"
+                   Name="LinkInternetLabel" Margin="2"
+                   Foreground="Blue" TextDecorations="Underline"
+                   Text="Search Internet for new resources"
+                   PointerPressed="LinkInternet_Click" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="ImageMagicFEditor_MagicListExpand_Button"
+                Name="MagicListExpandButton" Content="Expand List"
+                IsEnabled="False"
+                ToolTip.Tip="Pending Core extraction - tracked by #500."
+                Click="MagicListExpand_Click" HorizontalAlignment="Stretch"
+                Margin="2" IsVisible="True" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="ImageMagicFEditor_Entry_List"
+            Name="EntryList" Margin="2" />
+      </DockPanel>
+    </Border>
+
+    <!-- ===== Row 2 col 1: main detail / preview / buttons (mirrors WF DragTargetPanel) ===== -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Magic Effect Editor (FEditor)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageMagicFEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <!-- Preview pane + frame controls -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto">
+            <!-- Row 0: preview image -->
+            <Label Grid.Row="0" Grid.Column="0" Content="Sample" VerticalAlignment="Top" />
+            <Border Grid.Row="0" Grid.Column="1"
+                    BorderBrush="DarkGray" BorderThickness="1"
+                    Width="400" Height="188" HorizontalAlignment="Left">
+              <Image AutomationProperties.AutomationId="ImageMagicFEditor_Preview_Image"
+                     Name="PreviewImage" Stretch="Uniform" />
+            </Border>
+
+            <!-- Row 1: frame controls -->
+            <Label Grid.Row="1" Grid.Column="0" Content="Frame" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1"
+                           AutomationProperties.AutomationId="ImageMagicFEditor_Frame_Input"
+                           FormatString="0" Name="FrameBox" Width="100"
+                           Minimum="0" Maximum="255" HorizontalAlignment="Left"
+                           Margin="0,4,0,0" />
+
+            <!-- Row 2: zoom combo -->
+            <Label Grid.Row="2" Grid.Column="0" Content="Zoom" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <!-- Items populated from code-behind with R._(...) so
+                 ja/zh translations apply (ViewTranslationHelper doesn't
+                 translate ComboBoxItem.Content). -->
+            <ComboBox Grid.Row="2" Grid.Column="1"
+                      AutomationProperties.AutomationId="ImageMagicFEditor_Zoom_Combo"
+                      Name="ZoomCombo" Width="200"
+                      HorizontalAlignment="Left" Margin="0,4,0,0" />
+
+            <!-- Row 3: sample-preview label -->
+            <Label Grid.Row="3" Grid.Column="0" Content="Display Example" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <TextBlock Grid.Row="3" Grid.Column="1"
+                       AutomationProperties.AutomationId="ImageMagicFEditor_SamplePreview_Label"
+                       Name="SamplePreviewLabel" Text="(preview deferred - tracked by #500)"
+                       Foreground="DarkOrange" Margin="0,4,0,0" />
+          </Grid>
+        </Border>
+
+        <!-- dim + comment row -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto">
+            <Label Grid.Row="0" Grid.Column="0" Content="dim" VerticalAlignment="Center" />
+            <!-- Items populated from code-behind with R._(...) so
+                 ja/zh translations apply. -->
+            <ComboBox Grid.Row="0" Grid.Column="1"
+                      AutomationProperties.AutomationId="ImageMagicFEditor_Dim_Combo"
+                      Name="DimCombo" Width="200"
+                      HorizontalAlignment="Left"
+                      SelectionChanged="DimCombo_SelectionChanged" />
+
+            <Label Grid.Row="1" Grid.Column="0" Content="Comment" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <TextBox Grid.Row="1" Grid.Column="1"
+                     AutomationProperties.AutomationId="ImageMagicFEditor_Comment_Input"
+                     Name="CommentBox" Width="300" HorizontalAlignment="Left"
+                     Margin="0,4,0,0" />
+          </Grid>
+        </Border>
+
+        <!-- 5-row spinner grid for FrameData / OBJRightToLeft / OBJLeftToRight / OBJBGRightToLeft / OBBGLeftToRight -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+            <!-- Row 0: P0 — FrameData -->
+            <Label Grid.Row="0" Grid.Column="0" Content="FrameData" VerticalAlignment="Center" />
+            <NumericUpDown Grid.Row="0" Grid.Column="1"
+                           AutomationProperties.AutomationId="ImageMagicFEditor_P0_Input"
+                           FormatString="0" Name="P0Box" Width="160" HorizontalAlignment="Left"
+                           Minimum="0" Maximum="4294967295" />
+            <!-- Row 1: P4 — OBJRightToLeft -->
+            <Label Grid.Row="1" Grid.Column="0" Content="OBJRightToLeft" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <NumericUpDown Grid.Row="1" Grid.Column="1"
+                           AutomationProperties.AutomationId="ImageMagicFEditor_P4_Input"
+                           FormatString="0" Name="P4Box" Width="160" HorizontalAlignment="Left"
+                           Minimum="0" Maximum="4294967295" Margin="0,4,0,0" />
+            <!-- Row 2: P8 — OBJLeftToRight -->
+            <Label Grid.Row="2" Grid.Column="0" Content="OBJLeftToRight" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <NumericUpDown Grid.Row="2" Grid.Column="1"
+                           AutomationProperties.AutomationId="ImageMagicFEditor_P8_Input"
+                           FormatString="0" Name="P8Box" Width="160" HorizontalAlignment="Left"
+                           Minimum="0" Maximum="4294967295" Margin="0,4,0,0" />
+            <!-- Row 3: P12 — OBJBGRightToLeft -->
+            <Label Grid.Row="3" Grid.Column="0" Content="OBJBGRightToLeft" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <NumericUpDown Grid.Row="3" Grid.Column="1"
+                           AutomationProperties.AutomationId="ImageMagicFEditor_P12_Input"
+                           FormatString="0" Name="P12Box" Width="160" HorizontalAlignment="Left"
+                           Minimum="0" Maximum="4294967295" Margin="0,4,0,0" />
+            <!-- Row 4: P16 — OBBGLeftToRight -->
+            <Label Grid.Row="4" Grid.Column="0" Content="OBBGLeftToRight" VerticalAlignment="Center"
+                   Margin="0,4,0,0" />
+            <NumericUpDown Grid.Row="4" Grid.Column="1"
+                           AutomationProperties.AutomationId="ImageMagicFEditor_P16_Input"
+                           FormatString="0" Name="P16Box" Width="160" HorizontalAlignment="Left"
+                           Minimum="0" Maximum="4294967295" Margin="0,4,0,0" />
+          </Grid>
+        </Border>
+
+        <!-- File / shell / editor action buttons (deferred - tracked by #500) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button AutomationProperties.AutomationId="ImageMagicFEditor_MagicAnimeImport_Button"
+                  Name="MagicAnimeImportButton" Content="Import Magic Animation"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="MagicAnimeImport_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicFEditor_MagicAnimeExport_Button"
+                  Name="MagicAnimeExportButton" Content="Export Magic Animation"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="MagicAnimeExport_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicFEditor_JumpEditor_Button"
+                  Name="JumpEditorButton" Content="Editor"
+                  Click="JumpEditor_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicFEditor_OpenSource_Button"
+                  Name="OpenSourceButton" Content="Open Source File"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="OpenSource_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicFEditor_SelectSource_Button"
+                  Name="SelectSourceButton" Content="Open Source Folder"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="SelectSource_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>
