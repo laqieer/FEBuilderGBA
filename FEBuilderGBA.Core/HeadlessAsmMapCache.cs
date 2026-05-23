@@ -20,12 +20,15 @@ namespace FEBuilderGBA
     /// for the originating gap-sweep PR that surfaced the need for this
     /// stub. A future PR can promote the WinForms hardcode-detection logic
     /// into Core and back this stub with a real implementation; the API
-    /// surface (`IAsmMapCache.IsHardCodeUnit`) stays unchanged.
+    /// surface (`IAsmMapCache.IsHardCodeUnit`/`IsHardCodeClass`) stays
+    /// unchanged. <c>IsHardCodeClass</c> was added in #406.
     /// </remarks>
     public class HeadlessAsmMapCache : IAsmMapCache
     {
         public void ClearCache() { }
 
         public bool IsHardCodeUnit(uint unitId) => false;
+
+        public bool IsHardCodeClass(uint classId) => false;
     }
 }

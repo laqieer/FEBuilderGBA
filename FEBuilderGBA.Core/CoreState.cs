@@ -44,6 +44,16 @@ namespace FEBuilderGBA
         /// have ASM-map data available should return false.
         /// </summary>
         bool IsHardCodeUnit(uint unitId);
+
+        /// <summary>
+        /// Returns true when the supplied class id (0-based, same key the
+        /// AddressList exposes via <c>SelectedIndex</c>) is referenced by
+        /// hardcoded ASM in the loaded ROM. Used by the class-editor
+        /// HardCoding warning label (#406, parity with WF
+        /// <c>ClassForm.CheckHardCodingWarning</c>). Implementations that
+        /// do not have ASM-map data available should return false.
+        /// </summary>
+        bool IsHardCodeClass(uint classId);
     }
 
     /// <summary>

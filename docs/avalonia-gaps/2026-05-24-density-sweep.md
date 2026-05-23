@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T21:14:13Z"
-git-sha: be12e414b
+generated: "2026-05-23T22:28:25Z"
+git-sha: f194648bb
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 219 |
+| HIGH | |Δ%| ≥ 50 | 217 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 65 |
+| LOW | |Δ%| < 25 | 67 |
 
 ## Ranked Density Deltas
 
@@ -55,7 +55,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ErrorPaletteTransparentForm` | `ErrorPaletteTransparentView` | 50 | 3 | -47 | -94.0% | Heuristic |
 | High | `ImagePortraitImporterForm` | `ImagePortraitImporterView` | 42 | 3 | -39 | -92.9% | Heuristic |
 | High | `AIScriptForm` | `AIScriptView` | 37 | 3 | -34 | -91.9% | Heuristic |
-| High | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | 37 | 3 | -34 | -91.9% | Heuristic |
 | High | `WorldMapImageFE6Form` | `WorldMapImageFE6View` | 36 | 3 | -33 | -91.7% | Heuristic |
 | High | `EventHaikuFE6Form` | `EventHaikuFE6View` | 34 | 3 | -31 | -91.2% | ListParityHelper |
 | High | `FE8SpellMenuExtendsForm` | `FE8SpellMenuExtendsView` | 34 | 3 | -31 | -91.2% | Heuristic |
@@ -82,7 +81,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `PaletteSwapForm` | `PaletteSwapView` | 49 | 8 | -41 | -83.7% | Heuristic |
 | High | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` | 18 | 3 | -15 | -83.3% | Heuristic |
 | High | `SongInstrumentForm` | `SongInstrumentView` | 323 | 54 | -269 | -83.3% | Heuristic |
-| High | `EDForm` | `EDView` | 65 | 11 | -54 | -83.1% | ListParityHelper |
 | High | `MoveCostFE6Form` | `MoveCostFE6View` | 57 | 10 | -47 | -82.5% | ListParityHelper |
 | High | `FontZHForm` | `FontZHView` | 17 | 3 | -14 | -82.4% | Heuristic |
 | High | `MantAnimationForm` | `MantAnimationView` | 17 | 3 | -14 | -82.4% | ListParityHelper |
@@ -211,7 +209,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `WorldMapPathForm` | `WorldMapPathView` | 24 | 17 | -7 | -29.2% | ListParityHelper |
 | Medium | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` | 7 | 5 | -2 | -28.6% | Heuristic |
 | Medium | `SupportTalkForm` | `SupportTalkView` | 32 | 23 | -9 | -28.1% | ListParityHelper |
-| Medium | `ClassForm` | `ClassEditorView` | 211 | 154 | -57 | -27.0% | ListParityHelper |
 | Medium | `VennouWeaponLockForm` | `VennouWeaponLockView` | 15 | 11 | -4 | -26.7% | Heuristic |
 | Medium | `SupportTalkFE7Form` | `SupportTalkFE7View` | 34 | 25 | -9 | -26.5% | ListParityHelper |
 | Medium | `MonsterProbabilityForm` | `MonsterProbabilityViewerView` | 38 | 28 | -10 | -26.3% | ListParityHelper |
@@ -231,6 +228,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `WorldMapPointForm` | `WorldMapPointView` | 51 | 41 | -10 | -19.6% | ListParityHelper |
 | Low | `SupportTalkFE6Form` | `SupportTalkFE6View` | 26 | 21 | -5 | -19.2% | ListParityHelper |
 | Low | `StatusRMenuForm` | `StatusRMenuView` | 28 | 23 | -5 | -17.9% | ListParityHelper |
+| Low | `ClassForm` | `ClassEditorView` | 211 | 174 | -37 | -17.5% | ListParityHelper |
 | Low | `EventUnitFE6Form` | `EventUnitFE6View` | 64 | 54 | -10 | -15.6% | ListParityHelper |
 | Low | `AITargetForm` | `AITargetView` | 52 | 44 | -8 | -15.4% | ListParityHelper |
 | Low | `SoundBossBGMForm` | `SoundBossBGMViewerView` | 20 | 17 | -3 | -15.0% | ListParityHelper |
@@ -257,6 +255,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ToolClickWriteFloatControlPanelButtonForm` | `ToolClickWriteFloatControlPanelButtonView` | 4 | 4 | 0 | 0.0% | Heuristic |
 | Low | `ToolEmulatorSetupMessageForm` | `ToolEmulatorSetupMessageView` | 3 | 3 | 0 | 0.0% | Heuristic |
 | Low | `ToolUndoPopupDialogForm` | `ToolUndoPopupDialogView` | 5 | 5 | 0 | 0.0% | Heuristic |
+| Low | `EDForm` | `EDView` | 65 | 66 | 1 | +1.5% | ListParityHelper |
 | Low | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 65 | 2 | +3.2% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
 | Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
@@ -303,6 +302,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolWorkSupport_UpdateQuestionDialogForm` | `ToolWorkSupport_UpdateQuestionDialogView` | 3 | 4 | 1 | +33.3% | Heuristic |
 | Medium | `ToolTranslateROMForm` | `ToolTranslateROMView` | 35 | 47 | 12 | +34.3% | Heuristic |
 | Medium | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | 23 | 31 | 8 | +34.8% | ListParityHelper |
+| Medium | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | 37 | 50 | 13 | +35.1% | Heuristic |
 | Medium | `ToolDiffDebugSelectForm` | `ToolDiffDebugSelectView` | 11 | 15 | 4 | +36.4% | Heuristic |
 | Medium | `SkillConfigFE8UCSkillSys09xForm` | `SkillConfigFE8UCSkillSys09xView` | 29 | 40 | 11 | +37.9% | Heuristic |
 | Medium | `PackedMemorySlotForm` | `PackedMemorySlotView` | 5 | 7 | 2 | +40.0% | Heuristic |
@@ -504,14 +504,6 @@ WF count: **37** · AV count: **3** · Δ: **-34** (-91.9%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/AIScriptView.axaml
 -->
 
-### ImageMagicCSACreatorForm
-WF count: **37** · AV count: **3** · Δ: **-34** (-91.9%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageMagicCSACreatorForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageMagicCSACreatorView.axaml
--->
-
 ### WorldMapImageFE6Form
 WF count: **36** · AV count: **3** · Δ: **-33** (-91.7%).
 
@@ -526,6 +518,14 @@ WF count: **34** · AV count: **3** · Δ: **-31** (-91.2%).
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/EventHaikuFE6Form.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EventHaikuFE6View.axaml
+-->
+
+### FE8SpellMenuExtendsForm
+WF count: **34** · AV count: **3** · Δ: **-31** (-91.2%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/FE8SpellMenuExtendsForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/FE8SpellMenuExtendsView.axaml
 -->
 
 ## Unpaired Orphans

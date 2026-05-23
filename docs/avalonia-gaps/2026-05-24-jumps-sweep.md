@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T21:14:28Z"
-git-sha: be12e414b
+generated: "2026-05-23T22:28:30Z"
+git-sha: f194648bb
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 52 |
-| MissingAvManifest (backlog) | 334 |
+| Match | 54 |
+| MissingAvManifest (backlog) | 332 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 8 |
 
@@ -206,8 +206,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `ClassForm` | `ClassEditorView` | `—` | `CCBranchForm` | `CCBranchEditorView` |
-| `ClassForm` | `ClassEditorView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassFE6Form` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassForm` | `ClassFE6View` | `—` | `CCBranchForm` | `CCBranchEditorView` |
 | `ClassForm` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
@@ -438,6 +436,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
+| `ClassForm` | `ClassEditorView` | `JumpToCCBranch_FE8` | `CCBranchForm` | `CCBranchEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |

@@ -105,6 +105,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     CommandName: "JumpToTerrainRes",
                     TargetViewType: typeof(MoveCostEditorView),
                     TargetAddress: null),
+
+                // Added in #406: HardCoding warning hyperlink opens the
+                // patch manager filtered to the hardcoded-class entry
+                // (mirrors WF ClassForm.HardCodingWarningLabel_Click which
+                // calls InputFormRef.JumpForm<PatchForm>() and JumpTo
+                // "HARDCODING_CLASS=<id>"). Address slot is unused — the
+                // jump uses a string filter key, not a numeric address.
+                new NavigationTarget(
+                    CommandName: "JumpToHardCodingPatch",
+                    TargetViewType: typeof(PatchManagerView),
+                    TargetAddress: null),
+
+                // Added in #406: FE8-only CC Branch jump (parity with WF
+                // ClassForm.J_5_Click which calls
+                // InputFormRef.JumpForm<CCBranchForm>(SelectedIndex)).
+                // The address slot carries the class id (0-based) — the
+                // CCBranchEditorView resolves to the correct row via
+                // NavigateTo. Skip note: the click handler short-circuits
+                // for non-FE8 ROMs, so the manifest entry is purely
+                // declarative.
+                new NavigationTarget(
+                    CommandName: "JumpToCCBranch_FE8",
+                    TargetViewType: typeof(CCBranchEditorView),
+                    TargetAddress: null),
             };
         }
     }
