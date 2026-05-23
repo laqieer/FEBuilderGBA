@@ -270,7 +270,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public void Initialize() { IsLoaded = true; }
-        public int GetListCount() => 0;
+
+        /// <summary>
+        /// Reports the count of rows this editor exposes. The cached
+        /// <see cref="ReadCount"/> is populated by <see cref="LoadList"/> on
+        /// every refresh; before the first LoadList we fall back to a fresh
+        /// LoadList call (cheap on patch-missing ROMs - returns 0 quickly).
+        /// Returning 0 unconditionally would have caused the IDataVerifiable
+        /// sweeps to treat this as a sub-editor and mask list-population
+        /// regressions (Copilot bot review on PR #516).
+        /// </summary>
+        public int GetListCount()
+        {
+            if (ReadCount > 0) return (int)ReadCount;
+            return LoadList().Count;
+        }
 
         public Dictionary<string, string> GetDataReport()
         {

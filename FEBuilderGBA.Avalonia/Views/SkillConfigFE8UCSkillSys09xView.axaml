@@ -162,12 +162,15 @@
               <Label Grid.Row="0" Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Zoom_Label"
                      Content="Zoom" VerticalAlignment="Center" />
+              <!-- Wrap the option text in TextBlock so ViewTranslationHelper
+                   picks them up (ComboBoxItem.Content is NOT translated by
+                   the helper - Copilot bot review on PR #516). -->
               <ComboBox Grid.Row="0" Grid.Column="1"
                         AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ShowZoom_Combo"
                         Name="ShowZoomComboBox" Width="160"
                         SelectionChanged="ShowZoomComboBox_SelectionChanged">
-                <ComboBoxItem>Zoomed</ComboBoxItem>
-                <ComboBoxItem>Original size</ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Zoomed" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Original size" /></ComboBoxItem>
               </ComboBox>
               <Label Grid.Row="1" Grid.Column="0"
                      AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Frame_Label"
