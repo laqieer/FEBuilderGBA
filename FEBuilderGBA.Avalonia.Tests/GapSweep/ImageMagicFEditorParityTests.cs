@@ -194,6 +194,7 @@ public class ImageMagicFEditorParityTests
     [InlineData("ImageMagicFEditor_MagicAnimeExport_Button")]
     [InlineData("ImageMagicFEditor_OpenSource_Button")]
     [InlineData("ImageMagicFEditor_SelectSource_Button")]
+    [InlineData("ImageMagicFEditor_MagicListExpand_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string id)
     {
         // Simple regex check on the raw AXAML text — looks at the

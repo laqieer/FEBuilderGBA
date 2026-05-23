@@ -69,7 +69,10 @@ namespace FEBuilderGBA.Avalonia.Views
             P12Box.IsEnabled = ok;
             P16Box.IsEnabled = ok;
             FrameBox.IsEnabled = ok;
-            MagicListExpandButton.IsEnabled = ok;
+            // MagicListExpandButton is intentionally NOT re-enabled here -
+            // the underlying ExpandsArea call is WF-coupled and tracked by
+            // #500 (Copilot CLI review on PR #554 #4). The AXAML keeps
+            // IsEnabled="False" + ToolTip.Tip referencing #500.
         }
 
         void UpdatePatchNotice()
