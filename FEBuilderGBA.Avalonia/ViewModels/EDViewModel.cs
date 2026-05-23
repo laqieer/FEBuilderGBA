@@ -378,9 +378,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint ptrAddr = GetEpiloguePointerAddr();
             if (ptrAddr == 0)
                 return new DataExpansionCore.ExpandResult { Success = false, Error = "Epilogue pointer not set for this route." };
-            uint currentCount = (uint)_epilogueList.Count;
-            if (currentCount == 0)
-                currentCount = (uint)LoadEpilogueList().Count;
+            // Always reload from the live ROM here. Using the cached
+            // `_epilogueList.Count` would be stale if the user switched
+            // `EpilogueRoute` (Eirika <-> Ephraim) without reloading,
+            // and we'd copy/clear the wrong number of bytes via
+            // ExpandTable. Copilot PR #561 bot review thread.
+            uint currentCount = (uint)LoadEpilogueList().Count;
             return ExpandTerminatedTable(rom, ptrAddr, EPILOGUE_BLOCK_SIZE, currentCount,
                 seedB0FromCloneOrDefault: false, defaultB0: 0x01);
         }
@@ -476,25 +479,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, uid - 1);
         }
 
-        /// <summary>
-        /// After <see cref="DataExpansionCore.ExpandTable"/> appends a
-        /// zero-initialized entry, our ED iterators (which terminate on
-        /// either `u32 == 0` for retreat/epilogue or `u8 == 0` for epithet)
-        /// would treat the new row as the terminator and the user would
-        /// never see it. Seed B0 with a non-zero byte so the new row is
-        /// visible AND editable.
-        ///
-        /// When <paramref name="seedB0FromCloneOrDefault"/> is true, copy
-        /// B0 from the just-cloned previous-last entry (so the new slot
-        /// looks like the unit before it - same behavior as WF
-        /// `MoveToFreeSapceForm.CalcFillDataOnListExpamds`). When the
-        /// table is empty, fall back to <paramref name="defaultB0"/>.
-        ///
-        /// Copilot CLI PR #561 review: blocking finding "List Expand
-        /// controls are visible but do not leave a new editable row".
-        /// This helper closes the gap by seeding B0 so the new entry
-        /// survives the next LoadList scan.
-        /// </summary>
         /// <summary>
         /// Expand a "zero-terminated" ED table by one entry. ED tables
         /// use a sentinel-row terminator (`u32 == 0` for retreat/epilogue,
