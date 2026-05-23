@@ -332,5 +332,44 @@ namespace FEBuilderGBA
         {
             return SearchPatchBool(rom, OPClassReelSortPatchTable);
         }
+
+        // ---- Class skill extends (SkillSystem) ----
+        //
+        // Mirrors WinForms SkillConfigSkillSystemForm.IsClassSkillExtendsLow()
+        // in FEBuilderGBA/SkillConfigSkillSystemForm.cs. The 68-byte THUMB
+        // pattern is the patched class-skill-table accessor; presence
+        // implies the "level + mode flag" packing is in use (player+32 /
+        // enemy+64 / normal+hard+96 / hard+128), so the X_LV add panel
+        // surfaces in both WinForms and Avalonia. Window is [0xB00000,
+        // 0xC00000) with blocksize 4 (4-byte THUMB instruction alignment).
+        //
+        // The Avalonia view caches the result via PatchDetectionService;
+        // WinForms IsClassSkillExtendsLow now delegates to this helper
+        // so both UIs share a single source of truth (gap-sweep #415).
+        static readonly byte[] s_ClassSkillExtendsPattern = new byte[] {
+            0xF0, 0xE7, 0x02, 0x2B, 0x12, 0xD0, 0x03, 0x2B, 0x06, 0xD1,
+            0x0D, 0x48, 0x42, 0x21, 0x41, 0x5C, 0x20, 0x22, 0x11, 0x42,
+            0x0A, 0xD1, 0xE5, 0xE7, 0x04, 0x2B, 0x06, 0xD1, 0x08, 0x48,
+            0x14, 0x21, 0x41, 0x5C, 0x40, 0x22, 0x11, 0x42, 0x01, 0xD1,
+            0xDC, 0xE7, 0xDB, 0xE7, 0x63, 0x78, 0x33, 0x70, 0x01, 0x36,
+            0xD7, 0xE7, 0x00, 0x20, 0x30, 0x70, 0x06, 0xBC, 0xF1, 0xBC,
+            0x70, 0x47, 0x00, 0x00, 0xF0, 0xBC, 0x02, 0x02,
+        };
+
+        /// <summary>
+        /// True when the SkillSystem "class skill extends" patch is
+        /// installed in <paramref name="rom"/>. Mirrors WinForms
+        /// <c>SkillConfigSkillSystemForm.IsClassSkillExtends()</c>.
+        /// Returns false for null or short ROMs.
+        /// </summary>
+        public static bool IsClassSkillExtendsDetect(ROM? rom)
+        {
+            if (rom?.Data == null) return false;
+            const uint start = 0xB00000;
+            const uint end = 0xC00000;
+            if (rom.Data.Length < end) return false;
+            uint addr = U.Grep(rom.Data, s_ClassSkillExtendsPattern, start, end, 4);
+            return addr != U.NOT_FOUND;
+        }
     }
 }

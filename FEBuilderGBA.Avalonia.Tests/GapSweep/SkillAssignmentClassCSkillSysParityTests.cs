@@ -1,0 +1,311 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Phase 1+2+5+6 gap-sweep regression tests for SkillAssignmentClassCSkillSysView. (#415)
+//
+// Closes the 36 control gap + 24 WF-only labels surfaced by the gap-sweep
+// methodology on SkillAssignmentClassCSkillSysForm (HIGH density 43/7).
+// After this PR the view rebuilds to a three-pane master-detail editor
+// (top read-config bar + class list + per-class detail + N1 sub-list).
+// The form is gated to the CSkillSys300 patch (mirrors WinForms
+// MainFE8Form.cs line 715).
+using System;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.GapSweep;
+using FEBuilderGBA.Avalonia.ViewModels;
+using Xunit;
+
+namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
+
+[Collection("SharedState")]
+public class SkillAssignmentClassCSkillSysParityTests
+{
+    [Fact]
+    public void View_AvControlCount_AtOrAboveMediumVerdict()
+    {
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "SkillAssignmentClassCSkillSysView.axaml");
+        Assert.True(File.Exists(axamlPath), $"AXAML not found at {axamlPath}");
+        var doc = XDocument.Load(axamlPath);
+        int avCount = ControlDensityScanner.CountAvControlsInDocument(doc);
+        const int WfControlCount = 43;
+        int mediumThreshold = (int)Math.Ceiling(WfControlCount * 0.75);
+        Assert.True(avCount >= mediumThreshold,
+            $"AV control count {avCount} must be >= {mediumThreshold} (75% of WF={WfControlCount})");
+    }
+
+    [Fact] public void View_HasFilterAndReloadBar() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ReadStart_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ReadCount_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ReloadList_Button\"", axaml);
+        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+    }
+
+    [Fact] public void View_HasMasterClassList() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassList\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassList_NameFilter_Label\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassList_Expand_Button\"", axaml);
+    }
+
+    [Fact] public void View_HasClassDetailGrid() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassSkillLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ClassSkill_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillIcon_Image\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillName_Text\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SkillText_Text\"", axaml);
+    }
+
+    [Fact] public void View_HasAddressWriteBar() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_Addr_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_BlockSize_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SelectedAddress_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_Write_Button\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_AddrLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SizeLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_SelectAddrLabel\"", axaml);
+    }
+
+    [Fact] public void View_HasN1Sublist() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_List\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_LabelFilter\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_Expand_Button\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_LevelUpAddr_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_LevelUpAddrLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_ReadCount_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_ReloadList_Button\"", axaml);
+    }
+
+    [Fact] public void View_HasN1WriteBar() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_Addr_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_BlockSize_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SelectedAddress_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_Write_Button\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_LevelLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_B0_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_B1_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillIcon_Image\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillName_Text\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_N1_SkillText_Text\"", axaml);
+    }
+
+    [Fact] public void View_HasLevelBreakdownPanel() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LevelAddPanel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_Value_Input\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_PlayerOnly_Check\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_EnemyOnly_Check\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_NormalHard_Check\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_HardOnly_Check\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_255_Panel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_BreakdownLabel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_X_LV_LevelLabel\"", axaml);
+    }
+
+    [Fact] public void View_HasIndependencePanel() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_IndependencePanel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_Independence_Button\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_IndependenceNotice_Label\"", axaml);
+    }
+
+    [Fact] public void View_HasZeroPointerPanel() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ZeroPointerPanel\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ZeroPointer_Label\"", axaml);
+    }
+
+    [Fact] public void View_HasLearnInfoLink() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_LearnInfo_Link\"", axaml);
+    }
+
+    [Fact] public void View_HasExportImportButtons() {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ExportAll_Button\"", axaml);
+        Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ImportAll_Button\"", axaml);
+    }
+
+    [Fact] public void View_StatusBanner_NamesCSkillSys300() {
+        string axaml = ReadAxaml();
+        Assert.Contains("CSkillSys", axaml);
+        Assert.Matches(new Regex(@"3\.0|3\.00|300"), axaml);
+    }
+
+    [Fact] public void View_OnWrite_UsesUndoService() {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+OnWrite[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnWrite[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnWrite[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
+    [Fact] public void View_OnN1Write_UsesUndoService() {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+OnN1Write[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnN1Write[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnN1Write[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
+    [Fact] public void View_OnIndependence_UsesUndoService() {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+OnIndependence[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnIndependence[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnIndependence[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
+    [Fact] public void View_OnN1Expand_UsesUndoService() {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+OnN1Expand[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnN1Expand[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnN1Expand[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
+    [Fact] public void View_OnClassSelected_ResetsN1SelectedAddressOnEntryChange() {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+OnClassSelected[\s\S]*?_n1SelectedAddr\s*=\s*0", RegexOptions.Compiled), source);
+    }
+
+    [Fact] public void Consolidation_CanonicalViewModelFileExists() {
+        string canonical = Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia", "ViewModels",
+            "SkillAssignmentClassCSkillSysViewModel.cs");
+        Assert.True(File.Exists(canonical), $"Canonical ViewModel file expected at {canonical}");
+    }
+
+    [Fact] public void Consolidation_LegacyDoubledNameFileIsAbsent() {
+        string legacy = Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia", "ViewModels",
+            "SkillAssignmentClassCSkillSysViewViewModel.cs");
+        Assert.False(File.Exists(legacy), $"Legacy doubled-name ViewModel file must not exist: {legacy}");
+    }
+
+    [Fact] public void ViewModel_LoadN1List_StopsAt0xFFFFTerminator() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            uint baseAddr = 0x00820000u;
+            bytes[baseAddr + 0] = 0x01; bytes[baseAddr + 1] = 0x10;
+            bytes[baseAddr + 2] = 0x02; bytes[baseAddr + 3] = 0x20;
+            bytes[baseAddr + 4] = 0x03; bytes[baseAddr + 5] = 0x30;
+            bytes[baseAddr + 6] = 0xFF; bytes[baseAddr + 7] = 0xFF;
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            var rows = vm.LoadN1List(baseAddr);
+            Assert.Equal(3, rows.Count);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_LoadN1List_StopsAt0x0000Terminator() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            uint baseAddr = 0x00820000u;
+            bytes[baseAddr + 0] = 0x01; bytes[baseAddr + 1] = 0x10;
+            bytes[baseAddr + 2] = 0x02; bytes[baseAddr + 3] = 0x20;
+            bytes[baseAddr + 4] = 0x00; bytes[baseAddr + 5] = 0x00;
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            var rows = vm.LoadN1List(baseAddr);
+            Assert.Equal(2, rows.Count);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_LoadN1List_NullRom_ReturnsEmpty() {
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = null;
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            var rows = vm.LoadN1List(0x00820000u);
+            Assert.Empty(rows);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_LoadN1List_ZeroAddress_ReturnsEmpty() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            var rows = vm.LoadN1List(0);
+            Assert.Empty(rows);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_IsClassSkillExtendsActive_NullRom_False() {
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = null;
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            vm.RefreshPatchState();
+            Assert.False(vm.IsClassSkillExtendsActive);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_LoadEntry_LoadsW0AndExposesClassSkill() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            uint entry = 0x00800000u;
+            rom.Data[entry + 0] = 0x42;
+            rom.Data[entry + 1] = 0x00;
+            rom.Data[entry + 2] = 0xCC;
+            rom.Data[entry + 3] = 0xDD;
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            vm.LoadEntry(entry);
+            Assert.Equal(entry, vm.CurrentAddr);
+            Assert.Equal(0x0042u, vm.ClassSkill);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void UndoCoverage_ViewCoversCanonicalVmWriteMethods() {
+        string repoRoot = FindRepoRoot();
+        var allFiles = Directory.GetFiles(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia"),
+            "*.cs", SearchOption.AllDirectories);
+        var covered = UndoCoverageScanner.DiscoverViewCoveredVmMethods(allFiles);
+        const string vm = "SkillAssignmentClassCSkillSysViewModel";
+        Assert.Contains((vm, "WriteClassSkill"), covered);
+        Assert.Contains((vm, "WriteN1Entry"), covered);
+        Assert.Contains((vm, "MakeIndependent"), covered);
+        Assert.Contains((vm, "ExpandN1List"), covered);
+    }
+
+    static string ReadAxaml() {
+        string axamlPath = Path.Combine(FindRepoRoot(),
+            "FEBuilderGBA.Avalonia", "Views", "SkillAssignmentClassCSkillSysView.axaml");
+        return File.ReadAllText(axamlPath);
+    }
+
+    static string ReadCodeBehind() {
+        string path = Path.Combine(FindRepoRoot(),
+            "FEBuilderGBA.Avalonia", "Views", "SkillAssignmentClassCSkillSysView.axaml.cs");
+        return File.ReadAllText(path);
+    }
+
+    static string FindRepoRoot() {
+        string cur = AppContext.BaseDirectory;
+        for (int i = 0; i < 12; i++) {
+            if (File.Exists(Path.Combine(cur, "FEBuilderGBA.sln"))) return cur;
+            DirectoryInfo? parent = Directory.GetParent(cur);
+            if (parent == null) break;
+            cur = parent.FullName;
+        }
+        throw new InvalidOperationException("Could not locate FEBuilderGBA.sln from " + AppContext.BaseDirectory);
+    }
+
+    static ROM MakeMinimalFe8uRom() {
+        var rom = new ROM();
+        var data = new byte[0x1100000];
+        rom.LoadLow("synthetic-fe8u.gba", data, "BE8E01");
+        return rom;
+    }
+}
