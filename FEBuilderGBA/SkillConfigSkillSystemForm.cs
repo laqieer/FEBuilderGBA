@@ -342,11 +342,13 @@ namespace FEBuilderGBA
         static uint IsClassSkillExtendsLow()
         {
             // Delegate to Core scanner (single source of truth for the
-            // ClassSkillExtends signature; mirrors gap-sweep #416 plan).
+            // ClassSkillExtends signature; mirrors gap-sweep #415/#416 plans).
+            // Both Avalonia (SkillAssignmentClassCSkillSysViewModel,
+            // SkillAssignmentClassSkillSystemViewModel) and WinForms route
+            // through this Core helper so the X_LV add panel + patch banner
+            // appear consistently in both UIs.
             return SkillSystemPatchScanner.IsClassSkillExtends(Program.ROM) ? 1u : 0u;
         }
-        
-
         const uint SkillPalettePointer = 0x22370; //オリジナルROMからあるパレット.
         public static uint GetIconAddr(uint index, uint imageBaseAddress)
         {

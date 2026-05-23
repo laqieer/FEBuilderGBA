@@ -332,5 +332,15 @@ namespace FEBuilderGBA
         {
             return SearchPatchBool(rom, OPClassReelSortPatchTable);
         }
+
+        // ---- Class skill extends (SkillSystem) ----
+        // The CSkillSys "class skill extends" patch detector now lives in
+        // FEBuilderGBA.Core/SkillSystemPatchScanner.cs as
+        // SkillSystemPatchScanner.IsClassSkillExtends(rom) — see the
+        // duplicate-source consolidation done by gap-sweep #415 +
+        // gap-sweep #416. Both WinForms (SkillConfigSkillSystemForm.cs)
+        // and Avalonia (SkillAssignmentClassCSkillSysViewModel,
+        // SkillAssignmentClassSkillSystemViewModel) route through that
+        // single helper.
     }
 }

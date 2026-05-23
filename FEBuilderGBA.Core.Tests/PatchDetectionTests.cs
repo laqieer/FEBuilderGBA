@@ -208,5 +208,9 @@ namespace FEBuilderGBA.Core.Tests
             rom.Data[0xB8C80 + 3] = 0x68;
             Assert.False(PatchDetection.OPClassReelSortPatchDetect(rom));
         }
+
+        // CSkillSys "class skill extends" detector tests moved to
+        // SkillSystemPatchScannerTests.cs (single source of truth — see
+        // PatchDetection.cs comment block).
     }
 }

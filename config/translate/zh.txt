@@ -21206,20 +21206,53 @@ to:
 :Level
 等级
 
+:Acquired Level
+习得等级
+
+:Acquired Level Breakdown
+习得等级明细
+
 :Level Breakdown
 习得等级的细节
 
+:Level-up Skill Table Address
+升级习得技能的起始地址
+
+:Detach Selected Class (make independent)
+将所选职业的数据分离独立
+
+:This table is referenced by multiple classes.
+此表正在被多个职业引用。
+
 :PlayerOnly(LV+32)
-仅玩家(LV+32)
+仅我方(LV+32)
 
 :EnemyOnly(LV+64)
 仅敌方(LV+64)
+
+:Normal&&Hard (LV+96)
+普通&&困难 (LV+96)
 
 :Normal&Hard (LV+96)
 普通&困难(LV+96)
 
 :Hard only (LV+128)
-仅困难(LV+128)
+仅困难 (LV+128)
+
+:Click here for acquired level and skill details
+点此查看习得等级与技能详情
+
+:Level is set to 255.\r\nWhen a class is reached via CC from a base class, this skill cannot be obtained.\r\nOnly when this class is LOADed can this skill be held.
+等级被设为255。\r\n从下级职业CC升级到此职业时，无法获得此技能。\r\n仅在直接以此职业 LOAD 时才能持有该技能。
+
+:No level-up skill area is allocated for this class.\r\nPress the "Expand List" button to allocate one.
+该职业尚未分配升级技能区域。\r\n请按"扩展列表"按钮以分配区域。
+
+:Skill Assignment - Class (CSkillSys 3.00).\r\nThis editor requires the CSkillSys 3.00+ skill system patch to be installed.\r\nUse the Patch Manager to install the CSkillSys 3.00 patch first.
+技能_职业分配 (CSkillSys 3.00)。\r\n此编辑器需要安装 CSkillSys 3.00+ 技能系统补丁。\r\n请先在补丁管理器中安装 CSkillSys 3.00 补丁。
+
+:Skill Assignment - Class (CSkillSys)
+技能_职业分配 (CSkillSys)
 
 :Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
 设置了等级 255。\n如果从低职业升到这个职业，将不会获得此技能。\n只有以这个职业直接载入时才会拥有此技能。
