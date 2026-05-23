@@ -44,6 +44,16 @@ namespace FEBuilderGBA
         /// have ASM-map data available should return false.
         /// </summary>
         bool IsHardCodeUnit(uint unitId);
+
+        /// <summary>
+        /// Returns true when the supplied item id is referenced by
+        /// hardcoded ASM in the loaded ROM. Used by the item-editor
+        /// HardCoding warning label (#409). Implementations that do not
+        /// have ASM-map data available should return false (default
+        /// implementation returns false so legacy implementors keep
+        /// compiling).
+        /// </summary>
+        bool IsHardCodeItem(uint itemId) => false;
     }
 
     /// <summary>

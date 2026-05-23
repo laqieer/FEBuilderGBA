@@ -7625,3 +7625,25 @@ UIDを含む
 
 :Bytes +2..+3 are reserved (WF designer doesn't expose).
 バイト +2..+3 は予約済み (WFデザイナでは未公開)。
+
+# ItemEditorView additions (#409)
+:Indirect Weapon Effect
+間接エフェクト
+
+:Open the indirect weapon effect table at the row for this item.
+このアイテムに対応する間接エフェクトテーブルの行を開きます。
+
+:This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.
+このアイテムはハードコード ASM から参照されています。クリックすると HARDCODING_ITEM= でフィルタした Patch Manager を開きます。
+
+:Debuff Table
+Debuff テーブル
+
+:Open the Patch Manager filtered to the SkillSystem WeaponDebuffsTable definition.
+SkillSystem WeaponDebuffsTable 定義でフィルタした Patch Manager を開きます。
+
+:Debuff (B33):
+Debuff (B33):
+
+:Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
+復号化された能力補正値 (読み取り専用 — 上記の能力補正ポインタから編集):
