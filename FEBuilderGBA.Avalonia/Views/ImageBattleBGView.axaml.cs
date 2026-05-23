@@ -194,6 +194,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _undoService.Commit();
                 _vm.LoadEntry(addr);
+                // Record the source file path so the "Open Source File/Folder"
+                // affordance works whether the user imported via the button
+                // OR via drag-and-drop (Copilot bot review on PR #513 —
+                // mirrors WinForms `ImageBattleBGForm.ImportButton_Click`).
+                if (!string.IsNullOrEmpty(loadResult.SourcePath))
+                {
+                    _vm.RecordSourceFile(loadResult.SourcePath);
+                }
                 UpdateUI();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Image imported successfully.");
@@ -205,8 +213,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                ROM rom = CoreState.ROM;
-                if (rom == null) return;
+                if (CoreState.ROM == null) return;
                 var img = _vm.TryLoadImage();
                 if (img == null) { CoreState.Services.ShowError("No image to export"); return; }
                 string path = await FileDialogHelper.SaveImageFile(this, $"battle_bg_{_vm.CurrentIndex:X02}.png");

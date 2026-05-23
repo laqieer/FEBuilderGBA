@@ -364,18 +364,20 @@ public class ImageBattleBGParityTests
         uint pointerSlot = rom.RomInfo.battle_bg_pointer;
         for (int i = 0; i < rowCount; i++)
         {
-            uint rowBase = tableAddr + (uint)(i * 12);
+            // Explicit `(int)` casts make the byte-array index intent
+            // visible (Copilot bot review on PR #513).
+            int rowBase = checked((int)(tableAddr + (uint)(i * 12)));
             BitConverter.GetBytes(0x08400000u | ((uint)i << 12)).CopyTo(bytes, rowBase + 0);
             BitConverter.GetBytes(0x08500000u | ((uint)i << 12)).CopyTo(bytes, rowBase + 4);
             BitConverter.GetBytes(0x08600000u | ((uint)i << 12)).CopyTo(bytes, rowBase + 8);
         }
         if (rowCount > 0)
         {
-            uint termAddr = tableAddr + (uint)(rowCount * 12);
+            int termAddr = checked((int)(tableAddr + (uint)(rowCount * 12)));
             BitConverter.GetBytes(0u).CopyTo(bytes, termAddr + 0);
             BitConverter.GetBytes(0u).CopyTo(bytes, termAddr + 4);
         }
-        BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(bytes, pointerSlot);
+        BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(bytes, checked((int)pointerSlot));
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
         return rom;
     }

@@ -59,7 +59,13 @@ public class ImageBattleBGCoreTests
         // is a valid GBA pointer AND distinct per row — easy to detect.
         for (int i = 0; i < rowCount; i++)
         {
-            uint rowBase = tableAddr + (uint)(i * 12);
+            // Explicit `(int)` casts on the byte-array index so the
+            // intent is unambiguous (Copilot bot review on PR #513 —
+            // .NET's overload resolution already accepts the implicit
+            // uint→long conversion via Array.CopyTo(Array,long), but
+            // an explicit checked-int cast makes the bounds intent
+            // visible and matches the rest of the test codebase).
+            int rowBase = checked((int)(tableAddr + (uint)(i * 12)));
             uint imgPtr = 0x08400000u | ((uint)i << 12);
             uint tsaPtr = 0x08500000u | ((uint)i << 12);
             uint palPtr = 0x08600000u | ((uint)i << 12);
@@ -72,13 +78,13 @@ public class ImageBattleBGCoreTests
         // is-data-exists callback stops there.
         if (rowCount > 0)
         {
-            uint termAddr = tableAddr + (uint)(rowCount * 12);
+            int termAddr = checked((int)(tableAddr + (uint)(rowCount * 12)));
             BitConverter.GetBytes(0u).CopyTo(bytes, termAddr + 0);
             BitConverter.GetBytes(0u).CopyTo(bytes, termAddr + 4);
         }
 
         // Point battle_bg_pointer at the table (GBA-format pointer).
-        BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(bytes, pointerSlot);
+        BitConverter.GetBytes(tableAddr | 0x08000000u).CopyTo(bytes, checked((int)pointerSlot));
 
         // Re-load so ROM caches the data.
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
