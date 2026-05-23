@@ -36,6 +36,13 @@ namespace FEBuilderGBA.Avalonia.Views
             // Wire desc text live updates
             DescIdBox.ValueChanged += OnDescIdChanged;
             UseDescIdBox.ValueChanged += OnUseDescIdChanged;
+
+            // Re-apply patch-aware label renames when the UI language
+            // changes — TranslatedWindow's helper re-scans the AXAML, which
+            // would otherwise reset Unk33Label.Text back to the original
+            // "Unk33 (B33):" literal (Copilot bot review on PR #569).
+            CoreState.LanguageChanged += UpdateWeaponDebuffsLink;
+            Closed += (_, _) => CoreState.LanguageChanged -= UpdateWeaponDebuffsLink;
         }
 
         void LoadList()
@@ -254,8 +261,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 WeaponDebuffsLink.IsVisible = show;
                 // WF also renames the field label to "Debuff" when the patch
                 // is present. Apply the same rename so the Avalonia UI gives
-                // the same context the WF user gets.
-                Unk33Label.Text = show ? "Debuff (B33):" : "Unk33 (B33):";
+                // the same context the WF user gets. Both labels go through
+                // R._(...) so the ja/zh translations apply (Copilot bot
+                // review on PR #569: runtime assignments need to route
+                // through the translation table, not just the AXAML scan).
+                Unk33Label.Text = show ? R._("Debuff (B33):") : R._("Unk33 (B33):");
             }
             catch (Exception ex)
             {

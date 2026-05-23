@@ -72,13 +72,43 @@ public class ItemEditorParityTests
     {
         // WF `HardCodingWarningLabel` — clickable label that opens the
         // Patch Manager filtered on the item's HARDCODING_ITEM= row.
+        // Copilot bot review on PR #569: assert IsVisible="False" on the
+        // SPECIFIC HardCoding link node, not anywhere in the file (other
+        // elements such as ListPreviewBorder are also hidden by default,
+        // so a global `Contains("IsVisible=\"False\"")` would pass even if
+        // HardCoding accidentally started visible).
+        //
+        // The Avalonia AXAML attribute is `AutomationProperties.AutomationId`
+        // (xmlns-qualified). XDocument exposes the attribute's LocalName as
+        // just `AutomationId` but the LINQ extension is more readable if we
+        // match the full prefixed string in the raw text instead. We use the
+        // raw text scan to locate the line, then re-parse only that element
+        // through XElement.Parse so the visibility assertion is scoped.
         string axaml = ReadAxaml();
-        Assert.Contains(
-            "AutomationId=\"ItemEditor_HardCodingWarning_Link\"",
-            axaml);
-        // Visibility is driven from code-behind, but the AXAML default
-        // must keep it hidden until OnItemSelected toggles it.
-        Assert.Contains("IsVisible=\"False\"", axaml);
+        int startIdx = axaml.IndexOf(
+            "AutomationProperties.AutomationId=\"ItemEditor_HardCodingWarning_Link\"",
+            StringComparison.Ordinal);
+        Assert.True(startIdx >= 0,
+            "HardCoding link element with AutomationId is missing from AXAML.");
+
+        // Walk backwards to find the element open tag `<TextBlock ...`.
+        int openIdx = axaml.LastIndexOf("<TextBlock", startIdx, StringComparison.Ordinal);
+        Assert.True(openIdx >= 0, "Could not find <TextBlock for HardCoding link.");
+        // Walk forwards to the element's self-closing `/>` or matching `</TextBlock>`.
+        int closeIdx = axaml.IndexOf("/>", startIdx, StringComparison.Ordinal);
+        int explicitClose = axaml.IndexOf("</TextBlock>", startIdx, StringComparison.Ordinal);
+        int endIdx;
+        if (closeIdx > 0 && (explicitClose < 0 || closeIdx < explicitClose))
+            endIdx = closeIdx + 2;
+        else
+            endIdx = explicitClose + "</TextBlock>".Length;
+        Assert.True(endIdx > openIdx, "Could not find element end tag.");
+
+        string elementText = axaml.Substring(openIdx, endIdx - openIdx);
+        // The default visibility on the HardCoding link must be False so the
+        // warning only appears once OnItemSelected sets it from
+        // IAsmMapCache.IsHardCodeItem.
+        Assert.Contains("IsVisible=\"False\"", elementText);
     }
 
     [Fact]
