@@ -56,7 +56,7 @@ public class ImageMagicCSACreatorParityTests
     public void View_HasReloadButton_Wired()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_ReloadList_Button\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_ReloadList_Button\"", axaml);
         Assert.Contains("Click=\"ReloadList_Click\"", axaml);
     }
 
@@ -64,72 +64,72 @@ public class ImageMagicCSACreatorParityTests
     public void View_HasSelectionBar()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Address_Input\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_BlockSize_Input\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_SelectedAddress_Label\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_Write_Button\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Address_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_BlockSize_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_SelectedAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Write_Button\"", axaml);
     }
 
     [Fact]
     public void View_HasEntryList()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Entry_List\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_Name_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Entry_List\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Name_Label\"", axaml);
     }
 
     [Fact]
     public void View_HasFramePointerFields()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_P0_Input\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_P4_Input\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_P8_Input\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_P12_Input\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_P16_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_P0_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_P4_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_P8_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_P12_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_P16_Input\"", axaml);
     }
 
     [Fact]
     public void View_HasDimComboBox()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Dim_Combo\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Dim_Combo\"", axaml);
     }
 
     [Fact]
     public void View_HasZoomComboBox()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Zoom_Combo\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Zoom_Combo\"", axaml);
     }
 
     [Fact]
     public void View_HasFrameNumeric()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Frame_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Frame_Input\"", axaml);
     }
 
     [Fact]
     public void View_HasCommentBox()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Comment_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Comment_Input\"", axaml);
     }
 
     [Fact]
     public void View_HasBinInfoBox()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_BinInfo_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_BinInfo_Input\"", axaml);
     }
 
     [Fact]
     public void View_HasPreviewArea()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"MagicCSACreator_Preview_Image\"", axaml);
-        Assert.Contains("AutomationId=\"MagicCSACreator_Preview_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Preview_Image\"", axaml);
+        Assert.Contains("AutomationId=\"ImageMagicCSACreator_Preview_Label\"", axaml);
     }
 
     // -----------------------------------------------------------------
@@ -138,12 +138,12 @@ public class ImageMagicCSACreatorParityTests
     // -----------------------------------------------------------------
 
     [Theory]
-    [InlineData("MagicCSACreator_Import_Button")]
-    [InlineData("MagicCSACreator_Export_Button")]
-    [InlineData("MagicCSACreator_OpenSource_Button")]
-    [InlineData("MagicCSACreator_SelectSource_Button")]
-    [InlineData("MagicCSACreator_Editor_Button")]
-    [InlineData("MagicCSACreator_ListExpand_Button")]
+    [InlineData("ImageMagicCSACreator_Import_Button")]
+    [InlineData("ImageMagicCSACreator_Export_Button")]
+    [InlineData("ImageMagicCSACreator_OpenSource_Button")]
+    [InlineData("ImageMagicCSACreator_SelectSource_Button")]
+    [InlineData("ImageMagicCSACreator_Editor_Button")]
+    [InlineData("ImageMagicCSACreator_ListExpand_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string automationId)
     {
         string axaml = ReadAxaml();
