@@ -17,6 +17,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
@@ -139,21 +140,33 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // Default - no selection - stays hidden.
                 Assert.False(lbl!.IsVisible);
 
-                // Force-invoke the view's refresh helper via reflection (it is
-                // private). With no AddressList selection the call returns
-                // hidden too (idx<0 short-circuit).
+                // Push items into the AddressList so SelectedOriginalIndex
+                // can resolve to a real value (matches the live runtime path
+                // where LoadList() populates the list before selection).
+                var unitList = FindByAutomationId<AddressListControl>(view, "UnitEditor_Unit_List");
+                Assert.NotNull(unitList);
+                unitList!.SetItems(new List<AddrResult>
+                {
+                    new AddrResult(0x100u, "01 Test1", 0),
+                    new AddrResult(0x134u, "02 Test2", 1),
+                });
+
                 var refresh = typeof(UnitEditorView).GetMethod(
                     "RefreshHardCodingWarning",
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 Assert.NotNull(refresh);
-                refresh!.Invoke(view, null);
-                Assert.False(lbl.IsVisible);
 
-                // Ask the cache directly (the path the handler executes when
-                // a unit IS selected). With our toggling cache, unit-id 1 is
-                // hardcoded; the contract used by the view holds.
-                Assert.True(CoreState.AsmMapFileAsmCache!.IsHardCodeUnit(1u));
-                Assert.False(CoreState.AsmMapFileAsmCache!.IsHardCodeUnit(2u));
+                // With the AddressList populated and item 0 (unit-id 1) selected,
+                // and the cache reporting unit-id 1 as hardcoded, the label MUST
+                // flip visible.
+                unitList.SelectByIndex(0);
+                refresh!.Invoke(view, null);
+                Assert.True(lbl.IsVisible, "Label should be visible: cache says unit-1 IS hardcoded and item 0 is selected (1-based unit-id = 1).");
+
+                // Selecting item 1 (unit-id 2) - cache says NOT hardcoded - label hides.
+                unitList.SelectByIndex(1);
+                refresh!.Invoke(view, null);
+                Assert.False(lbl.IsVisible, "Label should be hidden: cache says unit-2 is NOT hardcoded.");
             }
             finally
             {

@@ -744,11 +744,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (rom == null) return;
                 var addrs = GetAllUnitAddresses();
                 if (addrs.Length == 0) return;
+                var mgr = MakeCsvManager();
+                // Read the CSV FIRST (file picker / clipboard) so the undo
+                // scope only wraps the actual ROM writes. Opening Begin/Commit
+                // across an `await` would risk capturing unrelated writes
+                // that happen while the picker dialog is open.
+                string? csv = await mgr.ReadCsvForUiAsync(this);
+                if (csv == null) return;
                 _undoService.Begin(R._("Import Units CSV"));
                 int written;
                 try
                 {
-                    written = await MakeCsvManager().ImportAllAsync(this, rom, addrs);
+                    written = mgr.ApplyImportCsv(rom, csv, addrs);
                     _undoService.Commit();
                 }
                 catch { _undoService.Rollback(); throw; }
@@ -768,11 +775,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) return;
+                var mgr = MakeCsvManager();
+                // Read CSV first (no undo scope across the picker await).
+                string? csv = await mgr.ReadCsvForUiAsync(this);
+                if (csv == null) return;
                 _undoService.Begin(R._("Import Unit CSV"));
                 int written;
                 try
                 {
-                    written = await MakeCsvManager().ImportSelectedAsync(this, rom, _vm.CurrentAddr);
+                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr });
                     _undoService.Commit();
                 }
                 catch { _undoService.Rollback(); throw; }

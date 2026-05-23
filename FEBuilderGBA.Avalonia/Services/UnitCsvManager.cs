@@ -350,6 +350,14 @@ namespace FEBuilderGBA.Avalonia.Services
             await stream.WriteAsync(bytes, 0, bytes.Length);
         }
 
+        /// <summary>
+        /// Public surface for the view layer to read the CSV from the user
+        /// (clipboard or file picker) BEFORE starting the undo scope, so the
+        /// ambient undo doesn't span the picker await. Returns null if the
+        /// user cancelled.
+        /// </summary>
+        public Task<string?> ReadCsvForUiAsync(Window owner) => ReadCsvAsync(owner);
+
         async Task<string?> ReadCsvAsync(Window owner)
         {
             if (_useClipboard)

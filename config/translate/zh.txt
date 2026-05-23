@@ -21329,3 +21329,9 @@ OBBGLeftToRight
 
 :Import the selected unit from a CSV file or clipboard
 从 CSV 文件或剪贴板导入选定单位
+
+:Import Units CSV
+导入单位 CSV
+
+:Import Unit CSV
+导入单位 CSV

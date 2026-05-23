@@ -7439,3 +7439,9 @@ UIDを含む
 
 :Import the selected unit from a CSV file or clipboard
 選択中のユニットをCSVファイルまたはクリップボードからインポート
+
+:Import Units CSV
+ユニットCSVをインポート
+
+:Import Unit CSV
+ユニットCSVをインポート
