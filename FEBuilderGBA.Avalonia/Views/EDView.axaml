@@ -14,7 +14,7 @@
     <!-- ============================================================
          Tab 1 - Retreat (WF tabPage1 "撤退")
          ============================================================ -->
-    <TabItem AutomationProperties.AutomationId="ED_RetreatTab" Header="Retreat">
+    <TabItem AutomationProperties.AutomationId="ED_Retreat_Tab" Header="Retreat">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
         <!-- Row 0: Read-config bar (mirrors WF panel1) -->
@@ -124,7 +124,7 @@
     <!-- ============================================================
          Tab 2 - Epithet (WF tabPage2 "通り名")
          ============================================================ -->
-    <TabItem AutomationProperties.AutomationId="ED_EpithetTab" Header="Epithet">
+    <TabItem AutomationProperties.AutomationId="ED_Epithet_Tab" Header="Epithet">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
         <!-- Row 0: Read-config bar -->
@@ -230,7 +230,7 @@
     <!-- ============================================================
          Tab 3 - Epilogue (WF tabPage3 "その後")
          ============================================================ -->
-    <TabItem AutomationProperties.AutomationId="ED_EpilogueTab" Header="Epilogue">
+    <TabItem AutomationProperties.AutomationId="ED_Epilogue_Tab" Header="Epilogue">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
         <!-- Row 0: Read-config bar - includes Eirika/Ephraim filter combo -->

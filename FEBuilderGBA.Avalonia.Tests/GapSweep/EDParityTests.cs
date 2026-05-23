@@ -74,9 +74,9 @@ public class EDParityTests
     public void View_HasThreeTabs_Retreat_Epithet_Epilogue()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ED_RetreatTab\"", axaml);
-        Assert.Contains("AutomationId=\"ED_EpithetTab\"", axaml);
-        Assert.Contains("AutomationId=\"ED_EpilogueTab\"", axaml);
+        Assert.Contains("AutomationId=\"ED_Retreat_Tab\"", axaml);
+        Assert.Contains("AutomationId=\"ED_Epithet_Tab\"", axaml);
+        Assert.Contains("AutomationId=\"ED_Epilogue_Tab\"", axaml);
     }
 
     [Fact]
