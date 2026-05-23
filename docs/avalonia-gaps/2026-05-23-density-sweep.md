@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T03:29:55Z"
-git-sha: d4a4c4372
+generated: "2026-05-23T04:07:01Z"
+git-sha: 9736681df
 sweep-type: density
 ---
 
@@ -20,8 +20,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 232 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 82 |
+| HIGH | |Δ%| ≥ 50 | 231 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 83 |
 | LOW | |Δ%| < 25 | 56 |
 
 ## Ranked Density Deltas
@@ -128,7 +128,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `MapSettingDifficultyForm` | `MapSettingDifficultyView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` | 10 | 3 | -7 | -70.0% | Heuristic |
 | High | `ToolCustomBuildForm` | `ToolCustomBuildView` | 10 | 3 | -7 | -70.0% | Heuristic |
-| High | `SkillConfigFE8UCSkillSys09xForm` | `SkillConfigFE8UCSkillSys09xView` | 29 | 9 | -20 | -69.0% | Heuristic |
 | High | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | 22 | 7 | -15 | -68.2% | ListParityHelper |
 | High | `UnitCustomBattleAnimeForm` | `UnitCustomBattleAnimeView` | 31 | 10 | -21 | -67.7% | ListParityHelper |
 | High | `ErrorPaletteShowForm` | `ErrorPaletteShowView` | 9 | 3 | -6 | -66.7% | Heuristic |
@@ -306,6 +305,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolWorkSupport_UpdateQuestionDialogForm` | `ToolWorkSupport_UpdateQuestionDialogView` | 3 | 4 | 1 | +33.3% | Heuristic |
 | Medium | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | 23 | 31 | 8 | +34.8% | ListParityHelper |
 | Medium | `ToolDiffDebugSelectForm` | `ToolDiffDebugSelectView` | 11 | 15 | 4 | +36.4% | Heuristic |
+| Medium | `SkillConfigFE8UCSkillSys09xForm` | `SkillConfigFE8UCSkillSys09xView` | 29 | 40 | 11 | +37.9% | Heuristic |
 | Medium | `PackedMemorySlotForm` | `PackedMemorySlotView` | 5 | 7 | 2 | +40.0% | Heuristic |
 | Medium | `TextRefAddDialogForm` | `TextRefAddDialogView` | 5 | 7 | 2 | +40.0% | Heuristic |
 | Medium | `PointerToolForm` | `PointerToolView` | 31 | 45 | 14 | +45.2% | Heuristic |

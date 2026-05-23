@@ -68,11 +68,12 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Apply both pre-import safety gates that Copilot CLI v3 review
-        /// (#429) requires us to share between the file-picker import
-        /// (`ImportPng_Click`) and the drag-drop import (`OnDrop`):
-        ///   1. Reserve-BG confirmation (system black / random slots).
-        ///   2. BG255/BG224 explicit refusal: if the BG256Color patch is
+        /// Apply all pre-import safety gates that the import paths share:
+        ///   1. **Entry-loaded guard** (Copilot bot review on PR #517):
+        ///      refuse if no entry is selected / loaded yet. Writing to
+        ///      `CurrentAddr == 0` would corrupt the ROM header.
+        ///   2. Reserve-BG confirmation (system black / random slots).
+        ///   3. BG255/BG224 explicit refusal: if the BG256Color patch is
         ///      installed AND the current entry's P4 is &lt;= 1 (the
         ///      255/224 mode flag), refuse the 16-color import path
         ///      before any ROM write. Mirrors WF
@@ -82,6 +83,13 @@ namespace FEBuilderGBA.Avalonia.Views
         ///   or refused.</returns>
         bool PreImportGate()
         {
+            // Gate 0: entry-loaded guard.
+            if (!_vm.IsLoaded || !U.isSafetyOffset(_vm.CurrentAddr) || _vm.CurrentAddr + 12 > (uint)CoreState.ROM.Data.Length)
+            {
+                CoreState.Services?.ShowError("No BG entry is selected. Select an entry in the list before importing.");
+                return false;
+            }
+
             // Gate 1: reserve-BG confirmation.
             if (FEBuilderGBA.ImageBGCore.IsReserveBgId(CoreState.ROM, (uint)_vm.CurrentIndex))
             {
@@ -398,6 +406,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ROM rom = CoreState.ROM;
                 if (rom == null) return;
+                // Entry-loaded guard (Copilot bot review on PR #517):
+                // refuse writes when no entry is selected.
+                if (!_vm.IsLoaded || !U.isSafetyOffset(_vm.CurrentAddr) || _vm.CurrentAddr + 12 > (uint)rom.Data.Length)
+                {
+                    CoreState.Services?.ShowError("No BG entry is selected. Select an entry in the list before importing.");
+                    return;
+                }
                 string path = await FileDialogHelper.OpenPaletteFile(this);
                 if (string.IsNullOrEmpty(path)) return;
                 byte[] fileData = File.ReadAllBytes(path);

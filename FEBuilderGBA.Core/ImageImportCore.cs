@@ -200,6 +200,20 @@ namespace FEBuilderGBA
         ///   for BG/CG-style 256x160 entries.</param>
         public static byte[] EncodeHeaderTSA(byte[] tsa, int width, int height, int tsa_width_margin = 2)
         {
+            // Argument validation — fail deterministically with empty
+            // output rather than throw IndexOutOfRangeException at
+            // runtime (Copilot bot review on PR #517).
+            if (tsa == null)
+                return new byte[2];
+            if (width % 8 != 0 || height % 8 != 0)
+                return new byte[2];
+            if (width <= 0 || height <= 0)
+                return new byte[2];
+            if (tsa_width_margin < 0)
+                return new byte[2];
+            if (tsa_width_margin > (width / 8) - 1)
+                return new byte[2];
+
             int masterHeaderX = (width / 8) - tsa_width_margin - 1;
             int masterHeaderY = (height / 8) - 1;
             if (masterHeaderX < 0 || masterHeaderY < 0)
@@ -281,6 +295,24 @@ namespace FEBuilderGBA
             if (rom == null || indexedPixels == null || gbaPalette == null)
             {
                 result.Error = "Invalid arguments";
+                return result;
+            }
+            // Sanity-check pixel + palette sizes before doing any work
+            // (Copilot bot review on PR #517 — avoid writing malformed
+            // data into ROM on bad inputs).
+            if (width <= 0 || height <= 0 || width % 8 != 0 || height % 8 != 0)
+            {
+                result.Error = "Width/height must be positive multiples of 8";
+                return result;
+            }
+            if (indexedPixels.Length != width * height)
+            {
+                result.Error = $"indexedPixels.Length ({indexedPixels.Length}) does not match width*height ({width * height})";
+                return result;
+            }
+            if (gbaPalette.Length < 32 || gbaPalette.Length % 32 != 0)
+            {
+                result.Error = $"gbaPalette.Length ({gbaPalette.Length}) must be a multiple of 32 (16 colors x 2 bytes)";
                 return result;
             }
 

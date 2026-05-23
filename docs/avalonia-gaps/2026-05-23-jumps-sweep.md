@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T03:30:01Z"
-git-sha: d4a4c4372
+generated: "2026-05-23T04:07:07Z"
+git-sha: 9736681df
 sweep-type: jumps
 ---
 
@@ -38,9 +38,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---:|
 | Total rows | 429 |
 | Match | 37 |
-| MissingAvManifest (backlog) | 352 |
+| MissingAvManifest (backlog) | 351 |
 | NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 5 |
+| KnownGap (issue-tagged) | 6 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -49,6 +49,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
+| `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 
@@ -172,8 +173,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `Program` | `—` | `—` | `WelcomeForm` | `WelcomeView` |
 | `R` | `—` | `—` | `ErrorLongMessageDialogForm` | `ErrorLongMessageDialogView` |
 | `R` | `—` | `—` | `ErrorLongMessageDialogForm` | `ErrorLongMessageDialogView` |
-| `SkillConfigCSkillSystem09xForm` | `—` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `SkillConfigCSkillSystem09xForm` | `—` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ToolAnimationCreatorUserControl` | `—` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ToolAnimationCreatorUserControl` | `—` | `—` | `ImageBattleAnimeForm` | `ImageBattleAnimeView` |
 | `ToolAnimationCreatorUserControl` | `—` | `—` | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` |
@@ -314,6 +313,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `PatchForm` | `PatchManagerView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
+| `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `SongExchangeForm` | `SongExchangeView` | `—` | `SongExchangeForm` | `SongExchangeView` |

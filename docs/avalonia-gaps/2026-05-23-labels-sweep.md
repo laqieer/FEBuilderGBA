@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T03:29:59Z"
-git-sha: d4a4c4372
+generated: "2026-05-23T04:07:05Z"
+git-sha: 9736681df
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4631 |
-| Total AV-only labels | 2753 |
-| Total common labels | 69 |
+| Total WF-only labels | 4630 |
+| Total AV-only labels | 2771 |
+| Total common labels | 70 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -4261,41 +4261,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown (0x07):`
 - `Write`
 
-### SkillConfigFE8UCSkillSys09xForm
-WF labels: **20** · AV labels: **6** · WF-only: **20** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 29 / AV 9)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `アニメーション`
-- `アニメーション取出`
-- `アニメーション読込`
-- `エディタ`
-- `スキル名`
-- `フレーム`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `詳細`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Description:`
-- `Skill Configuration (CSkillSys 0.9.x)`
-- `Skill Name:`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
-- `Write`
-
 ### SongTableForm
 WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **Medium** (WF 26 / AV 14)
 
@@ -4667,6 +4632,58 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `X Position:`
 - `Y Position:`
+
+### SkillConfigFE8UCSkillSys09xForm
+WF labels: **20** · AV labels: **25** · WF-only: **19** · AV-only: **24** · Common: **1** · Density verdict: **Medium** (WF 29 / AV 40)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アイコン`
+- `アドレス`
+- `アニメーション`
+- `アニメーション取出`
+- `アニメーション読込`
+- `エディタ`
+- `スキル名`
+- `フレーム`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `詳細`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Animation`
+- `Animation Export`
+- `Animation Import`
+- `Description:`
+- `Display example`
+- `Editor`
+- `Filter Name`
+- `Frame`
+- `Icon`
+- `Image Export`
+- `Image Import`
+- `Original size`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count:`
+- `Reload`
+- `Selected Address:`
+- `Skill Configuration (CSkillSys 0.9.x)`
+- `Skill Name:`
+- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
+- `Start Address:`
+- `Write`
+- `Zoom`
+- `Zoomed`
 
 ### SongTrackImportMidiForm
 WF labels: **19** · AV labels: **8** · WF-only: **19** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 25 / AV 10)
