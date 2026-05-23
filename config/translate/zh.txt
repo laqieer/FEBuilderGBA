@@ -21085,3 +21085,72 @@ to:
 
 :Animation Commands (pointer P24)
 动画指令 (指针 P24)
+
+:00 = Player
+00 = 我军
+
+:01 = Enemy
+01 = 敌军
+
+:02 = NPC
+02 = NPC
+
+:03 = Gray
+03 = 灰色
+
+:00 = None
+00 = 无
+
+:01 = Fire
+01 = 火
+
+:02 = Thunder
+02 = 雷
+
+:03 = Live
+03 = 治愈
+
+:04 = Light
+04 = 光
+
+:05 = Mil
+05 = 米尔
+
+:06 = Manakete
+06 = 龙人变身
+
+:07 = Monster Magic
+07 = 魔物魔法
+
+:08 = Stone
+08 = 石化
+
+:1 = Close-range attack animation
+1 = 近距离攻击动画
+
+:2 = Close-range critical animation
+2 = 近距离必杀动画
+
+:3 = Set anime state to 'hit effect applied'
+3 = 将动画状态设为 'hit effect applied'
+
+:4 = Long-range attack animation
+4 = 远距离攻击动画
+
+:5 = Wait N frames
+5 = 等待 N 帧
+
+:6 = Close-range dodge animation
+6 = 近距离回避动画
+
+:7 = (FE8 unused) Set anime state to 'hit effect applied'
+7 = (FE8 未使用) 将动画状态设为 'hit effect applied'
+
+:8 = Wait until anime reaches C01/C02/C18
+8 = 等待动画到达 C01/C02/C18
+
+:Patch: OPClassReelAnimationIDOver255 active. Battle Anime ID is read from D18.
+补丁: OPClassReelAnimationIDOver255 已启用。战斗动画ID 从 D18 读取。
+
+:Patch: OPClassReelSort active. Data Expansion enabled.
+补丁: OPClassReelSort 已启用。数据扩展可用。

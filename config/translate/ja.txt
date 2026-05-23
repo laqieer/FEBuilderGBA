@@ -7183,3 +7183,72 @@ Hex アドレス
 
 :Animation Commands (pointer P24)
 アニメコマンド (ポインタ P24)
+
+:00 = Player
+00 = 自軍
+
+:01 = Enemy
+01 = 敵軍
+
+:02 = NPC
+02 = NPC
+
+:03 = Gray
+03 = グレー
+
+:00 = None
+00 = なし
+
+:01 = Fire
+01 = ファイアー
+
+:02 = Thunder
+02 = サンダー
+
+:03 = Live
+03 = ライブ
+
+:04 = Light
+04 = ライト
+
+:05 = Mil
+05 = ミィル
+
+:06 = Manakete
+06 = マムクート変身
+
+:07 = Monster Magic
+07 = 魔物の魔法
+
+:08 = Stone
+08 = ストーン
+
+:1 = Close-range attack animation
+1 = 近距離攻撃アニメを実行
+
+:2 = Close-range critical animation
+2 = 近距離必殺アニメを実行
+
+:3 = Set anime state to 'hit effect applied'
+3 = アニメの状態を「hit effect applied」にする
+
+:4 = Long-range attack animation
+4 = 遠距離攻撃アニメを実行
+
+:5 = Wait N frames
+5 = オプション引数で指定したnフレーム秒待つ
+
+:6 = Close-range dodge animation
+6 = 近距離で回避アニメーションを行う
+
+:7 = (FE8 unused) Set anime state to 'hit effect applied'
+7 = FE8では未使用。アニメーションの状態を「hit effect applied」にする
+
+:8 = Wait until anime reaches C01/C02/C18
+8 = アニメがコマンドC01、C02、C18のどれかに到達するまで待つ
+
+:Patch: OPClassReelAnimationIDOver255 active. Battle Anime ID is read from D18.
+パッチ: OPClassReelAnimationIDOver255 が有効。戦闘アニメIDは D18 から読み取られます。
+
+:Patch: OPClassReelSort active. Data Expansion enabled.
+パッチ: OPClassReelSort が有効。データ拡張が利用可能です。

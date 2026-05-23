@@ -48,30 +48,33 @@ namespace FEBuilderGBA.Avalonia.Views
             AnimePtrBox.ValueChanged += OnAnimePtrChanged;
             N2B0Box.ValueChanged += OnN2B0Changed;
 
-            // Populate combo boxes.
-            AllyEnemyColorCombo.Items.Add("00 = Player");
-            AllyEnemyColorCombo.Items.Add("01 = Enemy");
-            AllyEnemyColorCombo.Items.Add("02 = NPC");
-            AllyEnemyColorCombo.Items.Add("03 = Gray");
+            // Populate combo boxes. ComboBox.Items strings are NOT scanned by
+            // ViewTranslationHelper (Copilot bot review thread
+            // PRRT_kwDOH0Mc1M6ETSJC on PR #544), so route them through R._()
+            // explicitly so ja/zh locales pick up the translation table entries.
+            AllyEnemyColorCombo.Items.Add(R._("00 = Player"));
+            AllyEnemyColorCombo.Items.Add(R._("01 = Enemy"));
+            AllyEnemyColorCombo.Items.Add(R._("02 = NPC"));
+            AllyEnemyColorCombo.Items.Add(R._("03 = Gray"));
 
-            MagicEffectCombo.Items.Add("00 = None");
-            MagicEffectCombo.Items.Add("01 = Fire");
-            MagicEffectCombo.Items.Add("02 = Thunder");
-            MagicEffectCombo.Items.Add("03 = Live");
-            MagicEffectCombo.Items.Add("04 = Light");
-            MagicEffectCombo.Items.Add("05 = Mil");
-            MagicEffectCombo.Items.Add("06 = Manakete");
-            MagicEffectCombo.Items.Add("07 = Monster Magic");
-            MagicEffectCombo.Items.Add("08 = Stone");
+            MagicEffectCombo.Items.Add(R._("00 = None"));
+            MagicEffectCombo.Items.Add(R._("01 = Fire"));
+            MagicEffectCombo.Items.Add(R._("02 = Thunder"));
+            MagicEffectCombo.Items.Add(R._("03 = Live"));
+            MagicEffectCombo.Items.Add(R._("04 = Light"));
+            MagicEffectCombo.Items.Add(R._("05 = Mil"));
+            MagicEffectCombo.Items.Add(R._("06 = Manakete"));
+            MagicEffectCombo.Items.Add(R._("07 = Monster Magic"));
+            MagicEffectCombo.Items.Add(R._("08 = Stone"));
 
-            N2CmdCombo.Items.Add("1 = Close-range attack animation");
-            N2CmdCombo.Items.Add("2 = Close-range critical animation");
-            N2CmdCombo.Items.Add("3 = Set anime state to 'hit effect applied'");
-            N2CmdCombo.Items.Add("4 = Long-range attack animation");
-            N2CmdCombo.Items.Add("5 = Wait N frames");
-            N2CmdCombo.Items.Add("6 = Close-range dodge animation");
-            N2CmdCombo.Items.Add("7 = (FE8 unused) Set anime state to 'hit effect applied'");
-            N2CmdCombo.Items.Add("8 = Wait until anime reaches C01/C02/C18");
+            N2CmdCombo.Items.Add(R._("1 = Close-range attack animation"));
+            N2CmdCombo.Items.Add(R._("2 = Close-range critical animation"));
+            N2CmdCombo.Items.Add(R._("3 = Set anime state to 'hit effect applied'"));
+            N2CmdCombo.Items.Add(R._("4 = Long-range attack animation"));
+            N2CmdCombo.Items.Add(R._("5 = Wait N frames"));
+            N2CmdCombo.Items.Add(R._("6 = Close-range dodge animation"));
+            N2CmdCombo.Items.Add(R._("7 = (FE8 unused) Set anime state to 'hit effect applied'"));
+            N2CmdCombo.Items.Add(R._("8 = Wait until anime reaches C01/C02/C18"));
 
             AllyEnemyColorCombo.SelectionChanged += (_, _) =>
             {
@@ -125,13 +128,16 @@ namespace FEBuilderGBA.Avalonia.Views
             bool over255 = _vm.IsOver255PatchActive;
             ListExpandButton.IsVisible = listExpand;
             BattleAnimePlus1Label.IsVisible = over255;
+            // Runtime sentences must be routed through R._() because
+            // ViewTranslationHelper only translates static XAML attributes
+            // (Copilot bot review thread PRRT_kwDOH0Mc1M6ETSJG on PR #544).
             if (over255)
             {
-                PatchNoticeText.Text = "Patch: OPClassReelAnimationIDOver255 active. Battle Anime ID is read from D18.";
+                PatchNoticeText.Text = R._("Patch: OPClassReelAnimationIDOver255 active. Battle Anime ID is read from D18.");
             }
             else if (listExpand)
             {
-                PatchNoticeText.Text = "Patch: OPClassReelSort active. Data Expansion enabled.";
+                PatchNoticeText.Text = R._("Patch: OPClassReelSort active. Data Expansion enabled.");
             }
             else
             {
@@ -330,8 +336,19 @@ namespace FEBuilderGBA.Avalonia.Views
             try { ClassNamePreview.Text = NameResolver.GetClassName(_vm.DisplayWeapon); }
             catch { ClassNamePreview.Text = ""; }
             AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
+            // The ValueChanged handler is gated by IsLoading, so sync
+            // the combo SelectedIndex explicitly here. (Copilot bot
+            // review thread PRRT_kwDOH0Mc1M6ETSI- on PR #544.)
+            {
+                int v = (int)_vm.AllyEnemyColor;
+                AllyEnemyColorCombo.SelectedIndex = (v >= 0 && v < AllyEnemyColorCombo.ItemCount) ? v : -1;
+            }
             BattleAnimeBox.Value = _vm.BattleAnime;
             MagicEffectBox.Value = _vm.MagicEffect;
+            {
+                int v = (int)_vm.MagicEffect;
+                MagicEffectCombo.SelectedIndex = (v >= 0 && v < MagicEffectCombo.ItemCount) ? v : -1;
+            }
             Unknown18Box.Value = _vm.Unknown18;
             TerrainLeftBox.Value = _vm.TerrainLeft;
             TerrainRightBox.Value = _vm.TerrainRight;

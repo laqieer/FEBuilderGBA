@@ -340,31 +340,60 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x44, rom.Data[nb + 7]);
         }
 
-        // ────────────────────────────────────────────────
-        // ExpandTable undo completeness (gap-sweep #419)
-        //
-        // Copilot CLI plan review round 3 caught that the original
-        // ExpandTable implementation used Array.Copy + direct
-        // rom.Data[i] = ... mutations which bypass the ambient-undo
-        // recording. The fix routes the copy / zero-fill / wipe through
-        // rom.write_range / rom.write_fill so all three byte regions
-        // are restored on rollback, in addition to the pointer.
-        // ────────────────────────────────────────────────
+    }
 
-        /// <summary>
-        /// Plant the same fixture as <see cref="ExpandTable_PreservesOriginalEntryValues"/>
-        /// inside a `CoreState.ROM = rom` block so `BeginUndoScope`
-        /// records into the ambient slot.
-        /// </summary>
+    // ────────────────────────────────────────────────
+    // ExpandTable undo completeness (gap-sweep #419)
+    //
+    // Copilot CLI plan review round 3 caught that the original
+    // ExpandTable implementation used Array.Copy + direct
+    // rom.Data[i] = ... mutations which bypass the ambient-undo
+    // recording. The fix routes the copy / zero-fill / wipe through
+    // rom.write_range / rom.write_fill so all three byte regions
+    // are restored on rollback, in addition to the pointer.
+    //
+    // This nested class is in [Collection("SharedState")] because the
+    // undo-rollback test mutates CoreState.ROM under a `BeginUndoScope`
+    // (Copilot bot review thread PRRT_kwDOH0Mc1M6ETSJK on PR #544).
+    // ────────────────────────────────────────────────
+    [Collection("SharedState")]
+    public class DataExpansionCoreUndoTests : IDisposable
+    {
+        readonly ROM? _savedRom;
+
+        public DataExpansionCoreUndoTests()
+        {
+            _savedRom = CoreState.ROM;
+        }
+
+        public void Dispose()
+        {
+            CoreState.ROM = _savedRom;
+        }
+
+        /// <summary>Helper: build a minimal ROM with LoadLow using ROMFE0 ("NAZO").</summary>
+        static ROM MakeRom(int size = 0x200000)
+        {
+            var rom = new ROM();
+            byte[] data = new byte[size];
+            rom.LoadLow("test.gba", data, "NAZO");
+            return rom;
+        }
+
+        static void WritePointer(ROM rom, uint addr, uint offset)
+        {
+            uint gbaPtr = offset + 0x08000000;
+            rom.Data[addr + 0] = (byte)(gbaPtr & 0xFF);
+            rom.Data[addr + 1] = (byte)((gbaPtr >> 8) & 0xFF);
+            rom.Data[addr + 2] = (byte)((gbaPtr >> 16) & 0xFF);
+            rom.Data[addr + 3] = (byte)((gbaPtr >> 24) & 0xFF);
+        }
+
         [Fact]
-        [Trait("Category", "SharedState")]
         public void ExpandTable_Rollback_RestoresAllByteRanges()
         {
-            // We deliberately use Collection-style cleanup inside this
-            // single method to avoid promoting the whole class to
-            // [Collection("SharedState")].
-            ROM? savedRom = CoreState.ROM;
-            try
+            // The class-level [Collection("SharedState")] + Dispose
+            // restoration of CoreState.ROM keep this test isolated.
             {
                 var rom = MakeRom(0x200000);
                 CoreState.ROM = rom;
@@ -430,10 +459,6 @@ namespace FEBuilderGBA.Core.Tests
                         Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
                     }
                 }
-            }
-            finally
-            {
-                CoreState.ROM = savedRom;
             }
         }
     }
