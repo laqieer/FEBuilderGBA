@@ -251,8 +251,13 @@ public class SkillConfigFE8UCSkillSys09xParityTests
             // Mutate all three editable fields.
             vm.SkillNameMsg = 0x00AAu;
             vm.DescriptionMsg = 0x00BBu;
-            uint newAnim = 0x08200000u;
-            vm.AnimationPointer = newAnim;
+            // AnimationPointer is a ROM OFFSET (not a raw GBA pointer).
+            // Pick a value INSIDE the synthetic ROM bounds (16 MB =
+            // 0x01000000) but distinct from the value LoadEntry read so
+            // the round-trip is observable. 0x00400000 is a clean offset
+            // that round-trips cleanly through `write_p32`/`p32`.
+            uint newAnimOffset = 0x00400000u;
+            vm.AnimationPointer = newAnimOffset;
 
             vm.Write();
 
@@ -261,11 +266,19 @@ public class SkillConfigFE8UCSkillSys09xParityTests
             Assert.Equal(0x00BBu, (uint)rom.u16(addr + 6));
 
             // (b) Animation pointer must persist at gpEfxSkillAnims + 4 * id.
+            //
+            // WF parity: the editor value is a ROM OFFSET, but it is
+            // serialized via `write_p32` which converts it to a GBA pointer
+            // (OR with 0x08000000) before writing. So:
+            //   - Raw u32 at the slot MUST be the GBA pointer form.
+            //   - `p32(slot)` MUST return the original offset.
             const uint gpEfxSkillAnims = 0xB2A630;
             uint animBase = rom.p32(gpEfxSkillAnims);
             uint animSlot = animBase + 4 * items[1].tag;
-            uint readBack = rom.u32(animSlot);
-            Assert.Equal(newAnim, readBack);
+            uint rawReadBack = rom.u32(animSlot);
+            uint offsetReadBack = rom.p32(animSlot);
+            Assert.Equal(newAnimOffset | 0x08000000u, rawReadBack);
+            Assert.Equal(newAnimOffset, offsetReadBack);
         }
         finally { CoreState.ROM = prevRom; CoreState.SystemTextEncoder = prevEnc; }
     }

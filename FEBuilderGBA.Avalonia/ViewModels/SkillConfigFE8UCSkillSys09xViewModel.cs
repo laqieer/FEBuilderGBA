@@ -179,6 +179,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             DescriptionText = DescriptionMsg != 0 ? NameResolver.GetTextById(DescriptionMsg) : "";
 
             // Resolve animation pointer at gpEfxSkillAnims + 4 * id.
+            //
+            // CRITICAL parity contract (Copilot CLI review on PR #516):
+            // WinForms stores the editor value as a ROM OFFSET, not a raw
+            // GBA pointer. The WF load does `Program.ROM.p32(anime)` which
+            // both reads the u32 and converts it from GBA-pointer form
+            // (high bit set) to a ROM offset; the WF write does
+            // `Program.ROM.write_p32(anime, value)` which serializes the
+            // offset back as a GBA pointer. Our VM MUST mirror that
+            // contract or a load+write cycle will corrupt the slot.
             uint animPtr = 0;
             if (U.isSafetyOffset(gpEfxSkillAnims + 4, rom))
             {
@@ -188,18 +197,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     uint animSlot = animBase + 4 * SelectedId;
                     if (U.isSafetyOffset(animSlot + 4, rom))
                     {
-                        animPtr = rom.u32(animSlot);
+                        // p32 = u32 + GBA->offset conversion. The returned
+                        // value is the offset (e.g. 0x00100000), not the
+                        // raw pointer (e.g. 0x08100000).
+                        animPtr = rom.p32(animSlot);
                     }
                 }
             }
             AnimationPointer = animPtr;
 
-            uint animPtrOffset = U.toOffset(animPtr);
-            IsAnimationValid = animPtr != 0 && U.isSafetyOffset(animPtrOffset, rom);
+            // AnimationPointer is already an offset (p32 above did the
+            // conversion). Don't toOffset it again — that's a no-op for
+            // already-offset values but matches WF intent.
+            IsAnimationValid = animPtr != 0 && U.isSafetyOffset(animPtr, rom);
 
             SelectedFrame = 0;
             BinInfoText = IsAnimationValid
-                ? $"Animation @ 0x{animPtrOffset:X08} (preview unavailable - see #500)"
+                ? $"Animation @ 0x{animPtr:X08} (preview unavailable - see #500)"
                 : "";
 
             IsLoaded = true;
@@ -234,6 +248,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // (c) - animation pointer.
+            //
+            // AnimationPointer is held as a ROM OFFSET (see LoadEntry). The
+            // WF write uses `Program.ROM.write_p32(anime, ANIMATION.Value)`
+            // which converts the offset back to a GBA pointer (`U.toOffset` +
+            // OR with 0x08000000) before serializing. We MUST use `write_p32`
+            // here, not `write_u32`, or the slot will hold a raw offset
+            // instead of a GBA pointer and break the WF reader.
             if (U.isSafetyOffset(gpEfxSkillAnims + 4, rom))
             {
                 uint animBase = rom.p32(gpEfxSkillAnims);
@@ -242,7 +263,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     uint animSlot = animBase + 4 * SelectedId;
                     if (U.isSafetyOffset(animSlot + 4, rom))
                     {
-                        rom.write_u32(animSlot, AnimationPointer);
+                        rom.write_p32(animSlot, AnimationPointer);
                     }
                 }
             }

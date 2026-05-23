@@ -12,7 +12,7 @@
         <Label Content="Start Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ReadStart_Input"
                        FormatString="X8" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
+                       Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Read Count:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ReadCount_Input"
@@ -30,7 +30,7 @@
         <Label Content="Address:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Address_Input"
                        FormatString="X8" Name="AddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
+                       Minimum="0" Maximum="4294967295"
                        IsEnabled="False" VerticalAlignment="Center" />
         <Label Content="Size:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_BlockSize_Input"
@@ -131,10 +131,16 @@
           <Label Grid.Column="0"
                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_Animation_Label"
                  Content="Animation" VerticalAlignment="Center" />
+          <!-- AnimationPointer holds a ROM OFFSET (e.g. 0x01000000), not a raw
+               GBA pointer (e.g. 0x09000000). The WF `Program.ROM.p32`/`write_p32`
+               round-trip strips/re-adds the 0x08000000 high bit. The Maximum
+               must still accommodate the full 32-bit range so the binding
+               doesn't clamp during typing or when transient pointer-like
+               values are pasted in (Copilot CLI inline review on PR #516). -->
           <NumericUpDown Grid.Column="1"
                          AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationPointer_Input"
                          FormatString="X8" Name="AnimationPointerBox"
-                         Minimum="0" Maximum="65535999" />
+                         Minimum="0" Maximum="4294967295" />
           <Button Grid.Column="2"
                   AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_AnimationImport_Button"
                   Name="AnimationImportButton" Content="Animation Import" Margin="8,0,0,0"
