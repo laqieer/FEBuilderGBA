@@ -86,7 +86,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys300;
 
                 // CC Branch jump is FE8-only (mirrors WF ClassForm.J_5_Click guard).
-                JumpToCCBranchButton.IsVisible = (CoreState.ROM?.RomInfo?.version ?? 8) == 8;
+                // Default to 0 (not 8) when ROM/RomInfo is null so the button stays
+                // hidden before a ROM is loaded — addresses Copilot CLI review on
+                // PR #570 (the click handler also short-circuits for non-FE8, but
+                // we don't want to expose a visible-but-non-functional button).
+                JumpToCCBranchButton.IsVisible = (CoreState.ROM?.RomInfo?.version ?? 0) == 8;
 
                 // Refresh address-bar infra (#406 gap-sweep parity).
                 UpdateAddressBarInfra();
