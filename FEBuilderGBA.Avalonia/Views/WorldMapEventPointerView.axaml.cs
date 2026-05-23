@@ -57,12 +57,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadBeforeList();
+                // AddressListControl.SetItems already calls SelectFirst()
+                // internally — no explicit follow-up needed (and avoids
+                // double selection-changed work during reload).
                 BeforeList.SetItems(items);
                 UpdateReadConfigUI();
-                if (items.Count > 0)
-                {
-                    BeforeList.SelectFirst();
-                }
             }
             catch (Exception ex)
             {
@@ -77,10 +76,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadAfterList();
                 AfterList.SetItems(items);
                 UpdateReadConfigUI();
-                if (items.Count > 0)
-                {
-                    AfterList.SelectFirst();
-                }
             }
             catch (Exception ex)
             {
