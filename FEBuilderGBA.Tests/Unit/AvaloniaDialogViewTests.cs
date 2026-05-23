@@ -906,7 +906,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("PortraitViewerView.axaml", 789, 700)]
         [InlineData("MenuDefinitionView.axaml", 1257, 604)]
         [InlineData("MenuCommandView.axaml", 1238, 604)]
-        [InlineData("EDView.axaml", 1200, 773)]
+        [InlineData("EDView.axaml", 1280, 820)]
         [InlineData("EDStaffRollView.axaml", 1142, 458)]
         [InlineData("WorldMapPointView.axaml", 1761, 778)]
         [InlineData("WorldMapBGMView.axaml", 1163, 778)]

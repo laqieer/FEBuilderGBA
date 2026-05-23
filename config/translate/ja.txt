@@ -7478,3 +7478,48 @@ UIDを含む
 
 :Import Unit CSV
 ユニットCSVをインポート
+
+:Retreat
+撤退
+
+:Epithet
+通り名
+
+:Epilogue
+その後
+
+:Eirika Route
+エイリーク編
+
+:Ephraim Route
+エフラム編
+
+:Designation
+指定
+
+:Appearing Unit
+登場ユニット
+
+:Retreat Spec 02
+撤退指定 02
+
+:Epithet Text
+通り名テキスト
+
+:Epilogue Text
+その後テキスト
+
+:Pair Flag
+組フラグ
+
+:Unit
+ユニット
+
+:1=Solo
+1=一人
+
+:2=Support
+2=支援
+
+:Bytes +2..+3 are reserved (WF designer doesn't expose).
+バイト +2..+3 は予約済み (WFデザイナでは未公開)。
