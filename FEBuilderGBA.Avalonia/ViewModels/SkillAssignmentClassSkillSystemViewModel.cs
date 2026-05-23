@@ -467,6 +467,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AssignLevelUpBaseAddress = 0;
         }
 
+        /// <summary>
+        /// Resolve a skill description by reading the u16 text id at
+        /// <c>TextBaseAddress + 2 * skillId</c> and looking it up via
+        /// <see cref="NameResolver.GetTextById"/>. Mirrors WinForms
+        /// <c>SkillConfigSkillSystemForm.GetSkillText(skillId, textBase)</c>.
+        /// Returns empty string if the SkillSystems patch isn't installed,
+        /// the lookup fails, or the resolved string is the "???" sentinel.
+        /// </summary>
+        public string ResolveSkillTextById(uint skillId)
+        {
+            if (skillId == 0 || skillId == 0xFF) return string.Empty;
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return string.Empty;
+            if (TextBaseAddress == 0) return string.Empty;
+            uint addr = TextBaseAddress + 2 * skillId;
+            if (!U.isSafetyOffset(addr + 1, rom)) return string.Empty;
+            uint textId = rom.u16(addr);
+            if (textId == 0 || textId == 0xFFFF) return string.Empty;
+            try
+            {
+                string text = NameResolver.GetTextById(textId);
+                if (string.IsNullOrEmpty(text) || text == "???") return string.Empty;
+                return text;
+            }
+            catch { return string.Empty; }
+        }
+
         public bool ExportAllData(string filename)
         {
             ROM rom = CoreState.ROM;

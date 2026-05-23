@@ -189,15 +189,12 @@ namespace FEBuilderGBA.Avalonia.Views
             N1SkillIconImage.Source = bmp;
         }
 
-        static string ResolveSkillText(uint skillId)
-        {
-            try
-            {
-                string name = NameResolver.GetSkillName(skillId);
-                return name == "???" ? "" : (name ?? "");
-            }
-            catch { return ""; }
-        }
+        // Route through the VM so we use the SkillSystems text-pointer base
+        // (textBase + 2 * skillId), mirroring WinForms GetSkillText. The old
+        // implementation incorrectly used NameResolver.GetSkillName which
+        // returned the skill *name* not its full description text
+        // (Copilot CLI review on PR #555).
+        string ResolveSkillText(uint skillId) => _vm.ResolveSkillTextById(skillId);
 
         void MasterWriteButton_Click(object sender, RoutedEventArgs e)
         {
