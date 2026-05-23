@@ -6956,3 +6956,9 @@ Core 抽出待ち - #524 で追跡中
 
 :Write Animation Command
 アニメ指令を書き込み
+
+:Argument
+引数
+
+:/60 (sec)
+/60 (秒)

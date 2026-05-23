@@ -349,6 +349,35 @@ public class OPClassDemoFE7UParityTests
     }
 
     [Fact]
+    public void ViewModel_LoadN2Row_ClearsSelectionStateOnNegativeIndex()
+    {
+        // Copilot PR #537 review #2: when the ListBox loses its selection
+        // (idx == -1), LoadN2Row must clear SelectedN2Index AND the editor
+        // command/argument/address state so NWrite_Click doesn't silently
+        // write to a stale row.
+        var rom = MakeMinimalFE7URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new OPClassDemoFE7UViewModel();
+            vm.LoadEntry(entryAddr);
+            Assert.True(vm.N2Entries.Count > 0);
+            // Select row 1 and confirm the state is populated.
+            vm.LoadN2Row(1);
+            Assert.Equal(1, vm.SelectedN2Index);
+            Assert.NotEqual(0u, vm.N2SelectedAddress);
+            // Now clear with -1 — every field must reset.
+            vm.LoadN2Row(-1);
+            Assert.Equal(-1, vm.SelectedN2Index);
+            Assert.Equal(0u, vm.N2Command);
+            Assert.Equal(0u, vm.N2Argument);
+            Assert.Equal(0u, vm.N2SelectedAddress);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
     public void ViewModel_LoadN2List_ClearsWhenAnimePointerInvalid()
     {
         var rom = MakeMinimalFE7URomWithEntry(out uint entryAddr);

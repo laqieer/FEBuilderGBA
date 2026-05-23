@@ -72,15 +72,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Per WF N2_AddressList_SelectedIndexChanged: cmd 3 and 8 use
                 // raw "00" argument (no wait); other commands display "/60 (sec)".
+                // Wrap in R._() so the runtime assignment stays localized after
+                // the initial TranslatedWindow.TranslateAll() pass — without
+                // R._() the labels would revert to English on every cmd change
+                // (Copilot PR review on PR #537).
                 if (cmd == 0x03 || cmd == 0x08)
                 {
-                    N2WaitLabel.Content = "Argument";
+                    N2WaitLabel.Content = R._("Argument");
                     N2WaitUnitLabel.Content = "00";
                 }
                 else
                 {
-                    N2WaitLabel.Content = "Wait Frames";
-                    N2WaitUnitLabel.Content = "/60 (sec)";
+                    N2WaitLabel.Content = R._("Wait Frames");
+                    N2WaitUnitLabel.Content = R._("/60 (sec)");
                 }
             }
             finally { _suppressN2Change = false; }
@@ -175,7 +179,25 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_suppressN2Change) return;
             int idx = N2ListBox.SelectedIndex;
-            if (idx < 0 || idx >= _vm.N2Entries.Count) return;
+            // Clear the ViewModel selection state when the ListBox loses its
+            // selection (idx == -1) or the index is out of range. Without
+            // this, _vm.SelectedN2Index could keep pointing at a stale row
+            // and NWrite_Click would silently write to the wrong slot
+            // (Copilot PR review on PR #537).
+            if (idx < 0 || idx >= _vm.N2Entries.Count)
+            {
+                _vm.LoadN2Row(-1);
+                _suppressN2Change = true;
+                try
+                {
+                    N2SelectedAddressLabel.Content = "";
+                    N2CommandRawBox.Value = 0;
+                    N2ArgumentBox.Value = 0;
+                    SyncN2CommandDescription(0);
+                }
+                finally { _suppressN2Change = false; }
+                return;
+            }
             _vm.LoadN2Row(idx);
             _suppressN2Change = true;
             try

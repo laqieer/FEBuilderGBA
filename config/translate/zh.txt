@@ -20891,3 +20891,9 @@ Core 抽取待中 - 追踪于 #524
 
 :Write Animation Command
 写入动画指令
+
+:Argument
+参数
+
+:/60 (sec)
+/60 (秒)
