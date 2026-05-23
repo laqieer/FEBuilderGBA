@@ -509,6 +509,11 @@ namespace FEBuilderGBA.Avalonia.Services
             // Declare the WF↔AV form pair here so JumpParityScanner can
             // resolve the cross-ref.
             { "SkillConfigSkillSystemView", "SkillConfigSkillSystemForm" },
+            // #416 - SkillAssignmentClassSkillSystemForm is patch-dependent on
+            // SkillSystems and lives in ContextDependentEditors. Declare the
+            // WF<->AV form pair here so JumpParityScanner can resolve the
+            // cross-ref even though it is not in the EditorMap seed.
+            { "SkillAssignmentClassSkillSystemView", "SkillAssignmentClassSkillSystemForm" },
             // #429 — ImageBGForm jumps to the BG-mode-select popup (16/255/224)
             // under the BG256Color patch. Popup is a dialog (NoListEditor);
             // declare the WF↔AV form pair so JumpParityScanner can resolve it.

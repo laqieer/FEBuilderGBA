@@ -7288,3 +7288,52 @@ Hex アドレス
 
 :Japanese Name Start:
 日本語名 開始位置:
+
+:Skill Assignment (Class)
+スキル_クラス別割当
+
+:Class Skill
+クラススキル
+
+:Acquisition Level
+習得レベル
+
+:Skill
+スキル
+
+:Level
+レベル
+
+:Level Breakdown
+習得レベルの内訳
+
+:PlayerOnly(LV+32)
+PlayerOnly(LV+32)
+
+:EnemyOnly(LV+64)
+EnemyOnly(LV+64)
+
+:Normal&Hard (LV+96)
+Normal&Hard (LV+96)
+
+:Hard only (LV+128)
+Hard only (LV+128)
+
+:Level 255 is set.\r\nIf promoted from a lower class to this one, the skill will NOT be granted.\r\nThe skill is granted only when LOADed directly as this class.
+レベルに255が設定されています。\r\n下級職からCCして、このクラスになった場合には、このスキルを得ることはできません。\r\nこのクラスでLOADされた場合にのみ、このスキルを持つことができます。
+
+:No level-up table is allocated for this class.\r\nPress List Expand to allocate one.
+領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。
+
+:This level-up table is referenced by multiple classes.
+このテーブルは、複数のクラスで参照されています。
+
+:Make Selected Class Independent
+選択クラスの分離独立
+
+:Click here for level/skill details (opens wiki)
+習得レベルとスキルの詳細は、ここをクリックしてください。
+
+:Level-up Skill Top Address
+レベルアップで取得するスキルの先頭アドレス
+
