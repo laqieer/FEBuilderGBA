@@ -80,6 +80,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 foreach (var item in _mapItems)
                     _mapDisplayItems.Add(item.name);
 
+                // Initial Read Count = map count (will be overwritten when
+                // a unit-group list loads — see LoadUnitsFromAddress).
+                // The map count is the baseline shown on first load before
+                // any group is selected.
                 ReadCountBox.Value = _mapItems.Count;
 
                 if (_mapItems.Count > 0)
@@ -140,6 +144,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _unitDisplayItems.Clear();
             foreach (var item in _unitItems)
                 _unitDisplayItems.Add(item.name);
+
+            // Update Read Count to reflect the currently-loaded unit list
+            // (Copilot bot review on PR #540 — the WF top read-config bar
+            // shows the count of the active list, not the map count).
+            ReadCountBox.Value = _unitItems.Count;
 
             ClearDetail();
 

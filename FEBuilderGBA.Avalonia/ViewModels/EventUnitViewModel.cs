@@ -62,7 +62,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _className = "";
         string _item1Name = "", _item2Name = "", _item3Name = "", _item4Name = "";
         string _ai1Desc = "", _ai2Desc = "", _ai3Desc = "", _ai4Desc = "";
-        string _itemDropDisplay = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -135,18 +134,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string AI4Desc { get => _ai4Desc; set => SetField(ref _ai4Desc, value); }
 
         /// <summary>
-        /// Item-drop display string mirroring WF X_ITEMDROP label. Computed
-        /// from the current W4 (UnitPos) ext bit; <see cref="UnitGrowth"/>
-        /// setter raises <c>PropertyChanged(nameof(ItemDropDisplay))</c> so
-        /// bound controls refresh in lockstep with the underlying byte.
+        /// Item-drop display string mirroring WF X_ITEMDROP label. Get-only
+        /// computed property — the canonical source is the W4 ext bit;
+        /// <see cref="UnitGrowth"/> setter raises
+        /// <c>PropertyChanged(nameof(ItemDropDisplay))</c> via
+        /// <c>RefreshItemDropDisplay</c> so bound controls refresh in
+        /// lockstep with the underlying byte (Copilot bot review on PR
+        /// #540: a setter would be dead code since reads come from
+        /// <c>_unitGrowth</c> not from a cached backing field).
         /// </summary>
-        public string ItemDropDisplay
-        {
-            get => ComputeItemDropDisplay(_unitGrowth);
-            // Setter retained for legacy callers but is a no-op aside from
-            // notification — the canonical source is the W4 ext bit.
-            set => _itemDropDisplay = value;
-        }
+        public string ItemDropDisplay => ComputeItemDropDisplay(_unitGrowth);
 
         /// <summary>
         /// User annotation persisted through <c>CoreState.CommentCache</c>
