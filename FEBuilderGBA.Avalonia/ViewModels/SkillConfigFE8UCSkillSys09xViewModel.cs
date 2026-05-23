@@ -32,7 +32,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _readStartAddress;
         uint _readCount;
 
-        // Skill info entry fields (8 bytes: u32 icon ptr / u16 nameMsg / u16 descMsg).
+        // Skill info entry fields (8 bytes: u32 icon GBA pointer / u16 nameMsg /
+        // u16 descMsg).
+        //
+        // CRITICAL: `_iconAddr` stores the RAW u32 read from entry+0, which
+        // is a GBA pointer (high bit set, e.g. 0x08123456), NOT a ROM offset.
+        // We keep the raw form because the icon-decode helper
+        // `PreviewIconHelper.LoadCSkillSysIcon(uint iconGbaPointer)` expects
+        // a GBA pointer and runs `U.toOffset` internally. This is
+        // intentionally different from `_animationPointer` which IS stored
+        // as an offset (the WF editor presents the offset form).
+        // Copilot bot review on PR #516 (round 4) flagged the naming as
+        // ambiguous; we keep the field name for stable AXAML AutomationIds
+        // but document the contract here.
         uint _iconAddr;
         uint _skillNameMsg;
         uint _descriptionMsg;
@@ -60,6 +72,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
         public uint BlockSize => SIZE;
 
+        /// <summary>
+        /// Raw u32 read from skill-info entry at +0 - a GBA pointer with
+        /// high bit set (e.g. 0x08123456). NOT a ROM offset. Pass directly to
+        /// <see cref="Services.PreviewIconHelper.LoadCSkillSysIcon"/> which
+        /// runs <c>U.toOffset</c> internally before decoding the 4bpp tile.
+        /// </summary>
         public uint IconAddr { get => _iconAddr; set => SetField(ref _iconAddr, value); }
         public uint SkillNameMsg { get => _skillNameMsg; set => SetField(ref _skillNameMsg, value); }
         public uint DescriptionMsg { get => _descriptionMsg; set => SetField(ref _descriptionMsg, value); }
@@ -212,8 +230,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsAnimationValid = animPtr != 0 && U.isSafetyOffset(animPtr, rom);
 
             SelectedFrame = 0;
+            // Runtime UI string runs through R._ so the ja/zh translation
+            // entries pick it up - ViewTranslationHelper only translates
+            // AXAML literals, not VM-set TextBox values. Copilot bot review
+            // on PR #516 (round 4).
             BinInfoText = IsAnimationValid
-                ? $"Animation @ 0x{animPtr:X08} (preview unavailable - see #500)"
+                ? string.Format(R._("Animation @ 0x{0:X08} ({1})"),
+                    animPtr,
+                    R._("preview unavailable - tracked by #500"))
                 : "";
 
             IsLoaded = true;

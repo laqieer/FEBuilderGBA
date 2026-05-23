@@ -6713,3 +6713,9 @@ TSA
 
 :Pending Core extraction - tracked by #500.
 Core 抽出待ち - #500 で追跡中。
+
+:Animation @ 0x{0:X08} ({1})
+アニメーション @ 0x{0:X08} ({1})
+
+:preview unavailable - tracked by #500
+プレビュー利用不可 - #500 で追跡中

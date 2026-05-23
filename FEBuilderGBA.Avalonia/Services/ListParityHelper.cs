@@ -489,16 +489,19 @@ namespace FEBuilderGBA.Avalonia.Services
             // WF↔AV form pair here so JumpParityScanner can resolve them.
             { "GraphicsToolView", "GraphicsToolForm" },
             { "DecreaseColorTSAToolView", "DecreaseColorTSAToolForm" },
-            // #430 — SkillConfigFE8UCSkillSys09xForm jumps to ToolAnimationCreatorForm
-            // via X_N_JumpEditor (same shape as #433). The Avalonia view is in
-            // ContextDependentEditors (patch-dependent: it needs a CSkillSys patch
-            // installed to populate its list, so the gap-sweep treats it as a
-            // sub-editor that depends on parent context), so the EditorMap layer
-            // above doesn't seed it. Without this entry, the
-            // SkillConfigFE8UCSkillSys09xForm WF callsite resolves to "no AV
+            // #430 — SkillConfigCSkillSystem09xForm (WF class name in the file
+            // FEBuilderGBA/SkillConfigFE8UCSkillSys09xForm.cs - the FE8U prefix
+            // is only on the filename, NOT on the actual class declaration)
+            // jumps to ToolAnimationCreatorForm via X_N_JumpEditor (same shape
+            // as #433). The Avalonia view is in ContextDependentEditors
+            // (patch-dependent: it needs the CSkillSys patch installed to
+            // populate its list, so the gap-sweep treats it as a sub-editor
+            // that depends on parent context), so the EditorMap layer above
+            // doesn't seed it. Without this entry, the
+            // SkillConfigCSkillSystem09xForm WF callsite resolves to "no AV
             // counterpart" and the navigation manifest never lifts past
-            // MissingAvManifest.
-            { "SkillConfigFE8UCSkillSys09xView", "SkillConfigFE8UCSkillSys09xForm" },
+            // MissingAvManifest. Copilot bot review on PR #516 (round 4).
+            { "SkillConfigFE8UCSkillSys09xView", "SkillConfigCSkillSystem09xForm" },
         };
 
         /// <summary>

@@ -2,7 +2,7 @@
 // Phase 1/2/4/5/6 gap-sweep regression tests for SkillConfigFE8UCSkillSys09xView. (#430)
 //
 // Closes the 40 Avalonia <-> WinForms gaps the gap-sweep methodology surfaced
-// on `SkillConfigFE8UCSkillSys09xForm` (HIGH density 9/29, 20 WF-only labels,
+// on `SkillConfigCSkillSystem09xForm` (HIGH density 9/29, 20 WF-only labels,
 // 0 common labels). Each assertion maps to a concrete acceptance-criterion
 // bullet in the issue body and to a Copilot CLI plan-review finding.
 using System;
@@ -119,7 +119,7 @@ public class SkillConfigFE8UCSkillSys09xParityTests
         var wfCallsites = new[]
         {
             new WfJumpCallsite(
-                SourceForm: "SkillConfigFE8UCSkillSys09xForm",
+                SourceForm: "SkillConfigCSkillSystem09xForm",
                 TargetForm: "ToolAnimationCreatorForm",
                 HasAddressArgument: false),
         };
@@ -136,7 +136,7 @@ public class SkillConfigFE8UCSkillSys09xParityTests
 
         var rows = JumpParityScanner.ComputeJumpRows(wfCallsites, avManifests);
         var match = rows.FirstOrDefault(r =>
-            r.SourceForm == "SkillConfigFE8UCSkillSys09xForm" &&
+            r.SourceForm == "SkillConfigCSkillSystem09xForm" &&
             r.TargetWfType == "ToolAnimationCreatorForm");
         Assert.NotNull(match);
         Assert.Equal(JumpRowStatus.KnownGap, match!.Status);
