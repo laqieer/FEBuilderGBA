@@ -270,21 +270,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // Read dim pointer from the pointer-table slot (WF
             // AddressList_SelectedIndexChanged: `uint dim = Program.ROM.p32(ar.tag)`).
-            uint dataPtr = rom.p32(pointerSlotAddr);
-            if (_magicSystemDetected && dataPtr == _dimAddr)
+            // When pointerSlotAddr == 0 (LoadEntry(uint) convenience
+            // overload), treat it as "unknown slot" and force Empty so
+            // we don't read ROM offset 0 (header data) and misinterpret
+            // it as a dim pointer (Copilot bot review on PR #554).
+            if (pointerSlotAddr == 0u)
             {
-                // WF semantics: the FEditor signature's `dim` field
-                // surfaces as `dim_pc` (player-cast); `no_dim` surfaces
-                // as `dim`.
-                DimPointer = DimPointerKind.DimPc;
-            }
-            else if (_magicSystemDetected && dataPtr == _noDimAddr)
-            {
-                DimPointer = DimPointerKind.Dim;
+                DimPointer = DimPointerKind.Empty;
             }
             else
             {
-                DimPointer = DimPointerKind.Empty;
+                uint dataPtr = rom.p32(pointerSlotAddr);
+                if (_magicSystemDetected && dataPtr == _dimAddr)
+                {
+                    // WF semantics: the FEditor signature's `dim` field
+                    // surfaces as `dim_pc` (player-cast); `no_dim`
+                    // surfaces as `dim`.
+                    DimPointer = DimPointerKind.DimPc;
+                }
+                else if (_magicSystemDetected && dataPtr == _noDimAddr)
+                {
+                    DimPointer = DimPointerKind.Dim;
+                }
+                else
+                {
+                    DimPointer = DimPointerKind.Empty;
+                }
             }
 
             // Read the P0..P16 fields from the CSA spell-table entry
