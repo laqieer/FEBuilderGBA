@@ -202,6 +202,52 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, result);
         }
 
+        /// <summary>
+        /// Copilot bot review on PR #529: plist == 0 is reserved by
+        /// WF semantics (`MapPointerForm.GetPListNameSplited` returns
+        /// "NULL"). Even if entry 0 of the PLIST table contains a
+        /// pointer to valid-looking ROM data, the helper must refuse
+        /// to resolve it.
+        /// </summary>
+        [Fact]
+        public void GetMapChangeAddrWhereMapID_PlistZero_ReturnsNotFound()
+        {
+            var rom = MakeFe8uRomWithMapTable(
+                mapId: 0,
+                mapChangePlist: 0, // explicit "no data" marker
+                plistTableEntries: new uint[] { 0x08900000u, 0u, 0u, 0u }, // entry 0 has a pointer
+                changeDataAddr: 0x00900000u);
+
+            uint outPointer;
+            uint result = MapChangeCore.GetMapChangeAddrWhereMapID(rom, 0u, out outPointer);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
+        /// <summary>
+        /// Copilot bot review on PR #529: the helper must validate
+        /// <paramref name="mapId"/> against the populated map count
+        /// (mirrors WF `InputFormRef.IDToAddr` which returns NOT_FOUND
+        /// when id >= DataCount). A mapId that produces an in-bounds
+        /// but invalid map-setting record must not accidentally
+        /// resolve through whatever bytes happen to live there.
+        /// </summary>
+        [Fact]
+        public void GetMapChangeAddrWhereMapID_MapIdBeyondPopulatedTable_ReturnsNotFound()
+        {
+            // Seed exactly 1 valid map (id=0). Asking for mapId=1
+            // computes an address that's still inside the ROM but is
+            // not a valid map record — IsMapSettingValid returns false.
+            var rom = MakeFe8uRomWithMapTable(
+                mapId: 0,
+                mapChangePlist: 3,
+                plistTableEntries: new uint[] { 0u, 0u, 0u, 0x08900000u },
+                changeDataAddr: 0x00900000u);
+
+            uint outPointer;
+            uint result = MapChangeCore.GetMapChangeAddrWhereMapID(rom, 1u, out outPointer);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
         // -------------------------------------------------------------
         // Helpers.
         // -------------------------------------------------------------

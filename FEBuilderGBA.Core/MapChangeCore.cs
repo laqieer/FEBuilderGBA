@@ -29,10 +29,12 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Port of <c>MapPointerForm.IsPlistSplits()</c>. Returns true when
-        /// any pair of (CONFIG, ANIMATION, OBJECT, MAP, CHANGE, EVENT)
-        /// pointer tables resolves to a different base address — i.e. the
-        /// ROM has been expanded so each plist type has its own block.
+        /// Port of <c>MapPointerForm.IsPlistSplits()</c>. Returns true
+        /// only when the CONFIG plist base differs from EVERY other
+        /// plist base (ANIMATION/OBJECT/MAP/CHANGE/EVENT — plus the
+        /// FE6-only WORLDMAP table when <c>RomInfo.version == 6</c>).
+        /// Any single match returns false (the WF semantics — sharing
+        /// any base means the tables have not been split).
         ///
         /// For FE6 (<c>RomInfo.version == 6</c>) the WinForms
         /// <c>MapPointerForm.IsPlistSplits</c> also compares against the
@@ -157,14 +159,25 @@ namespace FEBuilderGBA
             if (!U.isSafetyOffset(mapAddr, rom)) return U.NOT_FOUND;
             if (mapAddr + 12u > (uint)rom.Data.Length) return U.NOT_FOUND;
 
+            // Bound-check mapId against the populated map count. WF's
+            // `InputFormRef.IDToAddr` returns U.NOT_FOUND when
+            // `id >= DataCount`; mirror that here so an out-of-range
+            // mapId does not accidentally resolve to an unrelated
+            // in-ROM address that happens to satisfy `isSafetyOffset`
+            // (Copilot bot review on PR #529).
+            if (!MapSettingCore.IsMapSettingValid(rom, mapAddr)) return U.NOT_FOUND;
+
             uint plist = rom.u8(mapAddr + 11);
-            // WF treats 0/0xFF as "no change data" (PlistToOffsetAddr
-            // bails on plist == 0 because the target dereference yields 0;
-            // 0xFF is out-of-range under vanilla limits and ALSO out of
-            // range under split limit=256 when used as the index 0xFF
-            // alongside table entries that would not have been allocated).
-            // We rely on PlistToOffsetAddr for the actual safety check.
-            if (plist == 0xFFu) return U.NOT_FOUND;
+            // WF treats 0/0xFF as "no change data". 0xFF is the
+            // explicit "no PLIST" marker in vanilla map records. 0 is
+            // reserved by the WF semantics — `MapPointerForm.GetPListNameSplited`
+            // returns "NULL" for plist 0, and the per-map PLIST byte
+            // is documented as 1-based (entry 0 in the table is
+            // unused). Hard-block both indexes here so a modified ROM
+            // that plants a non-null pointer at entry 0 does not
+            // accidentally resolve through it (Copilot bot review on
+            // PR #529).
+            if (plist == 0u || plist == 0xFFu) return U.NOT_FOUND;
 
             uint target = PlistToOffsetAddr(rom, PlistType.CHANGE, plist, out outPointer);
             return target;

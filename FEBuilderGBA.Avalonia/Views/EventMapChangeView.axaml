@@ -69,11 +69,13 @@
                      Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
 
-        <!-- B0: Number -->
+        <!-- B0: Number — WF NumericUpDown is Hexadecimal=true (per Designer.cs).
+             Mirror with FormatString="X2" so the displayed value is hex like
+             the unknown-byte fields below. -->
         <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
           <Label Grid.Column="0" Content="Number:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventMapChange_B0_Input"
-                         Grid.Column="1" Name="B0Box" FormatString="0" Width="80"
+                         Grid.Column="1" Name="B0Box" FormatString="X2" Width="80"
                          Minimum="0" Maximum="255" HorizontalAlignment="Left" />
         </Grid>
 

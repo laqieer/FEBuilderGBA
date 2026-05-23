@@ -102,6 +102,11 @@ namespace FEBuilderGBA.Avalonia.Views
             AddressBox.Value = _vm.CurrentAddr;
             BlockSizeBox.Text = $"0x{_vm.BlockSize:X}";
             SelectedAddressBox.Text = $"0x{_vm.SelectAddress:X08}";
+            // Refresh the read-config bar too — VM updates these per
+            // selected change-data entry (mirrors WF's per-map ReInit;
+            // Copilot bot review on PR #529).
+            ReadStartAddressBox.Value = _vm.ReadStartAddress;
+            ReadCountBox.Value = _vm.ReadCount;
             B0Box.Value = _vm.B0;
             B1Box.Value = _vm.B1;
             B2Box.Value = _vm.B2;

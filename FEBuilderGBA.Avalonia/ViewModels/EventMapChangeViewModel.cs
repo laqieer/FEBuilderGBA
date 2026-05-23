@@ -160,8 +160,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 result.Add(new AddrResult(changeAddr, $"Map {m.tag} Change", m.tag));
             }
 
-            ReadStartAddress = plistBase;
-            ReadCount = result.Count;
+            // Note: ReadStartAddress / ReadCount are NOT set here. WF
+            // sets them per-selected-map (in `MAP_LISTBOX_SelectedIndexChanged`
+            // and `InputFormRef.ReInit(addr)`). The Avalonia per-map values
+            // are set in `LoadEventMapChange` instead — see Copilot bot
+            // review on PR #529.
             BlockSize = SIZE;
             return result;
         }
@@ -176,6 +179,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SelectAddress = addr;
             BlockSize = SIZE;
 
+            // WF `InputFormRef.ReInit(addr)` re-bases the read-config bar
+            // on the SELECTED change-data address and counts records
+            // forward from there until the 0xFF terminator. Mirror that
+            // here so `ReadStartAddress` / `ReadCount` reflect the
+            // currently loaded entry rather than the global plist table
+            // (Copilot bot review on PR #529).
+            ReadStartAddress = addr;
+            ReadCount = CountChangeRecordsFrom(rom, addr);
+
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             B0 = values["B0"];
             B1 = values["B1"];
@@ -189,6 +201,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             RefreshComment();
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Count map-change records starting at <paramref name="startAddr"/>
+        /// until the 0xFF terminator byte. Each record is <see cref="SIZE"/>
+        /// (12) bytes. Capped at 256 to mirror WF's plist-byte upper bound.
+        /// </summary>
+        static int CountChangeRecordsFrom(ROM rom, uint startAddr)
+        {
+            if (rom == null) return 0;
+            uint romLen = (uint)rom.Data.Length;
+            int count = 0;
+            for (uint i = 0; i < 256; i++)
+            {
+                uint a = startAddr + i * SIZE;
+                if (a + SIZE > romLen) break;
+                if (rom.u8(a) == 0xFF) break;
+                count++;
+            }
+            return count;
         }
 
         /// <summary>
