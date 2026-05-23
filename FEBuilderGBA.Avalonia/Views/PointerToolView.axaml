@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PointerToolView"
-        Title="Pointer Tool" Width="1050" Height="650"
+        Title="Pointer Tool" Width="1050" Height="780"
         WindowStartupLocation="CenterOwner"
         SizeToContent="WidthAndHeight">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
@@ -9,42 +9,59 @@
     <!-- Bottom buttons -->
     <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8"
                 Margin="0,8,0,0" HorizontalAlignment="Right">
-      <Button AutomationProperties.AutomationId="PointerTool_Search_Button" Content="Batch" Width="160" Click="Search_Click" />
-      <Button AutomationProperties.AutomationId="PointerTool_Search2_Button" Content="What Is" Width="160" Click="Search_Click" />
+      <Button AutomationProperties.AutomationId="PointerTool_Search_Button" Content="Batch" Width="160" Click="Batch_Click" />
+      <Button AutomationProperties.AutomationId="PointerTool_Search2_Button" Content="What Is" Width="160" Click="WhatIs_Click" />
       <Button AutomationProperties.AutomationId="PointerTool_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
     <!-- Main content in two columns -->
     <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
       <!-- Left: Address fields -->
       <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-        <!-- Address input -->
+        <!-- Address input + Write button (mirrors WF Address TextBox + visible Write affordance) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
             <TextBlock Text="Address" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBox AutomationProperties.AutomationId="PointerTool_AddressText_Input" Name="AddressTextBox" Width="200" Watermark="e.g. 0x08000000"
                    Text="{Binding AddressInput}" />
+          <Button AutomationProperties.AutomationId="PointerTool_Write_Button" Name="WriteButton" Content="Write" Width="70"
+                  ToolTip.Tip="Write pointer value at the address (WriteTarget = ROM offset of target)"
+                  Click="Write_Click" />
+        </StackPanel>
+        <!-- Write target input (bound to WriteTargetInput; required by Write button). -->
+        <!-- Hidden by default in WF — but AV surfaces it explicitly so the    -->
+        <!-- Write action has a concrete UI source for its target offset.    -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="Write Target Offset" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox AutomationProperties.AutomationId="PointerTool_WriteTarget_Input" Name="WriteTargetTextBox" Width="200" Watermark="e.g. 0x100"
+                   Text="{Binding WriteTargetInput, Mode=TwoWay}"
+                   ToolTip.Tip="ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix." />
         </StackPanel>
         <!-- Pointer value -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
             <TextBlock Text="Pointer" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox1_Input" Width="200" IsReadOnly="True" Text="{Binding PointerValue}" />
+          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox1_Input" Name="PointerTextBox" Width="200" IsReadOnly="True" Text="{Binding PointerValue}"
+                   DoubleTapped="AddressDoubleClick" />
         </StackPanel>
-        <!-- Little Endian -->
+        <!-- Little Endian (single hex value, byte-swapped pointer; matches WF) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
             <TextBlock Text="Little Endian" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox2_Input" Width="200" IsReadOnly="True" Text="{Binding LittleEndianValue}" />
+          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox2_Input" Name="LittleEndianTextBox" Width="200" IsReadOnly="True" Text="{Binding LittleEndianValue}"
+                   DoubleTapped="AddressDoubleClick" />
         </StackPanel>
         <!-- First Reference -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
             <TextBlock Text="First Reference" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox3_Input" Width="200" IsReadOnly="True" Text="{Binding FirstReference}" />
+          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox3_Input" Name="FirstReferenceTextBox" Width="200" IsReadOnly="True" Text="{Binding FirstReference}"
+                   DoubleTapped="AddressDoubleClick" />
         </StackPanel>
         <!-- Data Address -->
         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -52,27 +69,68 @@
             <TextBlock Text="Data Address&#x0a;(if pointer)" HorizontalAlignment="Center"
                        VerticalAlignment="Center" TextWrapping="Wrap" />
           </Border>
-          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox4_Input" Width="200" IsReadOnly="True" Text="{Binding DataAddress}" />
+          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox4_Input" Name="DataAddressTextBox" Width="200" IsReadOnly="True" Text="{Binding DataAddress}"
+                   DoubleTapped="AddressDoubleClick" />
         </StackPanel>
-        <!-- Other ROM section -->
+        <!-- Other ROM section header: Load button + filename display -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-          <TextBlock Text="{Binding OtherRomName}" FontStyle="Italic" />
+          <Button AutomationProperties.AutomationId="PointerTool_LoadOtherROM_Button" Name="LoadOtherRomButton" Content="Load Other ROM" Width="160" Height="30"
+                  Click="LoadOtherRom_Click" />
+          <TextBlock Text="{Binding OtherRomName}" FontStyle="Italic" VerticalAlignment="Center" />
         </StackPanel>
-        <!-- Other ROM Address -->
+        <!-- Other ROM Address (direct match) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="44">
             <TextBlock Text="Other ROM&#x0a;Data Address" HorizontalAlignment="Center"
                        VerticalAlignment="Center" TextWrapping="Wrap" />
           </Border>
-          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox5_Input" Width="200" IsReadOnly="True" Text="{Binding OtherRomAddress}" />
+          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox5_Input" Name="OtherRomAddressTextBox" Width="200" IsReadOnly="True" Text="{Binding OtherRomAddress}"
+                   DoubleTapped="AddressDoubleClick" />
         </StackPanel>
-        <!-- Other ROM Ref Pointer -->
+        <!-- Other ROM Ref Pointer (direct match reference) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
             <TextBlock Text="Other ROM Ref" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox6_Input" Width="200" IsReadOnly="True" Text="{Binding OtherRomRefPointer}" />
+          <TextBox AutomationProperties.AutomationId="PointerTool_TextBox6_Input" Name="OtherRomRefTextBox" Width="200" IsReadOnly="True" Text="{Binding OtherRomRefPointer}"
+                   DoubleTapped="AddressDoubleClick" />
         </StackPanel>
+        <!-- Warning indicators for direct match (mirrors WF ERROR_ZERO1 / ERROR_VERYFAR1). -->
+        <!-- Hidden unless a cross-ROM direct match is actually populated.                  -->
+        <TextBlock AutomationProperties.AutomationId="PointerTool_ZeroAtDirectWarning_Label"
+                   Name="ZeroAtDirectWarning" Text="Warning: Zero region (direct match)"
+                   Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
+                   IsVisible="{Binding HasZeroAtDirect}" />
+        <TextBlock AutomationProperties.AutomationId="PointerTool_VeryFarAtDirectWarning_Label"
+                   Name="VeryFarAtDirectWarning" Text="Warning: Very far from origin (direct match)"
+                   Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
+                   IsVisible="{Binding HasVeryFarAtDirect}" />
+        <!-- LDR-tracked match address (mirrors WF OtherROMAddressWithLDR) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="44">
+            <TextBlock Text="LDR Match&#x0a;Address" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" TextWrapping="Wrap" />
+          </Border>
+          <TextBox AutomationProperties.AutomationId="PointerTool_LDRAddr_Input" Name="LdrAddressTextBox" Width="200" IsReadOnly="True" Text="{Binding OtherRomLdrAddress}"
+                   DoubleTapped="AddressDoubleClick" />
+        </StackPanel>
+        <!-- LDR-tracked match reference (mirrors WF OtherROMAddressWithLDRRef) -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="LDR Reference" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox AutomationProperties.AutomationId="PointerTool_LDRRef_Input" Name="LdrRefTextBox" Width="200" IsReadOnly="True" Text="{Binding OtherRomLdrRefPointer}"
+                   DoubleTapped="AddressDoubleClick" />
+        </StackPanel>
+        <!-- Warning indicators for LDR match (mirrors WF ERROR_ZERO3 / ERROR_VERYFAR3) -->
+        <TextBlock AutomationProperties.AutomationId="PointerTool_ZeroAtLdrWarning_Label"
+                   Name="ZeroAtLdrWarning" Text="Warning: Zero region (LDR match)"
+                   Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
+                   IsVisible="{Binding HasZeroAtLdr}" />
+        <TextBlock AutomationProperties.AutomationId="PointerTool_VeryFarAtLdrWarning_Label"
+                   Name="VeryFarAtLdrWarning" Text="Warning: Very far from origin (LDR match)"
+                   Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
+                   IsVisible="{Binding HasVeryFarAtLdr}" />
         <!-- Use ASM MAP checkbox -->
         <CheckBox AutomationProperties.AutomationId="PointerTool_UseASMMapforsearch_Check" Content="Use ASM Map for search" IsChecked="{Binding UseAsmMap}"
                   Margin="0,8,0,0" />

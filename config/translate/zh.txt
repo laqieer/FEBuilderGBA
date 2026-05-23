@@ -16211,6 +16211,9 @@ Conversation Text 3:
 :Copy as Hex
 复制为十六进制
 
+:Open in Hex Editor
+在十六进制编辑器中打开
+
 :Copy as Little Endian
 复制为小端序
 
@@ -17350,6 +17353,21 @@ LZ77压缩工具
 
 :Load as Other (Unknown)
 加载为其他(未知)
+
+:Load Other ROM
+加载其他ROM
+
+:LDR Match\r\nAddress
+LDR匹配\r\n地址
+
+:LDR Reference
+LDR引用
+
+:Write Target Offset
+写入目标偏移
+
+:ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.
+要在 Address 处作为指针写入的 ROM 偏移（不含 0x08000000 基址）。接受带或不带 0x 前缀的十六进制。
 
 :Lock Type / ID:
 锁定类型 / ID:
@@ -19585,6 +19603,21 @@ W94: Unknown
 
 :Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
 警告: 属性加成指针为空 (P12=0)。请考虑分配空间。
+
+:Warning: Zero region (direct match)
+警告: 零区域 (直接匹配)
+
+:Warning: Very far from origin (direct match)
+警告: 离源数据太远 (直接匹配)
+
+:Warning: Zero region (LDR match)
+警告: 零区域 (LDR匹配)
+
+:Warning: Very far from origin (LDR match)
+警告: 离源数据太远 (LDR匹配)
+
+:Write pointer value at the address (WriteTarget = ROM offset of target)
+在地址写入指针值 (WriteTarget = 目标的ROM偏移)
 
 :Warnings
 警告

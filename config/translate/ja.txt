@@ -1652,6 +1652,9 @@ Coord ポインタ:
 :Copy as Hex
 コピー as 16進
 
+:Open in Hex Editor
+バイナリエディタで開く
+
 :Copy as Little Endian
 コピー as Little Endian
 
@@ -2461,6 +2464,21 @@ Linked 名前:
 
 :Load as Other (Unknown)
 読み込み as その他 (Unknown)
+
+:Load Other ROM
+別ROM読込
+
+:LDR Match\r\nAddress
+LDR一致\r\nアドレス
+
+:LDR Reference
+LDR参照
+
+:Write Target Offset
+書き込み先オフセット
+
+:ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.
+Address に書き込むポインタの ROM オフセット（0x08000000 ベースなし）。0x プレフィックスあり/なしの 16 進数を受け付けます。
 
 :Lock Type / ID:
 Lock タイプ / ID:
@@ -3751,6 +3769,21 @@ W36: 敵 phase BGM flag 4
 
 :Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
 警告: 能力ボーナス pointer is null (P12=0). Consider allocating.
+
+:Warning: Zero region (direct match)
+警告: 0地帯 (直接マッチ)
+
+:Warning: Very far from origin (direct match)
+警告: 元データと離れすぎ (直接マッチ)
+
+:Warning: Zero region (LDR match)
+警告: 0地帯 (LDRマッチ)
+
+:Warning: Very far from origin (LDR match)
+警告: 元データと離れすぎ (LDRマッチ)
+
+:Write pointer value at the address (WriteTarget = ROM offset of target)
+アドレスにポインタ値を書き込む (WriteTarget = ターゲットのROMオフセット)
 
 :Wave Pointer:
 Wave ポインタ:
