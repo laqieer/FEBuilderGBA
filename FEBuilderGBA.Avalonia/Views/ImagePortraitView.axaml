@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImagePortraitView"
-        Title="Portrait Image Editor" Width="900" Height="700"
+        Title="Portrait Image Editor" Width="900" Height="780"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ImagePortrait_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
@@ -11,6 +11,25 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Portrait Image Editor" FontSize="18" FontWeight="Bold" />
 
+        <!-- Top-of-list config bar (mirrors WF 先頭アドレス / 読込数 / Size: + 再取得 button) -->
+        <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,0,0,6" Margin="0,0,0,4">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="Start Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortrait_ReadStartAddress_Label"
+                       Grid.Column="1" Name="ReadStartAddressLabel" VerticalAlignment="Center" Margin="0,0,12,0"
+                       FontFamily="Consolas, monospace" />
+            <TextBlock Grid.Column="2" Text="Read Count:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortrait_ReadCount_Label"
+                       Grid.Column="3" Name="ReadCountLabel" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <TextBlock Grid.Column="4" Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortrait_BlockSize_Label"
+                       Grid.Column="5" Name="BlockSizeLabel" VerticalAlignment="Center" Margin="0,0,12,0" />
+            <Button AutomationProperties.AutomationId="ImagePortrait_ReloadList_Button"
+                    Grid.Column="6" Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" Margin="0,0,4,0" />
+          </Grid>
+        </Border>
+
+        <!-- Image / palette action buttons -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
           <Button AutomationProperties.AutomationId="ImagePortrait_ImportPng_Button" Content="Import PNG" Click="ImportPng_Click" />
           <Button AutomationProperties.AutomationId="ImagePortrait_FERepoButton_Button" Content="FE-Repo" Click="FERepoButton_Click" />
@@ -19,9 +38,15 @@
           <Button AutomationProperties.AutomationId="ImagePortrait_ExportSheet_Button" Content="Export Sheet" Click="ExportSheet_Click" />
           <Button AutomationProperties.AutomationId="ImagePortrait_ExportPal_Button" Content="Export PAL" Click="ExportPal_Click" />
           <Button AutomationProperties.AutomationId="ImagePortrait_ImportPal_Button" Content="Import PAL" Click="ImportPal_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_OpenSource_Button"
+                  Name="OpenSourceButton" Content="Open Source File" Click="OpenSource_Click"
+                  IsVisible="False" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_SelectSource_Button"
+                  Name="SelectSourceButton" Content="Select Source Folder" Click="SelectSource_Click"
+                  IsVisible="False" />
         </StackPanel>
 
-        <!-- Main face + mini portrait side by side -->
+        <!-- Main face + mini portrait + class card + show example side by side -->
         <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,0,8">
           <StackPanel Spacing="4">
             <TextBlock Text="Unit Face (96x80)" FontWeight="SemiBold" />
@@ -34,6 +59,11 @@
           <StackPanel Spacing="4">
             <TextBlock Text="Class Card" FontWeight="SemiBold" />
             <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_ClassCard_Image" Name="ClassCardImage" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock AutomationProperties.AutomationId="ImagePortrait_ShowExample_Label"
+                       Name="ShowExampleLabel" Text="Show Example (Frame 4)" FontWeight="SemiBold" />
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortrait_ShowExample_Image" Name="ShowExampleImage" />
           </StackPanel>
         </StackPanel>
 
@@ -57,7 +87,19 @@
           </StackPanel>
         </StackPanel>
 
-        <Grid ColumnDefinitions="160,200,Auto,60,Auto,60" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <!-- Selection bar (mirrors WF 選択アドレス: + 書き込み) -->
+        <Border BorderBrush="Gray" BorderThickness="0,1,0,1" Padding="0,4" Margin="0,0,0,4">
+          <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto">
+            <TextBlock Grid.Column="0" Text="Selected Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
+            <TextBlock AutomationProperties.AutomationId="ImagePortrait_SelectedAddress_Label"
+                       Grid.Column="1" Name="SelectedAddressLabel" VerticalAlignment="Center" Margin="0,0,12,0"
+                       FontFamily="Consolas, monospace" />
+            <Button AutomationProperties.AutomationId="ImagePortrait_Write_Button"
+                    Grid.Column="2" Name="WriteButton" Content="Write" Click="WriteButton_Click" />
+          </Grid>
+        </Border>
+
+        <Grid ColumnDefinitions="160,200,Auto,60,Auto,60" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImagePortrait_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
@@ -104,26 +146,86 @@
                          Increment="1" Width="80" HorizontalAlignment="Left" Margin="0,2"
                          ValueChanged="Position_ValueChanged" />
 
-          <!-- Write Positions button -->
-          <Button AutomationProperties.AutomationId="ImagePortrait_WritePositions_Button" Grid.Row="7" Grid.Column="4" Grid.ColumnSpan="2" Content="Write Positions"
-                  Click="WritePositions_Click" Margin="8,2,0,2" VerticalAlignment="Center" />
-
-          <!-- Row 8: Status (B24) -->
+          <!-- Row 8: Status (B24) + status combo -->
           <TextBlock Grid.Row="8" Grid.Column="0" Text="Status:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImagePortrait_Status_Label" Grid.Row="8" Grid.Column="1" Name="StatusLabel" VerticalAlignment="Center" Margin="0,2" />
+          <ComboBox AutomationProperties.AutomationId="ImagePortrait_StatusCombo_Input"
+                    Grid.Row="8" Grid.Column="2" Grid.ColumnSpan="2" Name="StatusCombo"
+                    Width="180" Margin="8,2,0,2"
+                    SelectionChanged="StatusCombo_SelectionChanged">
+            <!-- Status options are wrapped in TextBlock so ViewTranslationHelper
+                 picks them up for ja/zh localization (Copilot bot review on PR #527). -->
+            <ComboBoxItem><TextBlock Text="0 = Close Mouth (deprecated)" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="1 = Normal" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="6 = Close Eyes" /></ComboBoxItem>
+          </ComboBox>
 
           <!-- Row 9: Unused25 (B25) -->
           <TextBlock Grid.Row="9" Grid.Column="0" Text="Unused (B25):" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImagePortrait_Unused25_Label" Grid.Row="9" Grid.Column="1" Name="Unused25Label" VerticalAlignment="Center" Margin="0,2" />
 
-          <!-- Row 10: Unused26 (B26) -->
+          <!-- Row 10: Unused26 (B26 - mug_exceed enable flag) -->
           <TextBlock Grid.Row="10" Grid.Column="0" Text="Unused (B26):" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImagePortrait_Unused26_Label" Grid.Row="10" Grid.Column="1" Name="Unused26Label" VerticalAlignment="Center" Margin="0,2" />
 
           <!-- Row 11: Unused27 (B27) -->
           <TextBlock Grid.Row="11" Grid.Column="0" Text="Unused (B27):" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImagePortrait_Unused27_Label" Grid.Row="11" Grid.Column="1" Name="Unused27Label" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 12: Comment (TextBox) -->
+          <TextBlock Grid.Row="12" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBox AutomationProperties.AutomationId="ImagePortrait_Comment_Input"
+                   Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="5" Name="CommentInput" Width="380" HorizontalAlignment="Left" Margin="0,2"
+                   TextChanged="Comment_TextChanged" />
         </Grid>
+
+        <!-- MugExceed panel (visible only when mug_exceed patch is detected) -->
+        <Border AutomationProperties.AutomationId="ImagePortrait_MugExceedPanel"
+                Name="MugExceedPanel" IsVisible="False"
+                BorderBrush="DarkOrange" BorderThickness="1" Padding="6" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock AutomationProperties.AutomationId="ImagePortrait_MugExceedDesc_Label"
+                       Text="Set mug_exceed tile positions:"
+                       FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="120,Auto,60,Auto,60" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Tile 1" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="MugExceed Tile1 X:" VerticalAlignment="Center" Margin="0,2,4,2" />
+              <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_MugExceedB16_Input"
+                             Grid.Row="0" Grid.Column="2" FormatString="0" Name="MugExceedB16Input"
+                             Minimum="0" Maximum="255" Increment="1" Width="60" Margin="0,2"
+                             ValueChanged="MugExceed_ValueChanged" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="MugExceed Tile1 Y:" VerticalAlignment="Center" Margin="8,2,4,2" />
+              <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_MugExceedB17_Input"
+                             Grid.Row="0" Grid.Column="4" FormatString="0" Name="MugExceedB17Input"
+                             Minimum="0" Maximum="255" Increment="1" Width="60" Margin="0,2"
+                             ValueChanged="MugExceed_ValueChanged" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Tile 2" VerticalAlignment="Center" Margin="0,2" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="MugExceed Tile2 X:" VerticalAlignment="Center" Margin="0,2,4,2" />
+              <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_MugExceedB18_Input"
+                             Grid.Row="1" Grid.Column="2" FormatString="0" Name="MugExceedB18Input"
+                             Minimum="0" Maximum="255" Increment="1" Width="60" Margin="0,2"
+                             ValueChanged="MugExceed_ValueChanged" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="MugExceed Tile2 Y:" VerticalAlignment="Center" Margin="8,2,4,2" />
+              <NumericUpDown AutomationProperties.AutomationId="ImagePortrait_MugExceedB19_Input"
+                             Grid.Row="1" Grid.Column="4" FormatString="0" Name="MugExceedB19Input"
+                             Minimum="0" Maximum="255" Increment="1" Width="60" Margin="0,2"
+                             ValueChanged="MugExceed_ValueChanged" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Cross-editor jump buttons (Phase 4 #424) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <Button AutomationProperties.AutomationId="ImagePortrait_JumpToPalette_Button"
+                  Content="Jump to Palette" Click="JumpToPalette_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_JumpToImporter_Button"
+                  Content="Jump to Importer" Click="JumpToImporter_Click" />
+          <Button AutomationProperties.AutomationId="ImagePortrait_JumpToStatusHeight_Button"
+                  Name="JumpToStatusHeightButton"
+                  Content="Jump to Status Height" Click="JumpToStatusHeight_Click"
+                  IsVisible="False" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

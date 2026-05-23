@@ -43,6 +43,27 @@ namespace FEBuilderGBA.Avalonia.Views
             DragDrop.SetAllowDrop(this, true);
             AddHandler(DragDrop.DragOverEvent, OnDragOver);
             AddHandler(DragDrop.DropEvent, OnDrop);
+
+            // MugExceed panel + status-height button visibility — gated on
+            // patch detection (cross-platform Avalonia path, no WinForms dep).
+            // Plan v3 #424 / WU2.
+            UpdatePatchGatedVisibility();
+        }
+
+        void UpdatePatchGatedVisibility()
+        {
+            try
+            {
+                MugExceedPanel.IsVisible =
+                    PatchDetectionService.Instance.PortraitExtends ==
+                    PatchDetectionService.PortraitExtendsType.MugExceed;
+                JumpToStatusHeightButton.IsVisible =
+                    CoreState.ROM?.RomInfo?.version == 8;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitView.UpdatePatchGatedVisibility failed: {0}", ex.Message);
+            }
         }
 
         void OnDragOver(object? sender, DragEventArgs e)
@@ -109,10 +130,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
                 _undoService.Commit();
+
+                // Record the source file path so the Open / Select Source
+                // buttons surface this portrait's origin (matches WF
+                // ImagePortraitForm.ImportButton_Click).
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource cache)
+                {
+                    string srcKey = "Portrait_" + U.ToHexString((uint)idx);
+                    cache.Update(srcKey, filePath);
+                }
+
                 _vm.LoadEntry(addr);
                 UpdateUI();
                 _vm.RefreshAllImages();
                 UpdateImages();
+                UpdateSourceButtonVisibility();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }
@@ -126,6 +159,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.PortraitLoader(items, i));
+                UpdateTopBar();
+                UpdatePatchGatedVisibility();
             }
             catch (Exception ex)
             {
@@ -142,9 +177,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry(addr);
                 _vm.ShowFrame = 0;
                 ShowFrameSelector.Value = 0;
+                LoadCommentForCurrentEntry();
                 UpdateUI();
                 _vm.RefreshAllImages();
                 UpdateImages();
+                UpdateSourceButtonVisibility();
             }
             catch (Exception ex)
             {
@@ -153,9 +190,17 @@ namespace FEBuilderGBA.Avalonia.Views
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
+        void UpdateTopBar()
+        {
+            ReadStartAddressLabel.Text = $"0x{_vm.ReadStartAddress:X08}";
+            ReadCountLabel.Text = _vm.ReadCount.ToString();
+            BlockSizeLabel.Text = _vm.BlockSize.ToString();
+        }
+
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            SelectedAddressLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             PortraitImagePtrLabel.Text = $"0x{_vm.PortraitImagePtr:X08}";
             MiniPortraitPtrLabel.Text = $"0x{_vm.MiniPortraitPtr:X08}";
             PalettePtrLabel.Text = $"0x{_vm.PalettePtr:X08}";
@@ -166,10 +211,19 @@ namespace FEBuilderGBA.Avalonia.Views
             EyeXInput.Value = _vm.EyeX;
             EyeYInput.Value = _vm.EyeY;
             StatusLabel.Text = $"0x{_vm.Status:X02}";
+            // Sync StatusCombo selection (WF 0/1/6 -> combo index 0/1/2).
+            StatusCombo.SelectedIndex = _vm.Status switch { 0 => 0, 1 => 1, 6 => 2, _ => -1 };
             Unused25Label.Text = $"0x{_vm.Unused25:X02}";
             Unused26Label.Text = $"0x{_vm.Unused26:X02}";
             Unused27Label.Text = $"0x{_vm.Unused27:X02}";
+            // MugExceed slice inputs — one-way bound from VM (read-only slices).
+            MugExceedB16Input.Value = _vm.MugExceedB16;
+            MugExceedB17Input.Value = _vm.MugExceedB17;
+            MugExceedB18Input.Value = _vm.MugExceedB18;
+            MugExceedB19Input.Value = _vm.MugExceedB19;
+            CommentInput.Text = _vm.Comment;
             UpdateShowFrameLabel();
+            UpdateTopBar();
         }
 
         void UpdateImages()
@@ -179,13 +233,72 @@ namespace FEBuilderGBA.Avalonia.Views
             MouthStripImage.SetImage(_vm.MouthStripImage);
             EyeStripImage.SetImage(_vm.EyeStripImage);
             ClassCardImage.SetImage(_vm.ClassCardImage);
+            // Show Example — fixed frame 4 preview matching WF X_PIC_ZZZ.
+            try
+            {
+                var exImg = PortraitRendererCore.DrawPortraitUnitWithFrame(
+                    _vm.PortraitImagePtr, _vm.PalettePtr, _vm.MouthFramesPtr,
+                    (byte)_vm.MouthX, (byte)_vm.MouthY,
+                    (byte)_vm.EyeX, (byte)_vm.EyeY, (byte)_vm.Status, 4);
+                ShowExampleImage.SetImage(exImg);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitView.UpdateImages show-example failed: {0}", ex.Message);
+                ShowExampleImage.SetImage(null);
+            }
         }
 
         void UpdateShowFrameLabel()
         {
             int idx = _vm.ShowFrame;
-            ShowFrameLabel.Text = idx >= 0 && idx < ShowFrameNames.Length
-                ? ShowFrameNames[idx] : $"Frame {idx}";
+            // Translate at assignment time — TranslatedWindow.TranslateAll() runs
+            // once at window open, so values assigned afterward go through R._().
+            ShowFrameLabel.Text = R._(idx >= 0 && idx < ShowFrameNames.Length
+                ? ShowFrameNames[idx] : $"Frame {idx}");
+        }
+
+        void LoadCommentForCurrentEntry()
+        {
+            // Mirrors ImagePortraitFE6View.LoadCommentForCurrentEntry —
+            // CoreState.CommentCache is the same EtcCache instance the
+            // WinForms InputFormRef.UI_WriteCommentToUI wires through.
+            try
+            {
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) { _vm.Comment = string.Empty; return; }
+                if (CoreState.CommentCache != null
+                    && CoreState.CommentCache.TryGetValue(addr, out string value))
+                {
+                    _vm.Comment = value ?? string.Empty;
+                }
+                else
+                {
+                    _vm.Comment = string.Empty;
+                }
+            }
+            catch { _vm.Comment = string.Empty; }
+        }
+
+        void UpdateSourceButtonVisibility()
+        {
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) { OpenSourceButton.IsVisible = false; SelectSourceButton.IsVisible = false; return; }
+                string key = "Portrait_" + U.ToHexString((uint)idx);
+                bool has = CoreState.ResourceCache is EtcCacheResource cache
+                    && cache.TryGetValue(key, out string? path)
+                    && !string.IsNullOrEmpty(path)
+                    && File.Exists(path);
+                OpenSourceButton.IsVisible = has;
+                SelectSourceButton.IsVisible = has;
+            }
+            catch
+            {
+                OpenSourceButton.IsVisible = false;
+                SelectSourceButton.IsVisible = false;
+            }
         }
 
         void ShowFrame_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -231,10 +344,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for palette"); return; }
 
                 _undoService.Commit();
+
+                // Record source file path (matches WF ImagePortraitForm.ImportButton_Click).
+                if (!string.IsNullOrEmpty(loadResult.SourcePath))
+                {
+                    int idx = EntryList.SelectedOriginalIndex;
+                    if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource cache)
+                    {
+                        string srcKey = "Portrait_" + U.ToHexString((uint)idx);
+                        cache.Update(srcKey, loadResult.SourcePath);
+                    }
+                }
+
                 _vm.LoadEntry(addr);
                 UpdateUI();
                 _vm.RefreshAllImages();
                 UpdateImages();
+                UpdateSourceButtonVisibility();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait imported successfully.");
             }
@@ -273,7 +399,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // Quantize each part using the same palette from the original quantization
-            // Since all parts come from the same 16-color image, we remap to the existing palette
             byte[] sheetIndexed = ImageImportCore.RemapToExistingPalette(
                 parts.SpriteSheetPixels, parts.SpriteSheetW, parts.SpriteSheetH,
                 loadResult.GBAPalette, 16);
@@ -333,10 +458,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (mouthAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("No free space for mouth data"); return; }
 
                 _undoService.Commit();
+
+                // Record source file path (matches WF ImagePortraitForm.ImportButton_Click).
+                if (!string.IsNullOrEmpty(loadResult.SourcePath))
+                {
+                    int idx = EntryList.SelectedOriginalIndex;
+                    if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource cache)
+                    {
+                        string srcKey = "Portrait_" + U.ToHexString((uint)idx);
+                        cache.Update(srcKey, loadResult.SourcePath);
+                    }
+                }
+
                 _vm.LoadEntry(addr);
                 UpdateUI();
                 _vm.RefreshAllImages();
                 UpdateImages();
+                UpdateSourceButtonVisibility();
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Portrait sheet (128x112) imported: face, mini, mouth, and palette.");
             }
@@ -361,14 +499,6 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Compose a sheet: face (96x80) | mini (32x32) on top-right
-                //                                | eye strip (32x32) below mini
-                //                  mouth strip (32x96) below face
-                // Layout: 2 columns
-                //   Col 0: face (96x80), then mouth strip (32x96) below
-                //   Col 1: mini (32x32), then eye strip (32x32) below
-                // Total: width = 96 + 8 + 32 = 136, height = max(80, 32+8+32) + 8 + 96 = 184
-
                 const int padding = 4;
                 int faceW = _vm.FaceImage?.Width ?? 0;
                 int faceH = _vm.FaceImage?.Height ?? 0;
@@ -385,7 +515,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                // Layout: face top-left, mini top-right of face, mouth below face, eye below mini
                 int col0W = Math.Max(faceW, mouthW);
                 int col1W = Math.Max(miniW, eyeW);
                 int topRowH = Math.Max(faceH, miniH + padding + eyeH);
@@ -398,10 +527,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                // Create RGBA composite
                 byte[] composite = new byte[totalW * totalH * 4];
 
-                // Blit helper
                 void BlitImage(IImage? img, int destX, int destY)
                 {
                     if (img == null) return;
@@ -448,13 +575,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                 }
 
-                // Blit each component
                 BlitImage(_vm.FaceImage, 0, 0);
                 BlitImage(_vm.MiniPortraitImage, col0W + padding, 0);
                 BlitImage(_vm.EyeStripImage, col0W + padding, miniH + padding);
                 BlitImage(_vm.MouthStripImage, 0, topRowH + padding);
 
-                // Create WriteableBitmap (RGBA8888, matching GbaImageControl pattern)
                 var wb = new WriteableBitmap(
                     new PixelSize(totalW, totalH),
                     new Vector(96, 96),
@@ -479,7 +604,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                 }
 
-                // Save via dialog
                 string? path = await FileDialogHelper.SaveImageFile(this, "portrait_sheet.png");
                 if (string.IsNullOrEmpty(path)) return;
 
@@ -502,7 +626,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint palPtr = _vm.PalettePtr;
                 if (!U.isPointer(palPtr)) { CoreState.Services.ShowError("No palette pointer"); return; }
                 uint palAddr = U.toOffset(palPtr);
-                // Portrait palette is raw (not compressed), 16 colors = 32 bytes
                 byte[] pal = ImageUtilCore.GetPalette(palAddr, 16);
                 if (pal == null || pal.Length < 32) { CoreState.Services.ShowError("Failed to read palette"); return; }
                 string? path = await FileDialogHelper.SavePaletteFile(this, "portrait_palette.pal");
@@ -528,7 +651,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint addr = _vm.CurrentAddr;
                 if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
                 _undoService.Begin("Import Portrait Palette");
-                // Portrait palette is raw at offset +8
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, palData, addr + 8);
                 if (palAddr == U.NOT_FOUND) { _undoService.Rollback(); CoreState.Services.ShowError("Failed to write palette"); return; }
                 _undoService.Commit();
@@ -545,7 +667,6 @@ namespace FEBuilderGBA.Avalonia.Views
         void Position_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_vm.IsLoading) return;
-            // Update VM from controls and live-refresh the face preview
             _vm.MouthX = (uint)(MouthXInput.Value ?? 0);
             _vm.MouthY = (uint)(MouthYInput.Value ?? 0);
             _vm.EyeX = (uint)(EyeXInput.Value ?? 0);
@@ -554,35 +675,136 @@ namespace FEBuilderGBA.Avalonia.Views
             PortraitImage.SetImage(_vm.FaceImage);
         }
 
-        void WritePositions_Click(object? sender, RoutedEventArgs e)
+        /// <summary>
+        /// Status combo changed — translate combo index → ROM B24 value.
+        /// (Combo: 0→0=Close Mouth, 1→1=Normal, 2→6=Close Eyes.)
+        /// </summary>
+        void StatusCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            int sel = StatusCombo.SelectedIndex;
+            uint b24 = sel switch { 0 => 0u, 1 => 1u, 2 => 6u, _ => _vm.Status };
+            _vm.Status = b24;
+            StatusLabel.Text = $"0x{_vm.Status:X02}";
+        }
+
+        /// <summary>
+        /// MugExceed Tile1 X/Y + Tile2 X/Y changed — compose the new
+        /// ClassCardPtr u32 from the 4 NumericUpDown values. The MugExceedB16-B19
+        /// VM properties are read-only computed slices of D16, so we write the
+        /// composed u32 here and the VM stays consistent. (Plan v3 #424 /
+        /// Copilot CLI plan-review point on MugExceed write path.)
+        /// </summary>
+        void MugExceed_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            uint b16 = (uint)(MugExceedB16Input.Value ?? 0) & 0xFF;
+            uint b17 = (uint)(MugExceedB17Input.Value ?? 0) & 0xFF;
+            uint b18 = (uint)(MugExceedB18Input.Value ?? 0) & 0xFF;
+            uint b19 = (uint)(MugExceedB19Input.Value ?? 0) & 0xFF;
+            _vm.ClassCardPtr = (b19 << 24) | (b18 << 16) | (b17 << 8) | b16;
+            ClassCardPtrLabel.Text = $"0x{_vm.ClassCardPtr:X08}";
+        }
+
+        void Comment_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            _vm.Comment = CommentInput.Text ?? string.Empty;
+            try
+            {
+                uint addr = _vm.CurrentAddr;
+                if (addr == 0) return;
+                CoreState.CommentCache?.Update(addr, _vm.Comment);
+            }
+            catch { /* non-fatal — caching is best effort */ }
+        }
+
+        void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+
+        /// <summary>
+        /// Write button. Single-owner pattern (Copilot CLI plan-review point):
+        /// the View delegates to the VM, which owns the UndoService scope.
+        /// </summary>
+        void WriteButton_Click(object? sender, RoutedEventArgs e)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             uint addr = _vm.CurrentAddr;
             if (addr == 0) { CoreState.Services.ShowError("No portrait entry selected"); return; }
 
-            // Read current values from controls
+            // Snapshot UI state into the VM before delegating.
             _vm.MouthX = (uint)(MouthXInput.Value ?? 0);
             _vm.MouthY = (uint)(MouthYInput.Value ?? 0);
             _vm.EyeX = (uint)(EyeXInput.Value ?? 0);
             _vm.EyeY = (uint)(EyeYInput.Value ?? 0);
+            // Status is already kept in sync by StatusCombo_SelectionChanged.
+            // MugExceed bytes are already composed into ClassCardPtr by MugExceed_ValueChanged.
 
-            _undoService.Begin("Write Portrait Positions");
             try
             {
-                rom.write_u8(addr + 20, _vm.MouthX);
-                rom.write_u8(addr + 21, _vm.MouthY);
-                rom.write_u8(addr + 22, _vm.EyeX);
-                rom.write_u8(addr + 23, _vm.EyeY);
-                _undoService.Commit();
+                _vm.Write(_undoService);
                 _vm.MarkClean();
-                CoreState.Services.ShowInfo("Mouth/eye positions written.");
+                CoreState.Services.ShowInfo("Portrait entry written.");
             }
             catch (Exception ex)
             {
-                _undoService.Rollback();
-                CoreState.Services.ShowError($"Write positions failed: {ex.Message}");
+                CoreState.Services.ShowError($"Write failed: {ex.Message}");
             }
+        }
+
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                string key = "Portrait_" + U.ToHexString((uint)idx);
+                if (CoreState.ResourceCache is EtcCacheResource cache
+                    && cache.TryGetValue(key, out string? path)
+                    && !string.IsNullOrEmpty(path))
+                {
+                    if (!File.Exists(path)) { CoreState.Services.ShowError("Source file not found."); return; }
+                    var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
+                    System.Diagnostics.Process.Start(psi);
+                }
+                else
+                {
+                    CoreState.Services.ShowError("No source file recorded for this portrait.");
+                }
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Open source failed: {ex.Message}"); }
+        }
+
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                string key = "Portrait_" + U.ToHexString((uint)idx);
+                if (CoreState.ResourceCache is EtcCacheResource cache
+                    && cache.TryGetValue(key, out string? path)
+                    && !string.IsNullOrEmpty(path))
+                {
+                    if (!File.Exists(path)) { CoreState.Services.ShowError("Source file not found."); return; }
+                    string? dir = Path.GetDirectoryName(path);
+                    if (string.IsNullOrEmpty(dir)) return;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                    }
+                    else
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true };
+                        System.Diagnostics.Process.Start(psi);
+                    }
+                }
+                else
+                {
+                    CoreState.Services.ShowError("No source file recorded for this portrait.");
+                }
+            }
+            catch (Exception ex) { CoreState.Services.ShowError($"Select source failed: {ex.Message}"); }
         }
 
         async void FERepoButton_Click(object? sender, RoutedEventArgs e)
@@ -593,6 +815,31 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ImportImageFromFile(result);
             }
+        }
+
+        // ---------------------------------------------------------------
+        // Cross-editor jump buttons (Phase 4 #424) — open-only contract.
+        // Match WF semantics where the click handler opens the target form,
+        // with rich JumpTo enrichment (bitmap propagation, ID-based row
+        // selection) deferred to follow-up issues.
+        // ---------------------------------------------------------------
+
+        void JumpToPalette_Click(object? sender, RoutedEventArgs e)
+        {
+            try { WindowManager.Instance.Open<ImagePalletView>(); }
+            catch (Exception ex) { Log.Error("JumpToPalette failed: {0}", ex.Message); }
+        }
+
+        void JumpToImporter_Click(object? sender, RoutedEventArgs e)
+        {
+            try { WindowManager.Instance.Open<ImagePortraitImporterView>(); }
+            catch (Exception ex) { Log.Error("JumpToImporter failed: {0}", ex.Message); }
+        }
+
+        void JumpToStatusHeight_Click(object? sender, RoutedEventArgs e)
+        {
+            try { WindowManager.Instance.Open<UnitIncreaseHeightView>(); }
+            catch (Exception ex) { Log.Error("JumpToStatusHeight failed: {0}", ex.Message); }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
