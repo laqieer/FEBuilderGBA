@@ -395,33 +395,10 @@ namespace FEBuilderGBA
             CheckHardCodingWarning();
         }
 
-        public static void SetSimClass(ref GrowSimulator sim,uint cid)
+        // Delegate to Core helper so Avalonia + WinForms share one source of truth (#428).
+        public static void SetSimClass(ref GrowSimulator sim, uint cid)
         {
-            InputFormRef InputFormRef = Init(null);
-            uint addr = InputFormRef.IDToAddr(cid);
-            if (!U.isSafetyOffset(addr))
-            {
-                return;
-            }
-            sim.SetClassBase(
-                  (int)(sbyte)Program.ROM.u8(addr + 11) //hp
-                , (int)(sbyte)Program.ROM.u8(addr + 12) //str
-                , (int)(sbyte)Program.ROM.u8(addr + 13) //skill
-                , (int)(sbyte)Program.ROM.u8(addr + 14) //spd
-                , (int)(sbyte)Program.ROM.u8(addr + 15) //def
-                , (int)(sbyte)Program.ROM.u8(addr + 16) //res
-                , (int)(sbyte)MagicSplitUtil.GetClassBaseMagicExtends(cid, addr) //ext_magic
-                );
-            sim.SetClassGrow(
-                  (int)Program.ROM.u8(addr + 27) //hp
-                , (int)Program.ROM.u8(addr + 28) //str
-                , (int)Program.ROM.u8(addr + 29) //skill
-                , (int)Program.ROM.u8(addr + 30) //spd
-                , (int)Program.ROM.u8(addr + 31) //def
-                , (int)Program.ROM.u8(addr + 32) //res
-                , (int)Program.ROM.u8(addr + 33) //luck
-                , (int)MagicSplitUtil.GetClassGrowMagicExtends(cid, addr) //ext_magic
-                );
+            FEBuilderGBA.Core.ClassFormCore.SetSimClass(ref sim, cid, Program.ROM);
         }
         public GrowSimulator BuildSim()
         {

@@ -21,13 +21,43 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) => { LoadList(); UpdateAddressBarInfra(); };
 
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
 
             // #358: jump to Support Unit Editor for this unit's support row.
             JumpToSupportUnitButton.Click += JumpToSupportUnit_Click;
+
+            // #428: wire weapon-rank NumericUpDowns -> letter labels.
+            WepSwordBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepSwordBox, WepSwordLetterLabel);
+            WepLanceBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepLanceBox, WepLanceLetterLabel);
+            WepAxeBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepAxeBox, WepAxeLetterLabel);
+            WepBowBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepBowBox, WepBowLetterLabel);
+            WepStaffBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepStaffBox, WepStaffLetterLabel);
+            WepAnimaBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepAnimaBox, WepAnimaLetterLabel);
+            WepLightBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepLightBox, WepLightLetterLabel);
+            WepDarkBox.ValueChanged += (_, _) => RefreshWeaponLetter(WepDarkBox, WepDarkLetterLabel);
+
+            // #428: wire growth-sim recompute on base / growth / class / sim-level changes.
+            // (HP/STR/.../ClassId boxes are bound to VM; subscribing to ValueChanged is enough.)
+            HPBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            StrBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            SklBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            SpdBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            DefBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            ResBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            LckBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowHPBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowSTRBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowSKLBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowSPDBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowDEFBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowRESBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            GrowLCKBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            LevelBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            ClassIdBox.ValueChanged += (_, _) => RefreshGrowthSim();
+            SimLevelBox.ValueChanged += (_, _) => RefreshGrowthSim();
         }
 
         /// <summary>
@@ -71,12 +101,52 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 _vm.IsLoading = false;
                 _vm.MarkClean();
+
+                // #428: post-selection UI refresh — HardCoding warning visibility,
+                // weapon letters, growth-sim default level + initial display.
+                RefreshHardCodingWarning();
+                RefreshAllWeaponLetters();
+                ResetSimLevelToClassMax();
+                RefreshGrowthSim();
             }
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
                 Log.Error("UnitFE7View.OnSelected failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// #428: refresh every weapon-rank letter label (after a new unit
+        /// loads). Each weapon NumericUpDown's ValueChanged also calls this
+        /// when the user edits a single rank.
+        /// </summary>
+        void RefreshAllWeaponLetters()
+        {
+            RefreshWeaponLetter(WepSwordBox, WepSwordLetterLabel);
+            RefreshWeaponLetter(WepLanceBox, WepLanceLetterLabel);
+            RefreshWeaponLetter(WepAxeBox, WepAxeLetterLabel);
+            RefreshWeaponLetter(WepBowBox, WepBowLetterLabel);
+            RefreshWeaponLetter(WepStaffBox, WepStaffLetterLabel);
+            RefreshWeaponLetter(WepAnimaBox, WepAnimaLetterLabel);
+            RefreshWeaponLetter(WepLightBox, WepLightLetterLabel);
+            RefreshWeaponLetter(WepDarkBox, WepDarkLetterLabel);
+        }
+
+        /// <summary>
+        /// #428: when a new unit is selected, default the SimLevel to the
+        /// max level for the unit's class (matches WF UnitFE7Form's
+        /// AddressList_SelectedIndexChanged behavior).
+        /// </summary>
+        void ResetSimLevelToClassMax()
+        {
+            try
+            {
+                int max = GrowSimulator.CalcMaxLevel(_vm.ClassId);
+                if (max <= 0) max = 20;
+                SimLevelBox.Value = max;
+            }
+            catch { SimLevelBox.Value = 20; }
         }
 
         void UpdateUI()
@@ -340,6 +410,154 @@ namespace FEBuilderGBA.Avalonia.Views
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 text = text[2..];
             return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
+        }
+
+        // ---- #428: Address-bar infrastructure ------------------------------
+
+        /// <summary>
+        /// Populate the read-only address-bar labels (start address / count /
+        /// size / hardcoding warning) from the live RomInfo. Mirrors WF
+        /// UnitFE7Form's address bar (label1 / label2 / label3 / label22).
+        /// </summary>
+        void UpdateAddressBarInfra()
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                ReadStartAddressLabel.Text = $"0x{rom.RomInfo.unit_pointer:X8}";
+                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
+                SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
+            }
+            catch (Exception ex) { Log.Error("UnitFE7View.UpdateAddressBarInfra failed: {0}", ex.Message); }
+        }
+
+        /// <summary>
+        /// #428: Reload button — re-runs LoadList() (rebuilds the AddressList
+        /// from the current ROM). Mirrors WF UnitFE7Form's ReloadListButton.
+        /// </summary>
+        void Reload_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
+            UpdateAddressBarInfra();
+        }
+
+        // ---- #428: HardCoding warning -------------------------------------
+
+        /// <summary>
+        /// Refresh the HardCoding-warning hyperlink's visibility based on the
+        /// current unit's id. Mirrors WF UnitFE7Form.CheckHardCodingWarning.
+        /// </summary>
+        void RefreshHardCodingWarning()
+        {
+            try
+            {
+                // AddressList indices are 0-based; the WF "Unit id" (used by
+                // the AsmMap cache lookup) is 1-based, matching the WF form.
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0)
+                {
+                    HardCodingWarningLabel.IsVisible = false;
+                    return;
+                }
+                uint unitId = (uint)(idx + 1);
+                bool r = CoreState.AsmMapFileAsmCache?.IsHardCodeUnit(unitId) ?? false;
+                HardCodingWarningLabel.IsVisible = r;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("UnitFE7View.RefreshHardCodingWarning failed: {0}", ex.Message);
+                HardCodingWarningLabel.IsVisible = false;
+            }
+        }
+
+        /// <summary>
+        /// #428: HardCoding label click — open the Patch Manager filtered to
+        /// HARDCODING_UNIT=<id>. Mirrors WF UnitFE7Form.HardCodingWarningLabel_Click.
+        /// </summary>
+        void HardCodingWarning_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                uint unitId = (uint)(idx + 1);
+                var pv = WindowManager.Instance.Open<PatchManagerView>();
+                pv.JumpTo($"HARDCODING_UNIT={unitId:X2}", 0);
+            }
+            catch (Exception ex) { Log.Error("UnitFE7View.HardCodingWarning_Click failed: {0}", ex.Message); }
+        }
+
+        // ---- #428: Weapon-rank letter labels -------------------------------
+
+        /// <summary>
+        /// Compute the letter grade ("-"/"E"/"D"/"C"/"B"/"A"/"S") for a
+        /// weapon-rank NumericUpDown's current value and push it into the
+        /// adjacent TextBlock. Mirrors WF InputFormRef.GetWeaponClass via
+        /// the new Core WeaponRankUtil helper.
+        /// </summary>
+        void RefreshWeaponLetter(NumericUpDown box, TextBlock letterLabel)
+        {
+            try
+            {
+                int romVer = (int)(CoreState.ROM?.RomInfo?.version ?? 7);
+                uint val = (uint)(box.Value ?? 0);
+                letterLabel.Text = WeaponRankUtil.GetRankLetter(val, romVer);
+            }
+            catch { letterLabel.Text = "-"; }
+        }
+
+        // ---- #428: Growth Simulator panel ---------------------------------
+
+        /// <summary>
+        /// Re-run the growth simulator and push the result into the read-only
+        /// SimXxx labels. Mirrors WF UnitFE7Form.X_SIM_ValueChanged. The
+        /// magic-extends row is shown only when the FE7UMAGIC patch is
+        /// installed (matches WF behavior).
+        /// </summary>
+        void RefreshGrowthSim()
+        {
+            if (_vm.IsLoading) return;
+            try
+            {
+                // Push the latest box values back into the VM (the view's
+                // existing wiring only does this on Write_Click).
+                _vm.HP = (int)(HPBox.Value ?? 0);
+                _vm.Str = (int)(StrBox.Value ?? 0);
+                _vm.Skl = (int)(SklBox.Value ?? 0);
+                _vm.Spd = (int)(SpdBox.Value ?? 0);
+                _vm.Def = (int)(DefBox.Value ?? 0);
+                _vm.Res = (int)(ResBox.Value ?? 0);
+                _vm.Lck = (int)(LckBox.Value ?? 0);
+                _vm.GrowHP = (uint)(GrowHPBox.Value ?? 0);
+                _vm.GrowSTR = (uint)(GrowSTRBox.Value ?? 0);
+                _vm.GrowSKL = (uint)(GrowSKLBox.Value ?? 0);
+                _vm.GrowSPD = (uint)(GrowSPDBox.Value ?? 0);
+                _vm.GrowDEF = (uint)(GrowDEFBox.Value ?? 0);
+                _vm.GrowRES = (uint)(GrowRESBox.Value ?? 0);
+                _vm.GrowLCK = (uint)(GrowLCKBox.Value ?? 0);
+                _vm.Level = (uint)(LevelBox.Value ?? 0);
+                _vm.ClassId = ClassIdBox.Value;
+
+                int simLevel = (int)(SimLevelBox.Value ?? 0);
+                var sim = _vm.BuildSimAndGrow(simLevel);
+                SimHPLabel.Text = sim.sim_hp.ToString();
+                SimSTRLabel.Text = sim.sim_str.ToString();
+                SimSKLLabel.Text = sim.sim_skill.ToString();
+                SimSPDLabel.Text = sim.sim_spd.ToString();
+                SimDEFLabel.Text = sim.sim_def.ToString();
+                SimRESLabel.Text = sim.sim_res.ToString();
+                SimLCKLabel.Text = sim.sim_luck.ToString();
+                SimTotalLabel.Text = sim.sim_sum_grow_rate.ToString();
+
+                bool magicSplit = false;
+                try { magicSplit = MagicSplitUtil.SearchMagicSplit() == MagicSplitUtil.magic_split_enum.FE7UMAGIC; }
+                catch { /* magic-split is best-effort */ }
+                SimMagicExtPrefixLabel.IsVisible = magicSplit;
+                SimMagicExtLabel.IsVisible = magicSplit;
+                if (magicSplit) SimMagicExtLabel.Text = sim.sim_ext_magic.ToString();
+            }
+            catch (Exception ex) { Log.Error("UnitFE7View.RefreshGrowthSim failed: {0}", ex.Message); }
         }
     }
 }

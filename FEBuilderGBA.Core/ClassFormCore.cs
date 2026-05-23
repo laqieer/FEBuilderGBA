@@ -15,6 +15,8 @@
 //   offset +11..+16 : class base hp / str / skl / spd / def / res (signed byte)
 //   offset +27..+33 : class grow hp / str / skl / spd / def / res / luck
 //   magic-extends (FE7UMAGIC / FE8UMAGIC) come from MagicSplitUtil.GetClassAs(...)
+using FEBuilderGBA; // ROM, GrowSimulator, MagicSplitUtil, U all live in the parent namespace.
+
 namespace FEBuilderGBA.Core
 {
     public static class ClassFormCore

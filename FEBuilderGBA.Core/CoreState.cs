@@ -36,6 +36,14 @@ namespace FEBuilderGBA
     public interface IAsmMapCache
     {
         void ClearCache();
+
+        /// <summary>
+        /// Returns true when the supplied unit id (1-based) is referenced
+        /// by hardcoded ASM in the loaded ROM. Used by the unit-editor
+        /// HardCoding warning label (#428). Implementations that do not
+        /// have ASM-map data available should return false.
+        /// </summary>
+        bool IsHardCodeUnit(uint unitId);
     }
 
     /// <summary>

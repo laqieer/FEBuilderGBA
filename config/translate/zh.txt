@@ -20642,3 +20642,39 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 
 :The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.
 当玩家在世界地图上选择一个据点时运行的事件。\r\nFE8允许玩家在据点之间自由移动，因此下一章的介绍必须在选择据点时发生。
+
+:Growth Simulation
+成长模拟
+
+:Total Growth %:
+总成长率%:
+
+:Sim HP:
+模拟HP:
+
+:Sim STR:
+模拟力量:
+
+:Sim SKL:
+模拟技术:
+
+:Sim SPD:
+模拟速度:
+
+:Sim DEF:
+模拟防御:
+
+:Sim RES:
+模拟魔防:
+
+:Sim LCK:
+模拟幸运:
+
+:Magic Ext:
+魔力扩展:
+
+:Read Start Address:
+读取起始地址:
+
+:This unit is referenced by hardcoded ASM. Click to view related patches.
+此单位被硬编码ASM引用。点击查看相关补丁。

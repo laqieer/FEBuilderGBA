@@ -5,6 +5,7 @@
 // inputs out of a class entry in the ROM table and feeds them into a
 // GrowSimulator. The WinForms ClassForm.SetSimClass delegates to this helper
 // so both Avalonia and WinForms share one source of truth for sim parity.
+using FEBuilderGBA;
 using FEBuilderGBA.Core;
 using Xunit;
 
