@@ -67,17 +67,49 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Apply both pre-import safety gates that Copilot CLI v3 review
+        /// (#429) requires us to share between the file-picker import
+        /// (`ImportPng_Click`) and the drag-drop import (`OnDrop`):
+        ///   1. Reserve-BG confirmation (system black / random slots).
+        ///   2. BG255/BG224 explicit refusal: if the BG256Color patch is
+        ///      installed AND the current entry's P4 is &lt;= 1 (the
+        ///      255/224 mode flag), refuse the 16-color import path
+        ///      before any ROM write. Mirrors WF
+        ///      `ImageBGSelectPopupForm` "VanillaTSA only" gate.
+        /// </summary>
+        /// <returns>true if import should proceed; false if cancelled
+        ///   or refused.</returns>
+        bool PreImportGate()
+        {
+            // Gate 1: reserve-BG confirmation.
+            if (FEBuilderGBA.ImageBGCore.IsReserveBgId(CoreState.ROM, (uint)_vm.CurrentIndex))
+            {
+                bool proceed = CoreState.Services?.ShowYesNo(
+                    "Warning: This BG slot is reserved by the system. Overwriting it may cause unexpected behavior. Continue?") ?? false;
+                if (!proceed) return false;
+            }
+
+            // Gate 2: BG256-patched + P4 flag (0 or 1) means this entry
+            // is a 255/224-color cutscene background. Refuse 16-color
+            // import here — silent 16-color writes would corrupt the
+            // entry (Copilot CLI v3 review on PR #517).
+            if (_vm.IsBG256Patched && _vm.P4 <= 1)
+            {
+                CoreState.Services.ShowError(
+                    "BG255/BG224 import is not yet supported in the Avalonia editor. " +
+                    "Use the WinForms editor for 255/224-color cutscene backgrounds.");
+                return false;
+            }
+
+            return true;
+        }
+
         void ImportImageFromFile(string filePath)
         {
             try
             {
-                // Reserve-BG confirmation gate.
-                if (FEBuilderGBA.ImageBGCore.IsReserveBgId(CoreState.ROM, (uint)_vm.CurrentIndex))
-                {
-                    bool proceed = CoreState.Services?.ShowYesNo(
-                        "Warning: This BG slot is reserved by the system. Overwriting it may cause unexpected behavior. Continue?") ?? false;
-                    if (!proceed) return;
-                }
+                if (!PreImportGate()) return;
 
                 var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 256, 160, 16);
                 if (loadResult == null) return;
@@ -232,37 +264,22 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Reserve-BG confirmation gate.
-                if (FEBuilderGBA.ImageBGCore.IsReserveBgId(CoreState.ROM, (uint)_vm.CurrentIndex))
-                {
-                    bool proceed = CoreState.Services?.ShowYesNo(
-                        "Warning: This BG slot is reserved by the system. Overwriting it may cause unexpected behavior. Continue?") ?? false;
-                    if (!proceed) return;
-                }
+                // Both safety gates (reserve-BG confirmation + BG256
+                // P4-flag refusal) live in `PreImportGate` so the
+                // drag-drop import path applies them too. Copilot CLI
+                // v3 review (#517) flagged the drop-import bypassing
+                // the BG256 guard — sharing the gate eliminates that.
+                if (!PreImportGate()) return;
 
-                // BG256 popup: pick 16-color / BG255 / BG224 mode.
-                // For BG255 / BG224 we explicitly refuse — see plan v3.
-                // The existing `ImageBGSelectPopupView` is a generic
-                // picker stub today; treat any non-trivial selection
-                // as "use the WinForms editor for now."
-                if (_vm.IsBG256Patched)
-                {
-                    var popup = new ImageBGSelectPopupView();
-                    object? result = await popup.ShowDialog<object?>(this);
-                    if (result == null) return; // user cancelled
-                    // Treat selected items containing "224" or "255" as
-                    // explicit BG255/BG224 picks — refuse cleanly.
-                    string? sel = result?.ToString();
-                    if (!string.IsNullOrEmpty(sel) &&
-                        (sel.Contains("224") || sel.Contains("255")))
-                    {
-                        CoreState.Services.ShowError(
-                            "BG255/BG224 import is not yet supported in the Avalonia editor. Use the WinForms editor for 255/224-color cutscene backgrounds.");
-                        return;
-                    }
-                    // Else: fall through to 16-color VanillaTSA path.
-                }
-
+                // Single-sub-palette quantization. WF uses palette_count=8
+                // for normal BG (8 × 16-color sub-palettes, addressed by
+                // TSA upper-nibble bits 12-15). The Avalonia port today
+                // quantizes to one 16-color sub-palette and writes 32
+                // bytes — sufficient for ROMs that only use sub-palette
+                // 0 (the common case for vanilla FE6/7/8 backgrounds),
+                // but multi-palette BG slots will lose sub-palettes 1-7.
+                // This limitation is called out in the PR Known
+                // Limitations section (#429 / Copilot CLI v3 review).
                 var loadResult = await ImageImportService.LoadAndQuantize(this, 256, 160, 16);
                 if (loadResult == null) return;
                 if (!loadResult.Success) { CoreState.Services.ShowError(loadResult.Error); return; }
@@ -457,17 +474,5 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
-    }
-
-    /// <summary>
-    /// Selection result from the ImageBG mode-picker popup. Mirrors
-    /// <see cref="ImageBGSelectPopupForm.SelectedType"/> in WinForms.
-    /// </summary>
-    public enum ImageBGSelectMode
-    {
-        None,
-        VanillaTSA,
-        BG224,
-        BG255,
     }
 }

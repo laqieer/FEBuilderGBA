@@ -355,6 +355,50 @@ public class ImageBGParityTests
         }
     }
 
+    /// <summary>
+    /// Per Copilot CLI v3 review (#517): a BG256-patched ROM entry
+    /// with P4 &lt;= 1 (255/224-color mode flag) MUST NOT accept a
+    /// 16-color import via either the file-picker or drag-drop path.
+    /// The Avalonia View now refuses such imports before any ROM
+    /// write with an explicit "use the WinForms editor" error. We
+    /// verify the underlying decision predicate here, since the
+    /// actual View handlers run modally and are out of headless reach.
+    /// </summary>
+    [Fact]
+    public void ViewModel_BG256Patched_WithP4Flag_IsTreatedAs255_224Mode()
+    {
+        // Build a BG256-patched ROM and verify ImageBGCore.Is255BG +
+        // the IsBG256Patched flag the VM exposes drive the View's
+        // pre-import gate correctly.
+        var bytes = new byte[0x1100000];
+        var rom = new ROM();
+        rom.LoadLow("bg256-fe8u.gba", bytes, "BE8E01");
+        // Plant BG256 signature for FE8U.
+        bytes[0xE2DA] = 0xC0; bytes[0xE2DB] = 0x46;
+        bytes[0xE2DC] = 0xC0; bytes[0xE2DD] = 0x46;
+        rom.LoadLow("bg256-fe8u.gba", bytes, "BE8E01");
+
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageBGViewModel();
+            // Simulate a BG255 entry (P0 valid pointer, P4 = 0).
+            vm.P0 = 0x08400000u;
+            vm.P4 = 0u;
+            vm.IsBG256Patched = FEBuilderGBA.PatchDetection.HasBG256ColorPatch(rom);
+
+            // The View's `PreImportGate` refuses when
+            // `IsBG256Patched && P4 <= 1`. Verify both halves:
+            Assert.True(vm.IsBG256Patched, "BG256 patch must be detected");
+            Assert.True(vm.P4 <= 1, "P4 must be a mode flag");
+
+            // The Core helper directly answers "is this a 255-color BG?"
+            Assert.True(FEBuilderGBA.ImageBGCore.Is255BG(rom, vm.P0, vm.P4));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     [Fact]
     public void ViewModel_LoadList_HonorsBG256P4FlagRule()
     {
