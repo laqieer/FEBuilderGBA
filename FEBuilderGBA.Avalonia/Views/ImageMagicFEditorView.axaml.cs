@@ -37,14 +37,39 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                ReadStartAddressBox.Value = _vm.ReadStartAddress;
+                ReadCountBox.Value = _vm.ReadCount;
                 UpdatePatchNotice();
                 UpdateListExpandVisibility();
+                UpdateWriteControlsEnabled();
             }
             catch (Exception ex)
             {
                 Log.Error("ImageMagicFEditorView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        /// <summary>
+        /// When the FEditor/SCA_Creator patch is absent the editor must
+        /// not let the user trigger a Write — the dim/no-dim addresses
+        /// resolve to U.NOT_FOUND and the row pointer would be corrupted.
+        /// Mirrors the WF behavior of bailing out of `WriteDim()` when
+        /// the patch isn't detected (Copilot bot review on PR #554).
+        /// </summary>
+        void UpdateWriteControlsEnabled()
+        {
+            bool ok = _vm.MagicSystemDetected;
+            WriteButton.IsEnabled = ok;
+            DimCombo.IsEnabled = ok;
+            CommentBox.IsEnabled = ok;
+            P0Box.IsEnabled = ok;
+            P4Box.IsEnabled = ok;
+            P8Box.IsEnabled = ok;
+            P12Box.IsEnabled = ok;
+            P16Box.IsEnabled = ok;
+            FrameBox.IsEnabled = ok;
+            MagicListExpandButton.IsEnabled = ok;
         }
 
         void UpdatePatchNotice()
@@ -74,7 +99,15 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _vm.LoadEntry(addr);
+                // AddressListControl.SelectedAddressChanged fires with the
+                // AddrResult.addr value (CSA entry). The pointer-table slot
+                // lives in AddrResult.tag; we need both to drive the VM
+                // correctly (dim pointer goes to tag, comment + P0..P16 go
+                // to addr). Mirrors WF AddressList_SelectedIndexChanged.
+                AddrResult? selected = EntryList.SelectedItem;
+                uint csaEntry = selected?.addr ?? addr;
+                uint pointerSlot = selected?.tag ?? addr;
+                _vm.LoadEntry(csaEntry, pointerSlot);
                 UpdateUI();
             }
             catch (Exception ex)
@@ -86,9 +119,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            // WF semantics:
+            //   - Address NumericUpDown shows the CSA entry address (ar.addr).
+            //   - Selected Address textbox shows the pointer-table slot (ar.tag).
+            // Both diverge once selection plumbing is correct (Copilot bot
+            // review on PR #554).
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
             AddressBox.Value = _vm.CurrentAddr;
-            SelectedAddressBox.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            SelectedAddressBox.Text = string.Format("0x{0:X08}", _vm.PointerSlotAddr);
             CommentBox.Text = _vm.Comment ?? string.Empty;
             DimCombo.SelectedIndex = (int)_vm.DimPointer;
             P0Box.Value = _vm.P0;
@@ -117,7 +155,12 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded || _vm.CurrentAddr == 0u) return;
-            uint reloadAddr = _vm.CurrentAddr;
+            // Patch-absence guard: WF bails out of WriteDim() when the
+            // FEditor/SCA_Creator patch isn't detected; mirror that to
+            // avoid silently writing 0xFFFFFFFF as the dim pointer.
+            if (!_vm.MagicSystemDetected) return;
+            uint reloadCsa = _vm.CurrentAddr;
+            uint reloadSlot = _vm.PointerSlotAddr;
             _undoService.Begin("Edit Magic Effect (FEditor)");
             try
             {
@@ -127,6 +170,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 int dimIdx = DimCombo.SelectedIndex;
                 if (dimIdx >= 0)
                     _vm.DimPointer = (ImageMagicFEditorViewModel.DimPointerKind)dimIdx;
+                _vm.P0 = (uint)(P0Box.Value ?? 0);
+                _vm.P4 = (uint)(P4Box.Value ?? 0);
+                _vm.P8 = (uint)(P8Box.Value ?? 0);
+                _vm.P12 = (uint)(P12Box.Value ?? 0);
+                _vm.P16 = (uint)(P16Box.Value ?? 0);
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
@@ -137,7 +185,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 try
                 {
-                    _vm.LoadEntry(reloadAddr);
+                    _vm.LoadEntry(reloadCsa, reloadSlot);
                     UpdateUI();
                 }
                 finally { _vm.IsLoading = false; _vm.MarkClean(); }

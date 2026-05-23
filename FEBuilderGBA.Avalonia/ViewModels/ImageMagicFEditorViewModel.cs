@@ -48,7 +48,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Maximum FEditor slot index (vanilla cap is 0xFE).</summary>
         const int MAX_SLOTS = 0xFE;
 
+        // CSA spell-table entry address (mirrors WF AddrResult.addr). Holds
+        // P0..P16 + comment data. P0 = u32 at CurrentAddr+0, P4 = +4, etc.
         uint _currentAddr;
+
+        // Pointer-table slot address (mirrors WF AddrResult.tag). Holds the
+        // dim/no-dim/empty pointer (4 bytes). Separate from CurrentAddr
+        // because the WF AddressList row carries BOTH addresses (the
+        // pointer slot points at the CSA entry, but CommentCache + the
+        // user-facing Address spinner key off the CSA entry, while
+        // WriteDim writes to the slot itself).
+        uint _pointerSlotAddr;
+
         bool _isLoaded;
         uint _p0, _p4, _p8, _p12, _p16;
         uint _frame;
@@ -60,8 +71,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ImageUtilMagicCore.MagicSystem _system = ImageUtilMagicCore.MagicSystem.No;
         uint _csaSpellTable = U.NOT_FOUND;
         uint _spellDataCount;
+        uint _magicEffectTableBase;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        /// <summary>Pointer-table slot for the selected row (mirrors WF
+        /// `AddrResult.tag`). dim/no-dim/empty pointer lives here; setter
+        /// is internal because the view drives it via OnSelected.</summary>
+        public uint PointerSlotAddr { get => _pointerSlotAddr; set => SetField(ref _pointerSlotAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint P0 { get => _p0; set => SetField(ref _p0, value); }
         public uint P4 { get => _p4; set => SetField(ref _p4, value); }
@@ -71,6 +87,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Frame { get => _frame; set => SetField(ref _frame, value); }
         public DimPointerKind DimPointer { get => _dimPointer; set => SetField(ref _dimPointer, value); }
         public string Comment { get => _comment; set => SetField(ref _comment, value ?? string.Empty); }
+
+        /// <summary>Pointer-table base address used by the top read-config
+        /// bar (mirrors WF panel3 ReadStartAddress).</summary>
+        public uint ReadStartAddress => _magicEffectTableBase;
+
+        /// <summary>How many magic-effect entries the editor surfaces (mirrors
+        /// WF panel3 ReadCount).</summary>
+        public uint ReadCount => _spellDataCount > 0 ? _spellDataCount
+            : (CoreState.ROM?.RomInfo?.magic_effect_original_data_count ?? 0u);
 
         /// <summary>True when one of the FEditorAdv / CSA_Creator
         /// signatures was found in the loaded ROM. When false the
@@ -144,6 +169,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// `ImageMagicFEditorForm.Init` callback — walks the
         /// magic-effect pointer table looking for valid dim/no_dim
         /// entries (and EMPTY slots beyond the original count).
+        ///
+        /// Each `AddrResult` exposed here uses the WF convention:
+        /// `addr = csaAddr` (CSA spell-table entry address — base of the
+        /// 20-byte struct that holds P0/P4/P8/P12/P16 + the comment key)
+        /// and `tag = slot` (pointer-table slot — the 4-byte location
+        /// where the dim/no-dim/empty pointer lives).
         /// </summary>
         public List<AddrResult> LoadList()
         {
@@ -155,6 +186,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint magicPointer = rom.RomInfo.magic_effect_pointer;
             uint baseAddr = rom.p32(magicPointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+            _magicEffectTableBase = baseAddr;
 
             int count = (int)Math.Min((uint)MAX_SLOTS,
                 _magicSystemDetected ? _spellDataCount : 0u);
@@ -205,11 +237,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Read one editor row. <paramref name="addr"/> is the
-        /// pointer-table slot (the WF "tag"). Reads the dim pointer
-        /// + comment from CoreState.CommentCache.
+        /// Read one editor row. The CSA entry address (mirrors WF
+        /// `AddrResult.addr`) carries the 20-byte struct holding
+        /// P0/P4/P8/P12/P16 + the comment key. The pointer-table
+        /// slot (mirrors WF `AddrResult.tag`) carries the
+        /// dim/no-dim/empty pointer.
         /// </summary>
-        public void LoadEntry(uint addr)
+        public void LoadEntry(uint csaEntryAddr, uint pointerSlotAddr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null)
@@ -217,7 +251,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 IsLoaded = false;
                 return;
             }
-            if (addr + ENTRY_STRIDE > (uint)rom.Data.Length)
+            if (csaEntryAddr + 20 > (uint)rom.Data.Length ||
+                pointerSlotAddr + ENTRY_STRIDE > (uint)rom.Data.Length)
             {
                 IsLoaded = false;
                 return;
@@ -230,14 +265,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RefreshPatchState();
             }
 
-            CurrentAddr = addr;
-            uint dataPtr = rom.p32(addr);
+            CurrentAddr = csaEntryAddr;
+            PointerSlotAddr = pointerSlotAddr;
 
+            // Read dim pointer from the pointer-table slot (WF
+            // AddressList_SelectedIndexChanged: `uint dim = Program.ROM.p32(ar.tag)`).
+            uint dataPtr = rom.p32(pointerSlotAddr);
             if (_magicSystemDetected && dataPtr == _dimAddr)
             {
-                // WF semantics: the FEditor signature's `dim` field is
-                // surfaced as `dim_pc` (player-cast); the FEditor
-                // signature's `no_dim` field is surfaced as `dim`.
+                // WF semantics: the FEditor signature's `dim` field
+                // surfaces as `dim_pc` (player-cast); `no_dim` surfaces
+                // as `dim`.
                 DimPointer = DimPointerKind.DimPc;
             }
             else if (_magicSystemDetected && dataPtr == _noDimAddr)
@@ -249,19 +287,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 DimPointer = DimPointerKind.Empty;
             }
 
-            // Comment is keyed on the entry slot itself (matches WF
-            // `MagicComment.Text = Program.CommentCache.At(ar.addr)` where
-            // ar.addr is the same slot returned in LoadList).
-            Comment = CoreState.CommentCache?.At(addr, "") ?? string.Empty;
+            // Read the P0..P16 fields from the CSA spell-table entry
+            // (20 bytes = 5x u32).
+            P0 = rom.u32(csaEntryAddr + 0);
+            P4 = rom.u32(csaEntryAddr + 4);
+            P8 = rom.u32(csaEntryAddr + 8);
+            P12 = rom.u32(csaEntryAddr + 12);
+            P16 = rom.u32(csaEntryAddr + 16);
+
+            // Comment is keyed on the CSA entry address (matches WF
+            // `MagicComment.Text = Program.CommentCache.At(ar.addr)`).
+            Comment = CoreState.CommentCache?.At(csaEntryAddr, "") ?? string.Empty;
 
             IsLoaded = true;
         }
 
         /// <summary>
+        /// Convenience overload — the view code-behind may only have the
+        /// CSA entry address (e.g. NavigateTo path). When the pointer
+        /// slot isn't provided, dim-pointer reads/writes are skipped.
+        /// </summary>
+        public void LoadEntry(uint addr) => LoadEntry(addr, _pointerSlotAddr);
+
+        /// <summary>
         /// Persist the editor row. Mirrors WF `N_WriteButton_Click`:
-        /// writes the dim pointer via rom.write_p32 and updates the
-        /// CoreState.CommentCache entry. The view wraps this in
-        /// `_undoService.Begin/Commit/Rollback`.
+        /// - writes the dim pointer to the pointer-table slot
+        ///   (`PointerSlotAddr`, WF `ar.tag`) via `rom.write_p32`.
+        /// - updates `CoreState.CommentCache` keyed by the CSA entry
+        ///   address (`CurrentAddr`, WF `Address.Value`).
+        /// - writes the P0..P16 fields to the CSA spell-table entry.
+        /// The view wraps this in `_undoService.Begin/Commit/Rollback`.
         /// </summary>
         public void Write()
         {
@@ -274,22 +329,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 RefreshPatchState();
             }
 
-            switch (DimPointer)
+            // Persist dim/no-dim/empty pointer to the pointer-table slot.
+            // WF: `Program.ROM.write_p32(ar.tag, this.DimAddr)` etc.
+            if (PointerSlotAddr != 0u)
             {
-                case DimPointerKind.DimPc:
-                    if (_dimAddr != U.NOT_FOUND)
-                        rom.write_p32(CurrentAddr, _dimAddr);
-                    break;
-                case DimPointerKind.Dim:
-                    if (_noDimAddr != U.NOT_FOUND)
-                        rom.write_p32(CurrentAddr, _noDimAddr);
-                    break;
-                case DimPointerKind.Empty:
-                    rom.write_u32(CurrentAddr, 0u);
-                    break;
+                switch (DimPointer)
+                {
+                    case DimPointerKind.DimPc:
+                        if (_dimAddr != U.NOT_FOUND)
+                            rom.write_p32(PointerSlotAddr, _dimAddr);
+                        break;
+                    case DimPointerKind.Dim:
+                        if (_noDimAddr != U.NOT_FOUND)
+                            rom.write_p32(PointerSlotAddr, _noDimAddr);
+                        break;
+                    case DimPointerKind.Empty:
+                        rom.write_u32(PointerSlotAddr, 0u);
+                        break;
+                }
             }
 
-            // Persist comment (WF: Program.CommentCache.Update(newaddr, MagicComment.Text)).
+            // Persist P0..P16 to the CSA spell-table entry (20 bytes).
+            // The view's editable spinners feed these properties.
+            if (CurrentAddr + 20 <= (uint)rom.Data.Length)
+            {
+                rom.write_u32(CurrentAddr + 0, P0);
+                rom.write_u32(CurrentAddr + 4, P4);
+                rom.write_u32(CurrentAddr + 8, P8);
+                rom.write_u32(CurrentAddr + 12, P12);
+                rom.write_u32(CurrentAddr + 16, P16);
+            }
+
+            // Persist comment keyed by the CSA entry address (WF:
+            // Program.CommentCache.Update(Address.Value, MagicComment.Text)).
             if (CoreState.CommentCache != null)
             {
                 CoreState.CommentCache.Update(CurrentAddr, Comment ?? string.Empty);
@@ -355,7 +427,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
         {
-            ["DimPointer"] = "u32@0",
+            // DimPointer lives in the pointer-table slot (PointerSlotAddr),
+            // not at CurrentAddr+0. Omitting it from the offset map prevents
+            // the field-completeness scanner from cross-checking it against
+            // u32@0 of CurrentAddr (which is the CSA entry's P0 field).
             ["P0"] = "u32@0",
             ["P4"] = "u32@4",
             ["P8"] = "u32@8",

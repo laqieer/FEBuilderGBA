@@ -142,19 +142,35 @@ public class ImageUtilMagicCoreTests
     // ---------------------------------------------------------------
 
     /// <summary>
-    /// When the magic effect pointer points at exactly the original
-    /// per-version count of valid pointer entries, GetSpellDataCount
-    /// returns that count minus 1 (the 0xFF reserved row), matching
-    /// WinForms ImageUtilMagicFEditor.SpellDataCount.
+    /// When the magic-effect pointer table has `rowCount` valid
+    /// pointers followed by a 0xFFFFFFFF sentinel, GetSpellDataCount
+    /// returns `rowCount - 1` (mirroring WF
+    /// ImageUtilMagicFEditor.SpellDataCount: count is computed from
+    /// the table base, then minus 1 for the 0xFF reserved row).
+    ///
+    /// Exact-value variant — Copilot bot review on PR #554 noted that
+    /// `>= 1` would pass for many incorrect implementations. With 80
+    /// pointers + sentinel, the helper returns 79.
     /// </summary>
     [Fact]
-    public void GetSpellDataCount_AtLeastOriginalCount()
+    public void GetSpellDataCount_ReturnsRowCountMinusOne()
     {
         var rom = MakeFe8uWithMagicEffectTable(rowCount: 80);
         uint count = ImageUtilMagicCore.GetSpellDataCount(rom);
-        // The helper returns (count - 1) on the row count it found; for
-        // a synthetic table of 80 pointer slots that's 79.
-        Assert.True(count >= 1, $"expected at least 1, got {count}");
+        Assert.Equal(79u, count);
+    }
+
+    /// <summary>
+    /// With exactly 0xFE (254) valid pointers + sentinel, the helper
+    /// returns 0xFD (253) — the cap WF enforces because 0xFE/0xFF are
+    /// reserved.
+    /// </summary>
+    [Fact]
+    public void GetSpellDataCount_CapsAt0xFD()
+    {
+        var rom = MakeFe8uWithMagicEffectTable(rowCount: 0xFE);
+        uint count = ImageUtilMagicCore.GetSpellDataCount(rom);
+        Assert.Equal(0xFDu, count);
     }
 
     /// <summary>
@@ -303,9 +319,10 @@ public class ImageUtilMagicCoreTests
     }
 
     /// <summary>
-    /// FE8U ROM with a synthetic magic-effect pointer table where
-    /// every pointer slot has a valid GBA-pointer value so
-    /// GetSpellDataCount counts them as in-bounds.
+    /// FE8U ROM with a synthetic magic-effect pointer table containing
+    /// `rowCount` valid GBA pointers, followed by a `0xFFFFFFFF`
+    /// sentinel that fails U.isPointerOrNULL so
+    /// GetSpellDataCount terminates predictably at the sentinel.
     /// </summary>
     static ROM MakeFe8uWithMagicEffectTable(int rowCount)
     {
@@ -326,6 +343,13 @@ public class ImageUtilMagicCoreTests
             uint val = (0x00100000u + (uint)(i * 4)) | 0x08000000u;
             BitConverter.GetBytes(val).CopyTo(data, (int)slot);
         }
+
+        // Sentinel: 0xFFFFFFFF is the canonical "end of pointer list"
+        // marker WF SpellDataCount checks for. Place it right after
+        // the last valid pointer so the walker has a deterministic
+        // stop point.
+        uint sentinelSlot = tableAddr + (uint)(rowCount * 4);
+        BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(data, (int)sentinelSlot);
 
         var rom = new ROM();
         rom.LoadLow("synthetic-fe8u-magic.gba", data, "BE8E01");

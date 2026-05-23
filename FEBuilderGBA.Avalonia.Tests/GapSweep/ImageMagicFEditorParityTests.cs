@@ -244,22 +244,26 @@ public class ImageMagicFEditorParityTests
             CoreState.ROM = rom;
             // Plant FE8U FEditor signature + CSA spell table so
             // `SearchMagicSystem` reports dimAddr = 0x95D7ED, no_dimAddr
-            // = 0x95D8EF. Per WF semantics (`AddressList_SelectedIndexChanged`
-            // in ImageMagicFEditorForm.cs:142-153) the entry's pointer
+            // = 0x95D8EF. Per WF semantics
+            // (`AddressList_SelectedIndexChanged` in
+            // ImageMagicFEditorForm.cs:142-153) the entry's pointer
             // value 0x95D7ED maps to DimComboBox index 0 = `dim_pc`
             // and 0x95D8EF maps to index 1 = `dim`. We plant 0x95D8EF
-            // here and assert the VM reports `Dim`.
+            // at the POINTER-SLOT and assert the VM reports `Dim`.
             PlantFEditorSignatureFe8u(rom);
-            uint entrySlot = 0x00400000u;
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
             BitConverter.GetBytes(0x95D8EFu | 0x08000000u)
-                .CopyTo(rom.Data, entrySlot);
+                .CopyTo(rom.Data, pointerSlot);
 
             var vm = new ImageMagicFEditorViewModel();
             // The VM must initialize MagicSystemDetected lazily.
-            vm.LoadEntry(entrySlot);
+            vm.LoadEntry(csaEntry, pointerSlot);
 
             Assert.Equal(ImageMagicFEditorViewModel.DimPointerKind.Dim,
                 vm.DimPointer);
+            Assert.Equal(csaEntry, vm.CurrentAddr);
+            Assert.Equal(pointerSlot, vm.PointerSlotAddr);
             Assert.True(vm.IsLoaded);
         }
         finally { CoreState.ROM = prevRom; }
@@ -268,20 +272,21 @@ public class ImageMagicFEditorParityTests
     [Fact]
     public void ViewModel_LoadEntry_ReadsDimPointer_DimPc_Kind()
     {
-        // Complement to the Dim case: planting 0x95D7ED should map to
-        // DimComboBox index 0 = `dim_pc`.
+        // Complement to the Dim case: planting 0x95D7ED at the pointer
+        // slot should map to DimComboBox index 0 = `dim_pc`.
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom;
             PlantFEditorSignatureFe8u(rom);
-            uint entrySlot = 0x00400000u;
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
             BitConverter.GetBytes(0x95D7EDu | 0x08000000u)
-                .CopyTo(rom.Data, entrySlot);
+                .CopyTo(rom.Data, pointerSlot);
 
             var vm = new ImageMagicFEditorViewModel();
-            vm.LoadEntry(entrySlot);
+            vm.LoadEntry(csaEntry, pointerSlot);
             Assert.Equal(ImageMagicFEditorViewModel.DimPointerKind.DimPc,
                 vm.DimPointer);
         }
@@ -298,18 +303,61 @@ public class ImageMagicFEditorParityTests
             CoreState.ROM = rom;
             PlantFEditorSignatureFe8u(rom);
 
-            uint entrySlot = 0x00400000u;
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
             var vm = new ImageMagicFEditorViewModel();
-            vm.CurrentAddr = entrySlot;
+            // Trigger patch detection before setting properties directly
+            // (LoadEntry would do this implicitly; here we test the Write
+            // path against a manually-set state).
+            vm.RefreshPatchState();
+            vm.CurrentAddr = csaEntry;
+            vm.PointerSlotAddr = pointerSlot;
             // `Dim` maps to NoDimAddr per WF WriteDim() semantics.
             vm.DimPointer = ImageMagicFEditorViewModel.DimPointerKind.Dim;
             vm.Write();
 
-            // The slot must now hold the GBA pointer (0x08-high bit) to
-            // the no_dim address (0x95D8EF) resolved from the FEditor
-            // signature row.
-            uint raw = rom.u32(entrySlot);
+            // The POINTER-SLOT (not the CSA entry) must now hold the
+            // GBA pointer to the no_dim address resolved from the
+            // FEditor signature row.
+            uint raw = rom.u32(pointerSlot);
             Assert.Equal(0x95D8EFu | 0x08000000u, raw);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_Write_PersistsP0ThroughP16_ToCsaEntry()
+    {
+        // The CSA spell-table entry holds five u32 fields at
+        // CurrentAddr+0/4/8/12/16. Write() must persist them so user
+        // edits to FrameData / OBJRightToLeft / OBJLeftToRight /
+        // OBJBGRightToLeft / OBBGLeftToRight aren't silently dropped
+        // (Copilot bot review on PR #554 #6).
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            PlantFEditorSignatureFe8u(rom);
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
+            var vm = new ImageMagicFEditorViewModel();
+            vm.RefreshPatchState();
+            vm.CurrentAddr = csaEntry;
+            vm.PointerSlotAddr = pointerSlot;
+            vm.DimPointer = ImageMagicFEditorViewModel.DimPointerKind.Empty;
+            vm.P0 = 0x11111111u;
+            vm.P4 = 0x22222222u;
+            vm.P8 = 0x33333333u;
+            vm.P12 = 0x44444444u;
+            vm.P16 = 0x55555555u;
+            vm.Write();
+
+            Assert.Equal(0x11111111u, rom.u32(csaEntry + 0));
+            Assert.Equal(0x22222222u, rom.u32(csaEntry + 4));
+            Assert.Equal(0x33333333u, rom.u32(csaEntry + 8));
+            Assert.Equal(0x44444444u, rom.u32(csaEntry + 12));
+            Assert.Equal(0x55555555u, rom.u32(csaEntry + 16));
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -317,6 +365,9 @@ public class ImageMagicFEditorParityTests
     [Fact]
     public void ViewModel_Write_PersistsCommentToCache()
     {
+        // Comments key off the CSA entry address (mirrors WF
+        // CommentCache.Update(Address.Value, ...) where Address.Value
+        // is the CSA entry address, not the pointer slot).
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
         var prevCache = CoreState.CommentCache;
@@ -326,14 +377,17 @@ public class ImageMagicFEditorParityTests
             var fake = new FakeEtcCache();
             CoreState.CommentCache = fake;
 
-            uint entrySlot = 0x00400000u;
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
             var vm = new ImageMagicFEditorViewModel();
-            vm.CurrentAddr = entrySlot;
+            vm.CurrentAddr = csaEntry;
+            vm.PointerSlotAddr = pointerSlot;
             vm.DimPointer = ImageMagicFEditorViewModel.DimPointerKind.Empty;
             vm.Comment = "test comment";
             vm.Write();
 
-            Assert.Equal("test comment", fake.At(entrySlot));
+            Assert.Equal("test comment", fake.At(csaEntry));
+            Assert.Equal("", fake.At(pointerSlot)); // not keyed by slot.
         }
         finally
         {
@@ -352,12 +406,13 @@ public class ImageMagicFEditorParityTests
         {
             CoreState.ROM = rom;
             var fake = new FakeEtcCache();
-            uint entrySlot = 0x00400000u;
-            fake.Update(entrySlot, "planted comment");
+            uint pointerSlot = 0x00400000u;
+            uint csaEntry = 0x00410000u;
+            fake.Update(csaEntry, "planted comment");
             CoreState.CommentCache = fake;
 
             var vm = new ImageMagicFEditorViewModel();
-            vm.LoadEntry(entrySlot);
+            vm.LoadEntry(csaEntry, pointerSlot);
 
             Assert.Equal("planted comment", vm.Comment);
         }
