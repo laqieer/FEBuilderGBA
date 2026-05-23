@@ -945,7 +945,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ExtraUnitView.axaml", 1121, 735)]
         [InlineData("ExtraUnitFE8UView.axaml", 1121, 735)]
         [InlineData("OPClassDemoFE7View.axaml", 1554, 867)]
-        [InlineData("OPClassDemoFE7UView.axaml", 1554, 924)]
+        [InlineData("OPClassDemoFE7UView.axaml", 1580, 980)]
         [InlineData("OPClassDemoFE8UView.axaml", 1579, 898)]
         [InlineData("OPClassFontFE8UView.axaml", 1179, 849)]
         [InlineData("OPClassAlphaNameView.axaml", 1213, 497)]
