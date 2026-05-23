@@ -99,14 +99,14 @@
                              Minimum="0" Maximum="255" Width="120"
                              HorizontalAlignment="Left" Margin="0,2" />
 
-              <Label Grid.Row="2" Grid.Column="0" Content="Unknown (0x02)" VerticalAlignment="Center" />
+              <Label Grid.Row="2" Grid.Column="0" Content="Unknown (0x02):" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_B2_Input"
                              FormatString="0" Grid.Row="2" Grid.Column="1"
                              Name="Retreat_B2Box"
                              Minimum="0" Maximum="255" Width="120"
                              HorizontalAlignment="Left" Margin="0,2" />
 
-              <Label Grid.Row="3" Grid.Column="0" Content="Unknown (0x03)" VerticalAlignment="Center" />
+              <Label Grid.Row="3" Grid.Column="0" Content="Unknown (0x03):" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_B3_Input"
                              FormatString="0" Grid.Row="3" Grid.Column="1"
                              Name="Retreat_B3Box"
