@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Cross-platform helpers for the MapTileAnimation2 editor (#426).
 using System.Collections.Generic;
 
 namespace FEBuilderGBA
