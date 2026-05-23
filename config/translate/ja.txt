@@ -7103,3 +7103,12 @@ fr=フランス語
 
 :eo=エスペランド語
 eo=エスペランド語
+
+:Random Monster
+ランダムモンスター
+
+:Drop Item
+アイテムドロップ
+
+:Item Drop Dialog...
+アイテムドロップダイアログ...

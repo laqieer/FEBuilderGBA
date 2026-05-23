@@ -21005,3 +21005,12 @@ to:
 
 :Import Font
 导入字体
+
+:Random Monster
+随机怪物
+
+:Drop Item
+掉落物品
+
+:Item Drop Dialog...
+物品掉落对话框...

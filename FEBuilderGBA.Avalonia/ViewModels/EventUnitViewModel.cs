@@ -134,8 +134,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string AI3Desc { get => _ai3Desc; set => SetField(ref _ai3Desc, value); }
         public string AI4Desc { get => _ai4Desc; set => SetField(ref _ai4Desc, value); }
 
-        /// <summary>Item-drop display string mirroring WF X_ITEMDROP label.</summary>
-        public string ItemDropDisplay { get => _itemDropDisplay; set => SetField(ref _itemDropDisplay, value); }
+        /// <summary>
+        /// Item-drop display string mirroring WF X_ITEMDROP label. Computed
+        /// from the current W4 (UnitPos) ext bit; <see cref="UnitGrowth"/>
+        /// setter raises <c>PropertyChanged(nameof(ItemDropDisplay))</c> so
+        /// bound controls refresh in lockstep with the underlying byte.
+        /// </summary>
+        public string ItemDropDisplay
+        {
+            get => ComputeItemDropDisplay(_unitGrowth);
+            // Setter retained for legacy callers but is a no-op aside from
+            // notification — the canonical source is the W4 ext bit.
+            set => _itemDropDisplay = value;
+        }
 
         /// <summary>
         /// User annotation persisted through <c>CoreState.CommentCache</c>
@@ -273,7 +284,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         void RefreshItemDropDisplay()
         {
-            ItemDropDisplay = ComputeItemDropDisplay(_unitGrowth);
+            // ItemDropDisplay is computed from _unitGrowth; raise change
+            // notification so bound controls re-read.
+            OnPropertyChanged(nameof(ItemDropDisplay));
         }
 
         /// <summary>Build the map list (Level 1 navigation).</summary>
