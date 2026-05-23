@@ -93,7 +93,7 @@
             <Border Grid.Row="0" Grid.Column="1"
                     BorderBrush="DarkGray" BorderThickness="1"
                     Width="400" Height="188" HorizontalAlignment="Left">
-              <Image AutomationProperties.AutomationId="ImageMagicFEditor_PreviewImage"
+              <Image AutomationProperties.AutomationId="ImageMagicFEditor_Preview_Image"
                      Name="PreviewImage" Stretch="Uniform" />
             </Border>
 

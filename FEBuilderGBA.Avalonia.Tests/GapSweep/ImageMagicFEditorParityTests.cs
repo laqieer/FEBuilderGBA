@@ -154,7 +154,7 @@ public class ImageMagicFEditorParityTests
     {
         string axaml = ReadAxaml();
         Assert.Contains("ImageMagicFEditor_SamplePreview_Label", axaml);
-        Assert.Contains("ImageMagicFEditor_PreviewImage", axaml);
+        Assert.Contains("ImageMagicFEditor_Preview_Image", axaml);
     }
 
     // -----------------------------------------------------------------
