@@ -213,7 +213,14 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Single(rows);
             Assert.Equal(2u, rows[0].Plist);
             Assert.True(rows[0].IsBroken);
-            Assert.Contains("broken", rows[0].Display);
+            // Display is composed via R._() with the WF Japanese key
+            // "タイルアニメーション2 パレットアニメ:{0}" plus "(破損)". When the
+            // test runs headlessly without a translation table loaded,
+            // R._() returns the JP source string. Assert the broken
+            // suffix (open paren) is present rather than relying on
+            // a specific language form.
+            Assert.True(rows[0].Display.Contains("(") || rows[0].Display.Contains("破損"),
+                $"Display should contain WF broken suffix: '{rows[0].Display}'");
         }
 
         // -----------------------------------------------------------------

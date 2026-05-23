@@ -160,13 +160,17 @@ namespace FEBuilderGBA
                 }
                 else
                 {
+                    // WinForms PlistToOffsetAddr (MapPointerForm.cs:425)
+                    // calls rom.p32(slotAddr) which silently strips the
+                    // 0x08000000 high bit. It accepts both GBA-pointer
+                    // form (0x08800000) AND raw ROM offset form
+                    // (0x00800000) - it just runs U.toOffset on whatever
+                    // is stored. Treating non-pointer values as broken
+                    // would incorrectly hide valid PLIST entries whose
+                    // slot stores a raw offset (Copilot bot review on
+                    // PR #535).
                     uint dataPtr = rom.u32(plistSlot);
                     if (dataPtr == 0)
-                    {
-                        dataAddr = U.NOT_FOUND;
-                        broken = true;
-                    }
-                    else if (!U.isPointer(dataPtr))
                     {
                         dataAddr = U.NOT_FOUND;
                         broken = true;
@@ -182,9 +186,16 @@ namespace FEBuilderGBA
                     }
                 }
 
+                // Localize the display label via R._() against the
+                // existing WF translation keys ("タイルアニメーション2
+                // パレットアニメ:{0}" + "(破損)") so the filter combo stays
+                // translatable across ja / zh - matches the WinForms
+                // MapTileAnimation2Form.MakeTileAnimation2 behavior
+                // (Copilot bot review on PR #535).
+                string baseLabel = R._("タイルアニメーション2 パレットアニメ:{0}", U.ToHexString(plist));
                 string display = broken
-                    ? string.Format("Tile Animation 2 Palette: 0x{0:X2} (broken)", plist)
-                    : string.Format("Tile Animation 2 Palette: 0x{0:X2}", plist);
+                    ? baseLabel + R._("(破損)")
+                    : baseLabel;
                 result.Add(new PlistRow(plist, dataAddr, display, broken));
             }
             return result;

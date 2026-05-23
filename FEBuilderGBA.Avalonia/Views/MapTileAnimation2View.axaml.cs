@@ -62,12 +62,50 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     SelectPlist(plistRows[0]);
                 }
+                else
+                {
+                    // No PLIST entries - clear the entry list and read-config
+                    // bar so a Reload after switching ROMs (or a legitimately
+                    // empty result) doesn't leave the old list visible
+                    // (Copilot bot review on PR #535).
+                    EntryList.SetItemsWithIcons(new List<AddrResult>(), _ => null);
+                    ReadStartAddressBox.Value = 0;
+                    ReadCountBox.Value = 0;
+                    ClearDetailPanel();
+                    UpdateUI();
+                }
             }
             catch (Exception ex)
             {
                 Log.Error("MapTileAnimation2View.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        /// <summary>
+        /// Reset the right-hand detail panel and palette sub-list state.
+        /// Used by LoadList (zero PLIST entries) and SelectPlist (broken
+        /// PLIST). Mirrors the WF behavior of clearing the entire panel4
+        /// when no entry is selectable (Copilot bot review on PR #535).
+        /// </summary>
+        void ClearDetailPanel()
+        {
+            _vm.IsLoaded = false;
+            _vm.CurrentAddr = 0;
+            _vm.SelectedAddress = 0;
+            _vm.PaletteDataPointer = 0;
+            _vm.AnimInterval = 0;
+            _vm.DataCount = 0;
+            _vm.StartPaletteIndex = 0;
+            _vm.Unknown7 = 0;
+            _vm.PaletteRows = new List<MapTileAnimation2Core.PaletteRow>();
+            _vm.SelectedPaletteRowIndex = -1;
+            _vm.NReadStartAddress = 0;
+            _vm.NReadCount = 0;
+            _vm.PaletteR = 0;
+            _vm.PaletteG = 0;
+            _vm.PaletteB = 0;
+            _vm.PaletteGba = 0;
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
@@ -109,19 +147,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     EntryList.SetItemsWithIcons(new List<AddrResult>(), _ => null);
                     ReadStartAddressBox.Value = 0;
                     ReadCountBox.Value = 0;
-                    // Reset the right-hand detail panel so a broken PLIST
-                    // doesn't display the previously-selected entry's data
-                    // (Copilot CLI inline review on PR #534).
-                    _vm.IsLoaded = false;
-                    _vm.CurrentAddr = 0;
-                    _vm.PaletteRows = new List<MapTileAnimation2Core.PaletteRow>();
-                    _vm.SelectedPaletteRowIndex = -1;
-                    _vm.NReadStartAddress = 0;
-                    _vm.NReadCount = 0;
-                    _vm.PaletteR = 0;
-                    _vm.PaletteG = 0;
-                    _vm.PaletteB = 0;
-                    _vm.PaletteGba = 0;
+                    // Reset the right-hand detail panel - including the
+                    // main entry fields (PaletteDataPointer / AnimInterval
+                    // / DataCount / StartPaletteIndex / Unknown7) - so a
+                    // broken PLIST doesn't display the previously-selected
+                    // entry's data (Copilot bot review on PR #535).
+                    ClearDetailPanel();
                     UpdateUI();
                     return;
                 }
