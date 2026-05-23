@@ -24,42 +24,42 @@ namespace FEBuilderGBA
         /// warning glyph instead of duplicating the WF "(broken)" string
         /// suffix.
         /// </summary>
-        /// <param name="plist">The map setting's <c>anime2_plist</c> value.</param>
-        /// <param name="addr">The ROM offset the PLIST resolves to, or
+        /// <param name="Plist">The map setting's <c>anime2_plist</c> value.</param>
+        /// <param name="Addr">The ROM offset the PLIST resolves to, or
         /// <c>U.NOT_FOUND</c> if the PLIST table entry dereferences to zero
-        /// or an unsafe offset (<c>isBroken == true</c>).</param>
-        /// <param name="display">Human-readable label for the row, mirroring
+        /// or an unsafe offset (<c>IsBroken == true</c>).</param>
+        /// <param name="Display">Human-readable label for the row, mirroring
         /// the WF <c>"タイルアニメーション2 パレットアニメ:{plist}"</c> format
         /// (English here: <c>"Tile Animation 2 Palette: 0x{plist:X2}"</c>).</param>
-        /// <param name="isBroken">Set when the row dereferences to an
+        /// <param name="IsBroken">Set when the row dereferences to an
         /// unusable address - the row is kept so the user can repair it.</param>
-        public record PlistRow(uint plist, uint addr, string display, bool isBroken);
+        public record PlistRow(uint Plist, uint Addr, string Display, bool IsBroken);
 
         /// <summary>
         /// One row in the palette sub-list. The WF view shows R/G/B sliders
         /// plus the encoded 15-bit GBA word; this record holds all three so
         /// the headless caller does not need to re-decode.
         /// </summary>
-        /// <param name="index">Row index (0-based).</param>
-        /// <param name="gba">Raw 15-bit GBA color word read from ROM.</param>
-        /// <param name="r">Decoded red channel, top 5 bits left-shifted to 8
+        /// <param name="Index">Row index (0-based).</param>
+        /// <param name="Gba">Raw 15-bit GBA color word read from ROM.</param>
+        /// <param name="R">Decoded red channel, top 5 bits left-shifted to 8
         /// bits (i.e. <c>(gba &amp; 0x1F) &lt;&lt; 3</c>).</param>
-        /// <param name="g">Decoded green channel.</param>
-        /// <param name="b">Decoded blue channel.</param>
-        public record PaletteRow(int index, ushort gba, byte r, byte g, byte b);
+        /// <param name="G">Decoded green channel.</param>
+        /// <param name="B">Decoded blue channel.</param>
+        public record PaletteRow(int Index, ushort Gba, byte R, byte G, byte B);
 
         /// <summary>
         /// One entry in the main animation list (8 bytes per row in WF).
         /// </summary>
-        /// <param name="addr">Absolute ROM offset of the entry.</param>
-        /// <param name="p0">Raw u32 at <c>addr+0</c> (GBA pointer).</param>
-        /// <param name="wait">u8 at <c>addr+4</c> - animation interval.</param>
-        /// <param name="count">u8 at <c>addr+5</c> - data count (number of
+        /// <param name="Addr">Absolute ROM offset of the entry.</param>
+        /// <param name="P0">Raw u32 at <c>addr+0</c> (GBA pointer).</param>
+        /// <param name="Wait">u8 at <c>addr+4</c> - animation interval.</param>
+        /// <param name="Count">u8 at <c>addr+5</c> - data count (number of
         /// palette rows).</param>
-        /// <param name="startindex">u8 at <c>addr+6</c> - start palette
+        /// <param name="StartIndex">u8 at <c>addr+6</c> - start palette
         /// index.</param>
-        /// <param name="padding">u8 at <c>addr+7</c> - opaque.</param>
-        public record EntryRow(uint addr, uint p0, uint wait, uint count, uint startindex, uint padding);
+        /// <param name="Padding">u8 at <c>addr+7</c> - opaque.</param>
+        public record EntryRow(uint Addr, uint P0, uint Wait, uint Count, uint StartIndex, uint Padding);
 
         /// <summary>
         /// Encode an 8-bit RGB triple into the 15-bit GBA color word.
@@ -123,7 +123,7 @@ namespace FEBuilderGBA
         /// <c>anime2_plist</c> at <c>+10</c> (skip zero, dedupe), and resolves
         /// each PLIST through the <c>map_tileanime2_pointer</c> table.
         /// Rows whose PLIST table entry dereferences to zero or to an unsafe
-        /// offset are kept with <see cref="PlistRow.isBroken"/> set to
+        /// offset are kept with <see cref="PlistRow.IsBroken"/> set to
         /// <c>true</c> so the editor can offer a repair affordance.
         /// </summary>
         public static List<PlistRow> BuildPlistList(ROM rom)

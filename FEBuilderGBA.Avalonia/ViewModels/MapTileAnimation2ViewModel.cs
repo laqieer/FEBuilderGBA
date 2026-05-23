@@ -108,8 +108,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             for (int i = 0; i < entries.Count; i++)
             {
                 var e = entries[i];
-                string display = $"0x{i:X2} Palette Interval={e.wait:X2} Count={e.count:X2}";
-                result.Add(new AddrResult(e.addr, display, (uint)i));
+                string display = $"0x{i:X2} Palette Interval={e.Wait:X2} Count={e.Count:X2}";
+                result.Add(new AddrResult(e.Addr, display, (uint)i));
             }
             ReadCount = (uint)entries.Count;
             return result;
@@ -129,9 +129,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var plistRows = LoadPlistList();
             foreach (var row in plistRows)
             {
-                if (row.isBroken) continue;
-                SelectedPlist = row.plist;
-                return BuildList(row.addr);
+                if (row.IsBroken) continue;
+                SelectedPlist = row.Plist;
+                return BuildList(row.Addr);
             }
             return new List<AddrResult>();
         }
@@ -158,12 +158,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (PaletteRows.Count > 0)
             {
                 var first = PaletteRows[0];
-                PaletteR = first.r;
-                PaletteG = first.g;
-                PaletteB = first.b;
-                PaletteGba = first.gba;
+                PaletteR = first.R;
+                PaletteG = first.G;
+                PaletteB = first.B;
+                PaletteGba = first.Gba;
                 NReadStartAddress = U.toOffset(PaletteDataPointer);
                 NReadCount = DataCount;
+            }
+            else
+            {
+                // Clear stale N-address bar / RGB editor state when the
+                // entry has DataCount==0 or an unsafe/empty palette pointer.
+                // Without this reset, switching from an entry with palette
+                // rows to one without (e.g., a freshly-zeroed DataCount)
+                // would leave the previous entry's N-address, R/G/B inputs,
+                // and GBA color preview visible (Copilot CLI inline review
+                // on PR #534).
+                NReadStartAddress = 0;
+                NReadCount = 0;
+                PaletteR = 0;
+                PaletteG = 0;
+                PaletteB = 0;
+                PaletteGba = 0;
             }
 
             IsLoaded = true;
@@ -175,15 +191,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void LoadPaletteRow(int rowIndex)
         {
             if (rowIndex < 0 || rowIndex >= PaletteRows.Count) return;
+            // Suppress dirty marking while syncing the R/G/B / GBA fields
+            // from the selected palette row - this is a navigation event,
+            // not a user edit. Do NOT MarkClean() afterwards because that
+            // would wipe a pre-existing dirty state from prior edits to
+            // the main entry fields (Copilot CLI inline review on PR #534).
             IsLoading = true;
             var row = PaletteRows[rowIndex];
             SelectedPaletteRowIndex = rowIndex;
-            PaletteR = row.r;
-            PaletteG = row.g;
-            PaletteB = row.b;
-            PaletteGba = row.gba;
+            PaletteR = row.R;
+            PaletteG = row.G;
+            PaletteB = row.B;
+            PaletteGba = row.Gba;
             IsLoading = false;
-            MarkClean();
         }
 
         /// <summary>
@@ -213,7 +233,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Write the currently selected palette row (R/G/B encoded as a 15-bit
         /// GBA word) back to ROM at <c>dataPointer + 2 * rowIndex</c>.
         /// Returns <c>true</c> on success, <c>false</c> if the row index or
-        /// data pointer is invalid.
+        /// data pointer is invalid. Also normalizes the in-memory
+        /// <see cref="PaletteR"/>/<see cref="PaletteG"/>/<see cref="PaletteB"/>
+        /// to the post-truncation (multiples of 8) values so the UI inputs
+        /// stay in sync with the ROM bytes (Copilot CLI inline review on
+        /// PR #534 - the 5-bit quantization drops the low 3 bits, so a
+        /// user-typed value like R=125 ends up persisted as 120).
         /// </summary>
         public bool WritePaletteRow()
         {
@@ -227,6 +252,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + 2 > (uint)rom.Data.Length) return false;
             ushort gba = MapTileAnimation2Core.RgbToGba((byte)PaletteR, (byte)PaletteG, (byte)PaletteB);
             rom.write_u16(addr, gba);
+            // Normalize the UI fields to the truncated (multiples of 8)
+            // values so PaletteR/G/B match the bytes that ended up in ROM.
+            var (nr, ng, nb) = MapTileAnimation2Core.GbaToRgb(gba);
+            IsLoading = true;
+            try { PaletteR = nr; PaletteG = ng; PaletteB = nb; }
+            finally { IsLoading = false; }
             PaletteGba = gba;
             // Refresh palette rows so the sub-list reflects the new value.
             PaletteRows = MapTileAnimation2Core.BuildPaletteList(rom, PaletteDataPointer, DataCount);

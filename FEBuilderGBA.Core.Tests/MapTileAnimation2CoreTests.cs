@@ -88,9 +88,9 @@ namespace FEBuilderGBA.Core.Tests
 
             var entries = MapTileAnimation2Core.ScanEntries(rom, baseAddr, 256);
             Assert.Equal(3, entries.Count);
-            Assert.Equal(0x08800000u, entries[0].p0);
-            Assert.Equal(0x10u, entries[0].wait);
-            Assert.Equal(0x04u, entries[0].count);
+            Assert.Equal(0x08800000u, entries[0].P0);
+            Assert.Equal(0x10u, entries[0].Wait);
+            Assert.Equal(0x04u, entries[0].Count);
         }
 
         [Fact]
@@ -142,8 +142,9 @@ namespace FEBuilderGBA.Core.Tests
             // Build a single map setting with anime2_plist == 0 - it must not
             // appear in the result.
             var rom = MakeSyntheticFE8URom(out uint mapBase, out uint plistTableBase, out uint mapPtrBase);
+            int mapBaseI = (int)mapBase;
             // map[0]: anime2_plist == 0
-            rom.Data[mapBase + 10] = 0;
+            rom.Data[mapBaseI + 10] = 0;
             // Plant the rest of the map fields so MapSettingCore validates it
             // and stops enumeration cleanly. Setting D0 to a pointer is the
             // shortcut WinForms uses; subsequent map entries will then fail
@@ -160,16 +161,17 @@ namespace FEBuilderGBA.Core.Tests
             // Build two map settings BOTH pointing at anime2_plist == 1 - only
             // one row must appear.
             var rom = MakeSyntheticFE8URom(out uint mapBase, out uint plistTableBase, out uint mapPtrBase);
-            uint dataSize = rom.RomInfo.map_setting_datasize;
+            int mapBaseI = (int)mapBase;
+            int dataSizeI = (int)rom.RomInfo.map_setting_datasize;
 
             // map[0]: D0=pointer, anime2_plist=1
-            WriteU32(rom.Data, (int)mapBase + 0, 0x08800000u);
-            rom.Data[mapBase + 10] = 1;
+            WriteU32(rom.Data, mapBaseI + 0, 0x08800000u);
+            rom.Data[mapBaseI + 10] = 1;
             // map[1]: D0=pointer, anime2_plist=1 (duplicate)
-            WriteU32(rom.Data, (int)mapBase + (int)dataSize + 0, 0x08800100u);
-            rom.Data[mapBase + dataSize + 10] = 1;
+            WriteU32(rom.Data, mapBaseI + dataSizeI + 0, 0x08800100u);
+            rom.Data[mapBaseI + dataSizeI + 10] = 1;
             // map[2]: D0=0 (non-pointer) terminator that fails validation
-            WriteU32(rom.Data, (int)mapBase + (int)(2 * dataSize) + 0, 0u);
+            WriteU32(rom.Data, mapBaseI + 2 * dataSizeI + 0, 0u);
 
             // PLIST table entry for plist=1 -> a valid data block.
             uint plist1Slot = plistTableBase + 1 * 4;
@@ -184,8 +186,8 @@ namespace FEBuilderGBA.Core.Tests
 
             var rows = MapTileAnimation2Core.BuildPlistList(rom);
             Assert.Single(rows);
-            Assert.Equal(1u, rows[0].plist);
-            Assert.False(rows[0].isBroken);
+            Assert.Equal(1u, rows[0].Plist);
+            Assert.False(rows[0].IsBroken);
         }
 
         [Fact]
@@ -194,13 +196,14 @@ namespace FEBuilderGBA.Core.Tests
             // PLIST table entry for plist=2 dereferences to ZERO - row is
             // included with isBroken=true.
             var rom = MakeSyntheticFE8URom(out uint mapBase, out uint plistTableBase, out uint mapPtrBase);
-            uint dataSize = rom.RomInfo.map_setting_datasize;
+            int mapBaseI = (int)mapBase;
+            int dataSizeI = (int)rom.RomInfo.map_setting_datasize;
 
             // map[0]: D0=pointer, anime2_plist=2
-            WriteU32(rom.Data, (int)mapBase + 0, 0x08800000u);
-            rom.Data[mapBase + 10] = 2;
+            WriteU32(rom.Data, mapBaseI + 0, 0x08800000u);
+            rom.Data[mapBaseI + 10] = 2;
             // map[1]: terminator
-            WriteU32(rom.Data, (int)mapBase + (int)dataSize + 0, 0u);
+            WriteU32(rom.Data, mapBaseI + dataSizeI + 0, 0u);
 
             // PLIST table entry for plist=2 -> zero pointer (broken).
             uint plist2Slot = plistTableBase + 2 * 4;
@@ -208,9 +211,9 @@ namespace FEBuilderGBA.Core.Tests
 
             var rows = MapTileAnimation2Core.BuildPlistList(rom);
             Assert.Single(rows);
-            Assert.Equal(2u, rows[0].plist);
-            Assert.True(rows[0].isBroken);
-            Assert.Contains("broken", rows[0].display);
+            Assert.Equal(2u, rows[0].Plist);
+            Assert.True(rows[0].IsBroken);
+            Assert.Contains("broken", rows[0].Display);
         }
 
         // -----------------------------------------------------------------
@@ -236,15 +239,15 @@ namespace FEBuilderGBA.Core.Tests
             var rows = MapTileAnimation2Core.BuildPaletteList(rom, dataPointer, count: 3);
 
             Assert.Equal(3, rows.Count);
-            Assert.Equal((byte)0xF8, rows[0].r);
-            Assert.Equal((byte)0xF8, rows[0].g);
-            Assert.Equal((byte)0xF8, rows[0].b);
-            Assert.Equal((byte)0xF8, rows[1].r);
-            Assert.Equal((byte)0x00, rows[1].g);
-            Assert.Equal((byte)0x00, rows[1].b);
-            Assert.Equal((byte)0x00, rows[2].r);
-            Assert.Equal((byte)0x00, rows[2].g);
-            Assert.Equal((byte)0xF8, rows[2].b);
+            Assert.Equal((byte)0xF8, rows[0].R);
+            Assert.Equal((byte)0xF8, rows[0].G);
+            Assert.Equal((byte)0xF8, rows[0].B);
+            Assert.Equal((byte)0xF8, rows[1].R);
+            Assert.Equal((byte)0x00, rows[1].G);
+            Assert.Equal((byte)0x00, rows[1].B);
+            Assert.Equal((byte)0x00, rows[2].R);
+            Assert.Equal((byte)0x00, rows[2].G);
+            Assert.Equal((byte)0xF8, rows[2].B);
         }
 
         [Fact]

@@ -77,7 +77,11 @@ namespace FEBuilderGBA.Avalonia.Views
             var items = new List<string>(rows.Count);
             foreach (var row in rows)
             {
-                items.Add(row.display);
+                // Display strings are constructed in MapTileAnimation2Core
+                // via string.Format so they could be localized in a future
+                // pass; for now they ship in English (the AXAML literal is
+                // covered by the L10n scanner via the en.txt reverse map).
+                items.Add(row.Display);
             }
             return items;
         }
@@ -92,22 +96,45 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SelectPlist(MapTileAnimation2Core.PlistRow row)
         {
-            _vm.SelectedPlist = row.plist;
-            if (row.isBroken)
+            // Filter selection is a navigation event, NOT a user edit.
+            // Suppress dirty marking via _vm.IsLoading so changing the
+            // filter combo does not mark the editor as dirty (Copilot CLI
+            // inline review on PR #534).
+            _vm.IsLoading = true;
+            try
             {
-                EntryList.SetItemsWithIcons(new List<AddrResult>(), _ => null);
-                ReadStartAddressBox.Value = 0;
-                ReadCountBox.Value = 0;
-                return;
+                _vm.SelectedPlist = row.Plist;
+                if (row.IsBroken)
+                {
+                    EntryList.SetItemsWithIcons(new List<AddrResult>(), _ => null);
+                    ReadStartAddressBox.Value = 0;
+                    ReadCountBox.Value = 0;
+                    // Reset the right-hand detail panel so a broken PLIST
+                    // doesn't display the previously-selected entry's data
+                    // (Copilot CLI inline review on PR #534).
+                    _vm.IsLoaded = false;
+                    _vm.CurrentAddr = 0;
+                    _vm.PaletteRows = new List<MapTileAnimation2Core.PaletteRow>();
+                    _vm.SelectedPaletteRowIndex = -1;
+                    _vm.NReadStartAddress = 0;
+                    _vm.NReadCount = 0;
+                    _vm.PaletteR = 0;
+                    _vm.PaletteG = 0;
+                    _vm.PaletteB = 0;
+                    _vm.PaletteGba = 0;
+                    UpdateUI();
+                    return;
+                }
+                var items = _vm.BuildList(row.Addr);
+                // ColorSwatchLoader renders a small palette swatch beside
+                // each entry, mirroring WF ListBoxEx.DrawColorAndText. The
+                // existing ListIconWiringTests.View_UsesColorSwatchLoader
+                // test asserts this wiring stays in place.
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ColorSwatchLoader(items, i));
+                ReadStartAddressBox.Value = _vm.ReadStartAddress;
+                ReadCountBox.Value = _vm.ReadCount;
             }
-            var items = _vm.BuildList(row.addr);
-            // ColorSwatchLoader renders a small palette swatch beside each
-            // entry, mirroring WF ListBoxEx.DrawColorAndText. The
-            // existing ListIconWiringTests.View_UsesColorSwatchLoader test
-            // asserts this wiring stays in place.
-            EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ColorSwatchLoader(items, i));
-            ReadStartAddressBox.Value = _vm.ReadStartAddress;
-            ReadCountBox.Value = _vm.ReadCount;
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         void OnSelected(uint addr)
@@ -150,7 +177,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 foreach (var row in _vm.PaletteRows)
                 {
                     items.Add(string.Format("0x{0:X2}  GBA=0x{1:X4}  R={2:X2} G={3:X2} B={4:X2}",
-                        row.index, row.gba, row.r, row.g, row.b));
+                        row.Index, row.Gba, row.R, row.G, row.B));
                 }
                 NPaletteListBox.ItemsSource = items;
                 int idx = _vm.SelectedPaletteRowIndex;

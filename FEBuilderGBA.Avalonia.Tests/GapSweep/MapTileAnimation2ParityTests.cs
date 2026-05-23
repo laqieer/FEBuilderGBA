@@ -275,7 +275,7 @@ public class MapTileAnimation2ParityTests
             Assert.Equal(4, vm.PaletteRows.Count);
             Assert.Equal(0, vm.SelectedPaletteRowIndex);
             // Row 0 is white (0x7FFF) -> (248, 248, 248).
-            Assert.Equal((byte)0xF8, vm.PaletteRows[0].r);
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].R);
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -357,8 +357,8 @@ public class MapTileAnimation2ParityTests
             var vm = new MapTileAnimation2ViewModel();
             vm.LoadEntry(entryAddr);
             // After LoadEntry, row 0 should be white from 0x00800100.
-            Assert.Equal((byte)0xF8, vm.PaletteRows[0].r);
-            Assert.Equal((byte)0xF8, vm.PaletteRows[0].g);
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].R);
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].G);
 
             // Now mutate the pointer + count and Write (simulates the view's
             // Write_Click handler before the LoadEntry refresh).
@@ -373,9 +373,9 @@ public class MapTileAnimation2ParityTests
 
             Assert.Equal(2, vm.PaletteRows.Count);
             // Row 0 should now be red (0x001F decoded to 248, 0, 0).
-            Assert.Equal((byte)0xF8, vm.PaletteRows[0].r);
-            Assert.Equal((byte)0x00, vm.PaletteRows[0].g);
-            Assert.Equal((byte)0x00, vm.PaletteRows[0].b);
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].R);
+            Assert.Equal((byte)0x00, vm.PaletteRows[0].G);
+            Assert.Equal((byte)0x00, vm.PaletteRows[0].B);
             // NReadStartAddress should reflect the new pointer's offset.
             Assert.Equal(0x00800500u, vm.NReadStartAddress);
             // NReadCount should mirror DataCount.
@@ -401,6 +401,89 @@ public class MapTileAnimation2ParityTests
         string writeBody = source.Substring(writeClick, writeBodyEnd - writeClick);
         Assert.Contains("_vm.LoadEntry(", writeBody);
         Assert.Contains("UpdateUI()", writeBody);
+    }
+
+    /// <summary>
+    /// Regression test for the second Copilot CLI inline review on PR #534:
+    /// LoadEntry must CLEAR the N-address bar (NReadStartAddress/NReadCount)
+    /// and the R/G/B/GbaColor fields when the entry's palette block is empty
+    /// (DataCount==0 or unsafe pointer). Without the clear, switching from
+    /// an entry with palette rows to one without would leave the previous
+    /// entry's N-address and color values visible in the UI.
+    /// </summary>
+    [Fact]
+    public void ViewModel_LoadEntry_ClearsNStateWhenPaletteEmpty()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        // Plant a second entry at entryAddr+8 with DataCount=0 so LoadEntry
+        // produces an empty palette sub-list.
+        uint secondEntry = entryAddr + 8;
+        WriteU32(rom.Data, (int)secondEntry + 0, 0x08800100u); // P0 valid
+        rom.Data[secondEntry + 4] = 0x10;
+        rom.Data[secondEntry + 5] = 0; // DataCount = 0 (empty palette)
+        rom.Data[secondEntry + 6] = 0x3C;
+        rom.Data[secondEntry + 7] = 0;
+        // Terminator after the second entry so ScanEntries stops cleanly.
+        WriteU32(rom.Data, (int)secondEntry + 8, 0u);
+
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+
+            // First, load the entry WITH palette rows.
+            vm.LoadEntry(entryAddr);
+            Assert.True(vm.PaletteRows.Count > 0);
+            uint priorNAddr = vm.NReadStartAddress;
+            uint priorNCount = vm.NReadCount;
+            Assert.NotEqual(0u, priorNAddr);
+            Assert.NotEqual(0u, priorNCount);
+
+            // Now load the entry with DataCount=0 - all N-state must clear.
+            vm.LoadEntry(secondEntry);
+            Assert.Empty(vm.PaletteRows);
+            Assert.Equal(-1, vm.SelectedPaletteRowIndex);
+            Assert.Equal(0u, vm.NReadStartAddress);
+            Assert.Equal(0u, vm.NReadCount);
+            Assert.Equal(0u, vm.PaletteR);
+            Assert.Equal(0u, vm.PaletteG);
+            Assert.Equal(0u, vm.PaletteB);
+            Assert.Equal(0u, vm.PaletteGba);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// WritePaletteRow must normalize the in-memory PaletteR/G/B to the
+    /// post-truncation (multiples of 8) values so the UI inputs match the
+    /// ROM bytes (Copilot CLI inline review on PR #534).
+    /// </summary>
+    [Fact]
+    public void ViewModel_WritePaletteRow_NormalizesRgbAfterTruncation()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.LoadEntry(entryAddr);
+            vm.SelectedPaletteRowIndex = 1;
+            // Pick a value that is NOT a multiple of 8 - e.g. R=125, G=190,
+            // B=49. After truncation to 5 bits + left-shift by 3 these
+            // become 120, 184, 48 (each rounded down to the nearest
+            // multiple of 8).
+            vm.PaletteR = 125;
+            vm.PaletteG = 190;
+            vm.PaletteB = 49;
+            Assert.True(vm.WritePaletteRow());
+            // After WritePaletteRow, R/G/B should be normalized.
+            Assert.Equal(120u, vm.PaletteR);
+            Assert.Equal(184u, vm.PaletteG);
+            Assert.Equal(48u, vm.PaletteB);
+        }
+        finally { CoreState.ROM = prevRom; }
     }
 
     // -----------------------------------------------------------------
