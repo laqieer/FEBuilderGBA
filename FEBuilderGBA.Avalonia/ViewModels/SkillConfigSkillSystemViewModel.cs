@@ -237,12 +237,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
 
-            // Lazily resolve TextPointerLocation if LoadList hasn't run yet
-            // (deep-linked NavigateTo).
+            // Lazily resolve TextPointerLocation / AnimePointerLocation /
+            // IconBaseAddress if LoadList hasn't run yet (deep-linked
+            // NavigateTo). Without lazy IconBaseAddress resolution, deep-
+            // linked nav would render IconAddrLabel from a 0 base and the
+            // icon preview would stay blank even on a patched ROM - Copilot
+            // bot review on PR #525.
             if (_textPointerLocation == U.NOT_FOUND)
                 TextPointerLocation = PreviewIconHelper.FindSkillSystemTextPointerLocation();
             if (_animePointerLocation == U.NOT_FOUND)
                 AnimePointerLocation = PreviewIconHelper.FindSkillSystemAnimePointerLocation();
+            if (_iconBaseAddress == 0)
+                IconBaseAddress = PreviewIconHelper.FindSkillSystemIconBaseAddress();
 
             // Derive SelectedId from (addr - textBase) / SIZE.
             if (ReadStartAddress == 0 && _textPointerLocation != U.NOT_FOUND)

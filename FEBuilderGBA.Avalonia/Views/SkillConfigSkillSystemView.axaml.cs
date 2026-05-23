@@ -57,7 +57,12 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.SkillIconLoader(items, i));
+                // Pass the cached IconBaseAddress (already resolved by
+                // LoadList) into the icon loader so it doesn't re-run the
+                // full 0xB00000..0xC00000 byte-pattern scan per row -
+                // Copilot bot review on PR #525.
+                uint cachedIconBase = _vm.IconBaseAddress;
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.SkillIconLoader(items, i, cachedIconBase));
                 ReadStartAddressBox.Value = _vm.ReadStartAddress;
                 ReadCountBox.Value = _vm.ReadCount;
 
