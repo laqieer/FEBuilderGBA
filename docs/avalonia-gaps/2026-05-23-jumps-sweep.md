@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T02:14:50Z"
-git-sha: 424bc5722
+generated: "2026-05-23T03:04:22Z"
+git-sha: f1fdf4e3e
 sweep-type: jumps
 ---
 
@@ -37,8 +37,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | Metric | Count |
 |---|---:|
 | Total rows | 429 |
-| Match | 34 |
-| MissingAvManifest (backlog) | 355 |
+| Match | 37 |
+| MissingAvManifest (backlog) | 352 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 5 |
 
@@ -306,9 +306,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `PatchForm` | `PatchManagerView` | `—` | `PatchFilterExForm` | `PatchFilterExView` |
 | `PatchForm` | `PatchManagerView` | `—` | `PatchFormUninstallDialogForm` | `PatchFormUninstallDialogView` |
 | `PointerToolCopyToForm` | `PointerToolCopyToView` | `—` | `HexEditorForm` | `HexEditorView` |
-| `PointerToolForm` | `PointerToolView` | `—` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
-| `PointerToolForm` | `PointerToolView` | `—` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
-| `PointerToolForm` | `PointerToolView` | `—` | `PointerToolForm` | `PointerToolView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
@@ -475,6 +472,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToBGLookup` | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToSelfFromRef` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToPatchExtendsBattleBG` | `PatchForm` | `PatchManagerView` |
+| `PointerToolForm` | `PointerToolView` | `JumpToBatchInput` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
+| `PointerToolForm` | `PointerToolView` | `JumpToCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `PointerToolForm` | `PointerToolView` | `JumpToSelf` | `PointerToolForm` | `PointerToolView` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T02:14:41Z"
-git-sha: 424bc5722
+generated: "2026-05-23T03:03:42Z"
+git-sha: f1fdf4e3e
 sweep-type: density
 ---
 
@@ -21,8 +21,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 | Verdict | Threshold | Count |
 |---|---|---|
 | HIGH | |Δ%| ≥ 50 | 232 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 82 |
-| LOW | |Δ%| < 25 | 56 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 83 |
+| LOW | |Δ%| < 25 | 55 |
 
 ## Ranked Density Deltas
 
@@ -277,7 +277,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
 | Low | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
-| Low | `PointerToolForm` | `PointerToolView` | 31 | 33 | 2 | +6.5% | Heuristic |
 | Low | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | 29 | 31 | 2 | +6.9% | ListParityHelper |
 | Low | `AIASMCALLTALKForm` | `AIASMCALLTALKView` | 12 | 13 | 1 | +8.3% | Heuristic |
 | Low | `AIASMRangeForm` | `AIASMRangeView` | 12 | 13 | 1 | +8.3% | Heuristic |
@@ -309,6 +308,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `ToolDiffDebugSelectForm` | `ToolDiffDebugSelectView` | 11 | 15 | 4 | +36.4% | Heuristic |
 | Medium | `PackedMemorySlotForm` | `PackedMemorySlotView` | 5 | 7 | 2 | +40.0% | Heuristic |
 | Medium | `TextRefAddDialogForm` | `TextRefAddDialogView` | 5 | 7 | 2 | +40.0% | Heuristic |
+| Medium | `PointerToolForm` | `PointerToolView` | 31 | 45 | 14 | +45.2% | Heuristic |
 | Medium | `SupportUnitForm` | `SupportUnitEditorView` | 50 | 73 | 23 | +46.0% | ListParityHelper |
 | Medium | `ToolDiffForm` | `ToolDiffView` | 15 | 22 | 7 | +46.7% | Heuristic |
 | High | `CStringForm` | `CStringView` | 2 | 3 | 1 | +50.0% | Heuristic |

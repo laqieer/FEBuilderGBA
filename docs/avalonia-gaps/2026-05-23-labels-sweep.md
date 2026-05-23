@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T02:14:47Z"
-git-sha: 424bc5722
+generated: "2026-05-23T03:04:07Z"
+git-sha: f1fdf4e3e
 sweep-type: labels
 ---
 
@@ -37,13 +37,13 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
 | Total WF-only labels | 4634 |
-| Total AV-only labels | 2726 |
+| Total AV-only labels | 2738 |
 | Total common labels | 66 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-25-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -4084,7 +4084,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### PointerToolForm
-WF labels: **21** · AV labels: **20** · WF-only: **21** · AV-only: **20** · Common: **0** · Density verdict: **Low** (WF 31 / AV 33)
+WF labels: **21** · AV labels: **32** · WF-only: **21** · AV-only: **32** · Common: **0** · Density verdict: **Medium** (WF 31 / AV 45)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -4121,17 +4121,29 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Content Type`
 - `Data Address\n(if pointer)`
 - `e.g. 0x08000000`
+- `e.g. 0x100`
 - `First Reference`
+- `LDR Match\nAddress`
+- `LDR Reference`
 - `Little Endian`
+- `Load Other ROM`
 - `Match Method`
 - `Other ROM\nData Address`
 - `Other ROM Ref`
 - `Pointer`
+- `ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.`
 - `Search Options`
 - `Slide Search`
 - `Use ASM Map for search`
 - `Warning Level`
+- `Warning: Very far from origin (direct match)`
+- `Warning: Very far from origin (LDR match)`
+- `Warning: Zero region (direct match)`
+- `Warning: Zero region (LDR match)`
 - `What Is`
+- `Write`
+- `Write pointer value at the address (WriteTarget = ROM offset of target)`
+- `Write Target Offset`
 
 ### EDForm
 WF labels: **20** · AV labels: **7** · WF-only: **20** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 65 / AV 11)
@@ -8833,10 +8845,10 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Copy (No $ / GBA / Rad / BreakPoint)`
-- `Copy as Hex`
 - `Copy as Little Endian`
 - `Copy as Pointer`
 - `Copy to Clipboard`
+- `Open in Hex Editor`
 - `Value:`
 
 ### SongTrackChangeTrackForm
