@@ -349,7 +349,7 @@ namespace FEBuilderGBA
             // appear consistently in both UIs.
             return SkillSystemPatchScanner.IsClassSkillExtends(Program.ROM) ? 1u : 0u;
         }
-const uint SkillPalettePointer = 0x22370; //オリジナルROMからあるパレット.
+        const uint SkillPalettePointer = 0x22370; //オリジナルROMからあるパレット.
         public static uint GetIconAddr(uint index, uint imageBaseAddress)
         {
             const uint size = 16 * 16 / 2;
