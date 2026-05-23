@@ -333,6 +333,76 @@ public class MapTileAnimation2ParityTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    /// <summary>
+    /// Regression test for the Copilot CLI inline review on PR #534:
+    /// Write_Click must rebuild the palette sub-list when the user changes
+    /// the Palette Data Pointer (and/or Data Count) and clicks Write to ROM.
+    /// We simulate the view's "set new pointer + Write + LoadEntry" sequence
+    /// and assert the palette rows reflect the NEW pointer's bytes, not the
+    /// pre-write data.
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_FollowedByLoadEntry_RefreshesPaletteSubList()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        // Plant a DIFFERENT palette block at 0x00800500 with one color that
+        // differs from row 0 of 0x00800100 (which is white 0x7FFF).
+        WriteU16(rom.Data, 0x800500 + 0, 0x001F); // red instead of white
+        WriteU16(rom.Data, 0x800500 + 2, 0x03E0); // green
+
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.LoadEntry(entryAddr);
+            // After LoadEntry, row 0 should be white from 0x00800100.
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].r);
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].g);
+
+            // Now mutate the pointer + count and Write (simulates the view's
+            // Write_Click handler before the LoadEntry refresh).
+            vm.PaletteDataPointer = 0x00800500u;
+            vm.DataCount = 2u;
+            vm.Write();
+
+            // The view's Write_Click now reloads the entry so the sub-list
+            // reflects the new pointer's data. Without the LoadEntry call,
+            // PaletteRows would still hold the old white-at-row-0 values.
+            vm.LoadEntry(entryAddr);
+
+            Assert.Equal(2, vm.PaletteRows.Count);
+            // Row 0 should now be red (0x001F decoded to 248, 0, 0).
+            Assert.Equal((byte)0xF8, vm.PaletteRows[0].r);
+            Assert.Equal((byte)0x00, vm.PaletteRows[0].g);
+            Assert.Equal((byte)0x00, vm.PaletteRows[0].b);
+            // NReadStartAddress should reflect the new pointer's offset.
+            Assert.Equal(0x00800500u, vm.NReadStartAddress);
+            // NReadCount should mirror DataCount.
+            Assert.Equal(2u, vm.NReadCount);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Roslyn-static check: Write_Click must call LoadEntry + UpdateUI after
+    /// Commit so the palette sub-list, N-address bar, color preview, and
+    /// SelectedAddress label do not stay stale (Copilot CLI inline review
+    /// on PR #534).
+    /// </summary>
+    [Fact]
+    public void View_WriteHandler_ReloadsEntryAfterCommit()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        int writeClick = source.IndexOf("void Write_Click(", StringComparison.Ordinal);
+        Assert.True(writeClick >= 0, "Write_Click handler not found");
+        int writeBodyEnd = source.IndexOf("void NWrite_Click(", writeClick, StringComparison.Ordinal);
+        Assert.True(writeBodyEnd > writeClick, "NWrite_Click should come after Write_Click");
+        string writeBody = source.Substring(writeClick, writeBodyEnd - writeClick);
+        Assert.Contains("_vm.LoadEntry(", writeBody);
+        Assert.Contains("UpdateUI()", writeBody);
+    }
+
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------

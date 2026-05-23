@@ -214,6 +214,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Early-guard so we don't create no-op undo entries when the VM
             // hasn't loaded an entry yet (matches the #506 pattern).
             if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+            uint reloadAddr = _vm.CurrentAddr;
             _undoService.Begin("Edit Tile Animation Type 2");
             try
             {
@@ -225,6 +226,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // Reload the entry so the palette sub-list, N-address bar
+                // (NReadStartAddress / NReadCount), color preview, and
+                // SelectedAddress label all reflect the new
+                // PaletteDataPointer / DataCount instead of the stale
+                // pre-write state (Copilot CLI inline review on PR #534).
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadEntry(reloadAddr);
+                    UpdateUI();
+                }
+                finally { _vm.IsLoading = false; _vm.MarkClean(); }
                 CoreState.Services?.ShowInfo("Tile Animation Type 2 data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTileAnimation2View.Write: {0}", ex.Message); }
