@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T05:33:34Z"
-git-sha: a35299ba6
+generated: "2026-05-23T16:07:37Z"
+git-sha: 1f20893bb
 sweep-type: undo
 ---
 
@@ -79,11 +79,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-undo --out=<path>`.
 
 | Tier | Count | % of total |
 |---|---:|---:|
-| Total write callsites | 1045 | 100% |
-| NoUndoServiceField (no plumbing) | 198 | 18.9% |
-| MissingScope (unwrapped) | 2 | 0.2% |
+| Total write callsites | 1053 | 100% |
+| NoUndoServiceField (no plumbing) | 185 | 17.6% |
+| MissingScope (unwrapped) | 4 | 0.4% |
 | AmbiguousScope (verify) | 0 | 0.0% |
-| Covered (healthy) | 845 | 80.9% |
+| Covered (healthy) | 864 | 82.1% |
 
 ## Highest priority — VMs with NO undo plumbing at all
 
@@ -246,24 +246,6 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 | `FEBuilderGBA.Avalonia/ViewModels/UnitFE6ViewModel.cs` | 442 | `WriteUnit` | `rom.write_u8(addr + 42, Ability3)` | class 'UnitFE6ViewModel' has no UndoService field/property/local |
 | `FEBuilderGBA.Avalonia/ViewModels/UnitFE6ViewModel.cs` | 443 | `WriteUnit` | `rom.write_u8(addr + 43, Ability4)` | class 'UnitFE6ViewModel' has no UndoService field/property/local |
 | `FEBuilderGBA.Avalonia/ViewModels/UnitFE6ViewModel.cs` | 446 | `WriteUnit` | `rom.write_u32(addr + 44, SupportPtr)` | class 'UnitFE6ViewModel' has no UndoService field/property/local |
-
-### `ImagePortraitViewModel` — 13 callsites
-
-| File | Line | Method | Write | Note |
-|---|---:|---|---|---|
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 222 | `Write` | `rom.write_u32(addr + 0, PortraitImagePtr)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 223 | `Write` | `rom.write_u32(addr + 4, MiniPortraitPtr)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 224 | `Write` | `rom.write_u32(addr + 8, PalettePtr)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 225 | `Write` | `rom.write_u32(addr + 12, MouthFramesPtr)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 226 | `Write` | `rom.write_u32(addr + 16, ClassCardPtr)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 227 | `Write` | `rom.write_u8(addr + 20, MouthX)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 228 | `Write` | `rom.write_u8(addr + 21, MouthY)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 229 | `Write` | `rom.write_u8(addr + 22, EyeX)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 230 | `Write` | `rom.write_u8(addr + 23, EyeY)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 231 | `Write` | `rom.write_u8(addr + 24, Status)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 232 | `Write` | `rom.write_u8(addr + 25, Unused25)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 233 | `Write` | `rom.write_u8(addr + 26, Unused26)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/ImagePortraitViewModel.cs` | 234 | `Write` | `rom.write_u8(addr + 27, Unused27)` | class 'ImagePortraitViewModel' has no UndoService field/property/local |
 
 ### `ImageCGFE7UViewModel` — 7 callsites
 
@@ -478,6 +460,13 @@ These classes already carry UndoService plumbing but a particular write was adde
 | `FEBuilderGBA.Avalonia/Views/BigCGViewerView.axaml.cs` | 126 | `ImportPng_Click` | `rom.write_p32(tableAddr, tileAddr)` | method 'ImportPng_Click' has an UndoService scope but this write is OUTSIDE it |
 | `FEBuilderGBA.Avalonia/Views/BigCGViewerView.axaml.cs` | 129 | `ImportPng_Click` | `rom.write_u32(tableAddr + (uint)(i * 4), 0)` | method 'ImportPng_Click' has an UndoService scope but this write is OUTSIDE it |
 
+### `MapExitPointView` — 2 callsites
+
+| File | Line | Method | Write | Note |
+|---|---:|---|---|---|
+| `FEBuilderGBA.Avalonia/Views/MapExitPointView.axaml.cs` | 246 | `WritePointer_Click` | `rom.write_u32(_vm.SelectedMapSlotAddr, 0u)` | method 'WritePointer_Click' has an UndoService scope but this write is OUTSIDE it |
+| `FEBuilderGBA.Avalonia/Views/MapExitPointView.axaml.cs` | 250 | `WritePointer_Click` | `rom.write_p32(_vm.SelectedMapSlotAddr, offset)` | method 'WritePointer_Click' has an UndoService scope but this write is OUTSIDE it |
+
 ## Ambiguous — covered by caller, please verify
 
 The write lives in a helper method; a caller in the same class wraps Begin/Commit. The scanner uses a one-level name-match heuristic, so manual review is required to confirm the helper is actually called from within an active scope at runtime.
@@ -486,7 +475,7 @@ _None._
 
 ## Covered (healthy)
 
-`845` callsites are inside a Begin/Commit (or Begin/Rollback) scope in the same method body, OR pass an explicit Undo argument. Covered classes: `MapSettingViewModel` (99), `MapSettingFE7UViewModel` (97), `MapSettingFE7ViewModel` (95), `ClassEditorViewModel` (75), `MoveCostFE6ViewModel` (51), `SongInstrumentViewModel` (46), `UnitEditorViewModel` (46), `UnitFE7ViewModel` (46), `ItemEditorViewModel` (26), `ItemFE6ViewModel` (22), `EventCondViewModel` (19), `BattleTerrainViewerViewModel` (15), `ImageUnitPaletteViewModel` (13), `PortraitViewerViewModel` (13), `TextViewerViewModel` (10), `TextDicViewModel` (8), `ImagePortraitFE6ViewModel` (7), `MapChangeViewModel` (7), `EventScriptPopupViewModel` (6), `ImageTSAAnime2ViewModel` (5), `SongTrackViewModel` (5), `WorldMapEventPointerViewModel` (5), `ImagePortraitView` (4), `BattleBGViewerViewModel` (3), `BigCGViewerViewModel` (3), `ChapterTitleViewerViewModel` (3), `ImageBGViewModel` (3), `ImageBattleAnimeViewModel` (3), `ImageBattleBGViewModel` (3), `ImageMapActionAnimationViewModel` (3), `SkillConfigFE8UCSkillSys09xViewModel` (3), `SMEPromoListViewModel` (2), `SkillConfigSkillSystemViewModel` (2), `SongTableViewModel` (2), `AIASMCALLTALKViewModel` (1), `AIASMCoordinateViewModel` (1), `AIASMRangeViewModel` (1), `AIMapSettingViewModel` (1), `AIPerformItemViewModel` (1), `AIPerformStaffViewModel` (1), `AIStealItemViewModel` (1), `AITargetViewModel` (1), `AITilesViewModel` (1), `AIUnitsViewModel` (1), `AOERANGEViewModel` (1), `ArenaClassViewerViewModel` (1), `ArenaEnemyWeaponViewerViewModel` (1), `CCBranchEditorViewModel` (1), `EDSensekiCommentViewModel` (1), `EDStaffRollViewModel` (1), `EDViewModel` (1), `EventUnitFE6ViewModel` (1), `EventUnitFE7ViewModel` (1), `EventUnitViewModel` (1), `ExtraUnitFE8UViewModel` (1), `ExtraUnitViewModel` (1), `ImageChapterTitleFE7ViewModel` (1), `ImageSystemAreaViewModel` (1), `ItemEffectPointerViewerViewModel` (1), `ItemRandomChestViewModel` (1), `ItemShopViewerViewModel` (1), `ItemStatBonusesSkillSystemsViewModel` (1), `ItemStatBonusesVennoViewModel` (1), `ItemStatBonusesViewerViewModel` (1), `ItemUsagePointerViewerViewModel` (1), `ItemWeaponEffectViewerViewModel` (1), `ItemWeaponTriangleViewerViewModel` (1), `LinkArenaDenyUnitViewerViewModel` (1), `MapEditorViewModel` (1), `MapExitPointViewModel` (1), `MapLoadFunctionViewModel` (1), `MapPointerViewModel` (1), `MapStyleEditorViewModel` (1), `MapTerrainBGLookupTableViewModel` (1), `MapTerrainFloorLookupTableViewModel` (1), `MapTerrainNameEngViewModel` (1), `MapTerrainNameViewModel` (1), `MapTileAnimation1ViewModel` (1), `MapTileAnimation2ViewModel` (1), `MapTileAnimationViewModel` (1), `MenuCommandViewModel` (1), `MenuDefinitionViewModel` (1), `MenuExtendSplitMenuViewModel` (1), `MonsterItemViewerViewModel` (1), `MonsterProbabilityViewerViewModel` (1), `MonsterWMapProbabilityViewerViewModel` (1), `MoveCostEditorViewModel` (1), `OPClassAlphaNameFE6ViewModel` (1), `OPClassAlphaNameViewModel` (1), `OPClassDemoFE7UViewModel` (1), `OPClassDemoFE7ViewModel` (1), `OPClassDemoFE8UViewModel` (1), `OPClassDemoViewerViewModel` (1), `OPClassFontFE8UViewModel` (1), `OPClassFontViewerViewModel` (1), `OPPrologueViewerView` (1), `OPPrologueViewerViewModel` (1), `PointerToolViewModel` (1), `SkillAssignmentClassSkillSystemViewModel` (1), `SomeClassListViewModel` (1), `SongInstrumentDirectSoundViewModel` (1), `SoundBossBGMViewerViewModel` (1), `SoundFootStepsViewerViewModel` (1), `SoundRoomCGViewModel` (1), `SoundRoomFE6ViewModel` (1), `SoundRoomViewerViewModel` (1), `StatusOptionOrderViewModel` (1), `StatusOptionViewModel` (1), `StatusParamViewModel` (1), `StatusRMenuViewModel` (1), `StatusUnitsMenuViewModel` (1), `SummonUnitViewerViewModel` (1), `SummonsDemonKingViewerViewModel` (1), `SupportAttributeViewModel` (1), `SupportTalkFE6ViewModel` (1), `SupportTalkFE7ViewModel` (1), `SupportTalkViewModel` (1), `SupportUnitEditorViewModel` (1), `SupportUnitFE6ViewModel` (1), `TerrainNameEditorViewModel` (1), `ToolASMEditView` (1), `ToolLZ77ViewModel` (1), `UnitCustomBattleAnimeViewModel` (1), `UnitPaletteViewModel` (1), `UnitsShortTextViewModel` (1), `WorldMapBGMViewModel` (1), `WorldMapPathMoveEditorViewModel` (1), `WorldMapPathViewModel` (1), `WorldMapPointViewModel` (1).
+`864` callsites are inside a Begin/Commit (or Begin/Rollback) scope in the same method body, OR pass an explicit Undo argument. Covered classes: `MapSettingViewModel` (99), `MapSettingFE7UViewModel` (97), `MapSettingFE7ViewModel` (95), `ClassEditorViewModel` (75), `MoveCostFE6ViewModel` (51), `SongInstrumentViewModel` (46), `UnitEditorViewModel` (46), `UnitFE7ViewModel` (46), `ItemEditorViewModel` (26), `ItemFE6ViewModel` (22), `EventCondViewModel` (19), `BattleTerrainViewerViewModel` (15), `ImagePortraitViewModel` (13), `ImageUnitPaletteViewModel` (13), `PortraitViewerViewModel` (13), `TextViewerViewModel` (10), `TextDicViewModel` (8), `ImagePortraitFE6ViewModel` (7), `MapChangeViewModel` (7), `EventScriptPopupViewModel` (6), `ImageTSAAnime2ViewModel` (5), `SongTrackViewModel` (5), `WorldMapEventPointerViewModel` (5), `OPClassDemoViewerViewModel` (4), `BattleBGViewerViewModel` (3), `BigCGViewerViewModel` (3), `ChapterTitleViewerViewModel` (3), `ImageBGViewModel` (3), `ImageBattleAnimeViewModel` (3), `ImageBattleBGViewModel` (3), `ImageMagicFEditorViewModel` (3), `ImageMapActionAnimationViewModel` (3), `OPClassDemoFE7UViewModel` (3), `SkillConfigFE8UCSkillSys09xViewModel` (3), `MapTileAnimation2ViewModel` (2), `SMEPromoListViewModel` (2), `SkillConfigSkillSystemViewModel` (2), `SongTableViewModel` (2), `AIASMCALLTALKViewModel` (1), `AIASMCoordinateViewModel` (1), `AIASMRangeViewModel` (1), `AIMapSettingViewModel` (1), `AIPerformItemViewModel` (1), `AIPerformStaffViewModel` (1), `AIStealItemViewModel` (1), `AITargetViewModel` (1), `AITilesViewModel` (1), `AIUnitsViewModel` (1), `AOERANGEViewModel` (1), `ArenaClassViewerViewModel` (1), `ArenaEnemyWeaponViewerViewModel` (1), `CCBranchEditorViewModel` (1), `EDSensekiCommentViewModel` (1), `EDStaffRollViewModel` (1), `EDViewModel` (1), `EventMapChangeViewModel` (1), `EventUnitFE6ViewModel` (1), `EventUnitFE7ViewModel` (1), `EventUnitViewModel` (1), `ExtraUnitFE8UViewModel` (1), `ExtraUnitViewModel` (1), `ImageChapterTitleFE7ViewModel` (1), `ImageSystemAreaViewModel` (1), `ItemEffectPointerViewerViewModel` (1), `ItemRandomChestViewModel` (1), `ItemShopViewerViewModel` (1), `ItemStatBonusesSkillSystemsViewModel` (1), `ItemStatBonusesVennoViewModel` (1), `ItemStatBonusesViewerViewModel` (1), `ItemUsagePointerViewerViewModel` (1), `ItemWeaponEffectViewerViewModel` (1), `ItemWeaponTriangleViewerViewModel` (1), `LinkArenaDenyUnitViewerViewModel` (1), `MapEditorViewModel` (1), `MapExitPointViewModel` (1), `MapLoadFunctionViewModel` (1), `MapPointerViewModel` (1), `MapStyleEditorViewModel` (1), `MapTerrainBGLookupTableViewModel` (1), `MapTerrainFloorLookupTableViewModel` (1), `MapTerrainNameEngViewModel` (1), `MapTerrainNameViewModel` (1), `MapTileAnimation1ViewModel` (1), `MapTileAnimationViewModel` (1), `MenuCommandViewModel` (1), `MenuDefinitionViewModel` (1), `MenuExtendSplitMenuViewModel` (1), `MonsterItemViewerViewModel` (1), `MonsterProbabilityViewerViewModel` (1), `MonsterWMapProbabilityViewerViewModel` (1), `MoveCostEditorViewModel` (1), `OPClassAlphaNameFE6ViewModel` (1), `OPClassAlphaNameViewModel` (1), `OPClassDemoFE7ViewModel` (1), `OPClassDemoFE8UViewModel` (1), `OPClassFontFE8UViewModel` (1), `OPClassFontViewerViewModel` (1), `OPPrologueViewerView` (1), `OPPrologueViewerViewModel` (1), `PointerToolViewModel` (1), `SkillAssignmentClassSkillSystemViewModel` (1), `SomeClassListViewModel` (1), `SongInstrumentDirectSoundViewModel` (1), `SoundBossBGMViewerViewModel` (1), `SoundFootStepsViewerViewModel` (1), `SoundRoomCGViewModel` (1), `SoundRoomFE6ViewModel` (1), `SoundRoomViewerViewModel` (1), `StatusOptionOrderViewModel` (1), `StatusOptionViewModel` (1), `StatusParamViewModel` (1), `StatusRMenuViewModel` (1), `StatusUnitsMenuViewModel` (1), `SummonUnitViewerViewModel` (1), `SummonsDemonKingViewerViewModel` (1), `SupportAttributeViewModel` (1), `SupportTalkFE6ViewModel` (1), `SupportTalkFE7ViewModel` (1), `SupportTalkViewModel` (1), `SupportUnitEditorViewModel` (1), `SupportUnitFE6ViewModel` (1), `TerrainNameEditorViewModel` (1), `ToolASMEditView` (1), `ToolLZ77ViewModel` (1), `UnitCustomBattleAnimeViewModel` (1), `UnitPaletteViewModel` (1), `UnitsShortTextViewModel` (1), `WorldMapBGMViewModel` (1), `WorldMapPathMoveEditorViewModel` (1), `WorldMapPathViewModel` (1), `WorldMapPointViewModel` (1).
 
 ## Registry cross-check
 
@@ -500,9 +489,9 @@ such a row almost always indicates the scanner's pattern set has missed a
 real write API (e.g. PR #380 review caught a `CoreState.ROM.write_u*`
 miss that surfaced as an unjustified zero-row warning before the fix).
 
-Classes with at least one detected write: 166.
+Classes with at least one detected write: 168.
 
-Writable VMs (matching the triplet convention): 140.  
+Writable VMs (matching the triplet convention): 141.  
 Writable VMs with zero detected ROM writes: 2.
 
 ### Writable VMs with zero detected ROM writes (warning)

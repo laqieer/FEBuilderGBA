@@ -21239,3 +21239,41 @@ to:
 :Level-up Skill Top Address
 等级提升获得技能的起始地址
 
+:拡大して描画
+缩放并绘制
+
+:拡大しないで描画
+不缩放绘制
+
+:表示例
+显示示例
+
+:dim_pc
+dim_pc
+
+:dim
+dim
+
+:NULL (EMPTY)
+NULL (EMPTY)
+
+:FrameData
+FrameData
+
+:OBJRightToLeft
+OBJRightToLeft
+
+:OBJLeftToRight
+OBJLeftToRight
+
+:OBJBGRightToLeft
+OBJBGRightToLeft
+
+:OBBGLeftToRight
+OBBGLeftToRight
+
+:魔法アニメの書出し
+导出魔法动画
+
+:魔法アニメの読込
+导入魔法动画
