@@ -1205,6 +1205,57 @@ namespace FEBuilderGBA.Avalonia.Services
         /// convention applies (high bit set). We convert via <c>U.toOffset</c>
         /// before decoding.
         /// </param>
+
+        /// <summary>
+        /// Find the SkillSystem ASSIGN_CLASS pointer LOCATION (the address
+        /// where the per-class skill table's GBA pointer lives). Mirrors
+        /// WinForms SkillConfigSkillSystemForm.FindAssignClassSkillPointer().
+        /// Returns U.NOT_FOUND on miss. Delegates to the authoritative Core
+        /// SkillSystemPatchScanner.
+        /// </summary>
+        public static uint FindSkillSystemAssignClassPointerLocation()
+        {
+            return SkillSystemPatchScanner.FindAssignClassSkillPointerLocation(CoreState.ROM);
+        }
+
+        /// <summary>
+        /// Find the SkillSystem ASSIGN_CLASS base offset (dereferenced pointer).
+        /// </summary>
+        public static uint FindSkillSystemAssignClassBaseAddress()
+        {
+            uint loc = FindSkillSystemAssignClassPointerLocation();
+            if (loc == U.NOT_FOUND) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return 0;
+            uint p = rom.u32(loc);
+            if (!U.isSafetyPointer(p)) return 0;
+            return U.toOffset(p);
+        }
+
+        /// <summary>
+        /// Find the SkillSystem LEVELUP_CLASS pointer LOCATION (the address
+        /// where the per-class level-up skill pointer-table base lives).
+        /// Mirrors WinForms FindAssignClassLevelUpSkillPointer().
+        /// </summary>
+        public static uint FindSkillSystemAssignLevelUpPointerLocation()
+        {
+            return SkillSystemPatchScanner.FindAssignClassLevelUpSkillPointerLocation(CoreState.ROM);
+        }
+
+        /// <summary>
+        /// Find the SkillSystem LEVELUP_CLASS base offset (dereferenced pointer).
+        /// </summary>
+        public static uint FindSkillSystemAssignLevelUpBaseAddress()
+        {
+            uint loc = FindSkillSystemAssignLevelUpPointerLocation();
+            if (loc == U.NOT_FOUND) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return 0;
+            uint p = rom.u32(loc);
+            if (!U.isSafetyPointer(p)) return 0;
+            return U.toOffset(p);
+        }
+
         public static IImage LoadCSkillSysIcon(uint iconGbaPointer)
         {
             ROM rom = CoreState.ROM;

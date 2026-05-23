@@ -2,26 +2,280 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillAssignmentClassSkillSystemView"
-        Title="Skill Assignment (Class)" Width="1189" Height="890"
+        Title="Skill Assignment (Class)" Width="1200" Height="900"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: top read-config bar (mirrors WF panel3) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Start Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ReadStart_Input"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="1024"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1: master-write bar (mirrors WF panel5) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Address_Input"
+                       FormatString="0" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="1" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Write_Button"
+                Name="MasterWriteButton" Content="Write" Click="MasterWriteButton_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 2 col 0: Class list + Filter Name + List Expand. Mirrors WF panel6. -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_FilterName_Label"
+               Content="Filter Name" HorizontalAlignment="Stretch" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ListExpand_Button"
+                Name="ListExpandButton" Content="List Expand"
+                HorizontalAlignment="Stretch"
+                ToolTip.Tip="Pending Core extraction - tracked by #500." IsEnabled="False" />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Entry_List"
+            Name="EntryList" />
+      </DockPanel>
+    </Border>
+
+    <!-- Row 2 col 1: edit panel -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Skill Assignment (Class)" FontSize="18" FontWeight="Bold" />
+        <Label Content="Skill Assignment (Class)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <Border Background="{DynamicResource WarningBackgroundBrush}"
+                BorderBrush="{DynamicResource WarningBorderBrush}"
+                BorderThickness="1" CornerRadius="4" Padding="12">
+          <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Status_Label"
+                     TextWrapping="Wrap" Name="StatusText"
+                     Text="Skill system editors require the SkillSystems patch to be installed.&#10;Use the Patch Manager to install it first." />
+        </Border>
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class Skill:" VerticalAlignment="Center" Margin="0,4" />
-          <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ClassSkill_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassSkillBox" Minimum="0" Maximum="255" Margin="0,4" />
+        <!-- Master Class Skill row -->
+        <Grid ColumnDefinitions="160,80,160,Auto,*" RowDefinitions="Auto,Auto">
+          <Label Grid.Row="0" Grid.Column="0"
+                 AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ClassSkill_Label"
+                 Content="Class Skill" VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ClassSkill_Input"
+                         FormatString="0" Name="ClassSkillBox" Minimum="0" Maximum="255" />
+          <TextBox Grid.Row="0" Grid.Column="2"
+                   AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_SkillName_Input"
+                   Name="SkillNameBox" IsReadOnly="True" Margin="6,0,0,0" />
+          <Border Grid.Row="0" Grid.Column="3" BorderBrush="DarkGray" BorderThickness="1"
+                  Padding="2" Width="48" Height="48" Margin="6,0,0,0">
+            <Image AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_SkillIcon_Image"
+                   Name="SkillIconImage" Width="40" Height="40" Stretch="Uniform" />
+          </Border>
+          <TextBox Grid.Row="0" Grid.Column="4"
+                   AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_SkillText_Input"
+                   Name="SkillTextBox" IsReadOnly="True" AcceptsReturn="True"
+                   MinHeight="60" Margin="8,0,0,0" />
         </Grid>
 
-        <TextBlock Text="Assigns a skill to each class via the SkillSystem patch." TextWrapping="Wrap" Foreground="Gray" Margin="0,8" />
+        <!-- Level-up Skill address bar -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <Grid ColumnDefinitions="280,160,80,80,Auto" RowDefinitions="Auto">
+            <Label Grid.Column="0"
+                   AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_XLevelUpHeader_Label"
+                   Name="XLevelUpHeaderLabel"
+                   Content="Level-up Skill Top Address"
+                   VerticalAlignment="Center" />
+            <NumericUpDown Grid.Column="1"
+                           AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_XLevelUpAddr_Input"
+                           FormatString="0" Name="XLevelUpAddrBox"
+                           Minimum="0" Maximum="4294967295" />
+            <Label Grid.Column="2" Content="Read Count" VerticalAlignment="Center" Margin="6,0,0,0" />
+            <NumericUpDown Grid.Column="3"
+                           AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1ReadCount_Input"
+                           FormatString="0" Name="N1ReadCountBox"
+                           Minimum="0" Maximum="1024"
+                           IsEnabled="False" />
+            <Button Grid.Column="4"
+                    AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1ReloadList_Button"
+                    Name="N1ReloadListButton" Content="Reload"
+                    Margin="6,0,0,0" Click="N1ReloadList_Click" />
+          </Grid>
+        </Border>
 
-        <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" />
+        <!-- Sub-list + N1 detail -->
+        <Grid ColumnDefinitions="240,*">
+
+          <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1">
+            <DockPanel>
+              <Label DockPanel.Dock="Top"
+                     AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1FilterName_Label"
+                     Content="Filter Name" HorizontalAlignment="Stretch" />
+              <Button DockPanel.Dock="Bottom"
+                      AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1ListExpand_Button"
+                      Name="N1ListExpandButton" Content="List Expand"
+                      HorizontalAlignment="Stretch" Click="N1ListExpand_Click" />
+              <ListBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Entry_List"
+                       Name="N1EntryList" ItemsSource="{Binding LevelUpEntries}"
+                       DisplayMemberBinding="{Binding name}"
+                       SelectionChanged="N1EntryList_SelectionChanged" />
+            </DockPanel>
+          </Border>
+
+          <StackPanel Grid.Column="1" Margin="8,0,0,0" Spacing="6">
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Label Content="Address" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Address_Input"
+                               FormatString="0" Name="N1AddressBox" Width="120"
+                               Minimum="0" Maximum="4294967295"
+                               IsEnabled="False" VerticalAlignment="Center" />
+                <Label Content="Size:" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1BlockSize_Input"
+                               FormatString="0" Name="N1BlockSizeBox" Width="50"
+                               Minimum="0" Maximum="65535"
+                               IsEnabled="False" VerticalAlignment="Center" Value="2" />
+                <Label Content="Selected Address:" VerticalAlignment="Center" />
+                <Label AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1SelectedAddress_Label"
+                       Name="N1SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+                       FontFamily="Consolas" />
+                <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Write_Button"
+                        Name="N1WriteButton" Content="Write" Click="N1WriteButton_Click" />
+              </StackPanel>
+            </Border>
+
+            <Grid ColumnDefinitions="160,80,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1Level_Label"
+                     Content="Acquisition Level" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1B0_Input"
+                             FormatString="0" Name="N1B0Box" Minimum="0" Maximum="255"
+                             ValueChanged="N1B0_ValueChanged" />
+              <TextBox Grid.Column="2"
+                       AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1SkillName_Input"
+                       Name="N1SkillNameBox" IsReadOnly="True" Margin="6,0,0,0" />
+            </Grid>
+
+            <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_XLevelAddPanel"
+                    Name="XLevelAddPanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
+                    IsVisible="False">
+              <StackPanel Orientation="Vertical" Spacing="4">
+                <Label AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_LevelBreakdown_Label"
+                       Content="Level Breakdown" />
+                <Grid ColumnDefinitions="120,80,Auto" RowDefinitions="Auto">
+                  <Label Grid.Column="0"
+                         AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_LevelLabel"
+                         Content="Level" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1"
+                                 AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_LevelValue_Input"
+                                 FormatString="0" Name="LevelValueBox"
+                                 Minimum="0" Maximum="31"
+                                 ValueChanged="LevelValueBox_ValueChanged" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_PlayerOnly_CheckBox"
+                            Name="PlayerOnlyCheckBox" Content="PlayerOnly(LV+32)"
+                            IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_EnemyOnly_CheckBox"
+                            Name="EnemyOnlyCheckBox" Content="EnemyOnly(LV+64)"
+                            IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_NormalHard_CheckBox"
+                            Name="NormalHardCheckBox" Content="Normal&amp;Hard (LV+96)"
+                            IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_HardOnly_CheckBox"
+                            Name="HardOnlyCheckBox" Content="Hard only (LV+128)"
+                            IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Lv255Panel"
+                    Name="Lv255Panel" BorderBrush="Gray" BorderThickness="1" Padding="6"
+                    IsVisible="False">
+              <TextBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Lv255Info_Input"
+                       Name="Lv255InfoBox" IsReadOnly="True" AcceptsReturn="True"
+                       MinHeight="60"
+                       Text="Level 255 is set.&#10;If promoted from a lower class to this one, the skill will NOT be granted.&#10;The skill is granted only when LOADed directly as this class." />
+            </Border>
+
+            <Grid ColumnDefinitions="160,80,Auto,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1SkillLabel"
+                     Content="Skill" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1B1_Input"
+                             FormatString="0" Name="N1B1Box" Minimum="0" Maximum="255" />
+              <Border Grid.Column="2" BorderBrush="DarkGray" BorderThickness="1"
+                      Padding="2" Width="48" Height="48" Margin="6,0,0,0">
+                <Image AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1SkillIcon_Image"
+                       Name="N1SkillIconImage" Width="40" Height="40" Stretch="Uniform" />
+              </Border>
+              <TextBox Grid.Column="3"
+                       AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_N1SkillText_Input"
+                       Name="N1SkillTextBox" IsReadOnly="True" AcceptsReturn="True"
+                       MinHeight="60" Margin="8,0,0,0" />
+            </Grid>
+
+            <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ZeroPointerPanel"
+                    Name="ZeroPointerPanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
+                    IsVisible="False">
+              <TextBlock TextWrapping="Wrap"
+                         Text="No level-up table is allocated for this class.&#10;Press List Expand to allocate one." />
+            </Border>
+
+            <Border AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_IndependencePanel"
+                    Name="IndependencePanel" BorderBrush="Gray" BorderThickness="1" Padding="6"
+                    IsVisible="False">
+              <StackPanel Orientation="Vertical" Spacing="6">
+                <TextBlock TextWrapping="Wrap"
+                           Text="This level-up table is referenced by multiple classes." />
+                <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Independence_Button"
+                        Name="IndependenceButton" Content="Make Selected Class Independent"
+                        HorizontalAlignment="Left"
+                        ToolTip.Tip="Pending Core extraction - tracked by #500." IsEnabled="False" />
+              </StackPanel>
+            </Border>
+
+            <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_LearnInfo_Button"
+                    Name="LearnInfoButton" Content="Click here for level/skill details (opens wiki)"
+                    HorizontalAlignment="Left" Click="LearnInfo_Click" />
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_BulkImport_Button"
+                        Name="BulkImportButton" Content="Bulk Import"
+                        Click="BulkImport_Click" />
+                <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_BulkExport_Button"
+                        Name="BulkExportButton" Content="Bulk Export"
+                        Click="BulkExport_Click" />
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </Grid>
+
       </StackPanel>
     </ScrollViewer>
   </Grid>
