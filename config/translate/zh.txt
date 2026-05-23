@@ -20861,3 +20861,33 @@ Core 抽取待中 - 追踪于 #524
 
 :Pointer Import
 指针导入
+
+:Unknown (0x0F)
+未知 (0x0F)
+
+:Unknown (0x10)
+未知 (0x10)
+
+:Unknown (0x11)
+未知 (0x11)
+
+:Unknown (0x13)
+未知 (0x13)
+
+:Unknown (0x16)
+未知 (0x16)
+
+:Unknown (0x17)
+未知 (0x17)
+
+:Animation Pointer Target Block
+动画指针目标区块
+
+:Command Description
+命令说明
+
+:Wait Frames
+等待帧数
+
+:Write Animation Command
+写入动画指令

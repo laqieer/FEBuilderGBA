@@ -6923,3 +6923,36 @@ Core 抽出待ち - #524 で追跡中
 
 :Pointer Import
 ポインタインポート
+
+:Unknown (0x0F)
+不明 (0x0F)
+
+:Unknown (0x10)
+不明 (0x10)
+
+:Unknown (0x11)
+不明 (0x11)
+
+:Unknown (0x13)
+不明 (0x13)
+
+:Unknown (0x16)
+不明 (0x16)
+
+:Unknown (0x17)
+不明 (0x17)
+
+:Animation Pointer Target Block
+アニメーション指定のポインタ先
+
+:Command
+命令
+
+:Command Description
+命令の説明
+
+:Wait Frames
+待機フレーム
+
+:Write Animation Command
+アニメ指令を書き込み
