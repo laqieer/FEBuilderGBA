@@ -17369,9 +17369,6 @@ LDR引用
 :ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.
 要在 Address 处作为指针写入的 ROM 偏移（不含 0x08000000 基址）。接受带或不带 0x 前缀的十六进制。
 
-:Write pointer value at the address (WriteTarget = ROM offset of target)
-在该地址写入指针值（WriteTarget = 目标的 ROM 偏移）
-
 :Lock Type / ID:
 锁定类型 / ID:
 

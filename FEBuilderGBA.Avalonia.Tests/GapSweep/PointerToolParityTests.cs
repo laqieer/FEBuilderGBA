@@ -373,6 +373,38 @@ public class PointerToolParityTests
     }
 
     [Fact]
+    public void ViewModel_AcceptsPointerFormInput_NotDoubleAdded()
+    {
+        // Copilot bot re-review (PR #510): WF accepts EITHER a ROM offset
+        // (0x100) OR a GBA pointer (0x08000100). The previous AV impl did
+        // `addr + 0x08000000` unconditionally, which double-added the base
+        // for pointer-form input. With U.toOffset / U.toPointer the same
+        // input pointer 0x08000100 must yield PointerValue 0x08000100 and
+        // LittleEndian 0x00010008 — identical to the offset-form input.
+        var vm = new PointerToolViewModel();
+        ROM rom = MakeSyntheticFe8uRom();
+        ROM? prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            vm.AddressInput = "0x08000100"; // pointer form
+            vm.RunSearch();
+            Assert.Equal("0x08000100", vm.PointerValue);
+            Assert.Equal("0x00010008", vm.LittleEndianValue);
+
+            // Round-trip: offset-form input yields the same canonical values.
+            vm.AddressInput = "0x100"; // offset form
+            vm.RunSearch();
+            Assert.Equal("0x08000100", vm.PointerValue);
+            Assert.Equal("0x00010008", vm.LittleEndianValue);
+        }
+        finally
+        {
+            CoreState.ROM = prev;
+        }
+    }
+
+    [Fact]
     public void ViewModel_DirectWarnings_StayHiddenWithoutOtherRomMatch()
     {
         // Copilot bot review point 3: the direct-match warnings used to fire

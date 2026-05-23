@@ -2480,9 +2480,6 @@ LDR参照
 :ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.
 Address に書き込むポインタの ROM オフセット（0x08000000 ベースなし）。0x プレフィックスあり/なしの 16 進数を受け付けます。
 
-:Write pointer value at the address (WriteTarget = ROM offset of target)
-そのアドレスにポインタ値を書き込みます（WriteTarget = ターゲットの ROM オフセット）
-
 :Lock Type / ID:
 Lock タイプ / ID:
 

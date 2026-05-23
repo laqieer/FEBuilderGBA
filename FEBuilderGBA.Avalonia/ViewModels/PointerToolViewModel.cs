@@ -126,7 +126,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Run pointer search: populate PointerValue, LittleEndianValue, DataAddress, and SearchResults.</summary>
         public void RunSearch()
         {
-            if (!TryParseAddress(out uint addr))
+            if (!TryParseAddress(out uint rawInput))
             {
                 SearchResults = "Invalid address.";
                 return;
@@ -139,16 +139,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // Compute pointer and little-endian representations. Mirrors
-            // WF `PointerToolForm.SearchCurrentROM`:
-            //   pointer      = U.toPointer(address)
+            // WF PointerToolForm.SearchCurrentROM accepts EITHER a raw ROM
+            // offset (e.g. 0x100) OR a GBA pointer (e.g. 0x08000100). It
+            // normalizes via U.toPointer / U.toOffset so the same path works
+            // for both. Avalonia must mirror that — otherwise a pointer-form
+            // input ("0x08000100") would double-add the base and SearchPointer
+            // would search for 0x10000100.
+            uint addr = U.toOffset(rawInput);    // ROM offset (always < 0x02000000)
+            uint pointer = U.toPointer(rawInput); // GBA pointer (always 0x08xxxxxx)
+            PointerValue = $"0x{pointer:X08}";
+            // Mirrors WF:
             //   littleendian = ((pointer >> 24) & 0xFF)
             //                | (((pointer >> 16) & 0xFF) << 8)
             //                | (((pointer >> 8 ) & 0xFF) << 16)
             //                | (((pointer      ) & 0xFF) << 24)
-            // and is rendered as a single uint via SetAddressText.
-            uint pointer = addr + 0x08000000;
-            PointerValue = $"0x{pointer:X08}";
             uint littleEndian =
                   ((pointer >> 24) & 0xFFu)
                 | (((pointer >> 16) & 0xFFu) << 8)
@@ -166,7 +170,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     DataAddress = "";
             }
 
-            // Search for all pointers referencing this address
+            // Search for all pointers referencing this address. SearchPointer
+            // takes an OFFSET (not a pointer) — use the normalized form.
             var refs = SearchPointer(addr);
             if (refs.Count == 0)
             {
@@ -287,12 +292,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Parse the WriteTargetInput as a ROM offset, convert to a GBA pointer
-        /// (+ 0x08000000), and write the 4-byte value at the address specified by AddressInput.
+        /// Parse the WriteTargetInput as a ROM offset (or GBA pointer),
+        /// convert to a GBA pointer (+ 0x08000000), and write the 4-byte value
+        /// at the address specified by AddressInput. Mirrors WF, which
+        /// normalises via <c>addr = U.toOffset(U.atoh(Address.Text))</c> so
+        /// pointer-form input works the same as offset-form input.
         /// </summary>
         public void WritePointerValue()
         {
-            if (!TryParseAddress(out uint addr))
+            if (!TryParseAddress(out uint rawInput))
             {
                 SearchResults = "Write failed: invalid address.";
                 return;
@@ -305,6 +313,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
+            // Normalise to a ROM offset BEFORE the bounds check (mirrors
+            // WF U.toOffset(U.atoh(Address.Text))). Without this, a
+            // pointer-form input like 0x08000100 always fails the bounds
+            // check and pointer-form Address fields never write.
+            uint addr = U.toOffset(rawInput);
             if (addr + 3 >= (uint)rom.Data.Length)
             {
                 SearchResults = "Write failed: address out of ROM range.";
@@ -322,21 +335,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // Convert ROM offset to GBA pointer format if it looks like a ROM offset
-            uint writeVal;
-            if (targetOffset >= 0x08000000)
-            {
-                // Already in GBA pointer format
-                writeVal = targetOffset;
-            }
-            else
-            {
-                // ROM offset — add GBA base
-                writeVal = targetOffset + 0x08000000;
-            }
+            // Convert ROM offset to GBA pointer format if it looks like a ROM
+            // offset. Use U.toPointer so the conversion is symmetric with the
+            // normalisation above (both work for either input form).
+            uint writeVal = U.toPointer(targetOffset);
 
             // Validate the pointer references a valid ROM location
-            uint romOffset = writeVal >= 0x08000000 ? writeVal - 0x08000000 : writeVal;
+            uint romOffset = U.toOffset(writeVal);
             if (romOffset >= (uint)rom.Data.Length)
             {
                 SearchResults = $"Write failed: target 0x{romOffset:X08} is beyond ROM size.";
