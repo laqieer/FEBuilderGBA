@@ -650,6 +650,7 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.CommentCache ??= new HeadlessEtcCache();
             CoreState.LintCache ??= new HeadlessEtcCache();
             CoreState.WorkSupportCache ??= new HeadlessEtcCache();
+            CoreState.ResourceCache ??= new FEBuilderGBA.EtcCacheResource();
 
             // Wire text encoder — with HeadlessSystemTextEncoder fallback
             if (CoreState.SystemTextEncoder == null || CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)

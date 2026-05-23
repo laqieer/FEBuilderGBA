@@ -474,6 +474,12 @@ namespace FEBuilderGBA.Avalonia.Services
             // The Avalonia counterpart is PatchManagerView (different data shape;
             // not a list-parity port).
             { "PatchManagerView", "PatchForm" },
+            // #434 — Image*Form (BattleBG, ImageBG, ImageCG family) jumps to
+            // these tool/utility views. Both are NoListEditors (above) so the
+            // ListParityHelper.EditorMap doesn't register them; declare the
+            // WF↔AV form pair here so JumpParityScanner can resolve them.
+            { "GraphicsToolView", "GraphicsToolForm" },
+            { "DecreaseColorTSAToolView", "DecreaseColorTSAToolForm" },
         };
 
         /// <summary>
