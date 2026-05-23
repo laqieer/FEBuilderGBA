@@ -6897,6 +6897,24 @@ mug_exceed用のタイルをどこに配置するか設定してください:
 :05=その場
 05=その場
 
+:Data Expansion
+リストの拡張
+
+:GBA Color
+GBAカラー
+
+:Pending Core extraction - tracked by #524
+Core 抽出待ち - #524 で追跡中
+
+:Map Tile Animation Type 2 Palette Sub-Table
+マップ タイルアニメ タイプ 2 パレット サブテーブル
+
+:Bulk Import
+一括インポート
+
+:Bulk Export
+一括エクスポート
+
 :Number:
 番号:
 
