@@ -25,10 +25,25 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Item Editor" FontSize="18" FontWeight="Bold" />
 
-        <!-- Address -->
+        <!-- Address + HardCoding warning (#409 mirrors WF HardCodingWarningLabel) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
           <TextBlock AutomationProperties.AutomationId="ItemEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
+          <!-- HardCoding warning: clickable hyperlink shown only when
+               CoreState.AsmMapFileAsmCache?.IsHardCodeItem(itemId) is true.
+               Mirrors WF `HardCodingWarningLabel_Click` which opens the
+               Patch Manager filtered by `HARDCODING_ITEM=` so the user can
+               see which patches still need installing. -->
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_HardCodingWarning_Link"
+                     Name="HardCodingWarningLink"
+                     Text="[HardCoding]"
+                     Classes="Hyperlink"
+                     Foreground="Red"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center"
+                     IsVisible="False"
+                     PointerPressed="OnHardCodingLink_Click"
+                     ToolTip.Tip="This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=." />
         </StackPanel>
 
         <!-- Basic Info -->
@@ -142,17 +157,45 @@
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center"
                      ToolTip.Tip="Special effect applied on hit" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_DamageEffect_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown AutomationProperties.AutomationId="ItemEditor_DamageEffect_Input" FormatString="0" Name="DamageEffectBox" Minimum="0" Maximum="255" Width="100" />
+            <!-- WF "間接エフェクト Jump" — opens ItemWeaponEffectViewerView
+                 positioned at the entry whose B0 == currently-selected item id
+                 (mirrors WF ItemWeaponEffectForm.JumpTo search by id). -->
+            <Button AutomationProperties.AutomationId="ItemEditor_JumpToWeaponEffect_Button"
+                    Content="Indirect Weapon Effect"
+                    Click="JumpToWeaponEffect_Click"
+                    FontSize="11" Padding="4,2" VerticalAlignment="Center"
+                    ToolTip.Tip="Open the indirect weapon effect table at the row for this item." />
+          </StackPanel>
           <TextBlock Grid.Row="1" Grid.Column="3" Text="Wep Exp (B32):" VerticalAlignment="Center"
                      ToolTip.Tip="Weapon experience gained per use" />
           <NumericUpDown AutomationProperties.AutomationId="ItemEditor_WeaponExp_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="WeaponExpBox" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Unk33 (B33):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk33_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unk33Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Text="Unk34 (B34):" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_Unk33_Label"
+                     Name="Unk33Label" Grid.Row="2" Grid.Column="0" Text="Unk33 (B33):" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk33_Input" FormatString="0" Name="Unk33Box" Minimum="0" Maximum="255" Width="100" />
+            <!-- WF J_33_Click — when SkillSystem patch is present this is
+                 the Debuff field; clicking opens Patch Manager filtered
+                 on `defWeaponDebuffsTable`. Visible only under SkillSystem. -->
+            <TextBlock AutomationProperties.AutomationId="ItemEditor_WeaponDebuffs_Link"
+                       Name="WeaponDebuffsLink"
+                       Text="Debuff Table"
+                       Classes="Hyperlink"
+                       Foreground="DodgerBlue"
+                       FontSize="11"
+                       VerticalAlignment="Center"
+                       IsVisible="False"
+                       PointerPressed="OnWeaponDebuffsLink_Click"
+                       ToolTip.Tip="Open the Patch Manager filtered to the SkillSystem WeaponDebuffsTable definition." />
+          </StackPanel>
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_Unk34_Label"
+                     Name="Unk34Label" Grid.Row="2" Grid.Column="3" Text="Unk34 (B34):" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk34_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="Unk34Box" Minimum="0" Maximum="255" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unk35 (B35):" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_Unk35_Label"
+                     Name="Unk35Label" Grid.Row="3" Grid.Column="0" Text="Unk35 (B35):" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="ItemEditor_Unk35_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unk35Box" Minimum="0" Maximum="255" />
           <TextBlock Grid.Row="3" Grid.Column="3" Text="Forge Price:" VerticalAlignment="Center" Foreground="Gray" />
           <TextBlock AutomationProperties.AutomationId="ItemEditor_ShopForgePrice_Label" Grid.Row="3" Grid.Column="4" Name="ShopForgePriceLabel" VerticalAlignment="Center" Foreground="Gray" />
@@ -160,14 +203,35 @@
         </Border>
         </Expander>
 
+        <!-- KnownGap (out-of-scope for #409, parent #374):
+             - WF X_SIM_* labels (HP/Str/Skl/Spd/Def/Res/Lck/Move/Con preview):
+               rendered as the Stat Bonuses Preview WrapPanel above.
+             - WF X_VALUE_SHOP / X_VALUE_SEL / X_VALUE_SHINGEKI_SHOP:
+               surfaced as the Buy Price / Sell Price / Forge Price labels.
+             - WF MagicExtUnitBase: requires HasMagicSplit + per-unit
+               base-magic detection — deferred.
+             - WF L_12_NEWALLOC_ITEMSTATBOOSTER / L_16_NEWALLOC_EFFECTIVENESS
+               buttons: deferred because Avalonia head does not yet wire
+               CoreState.AppendBinaryData; the existing null-pointer warning
+               labels (above) are the substitute UI affordance.
+             None of these spawn new follow-up issues per #409 scope rule. -->
+
+
         <!-- Null pointer warnings -->
         <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocStatBonusesWarning_Label" Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
         <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocEffectivenessWarning_Label" Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,2,0,0" />
 
-        <!-- Stat bonus preview -->
+        <!-- Stat bonus preview (#409 mirrors WF "能力補正値" + X_SIM_* labels:
+             HP/攻撃/技/速さ/守備/魔防/幸運/移動/体格 + 魔力 when MagicSplit). -->
         <Border Name="BonusPreviewBorder" BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,8,0,0" IsVisible="False">
-          <StackPanel Spacing="2">
+          <StackPanel Spacing="4">
             <TextBlock Text="Stat Bonuses Preview" FontWeight="Bold" />
+            <!-- Caption explaining the preview is decoded from P12 (WF
+                 "能力補正値"). The static caption row plus the per-stat
+                 read-out below mirror the WF panel exactly. -->
+            <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusCaption_Label"
+                       Text="Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):"
+                       FontSize="11" Foreground="Gray" />
             <WrapPanel>
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusHP_Label" Name="BonusHPLabel" Margin="0,0,12,0" />
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusStr_Label" Name="BonusStrLabel" Margin="0,0,12,0" />
@@ -178,6 +242,13 @@
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusLck_Label" Name="BonusLckLabel" Margin="0,0,12,0" />
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusMove_Label" Name="BonusMoveLabel" Margin="0,0,12,0" />
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusCon_Label" Name="BonusConLabel" Margin="0,0,12,0" />
+              <!-- Magic split base — visible only when HasMagicSplit is detected
+                   (mirrors WF MagicExtUnitBase). Stays hidden by default so we
+                   do not mislead users on vanilla ROMs. -->
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusMag_Label"
+                         Name="BonusMagLabel"
+                         Margin="0,0,12,0"
+                         IsVisible="False" />
             </WrapPanel>
           </StackPanel>
         </Border>
@@ -196,17 +267,51 @@
           </StackPanel>
         </Border>
 
-        <!-- Trait Flags (BitFlagPanels) -->
+        <!-- Trait Flags (BitFlagPanels) — #409 adds per-trait header labels
+             and a hex-decoded value preview so the WF designer's "特性1/2/3/4"
+             surface is fully replicated. -->
         <Expander AutomationProperties.AutomationId="ItemEditor_TraitFlags_Expander" Header="Trait Flags" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
-            <TextBlock Text="Trait 1 (B8):" FontWeight="SemiBold" Margin="0,2" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 1 (B8):" FontWeight="SemiBold" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_Trait1Hex_Label"
+                         Name="Trait1HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
             <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait1_Check" Name="Trait1Flags" />
-            <TextBlock Text="Trait 2 (B9):" FontWeight="SemiBold" Margin="0,2" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 2 (B9):" FontWeight="SemiBold" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_Trait2Hex_Label"
+                         Name="Trait2HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
             <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait2_Check" Name="Trait2Flags" />
-            <TextBlock Text="Trait 3 (B10):" FontWeight="SemiBold" Margin="0,2" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 3 (B10):" FontWeight="SemiBold" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_Trait3Hex_Label"
+                         Name="Trait3HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
             <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait3_Check" Name="Trait3Flags" />
-            <TextBlock Text="Trait 4 (B11):" FontWeight="SemiBold" Margin="0,2" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 4 (B11):" FontWeight="SemiBold" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="ItemEditor_Trait4Hex_Label"
+                         Name="Trait4HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
             <controls:BitFlagPanel AutomationProperties.AutomationId="ItemEditor_Trait4_Check" Name="Trait4Flags" />
           </StackPanel>
         </Border>

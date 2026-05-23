@@ -2,21 +2,48 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.UnitFE6View"
-        Title="Unit Editor (FE6)" Width="934" Height="661"
+        Title="Unit Editor (FE6)" Width="934" Height="700"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+  <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
+    <!-- #407 address-bar infrastructure (top of left column) — matches WF
+         UnitFE6Form "Read Start Address / Read Count / Reload" trio. -->
+    <StackPanel Grid.Row="0" Grid.Column="0" Margin="4,4,4,0" Spacing="2">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Text="Read Start Address:" FontSize="10" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="UnitFE6_ReadStartAddress_Label" Grid.Column="1" Name="ReadStartAddressLabel" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" />
+      </Grid>
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Text="Read Count:" FontSize="10" VerticalAlignment="Center" />
+        <TextBlock AutomationProperties.AutomationId="UnitFE6_ReadCount_Label" Grid.Column="1" Name="ReadCountLabel" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" />
+        <Button AutomationProperties.AutomationId="UnitFE6_Reload_Button" Grid.Column="2" Name="ReloadButton" Content="Reload" FontSize="11" Padding="6,2" Click="Reload_Click" />
+      </Grid>
+    </StackPanel>
+
     <!-- Address List -->
-    <controls:AddressListControl AutomationProperties.AutomationId="UnitFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+    <controls:AddressListControl AutomationProperties.AutomationId="UnitFE6_Entry_List" Grid.Row="1" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <!-- Editor Panel -->
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <ScrollViewer Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="6" Margin="8">
         <TextBlock Text="Unit Editor (FE6)" FontSize="18" FontWeight="Bold" />
 
-        <!-- Address -->
+        <!-- Selected Address + Size + HardCoding warning (#407) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <TextBlock Text="Selected Address:" VerticalAlignment="Center" FontWeight="SemiBold"
+                     AutomationProperties.AutomationId="UnitFE6_SelectedAddress_PrefixLabel" />
           <TextBlock AutomationProperties.AutomationId="UnitFE6_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock Text="Size:" VerticalAlignment="Center" Margin="12,0,0,0" />
+          <TextBlock AutomationProperties.AutomationId="UnitFE6_Size_Label" Name="SizeLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="UnitFE6_HardCoding_Warning_Label"
+                     Name="HardCodingWarningLabel"
+                     Text="[HardCoding]"
+                     Classes="Hyperlink"
+                     Foreground="OrangeRed"
+                     FontWeight="Bold"
+                     IsVisible="False"
+                     VerticalAlignment="Center"
+                     PointerPressed="HardCodingWarning_Click"
+                     ToolTip.Tip="This unit is referenced by hardcoded ASM. Click to view related patches." />
         </StackPanel>
 
         <!-- Identity Section with Portrait -->
@@ -104,28 +131,52 @@
           </Grid>
         </Border>
 
-        <!-- Weapon Levels Section -->
+        <!-- Weapon Levels Section — each box has letter label (#407) -->
         <TextBlock Text="Weapon Levels" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
-          <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto">
+          <Grid ColumnDefinitions="Auto,160,16,Auto,160,16,Auto,160" RowDefinitions="Auto,Auto,Auto">
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Sword:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepSword_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="WepSwordBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepSword_Input" FormatString="0" Name="WepSwordBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepSwordLetter_Label" Name="WepSwordLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock Grid.Row="0" Grid.Column="3" Text="Lance:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepLance_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="WepLanceBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepLance_Input" FormatString="0" Name="WepLanceBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepLanceLetter_Label" Name="WepLanceLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock Grid.Row="0" Grid.Column="6" Text="Axe:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepAxe_Input" FormatString="0" Grid.Row="0" Grid.Column="7" Name="WepAxeBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="0" Grid.Column="7" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepAxe_Input" FormatString="0" Name="WepAxeBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepAxeLetter_Label" Name="WepAxeLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="Bow:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepBow_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="WepBowBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepBow_Input" FormatString="0" Name="WepBowBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepBowLetter_Label" Name="WepBowLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock Grid.Row="1" Grid.Column="3" Text="Staff:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepStaff_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="WepStaffBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepStaff_Input" FormatString="0" Name="WepStaffBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepStaffLetter_Label" Name="WepStaffLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock Grid.Row="1" Grid.Column="6" Text="Anima:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepAnima_Input" FormatString="0" Grid.Row="1" Grid.Column="7" Name="WepAnimaBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="1" Grid.Column="7" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepAnima_Input" FormatString="0" Name="WepAnimaBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepAnimaLetter_Label" Name="WepAnimaLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
 
             <TextBlock Grid.Row="2" Grid.Column="0" Text="Light:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepLight_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="WepLightBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepLight_Input" FormatString="0" Name="WepLightBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepLightLetter_Label" Name="WepLightLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
             <TextBlock Grid.Row="2" Grid.Column="3" Text="Dark:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepDark_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="WepDarkBox" Minimum="0" Maximum="255" Margin="0,2" />
+            <StackPanel Grid.Row="2" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+              <NumericUpDown AutomationProperties.AutomationId="UnitFE6_WepDark_Input" FormatString="0" Name="WepDarkBox" Minimum="0" Maximum="255" Width="120" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="UnitFE6_WepDarkLetter_Label" Name="WepDarkLetterLabel" Text="-" Width="32" FontWeight="Bold" VerticalAlignment="Center" />
+            </StackPanel>
           </Grid>
         </Border>
 
@@ -168,7 +219,7 @@
           </Grid>
         </Border>
 
-        <!-- Support & Other Section -->
+        <!-- Support &amp; Other Section -->
         <TextBlock Text="Support &amp; Other" FontWeight="Bold" Margin="0,8,0,2" />
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
@@ -194,6 +245,36 @@
               <NumericUpDown AutomationProperties.AutomationId="UnitFE6_Unk39_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="Unk39Box" Minimum="0" Maximum="255" Margin="0,2" />
             </Grid>
           </StackPanel>
+        </Border>
+
+        <!-- Growth Simulator panel (#407 — parity with WF X_SIM_LABEL + X_SIM_*).
+             Sim Level + 7 stat read-outs + Total Growth.
+             No Magic Ext row — FE6 has no magic-split patch. -->
+        <TextBlock Text="Growth Simulation" FontWeight="Bold" Margin="0,8,0,2" />
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <Grid ColumnDefinitions="Auto,120,16,Auto,120,16,Auto,120" RowDefinitions="Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Sim Level:" VerticalAlignment="Center" Margin="0,2" />
+            <NumericUpDown AutomationProperties.AutomationId="UnitFE6_SimLevel_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="SimLevelBox" Minimum="1" Maximum="40" Margin="0,2" />
+            <TextBlock Grid.Row="0" Grid.Column="3" Text="Total Growth %:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimTotal_Label" Grid.Row="0" Grid.Column="4" Name="SimTotalLabel" VerticalAlignment="Center" Margin="0,2" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Sim HP:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimHP_Label" Grid.Row="1" Grid.Column="1" Name="SimHPLabel" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="3" Text="Sim STR:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimSTR_Label" Grid.Row="1" Grid.Column="4" Name="SimSTRLabel" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="1" Grid.Column="6" Text="Sim SKL:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimSKL_Label" Grid.Row="1" Grid.Column="7" Name="SimSKLLabel" VerticalAlignment="Center" Margin="0,2" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Text="Sim SPD:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimSPD_Label" Grid.Row="2" Grid.Column="1" Name="SimSPDLabel" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="3" Text="Sim DEF:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimDEF_Label" Grid.Row="2" Grid.Column="4" Name="SimDEFLabel" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock Grid.Row="2" Grid.Column="6" Text="Sim RES:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimRES_Label" Grid.Row="2" Grid.Column="7" Name="SimRESLabel" VerticalAlignment="Center" Margin="0,2" />
+
+            <TextBlock Grid.Row="3" Grid.Column="0" Text="Sim LCK:" VerticalAlignment="Center" Margin="0,2" />
+            <TextBlock AutomationProperties.AutomationId="UnitFE6_SimLCK_Label" Grid.Row="3" Grid.Column="1" Name="SimLCKLabel" VerticalAlignment="Center" Margin="0,2" />
+          </Grid>
         </Border>
 
         <!-- Buttons -->

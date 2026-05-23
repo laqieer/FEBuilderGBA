@@ -2,19 +2,187 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageMagicCSACreatorView"
-        Title="CSA Magic Creator" Width="835" Height="408"
+        Title="CSA Magic Creator" Width="1080" Height="610"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageMagicCSACreator_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: top read-config bar (mirrors WF panel3) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Top Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_ReadStart_Input"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="256"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ImageMagicCSACreator_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 1: selection bar (mirrors WF panel5) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_Address_Input"
+                       FormatString="0" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="4" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="ImageMagicCSACreator_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Write_Button"
+                Name="WriteButton" Content="Write to ROM" Click="Write_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 2 col 0: entry list panel (mirrors WF panel8) -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="ImageMagicCSACreator_Name_Label"
+               Content="Name" HorizontalAlignment="Stretch" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="ImageMagicCSACreator_ListExpand_Button"
+                Name="ListExpandButton" Content="Data Expansion"
+                IsEnabled="False"
+                ToolTip.Tip="Pending Core extraction - tracked by #500."
+                HorizontalAlignment="Stretch" Margin="2"
+                Click="ListExpand_Click" />
+        <Label DockPanel.Dock="Bottom"
+               AutomationProperties.AutomationId="ImageMagicCSACreator_FindMoreData_Label"
+               Name="FindMoreDataLabel" Content="Find new resources online"
+               ToolTip.Tip="Pending Core extraction - tracked by #500."
+               HorizontalAlignment="Stretch" Margin="2" />
+        <controls:AddressListControl AutomationProperties.AutomationId="ImageMagicCSACreator_Entry_List"
+                                     Name="EntryList" />
+      </DockPanel>
+    </Border>
+
+    <!-- Row 2 col 1: detail panel (mirrors WF DragTargetPanel) -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="CSA Magic Creator" FontSize="18" FontWeight="Bold" />
+        <Label Content="CSA Magic Creator" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageMagicCSACreator_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <!-- Frame data pointers (mirrors WF J_0/J_4/J_8/J_12/J_16) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="ImageMagicCSACreator_Addr_Label"
+                       Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center"
+                       FontFamily="Consolas" />
+
+            <Label Grid.Row="1" Grid.Column="0" Content="FrameData" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_P0_Input"
+                     Grid.Row="1" Grid.Column="1" Name="P0Box" Width="160" Margin="0,4,0,0"
+                     FontFamily="Consolas" />
+
+            <Label Grid.Row="2" Grid.Column="0" Content="OBJRightToLeft" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_P4_Input"
+                     Grid.Row="2" Grid.Column="1" Name="P4Box" Width="160" Margin="0,4,0,0"
+                     FontFamily="Consolas" />
+
+            <Label Grid.Row="3" Grid.Column="0" Content="OBJLeftToRight" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_P8_Input"
+                     Grid.Row="3" Grid.Column="1" Name="P8Box" Width="160" Margin="0,4,0,0"
+                     FontFamily="Consolas" />
+
+            <Label Grid.Row="4" Grid.Column="0" Content="OBJBGRightToLeft" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_P12_Input"
+                     Grid.Row="4" Grid.Column="1" Name="P12Box" Width="160" Margin="0,4,0,0"
+                     FontFamily="Consolas" />
+
+            <Label Grid.Row="5" Grid.Column="0" Content="OBJBGLeftToRight" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_P16_Input"
+                     Grid.Row="5" Grid.Column="1" Name="P16Box" Width="160" Margin="0,4,0,0"
+                     FontFamily="Consolas" />
+
+            <Label Grid.Row="6" Grid.Column="0" Content="dim" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <ComboBox AutomationProperties.AutomationId="ImageMagicCSACreator_Dim_Combo"
+                      Grid.Row="6" Grid.Column="1" Name="DimComboBox" Width="160" Margin="0,4,0,0">
+              <!-- TextBlock-inside-ComboBoxItem so ViewTranslationHelper
+                   picks them up for ja/zh localization (Copilot CLI inline
+                   review #6 on PR #547). -->
+              <ComboBoxItem><TextBlock Text="dim_pc" /></ComboBoxItem>
+              <ComboBoxItem><TextBlock Text="dim" /></ComboBoxItem>
+              <ComboBoxItem><TextBlock Text="NULL (EMPTY)" /></ComboBoxItem>
+            </ComboBox>
+
+            <Label Grid.Row="7" Grid.Column="0" Content="Comment" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_Comment_Input"
+                     Grid.Row="7" Grid.Column="1" Name="CommentBox" Width="240" Margin="0,4,0,0" />
+
+            <Label Grid.Row="8" Grid.Column="0" Content="Frame" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_Frame_Input"
+                           FormatString="0" Grid.Row="8" Grid.Column="1" Name="FrameBox" Width="80"
+                           Minimum="0" Maximum="255" Margin="0,4,0,0" />
+
+            <Label Grid.Row="9" Grid.Column="0" Content="Zoom" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <ComboBox AutomationProperties.AutomationId="ImageMagicCSACreator_Zoom_Combo"
+                      Grid.Row="9" Grid.Column="1" Name="ZoomComboBox" Width="160" Margin="0,4,0,0">
+              <!-- TextBlock-inside-ComboBoxItem so ViewTranslationHelper
+                   picks them up for ja/zh localization (Copilot CLI inline
+                   review #7 on PR #547). -->
+              <ComboBoxItem><TextBlock Text="Zoom in" /></ComboBoxItem>
+              <ComboBoxItem><TextBlock Text="Original size" /></ComboBoxItem>
+            </ComboBox>
+
+            <Label Grid.Row="10" Grid.Column="0" Content="Bin info" VerticalAlignment="Center" Margin="0,4,0,0" />
+            <TextBox AutomationProperties.AutomationId="ImageMagicCSACreator_BinInfo_Input"
+                     Grid.Row="10" Grid.Column="1" Name="BinInfoBox" Width="360" Margin="0,4,0,0"
+                     IsReadOnly="True" />
+          </Grid>
+        </Border>
+
+        <!-- Preview area (placeholder - live ImageUtilMagicCSACreator.Draw is WF-coupled) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="4">
+            <Label AutomationProperties.AutomationId="ImageMagicCSACreator_Preview_Label"
+                   Content="Preview" FontWeight="SemiBold" />
+            <Image AutomationProperties.AutomationId="ImageMagicCSACreator_Preview_Image"
+                   Name="PreviewImage" Width="400" Height="160"
+                   Stretch="Uniform" ToolTip.Tip="Pending Core extraction - tracked by #500." />
+          </StackPanel>
+        </Border>
+
+        <!-- Animation import/export + source actions (mirrors WF bottom row) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+          <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Import_Button"
+                  Name="ImportButton" Content="Import Magic Animation"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="Import_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Export_Button"
+                  Name="ExportButton" Content="Export Magic Animation"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="Export_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicCSACreator_OpenSource_Button"
+                  Name="OpenSourceButton" Content="Open Source File"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="OpenSource_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicCSACreator_SelectSource_Button"
+                  Name="SelectSourceButton" Content="Open Source Folder"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="SelectSource_Click" />
+          <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Editor_Button"
+                  Name="EditorButton" Content="Editor"
+                  IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Click="Editor_Click" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

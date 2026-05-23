@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T21:14:13Z"
-git-sha: be12e414b
+generated: "2026-05-23T22:04:23Z"
+git-sha: 25a8ee950
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 219 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 65 |
+| HIGH | |Δ%| ≥ 50 | 218 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 85 |
+| LOW | |Δ%| < 25 | 67 |
 
 ## Ranked Density Deltas
 
@@ -82,7 +82,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `PaletteSwapForm` | `PaletteSwapView` | 49 | 8 | -41 | -83.7% | Heuristic |
 | High | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` | 18 | 3 | -15 | -83.3% | Heuristic |
 | High | `SongInstrumentForm` | `SongInstrumentView` | 323 | 54 | -269 | -83.3% | Heuristic |
-| High | `EDForm` | `EDView` | 65 | 11 | -54 | -83.1% | ListParityHelper |
 | High | `MoveCostFE6Form` | `MoveCostFE6View` | 57 | 10 | -47 | -82.5% | ListParityHelper |
 | High | `FontZHForm` | `FontZHView` | 17 | 3 | -14 | -82.4% | Heuristic |
 | High | `MantAnimationForm` | `MantAnimationView` | 17 | 3 | -14 | -82.4% | ListParityHelper |
@@ -197,7 +196,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `SoundRoomForm` | `SoundRoomViewerView` | 22 | 14 | -8 | -36.4% | ListParityHelper |
 | Medium | `MapSettingFE7Form` | `MapSettingFE7View` | 229 | 146 | -83 | -36.2% | ListParityHelper |
 | Medium | `MapSettingFE7UForm` | `MapSettingFE7UView` | 233 | 150 | -83 | -35.6% | ListParityHelper |
-| Medium | `UnitFE6Form` | `UnitFE6View` | 152 | 98 | -54 | -35.5% | ListParityHelper |
 | Medium | `HowDoYouLikePatch2Form` | `HowDoYouLikePatch2View` | 6 | 4 | -2 | -33.3% | Heuristic |
 | Medium | `MapTerrainNameEngForm` | `MapTerrainNameEngView` | 12 | 8 | -4 | -33.3% | ListParityHelper |
 | Medium | `MenuCommandForm` | `MenuCommandView` | 39 | 26 | -13 | -33.3% | ListParityHelper |
@@ -235,6 +233,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `AITargetForm` | `AITargetView` | 52 | 44 | -8 | -15.4% | ListParityHelper |
 | Low | `SoundBossBGMForm` | `SoundBossBGMViewerView` | 20 | 17 | -3 | -15.0% | ListParityHelper |
 | Low | `AOERANGEForm` | `AOERANGEView` | 15 | 13 | -2 | -13.3% | Heuristic |
+| Low | `UnitFE6Form` | `UnitFE6View` | 152 | 133 | -19 | -12.5% | ListParityHelper |
 | Low | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` | 41 | 36 | -5 | -12.2% | Heuristic |
 | Low | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` | 9 | 8 | -1 | -11.1% | Heuristic |
 | Low | `UnitFE7Form` | `UnitFE7View` | 160 | 143 | -17 | -10.6% | ListParityHelper |
@@ -257,6 +256,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ToolClickWriteFloatControlPanelButtonForm` | `ToolClickWriteFloatControlPanelButtonView` | 4 | 4 | 0 | 0.0% | Heuristic |
 | Low | `ToolEmulatorSetupMessageForm` | `ToolEmulatorSetupMessageView` | 3 | 3 | 0 | 0.0% | Heuristic |
 | Low | `ToolUndoPopupDialogForm` | `ToolUndoPopupDialogView` | 5 | 5 | 0 | 0.0% | Heuristic |
+| Low | `EDForm` | `EDView` | 65 | 66 | 1 | +1.5% | ListParityHelper |
 | Low | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 65 | 2 | +3.2% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
 | Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |

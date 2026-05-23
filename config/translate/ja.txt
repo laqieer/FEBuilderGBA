@@ -7418,6 +7418,33 @@ OBBGLeftToRight
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 FEditor / SCA_Creator 魔法システムパッチが検出されません。パッチマネージャーからパッチをインストールしてください。
 
+:Find new resources online
+インターネットから新しいリソースを探す
+
+:OBJBGLeftToRight
+OBJBGLeftToRight
+
+:Preview
+表示例
+
+:Zoom
+拡大
+
+:Zoom in
+拡大して描画
+
+:Frame
+フレーム
+
+:Import Magic Animation
+魔法アニメの読込
+
+:Export Magic Animation
+魔法アニメの書出し
+
+:Bin info
+バイナリ情報
+
 :トラック1
 トラック1
 
@@ -7599,6 +7626,7 @@ UIDを含む
 :Bytes +2..+3 are reserved (WF designer doesn't expose).
 バイト +2..+3 は予約済み (WFデザイナでは未公開)。
 
+# AIScriptView additions (#410)
 :Parameter 1
 パラメータ1
 
@@ -7658,3 +7686,25 @@ UIDを含む
 
 :1=AI2
 1=AI2
+
+# ItemEditorView additions (#409)
+:Indirect Weapon Effect
+間接エフェクト
+
+:Open the indirect weapon effect table at the row for this item.
+このアイテムに対応する間接エフェクトテーブルの行を開きます。
+
+:This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.
+このアイテムはハードコード ASM から参照されています。クリックすると HARDCODING_ITEM= でフィルタした Patch Manager を開きます。
+
+:Debuff Table
+Debuff テーブル
+
+:Open the Patch Manager filtered to the SkillSystem WeaponDebuffsTable definition.
+SkillSystem WeaponDebuffsTable 定義でフィルタした Patch Manager を開きます。
+
+:Debuff (B33):
+Debuff (B33):
+
+:Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
+復号化された能力補正値 (読み取り専用 — 上記の能力補正ポインタから編集):
