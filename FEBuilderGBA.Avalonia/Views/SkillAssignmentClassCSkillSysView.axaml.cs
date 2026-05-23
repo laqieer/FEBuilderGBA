@@ -8,6 +8,7 @@
 // mark the in-VM write callsites as Covered.
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -25,6 +26,13 @@ namespace FEBuilderGBA.Avalonia.Views
         // (Copilot-flagged stale-selection guard from PR #544).
         uint _n1SelectedAddr;
 
+        // Parallel display-string collections so AddrResult.name is visible
+        // in the ListBox even though Avalonia bindings require properties.
+        readonly ObservableCollection<string> _classDisplayItems = new();
+        readonly ObservableCollection<string> _n1DisplayItems = new();
+        List<AddrResult> _classItems = new();
+        List<AddrResult> _n1Items = new();
+
         public string ViewTitle => "Skill Assignment - Class (CSkillSys)";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
@@ -32,15 +40,26 @@ namespace FEBuilderGBA.Avalonia.Views
         public SkillAssignmentClassCSkillSysView()
         {
             InitializeComponent();
+            ClassListBox.ItemsSource = _classDisplayItems;
+            N1ListBox.ItemsSource = _n1DisplayItems;
             ClassListBox.SelectionChanged += (s, e) =>
             {
-                if (ClassListBox.SelectedItem is AddrResult ar) OnClassSelected(ar);
+                int idx = ClassListBox.SelectedIndex;
+                if (idx >= 0 && idx < _classItems.Count) OnClassSelected(_classItems[idx]);
             };
             N1ListBox.SelectionChanged += (s, e) =>
             {
-                if (N1ListBox.SelectedItem is AddrResult ar) OnN1Selected(ar);
+                int idx = N1ListBox.SelectedIndex;
+                if (idx >= 0 && idx < _n1Items.Count) OnN1Selected(_n1Items[idx]);
             };
             Opened += (_, _) => Initialize();
+            Closed += (_, _) =>
+            {
+                if (_classSkillIconBitmap != null) try { _classSkillIconBitmap.Dispose(); } catch { /* swallow */ }
+                if (_n1SkillIconBitmap != null) try { _n1SkillIconBitmap.Dispose(); } catch { /* swallow */ }
+                _classSkillIconBitmap = null;
+                _n1SkillIconBitmap = null;
+            };
             N1B0Box.ValueChanged += (s, e) => OnLevelChanged();
             XLvValueBox.ValueChanged += (s, e) => OnXLevelValueChanged();
             XLvPlayerOnlyCheckBox.IsCheckedChanged += (s, e) => OnLevelModeCheckboxChanged(32);
@@ -55,6 +74,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.RefreshPatchState();
                 UpdateBannerVisibility();
+                InitializeReadConfig();
                 LoadClassList();
             }
             catch (Exception ex)
@@ -75,18 +95,31 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var items = _vm.LoadClassList();
-                ClassListBox.ItemsSource = items;
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // Push read-config UI values into the VM so the user's
+                // ReadStartAddress / ReadCount overrides drive the list walk.
+                // Copilot CLI PR #552 review #2: previously the VM defaults
+                // were copied INTO the boxes, making the controls inert.
+                _vm.ReadStartAddress = (uint)(ReadStartAddressBox.Value ?? 0);
+                _vm.ReadCount = (uint)(ReadCountBox.Value ?? 0);
+                _classItems = _vm.LoadClassList();
+                _classDisplayItems.Clear();
+                foreach (var item in _classItems) _classDisplayItems.Add(item.name);
                 BlockSizeBox.Value = _vm.BlockSize;
                 N1BlockSizeBox.Value = _vm.N1BlockSize;
-                N1ReadCountBox.Value = _vm.N1ReadCount;
             }
             catch (Exception ex)
             {
                 Log.Error("SkillAssignmentClassCSkillSysView.LoadClassList failed: {0}", ex.Message);
             }
+        }
+
+        void InitializeReadConfig()
+        {
+            // Seed the boxes once on Initialize so the user sees the VM defaults,
+            // but subsequent reloads READ from the boxes (not the VM).
+            ReadStartAddressBox.Value = _vm.ReadStartAddress;
+            ReadCountBox.Value = _vm.ReadCount;
+            N1ReadCountBox.Value = _vm.N1ReadCount;
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
@@ -122,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.Views
                             _vm.LevelUpAddr = ptr;
                             N1LevelUpAddrBox.Value = ptr;
                             LoadN1Sublist(ptr);
-                            UpdateIndependencePanels(ar.tag, (uint)ClassListBox.ItemCount);
+                            UpdateIndependencePanels(ar.tag, (uint)_classItems.Count);
                         }
                     }
                 }
@@ -138,15 +171,16 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _n1SelectedAddr = 0;
+                _n1Items = new List<AddrResult>();
+                _n1DisplayItems.Clear();
                 if (addr == 0 || !U.isSafetyOffset(addr))
                 {
-                    N1ListBox.ItemsSource = new List<AddrResult>();
                     ZeroPointerPanel.IsVisible = (ClassListBox.SelectedIndex > 0 && addr == 0);
                     return;
                 }
                 ZeroPointerPanel.IsVisible = false;
-                var items = _vm.LoadN1List(addr);
-                N1ListBox.ItemsSource = items;
+                _n1Items = _vm.LoadN1List(addr);
+                foreach (var item in _n1Items) _n1DisplayItems.Add(item.name);
             }
             catch (Exception ex)
             {
@@ -184,25 +218,66 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnN1ReloadList(object? sender, RoutedEventArgs e)
         {
+            // Push the N1 read-count into the VM so its walker honors it.
+            // Copilot CLI PR #552 review #2: previously this control was inert.
             uint addr = (uint)(N1LevelUpAddrBox.Value ?? 0);
             _vm.LevelUpAddr = addr;
+            _vm.N1ReadCount = (uint)(N1ReadCountBox.Value ?? 0);
             LoadN1Sublist(addr);
         }
 
         void UpdateSkillPreview(uint skillId)
         {
-            try { SkillNameTextBox.Text = NameResolver.GetSkillName(skillId); }
-            catch { SkillNameTextBox.Text = string.Empty; }
-            // Skill text comes from CSkillSys data; not extracted to Core yet
-            // (parity with #500 deferral) — leave blank for now.
-            SkillTextTextBox.Text = "";
+            // Bind name + description + icon (Copilot CLI PR #552 review #3).
+            // Resolvers are static on the VM so they share the same WF
+            // (gpSkillInfos + 8 byte per entry) layout used by
+            // SkillConfigCSkillSystem09xForm.GetSkillName / GetSkillDesc.
+            ROM? rom = CoreState.ROM;
+            SkillNameTextBox.Text = SkillAssignmentClassCSkillSysViewModel.ResolveSkillName(rom, skillId);
+            SkillTextTextBox.Text = SkillAssignmentClassCSkillSysViewModel.ResolveSkillDescription(rom, skillId);
+            UpdateSkillIcon(SkillIconImage, ref _classSkillIconBitmap, skillId);
         }
 
         void UpdateSkillPreviewN1(uint skillId)
         {
-            try { N1SkillNameTextBox.Text = NameResolver.GetSkillName(skillId); }
-            catch { N1SkillNameTextBox.Text = string.Empty; }
-            N1SkillTextTextBox.Text = "";
+            ROM? rom = CoreState.ROM;
+            N1SkillNameTextBox.Text = SkillAssignmentClassCSkillSysViewModel.ResolveSkillName(rom, skillId);
+            N1SkillTextTextBox.Text = SkillAssignmentClassCSkillSysViewModel.ResolveSkillDescription(rom, skillId);
+            UpdateSkillIcon(N1SkillIconImage, ref _n1SkillIconBitmap, skillId);
+        }
+
+        // Tracked Avalonia Bitmap handles for the two skill-icon previews so
+        // we can Dispose them on the next swap and on window close.
+        global::Avalonia.Media.Imaging.Bitmap? _classSkillIconBitmap;
+        global::Avalonia.Media.Imaging.Bitmap? _n1SkillIconBitmap;
+
+        void UpdateSkillIcon(global::Avalonia.Controls.Image target,
+            ref global::Avalonia.Media.Imaging.Bitmap? current, uint skillId)
+        {
+            ROM? rom = CoreState.ROM;
+            // Skill-info entry +0 is a GBA pointer (high bit set) to the
+            // 4bpp tile data for that skill icon. The id-based offset is
+            // implicit (entry size = 8). We hand the raw GBA pointer
+            // straight to PreviewIconHelper.LoadCSkillSysIcon — same path
+            // used by SkillConfigFE8UCSkillSys09xView.
+            uint iconGbaPtr = SkillAssignmentClassCSkillSysViewModel.ResolveSkillIconGbaPointer(rom, skillId);
+            global::Avalonia.Media.Imaging.Bitmap? bmp = null;
+            if (iconGbaPtr != 0 && rom != null)
+            {
+                try
+                {
+                    using var img = PreviewIconHelper.LoadCSkillSysIcon(iconGbaPtr);
+                    if (img != null)
+                        bmp = ImageConversionHelper.ToAvaloniaBitmap(img);
+                }
+                catch { bmp = null; }
+            }
+            if (current != null && !ReferenceEquals(current, bmp))
+            {
+                try { current.Dispose(); } catch { /* swallow */ }
+            }
+            current = bmp;
+            target.Source = bmp;
         }
 
         // -----------------------------------------------------------------
@@ -273,7 +348,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnN1Expand(object? sender, RoutedEventArgs e)
         {
             // Expand by one row beyond current count.
-            uint newCount = (uint)((N1ListBox.Items?.Count ?? 0) + 1);
+            uint newCount = (uint)(_n1Items.Count + 1);
             _undoService.Begin("Skill Assignment Class CSkillSys Expand Level-up List");
             try
             {
@@ -400,7 +475,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) { }
         public void SelectFirstItem()
         {
-            if (ClassListBox.Items != null && ClassListBox.Items.Count > 0)
+            if (_classDisplayItems.Count > 0)
             {
                 ClassListBox.SelectedIndex = 0;
             }

@@ -267,6 +267,120 @@ public class SkillAssignmentClassCSkillSysParityTests
         } finally { CoreState.ROM = prevRom; }
     }
 
+    // Read-config wiring (Copilot CLI PR #552 review #2).
+    [Fact] public void ViewModel_LoadN1List_HonorsN1ReadCountCap() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            uint baseAddr = 0x00820000u;
+            // Plant 10 valid 2-byte entries (no terminator).
+            for (int i = 0; i < 10; i++) {
+                bytes[baseAddr + i * 2] = (byte)(1 + i);
+                bytes[baseAddr + i * 2 + 1] = (byte)(0x10 + i);
+            }
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            vm.N1ReadCount = 4;
+            var rows = vm.LoadN1List(baseAddr);
+            Assert.Equal(4, rows.Count);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_LoadClassList_HonorsReadStartAddressOverride() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            // Plant a u32 GBA pointer slot at gpConstSkillTable_Job (vanilla FE8U has 0xFFFFFFFF) pointing into our test region.
+            // For this test we use ReadStartAddress override directly.
+            byte[] bytes = rom.Data;
+            uint customBase = 0x00800000u;
+            // Plant a class-data table at rom.RomInfo.class_pointer so ComputeClassCount returns >0.
+            if (rom.RomInfo != null && rom.RomInfo.class_pointer != 0) {
+                uint slot = rom.RomInfo.class_pointer;
+                BitConverter.GetBytes(0x00100000u | 0x08000000u).CopyTo(bytes, slot);
+                // 5 valid class entries + 0 sentinel at +4 of entry 5 to terminate.
+                uint classBase = 0x00100000u;
+                uint cds = rom.RomInfo.class_datasize;
+                for (int i = 0; i < 5; i++) {
+                    bytes[classBase + i * cds + 4] = 0x01;
+                }
+                bytes[classBase + 5 * cds + 4] = 0x00;
+            }
+
+            // Plant 6 W0 entries at our custom base (4 bytes each).
+            for (int i = 0; i < 6; i++) {
+                bytes[customBase + i * 4] = (byte)(0x10 + i);
+            }
+
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            vm.ReadStartAddress = customBase;
+            var rows = vm.LoadClassList();
+            // Should produce min(class_count, all_entries) — class_count = 5 from above.
+            Assert.True(rows.Count > 0);
+            Assert.Equal(customBase, rows[0].addr);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact] public void ViewModel_LoadClassList_HonorsReadCountCap() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            // Plant a class-data table so ComputeClassCount returns ~10.
+            if (rom.RomInfo != null && rom.RomInfo.class_pointer != 0) {
+                uint slot = rom.RomInfo.class_pointer;
+                BitConverter.GetBytes(0x00100000u | 0x08000000u).CopyTo(bytes, slot);
+                uint classBase = 0x00100000u;
+                uint cds = rom.RomInfo.class_datasize;
+                for (int i = 0; i < 10; i++) bytes[classBase + i * cds + 4] = 0x01;
+                bytes[classBase + 10 * cds + 4] = 0x00;
+            }
+            uint customBase = 0x00800000u;
+            for (int i = 0; i < 10; i++) bytes[customBase + i * 4] = (byte)(0x10 + i);
+
+            var vm = new SkillAssignmentClassCSkillSysViewModel();
+            vm.ReadStartAddress = customBase;
+            vm.ReadCount = 3;
+            var rows = vm.LoadClassList();
+            Assert.Equal(3, rows.Count);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
+    // Skill preview helpers (Copilot CLI PR #552 review #3).
+    [Fact] public void ViewModel_ResolveSkillName_NullRom_ReturnsEmpty() {
+        Assert.Equal(string.Empty, SkillAssignmentClassCSkillSysViewModel.ResolveSkillName(null, 0));
+    }
+
+    [Fact] public void ViewModel_ResolveSkillDescription_NullRom_ReturnsEmpty() {
+        Assert.Equal(string.Empty, SkillAssignmentClassCSkillSysViewModel.ResolveSkillDescription(null, 0));
+    }
+
+    [Fact] public void ViewModel_ResolveSkillIconGbaPointer_NullRom_ReturnsZero() {
+        Assert.Equal(0u, SkillAssignmentClassCSkillSysViewModel.ResolveSkillIconGbaPointer(null, 0));
+    }
+
+    [Fact] public void ViewModel_ResolveSkillIconGbaPointer_PlantedEntry_ReturnsRawU32() {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try {
+            CoreState.ROM = rom;
+            byte[] bytes = rom.Data;
+            // Plant a u32 GBA pointer at gpSkillInfos so p32 -> 0x00400000.
+            uint slot = SkillAssignmentClassCSkillSysViewModel.gpSkillInfos;
+            BitConverter.GetBytes(0x00400000u | 0x08000000u).CopyTo(bytes, slot);
+            // Plant a u32 GBA pointer at skill-info entry +0 for id=5
+            uint baseAddr = 0x00400000u;
+            uint id = 5;
+            uint entryAddr = baseAddr + SkillAssignmentClassCSkillSysViewModel.SKILL_INFO_SIZE * id;
+            BitConverter.GetBytes(0xCAFEBABEu).CopyTo(bytes, entryAddr);
+            uint p = SkillAssignmentClassCSkillSysViewModel.ResolveSkillIconGbaPointer(rom, id);
+            Assert.Equal(0xCAFEBABEu, p);
+        } finally { CoreState.ROM = prevRom; }
+    }
+
     [Fact] public void UndoCoverage_ViewCoversCanonicalVmWriteMethods() {
         string repoRoot = FindRepoRoot();
         var allFiles = Directory.GetFiles(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia"),

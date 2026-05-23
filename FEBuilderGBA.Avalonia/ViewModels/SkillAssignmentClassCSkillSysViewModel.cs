@@ -37,6 +37,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // GP-pointer slots into class skill / class-levelup-skill tables.
         public const uint gpConstSkillTable_Job = 0xB2A620;
         public const uint gpClassLevelUpSkillTable = 0xB2A7F8;
+        // Skill-info table (8-byte per skill: u32 icon-pointer + u16 nameMsg + u16 descMsg).
+        // Shared with SkillConfigCSkillSystem09xForm. Used by ResolveSkillName /
+        // ResolveSkillDescription / ResolveSkillIconGbaPointer for the inline
+        // preview labels (Copilot CLI PR #552 review #3).
+        public const uint gpSkillInfos = 0xB2A614;
+        public const uint SKILL_INFO_SIZE = 8;
 
         // ---- Block sizes ----
         public const uint CLASS_BLOCK_SIZE = 4;
@@ -127,14 +133,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM? rom = CoreState.ROM;
             if (rom?.RomInfo == null) return result;
 
-            uint baseAddr = rom.p32(gpConstSkillTable_Job);
+            // Honor user-overridden read-config (Copilot CLI PR #552 review #2).
+            // If ReadStartAddress != 0, use it directly as the table base
+            // (overrides the gpConstSkillTable_Job pointer dereference).
+            uint baseAddr = (ReadStartAddress != 0)
+                ? ReadStartAddress
+                : rom.p32(gpConstSkillTable_Job);
             if (!U.isSafetyOffset(baseAddr)) return result;
 
             // Use the same class-count probe as CCBranchEditorViewModel
             // (mirrors WF ClassForm.DataCount semantics): scan classes
-            // table until u8(class+4) == 0 sentinel.
+            // table until u8(class+4) == 0 sentinel. Cap by ReadCount when
+            // user set it (>0); otherwise use the full enumerated count.
             int classCount = ComputeClassCount(rom);
-            for (int i = 0; i < classCount; i++)
+            int cap = (ReadCount > 0 && (int)ReadCount < classCount)
+                ? (int)ReadCount
+                : classCount;
+            for (int i = 0; i < cap; i++)
             {
                 uint addr = baseAddr + (uint)(i * (int)CLASS_BLOCK_SIZE);
                 if (addr + CLASS_BLOCK_SIZE > (uint)rom.Data.Length) break;
@@ -185,10 +200,94 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        // ---- Skill preview helpers (Copilot CLI PR #552 review #3) ----
+        // Mirrors WF SkillConfigCSkillSystem09xForm.GetSkillName / GetSkillDesc /
+        // DrawSkillIcon. All resolvers are static + null-safe so they can be
+        // called from both the VM and the View code-behind without spinning up
+        // additional service infrastructure.
+
+        /// <summary>
+        /// Resolve the display name of skill <paramref name="id"/>. Reads
+        /// u16 nameMsg @ skill-info+4; falls back to the colon prefix of the
+        /// description text (matches WF SkillTextToName).
+        /// </summary>
+        public static string ResolveSkillName(ROM? rom, uint id)
+        {
+            if (rom == null) return "";
+            try
+            {
+                if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return "";
+                uint baseAddr = rom.p32(gpSkillInfos);
+                if (!U.isSafetyOffset(baseAddr, rom)) return "";
+                uint entryAddr = baseAddr + SKILL_INFO_SIZE * id;
+                if (!U.isSafetyOffset(entryAddr + 6, rom)) return "";
+                uint nameMsg = rom.u16(entryAddr + 4);
+                if (nameMsg != 0)
+                {
+                    string text = NameResolver.GetTextById(nameMsg);
+                    if (!string.IsNullOrEmpty(text) && text != "???") return text;
+                }
+                uint descMsg = rom.u16(entryAddr + 6);
+                if (descMsg != 0)
+                {
+                    string desc = NameResolver.GetTextById(descMsg);
+                    if (!string.IsNullOrEmpty(desc) && desc != "???")
+                    {
+                        int colon = desc.IndexOf(':');
+                        if (colon > 0) return desc.Substring(0, colon).Trim();
+                    }
+                }
+            }
+            catch { /* swallow */ }
+            return "";
+        }
+
+        /// <summary>
+        /// Resolve the description/effect text of skill <paramref name="id"/>.
+        /// Reads u16 descMsg @ skill-info+6.
+        /// </summary>
+        public static string ResolveSkillDescription(ROM? rom, uint id)
+        {
+            if (rom == null) return "";
+            try
+            {
+                if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return "";
+                uint baseAddr = rom.p32(gpSkillInfos);
+                if (!U.isSafetyOffset(baseAddr, rom)) return "";
+                uint entryAddr = baseAddr + SKILL_INFO_SIZE * id;
+                if (!U.isSafetyOffset(entryAddr + 6, rom)) return "";
+                uint descMsg = rom.u16(entryAddr + 6);
+                if (descMsg == 0) return "";
+                return NameResolver.GetTextById(descMsg) ?? "";
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Resolve the GBA pointer (high-bit set) to the 4bpp icon tile data
+        /// for skill <paramref name="id"/>. Returns 0 if unavailable.
+        /// </summary>
+        public static uint ResolveSkillIconGbaPointer(ROM? rom, uint id)
+        {
+            if (rom == null) return 0;
+            try
+            {
+                if (!U.isSafetyOffset(gpSkillInfos + 4, rom)) return 0;
+                uint baseAddr = rom.p32(gpSkillInfos);
+                if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+                uint entryAddr = baseAddr + SKILL_INFO_SIZE * id;
+                if (!U.isSafetyOffset(entryAddr + 3, rom)) return 0;
+                return rom.u32(entryAddr); // raw GBA pointer (high bit set)
+            }
+            catch { return 0; }
+        }
+
         /// <summary>
         /// Walk the N1 level-up skill list at <paramref name="addr"/>.
         /// Mirrors WF <c>N1_Init</c>: 2 bytes per entry, terminator on
-        /// u16 == 0x0000 OR u16 == 0xFFFF.
+        /// u16 == 0x0000 OR u16 == 0xFFFF. Cap by <see cref="N1ReadCount"/>
+        /// when set (>0); falls back to MAX_N1_COUNT cap otherwise
+        /// (Copilot CLI PR #552 review #2: previously this control was inert).
         /// </summary>
         public List<AddrResult> LoadN1List(uint addr)
         {
@@ -197,7 +296,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || addr == 0) return result;
             if (!U.isSafetyOffset(addr)) return result;
 
-            for (uint i = 0; i < MAX_N1_COUNT; i++)
+            uint cap = (N1ReadCount > 0 && N1ReadCount < MAX_N1_COUNT)
+                ? N1ReadCount
+                : MAX_N1_COUNT;
+            for (uint i = 0; i < cap; i++)
             {
                 uint rowAddr = addr + i * N1_BLOCK_SIZE;
                 if (rowAddr + N1_BLOCK_SIZE > (uint)rom.Data.Length) break;
@@ -418,6 +520,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 report["u8@0x00"] = "0x" + rom.u8(N1CurrentAddr + 0).ToString("X02");
                 report["u8@0x01"] = "0x" + rom.u8(N1CurrentAddr + 1).ToString("X02");
             }
+            // Skill-info inline preview reads (icon GBA pointer + nameMsg +
+            // descMsg) - same offsets as the static Resolve* helpers.
+            try
+            {
+                if (U.isSafetyOffset(gpSkillInfos + 4, rom))
+                {
+                    uint baseAddr = rom.p32(gpSkillInfos);
+                    if (U.isSafetyOffset(baseAddr, rom))
+                    {
+                        uint entry = baseAddr + SKILL_INFO_SIZE * ClassSkill;
+                        if (U.isSafetyOffset(entry + 6, rom))
+                        {
+                            report["skill_info_addr"] = "0x" + entry.ToString("X08");
+                            report["u32@0x00"] = "0x" + rom.u32(entry + 0).ToString("X08");
+                            report["u16@0x04"] = "0x" + rom.u16(entry + 4).ToString("X04");
+                            report["u16@0x06"] = "0x" + rom.u16(entry + 6).ToString("X04");
+                        }
+                    }
+                }
+            }
+            catch { /* swallow - raw report is best-effort */ }
             return report;
         }
 
@@ -426,6 +549,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ["ClassSkill"] = "u16@0x00",
             ["B0"] = "u8@0x00",
             ["B1"] = "u8@0x01",
+            ["SkillIconPtr"] = "u32@0x00",
+            ["SkillNameMsg"] = "u16@0x04",
+            ["SkillDescMsg"] = "u16@0x06",
         };
     }
 }
