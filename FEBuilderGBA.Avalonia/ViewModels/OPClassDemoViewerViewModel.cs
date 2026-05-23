@@ -221,12 +221,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public List<N1Row> LoadN1FontList(uint pointerSlotAddr)
         {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<N1Row>();
+            if (pointerSlotAddr == 0 || pointerSlotAddr + 4 > (uint)rom.Data.Length) return new List<N1Row>();
+            uint baseAddr = rom.p32(pointerSlotAddr);
+            return LoadN1FontListFromOffset(baseAddr);
+        }
+
+        /// <summary>
+        /// Walk the Japanese-name font sub-list starting from a ROM offset
+        /// (already-dereferenced). Used when the caller wants to preview an
+        /// unsaved pointer value before it has been written to ROM.
+        /// (Copilot bot review thread PRRT_kwDOH0Mc1M6ETj_F on PR #544.)
+        /// </summary>
+        public List<N1Row> LoadN1FontListFromOffset(uint baseAddr)
+        {
             var result = new List<N1Row>();
             ROM rom = CoreState.ROM;
             if (rom == null) return result;
-            if (pointerSlotAddr == 0 || pointerSlotAddr + 4 > (uint)rom.Data.Length) return result;
-
-            uint baseAddr = rom.p32(pointerSlotAddr);
             if (!U.isSafetyOffset(baseAddr)) return result;
 
             for (uint i = 0; i < N1MaxEntries; i++)
@@ -247,12 +259,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public List<N2Row> LoadN2CommandList(uint pointerSlotAddr)
         {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<N2Row>();
+            if (pointerSlotAddr == 0 || pointerSlotAddr + 4 > (uint)rom.Data.Length) return new List<N2Row>();
+            uint baseAddr = rom.p32(pointerSlotAddr);
+            return LoadN2CommandListFromOffset(baseAddr);
+        }
+
+        /// <summary>
+        /// Walk the animation command sub-list starting from a ROM offset
+        /// (already-dereferenced). Used when previewing an unsaved
+        /// pointer value (Copilot bot review thread PRRT_kwDOH0Mc1M6ETj_F).
+        /// </summary>
+        public List<N2Row> LoadN2CommandListFromOffset(uint baseAddr)
+        {
             var result = new List<N2Row>();
             ROM rom = CoreState.ROM;
             if (rom == null) return result;
-            if (pointerSlotAddr == 0 || pointerSlotAddr + 4 > (uint)rom.Data.Length) return result;
-
-            uint baseAddr = rom.p32(pointerSlotAddr);
             if (!U.isSafetyOffset(baseAddr)) return result;
 
             for (uint i = 0; i < N2MaxEntries; i++)

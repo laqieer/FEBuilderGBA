@@ -161,7 +161,16 @@
                       Grid.Row="8" Grid.Column="3" Grid.ColumnSpan="2"
                       Name="MagicEffectCombo" Width="200" VerticalAlignment="Center" />
 
-            <!-- Row 9: Battle Anime PLUS1 (patch-aware D18 — Over255) -->
+            <!-- Row 9: Battle Anime PLUS1 (patch-aware D18 — Over255).
+                 Two stacked labels in slot 0: vanilla "Unknown (0x12):" is
+                 shown when the patch is absent, "Battle Anime (Patch +1):"
+                 takes over when the patch is active. Copilot bot review
+                 PRRT_kwDOH0Mc1M6ETj-6 on PR #544 caught the label-less
+                 vanilla case. -->
+            <Label Grid.Row="9" Grid.Column="0"
+                   AutomationProperties.AutomationId="OPClassDemoViewer_Unknown18Vanilla_Label"
+                   Content="Unknown (0x12):" VerticalAlignment="Center"
+                   Name="Unknown18VanillaLabel" />
             <Label Grid.Row="9" Grid.Column="0"
                    AutomationProperties.AutomationId="OPClassDemoViewer_BattleAnimePlus1_Label"
                    Content="Battle Anime (Patch +1):" VerticalAlignment="Center"
@@ -218,7 +227,7 @@
                        VerticalAlignment="Center" />
               <Button Grid.Column="3"
                       AutomationProperties.AutomationId="OPClassDemoViewer_N1_Write_Button"
-                      Name="N1WriteButton" Content="Write JP Name Pointer"
+                      Name="N1WriteButton" Content="Write Glyph Entry"
                       Click="N1_Write_Click" Margin="8,0,0,0" />
             </Grid>
             <controls:AddressListControl
@@ -248,7 +257,7 @@
                              Minimum="0" Maximum="255" Width="80" Margin="4,0" />
               <Button Grid.Column="5"
                       AutomationProperties.AutomationId="OPClassDemoViewer_N2_Write_Button"
-                      Name="N2WriteButton" Content="Write Anime Spec Pointer"
+                      Name="N2WriteButton" Content="Write Anime Command"
                       Click="N2_Write_Click" Margin="8,0,0,0" />
             </Grid>
             <controls:AddressListControl

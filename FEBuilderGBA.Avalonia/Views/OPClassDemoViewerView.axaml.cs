@@ -128,6 +128,10 @@ namespace FEBuilderGBA.Avalonia.Views
             bool over255 = _vm.IsOver255PatchActive;
             ListExpandButton.IsVisible = listExpand;
             BattleAnimePlus1Label.IsVisible = over255;
+            // Show the vanilla label only when the Over255 patch is NOT
+            // installed so the slot always has a label. (Copilot bot
+            // review thread PRRT_kwDOH0Mc1M6ETj-6 on PR #544.)
+            Unknown18VanillaLabel.IsVisible = !over255;
             // Runtime sentences must be routed through R._() because
             // ViewTranslationHelper only translates static XAML attributes
             // (Copilot bot review thread PRRT_kwDOH0Mc1M6ETSJG on PR #544).
@@ -202,13 +206,18 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnJpNamePtrChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_vm.IsLoading) return;
-            LoadN1Sublist();
+            // Reload from the *unsaved* spinner value so the preview reflects
+            // the in-progress edit. (Copilot bot review thread
+            // PRRT_kwDOH0Mc1M6ETj_F on PR #544.)
+            uint offset = (uint)(JpNamePtrBox.Value ?? 0);
+            LoadN1SublistFromOffset(offset);
         }
 
         void OnAnimePtrChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_vm.IsLoading) return;
-            LoadN2Sublist();
+            uint offset = (uint)(AnimePtrBox.Value ?? 0);
+            LoadN2SublistFromOffset(offset);
         }
 
         void OnN2B0Changed(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -254,20 +263,63 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadN1Sublist()
         {
+            // Default: walk from the pointer-slot at _vm.CurrentAddr + 8.
+            // Called on entry change.
+            if (_vm.CurrentAddr == 0) { ResetN1ListState(clearOnly: true); return; }
+            var rows = _vm.LoadN1FontList(_vm.CurrentAddr + 8);
+            ApplyN1Rows(rows);
+        }
+
+        void LoadN1SublistFromOffset(uint baseOffset)
+        {
+            // Walk from an explicit ROM offset (the unsaved spinner value).
+            // (Copilot bot review thread PRRT_kwDOH0Mc1M6ETj_F on PR #544.)
+            var rows = _vm.LoadN1FontListFromOffset(baseOffset);
+            ApplyN1Rows(rows);
+        }
+
+        void LoadN2Sublist()
+        {
+            if (_vm.CurrentAddr == 0) { ResetN2ListState(clearOnly: true); return; }
+            var rows = _vm.LoadN2CommandList(_vm.CurrentAddr + 24);
+            ApplyN2Rows(rows);
+        }
+
+        void LoadN2SublistFromOffset(uint baseOffset)
+        {
+            var rows = _vm.LoadN2CommandListFromOffset(baseOffset);
+            ApplyN2Rows(rows);
+        }
+
+        void ResetN1ListState(bool clearOnly)
+        {
+            // Reset the selected-address gate BEFORE replacing the
+            // list so a follow-up Write button click cannot land on
+            // a stale address from the previous row. (Copilot CLI
+            // re-review on PR #544 #4.)
+            _n1SelectedAddr = 0;
+            _vm.IsLoading = true;
+            try { N1B0Box.Value = 0; }
+            finally { _vm.IsLoading = false; }
+            N1SelectedAddressBox.Text = "";
+            if (clearOnly) { _n1Rows = new(); N1List.SetItems(new List<AddrResult>()); }
+        }
+
+        void ResetN2ListState(bool clearOnly)
+        {
+            _n2SelectedAddr = 0;
+            _vm.IsLoading = true;
+            try { N2B0Box.Value = 0; N2B1Box.Value = 0; N2CmdCombo.SelectedIndex = -1; }
+            finally { _vm.IsLoading = false; }
+            if (clearOnly) { _n2Rows = new(); N2List.SetItems(new List<AddrResult>()); }
+        }
+
+        void ApplyN1Rows(List<OPClassDemoViewerViewModel.N1Row> rows)
+        {
             try
             {
-                // Reset the selected-address gate BEFORE replacing the
-                // list so a follow-up Write button click cannot land on
-                // a stale address from the previous row. (Copilot CLI
-                // re-review on PR #544 #4.)
-                _n1SelectedAddr = 0;
-                _vm.IsLoading = true;
-                try { N1B0Box.Value = 0; }
-                finally { _vm.IsLoading = false; }
-                N1SelectedAddressBox.Text = "";
-
-                if (_vm.CurrentAddr == 0) { _n1Rows = new(); N1List.SetItems(new List<AddrResult>()); return; }
-                _n1Rows = _vm.LoadN1FontList(_vm.CurrentAddr + 8);
+                ResetN1ListState(clearOnly: false);
+                _n1Rows = rows;
                 var items = new List<AddrResult>();
                 for (int i = 0; i < _n1Rows.Count; i++)
                 {
@@ -275,21 +327,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 N1List.SetItems(items);
             }
-            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadN1Sublist: {ex.Message}"); }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.ApplyN1Rows: {ex.Message}"); }
         }
 
-        void LoadN2Sublist()
+        void ApplyN2Rows(List<OPClassDemoViewerViewModel.N2Row> rows)
         {
             try
             {
-                // Reset state before replacing the list — see LoadN1Sublist.
-                _n2SelectedAddr = 0;
-                _vm.IsLoading = true;
-                try { N2B0Box.Value = 0; N2B1Box.Value = 0; N2CmdCombo.SelectedIndex = -1; }
-                finally { _vm.IsLoading = false; }
-
-                if (_vm.CurrentAddr == 0) { _n2Rows = new(); N2List.SetItems(new List<AddrResult>()); return; }
-                _n2Rows = _vm.LoadN2CommandList(_vm.CurrentAddr + 24);
+                ResetN2ListState(clearOnly: false);
+                _n2Rows = rows;
                 var items = new List<AddrResult>();
                 for (int i = 0; i < _n2Rows.Count; i++)
                 {
@@ -297,7 +343,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 N2List.SetItems(items);
             }
-            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadN2Sublist: {ex.Message}"); }
+            catch (Exception ex) { Log.Error($"OPClassDemoViewerView.ApplyN2Rows: {ex.Message}"); }
         }
 
         void OnN1Selected(uint addr)

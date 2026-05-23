@@ -7255,3 +7255,12 @@ Hex アドレス
 
 :Default palette
 標準パレット
+
+:Write Glyph Entry
+グリフを書き込み
+
+:Write Anime Command
+アニメコマンドを書き込み
+
+:Unknown (0x12):
+不明 (0x12):

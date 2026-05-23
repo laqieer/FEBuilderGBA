@@ -21157,3 +21157,12 @@ to:
 
 :Default palette
 默认调色板
+
+:Write Glyph Entry
+写入字形
+
+:Write Anime Command
+写入动画指令
+
+:Unknown (0x12):
+未知 (0x12):
