@@ -315,6 +315,16 @@ namespace FEBuilderGBA
                 result.Error = $"gbaPalette.Length ({gbaPalette.Length}) must be a multiple of 32 (16 colors x 2 bytes)";
                 return result;
             }
+            // Validate tsa_width_margin against width/8 — Copilot bot
+            // review on PR #517 flagged that an out-of-range margin
+            // would let EncodeHeaderTSA return a 2-byte degenerate
+            // header which we'd then write to ROM as a "successful"
+            // import, leaving the entry broken.
+            if (tsa_width_margin < 0 || tsa_width_margin > (width / 8) - 1)
+            {
+                result.Error = $"tsa_width_margin ({tsa_width_margin}) must be in [0, {(width / 8) - 1}]";
+                return result;
+            }
 
             // Encode tiles + raw TSA (same path as the LZ77 BattleBG flow).
             var tsaResult = EncodeTSA(indexedPixels, width, height, paletteIndex);
@@ -327,6 +337,15 @@ namespace FEBuilderGBA
             // Wrap the raw TSA bytes into the WF header-packed layout
             // (DecodeHeaderTSA reads this format when rendering preview).
             byte[] headerTsa = EncodeHeaderTSA(tsaResult.TSAData, width, height, tsa_width_margin);
+            // Belt-and-suspenders: if EncodeHeaderTSA returned the 2-byte
+            // degenerate fallback despite our arg validation, refuse to
+            // write rather than corrupt the entry. The combined check
+            // catches any future EncodeHeaderTSA failure mode we add.
+            if (headerTsa == null || headerTsa.Length <= 2)
+            {
+                result.Error = "EncodeHeaderTSA produced a degenerate output; refusing to write";
+                return result;
+            }
 
             // 1. Image tiles — LZ77 compressed (same as BattleBG path).
             uint tileAddr = WriteCompressedToROM(rom, tsaResult.TileData, imgPointerAddr);

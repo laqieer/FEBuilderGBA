@@ -83,15 +83,26 @@ namespace FEBuilderGBA.Avalonia.Views
         ///   or refused.</returns>
         bool PreImportGate()
         {
+            // Capture rom up front and bail cleanly when null — avoids NRE
+            // in `U.isSafetyOffset` / `rom.Data.Length` (Copilot bot
+            // review on PR #517 — "PreImportGate can throw NullReferenceException
+            // if CoreState.ROM is null").
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                CoreState.Services?.ShowError("No ROM is loaded.");
+                return false;
+            }
+
             // Gate 0: entry-loaded guard.
-            if (!_vm.IsLoaded || !U.isSafetyOffset(_vm.CurrentAddr) || _vm.CurrentAddr + 12 > (uint)CoreState.ROM.Data.Length)
+            if (!_vm.IsLoaded || !U.isSafetyOffset(_vm.CurrentAddr, rom) || _vm.CurrentAddr + 12 > (uint)rom.Data.Length)
             {
                 CoreState.Services?.ShowError("No BG entry is selected. Select an entry in the list before importing.");
                 return false;
             }
 
             // Gate 1: reserve-BG confirmation.
-            if (FEBuilderGBA.ImageBGCore.IsReserveBgId(CoreState.ROM, (uint)_vm.CurrentIndex))
+            if (FEBuilderGBA.ImageBGCore.IsReserveBgId(rom, (uint)_vm.CurrentIndex))
             {
                 bool proceed = CoreState.Services?.ShowYesNo(
                     "Warning: This BG slot is reserved by the system. Overwriting it may cause unexpected behavior. Continue?") ?? false;
@@ -104,7 +115,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // entry (Copilot CLI v3 review on PR #517).
             if (_vm.IsBG256Patched && _vm.P4 <= 1)
             {
-                CoreState.Services.ShowError(
+                CoreState.Services?.ShowError(
                     "BG255/BG224 import is not yet supported in the Avalonia editor. " +
                     "Use the WinForms editor for 255/224-color cutscene backgrounds.");
                 return false;
