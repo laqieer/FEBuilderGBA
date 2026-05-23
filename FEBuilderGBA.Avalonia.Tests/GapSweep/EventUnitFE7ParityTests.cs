@@ -293,6 +293,66 @@ public class EventUnitFE7ParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot review fixes: ExpandList wired to Core helper, table-2
+    // jumps land on the right row via VM fallback (out-of-list).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_ExpandListClick_InvokesVmExpandHelper()
+    {
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitFE7View.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        // The handler must actually call ExpandUnitListCurrent — proves the
+        // wiring isn't inert.
+        Assert.Matches(
+            new Regex(@"void\s+ExpandList_Click\([^)]*\)\s*\{[\s\S]*?_vm\.ExpandUnitListCurrent\(", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_ExpandUnitListCurrent_DelegatesToCoreHelper()
+    {
+        // The VM exposes the wrapper that the View calls.
+        var vm = new EventUnitFE7ViewModel();
+        var method = vm.GetType().GetMethod("ExpandUnitListCurrent",
+            BindingFlags.Instance | BindingFlags.Public);
+        Assert.NotNull(method);
+        Assert.Equal(typeof(uint), method!.ReturnType);
+    }
+
+    [Fact]
+    public void EventBattleTalkFE7View_NavigateTo_FallsBackToVmLoadEntry()
+    {
+        string repoRoot = FindRepoRoot();
+        string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventBattleTalkFE7View.axaml.cs");
+        string source = File.ReadAllText(path);
+
+        // NavigateTo must call _vm.LoadEntry as a fallback so table-2 hits
+        // populate the detail panel even when the list doesn't contain the
+        // address.
+        Assert.Matches(
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?_vm\.LoadEntry\(", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void EventHaikuFE7View_NavigateTo_FallsBackToVmLoadEntry()
+    {
+        string repoRoot = FindRepoRoot();
+        string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventHaikuFE7View.axaml.cs");
+        string source = File.ReadAllText(path);
+
+        Assert.Matches(
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?_vm\.LoadEntry\(", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // AutomationId presence — the new controls must have stable test ids
     // so MCP / UIAutomation can target them for end-to-end validation.
     // -----------------------------------------------------------------

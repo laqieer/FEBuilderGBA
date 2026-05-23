@@ -48,6 +48,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Currently selected map id — needed by the Haiku jump (B0 + mapId).
         uint _selectedMapId;
 
+        // Base address of the unit-list table for the currently-loaded group.
+        // Used by ExpandList to know which list to grow.
+        uint _selectedUnitListBase;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
@@ -110,6 +114,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// EventHaikuFE7Form.JumpTo takes unit_id + map_id).
         /// </summary>
         public uint SelectedMapId { get => _selectedMapId; set => SetField(ref _selectedMapId, value); }
+
+        /// <summary>
+        /// The base address of the unit-list table for the currently loaded
+        /// group. <see cref="ExpandUnitListCurrent"/> uses this to identify
+        /// which list to grow.
+        /// </summary>
+        public uint SelectedUnitListBase { get => _selectedUnitListBase; set => SetField(ref _selectedUnitListBase, value); }
 
         // ---------------------------------------------------------------
         // B3 (UnitInfo) decomposition properties — UI sugar over the raw byte.
@@ -175,7 +186,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return new List<AddrResult>();
+            SelectedUnitListBase = baseAddr;
             return MapEventUnitCore.EnumerateUnits(rom, baseAddr);
+        }
+
+        /// <summary>
+        /// Expand the currently-loaded unit list by the given number of rows.
+        /// Mirrors the WF AddressListExpandsButton behavior:
+        /// <list type="number">
+        ///   <item>Resolve the event-condition pointer slot for the current group.</item>
+        ///   <item>Find free space, copy old rows, plant B0=0x01/B1=0x01 starter
+        ///     bytes per WF EventUnitFE7Form.cs:485-490.</item>
+        ///   <item>Repoint the slot so the next reload picks up the new base.</item>
+        /// </list>
+        /// Returns the new base ROM offset or <see cref="U.NOT_FOUND"/> on failure.
+        /// Side-effects on success: <see cref="SelectedUnitListBase"/> updated to
+        /// the new base.
+        ///
+        /// The caller MUST open an ambient undo scope before invoking this.
+        /// </summary>
+        public uint ExpandUnitListCurrent(uint addRows)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return U.NOT_FOUND;
+            if (SelectedUnitListBase == 0) return U.NOT_FOUND;
+            if (addRows == 0) return U.NOT_FOUND;
+
+            uint slot = MapEventUnitCore.FindEventPointerSlotForUnitList(
+                rom, SelectedMapId, SelectedUnitListBase);
+            if (slot == 0) return U.NOT_FOUND;
+
+            uint oldCount = MapEventUnitCore.CountEventUnitRows(rom, SelectedUnitListBase);
+            if (oldCount == 0) return U.NOT_FOUND;
+            uint newCount = oldCount + addRows;
+
+            uint newBase = MapEventUnitCore.ExpandUnitList(
+                rom, slot, SelectedUnitListBase, oldCount, newCount);
+            if (newBase == U.NOT_FOUND) return U.NOT_FOUND;
+
+            SelectedUnitListBase = newBase;
+            return newBase;
         }
 
         /// <summary>Legacy compatibility.</summary>

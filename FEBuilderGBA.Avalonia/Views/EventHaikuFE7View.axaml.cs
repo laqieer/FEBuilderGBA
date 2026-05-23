@@ -51,7 +51,37 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        /// <summary>
+        /// Select the row whose address matches <paramref name="address"/>.
+        /// If the address sits in a table that this view's <see cref="LoadList"/>
+        /// did NOT load (e.g. FE7's tutorial tables at
+        /// <c>event_haiku_tutorial_1_pointer</c> /
+        /// <c>event_haiku_tutorial_2_pointer</c>), fall back to loading the
+        /// entry directly into the VM so the detail panel still shows the
+        /// user the hit row — the caller (e.g. EventUnitFE7View's
+        /// `JumpHaiku_Click`) passes the byte address resolved by
+        /// <see cref="MapEventUnitCore.FindHaikuFE7Address"/>
+        /// which searches BOTH the main table and the tutorial tables with
+        /// the WF exact-match / wildcard / unit-only fallback semantics.
+        /// </summary>
+        public void NavigateTo(uint address)
+        {
+            if (address == 0) return;
+            EntryList.SelectAddress(address);
+            if (_vm.CurrentAddr == address) return;
+            // Out-of-list address (e.g. tutorial-table hit) — load the entry
+            // directly so the detail panel reflects the jump target.
+            try
+            {
+                _vm.LoadEntry(address);
+                UpdateUI();
+                AddrLabel.Text = string.Format("0x{0:X08} (jumped — see #431 tutorial-table)", _vm.CurrentAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventHaikuFE7View.NavigateTo fallback failed: {0}", ex.Message);
+            }
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }

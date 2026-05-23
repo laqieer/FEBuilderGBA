@@ -211,6 +211,58 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolve the event-condition pointer slot for a map's unit-list base.
+        /// Mirrors the WF EventUnitForm pattern where the GUI needs the slot
+        /// holding the pointer to the unit list (to allow repointing on
+        /// table expansion via <see cref="ExpandUnitList"/>).
+        ///
+        /// Returns the ROM offset of the 4-byte slot whose stored pointer
+        /// matches <paramref name="unitListBase"/>, or 0 if not found.
+        /// </summary>
+        public static uint FindEventPointerSlotForUnitList(ROM rom, uint mapId, uint unitListBase)
+        {
+            if (rom?.RomInfo == null) return 0;
+            uint eventAddr = GetEventAddrForMap(rom, mapId);
+            if (eventAddr == U.NOT_FOUND) return 0;
+
+            var slots = GetCondSlots(rom);
+            uint romLen = (uint)rom.Data.Length;
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (!IsUnitPlacementType(slots[i].Type)) continue;
+                uint slotAddr = (uint)(eventAddr + i * 4);
+                if (slotAddr + 4 > romLen) break;
+                uint p = rom.p32(slotAddr);
+                if (p == unitListBase) return slotAddr;
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Count populated unit-block rows in the list at <paramref name="baseAddr"/>.
+        /// Mirrors WF EventUnitForm.AddressList enumeration: counts rows up to
+        /// the first UnitID == 0x00 (terminator).
+        /// </summary>
+        public static uint CountEventUnitRows(ROM rom, uint baseAddr)
+        {
+            if (rom?.RomInfo == null) return 0;
+            if (!U.isSafetyOffset(baseAddr)) return 0;
+            uint dataSize = rom.RomInfo.eventunit_data_size;
+            if (dataSize == 0) return 0;
+            uint romLen = (uint)rom.Data.Length;
+            uint count = 0;
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)i * dataSize;
+                if (addr + dataSize > romLen) break;
+                if (rom.u8(addr) == 0) break;
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>
         /// Enumerate unit entries from a base address.
         /// Units are stored in fixed-size blocks terminated by UnitID == 0x00.
         /// </summary>

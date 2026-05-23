@@ -385,41 +385,51 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void NewAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            // The full WF EventUnitForm.CreateNewData path requires a
-            // companion EventCondForm allocation. That orchestration sits
-            // in a deeper InputFormRef.AllocEvent state machine that is
-            // tracked as a follow-up (the same scope-boundary noted on
-            // PR #511 for WorldMapEventPointer). For this gap-sweep PR we
-            // surface the affordance and log when the user clicks it so
-            // the click is observable in tests; full automation is future
-            // work.
-            Log.Notify("EventUnitFE7View.NewAlloc_Click: full EventCondForm allocation chain is tracked as a follow-up (see PR #431 known limitations).");
+            // The WF EventUnitForm.CreateNewData path needs the companion
+            // EventCondForm allocation chain (InputFormRef.AllocEvent state
+            // machine — same scope-boundary documented on PR #511 for
+            // WorldMapEventPointer). For this gap-sweep PR, the click invokes
+            // the Avalonia EventCondView to drive the user through the WF
+            // allocation flow (the proxy editor handles the per-map slot
+            // wiring). Documented as a soft handoff because the AllocEvent
+            // automatic write-back is intentionally out of scope here.
+            Log.Notify("EventUnitFE7View.NewAlloc_Click: opening Event Conditions editor for the selected map to allocate a new event-unit slot.");
+            try
+            {
+                WindowManager.Instance.Open<EventCondView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitFE7View.NewAlloc_Click failed: {0}", ex.Message);
+            }
         }
 
         void ExpandList_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                ROM rom = CoreState.ROM;
-                if (rom == null) return;
                 if (_unitItems.Count == 0) return;
-
-                // The pointer slot is the byte address of the event-cond
-                // table row that contained the selected group. We don't
-                // currently track it here — the safe path for this PR is
-                // to invoke the Core helper with explicit oldBase = unit
-                // list base, and a synthetic eventPointerSlot lookup via
-                // GetUnitGroupsForMap. Until the Avalonia VM tracks the
-                // exact slot, we log the click and return — the helper
-                // itself is unit-tested in Core.Tests so the parity test
-                // for the headless path is green.
-                Log.Notify("EventUnitFE7View.ExpandList_Click: pointer-slot tracking needed for full repoint. Helper is exercised headlessly in Core.Tests; UI wiring tracked as a follow-up (see PR #431 known limitations).");
+                if (_vm.SelectedUnitListBase == 0)
+                {
+                    Log.Notify("EventUnitFE7View.ExpandList_Click: no unit list selected yet.");
+                    return;
+                }
 
                 _undoService.Begin("Expand Event Unit List FE7");
                 try
                 {
-                    // No-op for now — full UI wiring deferred.
+                    uint newBase = _vm.ExpandUnitListCurrent(addRows: 1);
+                    if (newBase == U.NOT_FOUND)
+                    {
+                        _undoService.Rollback();
+                        Log.Notify("EventUnitFE7View.ExpandList_Click: expansion failed (slot not found or no free space).");
+                        return;
+                    }
                     _undoService.Commit();
+                    Log.Notify("EventUnitFE7View.ExpandList_Click: expanded to new base " + string.Format("0x{0:X08}", newBase));
+                    // Refresh the unit list from the new base so the user sees
+                    // the new starter row immediately.
+                    LoadUnitsFromAddress(newBase);
                 }
                 catch
                 {
