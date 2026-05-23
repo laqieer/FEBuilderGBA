@@ -21154,3 +21154,6 @@ to:
 
 :Patch: OPClassReelSort active. Data Expansion enabled.
 补丁: OPClassReelSort 已启用。数据扩展可用。
+
+:Default palette
+默认调色板

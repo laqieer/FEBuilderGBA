@@ -7252,3 +7252,6 @@ Hex アドレス
 
 :Patch: OPClassReelSort active. Data Expansion enabled.
 パッチ: OPClassReelSort が有効。データ拡張が利用可能です。
+
+:Default palette
+標準パレット

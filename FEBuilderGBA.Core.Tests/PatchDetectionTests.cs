@@ -86,9 +86,14 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ---------------------------------------------------------------
-        // OPClassReel patch detectors (added for gap-sweep #419)
-        // The signatures live exclusively in FE8J according to the
-        // original WinForms PatchUtil — FE8U / FE7 must always return false.
+        // OPClassReel patch detectors (added for gap-sweep #419).
+        //
+        // - OPClassReelAnimationIDOver255 has ONLY an FE8J signature in
+        //   PatchUtil; FE8U must always return false.
+        // - OPClassReelSort has BOTH FE8J and FE8U signatures; tests
+        //   below assert both versions detect the patch correctly.
+        //   (Copilot bot review thread PRRT_kwDOH0Mc1M6ETZ4g on PR #544
+        //   flagged the previous wording as misleading.)
         // ---------------------------------------------------------------
 
         /// <summary>

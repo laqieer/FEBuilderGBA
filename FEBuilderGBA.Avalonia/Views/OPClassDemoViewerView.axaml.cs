@@ -172,7 +172,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (_vm.IsLoading) return;
             uint id = (uint)(PaletteIdBox.Value ?? 0);
-            PalettePreview.Text = id == 0xFF ? "Default palette" : $"Palette 0x{id:X02}";
+            // Route through R._() so the preview stays localized when the
+            // user edits the value interactively. (Copilot bot review
+            // thread PRRT_kwDOH0Mc1M6ETZ4a on PR #544.)
+            PalettePreview.Text = id == 0xFF ? R._("Default palette") : $"Palette 0x{id:X02}";
         }
 
         void OnTerrainLeftChanged(object? sender, NumericUpDownValueChangedEventArgs e)
@@ -327,7 +330,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         N2B0Box.Value = rom.u8(addr);
                         N2B1Box.Value = rom.u8(addr + 1);
-                        int val = (int)N2B0Box.Value;
+                        // NumericUpDown.Value is decimal? — use the
+                        // null-safe form (Copilot bot review thread
+                        // PRRT_kwDOH0Mc1M6ETZ4X on PR #544).
+                        int val = (int)(N2B0Box.Value ?? 0);
                         N2CmdCombo.SelectedIndex = (val >= 1 && val <= 8) ? val - 1 : -1;
                     }
                     finally { _vm.IsLoading = false; }

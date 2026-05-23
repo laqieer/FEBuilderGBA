@@ -352,9 +352,10 @@ namespace FEBuilderGBA.Core.Tests
     // rom.write_range / rom.write_fill so all three byte regions
     // are restored on rollback, in addition to the pointer.
     //
-    // This nested class is in [Collection("SharedState")] because the
+    // This sibling type is in [Collection("SharedState")] because the
     // undo-rollback test mutates CoreState.ROM under a `BeginUndoScope`
-    // (Copilot bot review thread PRRT_kwDOH0Mc1M6ETSJK on PR #544).
+    // (Copilot bot review thread PRRT_kwDOH0Mc1M6ETSJK on PR #544;
+    // wording fixed in thread PRRT_kwDOH0Mc1M6ETZ4j).
     // ────────────────────────────────────────────────
     [Collection("SharedState")]
     public class DataExpansionCoreUndoTests : IDisposable
