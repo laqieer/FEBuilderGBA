@@ -21277,3 +21277,6 @@ OBBGLeftToRight
 
 :魔法アニメの読込
 导入魔法动画
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+未检测到 FEditor / SCA_Creator 魔法系统补丁。请通过补丁管理器安装补丁。

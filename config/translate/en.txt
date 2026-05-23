@@ -19887,3 +19887,6 @@ OBJBGRightToLeft
 
 :OBBGLeftToRight
 OBBGLeftToRight
+
+:FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.

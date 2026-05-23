@@ -83,7 +83,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             else
             {
-                PatchNoticeLabel.Text = "FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.";
+                // Wrap in R._() so ja/zh translations apply
+                // (Copilot bot review #4 on PR #554).
+                PatchNoticeLabel.Text = R._("FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.");
             }
         }
 
@@ -108,9 +110,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 // correctly (dim pointer goes to tag, comment + P0..P16 go
                 // to addr). Mirrors WF AddressList_SelectedIndexChanged.
                 AddrResult? selected = EntryList.SelectedItem;
-                uint csaEntry = selected?.addr ?? addr;
-                uint pointerSlot = selected?.tag ?? addr;
-                _vm.LoadEntry(csaEntry, pointerSlot);
+                if (selected == null)
+                {
+                    // Copilot bot review #1 on PR #554 — without an
+                    // AddrResult we have no pointer-slot address; bail
+                    // out so a stray Write_Click can't corrupt ROM.
+                    return;
+                }
+                _vm.LoadEntry(selected.addr, selected.tag);
                 UpdateUI();
             }
             catch (Exception ex)

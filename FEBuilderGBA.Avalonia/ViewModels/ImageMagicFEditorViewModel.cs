@@ -304,10 +304,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Convenience overload — the view code-behind may only have the
-        /// CSA entry address (e.g. NavigateTo path). When the pointer
-        /// slot isn't provided, dim-pointer reads/writes are skipped.
+        /// CSA entry address (e.g. NavigateTo path). The pointer-slot
+        /// address is explicitly cleared to 0 so a stale
+        /// `_pointerSlotAddr` from a previous selection cannot leak
+        /// into dim-pointer reads/writes against the wrong row (Copilot
+        /// bot review #2 on PR #554). `Write()` skips the pointer-slot
+        /// branch when `PointerSlotAddr == 0`.
         /// </summary>
-        public void LoadEntry(uint addr) => LoadEntry(addr, _pointerSlotAddr);
+        public void LoadEntry(uint addr) => LoadEntry(addr, 0u);
 
         /// <summary>
         /// Persist the editor row. Mirrors WF `N_WriteButton_Click`:
