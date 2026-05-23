@@ -839,10 +839,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // -------------------------------------------------------------
         // #406: 4-button CSV Export/Import surface (parity with WF
         // ClassForm.ExportAllBtn / ExportSelectedBtn / ImportAllBtn /
-        // ImportSelectedStatsBtn). Replaces the prior 2-button TSV stub.
-        // The legacy TSV helpers (ExportTSV_Click / ImportTSV_Click) are
-        // no longer wired to a button but left in case the gap-sweep
-        // baseline tests still reference them via the table-export path.
+        // ImportSelectedStatsBtn). Replaces the prior 2-button TSV stub
+        // (the previous ExportTSV_Click / ImportTSV_Click handlers were
+        // removed in PR #570 — Copilot bot inline review). CSV is now
+        // the only export/import surface on ClassEditorView.
         // -------------------------------------------------------------
 
         /// <summary>Build a ClassCsvManager from the UI's 8 option checkboxes.</summary>

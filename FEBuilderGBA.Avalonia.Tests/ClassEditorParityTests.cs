@@ -560,6 +560,69 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
+        /// ApplyImportCsv should throw FormatException with row context when
+        /// a base-stat value can't be parsed — matches WF <c>CsvManager</c>'s
+        /// use of <c>sbyte.Parse</c> (no try) so the import aborts rather
+        /// than silently writing wrong bytes. Copilot bot inline review on
+        /// PR #570 (silent-failure finding on base stats).
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_BaseStatParseFailure_Throws()
+        {
+            var (rom, baseAddr, _) = MakeStubRom(1);
+            var mgr = new ClassCsvManager(
+                useClipboard: false, includeUID: false, includeHeader: false,
+                includeName: false, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            // CSV with one unparseable base-stat cell.
+            string csv = "1, NOT_A_NUMBER, 3, 4, 5, 6, 7\n";
+            var ex = Assert.Throws<FormatException>(() => mgr.ApplyImportCsv(rom, csv, new[] { baseAddr }));
+            Assert.Contains("base stat", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("NOT_A_NUMBER", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Same strict-error contract for weapon-level cells. Copilot bot
+        /// inline review on PR #570 (silent-failure on weplevel).
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_WepLevelParseFailure_Throws()
+        {
+            var (rom, baseAddr, _) = MakeStubRom(1);
+            var mgr = new ClassCsvManager(
+                useClipboard: false, includeUID: false, includeHeader: false,
+                includeName: false, includeBaseStats: false, includeGrowths: false,
+                includeWepLevel: true, growthsAsDecimal: false);
+            // 8 weapon-level columns; 4th is unparseable.
+            string csv = "1, 2, 3, BAD, 5, 6, 7, 8\n";
+            var ex = Assert.Throws<FormatException>(() => mgr.ApplyImportCsv(rom, csv, new[] { baseAddr }));
+            Assert.Contains("weapon level", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// When includeUID is enabled, multi-row imports must abort rather
+        /// than fall back to positional routing if a row's UID column is
+        /// unparseable. Matches WF "Missing UID at Index N. Aborting..."
+        /// behavior. Copilot bot inline review on PR #570.
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_MultiRow_WithUID_MissingUidThrows()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(2);
+            var mgr = new ClassCsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: false, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            // Row 1 has a valid UID (0); row 2 has an unparseable UID "BAD".
+            // Without strict mode the importer would have silently routed
+            // row 2 to position 1 — risking writes to the wrong class.
+            string csv = "0, 1, 2, 3, 4, 5, 6, 7\nBAD, 11, 12, 13, 14, 15, 16, 17\n";
+            var ex = Assert.Throws<FormatException>(() =>
+                mgr.ApplyImportCsv(rom, csv, new[] { baseAddr, baseAddr + dataSize }));
+            Assert.Contains("UID", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// ApplyImportCsv should accept growth values in comma-decimal locale
         /// format (e.g. "0,25" — what WF <c>CsvManager</c> emits on de-DE).
         /// The parser falls back to current-culture when invariant-culture

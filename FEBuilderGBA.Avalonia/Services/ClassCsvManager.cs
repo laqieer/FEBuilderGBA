@@ -139,11 +139,22 @@ namespace FEBuilderGBA.Avalonia.Services
                 parser.Delimiters = new[] { ", " };
                 parser.TrimWhiteSpace = true;
                 parser.HasFieldsEnclosedInQuotes = true;
+                // Surface TextFieldParser errors (mismatched quotes / malformed
+                // rows) with row context — matches WF CsvManager which uses
+                // sbyte.Parse (no try) so format errors abort the import.
+                // Copilot bot inline review on PR #570: do not silently swallow
+                // ReadFields exceptions any more.
+                int parserLineNumber = 1;
                 while (!parser.EndOfData)
                 {
                     string[]? fields;
                     try { fields = parser.ReadFields(); }
-                    catch { fields = null; }
+                    catch (Microsoft.VisualBasic.FileIO.MalformedLineException ex)
+                    {
+                        throw new FormatException(
+                            $"ClassCsvManager: malformed CSV at line {parserLineNumber}: {ex.Message}", ex);
+                    }
+                    parserLineNumber++;
                     if (fields == null) continue;
                     rows.Add(fields);
                 }
@@ -160,12 +171,17 @@ namespace FEBuilderGBA.Avalonia.Services
                 string[] cols = rows[i + startRow];
                 if (cols.Length == 0 || (cols.Length == 1 && string.IsNullOrWhiteSpace(cols[0]))) continue;
                 int colIdx = 0;
+                int csvLine = i + startRow + 1; // 1-based for error messages.
 
                 // Determine the destination address. Default = positional
                 // mapping (matches WF behavior when neither UID nor Name is
                 // exported). When _includeUID is set OR _includeName carries
                 // a "Name(UID)" tail, parse the embedded UID and look it up
-                // in rowAddresses by index.
+                // in rowAddresses by index. Multi-row imports REQUIRE a
+                // parseable UID when includeUID or includeName is enabled —
+                // WF CsvManager errors out ("Missing UID at Index N. Aborting...")
+                // rather than risk writing to the wrong row. Copilot bot
+                // inline review on PR #570.
                 uint addr;
                 if (isSingleRow)
                 {
@@ -191,21 +207,36 @@ namespace FEBuilderGBA.Avalonia.Services
                     }
 
                     if (parsedUid.HasValue && parsedUid.Value < rowAddresses.Count)
+                    {
                         addr = rowAddresses[(int)parsedUid.Value];
+                    }
+                    else if ((_includeUID || _includeName) && !parsedUid.HasValue)
+                    {
+                        // UID/Name column present but unparseable — abort to
+                        // match WF behavior (no positional fallback when the
+                        // user opted into UID routing).
+                        throw new FormatException(
+                            $"ClassCsvManager: missing or invalid UID at CSV line {csvLine} (row index {i}). Aborting import.");
+                    }
                     else if (i < rowAddresses.Count)
-                        addr = rowAddresses[i]; // fall back to positional
+                    {
+                        addr = rowAddresses[i]; // positional fallback only when neither UID nor Name was requested.
+                    }
                     else
+                    {
                         continue; // ran out of target rows
+                    }
                 }
 
                 if (_includeBaseStats)
                 {
                     // Class-shape offsets 11..17 = HP, STR, SKL, SPD, DEF, RES, CON.
+                    // Parse failures throw with row context (matches WF
+                    // sbyte.Parse-no-try behavior) — Copilot bot inline review.
                     for (uint o = 11; o <= 17; o++)
                     {
                         if (colIdx >= cols.Length) break;
-                        if (sbyte.TryParse(cols[colIdx].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out sbyte sv))
-                            rom.write_u8(addr + o, (uint)(byte)sv);
+                        rom.write_u8(addr + o, (uint)(byte)ParseStrictSbyte(cols[colIdx].Trim(), csvLine, "base stat"));
                         colIdx++;
                     }
                 }
@@ -217,18 +248,9 @@ namespace FEBuilderGBA.Avalonia.Services
                     for (uint o = 27; o <= 33; o++)
                     {
                         if (colIdx >= cols.Length) break;
-                        // Accept both invariant culture ("0.25") AND the current
-                        // culture ("0,25" on comma-decimal locales). WF CsvManager
-                        // exports floats via the current culture, so a CSV
-                        // produced on a comma-decimal locale (e.g. de-DE) must
-                        // still import cleanly here. Try invariant first (the
-                        // explicit format this Avalonia port uses), then fall
-                        // back to current culture. Copilot bot inline review.
-                        if (TryParseFloatTolerant(cols[colIdx].Trim(), out float fv))
-                        {
-                            sbyte sv = (sbyte)Math.Round(fv * divisor);
-                            rom.write_u8(addr + o, (uint)(byte)sv);
-                        }
+                        float fv = ParseStrictFloat(cols[colIdx].Trim(), csvLine, "growth");
+                        sbyte sv = (sbyte)Math.Round(fv * divisor);
+                        rom.write_u8(addr + o, (uint)(byte)sv);
                         colIdx++;
                     }
                 }
@@ -239,8 +261,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     for (uint o = 44; o <= 51; o++)
                     {
                         if (colIdx >= cols.Length) break;
-                        if (sbyte.TryParse(cols[colIdx].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out sbyte sv))
-                            rom.write_u8(addr + o, (uint)(byte)sv);
+                        rom.write_u8(addr + o, (uint)(byte)ParseStrictSbyte(cols[colIdx].Trim(), csvLine, "weapon level"));
                         colIdx++;
                     }
                 }
@@ -265,6 +286,34 @@ namespace FEBuilderGBA.Avalonia.Services
             if (float.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out result)) return true;
             if (float.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out result)) return true;
             return false;
+        }
+
+        /// <summary>
+        /// Parse an sbyte cell strictly: throw <see cref="FormatException"/>
+        /// with CSV line/field context when the value is unparseable. Matches
+        /// WF <c>CsvManager</c>'s use of <c>sbyte.Parse</c> (no try) so a
+        /// malformed import aborts rather than silently writing wrong bytes.
+        /// Copilot bot inline review on PR #570.
+        /// </summary>
+        static sbyte ParseStrictSbyte(string s, int csvLine, string fieldKind)
+        {
+            if (sbyte.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out sbyte sv)) return sv;
+            throw new FormatException(
+                $"ClassCsvManager: invalid {fieldKind} value '{s}' at CSV line {csvLine}. Aborting import.");
+        }
+
+        /// <summary>
+        /// Parse a float cell strictly: throw <see cref="FormatException"/>
+        /// with CSV line/field context when the value is unparseable. Uses
+        /// <see cref="TryParseFloatTolerant"/> so both invariant- and
+        /// current-culture decimal separators are accepted. Copilot bot
+        /// inline review on PR #570.
+        /// </summary>
+        static float ParseStrictFloat(string s, int csvLine, string fieldKind)
+        {
+            if (TryParseFloatTolerant(s, out float fv)) return fv;
+            throw new FormatException(
+                $"ClassCsvManager: invalid {fieldKind} value '{s}' at CSV line {csvLine}. Aborting import.");
         }
 
         string BuildHeader()
