@@ -9,6 +9,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
