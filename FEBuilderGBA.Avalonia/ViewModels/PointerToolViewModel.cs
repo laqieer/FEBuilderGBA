@@ -34,6 +34,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         //   ERROR_ZERO1   ERROR_VERYFAR1   (direct match)
         //   ERROR_ZERO3   ERROR_VERYFAR3   (LDR match)
         // The original AV VM collapsed these into 2 globals; v2 mirrors WF.
+        // All four stay false until a real cross-ROM match is computed — the
+        // earlier implementation incorrectly raised them from current-ROM
+        // state, which produced false positives unrelated to "direct match".
         bool _hasZeroAtDirect;
         bool _hasVeryFarAtDirect;
         bool _hasZeroAtLdr;
@@ -50,7 +53,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string AddressInput { get => _addressInput; set => SetField(ref _addressInput, value); }
         /// <summary>Address value as a GBA pointer (+ 0x08000000).</summary>
         public string PointerValue { get => _pointerValue; set => SetField(ref _pointerValue, value); }
-        /// <summary>Little-endian representation of the 4 bytes at the address.</summary>
+        /// <summary>
+        /// Byte-swapped GBA pointer at the address, formatted as a single
+        /// hex value (e.g. <c>0x45230108</c> for the pointer
+        /// <c>0x08012345</c>). Matches WF
+        /// <c>PointerToolForm.SearchCurrentROM</c> which stores the
+        /// little-endian representation as a uint via
+        /// <c>SetAddressText(this.LittleEndian, littleendian)</c>, where
+        /// <c>littleendian</c> is the byte-swapped pointer. Avalonia
+        /// previously rendered "AA BB CC DD" spaced bytes; the spaced
+        /// format broke the double-click navigation (parser couldn't lift
+        /// a uint out of it). The single-hex format matches WF and parses
+        /// cleanly for the AddressDoubleClick handler.
+        /// </summary>
         public string LittleEndianValue { get => _littleEndianValue; set => SetField(ref _littleEndianValue, value); }
         /// <summary>First pointer reference to this address found in ROM.</summary>
         public string FirstReference { get => _firstReference; set => SetField(ref _firstReference, value); }
@@ -102,9 +117,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             address = 0;
             string text = (AddressInput ?? "").Trim();
+            if (text.Length == 0) return false;
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 text = text.Substring(2);
-            return uint.TryParse(text, NumberStyles.HexNumber, null, out address);
+            return uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out address);
         }
 
         /// <summary>Run pointer search: populate PointerValue, LittleEndianValue, DataAddress, and SearchResults.</summary>
@@ -123,17 +139,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // Compute pointer and little-endian representations
-            PointerValue = $"0x{(addr + 0x08000000):X08}";
+            // Compute pointer and little-endian representations. Mirrors
+            // WF `PointerToolForm.SearchCurrentROM`:
+            //   pointer      = U.toPointer(address)
+            //   littleendian = ((pointer >> 24) & 0xFF)
+            //                | (((pointer >> 16) & 0xFF) << 8)
+            //                | (((pointer >> 8 ) & 0xFF) << 16)
+            //                | (((pointer      ) & 0xFF) << 24)
+            // and is rendered as a single uint via SetAddressText.
+            uint pointer = addr + 0x08000000;
+            PointerValue = $"0x{pointer:X08}";
+            uint littleEndian =
+                  ((pointer >> 24) & 0xFFu)
+                | (((pointer >> 16) & 0xFFu) << 8)
+                | (((pointer >> 8) & 0xFFu) << 16)
+                | (((pointer) & 0xFFu) << 24);
+            LittleEndianValue = $"0x{littleEndian:X08}";
+
             if (addr + 3 < (uint)rom.Data.Length)
             {
                 uint val = rom.u32(addr);
-                byte b0 = (byte)(val & 0xFF);
-                byte b1 = (byte)((val >> 8) & 0xFF);
-                byte b2 = (byte)((val >> 16) & 0xFF);
-                byte b3 = (byte)((val >> 24) & 0xFF);
-                LittleEndianValue = $"{b0:X02} {b1:X02} {b2:X02} {b3:X02}";
-
                 // If the value at address looks like a pointer, show target
                 if (val >= 0x08000000 && val < 0x0A000000)
                     DataAddress = $"0x{(val - 0x08000000):X08}";
@@ -162,23 +187,88 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // Per-result warnings — mirrors WF ERROR_ZERO* / ERROR_VERYFAR*.
-            // The direct-match group looks at the source address (the one
-            // typed in by the user). The LDR group is populated only when
-            // a real other-ROM comparison has run (deferred to follow-up).
-            bool directZero = addr + 3 < (uint)rom.Data.Length && rom.u32(addr) == 0;
-            bool directFar = addr > (uint)(rom.Data.Length * 3 / 4);
-            // Only show the direct warnings when an other-ROM match has been
-            // recorded (mirrors WF which only renders the labels after
-            // OtherROMAddress2 is populated). Without an other-ROM context
-            // both warnings stay false.
-            bool hasOther = _otherRomData != null && _otherRomData.Length > 0;
-            HasZeroAtDirect = hasOther && directZero;
-            HasVeryFarAtDirect = hasOther && directFar;
-            // LDR warnings — the LDR comparison path is not yet implemented
-            // in AV (deferred to a follow-up that ports WF FindOtherROMDataWithLDR).
-            // Defaulting to false here so the labels stay hidden.
-            HasZeroAtLdr = false;
-            HasVeryFarAtLdr = false;
+            // WF only renders the labels after the OtherROMAddress / LDR
+            // match phase has populated a real cross-ROM match address; the
+            // checks evaluate THAT address (not the user-typed source).
+            //
+            // The full cross-ROM match path (FindOtherROMData / WithLDR) is
+            // deferred to a follow-up issue. Until that path lands, the
+            // warnings stay hidden: a half-implemented check that flags
+            // "addr > 3/4 of ROM size" on the source address (as previously)
+            // is misleading — it has nothing to do with whether a direct
+            // match exists in the other ROM.
+            //
+            // When OtherRomAddress / OtherRomLdrAddress become populated, we
+            // evaluate the warning against THAT address (mirroring WF's
+            // ERROR_ZERO1 = (rom.u32(matchAddr) == 0) and ERROR_VERYFAR1 =
+            // (matchAddr > rom.Data.Length * 3 / 4) rules).
+            HasZeroAtDirect = EvaluateDirectWarning(out bool directFar, isZero: true);
+            HasVeryFarAtDirect = directFar;
+            HasZeroAtLdr = EvaluateLdrWarning(out bool ldrFar, isZero: true);
+            HasVeryFarAtLdr = ldrFar;
+        }
+
+        /// <summary>
+        /// Compute the per-result direct-match warnings against the
+        /// <see cref="OtherRomAddress"/> field if it has been populated by a
+        /// successful cross-ROM match. Mirrors WF's check semantics:
+        ///   ERROR_ZERO1   = (rom.u32(matchAddr) == 0)
+        ///   ERROR_VERYFAR1 = (matchAddr > rom.Data.Length * 3 / 4)
+        /// where <c>matchAddr</c> is the address found in the OTHER ROM.
+        /// Returns <c>false</c> for both checks when no cross-ROM match has
+        /// been recorded — this is the explicit fix for the Copilot review
+        /// point about false-positive warnings.
+        /// </summary>
+        bool EvaluateDirectWarning(out bool isFar, bool isZero)
+        {
+            isFar = false;
+            // No other ROM loaded -> no direct match yet -> no warning.
+            if (_otherRomData == null || _otherRomData.Length == 0) return false;
+            // No OtherRomAddress recorded -> the cross-ROM match path didn't
+            // produce a hit -> no warning to display.
+            if (!TryParseHexAddress(OtherRomAddress, out uint matchAddr)) return false;
+            // Evaluate against the OTHER ROM bytes, mirroring WF.
+            if (matchAddr + 3 >= (uint)_otherRomData.Length) return false;
+            bool zero = U32Read(_otherRomData, matchAddr) == 0;
+            isFar = matchAddr > (uint)(_otherRomData.Length * 3 / 4);
+            return isZero ? zero : isFar;
+        }
+
+        /// <summary>
+        /// LDR-tracked variant of <see cref="EvaluateDirectWarning"/>.
+        /// Evaluates against <see cref="OtherRomLdrAddress"/>. Stays false
+        /// until the LDR-match path is implemented in a follow-up; the new
+        /// guard is `OtherRomLdrAddress` populated AND the address is
+        /// in-bounds for the loaded other-ROM bytes.
+        /// </summary>
+        bool EvaluateLdrWarning(out bool isFar, bool isZero)
+        {
+            isFar = false;
+            if (_otherRomData == null || _otherRomData.Length == 0) return false;
+            if (!TryParseHexAddress(OtherRomLdrAddress, out uint matchAddr)) return false;
+            if (matchAddr + 3 >= (uint)_otherRomData.Length) return false;
+            bool zero = U32Read(_otherRomData, matchAddr) == 0;
+            isFar = matchAddr > (uint)(_otherRomData.Length * 3 / 4);
+            return isZero ? zero : isFar;
+        }
+
+        static bool TryParseHexAddress(string raw, out uint val)
+        {
+            val = 0;
+            string text = (raw ?? "").Trim();
+            if (text.Length == 0) return false;
+            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                text = text.Substring(2);
+            return uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out val);
+        }
+
+        static uint U32Read(byte[] data, uint offset)
+        {
+            if (offset + 3 >= (uint)data.Length) return 0;
+            return data[offset]
+                 | ((uint)data[offset + 1] << 8)
+                 | ((uint)data[offset + 2] << 16)
+                 | ((uint)data[offset + 3] << 24);
         }
 
         /// <summary>Search the ROM for all 4-byte-aligned pointer references to the given address.</summary>
@@ -225,7 +315,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             string targetText = (WriteTargetInput ?? "").Trim();
             if (targetText.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 targetText = targetText.Substring(2);
-            if (!uint.TryParse(targetText, NumberStyles.HexNumber, null, out uint targetOffset))
+            if (targetText.Length == 0 ||
+                !uint.TryParse(targetText, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint targetOffset))
             {
                 SearchResults = "Write failed: invalid target address.";
                 return;

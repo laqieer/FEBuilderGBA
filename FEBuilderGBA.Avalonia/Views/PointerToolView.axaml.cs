@@ -98,6 +98,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Write button — invoke WritePointerValue inside an undo scope so
         /// the operation is undoable. Mirrors WF, which writes via the
         /// global ROM with the Undo object held by the parent form.
+        /// On exception, the scope is rolled back and the failure logged +
+        /// surfaced to the user via <see cref="CoreState.Services"/>; the
+        /// handler does NOT rethrow (rethrowing on the UI thread crashes
+        /// the Avalonia app, which is the regression Copilot review point 6
+        /// asked us to fix).
         /// </summary>
         void Write_Click(object? sender, RoutedEventArgs e)
         {
@@ -109,10 +114,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Commit();
                 _vm.MarkClean();
             }
-            catch
+            catch (Exception ex)
             {
                 _undoService.Rollback();
-                throw;
+                Log.Error("PointerToolView.Write_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError(
+                    $"Write failed: {ex.Message}");
+                // Do not rethrow — the UI thread should keep running.
             }
         }
 

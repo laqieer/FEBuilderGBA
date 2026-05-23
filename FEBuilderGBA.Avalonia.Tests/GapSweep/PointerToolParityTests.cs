@@ -344,6 +344,143 @@ public class PointerToolParityTests
         }
     }
 
+    [Fact]
+    public void ViewModel_LittleEndianValue_IsSingleHexUint_NotSpacedBytes()
+    {
+        // Copilot bot review point 7: WF stores LittleEndian as a single
+        // uint hex value (byte-swapped pointer). The previous AV impl used
+        // "AA BB CC DD" spaced bytes, which the AddressDoubleClick parser
+        // could not lift back into a uint. Mirror WF: address 0x100 →
+        // pointer 0x08000100 → byte-swapped 0x00010008.
+        var vm = new PointerToolViewModel();
+        ROM rom = MakeSyntheticFe8uRom();
+        ROM? prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            vm.AddressInput = "0x100";
+            vm.RunSearch();
+            // Pointer is 0x08000100; byte-swap is 0x00010008.
+            Assert.Equal("0x00010008", vm.LittleEndianValue);
+            // The format MUST be a single hex value (no spaces) so the
+            // AddressDoubleClick parser can lift it back into a uint.
+            Assert.DoesNotContain(" ", vm.LittleEndianValue);
+        }
+        finally
+        {
+            CoreState.ROM = prev;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_DirectWarnings_StayHiddenWithoutOtherRomMatch()
+    {
+        // Copilot bot review point 3: the direct-match warnings used to fire
+        // from the CURRENT-ROM source address (e.g. addr > 3/4 of ROM size),
+        // which produced false positives whenever any other-ROM bytes were
+        // loaded — even when no cross-ROM match had been computed. The new
+        // semantics only raise the warning when OtherRomAddress is populated.
+        var vm = new PointerToolViewModel();
+        ROM rom = MakeSyntheticFe8uRom();
+        ROM? prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            // Pick a "very far" source address (last 1/4 of the ROM) that
+            // would have triggered the old false-positive logic.
+            vm.AddressInput = "0x100E000"; // 0x100E000 > 0x1100000 * 3/4.
+            vm.RunSearch();
+            // No cross-ROM match has been computed; warnings stay false.
+            Assert.False(vm.HasVeryFarAtDirect,
+                "HasVeryFarAtDirect must stay false until OtherRomAddress is populated");
+            Assert.False(vm.HasZeroAtDirect,
+                "HasZeroAtDirect must stay false until OtherRomAddress is populated");
+        }
+        finally
+        {
+            CoreState.ROM = prev;
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // View: WriteTargetInput must have a bound control in the AXAML so the
+    // Write button can succeed (Copilot bot review point 1).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_HasBoundControlForWriteTargetInput()
+    {
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "PointerToolView.axaml");
+        Assert.True(File.Exists(axamlPath), $"AXAML not found at {axamlPath}");
+        string xaml = File.ReadAllText(axamlPath);
+        // There must be a TextBox bound to WriteTargetInput somewhere in
+        // the view — otherwise the Write button cannot succeed because the
+        // VM has no way to receive the target offset.
+        Assert.Matches(@"\{Binding\s+WriteTargetInput", xaml);
+        Assert.Matches(@"<TextBox[^>]*WriteTargetInput", xaml);
+    }
+
+    [Fact]
+    public void View_WriteHandler_DoesNotRethrowOnFailure()
+    {
+        // Copilot bot review point 6: Write_Click used to rethrow the
+        // exception after Rollback, which crashes the Avalonia UI thread.
+        // The handler MUST log + report + return without rethrowing.
+        string repoRoot = FindRepoRoot();
+        string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "PointerToolView.axaml.cs");
+        string source = File.ReadAllText(viewCsPath);
+        // Find the Write_Click body and assert it contains a catch with
+        // logging/reporting but does NOT contain a bare `throw;` rethrow.
+        int sigIdx = source.IndexOf("void Write_Click", StringComparison.Ordinal);
+        Assert.True(sigIdx >= 0, "Write_Click handler not found");
+        int braceOpenIdx = source.IndexOf('{', sigIdx);
+        int depth = 1;
+        int i = braceOpenIdx + 1;
+        for (; i < source.Length && depth > 0; i++)
+        {
+            if (source[i] == '{') depth++;
+            else if (source[i] == '}') depth--;
+        }
+        string body = source.Substring(braceOpenIdx + 1, i - braceOpenIdx - 2);
+        // Must catch exceptions
+        Assert.Matches(@"catch\s*\(", body);
+        // Must NOT rethrow with a bare `throw;` — the regex matches the
+        // exact bare-rethrow statement, not `throw new ...` patterns.
+        Assert.False(System.Text.RegularExpressions.Regex.IsMatch(
+            body, @"\bthrow\s*;"),
+            "Write_Click must not bare-rethrow after Rollback (crashes UI thread)");
+        // Should log the failure for diagnostics
+        Assert.Matches(@"Log\.(Error|Warn)", body);
+    }
+
+    [Fact]
+    public void CopyToView_HexButton_HasSafetyOffsetGuard()
+    {
+        // Copilot bot review point 5: HexButton_Click must enforce
+        // U.isSafetyOffset(U.toOffset(addr)) before navigating, mirroring
+        // the WF gate. Without it, invalid input routes to offset 0.
+        string repoRoot = FindRepoRoot();
+        string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "PointerToolCopyToView.axaml.cs");
+        string source = File.ReadAllText(viewCsPath);
+        int sigIdx = source.IndexOf("void HexButton_Click", StringComparison.Ordinal);
+        Assert.True(sigIdx >= 0, "HexButton_Click handler not found");
+        int braceOpenIdx = source.IndexOf('{', sigIdx);
+        int depth = 1;
+        int i = braceOpenIdx + 1;
+        for (; i < source.Length && depth > 0; i++)
+        {
+            if (source[i] == '{') depth++;
+            else if (source[i] == '}') depth--;
+        }
+        string body = source.Substring(braceOpenIdx + 1, i - braceOpenIdx - 2);
+        Assert.Matches(@"TryGetOffsetForHexJump", body);
+        Assert.Matches(@"U\.isSafetyOffset", body);
+    }
+
     // -----------------------------------------------------------------
     // Existing list-parity helper still maps the editor (regression guard).
     // -----------------------------------------------------------------
@@ -408,24 +545,60 @@ public class PointerToolParityTests
     }
 
     [Fact]
-    public void PointerToolCopyToViewModel_GetAsClipboardText_NormalizesPlainHex()
+    public void PointerToolCopyToViewModel_GetAsClipboardText_ReturnsVerbatim()
     {
+        // Copilot bot review (PR #510): WF copies ValueTextBox.Text verbatim
+        // (no normalisation). Avalonia must preserve the same parity so the
+        // clipboard payload matches what the user sees in the textbox.
         var vm = new PointerToolCopyToViewModel
         {
-            // The user pasted a plain hex string with no 0x prefix.
             SourceAddress = "ABCDEF"
         };
-        // Normaliser turns it into the 0x-prefixed canonical form.
-        Assert.Equal("0x00ABCDEF", vm.GetAsClipboardText());
+        Assert.Equal("ABCDEF", vm.GetAsClipboardText());
+
+        // With a 0x prefix, the prefix is preserved verbatim too.
+        vm.SourceAddress = "0x12345";
+        Assert.Equal("0x12345", vm.GetAsClipboardText());
+
+        // Whitespace is trimmed (matches WF U.ToHexString behaviour where
+        // the textbox value is never indented). Surrounding whitespace
+        // breaks clipboard consumers like the no$gba debugger.
+        vm.SourceAddress = "  0xABCD  ";
+        Assert.Equal("0xABCD", vm.GetAsClipboardText());
     }
 
     [Fact]
-    public void PointerToolCopyToViewModel_GetOffsetForHexJump_ReturnsOffsetForm()
+    public void PointerToolCopyToViewModel_TryGetOffsetForHexJump_FailsOnInvalidInput()
     {
-        var vm = new PointerToolCopyToViewModel();
+        // Copilot bot review point 2: ParseAddress used to silently return
+        // 0 on parse failure, causing Hex jump to navigate to offset 0. The
+        // new TryGet API surfaces failure so the view can refuse the action.
+        var vm = new PointerToolCopyToViewModel
+        {
+            SourceAddress = "not-a-hex-value"
+        };
+        Assert.False(vm.TryGetOffsetForHexJump(out uint offset));
+        Assert.Equal(0u, offset);
+
         vm.Init(0x12345u);
+        Assert.True(vm.TryGetOffsetForHexJump(out offset));
         // U.toOffset(0x12345) = 0x12345 (offset already < ROM base).
-        Assert.Equal(0x12345u, vm.GetOffsetForHexJump());
+        Assert.Equal(0x12345u, offset);
+    }
+
+    [Fact]
+    public void PointerToolCopyToViewModel_GetAsPointer_ReturnsNullOnInvalidInput()
+    {
+        // Copilot bot review point 2: copy actions used to silently render
+        // 0x08000000 on invalid input. The new API returns null so the view
+        // can suppress the copy / show an error instead.
+        var vm = new PointerToolCopyToViewModel
+        {
+            SourceAddress = "invalid"
+        };
+        Assert.Null(vm.GetAsPointer());
+        Assert.Null(vm.GetAsLittleEndian());
+        Assert.Null(vm.GetAsNoDollGBARadBreakPoint());
     }
 
     // -----------------------------------------------------------------

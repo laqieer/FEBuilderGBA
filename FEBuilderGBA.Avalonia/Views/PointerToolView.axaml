@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.PointerToolView"
-        Title="Pointer Tool" Width="1050" Height="720"
+        Title="Pointer Tool" Width="1050" Height="780"
         WindowStartupLocation="CenterOwner"
         SizeToContent="WidthAndHeight">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
@@ -28,6 +28,17 @@
                   ToolTip.Tip="Write pointer value at the address (WriteTarget = ROM offset of target)"
                   Click="Write_Click" />
         </StackPanel>
+        <!-- Write target input (bound to WriteTargetInput; required by Write button). -->
+        <!-- Hidden by default in WF — but AV surfaces it explicitly so the    -->
+        <!-- Write action has a concrete UI source for its target offset.    -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
+            <TextBlock Text="Write Target Offset" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBox AutomationProperties.AutomationId="PointerTool_WriteTarget_Input" Name="WriteTargetTextBox" Width="200" Watermark="e.g. 0x100"
+                   Text="{Binding WriteTargetInput, Mode=TwoWay}"
+                   ToolTip.Tip="ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix." />
+        </StackPanel>
         <!-- Pointer value -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
@@ -36,7 +47,7 @@
           <TextBox AutomationProperties.AutomationId="PointerTool_TextBox1_Input" Name="PointerTextBox" Width="200" IsReadOnly="True" Text="{Binding PointerValue}"
                    DoubleTapped="AddressDoubleClick" />
         </StackPanel>
-        <!-- Little Endian -->
+        <!-- Little Endian (single hex value, byte-swapped pointer; matches WF) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="30">
             <TextBlock Text="Little Endian" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -84,11 +95,14 @@
           <TextBox AutomationProperties.AutomationId="PointerTool_TextBox6_Input" Name="OtherRomRefTextBox" Width="200" IsReadOnly="True" Text="{Binding OtherRomRefPointer}"
                    DoubleTapped="AddressDoubleClick" />
         </StackPanel>
-        <!-- Warning indicators for direct match (mirrors WF ERROR_ZERO1 / ERROR_VERYFAR1) -->
-        <TextBlock Name="ZeroAtDirectWarning" Text="Warning: Zero region (direct match)"
+        <!-- Warning indicators for direct match (mirrors WF ERROR_ZERO1 / ERROR_VERYFAR1). -->
+        <!-- Hidden unless a cross-ROM direct match is actually populated.                  -->
+        <TextBlock AutomationProperties.AutomationId="PointerTool_ZeroAtDirectWarning_Label"
+                   Name="ZeroAtDirectWarning" Text="Warning: Zero region (direct match)"
                    Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
                    IsVisible="{Binding HasZeroAtDirect}" />
-        <TextBlock Name="VeryFarAtDirectWarning" Text="Warning: Very far from origin (direct match)"
+        <TextBlock AutomationProperties.AutomationId="PointerTool_VeryFarAtDirectWarning_Label"
+                   Name="VeryFarAtDirectWarning" Text="Warning: Very far from origin (direct match)"
                    Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
                    IsVisible="{Binding HasVeryFarAtDirect}" />
         <!-- LDR-tracked match address (mirrors WF OtherROMAddressWithLDR) -->
@@ -109,10 +123,12 @@
                    DoubleTapped="AddressDoubleClick" />
         </StackPanel>
         <!-- Warning indicators for LDR match (mirrors WF ERROR_ZERO3 / ERROR_VERYFAR3) -->
-        <TextBlock Name="ZeroAtLdrWarning" Text="Warning: Zero region (LDR match)"
+        <TextBlock AutomationProperties.AutomationId="PointerTool_ZeroAtLdrWarning_Label"
+                   Name="ZeroAtLdrWarning" Text="Warning: Zero region (LDR match)"
                    Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
                    IsVisible="{Binding HasZeroAtLdr}" />
-        <TextBlock Name="VeryFarAtLdrWarning" Text="Warning: Very far from origin (LDR match)"
+        <TextBlock AutomationProperties.AutomationId="PointerTool_VeryFarAtLdrWarning_Label"
+                   Name="VeryFarAtLdrWarning" Text="Warning: Very far from origin (LDR match)"
                    Foreground="Red" FontWeight="Bold" Margin="190,0,0,0"
                    IsVisible="{Binding HasVeryFarAtLdr}" />
         <!-- Use ASM MAP checkbox -->

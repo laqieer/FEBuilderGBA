@@ -37,10 +37,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Get the source address formatted as a GBA pointer string
         /// (<c>0x08XXXXXX</c>). Mirrors WF
         /// <c>PointerToolCopyToForm.CopyPointer_Click</c>.
+        /// Returns <c>null</c> when <see cref="SourceAddress"/> cannot be parsed
+        /// — callers should suppress the copy operation in that case rather
+        /// than copying a misleading "0x08000000" silently.
         /// </summary>
-        public string GetAsPointer()
+        public string? GetAsPointer()
         {
-            uint val = ParseAddress(SourceAddress);
+            if (!TryParseSourceAddress(out uint val)) return null;
             uint pointer = U.toPointer(val);
             return $"0x{pointer:X08}";
         }
@@ -50,10 +53,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// returns the GBA pointer with its byte order reversed (this is what
         /// the WF impl actually copies — a 4-byte little-endian SWAP, not a
         /// space-separated byte string).
+        /// Returns <c>null</c> when the source address cannot be parsed.
         /// </summary>
-        public string GetAsLittleEndian()
+        public string? GetAsLittleEndian()
         {
-            uint val = ParseAddress(SourceAddress);
+            if (!TryParseSourceAddress(out uint val)) return null;
             uint pointer = U.toPointer(val);
             uint le = ((pointer & 0xFF) << 24)
                     | ((pointer & 0xFF00) << 8)
@@ -67,10 +71,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <c>PointerToolCopyToForm.CopyNoDollGBARadBreakPoint_Click</c>:
         /// returns the address formatted as a no$gba read-breakpoint
         /// expression <c>[0x08XXXXXX]?</c>.
+        /// Returns <c>null</c> when the source address cannot be parsed.
         /// </summary>
-        public string GetAsNoDollGBARadBreakPoint()
+        public string? GetAsNoDollGBARadBreakPoint()
         {
-            uint val = ParseAddress(SourceAddress);
+            if (!TryParseSourceAddress(out uint val)) return null;
             uint pointer = U.toPointer(val);
             return $"[0x{pointer:X08}]?";
         }
@@ -79,47 +84,75 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Get the source address as a raw hex string suitable for direct
         /// clipboard copy (mirrors WF
         /// <c>PointerToolCopyToForm.CopyClipboard_Click</c> which copies the
-        /// raw <c>ValueTextBox.Text</c>). Returns the trimmed, normalised
-        /// representation of <see cref="SourceAddress"/>.
+        /// raw <c>ValueTextBox.Text</c> verbatim — no normalisation). This
+        /// preserves user-typed formatting (e.g. "ABCDEF" stays as "ABCDEF",
+        /// not "0x00ABCDEF") for parity with the WinForms behaviour.
         /// </summary>
         public string GetAsClipboardText()
         {
-            string text = (SourceAddress ?? "").Trim();
-            if (string.IsNullOrEmpty(text))
-                return string.Empty;
-            // If the user typed plain hex (no 0x prefix), normalise to the
-            // 0xXXXXXXXX form so the clipboard receives a consistent format.
-            if (!text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                uint val = ParseAddress(text);
-                return $"0x{val:X08}";
-            }
-            return text;
+            // WF copies ValueTextBox.Text verbatim. We only trim outer
+            // whitespace; the underlying value (with or without the 0x
+            // prefix, leading zeros, casing) is preserved exactly as the
+            // user sees it in the textbox.
+            return (SourceAddress ?? string.Empty).Trim();
         }
 
         /// <summary>
-        /// Get the underlying address (offset form, no <c>0x08000000</c> base)
-        /// as a uint for callers that need to navigate to the Hex Editor.
-        /// Mirrors WF <c>PointerToolCopyToForm.HexButton_Click</c> which calls
+        /// Try to parse the underlying address into a ROM offset suitable for
+        /// navigating to the Hex Editor. Mirrors WF
+        /// <c>PointerToolCopyToForm.HexButton_Click</c> which calls
         /// <c>U.toOffset(this.Address)</c> before opening the editor.
+        /// Returns <c>false</c> (and <paramref name="offset"/> = 0) when the
+        /// source address cannot be parsed; callers must guard navigation.
+        /// </summary>
+        public bool TryGetOffsetForHexJump(out uint offset)
+        {
+            offset = 0;
+            if (!TryParseSourceAddress(out uint val)) return false;
+            // The input could already be either offset or pointer form;
+            // U.toOffset is idempotent for offsets.
+            offset = U.toOffset(val);
+            return true;
+        }
+
+        /// <summary>
+        /// Legacy accessor for tests that pre-date the nullable-result
+        /// refactor. Returns 0 when the address fails to parse — internal
+        /// callers should use <see cref="TryGetOffsetForHexJump"/> instead so
+        /// invalid input is detected rather than silently routed to offset 0.
         /// </summary>
         public uint GetOffsetForHexJump()
         {
-            uint val = ParseAddress(SourceAddress);
-            // The input could already be either offset or pointer form;
-            // U.toOffset is idempotent for offsets.
-            return U.toOffset(val);
+            return TryGetOffsetForHexJump(out uint offset) ? offset : 0;
         }
 
-        /// <summary>Parse a hex string into a uint. Returns 0 on failure.</summary>
-        static uint ParseAddress(string raw)
+        /// <summary>
+        /// Try to parse <see cref="SourceAddress"/> into a uint. Mirrors the
+        /// behaviour the rest of the VM relied on previously while returning
+        /// a boolean success indicator so callers can refuse the action
+        /// (rather than silently using 0). Public so the view code-behind
+        /// can disable the Hex button when the textbox is unparseable.
+        /// </summary>
+        public bool TryParseSourceAddress(out uint address)
         {
+            return TryParseAddress(SourceAddress, out address);
+        }
+
+        /// <summary>
+        /// Parse a hex string into a uint. Accepts an optional <c>0x</c>
+        /// prefix and tolerates surrounding whitespace. Returns <c>true</c>
+        /// only on a clean parse — failure callers should refuse the
+        /// operation rather than fall back to 0.
+        /// </summary>
+        public static bool TryParseAddress(string? raw, out uint address)
+        {
+            address = 0;
             string text = (raw ?? "").Trim();
+            if (text.Length == 0) return false;
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 text = text.Substring(2);
-            if (uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint val))
-                return val;
-            return 0;
+            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out address);
         }
     }
 }
