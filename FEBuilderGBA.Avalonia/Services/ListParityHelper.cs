@@ -513,6 +513,14 @@ namespace FEBuilderGBA.Avalonia.Services
             // under the BG256Color patch. Popup is a dialog (NoListEditor);
             // declare the WF↔AV form pair so JumpParityScanner can resolve it.
             { "ImageBGSelectPopupView", "ImageBGSelectPopupForm" },
+            // #420 — EventUnitForm jumps to the New Allocation modal dialog
+            // (sets unit count to allocate) and the Item Drop Yes/No/Cancel
+            // dialog. Both Avalonia views are stubs in ContextDependentEditors
+            // (sub-editors of EventUnit*View), so the EditorMap layer doesn't
+            // seed them. Declare the WF↔AV form pair so JumpParityScanner can
+            // resolve the cross-ref and the navigation manifest reaches Match.
+            { "EventUnitNewAllocView", "EventUnitNewAllocForm" },
+            { "EventUnitItemDropView", "EventUnitItemDropForm" },
         };
 
         /// <summary>

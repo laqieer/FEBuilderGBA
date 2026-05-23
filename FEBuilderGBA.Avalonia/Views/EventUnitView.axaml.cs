@@ -24,6 +24,8 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Event Unit Placement";
         public bool IsLoaded => _vm.IsLoaded;
 
+        bool _suppressUiSync;
+
         public EventUnitView()
         {
             InitializeComponent();
@@ -34,6 +36,37 @@ namespace FEBuilderGBA.Avalonia.Views
             MapListBox.SelectionChanged += MapListBox_SelectionChanged;
             GroupListBox.SelectionChanged += GroupListBox_SelectionChanged;
             UnitListBox.SelectionChanged += UnitListBox_SelectionChanged;
+
+            // Populate combos with R._-translated entries so ja/zh users
+            // see localised labels.
+            AllegianceCombo.ItemsSource = new[]
+            {
+                R._("Player"),
+                R._("Ally"),
+                R._("Enemy"),
+                R._("Disappear"),
+            };
+            GrowthRateCombo.ItemsSource = new[]
+            {
+                R._("No Growth"),
+                R._("Class Dependent"),
+            };
+
+            // Wire B3 sub-field combos to live-update UnitInfoBox via the VM.
+            LVBox.ValueChanged += LVBox_ValueChanged;
+            AllegianceCombo.SelectionChanged += AllegianceCombo_SelectionChanged;
+            GrowthRateCombo.SelectionChanged += GrowthRateCombo_SelectionChanged;
+            // Wire the raw UnitInfoBox so that direct edits to the byte
+            // refresh the LV/Allegiance/Growth Rate sub-controls.
+            UnitInfoBox.ValueChanged += UnitInfoBox_ValueChanged;
+
+            // Wire W4 (UnitPos) sub-field controls. BeforeX/BeforeY/
+            // ItemDrop edits recompose the UnitGrowthBox raw word, and
+            // direct edits to UnitGrowthBox refresh the sub-controls.
+            BeforeXBox.ValueChanged += BeforeXBox_ValueChanged;
+            BeforeYBox.ValueChanged += BeforeYBox_ValueChanged;
+            ItemDropCheck.IsCheckedChanged += ItemDropCheck_IsCheckedChanged;
+            UnitGrowthBox.ValueChanged += UnitGrowthBox_ValueChanged;
 
             Opened += (_, _) => LoadMapList();
         }
@@ -46,6 +79,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _mapDisplayItems.Clear();
                 foreach (var item in _mapItems)
                     _mapDisplayItems.Add(item.name);
+
+                // Initial Read Count = map count (will be overwritten when
+                // a unit-group list loads — see LoadUnitsFromAddress).
+                // The map count is the baseline shown on first load before
+                // any group is selected.
+                ReadCountBox.Value = _mapItems.Count;
 
                 if (_mapItems.Count > 0)
                     MapListBox.SelectedIndex = 0;
@@ -90,6 +129,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (idx < 0 || idx >= _groupItems.Count) return;
 
                 uint groupAddr = _groupItems[idx].addr;
+                TopAddrBox.Text = string.Format("0x{0:X08}", groupAddr);
                 LoadUnitsFromAddress(groupAddr);
             }
             catch (Exception ex)
@@ -104,6 +144,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _unitDisplayItems.Clear();
             foreach (var item in _unitItems)
                 _unitDisplayItems.Add(item.name);
+
+            // Update Read Count to reflect the currently-loaded unit list
+            // (Copilot bot review on PR #540 — the WF top read-config bar
+            // shows the count of the active list, not the map count).
+            ReadCountBox.Value = _unitItems.Count;
 
             ClearDetail();
 
@@ -138,7 +183,19 @@ namespace FEBuilderGBA.Avalonia.Views
                     Log.Error("EventUnitView: Invalid address {0}", text);
                     return;
                 }
-                LoadUnitsFromAddress(addr);
+                TopAddrBox.Text = string.Format("0x{0:X08}", addr);
+                // Manual-load path: use LoadUnitListFromAddress so the VM
+                // clears SelectedMapId (otherwise BattleTalk/Haiku jumps
+                // and ExpandList resolve against a stale map selection —
+                // Copilot bot review round 3 on PR #540).
+                _unitItems = _vm.LoadUnitListFromAddress(addr);
+                _unitDisplayItems.Clear();
+                foreach (var item in _unitItems)
+                    _unitDisplayItems.Add(item.name);
+                ReadCountBox.Value = _unitItems.Count;
+                ClearDetail();
+                if (_unitItems.Count > 0)
+                    UnitListBox.SelectedIndex = 0;
             }
             catch (Exception ex)
             {
@@ -146,9 +203,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadMapList();
+        }
+
         void ClearDetail()
         {
             AddrLabel.Text = "";
+            SelectedAddrBox.Text = "";
             UnitNameLabel.Text = "";
             ClassNameLabel.Text = "";
             Item1NameLabel.Text = "";
@@ -159,39 +222,60 @@ namespace FEBuilderGBA.Avalonia.Views
             AI2DescLabel.Text = "";
             AI3DescLabel.Text = "";
             AI4DescLabel.Text = "";
+            ItemDropLabel.Text = "";
+            CommentBox.Text = "";
+            // Reset VM loaded state so Write_Click cannot commit changes
+            // against a stale CurrentAddr after the user moves to an empty
+            // group (Copilot bot review round 3 on PR #540: WriteEntry
+            // only guards CurrentAddr==0, so we must reset it here).
+            _vm.IsLoaded = false;
+            _vm.CurrentAddr = 0;
         }
 
         void UpdateUI()
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
-            UnitIDBox.Value = _vm.UnitID;
-            ClassIDBox.Value = _vm.ClassID;
-            LeaderUnitIDBox.Value = _vm.LeaderUnitID;
-            UnitInfoBox.Value = _vm.UnitInfo;
-            UnitGrowthBox.Value = _vm.UnitGrowth;
-            Reserved6Box.Value = _vm.Reserved6;
-            CoordCountBox.Value = _vm.CoordCount;
-            CoordPointerBox.Text = string.Format("0x{0:X08}", _vm.CoordPointer);
-            Item1Box.Value = _vm.Item1;
-            Item2Box.Value = _vm.Item2;
-            Item3Box.Value = _vm.Item3;
-            Item4Box.Value = _vm.Item4;
-            AI1PrimaryBox.Value = _vm.AI1Primary;
-            AI2SecondaryBox.Value = _vm.AI2Secondary;
-            AI3TargetRecoveryBox.Value = _vm.AI3TargetRecovery;
-            AI4RetreatBox.Value = _vm.AI4Retreat;
+            _suppressUiSync = true;
+            try
+            {
+                AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+                SelectedAddrBox.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+                UnitIDBox.Value = _vm.UnitID;
+                ClassIDBox.Value = _vm.ClassID;
+                LeaderUnitIDBox.Value = _vm.LeaderUnitID;
+                UnitInfoBox.Value = _vm.UnitInfo;
+                LVBox.Value = _vm.UnitInfoLV;
+                AllegianceCombo.SelectedIndex = (int)_vm.UnitInfoAllegiance;
+                GrowthRateCombo.SelectedIndex = (int)_vm.UnitInfoGrow;
+                UnitGrowthBox.Value = _vm.UnitGrowth;
+                BeforeXBox.Value = _vm.BeforeX;
+                BeforeYBox.Value = _vm.BeforeY;
+                ItemDropCheck.IsChecked = _vm.ItemDropFlag;
+                Reserved6Box.Value = _vm.Reserved6;
+                CoordCountBox.Value = _vm.CoordCount;
+                CoordPointerBox.Text = string.Format("0x{0:X08}", _vm.CoordPointer);
+                Item1Box.Value = _vm.Item1;
+                Item2Box.Value = _vm.Item2;
+                Item3Box.Value = _vm.Item3;
+                Item4Box.Value = _vm.Item4;
+                AI1PrimaryBox.Value = _vm.AI1Primary;
+                AI2SecondaryBox.Value = _vm.AI2Secondary;
+                AI3TargetRecoveryBox.Value = _vm.AI3TargetRecovery;
+                AI4RetreatBox.Value = _vm.AI4Retreat;
+                CommentBox.Text = _vm.Comment ?? "";
 
-            // Name labels
-            UnitNameLabel.Text = _vm.UnitName;
-            ClassNameLabel.Text = _vm.ClassName;
-            Item1NameLabel.Text = _vm.Item1Name;
-            Item2NameLabel.Text = _vm.Item2Name;
-            Item3NameLabel.Text = _vm.Item3Name;
-            Item4NameLabel.Text = _vm.Item4Name;
-            AI1DescLabel.Text = _vm.AI1Desc;
-            AI2DescLabel.Text = _vm.AI2Desc;
-            AI3DescLabel.Text = _vm.AI3Desc;
-            AI4DescLabel.Text = _vm.AI4Desc;
+                UnitNameLabel.Text = _vm.UnitName;
+                ClassNameLabel.Text = _vm.ClassName;
+                Item1NameLabel.Text = _vm.Item1Name;
+                Item2NameLabel.Text = _vm.Item2Name;
+                Item3NameLabel.Text = _vm.Item3Name;
+                Item4NameLabel.Text = _vm.Item4Name;
+                AI1DescLabel.Text = _vm.AI1Desc;
+                AI2DescLabel.Text = _vm.AI2Desc;
+                AI3DescLabel.Text = _vm.AI3Desc;
+                AI4DescLabel.Text = _vm.AI4Desc;
+                ItemDropLabel.Text = _vm.ItemDropDisplay;
+            }
+            finally { _suppressUiSync = false; }
         }
 
         void ReadFromUI()
@@ -212,6 +296,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.AI2Secondary = (uint)(AI2SecondaryBox.Value ?? 0);
             _vm.AI3TargetRecovery = (uint)(AI3TargetRecoveryBox.Value ?? 0);
             _vm.AI4Retreat = (uint)(AI4RetreatBox.Value ?? 0);
+            _vm.Comment = CommentBox.Text ?? "";
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -228,6 +313,295 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("EventUnitView.Write failed: {0}", ex.Message);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // B3 sub-field two-way sync (LV / Allegiance / Growth Rate <-> UnitInfo)
+        // ---------------------------------------------------------------
+
+        void LVBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.UnitInfoLV = (uint)(LVBox.Value ?? 0);
+                UnitInfoBox.Value = _vm.UnitInfo;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        void AllegianceCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            int idx = AllegianceCombo.SelectedIndex;
+            if (idx < 0) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.UnitInfoAllegiance = (uint)idx;
+                UnitInfoBox.Value = _vm.UnitInfo;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        void GrowthRateCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            int idx = GrowthRateCombo.SelectedIndex;
+            if (idx < 0) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.UnitInfoGrow = (uint)idx;
+                UnitInfoBox.Value = _vm.UnitInfo;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        void UnitInfoBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.UnitInfo = (uint)(UnitInfoBox.Value ?? 0);
+                LVBox.Value = _vm.UnitInfoLV;
+                AllegianceCombo.SelectedIndex = (int)_vm.UnitInfoAllegiance;
+                GrowthRateCombo.SelectedIndex = (int)_vm.UnitInfoGrow;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        // ---------------------------------------------------------------
+        // W4 sub-field two-way sync (BeforeX / BeforeY / ItemDrop <-> UnitGrowth)
+        // ---------------------------------------------------------------
+
+        void BeforeXBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.BeforeX = (uint)(BeforeXBox.Value ?? 0);
+                UnitGrowthBox.Value = _vm.UnitGrowth;
+                ItemDropLabel.Text = _vm.ItemDropDisplay;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        void BeforeYBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.BeforeY = (uint)(BeforeYBox.Value ?? 0);
+                UnitGrowthBox.Value = _vm.UnitGrowth;
+                ItemDropLabel.Text = _vm.ItemDropDisplay;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        void ItemDropCheck_IsCheckedChanged(object? sender, RoutedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.ItemDropFlag = ItemDropCheck.IsChecked == true;
+                UnitGrowthBox.Value = _vm.UnitGrowth;
+                ItemDropLabel.Text = _vm.ItemDropDisplay;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        void UnitGrowthBox_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            if (_suppressUiSync) return;
+            _suppressUiSync = true;
+            try
+            {
+                _vm.UnitGrowth = (uint)(UnitGrowthBox.Value ?? 0);
+                BeforeXBox.Value = _vm.BeforeX;
+                BeforeYBox.Value = _vm.BeforeY;
+                ItemDropCheck.IsChecked = _vm.ItemDropFlag;
+                ItemDropLabel.Text = _vm.ItemDropDisplay;
+            }
+            finally { _suppressUiSync = false; }
+        }
+
+        // ---------------------------------------------------------------
+        // Cross-editor jumps. Each click handler dispatches to the Core
+        // search helpers + opens the target Avalonia view with the resolved
+        // address (or pre-selected class id, for MonsterProbability).
+        // ---------------------------------------------------------------
+
+        void JumpBattleTalk_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint unitId = (uint)(UnitIDBox.Value ?? 0);
+                uint mapId = _vm.SelectedMapId;
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint hitAddr = MapEventUnitCore.FindBattleTalkFE8UnitIdAddress(rom, unitId, mapId);
+                if (hitAddr == 0)
+                {
+                    Log.Notify("EventUnitView.JumpBattleTalk_Click: no BattleTalk entry found for unit " + unitId.ToString());
+                    return;
+                }
+                WindowManager.Instance.Navigate<EventBattleTalkView>(hitAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.JumpBattleTalk_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpBattleBGM_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint unitId = (uint)(UnitIDBox.Value ?? 0);
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint hitAddr = MapEventUnitCore.FindBossBGMFE8UnitIdAddress(rom, unitId);
+                if (hitAddr == 0)
+                {
+                    Log.Notify("EventUnitView.JumpBattleBGM_Click: no BossBGM entry found for unit " + unitId.ToString());
+                    return;
+                }
+                WindowManager.Instance.Navigate<SoundBossBGMViewerView>(hitAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.JumpBattleBGM_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpHaiku_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint unitId = (uint)(UnitIDBox.Value ?? 0);
+                uint mapId = _vm.SelectedMapId;
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                uint hitAddr = MapEventUnitCore.FindHaikuFE8Address(rom, unitId, mapId);
+                if (hitAddr == 0)
+                {
+                    Log.Notify("EventUnitView.JumpHaiku_Click: no Haiku entry found for unit " + unitId.ToString());
+                    return;
+                }
+                WindowManager.Instance.Navigate<EventHaikuView>(hitAddr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.JumpHaiku_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpMonsterProb_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // WF: InputFormRef.JumpForm<MonsterProbabilityForm>((uint)this.B1.Value, "AddressList", this.B1)
+                // The class_id (B1) is used as the row index in MonsterProbability's
+                // AddressList for pre-selection. We open the viewer without
+                // an explicit address because the Avalonia equivalent does
+                // not currently expose row-index navigation (tracked as a
+                // known limitation — see PR body).
+                WindowManager.Instance.Open<MonsterProbabilityViewerView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.JumpMonsterProb_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void ItemDropDialog_Click(object? sender, RoutedEventArgs e)
+        {
+            // Open the existing Avalonia EventUnitItemDropView (UX-only
+            // launcher). The canonical Item Drop state is the ItemDropCheck
+            // bound to W4 ext bit 0x2; this dialog mirrors WF's
+            // X_ITEMDROP_Click for users who prefer the modal Yes/No flow.
+            try
+            {
+                WindowManager.Instance.Open<EventUnitItemDropView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.ItemDropDialog_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // List allocation / expansion handlers (mirror WF NewButton +
+        // AddressListExpandsButton). Each opens a dedicated undo scope so
+        // partial failures roll back cleanly.
+        // ---------------------------------------------------------------
+
+        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            // Soft handoff to the existing Avalonia EventUnitNewAllocView
+            // stub — same precedent as FE7 PR #522. The full WF
+            // AllocEvent state machine is tracked as a follow-up to keep
+            // this gap-sweep PR focused on label/jump coverage.
+            Log.Notify("EventUnitView.NewAlloc_Click: opening Unit Allocation editor stub.");
+            try
+            {
+                WindowManager.Instance.Open<EventUnitNewAllocView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.NewAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void ExpandList_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_unitItems.Count == 0) return;
+                if (_vm.SelectedUnitListBase == 0)
+                {
+                    Log.Notify("EventUnitView.ExpandList_Click: no unit list selected yet.");
+                    return;
+                }
+
+                _undoService.Begin("Expand Event Unit List FE8");
+                try
+                {
+                    uint newBase = _vm.ExpandUnitListCurrent(addRows: 1);
+                    if (newBase == U.NOT_FOUND)
+                    {
+                        _undoService.Rollback();
+                        Log.Notify("EventUnitView.ExpandList_Click: expansion failed (slot not found or no free space).");
+                        return;
+                    }
+                    _undoService.Commit();
+                    Log.Notify("EventUnitView.ExpandList_Click: expanded to new base " + string.Format("0x{0:X08}", newBase));
+                    // Update the cached group entry so re-selecting this
+                    // group doesn't load the stale orphaned table.
+                    int gi = GroupListBox.SelectedIndex;
+                    if (gi >= 0 && gi < _groupItems.Count)
+                    {
+                        var old = _groupItems[gi];
+                        _groupItems[gi] = new AddrResult(newBase, old.name, old.tag);
+                    }
+                    LoadUnitsFromAddress(newBase);
+                }
+                catch
+                {
+                    _undoService.Rollback();
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventUnitView.ExpandList_Click failed: {0}", ex.Message);
             }
         }
 
