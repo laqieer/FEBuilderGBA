@@ -21398,8 +21398,8 @@ OBBGLeftToRight
 :Epilogue Text
 后日谈文本
 
-:Pair Flag
-组合标记
+:Story Flag
+剧情标记
 
 :Unit
 单位

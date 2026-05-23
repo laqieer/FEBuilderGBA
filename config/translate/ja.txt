@@ -7509,8 +7509,8 @@ UIDを含む
 :Epilogue Text
 その後テキスト
 
-:Pair Flag
-組フラグ
+:Story Flag
+ストーリーフラグ
 
 :Unit
 ユニット

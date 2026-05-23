@@ -554,26 +554,41 @@ public class EDParityTests
     // -----------------------------------------------------------------
 
     [Fact]
-    public void ViewModel_ExpandRetreatList_ReturnsSuccess()
+    public void ViewModel_ExpandRetreatList_LeavesNewRowVisibleAndEditable()
     {
+        // Copilot CLI PR #561 blocking finding: the new row must be visible
+        // to LoadRetreatList. Without SeedExpandedRow the zero-filled new
+        // row would hit the u32==0 terminator and the count would NOT
+        // grow.
         var rom = MakeMinimalFE8URom(out _, out _, out _);
         var prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom;
             var vm = new EDViewModel();
-            vm.LoadRetreatList();
+            var listBefore = vm.LoadRetreatList();
+            int countBefore = listBefore.Count;
             var result = vm.ExpandRetreatList();
             Assert.NotNull(result);
             Assert.True(result.Success,
                 $"ExpandRetreatList must succeed; got error: {result.Error}");
             Assert.True(result.NewCount > 0);
+
+            // The new row MUST survive the next LoadRetreatList scan.
+            var listAfter = vm.LoadRetreatList();
+            Assert.Equal(countBefore + 1, listAfter.Count);
+
+            // And it must be editable - load the new last row and verify
+            // CanWrite + addressable.
+            var lastRow = listAfter[listAfter.Count - 1];
+            vm.LoadRetreat(lastRow.addr);
+            Assert.True(vm.RetreatCanWrite);
         }
         finally { CoreState.ROM = prevRom; }
     }
 
     [Fact]
-    public void ViewModel_ExpandEpithetList_ReturnsSuccess()
+    public void ViewModel_ExpandEpithetList_LeavesNewRowVisibleAndEditable()
     {
         var rom = MakeMinimalFE8URom(out _, out _, out _);
         var prevRom = CoreState.ROM;
@@ -581,17 +596,28 @@ public class EDParityTests
         {
             CoreState.ROM = rom;
             var vm = new EDViewModel();
-            vm.LoadEpithetList();
+            var listBefore = vm.LoadEpithetList();
+            int countBefore = listBefore.Count;
             var result = vm.ExpandEpithetList();
             Assert.NotNull(result);
             Assert.True(result.Success,
                 $"ExpandEpithetList must succeed; got error: {result.Error}");
+
+            // The new row MUST survive the next LoadEpithetList scan.
+            // (u8(addr)==0 terminator would have hidden the zero-filled
+            // new row.)
+            var listAfter = vm.LoadEpithetList();
+            Assert.Equal(countBefore + 1, listAfter.Count);
+
+            var lastRow = listAfter[listAfter.Count - 1];
+            vm.LoadEpithet(lastRow.addr);
+            Assert.True(vm.EpithetCanWrite);
         }
         finally { CoreState.ROM = prevRom; }
     }
 
     [Fact]
-    public void ViewModel_ExpandEpilogueList_ReturnsSuccess()
+    public void ViewModel_ExpandEpilogueList_LeavesNewRowVisibleAndEditable()
     {
         var rom = MakeMinimalFE8URom(out _, out _, out _);
         var prevRom = CoreState.ROM;
@@ -600,11 +626,22 @@ public class EDParityTests
             CoreState.ROM = rom;
             var vm = new EDViewModel();
             vm.EpilogueRoute = EDViewModel.EpilogueRouteKind.Eirika;
-            vm.LoadEpilogueList();
+            var listBefore = vm.LoadEpilogueList();
+            int countBefore = listBefore.Count;
             var result = vm.ExpandEpilogueList();
             Assert.NotNull(result);
             Assert.True(result.Success,
                 $"ExpandEpilogueList must succeed; got error: {result.Error}");
+
+            // The new row MUST survive the next LoadEpilogueList scan.
+            // (u32==0 terminator would have hidden the zero-filled new
+            // row.)
+            var listAfter = vm.LoadEpilogueList();
+            Assert.Equal(countBefore + 1, listAfter.Count);
+
+            var lastRow = listAfter[listAfter.Count - 1];
+            vm.LoadEpilogue(lastRow.addr);
+            Assert.True(vm.EpilogueCanWrite);
         }
         finally { CoreState.ROM = prevRom; }
     }

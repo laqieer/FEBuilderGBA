@@ -227,7 +227,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptrAddr == 0)
                 return new DataExpansionCore.ExpandResult { Success = false, Error = "ed_1_pointer not set." };
             uint currentCount = (uint)LoadRetreatList().Count;
-            return DataExpansionCore.ExpandTable(rom, ptrAddr, RETREAT_BLOCK_SIZE, currentCount);
+            var result = DataExpansionCore.ExpandTable(rom, ptrAddr, RETREAT_BLOCK_SIZE, currentCount);
+            // Copilot CLI PR #561 review: the retreat iterator terminates on
+            // `u32 == 0`, so the zero-filled new row appended by
+            // DataExpansionCore.ExpandTable would be invisible to LoadRetreatList.
+            // Seed B0 (UnitId) with the first valid unit id from the cloned
+            // table so the new slot is editable; user can change it later.
+            if (result.Success)
+                SeedExpandedRow(rom, result.NewBaseAddress, currentCount, RETREAT_BLOCK_SIZE,
+                    seedB0FromCloneOrDefault: true);
+            return result;
         }
 
         // ============================================================
@@ -287,7 +296,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptrAddr == 0)
                 return new DataExpansionCore.ExpandResult { Success = false, Error = "ed_2_pointer not set." };
             uint currentCount = (uint)LoadEpithetList().Count;
-            return DataExpansionCore.ExpandTable(rom, ptrAddr, EPITHET_BLOCK_SIZE, currentCount);
+            var result = DataExpansionCore.ExpandTable(rom, ptrAddr, EPITHET_BLOCK_SIZE, currentCount);
+            // Epithet iterator terminates on `u8(addr) == 0` (W0 low byte).
+            // Seed B0 (low byte of W0 UnitId) with the first valid unit id.
+            if (result.Success)
+                SeedExpandedRow(rom, result.NewBaseAddress, currentCount, EPITHET_BLOCK_SIZE,
+                    seedB0FromCloneOrDefault: true);
+            return result;
         }
 
         // ============================================================
@@ -379,7 +394,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint currentCount = (uint)_epilogueList.Count;
             if (currentCount == 0)
                 currentCount = (uint)LoadEpilogueList().Count;
-            return DataExpansionCore.ExpandTable(rom, ptrAddr, EPILOGUE_BLOCK_SIZE, currentCount);
+            var result = DataExpansionCore.ExpandTable(rom, ptrAddr, EPILOGUE_BLOCK_SIZE, currentCount);
+            // Epilogue iterator terminates on `u32 == 0` (B0..B3 all zero).
+            // Seed B0 (PairFlag) = 1 (Solo) so the row is visible.
+            if (result.Success)
+                SeedExpandedRow(rom, result.NewBaseAddress, currentCount, EPILOGUE_BLOCK_SIZE,
+                    seedB0FromCloneOrDefault: false, defaultB0: 0x01);
+            return result;
         }
 
         // ============================================================
@@ -449,6 +470,60 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Private helpers
         // ============================================================
 
+        /// <summary>
+        /// After <see cref="DataExpansionCore.ExpandTable"/> appends a
+        /// zero-initialized entry, our ED iterators (which terminate on
+        /// either `u32 == 0` for retreat/epilogue or `u8 == 0` for epithet)
+        /// would treat the new row as the terminator and the user would
+        /// never see it. Seed B0 with a non-zero byte so the new row is
+        /// visible AND editable.
+        ///
+        /// When <paramref name="seedB0FromCloneOrDefault"/> is true, copy
+        /// B0 from the just-cloned previous-last entry (so the new slot
+        /// looks like the unit before it - same behavior as WF
+        /// `MoveToFreeSapceForm.CalcFillDataOnListExpamds`). When the
+        /// table is empty, fall back to <paramref name="defaultB0"/>.
+        ///
+        /// Copilot CLI PR #561 review: blocking finding "List Expand
+        /// controls are visible but do not leave a new editable row".
+        /// This helper closes the gap by seeding B0 so the new entry
+        /// survives the next LoadList scan.
+        /// </summary>
+        static void SeedExpandedRow(ROM rom, uint newBase, uint oldCount,
+            uint blockSize, bool seedB0FromCloneOrDefault, byte defaultB0 = 0x01)
+        {
+            if (rom == null) return;
+            uint newRowAddr = newBase + oldCount * blockSize;
+            if (newRowAddr + blockSize > (uint)rom.Data.Length) return;
+
+            byte seed = defaultB0;
+            if (seedB0FromCloneOrDefault && oldCount > 0)
+            {
+                // Clone the immediate predecessor's B0 byte so the new
+                // row inherits a real unit id. The ambient undo scope
+                // captures this write too because we route through
+                // `rom.write_u8` like DataExpansionCore does.
+                uint prevRowAddr = newBase + (oldCount - 1) * blockSize;
+                byte prevB0 = (byte)(rom.u8(prevRowAddr) & 0xFF);
+                if (prevB0 != 0) seed = prevB0;
+            }
+            // Guard against B0==0 sneaking through if the previous row's
+            // B0 was zero (shouldn't happen for valid tables, but be safe).
+            if (seed == 0) seed = defaultB0;
+            rom.write_u8(newRowAddr, seed);
+
+            // Also write a fresh terminator (all-zero block) AFTER the
+            // newly-seeded row so the next LoadList scan stops there
+            // instead of running into whatever follows in the relocated
+            // table region (usually 0xFF free-space, which never matches
+            // the u32==0 or u8==0 terminator predicates and would iterate
+            // up to the 0x200-row safety limit). The ambient undo scope
+            // captures these bytes too.
+            uint terminatorAddr = newRowAddr + blockSize;
+            if (terminatorAddr + blockSize <= (uint)rom.Data.Length)
+                rom.write_fill(terminatorAddr, blockSize, 0x00);
+        }
+
         /// <summary>Shared list iteration loop with caller-supplied
         /// termination predicate + name formatter. Matches the WF
         /// `InputFormRef` lambdas one-for-one.</summary>
@@ -461,7 +536,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || pointerAddr == 0) return result;
 
             uint baseAddr = rom.p32(pointerAddr);
-            if (!U.isSafetyOffset(baseAddr)) return result;
+            // Pass the ROM explicitly so we don't fall back to CoreState.ROM
+            // (which can be null in tests or point at a different ROM).
+            // Copilot PR #561 inline review #2.
+            if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
             // Same upper bound the prior VM used so a corrupt
             // terminator doesn't run away with the loop.

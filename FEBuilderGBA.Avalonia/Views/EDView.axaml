@@ -332,8 +332,12 @@
                                        PickRequested="EpilogueUnitId2_Pick"
                                        ValueChanged="EpilogueUnitId2_ValueChanged" />
 
-              <!-- B3: StoryFlag -->
-              <Label Grid.Row="3" Grid.Column="0" Content="Pair Flag" VerticalAlignment="Center" />
+              <!-- B3: StoryFlag - the WF designer's N2_J_3 label literally
+                   reads "00" because this byte's meaning isn't documented;
+                   we use "Story Flag" to match our internal naming
+                   (EpilogueStoryFlag), not "Pair Flag" which conflicts with
+                   the B0 Solo/Support pair-designation combo above. -->
+              <Label Grid.Row="3" Grid.Column="0" Content="Story Flag" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_StoryFlag_Input"
                              FormatString="0" Grid.Row="3" Grid.Column="1"
                              Name="Epilogue_StoryFlagBox"
