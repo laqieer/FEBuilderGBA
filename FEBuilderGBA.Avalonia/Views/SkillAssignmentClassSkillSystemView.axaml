@@ -200,16 +200,16 @@
                                  ValueChanged="LevelValueBox_ValueChanged" />
                 </Grid>
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_PlayerOnly_CheckBox"
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_PlayerOnly_Check"
                             Name="PlayerOnlyCheckBox" Content="PlayerOnly(LV+32)"
                             IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
-                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_EnemyOnly_CheckBox"
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_EnemyOnly_Check"
                             Name="EnemyOnlyCheckBox" Content="EnemyOnly(LV+64)"
                             IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
-                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_NormalHard_CheckBox"
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_NormalHard_Check"
                             Name="NormalHardCheckBox" Content="Normal&amp;Hard (LV+96)"
                             IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
-                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_HardOnly_CheckBox"
+                  <CheckBox AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_HardOnly_Check"
                             Name="HardOnlyCheckBox" Content="Hard only (LV+128)"
                             IsCheckedChanged="DifficultyCheckBox_CheckedChanged" />
                 </StackPanel>
