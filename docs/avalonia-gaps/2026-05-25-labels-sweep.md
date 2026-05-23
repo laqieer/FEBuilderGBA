@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T00:29:20Z"
-git-sha: aeaa67bd2
+generated: "2026-05-23T00:49:00Z"
+git-sha: d90805bbb
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4636 |
-| Total AV-only labels | 2692 |
-| Total common labels | 64 |
+| Total WF-only labels | 4635 |
+| Total AV-only labels | 2711 |
+| Total common labels | 65 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -5508,36 +5508,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Type:`
 - `Write`
 
-### WorldMapEventPointerForm
-WF labels: **17** · AV labels: **4** · WF-only: **17** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 39 / AV 6)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
-- `アドレス`
-- `エイリークエンディング`
-- `エフラムエンディング`
-- `オープニングイベント`
-- `リストの拡張`
-- `ワールドマップ拠点へJump`
-- `ワールドマップ道へJump`
-- `先頭アドレス`
-- `再取得`
-- `前の拠点クリア後に発生するイベント`
-- `名前`
-- `拠点選択後に発生するイベント`
-- `新規イベント`
-- `書き込み`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Event Pointer (u32@0):`
-- `World Map Event Editor`
-- `Write`
-
 ### EventHaikuFE7Form
 WF labels: **16** · AV labels: **2** · WF-only: **16** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 60 / AV 3)
 
@@ -5825,6 +5795,54 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Title Index:`
 - `Unit:`
 - `Unit ID:`
+- `Write`
+
+### WorldMapEventPointerForm
+WF labels: **17** · AV labels: **24** · WF-only: **16** · AV-only: **23** · Common: **1** · Density verdict: **Low** (WF 39 / AV 48)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `エイリークエンディング`
+- `エフラムエンディング`
+- `オープニングイベント`
+- `リストの拡張`
+- `ワールドマップ拠点へJump`
+- `ワールドマップ道へJump`
+- `先頭アドレス`
+- `再取得`
+- `前の拠点クリア後に発生するイベント`
+- `名前`
+- `拠点選択後に発生するイベント`
+- `新規イベント`
+- `書き込み`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `4`
+- `Address`
+- `After (Stage Select)`
+- `Before (Stage Clear)`
+- `Eirika Ending`
+- `Ephraim Ending`
+- `Event after previous stage clear`
+- `Event after stage selection`
+- `Event Pointer (u32@0):`
+- `Global story events`
+- `Jump to World Map Paths (roads)`
+- `Jump to World Map Points`
+- `New Event`
+- `Opening Event`
+- `Read Count`
+- `Related Editors`
+- `Reload`
+- `Selected Address:`
+- `The event runs when the player clears a map. It is responsible for spawning the next world map node and drawing the road to it.`
+- `The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.`
+- `Top Address`
+- `World Map Event Editor`
 - `Write`
 
 ### EventHaikuFE6Form

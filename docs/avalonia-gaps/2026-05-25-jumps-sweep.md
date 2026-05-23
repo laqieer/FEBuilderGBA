@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T00:29:22Z"
-git-sha: aeaa67bd2
+generated: "2026-05-23T00:49:02Z"
+git-sha: d90805bbb
 sweep-type: jumps
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 423 |
-| Match | 20 |
-| MissingAvManifest (backlog) | 363 |
+| Total rows | 429 |
+| Match | 31 |
+| MissingAvManifest (backlog) | 358 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 5 |
 
@@ -409,12 +409,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `VersionForm` | `VersionView` | `—` | `DevTranslateForm` | `DevTranslateView` |
 | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | `—` | `EventScriptForm` | `EventScriptView` |
 | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | `—` | `EventScriptForm` | `EventScriptView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `EventScriptForm` | `EventScriptView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `EventScriptForm` | `EventScriptView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `EventScriptForm` | `EventScriptView` |
 | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `WorldMapPathForm` | `WorldMapPathEditorView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `WorldMapPathForm` | `WorldMapPathView` |
-| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `—` | `WorldMapPointForm` | `WorldMapPointView` |
 | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `WorldMapImageForm` | `WorldMapImageView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
@@ -484,3 +479,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |
 | `SupportUnitFE6Form` | `SupportUnitFE6View` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding1Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding1Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding1Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding2Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding2Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToEnding2Event` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToOpeningEvent` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToOpeningEvent` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToOpeningEvent` | `EventScriptForm` | `EventScriptView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToWorldMapPath` | `WorldMapPathForm` | `WorldMapPathView` |
+| `WorldMapEventPointerForm` | `WorldMapEventPointerView` | `JumpToWorldMapPoint` | `WorldMapPointForm` | `WorldMapPointView` |

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T00:29:17Z"
-git-sha: aeaa67bd2
+generated: "2026-05-23T00:48:57Z"
+git-sha: d90805bbb
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 234 |
+| HIGH | |Δ%| ≥ 50 | 233 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 81 |
-| LOW | |Δ%| < 25 | 55 |
+| LOW | |Δ%| < 25 | 56 |
 
 ## Ranked Density Deltas
 
@@ -80,7 +80,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `ToolProblemReportForm` | `ToolProblemReportView` | 20 | 3 | -17 | -85.0% | Heuristic |
 | High | `WorldMapEventPointerFE7Form` | `WorldMapEventPointerFE7View` | 20 | 3 | -17 | -85.0% | Heuristic |
-| High | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 6 | -33 | -84.6% | ListParityHelper |
 | High | `EDFE6Form` | `EDFE6View` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `ToolASMInsertForm` | `ToolASMInsertView` | 19 | 3 | -16 | -84.2% | Heuristic |
 | High | `SkillAssignmentClassCSkillSysForm` | `SkillAssignmentClassCSkillSysView` | 43 | 7 | -36 | -83.7% | Heuristic |
@@ -293,6 +292,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
 | Low | `MainSimpleMenuEventErrorIgnoreErrorForm` | `MainSimpleMenuEventErrorIgnoreErrorView` | 5 | 6 | 1 | +20.0% | Heuristic |
+| Low | `WorldMapEventPointerForm` | `WorldMapEventPointerView` | 39 | 48 | 9 | +23.1% | ListParityHelper |
 | Low | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | 34 | 42 | 8 | +23.5% | ListParityHelper |
 | Medium | `ItemPromotionForm` | `ItemPromotionViewerView` | 16 | 20 | 4 | +25.0% | ListParityHelper |
 | Medium | `PatchFormUninstallDialogForm` | `PatchFormUninstallDialogView` | 4 | 5 | 1 | +25.0% | Heuristic |

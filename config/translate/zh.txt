@@ -20553,8 +20553,59 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :Not yet implemented — see #501
 尚未实现 — 请参考 #501
 
+:Write
+写入
+
 :Open Source Folder
 打开源文件夹
 
 :Expand List (+1 slot)
 扩展列表 (+1槽)
+
+:Opening Event
+开场事件
+
+:Eirika Ending
+艾瑞克结束
+
+:Ephraim Ending
+伊弗列姆结束
+
+:Address
+地址
+
+:Top Address
+起始地址
+
+:Before (Stage Clear)
+前 (关卡通过)
+
+:After (Stage Select)
+后 (关卡选择)
+
+:Event after previous stage clear
+上一关通过后触发的事件
+
+:Event after stage selection
+选择关卡后触发的事件
+
+:Global story events
+全局剧情事件
+
+:Related Editors
+相关编辑器
+
+:Jump to World Map Paths (roads)
+跳转到世界地图道路
+
+:Jump to World Map Points
+跳转到世界地图据点
+
+:New Event
+新建事件
+
+:The event runs when the player clears a map. It is responsible for spawning the next world map node and drawing the road to it.
+当玩家清除地图时运行的事件。负责在世界地图上生成下一个据点并绘制通往它的道路。
+
+:The event runs when the player selects a node on the world map. FE8 lets the player move freely between nodes, so the introduction for the next chapter must happen as the node is selected.
+当玩家在世界地图上选择一个据点时运行的事件。\r\nFE8允许玩家在据点之间自由移动，因此下一章的介绍必须在选择据点时发生。

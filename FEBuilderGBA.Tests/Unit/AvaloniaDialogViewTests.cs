@@ -908,7 +908,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("EDStaffRollView.axaml", 1142, 458)]
         [InlineData("WorldMapPointView.axaml", 1761, 778)]
         [InlineData("WorldMapBGMView.axaml", 1163, 778)]
-        [InlineData("WorldMapEventPointerView.axaml", 1219, 872)]
+        [InlineData("WorldMapEventPointerView.axaml", 1240, 900)]
         [InlineData("SongTableView.axaml", 1505, 809)]
         [InlineData("UnitEditorView.axaml", 934, 661)]
         [InlineData("ItemEditorView.axaml", 1408, 856)]
