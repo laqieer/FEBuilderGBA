@@ -6,8 +6,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class OPClassDemoViewerViewModel : ViewModelBase, IDataVerifiable
     {
+        // Pointer fields P0/P8/P24 use `rom.p32`/`write_p32` semantics
+        // — store ROM offset (without the 0x08000000 GBA bit). This
+        // mirrors WinForms `OPClassDemoForm` which uses InputFormRef
+        // P-prefix fields for the same slots. (Copilot CLI re-review
+        // on PR #544 flagged D8/D24 as bypassing pointer semantics.)
         static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "D0", "D4", "D8", "B12", "B13", "B14", "B15", "B16", "B17", "D18", "B22", "B23", "D24" });
+            EditorFormRef.DetectFields(new[] { "P0", "D4", "P8", "B12", "B13", "B14", "B15", "B16", "B17", "D18", "B22", "B23", "P24" });
 
         uint _currentAddr;
         bool _canWrite;
@@ -78,9 +83,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             CurrentAddr = addr;
             var v = EditorFormRef.ReadFields(rom, addr, _fields);
-            EnglishNamePointer = v["D0"];
+            EnglishNamePointer = v["P0"];
             DescriptionTextId = v["D4"];
-            JapaneseNamePointer = v["D8"];
+            JapaneseNamePointer = v["P8"];
             JapaneseNameLength = v["B12"];
             PaletteId = v["B13"];
             DisplayWeapon = v["B14"];
@@ -90,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Unknown18 = v["D18"];
             TerrainLeft = v["B22"];
             TerrainRight = v["B23"];
-            AnimePointer = v["D24"];
+            AnimePointer = v["P24"];
             CanWrite = true;
         }
 
@@ -100,10 +105,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             var values = new Dictionary<string, uint>
             {
-                ["D0"] = EnglishNamePointer, ["D4"] = DescriptionTextId, ["D8"] = JapaneseNamePointer,
+                ["P0"] = EnglishNamePointer, ["D4"] = DescriptionTextId, ["P8"] = JapaneseNamePointer,
                 ["B12"] = JapaneseNameLength, ["B13"] = PaletteId, ["B14"] = DisplayWeapon,
                 ["B15"] = AllyEnemyColor, ["B16"] = BattleAnime, ["B17"] = MagicEffect,
-                ["D18"] = Unknown18, ["B22"] = TerrainLeft, ["B23"] = TerrainRight, ["D24"] = AnimePointer,
+                ["D18"] = Unknown18, ["B22"] = TerrainLeft, ["B23"] = TerrainRight, ["P24"] = AnimePointer,
             };
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
         }
@@ -172,5 +177,177 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ["TerrainRight"] = "u8@0x17_TerrainRight",
             ["AnimePointer"] = "u32@0x18_AnimePointer",
         };
+
+        // -----------------------------------------------------------------
+        // Sub-list walkers + patch presence flags (gap-sweep #419).
+        //
+        // WinForms OPClassDemoForm exposes two sub-lists:
+        //   N1_ — Japanese-name font glyph IDs at the pointer P8.
+        //         Block size 1 byte, max 16 entries, terminator 0xFF.
+        //   N2_ — Animation command rows at the pointer P24.
+        //         Block size 2 bytes (Cmd, Arg), terminator 0x00 in Cmd.
+        // The walkers dereference the pointer slot first (matching WF
+        // InputFormRef.ReInit semantics) so the caller can pass the
+        // pointer-slot address directly.
+        // -----------------------------------------------------------------
+
+        /// <summary>Maximum entries in the N1 Japanese-name font sub-list.</summary>
+        public const int N1MaxEntries = 16;
+
+        /// <summary>Maximum entries in the N2 animation command sub-list (sanity cap).</summary>
+        public const int N2MaxEntries = 256;
+
+        /// <summary>One row of the Japanese-name font sub-list (single byte glyph ID).</summary>
+        public sealed class N1Row
+        {
+            public uint Addr { get; init; }
+            public uint Index { get; init; }
+            public uint GlyphId { get; init; }
+        }
+
+        /// <summary>One row of the animation command sub-list.</summary>
+        public sealed class N2Row
+        {
+            public uint Addr { get; init; }
+            public uint Index { get; init; }
+            public uint Command { get; init; }
+            public uint Argument { get; init; }
+        }
+
+        /// <summary>
+        /// Walk the Japanese-name font sub-list at the dereferenced pointer.
+        /// Stops at the first 0xFF terminator or after <see cref="N1MaxEntries"/>.
+        /// Returns an empty list if the pointer is invalid.
+        /// </summary>
+        public List<N1Row> LoadN1FontList(uint pointerSlotAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<N1Row>();
+            if (pointerSlotAddr == 0 || pointerSlotAddr + 4 > (uint)rom.Data.Length) return new List<N1Row>();
+            uint baseAddr = rom.p32(pointerSlotAddr);
+            return LoadN1FontListFromOffset(baseAddr);
+        }
+
+        /// <summary>
+        /// Walk the Japanese-name font sub-list starting from a ROM offset
+        /// (already-dereferenced). Used when the caller wants to preview an
+        /// unsaved pointer value before it has been written to ROM.
+        /// (Copilot bot review thread PRRT_kwDOH0Mc1M6ETj_F on PR #544.)
+        /// </summary>
+        public List<N1Row> LoadN1FontListFromOffset(uint baseAddr)
+        {
+            var result = new List<N1Row>();
+            ROM rom = CoreState.ROM;
+            if (rom == null) return result;
+            if (!U.isSafetyOffset(baseAddr)) return result;
+
+            for (uint i = 0; i < N1MaxEntries; i++)
+            {
+                uint addr = baseAddr + i;
+                if (addr >= (uint)rom.Data.Length) break;
+                uint b = rom.u8(addr);
+                if (b == 0xFF) break;
+                result.Add(new N1Row { Addr = addr, Index = i, GlyphId = b });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Walk the animation command sub-list at the dereferenced pointer.
+        /// Each row is (Cmd, Arg) — 2 bytes. Stops at the first 0x00 Cmd
+        /// terminator or after <see cref="N2MaxEntries"/>.
+        /// </summary>
+        public List<N2Row> LoadN2CommandList(uint pointerSlotAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return new List<N2Row>();
+            if (pointerSlotAddr == 0 || pointerSlotAddr + 4 > (uint)rom.Data.Length) return new List<N2Row>();
+            uint baseAddr = rom.p32(pointerSlotAddr);
+            return LoadN2CommandListFromOffset(baseAddr);
+        }
+
+        /// <summary>
+        /// Walk the animation command sub-list starting from a ROM offset
+        /// (already-dereferenced). Used when previewing an unsaved
+        /// pointer value (Copilot bot review thread PRRT_kwDOH0Mc1M6ETj_F).
+        /// </summary>
+        public List<N2Row> LoadN2CommandListFromOffset(uint baseAddr)
+        {
+            var result = new List<N2Row>();
+            ROM rom = CoreState.ROM;
+            if (rom == null) return result;
+            if (!U.isSafetyOffset(baseAddr)) return result;
+
+            for (uint i = 0; i < N2MaxEntries; i++)
+            {
+                uint addr = baseAddr + i * 2;
+                if (addr + 2 > (uint)rom.Data.Length) break;
+                uint cmd = rom.u8(addr);
+                if (cmd == 0x00) break;
+                uint arg = rom.u8(addr + 1);
+                result.Add(new N2Row { Addr = addr, Index = i, Command = cmd, Argument = arg });
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Write a single byte (glyph ID) at the given N1 row address.
+        /// Caller must wrap in a <c>ROM.BeginUndoScope</c> so the change
+        /// is recorded.
+        /// </summary>
+        public void WriteN1Entry(uint addr, uint glyphId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (addr + 1 > (uint)rom.Data.Length) return;
+            rom.write_u8(addr, glyphId);
+        }
+
+        /// <summary>
+        /// Write (Cmd, Arg) at the given N2 row address.
+        /// Caller must wrap in a <c>ROM.BeginUndoScope</c>.
+        /// </summary>
+        public void WriteN2Entry(uint addr, uint cmd, uint arg)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (addr + 2 > (uint)rom.Data.Length) return;
+            rom.write_u8(addr, cmd);
+            rom.write_u8(addr + 1, arg);
+        }
+
+        /// <summary>
+        /// True when the FE8J OPClassReelAnimationIDOver255 patch is
+        /// installed. When true the WF UI swapped the B16 byte and the
+        /// D18 dword field for the battle-anime ID (so the Avalonia
+        /// view should mirror that swap).
+        /// </summary>
+        public bool IsOver255PatchActive => PatchDetection.OPClassReelAnimationIDOver255Detect(CoreState.ROM);
+
+        /// <summary>
+        /// True when the OPClassReelSort patch (FE8J or FE8U) is installed.
+        /// When true the WF main-list "ListExpand" button was visible.
+        /// </summary>
+        public bool IsReelSortPatchActive => PatchDetection.OPClassReelSortPatchDetect(CoreState.ROM);
+
+        /// <summary>
+        /// Run a `DataExpansionCore.ExpandTable` call against the main
+        /// OPClassDemo table pointer and refresh internal state.
+        /// Caller is responsible for opening / committing the
+        /// <c>_undoService</c> scope.
+        /// </summary>
+        public DataExpansionCore.ExpandResult ExpandList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "ROM not loaded." };
+
+            uint ptrAddr = rom.RomInfo.op_class_demo_pointer;
+            if (ptrAddr == 0)
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "op_class_demo_pointer not set." };
+
+            uint currentCount = (uint)LoadOPClassDemoList().Count;
+            return DataExpansionCore.ExpandTable(rom, ptrAddr, entrySize: 28, currentCount);
+        }
     }
 }

@@ -2086,11 +2086,9 @@ namespace FEBuilderGBA
         }
         static OPClassReelSortExtends OPClassReelSortPatchLow()
         {
-            PatchTableSt[] table = new PatchTableSt[] { 
-                new PatchTableSt{ name="OPClassReelSort",	ver = "FE8J", addr = 0xB8C80,data = new byte[]{0x04, 0x4B, 0x1B, 0x68}},
-                new PatchTableSt{ name="OPClassReelSort",	ver = "FE8U", addr = 0xB40EC,data = new byte[]{0x04, 0x4B, 0x1B, 0x68}},
-            };
-            if (SearchPatchBool(table))
+            // Delegates to Core PatchDetection.OPClassReelSortPatchDetect
+            // (single source of truth for both WinForms and Avalonia — #419).
+            if (PatchDetection.OPClassReelSortPatchDetect(Program.ROM))
             {
                 return OPClassReelSortExtends.OPClassReelSort;
             }
@@ -2115,10 +2113,9 @@ namespace FEBuilderGBA
         }
         static OPClassReelAnimationIDOver255Patch OPClassReelAnimationIDOver255Low()
         {
-            PatchTableSt[] table = new PatchTableSt[] { 
-                new PatchTableSt{ name="Over255",	ver = "FE8J", addr = 0xB86B0,data = new byte[]{0x59, 0x8A}},
-            };
-            if (SearchPatchBool(table))
+            // Delegates to Core PatchDetection.OPClassReelAnimationIDOver255Detect
+            // (single source of truth for both WinForms and Avalonia — #419).
+            if (PatchDetection.OPClassReelAnimationIDOver255Detect(Program.ROM))
             {
                 return OPClassReelAnimationIDOver255Patch.Over255;
             }

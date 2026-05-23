@@ -21014,3 +21014,155 @@ to:
 
 :Item Drop Dialog...
 物品掉落对话框...
+:Command:
+指令：
+
+:Display Weapon (Class):
+显示武器 (职业):
+
+:Ally / Enemy Color:
+我军/敌军 颜色:
+
+:Anime Spec Pointer:
+动画指定指针:
+
+:Arg (/60 sec):
+参数 (/60 秒):
+
+:Battle Anime (Patch +1):
+战斗动画 (补丁 +1):
+
+:Battle Anime:
+战斗动画:
+
+:Data Expansion
+数据扩展
+
+:Description Text ID:
+说明文本ID:
+
+:English Name Pointer:
+英文名指针:
+
+:Glyph:
+字形:
+
+:Hex Address
+十六进制地址
+
+:Japanese Name Font Glyphs (pointer P8)
+日文名字体字形 (指针 P8)
+
+:Japanese Name Length:
+日文名长度:
+
+:Japanese Name Pointer:
+日文名指针:
+
+:Magic Effect:
+魔法效果:
+
+:Palette ID:
+调色板ID:
+
+:Read Count
+读取数
+
+:Selected Address:
+所选地址:
+
+:Terrain (Left Half):
+地形 (左半部):
+
+:Terrain (Right Half):
+地形 (右半部):
+
+:Write Anime Spec Pointer
+写入动画指定指针
+
+:Write JP Name Pointer
+写入日文名指针
+
+:Animation Commands (pointer P24)
+动画指令 (指针 P24)
+
+:00 = Player
+00 = 我军
+
+:01 = Enemy
+01 = 敌军
+
+:02 = NPC
+02 = NPC
+
+:03 = Gray
+03 = 灰色
+
+:00 = None
+00 = 无
+
+:01 = Fire
+01 = 火
+
+:02 = Thunder
+02 = 雷
+
+:03 = Live
+03 = 治愈
+
+:04 = Light
+04 = 光
+
+:05 = Mil
+05 = 米尔
+
+:06 = Manakete
+06 = 龙人变身
+
+:07 = Monster Magic
+07 = 魔物魔法
+
+:08 = Stone
+08 = 石化
+
+:1 = Close-range attack animation
+1 = 近距离攻击动画
+
+:2 = Close-range critical animation
+2 = 近距离必杀动画
+
+:3 = Set anime state to 'hit effect applied'
+3 = 将动画状态设为 'hit effect applied'
+
+:4 = Long-range attack animation
+4 = 远距离攻击动画
+
+:5 = Wait N frames
+5 = 等待 N 帧
+
+:6 = Close-range dodge animation
+6 = 近距离回避动画
+
+:7 = (FE8 unused) Set anime state to 'hit effect applied'
+7 = (FE8 未使用) 将动画状态设为 'hit effect applied'
+
+:8 = Wait until anime reaches C01/C02/C18
+8 = 等待动画到达 C01/C02/C18
+
+:Patch: OPClassReelAnimationIDOver255 active. Battle Anime ID is read from D18.
+补丁: OPClassReelAnimationIDOver255 已启用。战斗动画ID 从 D18 读取。
+
+:Patch: OPClassReelSort active. Data Expansion enabled.
+补丁: OPClassReelSort 已启用。数据扩展可用。
+
+:Default palette
+默认调色板
+
+:Write Glyph Entry
+写入字形
+
+:Write Anime Command
+写入动画指令
+
+:Unknown (0x12):
+未知 (0x12):
