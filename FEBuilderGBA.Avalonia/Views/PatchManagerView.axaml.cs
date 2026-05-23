@@ -141,5 +141,38 @@ namespace FEBuilderGBA.Avalonia.Views
             if (PatchListBox.ItemCount > 0)
                 PatchListBox.SelectedIndex = 0;
         }
+
+        /// <summary>
+        /// #428: filter the patch list by <paramref name="patchNameFilter"/>
+        /// and select the entry at <paramref name="subIndex"/> in the result.
+        /// Mirrors WF <c>PatchForm.JumpTo("FILTERNAME", subIndex)</c>. When
+        /// the filtered list is empty, the search box is still seeded so the
+        /// user can clear it and see why nothing matched.
+        /// </summary>
+        public void JumpTo(string patchNameFilter, int subIndex = 0)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(patchNameFilter)) return;
+                if (!IsLoaded) LoadPatches();
+                SearchBox.Text = patchNameFilter;
+                _vm.FilterText = patchNameFilter;
+                PatchListBox.ItemsSource = null;
+                PatchListBox.ItemsSource = _vm.FilteredPatches;
+                UpdateSummary();
+                if (_vm.FilteredPatches.Count > subIndex && subIndex >= 0)
+                {
+                    PatchListBox.SelectedIndex = subIndex;
+                }
+                else if (_vm.FilteredPatches.Count > 0)
+                {
+                    PatchListBox.SelectedIndex = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PatchManagerView.JumpTo failed: {0}", ex.Message);
+            }
+        }
     }
 }

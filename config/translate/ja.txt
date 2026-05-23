@@ -6656,3 +6656,39 @@ TSA
 
 :Expand List (+1 slot)
 リストの拡張 (+1スロット)
+
+:Growth Simulation
+成長シミュレーション
+
+:Total Growth %:
+合計成長率%:
+
+:Sim HP:
+予測HP:
+
+:Sim STR:
+予測攻撃:
+
+:Sim SKL:
+予測技:
+
+:Sim SPD:
+予測速さ:
+
+:Sim DEF:
+予測守備:
+
+:Sim RES:
+予測魔防:
+
+:Sim LCK:
+予測幸運:
+
+:Magic Ext:
+魔力拡張:
+
+:Read Start Address:
+先頭アドレス:
+
+:This unit is referenced by hardcoded ASM. Click to view related patches.
+このユニットはハードコードASMから参照されています。関連パッチを表示するにはクリックしてください。

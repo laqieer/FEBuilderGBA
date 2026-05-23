@@ -655,6 +655,7 @@ namespace FEBuilderGBA
 
             //EVENTとASMのキャッシュをクリア
             AsmMapFileAsmCache = new FEBuilderGBA.AsmMapFileAsmCache();
+            CoreState.AsmMapFileAsmCache = AsmMapFileAsmCache;
             if (!IsCommandLine)
             {
                 // In CLI mode, skip the expensive background cache rebuild — it parses
@@ -737,6 +738,7 @@ namespace FEBuilderGBA
             //ASMMapの再構築
             //以前のデータが残っているとまずいので完全に捨てて再作成します.
             AsmMapFileAsmCache = new FEBuilderGBA.AsmMapFileAsmCache();
+            CoreState.AsmMapFileAsmCache = AsmMapFileAsmCache;
             //asm mapキャッシュの更新.
             AsmMapFileAsmCache.ClearCache();
         }

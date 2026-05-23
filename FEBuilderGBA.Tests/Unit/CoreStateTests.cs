@@ -181,6 +181,7 @@ namespace FEBuilderGBA.Tests.Unit
         private class TestAsmMapCache : IAsmMapCache
         {
             public void ClearCache() { }
+            public bool IsHardCodeUnit(uint unitId) => false;
         }
     }
 }

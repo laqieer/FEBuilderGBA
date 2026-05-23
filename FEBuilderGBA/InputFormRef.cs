@@ -6956,28 +6956,10 @@ namespace FEBuilderGBA
 
 
         //武器レベル
+        // Delegate to the Core helper so Avalonia + WinForms share one source of truth (#428).
         public static String GetWeaponClass(uint num)
         {
-            if (Program.ROM.RomInfo.version == 6)
-            {
-                if (num <= 0) return "-";
-                if (num <= 50) return "E";
-                if (num <= 100) return "D";
-                if (num <= 150) return "C";
-                if (num <= 200) return "B";
-                if (num <= 250) return "A";
-                return "S";
-            }
-            else
-            {
-                if (num <= 0) return "-";
-                if (num <= 30) return "E";
-                if (num <= 70) return "D";
-                if (num <= 120) return "C";
-                if (num <= 180) return "B";
-                if (num <= 250) return "A";
-                return "S";
-            }
+            return FEBuilderGBA.Core.WeaponRankUtil.GetRankLetter(num, (int)Program.ROM.RomInfo.version);
         }
         public static uint GetWeaponClassRev(string lv)
         {
