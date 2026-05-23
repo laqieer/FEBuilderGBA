@@ -6,12 +6,48 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
     /// OP Class Demo editor (FE7U variant).
-    /// Data: op_class_demo_pointer, datasize=28, classId at offset 11.
+    /// Data: <c>op_class_demo_pointer</c>, datasize = 28, classId at offset 11.
+    ///
+    /// The +0 (English name pointer) and +24 (animation block pointer) fields
+    /// are <see cref="EditorFormRef.FieldType.Pointer"/> so they round-trip
+    /// through <c>rom.p32</c>/<c>write_p32</c>. Storing them as raw DWords
+    /// (D0/D24) would write the offset form back to ROM without the
+    /// <c>0x08000000</c> high bit, corrupting the address (#421 Copilot CLI
+    /// plan-review finding #1).
+    ///
+    /// The N2 sub-list (animation command sequence) is a separate variable-
+    /// length array of 2-byte entries: u8 command + u8 argument, terminated
+    /// by command == 0. The array starts at the address pointed to by P24.
+    /// Command set (from WF L_0_COMBO):
+    ///   1 = ranged attack anime              5 = wait N frames (arg = N/60 sec)
+    ///   2 = ranged critical anime            6 = ranged evade
+    ///   3 = "hit effect applied"             7 = unused in FE8 (hit effect)
+    ///   4 = ranged attack anime              8 = wait for cmd C01/C02/C18
     /// </summary>
     public class OPClassDemoFE7UViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
-            EditorFormRef.DetectFields(new[] { "D0", "W4", "W8", "B10", "B11", "B12", "B13", "B14", "B15", "B16", "B17", "B19", "B20", "B21", "B22", "B23", "D24" });
+            EditorFormRef.DetectFields(new[] {
+                "P0", "W4", "W8",
+                "B10", "B11", "B12", "B13", "B14",
+                "B15", "B16", "B17", "B19",
+                "B20", "B21", "B22", "B23",
+                "P24"
+            });
+
+        /// <summary>WF main block size constant (28 bytes per entry).</summary>
+        public const uint BLOCK_SIZE = 28;
+        /// <summary>WF N2 (anime command) block size constant (2 bytes per row).</summary>
+        public const uint N2_BLOCK_SIZE = 2;
+
+        /// <summary>One row of the N2 (animation command sequence) sub-list.</summary>
+        public class N2Row
+        {
+            public uint Index;
+            public uint Address;
+            public uint Command;
+            public uint Argument;
+        }
 
         uint _currentAddr;
         bool _canWrite;
@@ -34,6 +70,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _unknown23;
         uint _animePointer;
 
+        // N2 sub-list state.
+        List<N2Row> _n2Entries = new();
+        int _selectedN2Index = -1;
+        uint _n2Command;
+        uint _n2Argument;
+        uint _n2SelectedAddress;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public string UnavailableMessage { get => _unavailableMessage; set => SetField(ref _unavailableMessage, value); }
@@ -54,6 +97,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Unknown22 { get => _unknown22; set => SetField(ref _unknown22, value); }
         public uint Unknown23 { get => _unknown23; set => SetField(ref _unknown23, value); }
         public uint AnimePointer { get => _animePointer; set => SetField(ref _animePointer, value); }
+
+        public List<N2Row> N2Entries
+        {
+            get => _n2Entries;
+            set => SetField(ref _n2Entries, value ?? new());
+        }
+        public int SelectedN2Index { get => _selectedN2Index; set => SetField(ref _selectedN2Index, value); }
+        public uint N2Command { get => _n2Command; set => SetField(ref _n2Command, value); }
+        public uint N2Argument { get => _n2Argument; set => SetField(ref _n2Argument, value); }
+        public uint N2SelectedAddress { get => _n2SelectedAddress; set => SetField(ref _n2SelectedAddress, value); }
+        public uint BlockSize => BLOCK_SIZE;
+        public uint N2BlockSize => N2_BLOCK_SIZE;
 
         public List<AddrResult> LoadList()
         {
@@ -87,7 +142,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             UnavailableMessage = "";
             var result = new List<AddrResult>();
-            // datasize=28, up to 0x42 entries
+            // datasize=28, up to 0x42 entries (WF: i <= 0x41).
             for (uint i = 0; i <= 0x41; i++)
             {
                 uint addr = (uint)(baseAddr + i * 28);
@@ -109,7 +164,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             var v = EditorFormRef.ReadFields(rom, addr, _fields);
-            EnglishNamePointer = v["D0"];
+            EnglishNamePointer = v["P0"];
             DescriptionTextId = v["W4"];
             JapaneseNamePointer = v["W8"];
             JapaneseNameLength = v["B10"];
@@ -125,8 +180,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             TerrainRight = v["B21"];
             Unknown22 = v["B22"];
             Unknown23 = v["B23"];
-            AnimePointer = v["D24"];
+            AnimePointer = v["P24"];
             CanWrite = true;
+
+            // Rebuild the N2 (animation command) sub-list for the new entry.
+            LoadN2List();
         }
 
         public void WriteEntry()
@@ -135,14 +193,114 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
             var values = new Dictionary<string, uint>
             {
-                ["D0"] = EnglishNamePointer, ["W4"] = DescriptionTextId, ["W8"] = JapaneseNamePointer,
+                ["P0"] = EnglishNamePointer, ["W4"] = DescriptionTextId, ["W8"] = JapaneseNamePointer,
                 ["B10"] = JapaneseNameLength, ["B11"] = ClassId, ["B12"] = AllyEnemyColor,
                 ["B13"] = BattleAnime, ["B14"] = MagicEffect, ["B15"] = Unknown15,
                 ["B16"] = Unknown16, ["B17"] = Unknown17, ["B19"] = Unknown19,
                 ["B20"] = TerrainLeft, ["B21"] = TerrainRight, ["B22"] = Unknown22,
-                ["B23"] = Unknown23, ["D24"] = AnimePointer,
+                ["B23"] = Unknown23, ["P24"] = AnimePointer,
             };
             EditorFormRef.WriteFields(rom, CurrentAddr, values, _fields);
+        }
+
+        /// <summary>
+        /// Scan the animation-command block at <see cref="AnimePointer"/>,
+        /// populating <see cref="N2Entries"/>. The block is a sequence of
+        /// 2-byte rows (u8 command + u8 argument); iteration stops when
+        /// command == 0 (mirrors WF <c>N2_Init</c>'s <c>isValid</c> predicate).
+        /// Safe to call when AnimePointer is 0 or out of range - clears the
+        /// list and selection state.
+        /// </summary>
+        public void LoadN2List()
+        {
+            ROM rom = CoreState.ROM;
+            var result = new List<N2Row>();
+            uint ptr = AnimePointer;
+            uint offset = U.toOffset(ptr);
+            if (rom == null || ptr == 0 || !U.isSafetyOffset(offset, rom))
+            {
+                N2Entries = result;
+                SelectedN2Index = -1;
+                N2Command = 0;
+                N2Argument = 0;
+                N2SelectedAddress = 0;
+                return;
+            }
+            // Iterate up to a safety cap. WF uses i <= 0xFF but the terminator
+            // (cmd == 0) almost always hits inside a few rows.
+            const int MaxRows = 0x100;
+            for (int i = 0; i < MaxRows; i++)
+            {
+                uint rowAddr = offset + (uint)(i * 2);
+                if (rowAddr + 2 > (uint)rom.Data.Length) break;
+                uint cmd = rom.u8(rowAddr + 0);
+                if (cmd == 0) break;
+                result.Add(new N2Row
+                {
+                    Index = (uint)i,
+                    Address = rowAddr,
+                    Command = cmd,
+                    Argument = rom.u8(rowAddr + 1),
+                });
+            }
+            N2Entries = result;
+            if (result.Count > 0)
+            {
+                SelectedN2Index = 0;
+                N2Command = result[0].Command;
+                N2Argument = result[0].Argument;
+                N2SelectedAddress = result[0].Address;
+            }
+            else
+            {
+                SelectedN2Index = -1;
+                N2Command = 0;
+                N2Argument = 0;
+                N2SelectedAddress = 0;
+            }
+        }
+
+        /// <summary>Load the selected N2 row's command/argument into the editor fields.</summary>
+        public void LoadN2Row(int rowIndex)
+        {
+            if (rowIndex < 0 || rowIndex >= N2Entries.Count)
+            {
+                SelectedN2Index = -1;
+                N2Command = 0;
+                N2Argument = 0;
+                N2SelectedAddress = 0;
+                return;
+            }
+            var row = N2Entries[rowIndex];
+            SelectedN2Index = rowIndex;
+            N2Command = row.Command;
+            N2Argument = row.Argument;
+            N2SelectedAddress = row.Address;
+        }
+
+        /// <summary>
+        /// Write the currently selected N2 row (Command + Argument) back to
+        /// ROM at <c>AnimePointer + 2 * SelectedN2Index</c>. Returns
+        /// <c>true</c> on success, <c>false</c> when the row index, anime
+        /// pointer, or row address is invalid. Caller should wrap the call
+        /// in <c>UndoService.Begin/Commit</c> for undo support.
+        /// </summary>
+        public bool WriteN2Entry()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (SelectedN2Index < 0 || SelectedN2Index >= N2Entries.Count) return false;
+            uint offset = U.toOffset(AnimePointer);
+            if (AnimePointer == 0 || !U.isSafetyOffset(offset, rom)) return false;
+            uint rowAddr = offset + (uint)(SelectedN2Index * 2);
+            if (rowAddr + 2 > (uint)rom.Data.Length) return false;
+            rom.write_u8(rowAddr + 0, N2Command & 0xFF);
+            rom.write_u8(rowAddr + 1, N2Argument & 0xFF);
+            // Refresh the in-memory row so the list reflects the new bytes.
+            var row = N2Entries[SelectedN2Index];
+            row.Command = N2Command & 0xFF;
+            row.Argument = N2Argument & 0xFF;
+            return true;
         }
 
         public int GetListCount() => LoadList().Count;
@@ -169,6 +327,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Unknown22"] = $"0x{Unknown22:X02}",
                 ["Unknown23"] = $"0x{Unknown23:X02}",
                 ["AnimePointer"] = $"0x{AnimePointer:X08}",
+                ["N2RowCount"] = N2Entries.Count.ToString(),
+                ["N2SelectedIndex"] = SelectedN2Index.ToString(),
             };
         }
 
