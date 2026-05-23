@@ -643,56 +643,72 @@ public class EDParityTests
     }
 
     [Fact]
-    public void ViewModel_ExpandRetreatList_DoesNotCorruptROMWhenFreeSpaceExactFit()
+    public void ViewModel_ExpandRetreatList_ExactFitFreeRun_TerminatorStaysInsideReservation()
     {
-        // Copilot CLI PR #561 re-review: SeedExpandedRow used to write a
-        // zero-fill terminator block AFTER the appended row, which sits
-        // OUTSIDE DataExpansionCore.ExpandTable's reserved
-        // (currentCount + 1) * blockSize region. If the free-space run
-        // is exactly that size and is followed by valid ROM data, the
-        // terminator would corrupt it. The fix only writes the
-        // terminator when the bytes there are still 0xFF (i.e. were
-        // never claimed as data).
+        // Copilot CLI PR #561 third review: even with the 0xFF-byte guard
+        // the previous SeedExpandedRow design left an exact-fit ED
+        // expansion UNTERMINATED. The next LoadList scan would then
+        // spill into unrelated following bytes (often 0xFF, which
+        // doesn't match the u32==0/u8==0 terminator predicate) and
+        // iterate up to the 0x200-row safety cap showing garbage.
+        //
+        // The fix reserves (liveCount + 2) entries from
+        // DataExpansionCore.ExpandTable - one for each live row, one
+        // for the existing terminator (which we re-seed with the new
+        // editable row), and one final zero entry that becomes the
+        // new terminator. All writes are within the reserved free-space
+        // region, and the next LoadList scan terminates cleanly at the
+        // final zero entry.
+        //
+        // This test exercises the precise exact-fit boundary that the
+        // wide 0xFF free pool in MakeMinimalFE8URom would have hidden:
+        // an exactly-sized 0xFF run for the new (liveCount + 2) layout,
+        // followed immediately by a `0xFF` sentinel + a non-zero
+        // sentinel that must not be touched and must mark the run end.
         var rom = MakeMinimalFE8URom(out _, out _, out _);
         var prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom;
 
-            // Re-shape the free space: leave only enough 0xFF for
-            // (currentCount+1) entries, then immediately plant sentinel
-            // bytes representing valid ROM data right after.
-            // currentCount is 3 retreat entries; blockSize=4; so
-            // reserved region needs to be (3+1)*4 = 16 bytes of 0xFF
-            // starting at a 4-byte-aligned offset that FindFreeSpace
-            // will discover first.
+            // Erase the wide free pool so FindFreeSpace must locate
+            // our exact-fit run.
             for (uint i = 0x500000; i < 0x510000; i++)
-                rom.Data[i] = 0x00; // erase the wide free pool
-            // Plant exactly 16 bytes of 0xFF starting at 0x600000.
+                rom.Data[i] = 0x00;
+
+            // currentCount = 3 retreat entries, blockSize = 4. With the
+            // new ExpandTerminatedTable wrapper we ask ExpandTable to
+            // reserve (liveCount + 1 = 4) records -> 20 bytes (4
+            // copied + 1 appended zero entry). Plant exactly 20 bytes
+            // of 0xFF at 0x600000.
             uint sentinelStart = 0x600000;
-            for (uint i = sentinelStart; i < sentinelStart + 16; i++)
+            for (uint i = sentinelStart; i < sentinelStart + 20; i++)
                 rom.Data[i] = 0xFF;
-            // Plant deliberate sentinel bytes immediately after (the
-            // "valid ROM data" that must NOT be touched).
+            // Sentinel bytes that MUST survive (this is unrelated ROM
+            // data following the free run).
             byte[] sentinel = { 0xDE, 0xAD, 0xBE, 0xEF };
             for (uint i = 0; i < sentinel.Length; i++)
-                rom.Data[sentinelStart + 16 + i] = sentinel[i];
+                rom.Data[sentinelStart + 20 + i] = sentinel[i];
 
             var vm = new EDViewModel();
+            var listBefore = vm.LoadRetreatList();
+            int countBefore = listBefore.Count;
             var result = vm.ExpandRetreatList();
             Assert.True(result.Success,
                 $"ExpandRetreatList must succeed; got error: {result.Error}");
 
-            // The sentinel bytes immediately after the (newly relocated)
-            // table must remain untouched. With the buggy version, the
-            // 4-byte terminator block would overwrite the 0xDE 0xAD 0xBE
-            // 0xEF with zeros.
-            // Find the new table location (FindFreeSpace returned
-            // sentinelStart since it was the only 16-byte 0xFF run).
-            Assert.Equal(0xDEu, rom.u8(sentinelStart + 16 + 0));
-            Assert.Equal(0xADu, rom.u8(sentinelStart + 16 + 1));
-            Assert.Equal(0xBEu, rom.u8(sentinelStart + 16 + 2));
-            Assert.Equal(0xEFu, rom.u8(sentinelStart + 16 + 3));
+            // The 4 sentinel bytes immediately past the reserved region
+            // must remain untouched.
+            Assert.Equal(0xDEu, rom.u8(sentinelStart + 20 + 0));
+            Assert.Equal(0xADu, rom.u8(sentinelStart + 20 + 1));
+            Assert.Equal(0xBEu, rom.u8(sentinelStart + 20 + 2));
+            Assert.Equal(0xEFu, rom.u8(sentinelStart + 20 + 3));
+
+            // The expanded list MUST terminate cleanly - i.e. the new
+            // editable row is visible and exactly one more than before,
+            // with no garbage rows from the safety-cap fallback.
+            var listAfter = vm.LoadRetreatList();
+            Assert.Equal(countBefore + 1, listAfter.Count);
         }
         finally { CoreState.ROM = prevRom; }
     }

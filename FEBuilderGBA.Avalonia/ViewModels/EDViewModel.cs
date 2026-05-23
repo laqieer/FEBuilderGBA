@@ -227,16 +227,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptrAddr == 0)
                 return new DataExpansionCore.ExpandResult { Success = false, Error = "ed_1_pointer not set." };
             uint currentCount = (uint)LoadRetreatList().Count;
-            var result = DataExpansionCore.ExpandTable(rom, ptrAddr, RETREAT_BLOCK_SIZE, currentCount);
-            // Copilot CLI PR #561 review: the retreat iterator terminates on
-            // `u32 == 0`, so the zero-filled new row appended by
-            // DataExpansionCore.ExpandTable would be invisible to LoadRetreatList.
-            // Seed B0 (UnitId) with the first valid unit id from the cloned
-            // table so the new slot is editable; user can change it later.
-            if (result.Success)
-                SeedExpandedRow(rom, result.NewBaseAddress, currentCount, RETREAT_BLOCK_SIZE,
-                    seedB0FromCloneOrDefault: true);
-            return result;
+            return ExpandTerminatedTable(rom, ptrAddr, RETREAT_BLOCK_SIZE, currentCount,
+                seedB0FromCloneOrDefault: true);
         }
 
         // ============================================================
@@ -296,13 +288,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptrAddr == 0)
                 return new DataExpansionCore.ExpandResult { Success = false, Error = "ed_2_pointer not set." };
             uint currentCount = (uint)LoadEpithetList().Count;
-            var result = DataExpansionCore.ExpandTable(rom, ptrAddr, EPITHET_BLOCK_SIZE, currentCount);
-            // Epithet iterator terminates on `u8(addr) == 0` (W0 low byte).
-            // Seed B0 (low byte of W0 UnitId) with the first valid unit id.
-            if (result.Success)
-                SeedExpandedRow(rom, result.NewBaseAddress, currentCount, EPITHET_BLOCK_SIZE,
-                    seedB0FromCloneOrDefault: true);
-            return result;
+            return ExpandTerminatedTable(rom, ptrAddr, EPITHET_BLOCK_SIZE, currentCount,
+                seedB0FromCloneOrDefault: true);
         }
 
         // ============================================================
@@ -394,13 +381,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint currentCount = (uint)_epilogueList.Count;
             if (currentCount == 0)
                 currentCount = (uint)LoadEpilogueList().Count;
-            var result = DataExpansionCore.ExpandTable(rom, ptrAddr, EPILOGUE_BLOCK_SIZE, currentCount);
-            // Epilogue iterator terminates on `u32 == 0` (B0..B3 all zero).
-            // Seed B0 (PairFlag) = 1 (Solo) so the row is visible.
-            if (result.Success)
-                SeedExpandedRow(rom, result.NewBaseAddress, currentCount, EPILOGUE_BLOCK_SIZE,
-                    seedB0FromCloneOrDefault: false, defaultB0: 0x01);
-            return result;
+            return ExpandTerminatedTable(rom, ptrAddr, EPILOGUE_BLOCK_SIZE, currentCount,
+                seedB0FromCloneOrDefault: false, defaultB0: 0x01);
         }
 
         // ============================================================
@@ -505,62 +487,76 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// This helper closes the gap by seeding B0 so the new entry
         /// survives the next LoadList scan.
         /// </summary>
-        static void SeedExpandedRow(ROM rom, uint newBase, uint oldCount,
-            uint blockSize, bool seedB0FromCloneOrDefault, byte defaultB0 = 0x01)
+        /// <summary>
+        /// Expand a "zero-terminated" ED table by one entry. ED tables
+        /// use a sentinel-row terminator (`u32 == 0` for retreat/epilogue,
+        /// `u8 == 0` for epithet) instead of an explicit count field.
+        ///
+        /// This wraps <see cref="DataExpansionCore.ExpandTable"/> but
+        /// passes <c>currentCount + 1</c> as the "current count" so it
+        /// reserves space for <c>currentCount + 2</c> entries total:
+        /// the <c>currentCount</c> live entries, plus the existing
+        /// terminator entry, plus the new appended (zero) entry from
+        /// ExpandTable itself. We then overwrite what was the terminator
+        /// (now the second-to-last entry) with seeded data so the user
+        /// sees a fresh editable row; the final zero entry from
+        /// ExpandTable serves as the new terminator and lives entirely
+        /// within the reserved free-space region (no out-of-reservation
+        /// writes).
+        ///
+        /// Copilot CLI PR #561 third review: this replaces the previous
+        /// "skip terminator on exact-fit" approach which still left the
+        /// iterator running into 0xFF garbage up to the 0x200-row cap.
+        /// </summary>
+        static DataExpansionCore.ExpandResult ExpandTerminatedTable(
+            ROM rom, uint pointerAddr, uint blockSize, uint liveCount,
+            bool seedB0FromCloneOrDefault, byte defaultB0 = 0x01)
         {
-            if (rom == null) return;
-            uint newRowAddr = newBase + oldCount * blockSize;
-            if (newRowAddr + blockSize > (uint)rom.Data.Length) return;
+            // Read the live-table base BEFORE ExpandTable relocates it
+            // so we can clone the predecessor's B0 byte if requested.
+            byte prevB0 = 0;
+            if (seedB0FromCloneOrDefault && liveCount > 0)
+            {
+                uint oldBase = rom.p32(pointerAddr);
+                if (U.isSafetyOffset(oldBase, rom))
+                {
+                    uint prevRowAddr = oldBase + (liveCount - 1) * blockSize;
+                    if (prevRowAddr + blockSize <= (uint)rom.Data.Length)
+                        prevB0 = (byte)(rom.u8(prevRowAddr) & 0xFF);
+                }
+            }
+
+            // Pass `liveCount + 1` so ExpandTable copies the live entries
+            // PLUS the existing terminator, then appends one more zero
+            // entry. After this call the layout in the new free-space
+            // region is:
+            //   [live entries] [existing terminator] [new zero entry]
+            // and ALL of it is within the reserved region.
+            uint reservedAsCount = liveCount + 1;
+            var result = DataExpansionCore.ExpandTable(rom, pointerAddr, blockSize, reservedAsCount);
+            if (!result.Success) return result;
+
+            // The new editable row sits where the terminator used to be:
+            // at offset `liveCount * blockSize` from the new base.
+            uint newRowAddr = result.NewBaseAddress + liveCount * blockSize;
+            if (newRowAddr + blockSize > (uint)rom.Data.Length)
+                return result; // shouldn't happen, ExpandTable already bounds-checked
 
             byte seed = defaultB0;
-            if (seedB0FromCloneOrDefault && oldCount > 0)
-            {
-                // Clone the immediate predecessor's B0 byte so the new
-                // row inherits a real unit id. The ambient undo scope
-                // captures this write too because we route through
-                // `rom.write_u8` like DataExpansionCore does.
-                uint prevRowAddr = newBase + (oldCount - 1) * blockSize;
-                byte prevB0 = (byte)(rom.u8(prevRowAddr) & 0xFF);
-                if (prevB0 != 0) seed = prevB0;
-            }
-            // Guard against B0==0 sneaking through if the previous row's
-            // B0 was zero (shouldn't happen for valid tables, but be safe).
+            if (seedB0FromCloneOrDefault && prevB0 != 0) seed = prevB0;
             if (seed == 0) seed = defaultB0;
             rom.write_u8(newRowAddr, seed);
 
-            // Also write a fresh terminator (all-zero block) AFTER the
-            // newly-seeded row so the next LoadList scan stops there
-            // instead of running into whatever follows in the relocated
-            // table region (usually 0xFF free-space, which never matches
-            // the u32==0 or u8==0 terminator predicates and would iterate
-            // up to the 0x200-row safety limit). The ambient undo scope
-            // captures these bytes too.
-            //
-            // SAFETY (Copilot PR #561 re-review): DataExpansionCore.ExpandTable
-            // reserves exactly `(currentCount + 1) * blockSize` bytes from
-            // free space, so the terminator block at offset
-            // `newRowAddr + blockSize` is OUTSIDE the reserved region.
-            // If the free-space run was exactly that size, writing zeros
-            // there would corrupt whatever ROM data follows.
-            // We only write the terminator if the bytes there are still
-            // `0xFF` (i.e. they are still free space) - this is a no-op
-            // for the iterator's predicates either way (0xFF u8 / 0xFFFFFFFF
-            // u32 both pass the "not zero" test and would still cause
-            // 0x200-row run-away), so we skip the terminator write in the
-            // exact-fit edge case and rely on the safety-bound counter
-            // until the user writes new rows that establish a natural
-            // terminator (or expands again and the new run is found).
-            uint terminatorAddr = newRowAddr + blockSize;
-            if (terminatorAddr + blockSize <= (uint)rom.Data.Length)
+            // Report the user-visible new count: ExpandTable reports
+            // `reservedAsCount + 1 = liveCount + 2`, but the user only
+            // gained one editable row. Adjust so callers see the right
+            // number.
+            return new DataExpansionCore.ExpandResult
             {
-                bool allFreeSpace = true;
-                for (uint i = 0; i < blockSize; i++)
-                {
-                    if (rom.u8(terminatorAddr + i) != 0xFF) { allFreeSpace = false; break; }
-                }
-                if (allFreeSpace)
-                    rom.write_fill(terminatorAddr, blockSize, 0x00);
-            }
+                Success = true,
+                NewBaseAddress = result.NewBaseAddress,
+                NewCount = liveCount + 1,
+            };
         }
 
         /// <summary>Shared list iteration loop with caller-supplied
