@@ -20769,6 +20769,18 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :Animation Export
 导出动画
 
+:Bulk Import
+批量导入
+
+:Bulk Export
+批量导出
+
+:List Expand
+扩展列表
+
+:Skill system editors require the SkillSystems patch to be installed.\r\nUse the Patch Manager to install it first.
+技能系统编辑器需要安装 SkillSystems 补丁。\r\n请先用补丁管理器安装该补丁。
+
 :Pending Core extraction - tracked by #500.
 等待 Core 抽取 - 跟踪于 #500。
 

@@ -532,6 +532,10 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Dynamically locates the skill icon base address via binary pattern search,
         /// then renders the 16x16 4bpp tile at the given index.
         /// Matches WinForms SkillConfigSkillSystemForm.DrawIcon(index, iconBaseAddress).
+        ///
+        /// Note: prefer the overload that accepts a pre-resolved
+        /// <c>iconBaseAddress</c> to avoid 255 redundant byte-pattern scans
+        /// when populating the address list (Copilot bot review on PR #525).
         /// </summary>
         public static Bitmap? SkillIconLoader(List<AddrResult> items, int index)
         {
@@ -540,7 +544,23 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 uint iconBase = PreviewIconHelper.FindSkillSystemIconBaseAddress();
                 if (iconBase == 0) return null;
-                using var img = PreviewIconHelper.LoadSkillIcon((uint)index, iconBase);
+                return SkillIconLoader(items, index, iconBase);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Overload that takes a pre-resolved icon base address so callers
+        /// (e.g. the SkillConfigSkillSystemView populating its list) don't
+        /// re-run the full byte-pattern scan for every row.
+        /// </summary>
+        public static Bitmap? SkillIconLoader(List<AddrResult> items, int index, uint iconBaseAddress)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            if (iconBaseAddress == 0) return null;
+            try
+            {
+                using var img = PreviewIconHelper.LoadSkillIcon((uint)index, iconBaseAddress);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
             catch { return null; }

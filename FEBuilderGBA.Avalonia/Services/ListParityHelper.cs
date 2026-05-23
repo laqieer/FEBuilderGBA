@@ -502,6 +502,13 @@ namespace FEBuilderGBA.Avalonia.Services
             // counterpart" and the navigation manifest never lifts past
             // MissingAvManifest. Copilot bot review on PR #516 (round 4).
             { "SkillConfigFE8UCSkillSys09xView", "SkillConfigCSkillSystem09xForm" },
+            // #427 — SkillConfigSkillSystemForm jumps to ToolAnimationCreatorForm
+            // via X_N_JumpEditor (same shape as #430 / #433). The Avalonia view
+            // is patch-dependent (needs the SkillSystems patch installed to
+            // populate its list), so the EditorMap layer doesn't seed it.
+            // Declare the WF↔AV form pair here so JumpParityScanner can
+            // resolve the cross-ref.
+            { "SkillConfigSkillSystemView", "SkillConfigSkillSystemForm" },
             // #429 — ImageBGForm jumps to the BG-mode-select popup (16/255/224)
             // under the BG256Color patch. Popup is a dialog (NoListEditor);
             // declare the WF↔AV form pair so JumpParityScanner can resolve it.

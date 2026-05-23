@@ -1,5 +1,5 @@
 ---
-generated: "2026-05-23T05:36:11Z"
+generated: "2026-05-23T05:33:19Z"
 git-sha: a35299ba6
 sweep-type: labels
 ---
@@ -37,13 +37,13 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
 | Total WF-only labels | 4625 |
-| Total AV-only labels | 2800 |
+| Total AV-only labels | 2803 |
 | Total common labels | 75 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -2895,12 +2895,13 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ImagePortraitForm
-WF labels: **32** · AV labels: **47** · WF-only: **31** · AV-only: **46** · Common: **1** · Density verdict: **Low** (WF 63 / AV 74)
+WF labels: **32** · AV labels: **28** · WF-only: **32** · AV-only: **28** · Common: **0** · Density verdict: **Medium** (WF 63 / AV 45)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `00`
 - `mug_exceed用のタイルをどこに配置するか設定してください`
+- `Size:`
 - `X:`
 - `Y:`
 - `アドレス`
@@ -2935,7 +2936,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Class Card`
-- `Comment:`
 - `Export Face`
 - `Export Mini`
 - `Export PAL`
@@ -2946,39 +2946,22 @@ AV-only labels (usually fine — layout polish or rewording):
 - `FE-Repo`
 - `Import PAL`
 - `Import PNG`
-- `Jump to Importer`
-- `Jump to Palette`
-- `Jump to Status Height`
 - `Map Face:`
 - `Map Face (32x32)`
 - `Mouth Frames:`
 - `Mouth Frames (32x16 x6)`
 - `Mouth X:`
 - `Mouth Y:`
-- `MugExceed Tile1 X:`
-- `MugExceed Tile1 Y:`
-- `MugExceed Tile2 X:`
-- `MugExceed Tile2 Y:`
-- `Open Source File`
 - `Palette:`
 - `Portrait Image Editor`
-- `Read Count:`
-- `Reload`
-- `Select Source Folder`
-- `Selected Address:`
-- `Set mug_exceed tile positions:`
-- `Show Example (Frame 4)`
 - `Show Frame:`
-- `Start Address:`
 - `Status:`
-- `Tile 1`
-- `Tile 2`
 - `Unit Face:`
 - `Unit Face (96x80)`
 - `Unused (B25):`
 - `Unused (B26):`
 - `Unused (B27):`
-- `Write`
+- `Write Positions`
 
 ### SkillConfigFE8NVer2SkillForm
 WF labels: **31** · AV labels: **10** · WF-only: **31** · AV-only: **10** · Common: **0** · Density verdict: **High** (WF 136 / AV 17)
@@ -3909,42 +3892,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown 2:`
 - `Write`
 
-### SkillConfigSkillSystemForm
-WF labels: **22** · AV labels: **5** · WF-only: **22** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 30 / AV 7)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `アニメーション`
-- `アニメーション取出`
-- `アニメーション読込`
-- `エディタ`
-- `フレーム`
-- `リストの拡張`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `詳細`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Configures skill text details for the SkillSystem patch.`
-- `Skill Config (SkillSystem)`
-- `Text Detail:`
-- `Write`
-
 ### SupportUnitForm
 WF labels: **22** · AV labels: **33** · WF-only: **22** · AV-only: **33** · Common: **0** · Density verdict: **Medium** (WF 50 / AV 73)
 
@@ -4180,6 +4127,62 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `Write pointer value at the address (WriteTarget = ROM offset of target)`
 - `Write Target Offset`
+
+### SkillConfigSkillSystemForm
+WF labels: **22** · AV labels: **27** · WF-only: **21** · AV-only: **26** · Common: **1** · Density verdict: **Medium** (WF 30 / AV 40)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アイコン`
+- `アドレス`
+- `アニメーション`
+- `アニメーション取出`
+- `アニメーション読込`
+- `エディタ`
+- `フレーム`
+- `リストの拡張`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `詳細`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Animation`
+- `Animation Export`
+- `Animation Import`
+- `Bulk Export`
+- `Bulk Import`
+- `Description:`
+- `Display example`
+- `Editor`
+- `Filter Name`
+- `Frame`
+- `Icon`
+- `Image Export`
+- `Image Import`
+- `List Expand`
+- `Original size`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count:`
+- `Reload`
+- `Selected Address:`
+- `Skill Config (SkillSystem)`
+- `Skill system editors require the SkillSystems patch to be installed.\nUse the Patch Manager to install it first.`
+- `Start Address:`
+- `Write`
+- `Zoom`
+- `Zoomed`
 
 ### EDForm
 WF labels: **20** · AV labels: **7** · WF-only: **20** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 65 / AV 11)

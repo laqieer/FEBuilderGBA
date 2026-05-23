@@ -1055,6 +1055,145 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Find the SkillSystem TEXT pointer LOCATION (the address where the
+        /// text-base pointer lives, equivalent to the WF `textPointer`
+        /// argument passed to `InputFormRef.Init`). Mirrors WinForms
+        /// `SkillConfigSkillSystemForm.FindTextPointer` -> `FindSkillPointer("TEXT", 0)`.
+        ///
+        /// Returns <see cref="U.NOT_FOUND"/> if no pattern matches in the
+        /// 0xB00000..0xC00000 scan window, otherwise returns the address of
+        /// the post-pattern u32 holding the text-base GBA pointer.
+        ///
+        /// Distinct from <see cref="FindSkillSystemTextBaseAddress"/> (which
+        /// returns the dereferenced offset). The pointer-location form is
+        /// needed by callers that want to render "Start Address" identically
+        /// to WF and by `Write` paths that need to re-derive the same base
+        /// after an Undo rollback.
+        /// </summary>
+        public static uint FindSkillSystemTextPointerLocation()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return U.NOT_FOUND;
+
+            try
+            {
+                // Two known TEXT patterns from WinForms `FindSkillPointer("TEXT", 0)`.
+                var textPatterns = new (byte[] data, uint skip)[]
+                {
+                    (new byte[] { 0x07, 0x49, 0x40, 0x00, 0x40, 0x18, 0x00, 0x88, 0x00, 0x28, 0x00, 0xD1, 0x06, 0x48, 0x21, 0x1C }, 16),
+                    (new byte[] { 0x40, 0x5D, 0x08, 0x49, 0x40, 0x00, 0x40, 0x18, 0x00, 0x88, 0x00, 0x28, 0x00, 0xD1, 0x07, 0x48, 0x21, 0x1C, 0x4C, 0x31 }, 16),
+                };
+
+                // Clamp end to rom.Data.Length so smaller ROMs don't fall
+                // into the U.Grep exception path (Copilot bot review).
+                uint start = 0xB00000;
+                uint end = Math.Min(0xC00000u, (uint)rom.Data.Length);
+                if (start >= end) return U.NOT_FOUND;
+
+                foreach (var (data, skip) in textPatterns)
+                {
+                    uint found = U.Grep(rom.Data, data, start, end, 4);
+                    if (found == U.NOT_FOUND) continue;
+
+                    uint a = (uint)(found + data.Length + skip);
+                    if (!U.isSafetyOffset(a + 3, rom)) continue;
+                    uint p = rom.u32(a);
+                    if (!U.isSafetyPointer(p)) continue;
+
+                    return a;
+                }
+
+                return U.NOT_FOUND;
+            }
+            catch
+            {
+                return U.NOT_FOUND;
+            }
+        }
+
+        /// <summary>
+        /// Find the SkillSystem TEXT base offset (dereferenced pointer).
+        /// Convenience wrapper over <see cref="FindSkillSystemTextPointerLocation"/>
+        /// that runs the dereference + <c>U.toOffset</c> for callers that
+        /// don't need the pointer-location form. Returns 0 on miss.
+        /// </summary>
+        public static uint FindSkillSystemTextBaseAddress()
+        {
+            uint loc = FindSkillSystemTextPointerLocation();
+            if (loc == U.NOT_FOUND) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return 0;
+            uint p = rom.u32(loc);
+            if (!U.isSafetyPointer(p)) return 0;
+            return U.toOffset(p);
+        }
+
+        /// <summary>
+        /// Find the SkillSystem ANIME pointer LOCATION (the address where the
+        /// animation-pointer-table base pointer lives). Mirrors WinForms
+        /// `SkillConfigSkillSystemForm.FindAnimePointer` -> `FindSkillPointer("ANIME", 0)`.
+        /// Returns <see cref="U.NOT_FOUND"/> on miss, otherwise returns the
+        /// address of the post-pattern u32 holding the anime-base GBA pointer.
+        /// </summary>
+        public static uint FindSkillSystemAnimePointerLocation()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return U.NOT_FOUND;
+
+            try
+            {
+                // Three known ANIME patterns from WinForms `FindSkillPointer("ANIME", 0)`,
+                // ordered by appearance in the WF table (first match wins):
+                //   1. skip=32, 16-byte literal pattern (primary path on most ROMs)
+                //   2. skip=16, 64-byte pattern with 0xFF/0xFF wildcards at the
+                //      pointer-table addresses (Copilot bot review on PR #525
+                //      caught the gap - without this, ROMs that match only
+                //      the masked signature wouldn't resolve)
+                //   3. skip=12, 32-byte literal pattern (older ROMs)
+                var animePatterns = new (byte[] data, uint skip, bool hasMask)[]
+                {
+                    (new byte[] { 0x00, 0x2B, 0x00, 0xD1, 0x06, 0x4B, 0x38, 0x1C, 0x9E, 0x46, 0x00, 0xF8, 0x05, 0x48, 0x00, 0x47 }, 32, false),
+                    (new byte[] { 0x00, 0xD1, 0x33, 0x1C, 0x01, 0x33, 0x38, 0x1C, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xBC, 0x11, 0x48, 0x00, 0x47, 0xF0, 0xBC, 0x10, 0x48, 0x00, 0x47, 0xF0, 0xBC, 0x10, 0x48, 0x00, 0x47, 0x18, 0x47, 0x6D, 0xA1, 0x05, 0x08, 0x35, 0x8A, 0x05, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x10, 0xE3, 0x06, 0x08, 0x8C, 0xE5, 0x06, 0x08, 0xC4, 0xAE, 0x02, 0x08, 0x55, 0xA1, 0x05, 0x08 }, 16, true),
+                    (new byte[] { 0x9D, 0x2E, 0x00, 0x08, 0x35, 0x8A, 0x05, 0x08, 0x00, 0x08, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x10, 0xE3, 0x06, 0x08, 0x8C, 0xE5, 0x06, 0x08, 0xC4, 0xAE, 0x02, 0x08, 0x55, 0xA1, 0x05, 0x08 }, 12, false),
+                };
+
+                // Clamp the scan window to rom.Data.Length so smaller ROMs
+                // don't fall into the U.Grep exception path - matches the
+                // GrepWithMask defensive clamp (Copilot bot review).
+                uint start = 0xB00000;
+                uint end = Math.Min(0xC00000u, (uint)rom.Data.Length);
+                if (start >= end) return U.NOT_FOUND;
+
+                foreach (var (data, skip, hasMask) in animePatterns)
+                {
+                    uint found;
+                    if (hasMask)
+                    {
+                        found = GrepWithMask(rom.Data, data, start, end, 4);
+                    }
+                    else
+                    {
+                        found = U.Grep(rom.Data, data, start, end, 4);
+                    }
+                    if (found == U.NOT_FOUND) continue;
+
+                    uint a = (uint)(found + data.Length + skip);
+                    if (!U.isSafetyOffset(a + 3, rom)) continue;
+                    uint p = rom.u32(a);
+                    if (!U.isSafetyPointer(p)) continue;
+
+                    return a;
+                }
+
+                return U.NOT_FOUND;
+            }
+            catch
+            {
+                return U.NOT_FOUND;
+            }
+        }
+
+        /// <summary>
         /// Load a 16x16 skill icon for the CSkillSys 0.9.x patch. Unlike the
         /// SkillSystems patch (which stripes all icons after one base address),
         /// CSkillSys 0.9.x stores a per-skill GBA pointer at skill-info entry

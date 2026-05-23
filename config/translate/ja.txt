@@ -6783,6 +6783,18 @@ TSA
 :Animation Export
 アニメーション取出
 
+:Bulk Import
+一括インポート
+
+:Bulk Export
+一括エクスポート
+
+:List Expand
+リストの拡張
+
+:Skill system editors require the SkillSystems patch to be installed.\r\nUse the Patch Manager to install it first.
+スキルシステムのエディタは SkillSystems パッチがインストールされている必要があります。\r\nまずパッチマネージャでインストールしてください。
+
 :Pending Core extraction - tracked by #500.
 Core 抽出待ち - #500 で追跡中。
 
