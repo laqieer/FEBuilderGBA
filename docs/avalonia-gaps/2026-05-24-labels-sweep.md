@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T21:14:21Z"
-git-sha: be12e414b
+generated: "2026-05-23T22:04:28Z"
+git-sha: 25a8ee950
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4567 |
-| Total AV-only labels | 3052 |
-| Total common labels | 133 |
+| Total WF-only labels | 4563 |
+| Total AV-only labels | 3083 |
+| Total common labels | 137 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -2503,7 +2503,7 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `0x00 = inherit from previous song (default). 0x80 = reverb off. 0xFF = reverb max. Use values 0x80 - 0xFF when reverb is enabled. Vanilla: SFX=0, field FE6=0x9E, FE7=0x80, FE8=0x94.`
+- `0 (0x00) = inherit from previous song (default). 128 (0x80) = reverb off. 255 (0xFF) = reverb max. Use values in 128-255 (0x80-0xFF) when reverb is enabled. Vanilla: SFX=0, field FE6=158 (0x9E), FE7=1… (truncated; see designer file)`
 - `Address`
 - `All Tracks (Score) - click to bulk-change all tracks`
 - `Export Music File`
@@ -2538,94 +2538,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Track 8`
 - `Track 9`
 - `Track Count`
-- `Write`
-
-### UnitFE6Form
-WF labels: **36** · AV labels: **49** · WF-only: **33** · AV-only: **46** · Common: **3** · Density verdict: **Medium** (WF 152 / AV 98)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `- `
-- `[HardCoding]`
-- `ID`
-- `Size:`
-- `アドレス`
-- `シミュレーション`
-- `マップ顔`
-- `ユニットソート順`
-- `ユニット別能力`
-- `上位クラス戦闘アニメ色`
-- `下位クラス戦闘アニメ色`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `守備`
-- `属性:-`
-- `幸運`
-- `成長率(%)`
-- ` 技 `
-- `支援クラス`
-- `支援データ`
-- `攻撃`
-- `書き込み`
-- `武器LV`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `顔`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Ability Flags`
-- `Address:`
-- `Affinity:`
-- `Anima:`
-- `Axe:`
-- `Base Stats`
-- `Bow:`
-- `Byte1:`
-- `Byte2:`
-- `Byte3:`
-- `Byte4:`
-- `Click to open Portrait Viewer`
-- `Con:`
-- `Dark:`
-- `Decoded description text`
-- `Def:`
-- `Desc`
-- `Desc ID:`
-- `Growth Rates (%)`
-- `Identity`
-- `Lance:`
-- `Lck:`
-- `Light:`
-- `Lower Class Anim Color`
-- `Map Face:`
-- `Name:`
-- `Name ID:`
-- `Open Support`
-- `Open text viewer for this description`
-- `Portrait:`
-- `Res:`
-- `Skl:`
-- `Sort:`
-- `Spd:`
-- `Staff:`
-- `Str:`
-- `Support & Other`
-- `Support Ptr:`
-- `Sword:`
-- `Text ID for the unit's description`
-- `Undo`
-- `Unit Editor (FE6)`
-- `Unit ID:`
-- `Upper Class Anim Color`
-- `Weapon Levels`
 - `Write`
 
 ### ClassOPDemoForm
@@ -3159,6 +3071,105 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Retreat AI:`
 - `Special:`
 - `Target/Recovery AI:`
+- `Write`
+
+### UnitFE6Form
+WF labels: **36** · AV labels: **66** · WF-only: **30** · AV-only: **60** · Common: **6** · Density verdict: **Low** (WF 152 / AV 133)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `ID`
+- `アドレス`
+- `シミュレーション`
+- `マップ顔`
+- `ユニットソート順`
+- `ユニット別能力`
+- `上位クラス戦闘アニメ色`
+- `下位クラス戦闘アニメ色`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `守備`
+- `属性:-`
+- `幸運`
+- `成長率(%)`
+- ` 技 `
+- `支援クラス`
+- `支援データ`
+- `攻撃`
+- `書き込み`
+- `武器LV`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `顔`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Ability Flags`
+- `Affinity:`
+- `Anima:`
+- `Axe:`
+- `Base Stats`
+- `Bow:`
+- `Byte1:`
+- `Byte2:`
+- `Byte3:`
+- `Byte4:`
+- `Click to open Portrait Viewer`
+- `Con:`
+- `Dark:`
+- `Decoded description text`
+- `Def:`
+- `Desc`
+- `Desc ID:`
+- `Growth Rates (%)`
+- `Growth Simulation`
+- `Identity`
+- `Lance:`
+- `Lck:`
+- `Light:`
+- `Lower Class Anim Color`
+- `Map Face:`
+- `Name:`
+- `Name ID:`
+- `Open Support`
+- `Open text viewer for this description`
+- `Portrait:`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res:`
+- `Selected Address:`
+- `Sim DEF:`
+- `Sim HP:`
+- `Sim LCK:`
+- `Sim Level:`
+- `Sim RES:`
+- `Sim SKL:`
+- `Sim SPD:`
+- `Sim STR:`
+- `Skl:`
+- `Sort:`
+- `Spd:`
+- `Staff:`
+- `Str:`
+- `Support & Other`
+- `Support Ptr:`
+- `Sword:`
+- `Text ID for the unit's description`
+- `This unit is referenced by hardcoded ASM. Click to view related patches.`
+- `Total Growth %:`
+- `Undo`
+- `Unit Editor (FE6)`
+- `Unit ID:`
+- `Upper Class Anim Color`
+- `Weapon Levels`
 - `Write`
 
 ### ImageBattleAnimePalletForm
@@ -4113,42 +4124,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Zoom`
 - `Zoomed`
 
-### EDForm
-WF labels: **20** · AV labels: **7** · WF-only: **20** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 65 / AV 11)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `0000`
-- `Size:`
-- `その後`
-- `アドレス`
-- `ユニット`
-- `リストの拡張`
-- `先頭アドレス`
-- `内容`
-- `再取得`
-- `名前`
-- `指定`
-- `撤退`
-- `撤退指定 02`
-- `書き込み`
-- `条件:`
-- `登場ユニット`
-- `読込数`
-- `通り名`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Condition:`
-- `Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed`
-- `Ending Event Editor`
-- `Unknown (0x02):`
-- `Unknown (0x03):`
-- `Write`
-
 ### SongTableForm
 WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **Medium** (WF 26 / AV 14)
 
@@ -4239,6 +4214,58 @@ AV-only labels (usually fine — layout polish or rewording):
 - `SRC Address:`
 - `Walks ROM for LZ77-compressed entries and re-compresses each with the current encoder. Any savings can be reclaimed via Rebuild later. Process takes several minutes for a full ROM scan.`
 - `Zero Clear This Region`
+
+### EDForm
+WF labels: **20** · AV labels: **25** · WF-only: **19** · AV-only: **24** · Common: **1** · Density verdict: **Low** (WF 65 / AV 66)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `0000`
+- `その後`
+- `アドレス`
+- `ユニット`
+- `リストの拡張`
+- `先頭アドレス`
+- `内容`
+- `再取得`
+- `名前`
+- `指定`
+- `撤退`
+- `撤退指定 02`
+- `書き込み`
+- `条件:`
+- `登場ユニット`
+- `読込数`
+- `通り名`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `1=Solo`
+- `2=Support`
+- `Address`
+- `Bytes +2..+3 are reserved (WF designer doesn't expose).`
+- `Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed`
+- `Designation`
+- `Eirika Route`
+- `Ephraim Route`
+- `Epilogue`
+- `Epilogue Text`
+- `Epithet`
+- `Epithet Text`
+- `Filter:`
+- `List Expand`
+- `Read Count`
+- `Reload`
+- `Retreat`
+- `Retreat Spec 02`
+- `Selected Address:`
+- `Story Flag`
+- `Top Address`
+- `Unknown (0x02):`
+- `Unknown (0x03):`
+- `Write`
 
 ### ErrorPaletteTransparentForm
 WF labels: **19** · AV labels: **2** · WF-only: **19** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 50 / AV 3)
