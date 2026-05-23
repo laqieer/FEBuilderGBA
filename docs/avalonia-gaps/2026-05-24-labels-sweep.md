@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T22:04:28Z"
-git-sha: 25a8ee950
+generated: "2026-05-23T23:12:33Z"
+git-sha: 336fc0fa6
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4563 |
-| Total AV-only labels | 3083 |
-| Total common labels | 137 |
+| Total WF-only labels | 4541 |
+| Total AV-only labels | 3119 |
+| Total common labels | 159 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -54,17 +54,17 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 5 | `EventCondForm` | `EventCondView` | 81 | 21 | 0 |
 | 6 | `MapSettingForm` | `MapSettingView` | 78 | 116 | 0 |
 | 7 | `MapSettingFE6Form` | `MapSettingFE6View` | 65 | 2 | 0 |
-| 8 | `ClassForm` | `ClassEditorView` | 57 | 100 | 1 |
-| 9 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
-| 10 | `TextForm` | `TextViewerView` | 48 | 13 | 0 |
-| 11 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
-| 12 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
-| 13 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
-| 14 | `ItemForm` | `ItemEditorView` | 45 | 71 | 0 |
-| 15 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 16 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
-| 17 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
-| 18 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 8 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
+| 9 | `TextForm` | `TextViewerView` | 48 | 13 | 0 |
+| 10 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
+| 11 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
+| 12 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
+| 13 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
+| 14 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
+| 15 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
+| 16 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
+| 17 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 18 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
 | 19 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
 | 20 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
 
@@ -1113,172 +1113,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Map Settings (FE6)`
 
-### ClassForm
-WF labels: **58** · AV labels: **101** · WF-only: **57** · AV-only: **100** · Common: **1** · Density verdict: **Medium** (WF 211 / AV 154)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `???`
-- `[HardCoding]`
-- `CCボーナス`
-- `Export All`
-- `Export Selected`
-- `Growths as Decimal`
-- `HP`
-- `ID`
-- `Import All`
-- `Import Selected`
-- `Include Base Stats`
-- `Include Growths`
-- `Include Header`
-- `Include Name`
-- `Include UID`
-- `Include Wep Level`
-- `LV`
-- `Size:`
-- `Use Clipboard`
-- `アドレス`
-- `クラスチェンジクラス`
-- `クラス基礎能力`
-- `クラス能力最大値`
-- `シミュレーション`
-- `スキル`
-- `ソート順`
-- `リストの拡張`
-- `一般兵顔`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `地形回避`
-- `地形防御`
-- `地形魔防`
-- `守備`
-- `幸運`
-- `待機アイコン`
-- `戦闘時アニメ`
-- ` 技 `
-- `攻撃`
-- `敵成長率(%)`
-- `書き込み`
-- `武器LV`
-- `移動`
-- `移動コスト`
-- `移動コスト(雨)`
-- `移動コスト(雪)`
-- `移動速度`
-- `経験値補正値`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `??? (D80):`
-- `Ability 1 (B40):`
-- `Ability 2 (B41):`
-- `Ability 3 (B42):`
-- `Ability 4 (B43):`
-- `Ability Flags`
-- `Address:`
-- `Anima (B49):`
-- `Axe (B46):`
-- `Base constitution`
-- `Base HP for this class`
-- `Base movement range`
-- `Base Stats`
-- `Battle Anime (P52):`
-- `Bow (B47):`
-- `Calculate Growth`
-- `Class # (B4):`
-- `Class Card`
-- `Class Editor`
-- `Class power / EXP correction value`
-- `Con (B17):`
-- `Dark (B51):`
-- `Decoded description text`
-- `Def (B15):`
-- `Def (B31):`
-- `Def (b38):`
-- `Desc`
-- `Desc ID (W2):`
-- `Edit Skills`
-- `Export all classes to a TSV file`
-- `Export TSV`
-- `Growth Rates`
-- `Growth Simulator`
-- `HP (B11):`
-- `HP (B27):`
-- `HP (b34):`
-- `HP bonus gained on class change`
-- `Identity / Misc`
-- `Import classes from a TSV file`
-- `Import TSV`
-- `Internal class number`
-- `Jump`
-- `Lance (B45):`
-- `Lck (B33):`
-- `Level required for promotion (0=unpromoted)`
-- `Light (B50):`
-- `Map sprite index when idle`
-- `Max Con (B25):`
-- `Max Def (B23):`
-- `Max HP (B19):`
-- `Max Res (B24):`
-- `Max Skl (B21):`
-- `Max Spd (B22):`
-- `Max Str (B20):`
-- `Maximum HP stat cap for this class`
-- `Mov (B18):`
-- `Move Cost (P56):`
-- `Move Cost Rain (P60):`
-- `Move Cost Snow (P64):`
-- `Name:`
-- `Name ID (W0):`
-- `Open skill assignment editor for this class`
-- `Open text viewer for this description`
-- `Pointer to battle animation data`
-- `Pointer to terrain movement cost table`
-- `Pointers / Movement / Terrain`
-- `Portrait (W8):`
-- `Portrait graphic index (click to open Portrait Viewer)`
-- `Power (B26):`
-- `Promo Lv (B5):`
-- `Promotion Gains (CC Bonus)`
-- `Res (B16):`
-- `Res (B32):`
-- `Res (b39):`
-- `Sim Level:`
-- `Skl (B13):`
-- `Skl (B29):`
-- `Skl (b36):`
-- `Sort Order (B10):`
-- `Sort order for class list`
-- `Spd (B14):`
-- `Spd (B30):`
-- `Spd (b37):`
-- `Staff (B48):`
-- `Stat Caps (Max Values)`
-- `Str (B12):`
-- `Str (B28):`
-- `Str (b35):`
-- `Sword (B44):`
-- `Terrain Avoid (P68):`
-- `Terrain Def (P72):`
-- `Terrain Res (P76):`
-- `Text ID for this class's description (click to open Text Viewer)`
-- `Text ID for this class's display name (click to open Text Viewer)`
-- `Wait Icon (B6):`
-- `Walk Spd (B7):`
-- `Walking speed on the map`
-- `Warnings`
-- `Weapon Rank Levels (B44-B51)`
-- `Write`
-
 ### SongInstrumentForm
 WF labels: **51** · AV labels: **22** · WF-only: **50** · AV-only: **21** · Common: **1** · Density verdict: **High** (WF 323 / AV 54)
 
@@ -1654,131 +1488,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unit Palette Editor`
 - `Write`
 
-### ItemForm
-WF labels: **45** · AV labels: **71** · WF-only: **45** · AV-only: **71** · Common: **0** · Density verdict: **Medium** (WF 128 / AV 88)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `??`
-- `[HardCoding]`
-- `HP`
-- `ID`
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `ダメージ追加効果`
-- `リストの拡張`
-- `レベル`
-- `体格`
-- `使った場合`
-- `使用画面`
-- `先頭アドレス`
-- `再取得`
-- `単価`
-- `名前`
-- `命中`
-- `売却価格`
-- `守備`
-- `幸運`
-- `店での買値`
-- `必殺`
-- `性能`
-- ` 技 `
-- `攻撃`
-- `書き込み`
-- `武器LV熟練度`
-- `特効`
-- `特効効果\r\n新規割当`
-- `移動`
-- `種別`
-- `耐久`
-- `能力補正`
-- `能力補正\r\n新規割当`
-- `能力補正値`
-- `説明`
-- `読込数`
-- `速さ`
-- `進撃準備店`
-- `選択アドレス:`
-- `重さ`
-- `間接エフェクト Jump`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Attack power`
-- `Attack range (encoded as min-max)`
-- `Base item price`
-- `Basic Info`
-- `Buy Price:`
-- `Crit (B24):`
-- `Critical hit rate bonus`
-- `Decoded description text`
-- `Decoded usage description text`
-- `Desc`
-- `Desc ID (W2):`
-- `Dmg Effect (B31):`
-- `Edit Skill Config`
-- `Effect when using the item`
-- `Effective (P16):`
-- `Effective Against`
-- `Export all items to a TSV file`
-- `Export TSV`
-- `Forge Price:`
-- `Hit (B22):`
-- `Hit rate bonus`
-- `Icon (B29):`
-- `Import items from a TSV file`
-- `Import TSV`
-- `Internal item number (unique ID)`
-- `Item # (B6):`
-- `Item Editor`
-- `Item weight (reduces attack speed)`
-- `Jump`
-- `Might (B21):`
-- `Name:`
-- `Name ID (W0):`
-- `Number of uses before the item breaks`
-- `Open skill configuration editor`
-- `Open text viewer for this description`
-- `Open text viewer for this usage description`
-- `Pointer to effectiveness list (bonus vs. classes)`
-- `Pointer to stat bonuses when equipped`
-- `Price (W26):`
-- `Range (B25):`
-- `Rank (B28):`
-- `Sell Price:`
-- `Special effect applied on hit`
-- `Stat Bonus (P12):`
-- `Stat Bonuses Preview`
-- `Stats / Bonuses`
-- `Text ID for the item description (click to open Text Viewer)`
-- `Text ID for the item usage description (click to open Text Viewer)`
-- `Text ID for this item's display name (click to open Text Viewer)`
-- `Trait 1 (B8):`
-- `Trait 2 (B9):`
-- `Trait 3 (B10):`
-- `Trait 4 (B11):`
-- `Trait Flags`
-- `Type (B7):`
-- `Unk33 (B33):`
-- `Unk34 (B34):`
-- `Unk35 (B35):`
-- `Use Desc (W4):`
-- `Use Effect (B30):`
-- `Uses (B20):`
-- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
-- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
-- `Warnings`
-- `Weapon experience gained per use`
-- `Weapon Properties`
-- `Weapon type (Sword, Lance, Axe, etc.)`
-- `Weight (B23):`
-- `Wep Exp (B32):`
-- `Write`
-
 ### MapStyleEditorForm
 WF labels: **45** · AV labels: **5** · WF-only: **45** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 153 / AV 8)
 
@@ -1921,6 +1630,136 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weight (B23):`
 - `Write`
 
+### ItemForm
+WF labels: **45** · AV labels: **78** · WF-only: **44** · AV-only: **77** · Common: **1** · Density verdict: **Low** (WF 128 / AV 97)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `??`
+- `HP`
+- `ID`
+- `Size:`
+- `アイコン`
+- `アドレス`
+- `ダメージ追加効果`
+- `リストの拡張`
+- `レベル`
+- `体格`
+- `使った場合`
+- `使用画面`
+- `先頭アドレス`
+- `再取得`
+- `単価`
+- `名前`
+- `命中`
+- `売却価格`
+- `守備`
+- `幸運`
+- `店での買値`
+- `必殺`
+- `性能`
+- ` 技 `
+- `攻撃`
+- `書き込み`
+- `武器LV熟練度`
+- `特効`
+- `特効効果\r\n新規割当`
+- `移動`
+- `種別`
+- `耐久`
+- `能力補正`
+- `能力補正\r\n新規割当`
+- `能力補正値`
+- `説明`
+- `読込数`
+- `速さ`
+- `進撃準備店`
+- `選択アドレス:`
+- `重さ`
+- `間接エフェクト Jump`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Attack power`
+- `Attack range (encoded as min-max)`
+- `Base item price`
+- `Basic Info`
+- `Buy Price:`
+- `Crit (B24):`
+- `Critical hit rate bonus`
+- `Debuff Table`
+- `Decoded description text`
+- `Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):`
+- `Decoded usage description text`
+- `Desc`
+- `Desc ID (W2):`
+- `Dmg Effect (B31):`
+- `Edit Skill Config`
+- `Effect when using the item`
+- `Effective (P16):`
+- `Effective Against`
+- `Export all items to a TSV file`
+- `Export TSV`
+- `Forge Price:`
+- `Hit (B22):`
+- `Hit rate bonus`
+- `Icon (B29):`
+- `Import items from a TSV file`
+- `Import TSV`
+- `Indirect Weapon Effect`
+- `Internal item number (unique ID)`
+- `Item # (B6):`
+- `Item Editor`
+- `Item weight (reduces attack speed)`
+- `Jump`
+- `Might (B21):`
+- `Name:`
+- `Name ID (W0):`
+- `Number of uses before the item breaks`
+- `Open skill configuration editor`
+- `Open text viewer for this description`
+- `Open text viewer for this usage description`
+- `Open the indirect weapon effect table at the row for this item.`
+- `Open the Patch Manager filtered to the SkillSystem WeaponDebuffsTable definition.`
+- `Pointer to effectiveness list (bonus vs. classes)`
+- `Pointer to stat bonuses when equipped`
+- `Price (W26):`
+- `Range (B25):`
+- `Rank (B28):`
+- `Sell Price:`
+- `Special effect applied on hit`
+- `Stat Bonus (P12):`
+- `Stat Bonuses Preview`
+- `Stats / Bonuses`
+- `Text ID for the item description (click to open Text Viewer)`
+- `Text ID for the item usage description (click to open Text Viewer)`
+- `Text ID for this item's display name (click to open Text Viewer)`
+- `This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.`
+- `Trait 1 (B8):`
+- `Trait 2 (B9):`
+- `Trait 3 (B10):`
+- `Trait 4 (B11):`
+- `Trait Flags`
+- `Type (B7):`
+- `Unk33 (B33):`
+- `Unk34 (B34):`
+- `Unk35 (B35):`
+- `Use Desc (W4):`
+- `Use Effect (B30):`
+- `Uses (B20):`
+- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
+- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
+- `Warnings`
+- `Weapon experience gained per use`
+- `Weapon Properties`
+- `Weapon type (Sword, Lance, Axe, etc.)`
+- `Weight (B23):`
+- `Wep Exp (B32):`
+- `Write`
+
 ### ToolInitWizardForm
 WF labels: **44** · AV labels: **8** · WF-only: **44** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 80 / AV 8)
 
@@ -2038,6 +1877,165 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Calculate Growth`
 - `Class Editor (FE6)`
 - `Sim Level:`
+
+### ClassForm
+WF labels: **58** · AV labels: **122** · WF-only: **43** · AV-only: **107** · Common: **15** · Density verdict: **Low** (WF 211 / AV 174)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `???`
+- `CCボーナス`
+- `HP`
+- `ID`
+- `LV`
+- `アドレス`
+- `クラスチェンジクラス`
+- `クラス基礎能力`
+- `クラス能力最大値`
+- `シミュレーション`
+- `スキル`
+- `ソート順`
+- `リストの拡張`
+- `一般兵顔`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `地形回避`
+- `地形防御`
+- `地形魔防`
+- `守備`
+- `幸運`
+- `待機アイコン`
+- `戦闘時アニメ`
+- ` 技 `
+- `攻撃`
+- `敵成長率(%)`
+- `書き込み`
+- `武器LV`
+- `移動`
+- `移動コスト`
+- `移動コスト(雨)`
+- `移動コスト(雪)`
+- `移動速度`
+- `経験値補正値`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `??? (D80):`
+- `Ability 1 (B40):`
+- `Ability 2 (B41):`
+- `Ability 3 (B42):`
+- `Ability 4 (B43):`
+- `Ability Flags`
+- `Address:`
+- `Anima (B49):`
+- `Axe (B46):`
+- `Base constitution`
+- `Base HP for this class`
+- `Base movement range`
+- `Base Stats`
+- `Battle Anime (P52):`
+- `Bow (B47):`
+- `Calculate Growth`
+- `CC Branch`
+- `Class # (B4):`
+- `Class Card`
+- `Class Editor`
+- `Class power / EXP correction value`
+- `Con (B17):`
+- `Dark (B51):`
+- `Decoded description text`
+- `Def (B15):`
+- `Def (B31):`
+- `Def (b38):`
+- `Desc`
+- `Desc ID (W2):`
+- `Edit Skills`
+- `Export all classes to a CSV file or clipboard`
+- `Export the selected class to a CSV file or clipboard`
+- `Export/Import Options`
+- `Growth Rates`
+- `Growth Simulator`
+- `HP (B11):`
+- `HP (B27):`
+- `HP (b34):`
+- `HP bonus gained on class change`
+- `Identity / Misc`
+- `Import all classes from a CSV file or clipboard`
+- `Import the selected class from a CSV file or clipboard`
+- `Internal class number`
+- `Jump`
+- `Lance (B45):`
+- `Lck (B33):`
+- `Level required for promotion (0=unpromoted)`
+- `Light (B50):`
+- `Map sprite index when idle`
+- `Max Con (B25):`
+- `Max Def (B23):`
+- `Max HP (B19):`
+- `Max Res (B24):`
+- `Max Skl (B21):`
+- `Max Spd (B22):`
+- `Max Str (B20):`
+- `Maximum HP stat cap for this class`
+- `Mov (B18):`
+- `Move Cost (P56):`
+- `Move Cost Rain (P60):`
+- `Move Cost Snow (P64):`
+- `Name:`
+- `Name ID (W0):`
+- `Open skill assignment editor for this class`
+- `Open text viewer for this description`
+- `Open the class-change branch editor for this class (FE8 only)`
+- `Pointer to battle animation data`
+- `Pointer to terrain movement cost table`
+- `Pointers / Movement / Terrain`
+- `Portrait (W8):`
+- `Portrait graphic index (click to open Portrait Viewer)`
+- `Power (B26):`
+- `Promo Lv (B5):`
+- `Promotion Gains (CC Bonus)`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res (B16):`
+- `Res (B32):`
+- `Res (b39):`
+- `Sim Level:`
+- `Skl (B13):`
+- `Skl (B29):`
+- `Skl (b36):`
+- `Sort Order (B10):`
+- `Sort order for class list`
+- `Spd (B14):`
+- `Spd (B30):`
+- `Spd (b37):`
+- `Staff (B48):`
+- `Stat Caps (Max Values)`
+- `Str (B12):`
+- `Str (B28):`
+- `Str (b35):`
+- `Sword (B44):`
+- `Terrain Avoid (P68):`
+- `Terrain Def (P72):`
+- `Terrain Res (P76):`
+- `Text ID for this class's description (click to open Text Viewer)`
+- `Text ID for this class's display name (click to open Text Viewer)`
+- `This class is referenced by hardcoded ASM. Click to view related patches.`
+- `Wait Icon (B6):`
+- `Walk Spd (B7):`
+- `Walking speed on the map`
+- `Warnings`
+- `Weapon Rank Levels (B44-B51)`
+- `Write`
 
 ### ImageBattleScreenForm
 WF labels: **42** · AV labels: **2** · WF-only: **42** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 133 / AV 3)
@@ -3451,42 +3449,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `Write Anime Command`
 - `Write Glyph Entry`
-
-### ImageMagicCSACreatorForm
-WF labels: **25** · AV labels: **2** · WF-only: **25** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `dim`
-- `FrameData`
-- `OBJBGLeftToRight`
-- `OBJBGRightToLeft`
-- `OBJLeftToRight`
-- `OBJRightToLeft`
-- `Size:`
-- `アドレス`
-- `インターネットから新しいリソースを探す`
-- `エディタ`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `フレーム`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-- `魔法アニメの書出し`
-- `魔法アニメの読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `CSA Magic Creator`
 
 ### AIScriptForm
 WF labels: **24** · AV labels: **2** · WF-only: **24** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
@@ -4976,6 +4938,58 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Save Image Ptr:`
 - `Title Image Ptr:`
 - `Write`
+
+### ImageMagicCSACreatorForm
+WF labels: **25** · AV labels: **32** · WF-only: **18** · AV-only: **25** · Common: **7** · Density verdict: **Medium** (WF 37 / AV 50)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `インターネットから新しいリソースを探す`
+- `エディタ`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `フレーム`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+- `魔法アニメの書出し`
+- `魔法アニメの読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address`
+- `Bin info`
+- `Comment`
+- `CSA Magic Creator`
+- `Data Expansion`
+- `dim_pc`
+- `Editor`
+- `Export Magic Animation`
+- `Find new resources online`
+- `Frame`
+- `Import Magic Animation`
+- `Name`
+- `NULL (EMPTY)`
+- `Open Source File`
+- `Open Source Folder`
+- `Original size`
+- `Pending Core extraction - tracked by #500.`
+- `Preview`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Top Address`
+- `Write to ROM`
+- `Zoom`
+- `Zoom in`
 
 ### ImageMagicFEditorForm
 WF labels: **25** · AV labels: **30** · WF-only: **18** · AV-only: **23** · Common: **7** · Density verdict: **Low** (WF 37 / AV 45)

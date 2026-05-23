@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T22:04:31Z"
-git-sha: 25a8ee950
+generated: "2026-05-23T23:12:35Z"
+git-sha: 336fc0fa6
 sweep-type: jumps
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 429 |
-| Match | 52 |
-| MissingAvManifest (backlog) | 334 |
+| Total rows | 431 |
+| Match | 59 |
+| MissingAvManifest (backlog) | 329 |
 | NoWfCallsite | 35 |
 | KnownGap (issue-tagged) | 8 |
 
@@ -206,8 +206,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `ClassForm` | `ClassEditorView` | `—` | `CCBranchForm` | `CCBranchEditorView` |
-| `ClassForm` | `ClassEditorView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassFE6Form` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassForm` | `ClassFE6View` | `—` | `CCBranchForm` | `CCBranchEditorView` |
 | `ClassForm` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
@@ -257,9 +255,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
-| `ItemForm` | `ItemEditorView` | `—` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
-| `ItemForm` | `ItemEditorView` | `—` | `PatchForm` | `PatchManagerView` |
-| `ItemForm` | `ItemEditorView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ItemFE6Form` | `ItemFE6View` | `—` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
 | `ItemFE6Form` | `ItemFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageItemIconForm` | `ItemIconViewerView` | `—` | `ImageSystemIconForm` | `—` |
@@ -438,6 +433,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
+| `ClassForm` | `ClassEditorView` | `JumpToCCBranch_FE8` | `CCBranchForm` | `CCBranchEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
@@ -460,6 +457,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImagePortraitForm` | `ImagePortraitView` | `JumpToPalette` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitForm` | `ImagePortraitView` | `JumpToImporter` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImagePortraitForm` | `ImagePortraitView` | `JumpToStatusHeight` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
+| `ItemForm` | `ItemEditorView` | `JumpToWeaponEffect` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToWeaponDebuffs` | `PatchForm` | `PatchManagerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToWeaponDebuffs` | `PatchForm` | `PatchManagerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |
