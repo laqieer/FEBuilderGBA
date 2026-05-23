@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core; // ClassFormCore lives in FEBuilderGBA.Core (#407).
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -380,6 +381,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["Ability4"] = "u8@0x2B",
                 ["SupportPtr"] = "u32@0x2C",
             };
+        }
+
+        /// <summary>
+        /// Run the growth simulator with the current unit's base stats /
+        /// growth rates / class contribution, then grow to <paramref name="targetLevel"/>.
+        /// Mirrors WF <c>UnitFE6Form.BuildSim() + sim.Grow(level, UnitGrow)</c>:
+        /// unit base + unit growth + class base + class growth.
+        /// Used by the Avalonia Growth-Simulator panel (#407). Safe when ROM
+        /// is unloaded (returns a zero sim). FE6 has no magic-split patch so
+        /// magicExt is always 0.
+        ///
+        /// NOTE: WF FE6 base stats are unsigned (0-255). The VM stores them
+        /// signed (sbyte cast in LoadUnit) for binary compatibility, so we
+        /// re-normalize via (byte)(sbyte) here to match WF semantics exactly.
+        /// This mirrors WinForms behavior where b12.Maximum = 255 (unsigned).
+        /// </summary>
+        public GrowSimulator BuildSimAndGrow(int targetLevel)
+        {
+            var sim = new GrowSimulator();
+            // FE6 base stats are unsigned in WF; coerce signed-VM values back
+            // to byte semantics so e.g. HP=200 (stored as -56 sbyte) sims as 200.
+            int hp = (byte)(sbyte)HP;
+            int str = (byte)(sbyte)Str;
+            int skl = (byte)(sbyte)Skl;
+            int spd = (byte)(sbyte)Spd;
+            int def = (byte)(sbyte)Def;
+            int res = (byte)(sbyte)Res;
+            int lck = (byte)(sbyte)Lck;
+            sim.SetUnitBase((int)Level, hp, str, skl, spd, def, res, lck, 0);
+            sim.SetUnitGrow((int)GrowHP, (int)GrowStr, (int)GrowSkl, (int)GrowSpd,
+                            (int)GrowDef, (int)GrowRes, (int)GrowLck, 0);
+            // Class base + growth contribution (matches WinForms BuildSim
+            // which calls ClassForm.SetSimClass(ref sim, classId)).
+            ClassFormCore.SetSimClass(ref sim, ClassId, CoreState.ROM);
+            // Grow to the requested simulation level using unit-grow path.
+            sim.Grow(targetLevel, GrowSimulator.GrowOptionEnum.UnitGrow);
+            return sim;
         }
 
         public void WriteUnit()

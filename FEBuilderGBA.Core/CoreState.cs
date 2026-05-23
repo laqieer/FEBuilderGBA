@@ -51,9 +51,21 @@ namespace FEBuilderGBA
         /// hardcoded ASM in the loaded ROM. Used by the class-editor
         /// HardCoding warning label (#406, parity with WF
         /// <c>ClassForm.CheckHardCodingWarning</c>). Implementations that
-        /// do not have ASM-map data available should return false.
+        /// do not have ASM-map data available should return false. Default
+        /// implementation returns false so legacy implementors keep
+        /// compiling.
         /// </summary>
-        bool IsHardCodeClass(uint classId);
+        bool IsHardCodeClass(uint classId) => false;
+
+        /// <summary>
+        /// Returns true when the supplied item id is referenced by
+        /// hardcoded ASM in the loaded ROM. Used by the item-editor
+        /// HardCoding warning label (#409). Implementations that do not
+        /// have ASM-map data available should return false (default
+        /// implementation returns false so legacy implementors keep
+        /// compiling).
+        /// </summary>
+        bool IsHardCodeItem(uint itemId) => false;
     }
 
     /// <summary>
