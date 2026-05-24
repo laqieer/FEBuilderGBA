@@ -96,7 +96,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             ClearListState();
-            if (rom?.RomInfo == null) return;
+            // Issue #404: guard against partial state where ROM is set but
+            // CoreState.SystemTextEncoder is not (race observed in
+            // ControlPropertyTests + ViewInstantiationSweepTests CI runs
+            // when parallel RomFixture-using test classes disposed mid-test).
+            if (rom?.RomInfo == null || CoreState.SystemTextEncoder == null) return;
 
             uint baseAddr = rom.RomInfo.mask_pointer;
             if (!U.isSafetyOffset(baseAddr, rom)) return;
