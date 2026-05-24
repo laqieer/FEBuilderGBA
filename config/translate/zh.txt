@@ -21805,3 +21805,18 @@ ED 关系
 
 :Edit R/G/B 0-248 (5-bit ticks)
 编辑 R/G/B 0-248 （5位刻度）
+
+:Palette Editor
+调色板编辑器
+
+:Palette No {0}
+调色板 No{0}
+
+:Edit Palette
+编辑调色板
+
+:Palette written.
+调色板已写入。
+
+:Write failed: {0}
+写入失败：{0}

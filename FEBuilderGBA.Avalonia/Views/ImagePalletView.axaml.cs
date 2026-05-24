@@ -90,7 +90,15 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_vm.PaletteIndex >= 0 && _vm.PaletteIndex < PaletteIndexComboBox.Items.Count)
                 PaletteIndexComboBox.SelectedIndex = _vm.PaletteIndex;
 
-            bool showIndex = _vm.MaxPaletteCount > 1;
+            // Only show the palette-index bar once real palette data has
+            // been loaded AND there is more than one block to switch
+            // between. Without the IsLoaded gate, opening from the main
+            // menu (which leaves MaxPaletteCount at the 16 default and
+            // PaletteIndexNames empty) would render an empty combo
+            // (Copilot bot inline review #8 on PR #586).
+            bool showIndex = _vm.IsLoaded
+                && _vm.MaxPaletteCount > 1
+                && _vm.PaletteIndexNames.Count > 0;
             PaletteIndexComboBox.IsVisible = showIndex;
             PaletteIndexLabel.IsVisible = showIndex;
 
@@ -142,13 +150,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         static void SetSwatch(Image image, byte r, byte g, byte b)
         {
-            // Lightweight 1x1 pixel rendered at the swatch's display size.
-            // Avalonia stretches it to the Image bounds automatically.
-            var bmp = new WriteableBitmap(
-                new global::Avalonia.PixelSize(1, 1),
-                new global::Avalonia.Vector(96, 96),
-                global::Avalonia.Platform.PixelFormat.Bgra8888,
-                global::Avalonia.Platform.AlphaFormat.Unpremul);
+            // Allocate the 1x1 backing bitmap ONCE per Image control and
+            // reuse it on subsequent UpdateUI calls (Copilot bot inline
+            // review #9 on PR #586 - avoids per-slot WriteableBitmap
+            // churn across 16 swatches x N redraws).
+            WriteableBitmap bmp;
+            if (image.Source is WriteableBitmap existing
+                && existing.PixelSize.Width == 1
+                && existing.PixelSize.Height == 1)
+            {
+                bmp = existing;
+            }
+            else
+            {
+                bmp = new WriteableBitmap(
+                    new global::Avalonia.PixelSize(1, 1),
+                    new global::Avalonia.Vector(96, 96),
+                    global::Avalonia.Platform.PixelFormat.Bgra8888,
+                    global::Avalonia.Platform.AlphaFormat.Unpremul);
+                image.Source = bmp;
+                image.Stretch = Stretch.Fill;
+            }
             using (var fb = bmp.Lock())
             {
                 unsafe
@@ -157,8 +179,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     p[0] = b; p[1] = g; p[2] = r; p[3] = 0xFF; // BGRA
                 }
             }
-            image.Source = bmp;
-            image.Stretch = Stretch.Fill;
+            // Force Avalonia to re-render the Image even though Source is
+            // the same instance (WriteableBitmap mutation does not raise
+            // the property-changed event by itself).
+            image.InvalidateVisual();
         }
 
         // ---- event handlers ----
@@ -200,7 +224,10 @@ namespace FEBuilderGBA.Avalonia.Views
             int reloadMax = _vm.MaxPaletteCount;
             int reloadIdx = _vm.PaletteIndex;
 
-            _undoService.Begin("Edit Palette");
+            // Undo name + user-facing messages routed through R._() so
+            // they pick up ja/zh translations (Copilot bot inline
+            // review #10 on PR #586).
+            _undoService.Begin(R._("Edit Palette"));
             try
             {
                 ReadNudsIntoVm();
@@ -223,13 +250,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 UpdateUI();
 
-                CoreState.Services?.ShowInfo("Palette written.");
+                CoreState.Services?.ShowInfo(R._("Palette written."));
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.Error("ImagePalletView.Write_Click failed: {0}", ex.Message);
-                CoreState.Services?.ShowError($"Write failed: {ex.Message}");
+                CoreState.Services?.ShowError(R._("Write failed: {0}", ex.Message));
             }
         }
 

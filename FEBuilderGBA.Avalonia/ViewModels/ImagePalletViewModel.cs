@@ -129,8 +129,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public List<AddrResult> LoadList()
         {
+            // The placeholder label goes through R._() so it picks up
+            // the ja/zh translations the rest of the editor uses
+            // (Copilot bot inline review #6 on PR #586).
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0u, "Palette Editor", 0u));
+            result.Add(new AddrResult(0u, R._("Palette Editor"), 0u));
             return result;
         }
 
@@ -195,16 +198,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Pack the 48 R/G/B fields into a 32-byte BGR15 blob and
         /// write to ROM at (PaletteAddress, PaletteIndex). Returns
-        /// the destination offset (or U.NOT_FOUND when no-op).
+        /// the destination offset on success, or U.NOT_FOUND when the
+        /// write was a no-op (null ROM, invalid address, or overflow -
+        /// Copilot CLI round-1 review on PR #586).
         /// </summary>
         public uint Write()
         {
             var rom = CoreState.ROM;
             if (rom == null) return U.NOT_FOUND;
-            if (PaletteAddress == 0) return U.NOT_FOUND;
+            if (PaletteAddress == 0 || PaletteAddress == U.NOT_FOUND) return U.NOT_FOUND;
 
             var colors = GetSlots();
-            PaletteCore.WritePalette(rom, PaletteAddress, PaletteIndex, colors);
+            // Honor PaletteCore.WritePalette's success/fail return so we
+            // don't report a successful offset when Core skipped the
+            // write (e.g. overflow / invalid address).
+            if (!PaletteCore.WritePalette(rom, PaletteAddress, PaletteIndex, colors))
+                return U.NOT_FOUND;
             uint offset = U.toOffset(PaletteAddress) + (uint)(PaletteIndex * PaletteCore.PALETTE_BLOCK_SIZE);
             return offset;
         }
@@ -251,13 +260,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         static IReadOnlyList<string> BuildIndexNames(int count, string[]? overrides)
         {
+            // Fallback labels are localized via R._() so the
+            // palette-index combo items pick up ja/zh translations
+            // (Copilot bot inline review #7 on PR #586).
             var list = new List<string>(count);
             for (int i = 0; i < count; i++)
             {
                 if (overrides != null && i < overrides.Length && !string.IsNullOrEmpty(overrides[i]))
                     list.Add(overrides[i]);
                 else
-                    list.Add($"Palette No {i}");
+                    list.Add(R._("Palette No {0}", i));
             }
             return list;
         }

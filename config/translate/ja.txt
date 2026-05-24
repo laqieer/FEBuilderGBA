@@ -4507,7 +4507,10 @@ Data 読込数:
 Battle Animation パレット
 
 :Palette Editor
-パレット Editor
+パレットエディタ
+
+:Palette No {0}
+パレット No{0}
 
 :Write Notification
 書き込み Notification
@@ -7973,3 +7976,12 @@ Core RunRedo API待ち - #500で追跡中。
 
 :Edit R/G/B 0-248 (5-bit ticks)
 R/G/Bを0-248で編集（5ビット刻み）
+
+:Edit Palette
+パレットを編集
+
+:Palette written.
+パレットを書き込みました。
+
+:Write failed: {0}
+書き込みに失敗しました: {0}

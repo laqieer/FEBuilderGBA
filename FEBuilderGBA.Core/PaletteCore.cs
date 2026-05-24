@@ -53,24 +53,32 @@ namespace FEBuilderGBA
         /// (paletteIndex * 32 byte offset).
         ///
         /// Returns a 16-tuple array of (R, G, B) byte triples. On
-        /// overflow (data too small) or unreachable offset, returns
-        /// 16 black entries.
+        /// overflow (data too small), invalid address, or unreachable
+        /// offset, returns 16 black entries.
         /// </summary>
         public static (byte r, byte g, byte b)[] ReadPalette(byte[] data, uint paletteAddress, int paletteIndex)
         {
             var result = new (byte, byte, byte)[16];
             if (data == null) return result;
             if (paletteIndex < 0) paletteIndex = 0;
+            // Reject sentinel "no address" values - both bare 0 and the
+            // U.NOT_FOUND marker the rest of Core uses for "search failed"
+            // (Copilot bot inline review #2 on PR #586).
+            if (paletteAddress == 0 || paletteAddress == U.NOT_FOUND) return result;
 
             uint offset = U.toOffset(paletteAddress);
-            uint start = offset + (uint)(paletteIndex * PALETTE_BLOCK_SIZE);
-            // Guard against overflow / out-of-bounds reads.
-            if (start + PALETTE_BLOCK_SIZE > (uint)data.Length)
-                return result;
+            // Range check uses ulong arithmetic so the addition cannot
+            // wrap around even if paletteAddress is near uint.MaxValue
+            // (Copilot bot inline review #2 on PR #586).
+            ulong start = (ulong)offset + (ulong)paletteIndex * PALETTE_BLOCK_SIZE;
+            if (start + PALETTE_BLOCK_SIZE > (ulong)data.Length) return result;
 
+            int startInt = (int)start;
             for (int i = 0; i < 16; i++)
             {
-                uint cur = start + (uint)(i * 2);
+                int cur = startInt + i * 2;
+                // byte[] indexers require int, not uint - convert after
+                // bounds check (Copilot bot inline review #1 on PR #586).
                 ushort gba = (ushort)(data[cur] | (data[cur + 1] << 8));
                 PaletteFormatConverter.GbaToRgb(gba, out byte r, out byte g, out byte b);
                 result[i] = (r, g, b);
@@ -102,23 +110,32 @@ namespace FEBuilderGBA
         /// <summary>
         /// Write 16 (R, G, B) tuples to <paramref name="rom"/> at
         /// <paramref name="paletteAddress"/> (GBA pointer or raw offset)
-        /// + <paramref name="paletteIndex"/> * 32. No-op when
-        /// <paramref name="rom"/> is null or the destination would
-        /// overflow ROM data. The write is undo-tracked when the ROM
-        /// has an ambient undo scope active (see ROM.BeginUndoScope).
+        /// + <paramref name="paletteIndex"/> * 32. Returns true on
+        /// success, false when the write was a no-op (null ROM, invalid
+        /// address, or destination would overflow ROM data). The
+        /// write is undo-tracked when the ROM has an ambient undo
+        /// scope active (see ROM.BeginUndoScope).
+        ///
+        /// Callers MUST check the return value to know whether the
+        /// write landed - reporting a successful offset to the user
+        /// when WritePalette no-op'd would be a lie (Copilot CLI
+        /// round-1 review on PR #586).
         /// </summary>
-        public static void WritePalette(ROM rom, uint paletteAddress, int paletteIndex, (byte r, byte g, byte b)[] colors)
+        public static bool WritePalette(ROM rom, uint paletteAddress, int paletteIndex, (byte r, byte g, byte b)[] colors)
         {
-            if (rom == null) return;
+            if (rom == null) return false;
             if (paletteIndex < 0) paletteIndex = 0;
+            // Same sentinel guards + ulong range math as ReadPalette
+            // (Copilot bot inline review #3 on PR #586).
+            if (paletteAddress == 0 || paletteAddress == U.NOT_FOUND) return false;
 
             uint offset = U.toOffset(paletteAddress);
-            uint start = offset + (uint)(paletteIndex * PALETTE_BLOCK_SIZE);
-            if (start + PALETTE_BLOCK_SIZE > (uint)rom.Data.Length)
-                return;
+            ulong start = (ulong)offset + (ulong)paletteIndex * PALETTE_BLOCK_SIZE;
+            if (start + PALETTE_BLOCK_SIZE > (ulong)rom.Data.Length) return false;
 
             byte[] bytes = PackToBytes(colors);
-            rom.write_range(start, bytes);
+            rom.write_range((uint)start, bytes);
+            return true;
         }
     }
 }
