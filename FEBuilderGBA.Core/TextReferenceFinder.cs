@@ -103,6 +103,82 @@ namespace FEBuilderGBA
 
         static void ScanOne(ROM rom, uint textId, TextRefTableDescriptor t, List<string> refs)
         {
+            // Delegates to the shared descriptor walker. For Find()'s "one
+            // match per entry" semantics, the visitor returns true to signal
+            // "stop visiting offsets in this entry and move on", while still
+            // continuing to subsequent entries.
+            WalkEntries(rom, t, (entryIndex, observedTextId) =>
+            {
+                if (observedTextId != textId) return false;
+                string name = "";
+                try { name = t.NameResolver != null ? t.NameResolver(entryIndex) : ""; }
+                catch { name = ""; }
+                refs.Add($"{t.Kind} 0x{entryIndex:X02} ({name})");
+                return true; // one match per entry is enough
+            });
+        }
+
+        /// <summary>
+        /// Issue #404: collect every distinct u16 text ID referenced across
+        /// <paramref name="tables"/>. Used by `TextViewerViewModel.FindApproximatelyUnreferencedTexts`
+        /// to compute the complement (text IDs that the configured descriptor
+        /// set does NOT reach) without paying the O(N*M) cost of calling
+        /// <see cref="Find"/> once per text ID.
+        ///
+        /// Mirrors the EXACT same descriptor traversal as <see cref="Find"/>
+        /// (PointerField vs DirectBase, safety/clamp guards, terminator
+        /// predicate). The shared <see cref="WalkEntries"/> visitor ensures the
+        /// two functions cannot drift.
+        ///
+        /// Coverage is APPROXIMATE in the same sense as <see cref="Find"/>:
+        /// only descriptor-defined tables are scanned (units, classes, items,
+        /// map_settings, support_talks, etc.). Patch-defined parameters,
+        /// EventCond scripts, menu-definition chains, status R-menu linked
+        /// lists, and FE7 haiku tutorial event pointers are NOT included.
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="tables">Descriptor list (typically from
+        /// `TextRefTableRegistry.BuildForRom(rom)`).</param>
+        /// <returns>Set of text IDs observed in the descriptor tables.
+        /// Excludes text ID 0 (system write-protect, not a "reference" in the
+        /// gameplay sense).</returns>
+        public static HashSet<uint> CollectReferencedTextIds(ROM rom, IEnumerable<TextRefTableDescriptor> tables)
+        {
+            var ids = new HashSet<uint>();
+            if (rom?.Data == null || tables == null) return ids;
+            foreach (var t in tables)
+            {
+                if (t == null) continue;
+                WalkEntries(rom, t, (entryIndex, observedTextId) =>
+                {
+                    // Skip the zero sentinel: WinForms FETextDecode treats id 0
+                    // as "no text", and Find() short-circuits on it. Including
+                    // it in the referenced set would falsely mark ID 0 as
+                    // referenced everywhere.
+                    if (observedTextId != 0) ids.Add(observedTextId);
+                    return false; // continue scanning every offset in every entry
+                });
+            }
+            return ids;
+        }
+
+        /// <summary>
+        /// Shared descriptor walker used by both <see cref="Find"/> and
+        /// <see cref="CollectReferencedTextIds"/>. Resolves the table base
+        /// (PointerField vs DirectBase), applies safety/clamp guards, honors
+        /// the terminator predicate, and visits each entry's text-id offsets
+        /// in order. The <paramref name="visit"/> callback receives the
+        /// (entryIndex, textId) pair; it returns <c>true</c> to stop visiting
+        /// further offsets in the current entry (but continue to subsequent
+        /// entries).
+        ///
+        /// Extracted as a Func-based visitor (instead of a public iterator)
+        /// so the bounds-safe arithmetic, terminator dispatch, and ROM-byte
+        /// reads stay in ONE place — preventing the two consumer methods
+        /// from drifting if descriptor semantics change.
+        /// </summary>
+        static void WalkEntries(ROM rom, TextRefTableDescriptor t, Func<uint /*entryIndex*/, uint /*textId*/, bool /*stopEntryNow*/> visit)
+        {
             // Resolve the base address: prefer DirectBase if set (covers
             // FE7 ed_3c_pointer which is a direct address, not a pointer
             // field), otherwise dereference PointerField via p32.
@@ -167,14 +243,11 @@ namespace FEBuilderGBA
                     uint addr = entry + off;
                     if (addr + 2 > (uint)rom.Data.Length) break;
                     if (!U.isSafetyOffset(addr + 1, rom)) break;
-                    if (rom.u16(addr) == textId)
-                    {
-                        string name = "";
-                        try { name = t.NameResolver != null ? t.NameResolver(i) : ""; }
-                        catch { name = ""; }
-                        refs.Add($"{t.Kind} 0x{i:X02} ({name})");
-                        break; // one match per entry is enough
-                    }
+                    uint observedTextId = rom.u16(addr);
+                    bool stopEntry;
+                    try { stopEntry = visit(i, observedTextId); }
+                    catch { stopEntry = false; } // visitor errors don't abort the scan
+                    if (stopEntry) break;
                 }
             }
         }
