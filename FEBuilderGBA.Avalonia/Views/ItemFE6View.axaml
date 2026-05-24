@@ -6,10 +6,30 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <!-- Address List with icon preview -->
-    <Grid Grid.Column="0" RowDefinitions="*,Auto">
-      <controls:AddressListControl AutomationProperties.AutomationId="ItemFE6_Entry_List" Grid.Row="0" Name="EntryList" Margin="4" />
+    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto">
+      <!-- WF parity header: Filter / Reload / list metadata
+           (mirrors WF LabelFilter, ReloadListButton, label1 "先頭アドレス",
+           label2 "読込数", label3 "Size:"). -->
+      <StackPanel Grid.Row="0" Orientation="Vertical" Margin="4,4,4,2" Spacing="2">
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_Filter_Label" Text="Filter:" VerticalAlignment="Center" FontSize="11" />
+          <TextBox AutomationProperties.AutomationId="ItemFE6_Filter_Input" Name="FilterBox" Width="140" FontSize="11" />
+          <Button AutomationProperties.AutomationId="ItemFE6_Reload_Button" Name="ReloadButton" Content="Reload" Click="Reload_Click" FontSize="11" Padding="4,2" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_BaseAddr_Label" Text="Base Addr:" FontSize="10" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_BaseAddrValue_Label" Name="BaseAddrLabel" FontSize="10" Foreground="Gray" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_ListCount_Label" Text="Count:" FontSize="10" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_ListCountValue_Label" Name="ListCountLabel" FontSize="10" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_Size_Label" Text="Size:" FontSize="10" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_SizeValue_Label" Name="SizeLabel" FontSize="10" Foreground="Gray" />
+        </StackPanel>
+      </StackPanel>
+      <controls:AddressListControl AutomationProperties.AutomationId="ItemFE6_Entry_List" Grid.Row="1" Name="EntryList" Margin="4" />
       <!-- Selected item icon preview -->
-      <Border Grid.Row="1" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+      <Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
               HorizontalAlignment="Center" Margin="4,2,4,4" Padding="4"
               CornerRadius="4" BorderBrush="Gray" BorderThickness="1"
               Name="ListPreviewBorder" IsVisible="False">
@@ -25,89 +45,286 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Item Editor (FE6)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-          <!-- Row 0: Address -->
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Address + HardCoding warning (#402 mirrors WF
+             HardCodingWarningLabel + click handler). -->
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
+          <!-- HardCoding warning hyperlink shown only when
+               CoreState.AsmMapFileAsmCache?.IsHardCodeItem(listIdx) is true.
+               Mirrors WF `HardCodingWarningLabel_Click` which opens the
+               Patch Manager filtered by `HARDCODING_ITEM=` so the user
+               can see which patches still need installing. -->
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_HardCodingWarning_Link"
+                     Name="HardCodingWarningLink"
+                     Text="[HardCoding]"
+                     Classes="Hyperlink"
+                     Foreground="Red"
+                     FontWeight="SemiBold"
+                     VerticalAlignment="Center"
+                     IsVisible="False"
+                     PointerPressed="OnHardCodingLink_Click"
+                     ToolTip.Tip="This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=." />
+        </StackPanel>
+
+        <!-- Basic Info -->
+        <Expander AutomationProperties.AutomationId="ItemFE6_BasicInfo_Expander" Header="Basic Info" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemFE6_NameId_Link"
+                     Classes="Hyperlink" Name="NameId_Link" PointerPressed="OnNameIdLinkClick"
+                     ToolTip.Tip="Text ID for this item's display name (click to open Text Viewer)" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_NameId_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
           <TextBlock Grid.Row="0" Grid.Column="3" Text="Name:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="ItemFE6_Name_Label" Grid.Row="0" Grid.Column="4" Name="NameLabel" VerticalAlignment="Center" />
 
-          <!-- Row 1: W0 Name ID, W2 Desc ID -->
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Name ID (W0):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_NameId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NameIdBox" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="1" Grid.Column="3" Text="Desc ID (W2):" VerticalAlignment="Center"
-                     ToolTip.Tip="Text ID for the item's description" />
-          <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Desc ID (W2):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemFE6_DescId_Link"
+                     Classes="Hyperlink" Name="DescId_Link" PointerPressed="OnDescIdLinkClick"
+                     ToolTip.Tip="Text ID for the item description (click to open Text Viewer)" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
             <NumericUpDown AutomationProperties.AutomationId="ItemFE6_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Width="100" />
             <TextBlock AutomationProperties.AutomationId="ItemFE6_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
-                       MaxWidth="200" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       MaxWidth="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
                        ToolTip.Tip="Decoded description text" />
             <Button AutomationProperties.AutomationId="ItemFE6_JumpToDesc_Button" Content="Desc" Click="JumpToDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open text viewer for this description" />
           </StackPanel>
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Use Desc (W4):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="ItemFE6_UseDesc_Link"
+                     Classes="Hyperlink" Name="UseDescId_Link" PointerPressed="OnUseDescIdLinkClick"
+                     ToolTip.Tip="Text ID for the item usage description (click to open Text Viewer)" />
+          <StackPanel Grid.Row="1" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown AutomationProperties.AutomationId="ItemFE6_UseDescId_Input" FormatString="0" Name="UseDescIdBox" Minimum="0" Maximum="65535" Width="100" />
+            <TextBlock AutomationProperties.AutomationId="ItemFE6_UseDescText_Label" Name="UseDescTextLabel" VerticalAlignment="Center" Foreground="Gray"
+                       MaxWidth="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       ToolTip.Tip="Decoded usage description text" />
+            <Button AutomationProperties.AutomationId="ItemFE6_JumpToUseDesc_Button" Content="Desc" Click="JumpToUseDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
+                    ToolTip.Tip="Open text viewer for this usage description" />
+          </StackPanel>
 
-          <!-- Row 2: W4 Use Desc ID, B6 Item Number -->
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Use Desc (W4):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_UseDescId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="UseDescIdBox" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="2" Grid.Column="3" Text="Item # (B6):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_ItemNumber_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="ItemNumberBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Item # (B6):" VerticalAlignment="Center"
+                     ToolTip.Tip="Internal item number (unique ID)" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_ItemNumber_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ItemNumberBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Type (B7):" VerticalAlignment="Center"
+                     ToolTip.Tip="Weapon type (Sword, Lance, Axe, etc.)" />
+          <ComboBox AutomationProperties.AutomationId="ItemFE6_WeaponType_Combo" Grid.Row="2" Grid.Column="4" Name="WeaponTypeCombo" Width="200" />
 
-          <!-- Row 3: B7 Weapon Type, B8 Trait1 -->
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Type (B7):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_WeaponType_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="WeaponTypeBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="3" Grid.Column="3" Text="Trait 1 (B8):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Trait1_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="Trait1Box" Minimum="0" Maximum="255" />
-
-          <!-- Row 4: B9 Trait2, B10 Trait3 -->
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Trait 2 (B9):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Trait2_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Trait2Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="4" Grid.Column="3" Text="Trait 3 (B10):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Trait3_Input" FormatString="0" Grid.Row="4" Grid.Column="4" Name="Trait3Box" Minimum="0" Maximum="255" />
-
-          <!-- Row 5: B11 Trait4, P12 Stat Bonuses -->
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Trait 4 (B11):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Trait4_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Trait4Box" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="5" Grid.Column="3" Text="Stat Bonus (P12):" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ItemFE6_StatBonusesPtr_Input" Grid.Row="5" Grid.Column="4" Name="StatBonusesPtrBox" Width="120" />
-
-          <!-- Row 6: P16 Effectiveness -->
-          <TextBlock Grid.Row="6" Grid.Column="0" Text="Effective (P16):" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="ItemFE6_EffectivenessPtr_Input" Grid.Row="6" Grid.Column="1" Name="EffectivenessPtrBox" Width="120" />
-
-          <!-- Row 7: B20 Uses, B21 Might -->
-          <TextBlock Grid.Row="7" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Uses_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="7" Grid.Column="3" Text="Might (B21):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Might_Input" FormatString="0" Grid.Row="7" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 8: B22 Hit, B23 Weight -->
-          <TextBlock Grid.Row="8" Grid.Column="0" Text="Hit (B22):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Hit_Input" FormatString="0" Grid.Row="8" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="8" Grid.Column="3" Text="Weight (B23):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Weight_Input" FormatString="0" Grid.Row="8" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 9: B24 Crit, B25 Range -->
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Crit (B24):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Crit_Input" FormatString="0" Grid.Row="9" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="9" Grid.Column="3" Text="Range (B25):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Range_Input" FormatString="0" Grid.Row="9" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 10: W26 Price, B28 Weapon Rank -->
-          <TextBlock Grid.Row="10" Grid.Column="0" Text="Price (W26):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Price_Input" FormatString="0" Grid.Row="10" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
-          <TextBlock Grid.Row="10" Grid.Column="3" Text="Rank (B28):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_WeaponRank_Input" FormatString="0" Grid.Row="10" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 11: B29 Icon, B30 Usage Effect -->
-          <TextBlock Grid.Row="11" Grid.Column="0" Text="Icon (B29):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Icon_Input" FormatString="0" Grid.Row="11" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
-          <TextBlock Grid.Row="11" Grid.Column="3" Text="Use Effect (B30):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_UsageEffect_Input" FormatString="0" Grid.Row="11" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
-
-          <!-- Row 12: B31 Damage Effect -->
-          <TextBlock Grid.Row="12" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_DamageEffect_Input" FormatString="0" Grid.Row="12" Grid.Column="1" Name="DamageEffectBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_AddrDup_Label" Grid.Row="3" Grid.Column="1" Name="AddrLabelDup" Foreground="Gray" VerticalAlignment="Center" />
         </Grid>
+        </Border>
+        </Expander>
+
+        <!-- Stats / Bonuses -->
+        <Expander AutomationProperties.AutomationId="ItemFE6_StatsBonuses_Expander" Header="Stats / Bonuses" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Stat Bonus (P12):" VerticalAlignment="Center"
+                     ToolTip.Tip="Pointer to stat bonuses when equipped" />
+          <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <TextBox AutomationProperties.AutomationId="ItemFE6_StatBonusesPtr_Input" Name="StatBonusesPtrBox" Width="120" />
+            <Button AutomationProperties.AutomationId="ItemFE6_JumpToStatBonuses_Button" Content="Jump" Click="JumpToStatBonuses_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Effective (P16):" VerticalAlignment="Center"
+                     ToolTip.Tip="Pointer to effectiveness list (bonus vs. classes)" />
+          <StackPanel Grid.Row="0" Grid.Column="4" Orientation="Horizontal" Spacing="4">
+            <TextBox AutomationProperties.AutomationId="ItemFE6_EffectivenessPtr_Input" Name="EffectivenessPtrBox" Width="120" />
+            <Button AutomationProperties.AutomationId="ItemFE6_JumpToEffectiveness_Button" Content="Jump" Click="JumpToEffectiveness_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Uses (B20):" VerticalAlignment="Center"
+                     ToolTip.Tip="Number of uses before the item breaks" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Uses_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UsesBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="Might (B21):" VerticalAlignment="Center"
+                     ToolTip.Tip="Attack power" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Might_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="MightBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Hit (B22):" VerticalAlignment="Center"
+                     ToolTip.Tip="Hit rate bonus" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Hit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="HitBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="2" Grid.Column="3" Text="Weight (B23):" VerticalAlignment="Center"
+                     ToolTip.Tip="Item weight (reduces attack speed)" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Weight_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="WeightBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Crit (B24):" VerticalAlignment="Center"
+                     ToolTip.Tip="Critical hit rate bonus" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Crit_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="CritBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="3" Grid.Column="3" Text="Range (B25):" VerticalAlignment="Center"
+                     ToolTip.Tip="Attack range (encoded as min-max)" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Range_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="RangeBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Price (W26):" VerticalAlignment="Center"
+                     ToolTip.Tip="Base item price" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Price_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="PriceBox" Minimum="0" Maximum="65535" />
+          <TextBlock Grid.Row="4" Grid.Column="3" Text="Rank (B28):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_WeaponRank_Input" FormatString="0" Grid.Row="4" Grid.Column="4" Name="WeaponRankBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Buy Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_ShopBuyPrice_Label" Grid.Row="5" Grid.Column="1" Name="ShopBuyPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="5" Grid.Column="3" Text="Sell Price:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_ShopSellPrice_Label" Grid.Row="5" Grid.Column="4" Name="ShopSellPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+        </Grid>
+        </Border>
+        </Expander>
+
+        <!-- FE6 Shingeki shop price (KnownGap NonEnglish — this is the
+             FE6-only `X_VALUE_SHINGEKI_SHOP` march-preparation store row,
+             no FE7/FE8 equivalent. The original WF label is the Japanese
+             "進撃準備店"; the AV control uses the romaji "Shingeki Shop:"
+             so ja/zh users can recognise it. Marked NonEnglish per the
+             v1-B3 localisation policy resolved in plan v2. -->
+        <Grid ColumnDefinitions="140,200,20,140,200">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Shingeki Shop:" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ItemFE6_ShopShingekiPrice_Label" Grid.Row="0" Grid.Column="1" Name="ShopShingekiPriceLabel" VerticalAlignment="Center" Foreground="Gray" />
+        </Grid>
+
+        <!-- Weapon Properties -->
+        <Expander AutomationProperties.AutomationId="ItemFE6_WeaponProperties_Expander" Header="Weapon Properties" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+        <Grid ColumnDefinitions="140,200,20,140,200" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Icon (B29):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Icon_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="IconBox" Minimum="0" Maximum="255" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="Use Effect (B30):" VerticalAlignment="Center"
+                     ToolTip.Tip="Effect when using the item" />
+          <NumericUpDown AutomationProperties.AutomationId="ItemFE6_UsageEffect_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="UsageEffectBox" Minimum="0" Maximum="255" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Dmg Effect (B31):" VerticalAlignment="Center"
+                     ToolTip.Tip="Special effect applied on hit" />
+          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
+            <NumericUpDown AutomationProperties.AutomationId="ItemFE6_DamageEffect_Input" FormatString="0" Name="DamageEffectBox" Minimum="0" Maximum="255" Width="100" />
+            <!-- WF "間接エフェクト Jump" - opens ItemWeaponEffectViewerView
+                 positioned at the entry whose B0 == the currently selected
+                 list index (NOT the editable B6 ItemNumber, per Copilot
+                 v1-B2). Mirrors WF `ItemWeaponEffectForm.JumpTo`. -->
+            <Button AutomationProperties.AutomationId="ItemFE6_JumpToWeaponEffect_Button"
+                    Content="Indirect Weapon Effect"
+                    Click="JumpToWeaponEffect_Click"
+                    FontSize="11" Padding="4,2" VerticalAlignment="Center"
+                    ToolTip.Tip="Open the indirect weapon effect table at the row for this item." />
+          </StackPanel>
+        </Grid>
+        </Border>
+        </Expander>
+
+        <!-- KnownGap (out-of-scope for #402, parent #374):
+             - WF L_12_NEWALLOC_ITEMSTATBOOSTER / L_16_NEWALLOC_EFFECTIVENESS
+               newalloc buttons are deferred because the Avalonia head
+               does not yet wire CoreState.AppendBinaryData. The
+               null-pointer warning labels below are the substitute UI
+               affordance.
+             - WF MagicExtUnitBase Magic-split label: FE6 has no
+               MagicSplit patch port - deferred.
+             None of these spawn new follow-up issues per #402 scope
+             rule (in-AXAML comment, not a separate tracking issue). -->
+
+        <!-- Null pointer warnings -->
+        <TextBlock AutomationProperties.AutomationId="ItemFE6_AllocStatBonusesWarning_Label" Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
+        <TextBlock AutomationProperties.AutomationId="ItemFE6_AllocEffectivenessWarning_Label" Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,2,0,0" />
+
+        <!-- Stat bonus preview (#402 mirrors WF "能力補正値" + X_SIM_*
+             labels: HP/攻撃/技/速さ/守備/魔防/幸運/移動/体格. FE6 has no
+             MagicSplit so no 魔力 row). -->
+        <Border Name="BonusPreviewBorder" BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,8,0,0" IsVisible="False">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Stat Bonuses Preview" FontWeight="Bold" />
+            <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusCaption_Label"
+                       Text="Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):"
+                       FontSize="11" Foreground="Gray" />
+            <WrapPanel>
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusHP_Label" Name="BonusHPLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusStr_Label" Name="BonusStrLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusSkl_Label" Name="BonusSklLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusSpd_Label" Name="BonusSpdLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusDef_Label" Name="BonusDefLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusRes_Label" Name="BonusResLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusLck_Label" Name="BonusLckLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusMove_Label" Name="BonusMoveLabel" Margin="0,0,12,0" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_BonusCon_Label" Name="BonusConLabel" Margin="0,0,12,0" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Effective Against class list -->
+        <Border Name="EffectiveClassBorder" BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" Margin="0,8,0,0" IsVisible="False">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Effective Against" FontWeight="Bold" />
+            <ItemsControl AutomationProperties.AutomationId="ItemFE6_EffectiveClassList_List" Name="EffectiveClassListBox">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" FontSize="12" Margin="0,1" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <!-- Trait Flags (BitFlagPanels) - #402 adds per-trait header labels
+             and a hex-decoded value preview so the WF designer's "特性1/2/3/4"
+             surface is fully replicated. -->
+        <Expander AutomationProperties.AutomationId="ItemFE6_TraitFlags_Expander" Header="Trait Flags" IsExpanded="True" Margin="0,4,0,2">
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+          <StackPanel Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 1 (B8):" FontWeight="SemiBold" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_Trait1Hex_Label"
+                         Name="Trait1HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+            <controls:BitFlagPanel AutomationProperties.AutomationId="ItemFE6_Trait1_Check" Name="Trait1Flags" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 2 (B9):" FontWeight="SemiBold" Margin="0,2" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_Trait2Hex_Label"
+                         Name="Trait2HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+            <controls:BitFlagPanel AutomationProperties.AutomationId="ItemFE6_Trait2_Check" Name="Trait2Flags" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 3 (B10):" FontWeight="SemiBold" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Trait3_Input" FormatString="0" Name="Trait3Box" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_Trait3Hex_Label"
+                         Name="Trait3HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Trait 4 (B11):" FontWeight="SemiBold" Margin="0,2" />
+              <NumericUpDown AutomationProperties.AutomationId="ItemFE6_Trait4_Input" FormatString="0" Name="Trait4Box" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="ItemFE6_Trait4Hex_Label"
+                         Name="Trait4HexLabel"
+                         FontSize="11"
+                         Foreground="Gray"
+                         Margin="0,2"
+                         VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+        </Expander>
+
+        <!-- Validation Warnings (mirrors WF ChcekTextItem*ErrorMessage) -->
+        <Border Name="WarningsBorder" IsVisible="False"
+                BorderBrush="Orange" BorderThickness="1" Padding="8" CornerRadius="4"
+                Background="{DynamicResource AccentOverlayBrush}" Margin="0,8,0,0">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Warnings" FontWeight="Bold" Foreground="DarkOrange" />
+            <ItemsControl AutomationProperties.AutomationId="ItemFE6_Warnings_List" Name="WarningsList">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" Foreground="DarkOrange" FontSize="12" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button AutomationProperties.AutomationId="ItemFE6_Write_Button" Content="Write" Click="Write_Click" />

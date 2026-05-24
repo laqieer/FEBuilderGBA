@@ -21574,3 +21574,9 @@ OBJ+BG 从左到右
 
 :Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
 解码后的能力补正值 (只读 — 通过上方能力补正指针编辑):
+
+:Base Addr:
+基址:
+
+:Shingeki Shop:
+进军准备店:

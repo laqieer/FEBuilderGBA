@@ -26,6 +26,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Description text preview
         string _descText = "";
+        string _useDescText = "";
+
+        // ---- #402 computed UI fields ------------------------------------
+        // Shop prices computed from Uses*Price (mirrors WF
+        // X_VALUE_SHOP / X_VALUE_SHINGEKI_SHOP / X_VALUE_SEL).
+        uint _shopBuyPrice;
+        uint _shopShingekiShopPrice;
+        uint _shopSellPrice;
+        bool _showAllocStatBonuses;
+        bool _showAllocEffectiveness;
+        // Decoded stat-bonus preview (parses P12 inline - mirrors
+        // ItemEditorViewModel.RecalcStatBonuses; FE6 has no Magic split).
+        bool _hasBonusPreview;
+        int _bonusHP, _bonusStr, _bonusSkl, _bonusSpd, _bonusDef,
+            _bonusRes, _bonusLck, _bonusMove, _bonusCon;
+        // Decoded effective-class list (parses P16 inline).
+        bool _hasEffectiveClasses;
+        List<string> _effectiveClassList = new();
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -78,6 +96,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // Description text preview
         public string DescText { get => _descText; set => SetField(ref _descText, value); }
+        public string UseDescText { get => _useDescText; set => SetField(ref _useDescText, value); }
+
+        // ---- #402 computed properties ----------------------------------
+        public uint ShopBuyPrice { get => _shopBuyPrice; private set => SetField(ref _shopBuyPrice, value); }
+        public uint ShopShingekiShopPrice { get => _shopShingekiShopPrice; private set => SetField(ref _shopShingekiShopPrice, value); }
+        public uint ShopSellPrice { get => _shopSellPrice; private set => SetField(ref _shopSellPrice, value); }
+        public bool ShowAllocStatBonuses { get => _showAllocStatBonuses; private set => SetField(ref _showAllocStatBonuses, value); }
+        public bool ShowAllocEffectiveness { get => _showAllocEffectiveness; private set => SetField(ref _showAllocEffectiveness, value); }
+        public bool HasBonusPreview { get => _hasBonusPreview; private set => SetField(ref _hasBonusPreview, value); }
+        public int BonusHP { get => _bonusHP; private set => SetField(ref _bonusHP, value); }
+        public int BonusStr { get => _bonusStr; private set => SetField(ref _bonusStr, value); }
+        public int BonusSkl { get => _bonusSkl; private set => SetField(ref _bonusSkl, value); }
+        public int BonusSpd { get => _bonusSpd; private set => SetField(ref _bonusSpd, value); }
+        public int BonusDef { get => _bonusDef; private set => SetField(ref _bonusDef, value); }
+        public int BonusRes { get => _bonusRes; private set => SetField(ref _bonusRes, value); }
+        public int BonusLck { get => _bonusLck; private set => SetField(ref _bonusLck, value); }
+        public int BonusMove { get => _bonusMove; private set => SetField(ref _bonusMove, value); }
+        public int BonusCon { get => _bonusCon; private set => SetField(ref _bonusCon, value); }
+        public bool HasEffectiveClasses { get => _hasEffectiveClasses; private set => SetField(ref _hasEffectiveClasses, value); }
+        public List<string> EffectiveClassList { get => _effectiveClassList; private set => SetField(ref _effectiveClassList, value); }
 
         public List<AddrResult> LoadItemList()
         {
@@ -165,7 +203,113 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             UsageEffect = rom.u8(addr + 30); // B30
             DamageEffect = rom.u8(addr + 31); // B31
 
+            // #402 - Use Desc decoded text preview.
+            try { UseDescText = NameResolver.GetTextById(UseDescId); }
+            catch { UseDescText = ""; }
+
             IsLoaded = true;
+
+            // #402 - recompute derived fields after every load.
+            RecalcShopPrices();
+            RecalcAllocFlags();
+            RecalcStatBonuses();
+            UpdateEffectiveClassList();
+        }
+
+        // ---- #402 computed updates ----------------------------------
+
+        /// <summary>
+        /// Mirrors WF ItemFE6Form.W26_ValueChanged:
+        ///   X_VALUE_SHOP            = Uses * Price
+        ///   X_VALUE_SHINGEKI_SHOP   = Uses * Price * 1.5
+        ///   X_VALUE_SEL             = (Uses * Price) / 2
+        /// </summary>
+        internal void RecalcShopPrices()
+        {
+            uint usesPrice = Uses * Price;
+            ShopBuyPrice = usesPrice;
+            ShopShingekiShopPrice = (uint)(usesPrice * 1.5);
+            ShopSellPrice = usesPrice / 2;
+        }
+
+        /// <summary>
+        /// Mirrors WF ItemFE6Form.AddressList_SelectedIndexChanged null
+        /// pointer warning checks for P12 / P16. The Avalonia head shows
+        /// a warning label (not a newalloc button - that's deferred via
+        /// the KnownGap marker in the AXAML).
+        /// </summary>
+        internal void RecalcAllocFlags()
+        {
+            ShowAllocStatBonuses = (StatBonusesPtr == 0) && CurrentAddr != 0;
+            ShowAllocEffectiveness = (EffectivenessPtr == 0) && CurrentAddr != 0;
+        }
+
+        /// <summary>
+        /// Decodes the 9-byte stat-bonus row at P12 (HP/Str/Skl/Spd/Def/
+        /// Res/Lck/Move/Con). FE6 has no Magic split. Mirrors
+        /// ItemEditorViewModel.RecalcStatBonuses exactly to keep parity.
+        /// </summary>
+        internal void RecalcStatBonuses()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || !U.isPointer(StatBonusesPtr))
+            {
+                HasBonusPreview = false;
+                BonusHP = BonusStr = BonusSkl = BonusSpd = BonusDef =
+                    BonusRes = BonusLck = BonusMove = BonusCon = 0;
+                return;
+            }
+
+            uint addr = StatBonusesPtr - 0x08000000;
+            if (!U.isSafetyOffset(addr) || addr + 9 > (uint)rom.Data.Length)
+            {
+                HasBonusPreview = false;
+                BonusHP = BonusStr = BonusSkl = BonusSpd = BonusDef =
+                    BonusRes = BonusLck = BonusMove = BonusCon = 0;
+                return;
+            }
+
+            HasBonusPreview = true;
+            BonusHP   = (sbyte)rom.u8(addr + 0);
+            BonusStr  = (sbyte)rom.u8(addr + 1);
+            BonusSkl  = (sbyte)rom.u8(addr + 2);
+            BonusSpd  = (sbyte)rom.u8(addr + 3);
+            BonusDef  = (sbyte)rom.u8(addr + 4);
+            BonusRes  = (sbyte)rom.u8(addr + 5);
+            BonusLck  = (sbyte)rom.u8(addr + 6);
+            BonusMove = (sbyte)rom.u8(addr + 7);
+            BonusCon  = (sbyte)rom.u8(addr + 8);
+        }
+
+        /// <summary>
+        /// Decodes the effective-class list at P16 (zero-terminated u8
+        /// list of class IDs). Inline mirror of WF
+        /// `ItemEffectivenessForm.MakeCriticalClassList` - kept inline
+        /// to avoid a cross-project call from Avalonia into WinForms.
+        /// </summary>
+        internal void UpdateEffectiveClassList()
+        {
+            ROM rom = CoreState.ROM;
+            var list = new List<string>();
+            if (rom != null && U.isPointer(EffectivenessPtr))
+            {
+                uint addr = U.toOffset(EffectivenessPtr);
+                if (U.isSafetyOffset(addr))
+                {
+                    for (int i = 0; i < 64; i++)
+                    {
+                        if (addr + (uint)i >= (uint)rom.Data.Length) break;
+                        uint classId = rom.u8((uint)(addr + i));
+                        if (classId == 0) break;
+                        string name;
+                        try { name = NameResolver.GetClassName(classId); }
+                        catch { name = "???"; }
+                        list.Add($"0x{classId:X02} {name}");
+                    }
+                }
+            }
+            EffectiveClassList = list;
+            HasEffectiveClasses = list.Count > 0;
         }
 
         public void WriteItem()
