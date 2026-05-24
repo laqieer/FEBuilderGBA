@@ -295,7 +295,8 @@
               <ComboBox Grid.Row="2" Grid.Column="1"
                         AutomationProperties.AutomationId="MapStyleEditor_ConfigTerrain_Combo"
                         Name="ConfigTerrainCombo" Width="200" HorizontalAlignment="Left"
-                        IsEnabled="True" />
+                        IsEnabled="False"
+                        ToolTip.Tip="Pending Core extraction (terrain list from LZ77 ChipsetData) - tracked by #374." />
             </Grid>
 
             <!-- 4 tile-slot TSA grids (Top-Left, Top-Right, Bottom-Left, Bottom-Right).

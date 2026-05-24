@@ -207,9 +207,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return;
             if (addr + 4 > (uint)rom.Data.Length) return;
 
+            // Reset all dependent fields up-front so a failed read on
+            // the parallel Config / Palette tables does not leave stale
+            // state from the previous entry visible in the UI
+            // (Copilot bot v3 inline review).
+            ConfigPointer = 0;
+            ChipsetConfigAddress = 0;
+            ObjAddress2 = 0;
+            PaletteBaseAddress = 0;
+            PaletteAddress = 0;
+            Array.Clear(_r, 0, 16);
+            Array.Clear(_g, 0, 16);
+            Array.Clear(_b, 0, 16);
+
             CurrentAddr = addr;
             ObjPointer = rom.u32(addr);
             ObjAddress = U.toOffset(ObjPointer);
+
+            // FE7's obj_plist can carry a secondary tileset PLIST in the
+            // high byte (WF MapStyleEditorForm.Display_Plist line 245:
+            // `(obj_plist >> 8) & 0xFF`). The ObjPointer we read from
+            // map_obj_pointer is a resolved 32-bit GBA pointer, so the
+            // PLIST byte is not directly recoverable from here without
+            // calling the PLIST writer. Surface "(none)" until Core
+            // extracts that writer (KnownGap #374). ObjAddress2 stays 0.
 
             // Also load config pointer from the parallel config table
             uint configTablePointer = rom.RomInfo.map_config_pointer;

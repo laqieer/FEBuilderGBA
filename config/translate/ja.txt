@@ -8763,3 +8763,6 @@ Core 抽出待ち (LZ77 ChipsetData + CONFIG PLIST) - #374 で追跡中。
 
 :TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374).
 TSA グリッドは LZ77 + CONFIG PLIST 抽出が必要 (KnownGap: #374 で追跡中)。
+
+:Pending Core extraction (terrain list from LZ77 ChipsetData) - tracked by #374.
+Core 抽出待ち (LZ77 ChipsetData からの地形リスト) - #374 で追跡中。

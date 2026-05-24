@@ -105,8 +105,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                 {
                     // Out-of-bounds / invalid base -- clear stale RGB values
-                    // so the user doesn't see a wrong palette.
+                    // AND the address label so the user doesn't see a wrong
+                    // palette OR a stale address (Copilot bot v3 inline review).
                     ClearPaletteUI();
+                    PaletteAddressLabel.Text = "(invalid)";
                 }
             }
             finally { _vm.IsLoading = false; }

@@ -22598,3 +22598,6 @@ PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
 
 :TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374).
 TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
+
+:Pending Core extraction (terrain list from LZ77 ChipsetData) - tracked by #374.
+等待 Core 抽取 (LZ77 ChipsetData 中的地形列表) - 跟踪于 #374。
