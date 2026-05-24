@@ -213,77 +213,77 @@
                           <TextBlock Text="MapSprite" Foreground="Gray" />
 
                           <TextBlock Text="X" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud01_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Y" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud02_Input" Value="0" IsReadOnly="True" />
 
                           <TextBlock Text="Lv" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud03_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Exp" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud04_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Current HP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud05_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Max HP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud06_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Str / Mag" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud07_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Skill" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud08_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Spd" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud09_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Def" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud10_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Res" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud11_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Lck" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud12_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Con+" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud13_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Mov+" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud14_Input" Value="0" IsReadOnly="True" />
 
                           <TextBlock Text="Sword EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud15_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Lance EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud16_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Axe EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud17_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Bow EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud18_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Staff EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud19_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Anima EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud20_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Light EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud21_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Dark EXP" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud22_Input" Value="0" IsReadOnly="True" />
 
                           <TextBlock Text="Status" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud23_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Status and Turn" Foreground="Gray" />
                           <TextBlock Text="Recovery Mode" Foreground="Gray" />
 
                           <TextBlock Text="Item ID 1" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud24_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item count 1" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud25_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item ID 2" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud26_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item count 2" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud27_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item ID 3" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud28_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item count 3" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud29_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item ID 4" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud30_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item count 4" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud31_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item ID 5" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud32_Input" Value="0" IsReadOnly="True" />
                           <TextBlock Text="Item count 5" />
-                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud33_Input" Value="0" IsReadOnly="True" />
 
                           <TextBlock Text="Companion ID" />
                           <TextBlock Text="Holy Water / Torch" />
@@ -495,9 +495,9 @@
                   <TextBlock Text="Change this unit's coordinates and warp it." FontWeight="Bold" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="X" VerticalAlignment="Center" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud34_Input" Value="0" IsReadOnly="True" Width="80" />
                     <TextBlock Text="Y" VerticalAlignment="Center" Margin="12,0,0,0" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud35_Input" Value="0" IsReadOnly="True" Width="80" />
                     <Button Content="Warp Unit"
                             AutomationProperties.AutomationId="EmulatorMemory_CHEAT_UnitWarp_Button"
                             IsEnabled="False"
@@ -511,7 +511,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <TextBlock Text="Change Turn Count" VerticalAlignment="Center" />
                   <TextBlock Text="Turn" VerticalAlignment="Center" Margin="12,0,0,0" />
-                  <NumericUpDown Value="1" IsReadOnly="True" Width="80" />
+                  <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud36_Input" Value="1" IsReadOnly="True" Width="80" />
                   <Button Content="Apply Turn"
                           AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Turn_Button"
                           IsEnabled="False"
@@ -525,7 +525,7 @@
                   <TextBlock Text="Warp to this chapter" FontWeight="Bold" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="Map ID" VerticalAlignment="Center" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud37_Input" Value="0" IsReadOnly="True" Width="80" />
                     <TextBlock Text="Warp chapter" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="Gray" />
                     <TextBlock Text="Edition" VerticalAlignment="Center" Margin="6,0,0,0" />
                     <TextBlock Text="Worldmap base" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="Gray" />
@@ -579,7 +579,7 @@
                   <TextBlock Text="Set Money to the value below" FontWeight="Bold" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="Money" VerticalAlignment="Center" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="100" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud38_Input" Value="0" IsReadOnly="True" Width="100" />
                     <Button Content="Apply Money"
                             AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Money_Button"
                             IsEnabled="False"
@@ -594,7 +594,7 @@
                   <TextBlock Text="Change Weather (applies next turn)." FontWeight="Bold" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="Weather" VerticalAlignment="Center" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="60" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud39_Input" Value="0" IsReadOnly="True" Width="60" />
                     <ComboBox Width="120" AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Weather_Combo" />
                     <Button Content="Apply Weather"
                             AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Weather_Button"
@@ -611,7 +611,7 @@
                   <TextBlock Text="0 = no fog. 1 = max fog (vision 1 tile)." Foreground="Gray" FontStyle="Italic" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="Fog Level" VerticalAlignment="Center" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="60" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud40_Input" Value="0" IsReadOnly="True" Width="60" />
                     <Button Content="Apply Fog"
                             AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Fog_Button"
                             IsEnabled="False"
@@ -626,9 +626,9 @@
                   <TextBlock Text="Give this unit the following item" FontWeight="Bold" />
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="Item to give" VerticalAlignment="Center" />
-                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud41_Input" Value="0" IsReadOnly="True" Width="80" />
                     <TextBlock Text="Count" VerticalAlignment="Center" Margin="6,0,0,0" />
-                    <NumericUpDown Value="1" IsReadOnly="True" Width="60" />
+                    <NumericUpDown AutomationProperties.AutomationId="EmulatorMemory_Nud42_Input" Value="1" IsReadOnly="True" Width="60" />
                     <Button Content="Give Item"
                             AutomationProperties.AutomationId="EmulatorMemory_CHEAT_UnitHaveItem_Button"
                             IsEnabled="False"
