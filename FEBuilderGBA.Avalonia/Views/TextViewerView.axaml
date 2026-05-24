@@ -8,16 +8,12 @@
     <controls:AddressListControl AutomationProperties.AutomationId="TextViewer_Text_List" Grid.Column="0" Name="TextList" Margin="4" />
 
     <TabControl AutomationProperties.AutomationId="TextViewer_Tabs_TabControl" Name="EditorTabs" Grid.Column="1" Margin="4">
-      <!-- Tab 1: Edit (existing behaviour) -->
+
+      <!-- Tab 1: Edit (existing behaviour + inline Pointer / Refs displays) -->
       <TabItem Header="Edit" Name="EditTab" AutomationProperties.AutomationId="TextViewer_Edit_Tab">
         <ScrollViewer Margin="4">
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Text Editor" FontSize="18" FontWeight="Bold" />
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button AutomationProperties.AutomationId="TextViewer_Export_Button" Name="ExportButton" Content="Export All Texts (TSV)" Click="OnExportClick" />
-              <Button AutomationProperties.AutomationId="TextViewer_Import_Button" Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
-            </StackPanel>
 
             <!-- Content search -->
             <StackPanel Orientation="Horizontal" Spacing="4">
@@ -33,6 +29,18 @@
               <SelectableTextBlock Name="DecodedTextBlock" TextWrapping="Wrap" FontSize="14" />
             </Border>
 
+            <!-- Inline Pointer + Refs displays (mirror of WF AddressPointer + RefCountTextBox) -->
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_PointerPrefix_Label"
+                         Text="Pointer:" VerticalAlignment="Center" FontWeight="SemiBold" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_PointerValue_TextBox"
+                       Name="PointerValueBox" IsReadOnly="True" Width="120" />
+              <TextBlock AutomationProperties.AutomationId="TextViewer_RefsPrefix_Label"
+                         Text="Refs:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="12,0,0,0" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_RefsCount_TextBox"
+                       Name="RefsCountBox" IsReadOnly="True" Width="60" />
+            </StackPanel>
+
             <TextBlock Text="Edit Text:" FontWeight="SemiBold" Margin="0,12,0,4" />
             <TextBox AutomationProperties.AutomationId="TextViewer_EditText_Input" Name="EditTextBox" AcceptsReturn="True" TextWrapping="Wrap"
                      MinHeight="100" MaxHeight="300" />
@@ -45,7 +53,7 @@
               <TextBlock AutomationProperties.AutomationId="TextViewer_WriteStatus_Label" Name="WriteStatusLabel" VerticalAlignment="Center" Foreground="Gray" />
             </StackPanel>
 
-            <!-- Cross-references -->
+            <!-- Cross-references (inline preview; full list is on the References tab) -->
             <TextBlock Text="References:" FontWeight="SemiBold" Margin="0,16,0,4" />
             <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4" MinHeight="40">
               <ItemsControl AutomationProperties.AutomationId="TextViewer_CrossRef_List" Name="CrossRefList">
@@ -60,7 +68,143 @@
         </ScrollViewer>
       </TabItem>
 
-      <!-- Tab 2: Simple Conversation Viewer (read-only playback) -->
+      <!-- Tab 2: Search Tools — address bar + free-area scan (mirror WF SearchTabPage) -->
+      <TabItem Header="Search Tools" Name="SearchToolsTab" AutomationProperties.AutomationId="TextViewer_SearchTools_Tab">
+        <ScrollViewer Margin="4">
+          <StackPanel Spacing="10" Margin="8">
+            <TextBlock Text="Search &amp; Address Tools" FontSize="16" FontWeight="Bold" />
+
+            <!-- Filter -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_FilterPrefix_Label"
+                         Text="Filter:" VerticalAlignment="Center" Width="160" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_FilterValue_TextBox"
+                       Name="FilterValueBox" IsReadOnly="True" Width="240" />
+            </StackPanel>
+
+            <!-- Read Start Address -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_ReadStartAddressPrefix_Label"
+                         Text="Read Start Address:" VerticalAlignment="Center" Width="160" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_ReadStartAddress_TextBox"
+                       Name="ReadStartAddressBox" IsReadOnly="True" Width="240" />
+            </StackPanel>
+
+            <!-- Read Count -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_ReadCountPrefix_Label"
+                         Text="Read Count:" VerticalAlignment="Center" Width="160" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_ReadCount_TextBox"
+                       Name="ReadCountBox" IsReadOnly="True" Width="240" />
+            </StackPanel>
+
+            <!-- Size -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_SizePrefix_Label"
+                         Text="Size:" VerticalAlignment="Center" Width="160" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_Size_TextBox"
+                       Name="SizeValueBox" IsReadOnly="True" Width="240" />
+            </StackPanel>
+
+            <!-- Action buttons -->
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+              <Button AutomationProperties.AutomationId="TextViewer_SearchFreeArea_Button"
+                      Name="SearchFreeAreaButton" Content="Search Free Area" Click="OnSearchFreeAreaClick" />
+              <Button AutomationProperties.AutomationId="TextViewer_Reload_Button"
+                      Name="ReloadButton" Content="Reload" Click="OnReloadClick" />
+              <TextBlock AutomationProperties.AutomationId="TextViewer_FreeAreaStatus_Label"
+                         Name="FreeAreaStatusLabel" VerticalAlignment="Center" Foreground="Gray" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- Tab 3: Import/Export — moved TSV buttons + filter stubs (mirror WF ImportPage) -->
+      <TabItem Header="Import/Export" Name="ImportExportTab" AutomationProperties.AutomationId="TextViewer_ImportExport_Tab">
+        <ScrollViewer Margin="4">
+          <StackPanel Spacing="10" Margin="8">
+            <TextBlock Text="Import/Export" FontSize="16" FontWeight="Bold" />
+
+            <!-- Existing TSV buttons (logic unchanged; just relocated) -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="TextViewer_Export_Button" Name="ExportButton" Content="Export All Texts (TSV)" Click="OnExportClick" />
+              <Button AutomationProperties.AutomationId="TextViewer_Import_Button" Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
+            </StackPanel>
+
+            <!-- Export Filter stub (DISABLED — depends on ToolTranslateROM Core extraction) -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_ExportFilterPrefix_Label"
+                         Text="Export Filter:" VerticalAlignment="Center" Width="140" />
+              <ComboBox AutomationProperties.AutomationId="TextViewer_ExportFilter_Combo"
+                        Name="ExportFilterCombo" IsEnabled="False" Width="240"
+                        PlaceholderText="(out-of-scope)"
+                        ToolTip.Tip="Out-of-scope: requires ToolTranslateROM Core extraction" />
+            </StackPanel>
+
+            <!-- Include AI Hints stub (DISABLED) -->
+            <CheckBox AutomationProperties.AutomationId="TextViewer_IncludeAIHints_Check"
+                      Name="IncludeAIHintsCheck" Content="Include AI Hints" IsEnabled="False"
+                      ToolTip.Tip="Out-of-scope: requires ToolTranslateROM Core extraction" />
+
+            <!-- Export Limit descriptor (read-only descriptive TextBox) -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_ExportLimitPrefix_Label"
+                         Text="Export Limit:" VerticalAlignment="Center" Width="140" />
+              <TextBox AutomationProperties.AutomationId="TextViewer_ExportLimit_TextBox"
+                       Name="ExportLimitBox" IsReadOnly="True" Width="240" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- Tab 4: Translate — disabled stub (mirror WF translatePage) -->
+      <TabItem Header="Translate" Name="TranslateTab" AutomationProperties.AutomationId="TextViewer_Translate_Tab">
+        <ScrollViewer Margin="4">
+          <StackPanel Spacing="10" Margin="8">
+            <TextBlock Text="Translate" FontSize="16" FontWeight="Bold" />
+
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_TranslateFromPrefix_Label"
+                         Text="Translate from:" VerticalAlignment="Center" Width="160" />
+              <ComboBox AutomationProperties.AutomationId="TextViewer_TranslateFrom_Combo"
+                        Name="TranslateFromCombo" IsEnabled="False" Width="240"
+                        ToolTip.Tip="Out-of-scope: requires UX review of SaaS-call disclaimer" />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="TextViewer_TranslateToPrefix_Label"
+                         Text="Translate to:" VerticalAlignment="Center" Width="160" />
+              <ComboBox AutomationProperties.AutomationId="TextViewer_TranslateTo_Combo"
+                        Name="TranslateToCombo" IsEnabled="False" Width="240"
+                        ToolTip.Tip="Out-of-scope: requires UX review of SaaS-call disclaimer" />
+            </StackPanel>
+
+            <Button AutomationProperties.AutomationId="TextViewer_Translate_Button"
+                    Name="TranslateButton" Content="Translate" IsEnabled="False"
+                    ToolTip.Tip="Out-of-scope: requires UX review of SaaS-call disclaimer" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- Tab 5: References — list of cross-refs + (disabled) Add Reference (mirror WF RefPage) -->
+      <TabItem Header="References" Name="ReferencesTab" AutomationProperties.AutomationId="TextViewer_References_Tab">
+        <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="4">
+          <TextBlock Grid.Row="0" AutomationProperties.AutomationId="TextViewer_ReferencesPrefix_Label"
+                     Text="References:" FontSize="16" FontWeight="Bold" Margin="4,4,4,8" />
+          <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="4">
+            <ListBox AutomationProperties.AutomationId="TextViewer_ReferencesTabList"
+                     Name="ReferencesTabList" />
+          </Border>
+          <Button Grid.Row="2" AutomationProperties.AutomationId="TextViewer_AddReference_Button"
+                  Name="AddReferenceButton" Content="Add Reference" IsEnabled="False"
+                  Margin="4,8,4,4"
+                  ToolTip.Tip="Out-of-scope: requires UseTextIDCache.Update Core extraction" />
+          <TextBlock Grid.Row="3" AutomationProperties.AutomationId="TextViewer_ReferencesTabStatus_Label"
+                     Name="ReferencesTabStatusLabel" Margin="4,4,4,4" Foreground="Gray" />
+        </Grid>
+      </TabItem>
+
+      <!-- Tab 6: Simple Conversation Viewer (read-only playback) -->
       <TabItem Header="Conversation Viewer" Name="ConversationTab" AutomationProperties.AutomationId="TextViewer_Conversation_Tab">
         <Grid RowDefinitions="Auto,*" Margin="4">
           <TextBlock Grid.Row="0" Text="Simple Conversation Viewer (read-only)" FontSize="16" FontWeight="Bold" Margin="4,4,4,8" />

@@ -37,7 +37,38 @@ namespace FEBuilderGBA.Avalonia.Views
             // Lazy-load the Conversation Viewer tab: defer the parse + portrait
             // decode work until the user actually activates that tab.
             EditorTabs.SelectionChanged += OnEditorTabChanged;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) =>
+            {
+                LoadList();
+                PopulateAddressBar();
+                // Export Limit (read-only descriptive caption — see WU1).
+                ExportLimitBox.Text = R._("Filter: All (out-of-scope)");
+            };
+        }
+
+        /// <summary>
+        /// Populate the read-only Address Bar widgets on the Search Tools tab.
+        /// Issue #404: WF `TextForm.ReadStartAddress` mirrors `InputFormRef.BaseAddress`
+        /// which equals `rom.p32(rom.RomInfo.text_pointer)` (with the
+        /// recovery fallback to `text_recover_address` for unsafe pointers).
+        /// We delegate to `_vm.ResolveTextTableBase()` so the recovery path
+        /// stays consistent across the view and VM.
+        /// </summary>
+        void PopulateAddressBar()
+        {
+            uint baseAddr = _vm.ResolveTextTableBase();
+            if (baseAddr == 0)
+            {
+                ReadStartAddressBox.Text = R._("(invalid)");
+                ReadCountBox.Text = "0";
+                SizeValueBox.Text = "0x4";
+                FilterValueBox.Text = "";
+                return;
+            }
+            ReadStartAddressBox.Text = "0x" + baseAddr.ToString("X08");
+            ReadCountBox.Text = _vm.GetListCount().ToString();
+            SizeValueBox.Text = "0x4";
+            FilterValueBox.Text = "";
         }
 
         void OnEditorTabChanged(object? sender, SelectionChangedEventArgs e)
@@ -66,14 +97,15 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 // The addr is the pointer table entry address, but we need the text ID (index)
-                // The AddrResult.tag contains the index
+                // The AddrResult.tag contains the index.
+                // Issue #404: use `_vm.ResolveTextTableBase()` so the recovery
+                // fallback (to `text_recover_address`) applies uniformly here
+                // and in `LoadTextList()` / `FindApproximatelyUnreferencedTexts()`.
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
 
-                uint textPtr = rom.RomInfo.text_pointer;
-                if (textPtr == 0) return;
-                uint baseAddr = rom.p32(textPtr);
-                if (baseAddr == 0 || !U.isSafetyOffset(baseAddr)) return;
+                uint baseAddr = _vm.ResolveTextTableBase();
+                if (baseAddr == 0) return;
 
                 uint id = (addr - baseAddr) / 4;
                 _vm.LoadText(id);
@@ -107,6 +139,51 @@ namespace FEBuilderGBA.Avalonia.Views
             EditTextBox.Text = _vm.DecodedText;
             UpdateLengthWarning();
             UpdateCrossReferences();
+            UpdatePointerDisplay();
+        }
+
+        /// <summary>
+        /// Update the inline Pointer + Refs displays on the Edit tab.
+        /// Pointer = u32 read from textBase + id*4 (mirrors WF AddressPointer).
+        /// Refs count = current cross-reference list count.
+        /// </summary>
+        void UpdatePointerDisplay()
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null || rom.Data == null)
+                {
+                    PointerValueBox.Text = R._("(invalid)");
+                    RefsCountBox.Text = "0";
+                    return;
+                }
+                uint textBase = _vm.ResolveTextTableBase();
+                if (textBase == 0)
+                {
+                    PointerValueBox.Text = R._("(invalid)");
+                }
+                else
+                {
+                    uint writePointer = textBase + _vm.CurrentId * 4u;
+                    if (writePointer + 4 <= (uint)rom.Data.Length && U.isSafetyOffset(writePointer, rom))
+                    {
+                        uint pointer = rom.u32(writePointer);
+                        PointerValueBox.Text = "0x" + pointer.ToString("X08");
+                    }
+                    else
+                    {
+                        PointerValueBox.Text = R._("(invalid)");
+                    }
+                }
+                RefsCountBox.Text = _vm.CrossReferences.Count.ToString();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.UpdatePointerDisplay: {0}", ex.Message);
+                PointerValueBox.Text = R._("(invalid)");
+                RefsCountBox.Text = "0";
+            }
         }
 
         void OnEditTextChanged(object? sender, TextChangedEventArgs e)
@@ -146,9 +223,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var refs = _vm.CrossReferences;
             if (refs.Count == 0)
-                CrossRefList.ItemsSource = new[] { "(No references found)" };
+            {
+                CrossRefList.ItemsSource = new[] { R._("(No references found)") };
+                ReferencesTabList.ItemsSource = new[] { R._("(No references found)") };
+            }
             else
+            {
                 CrossRefList.ItemsSource = refs;
+                ReferencesTabList.ItemsSource = refs;
+            }
+            ReferencesTabStatusLabel.Text = R._("References found: {0}", refs.Count);
         }
 
         /// <summary>
@@ -293,6 +377,38 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             SearchResultLabel.Text = "";
             LoadList();
+        }
+
+        /// <summary>
+        /// Reload the text list from ROM and refresh the address-bar widgets.
+        /// Wired to the Reload button on the Search Tools tab.
+        /// </summary>
+        void OnReloadClick(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
+            PopulateAddressBar();
+            FreeAreaStatusLabel.Text = "";
+        }
+
+        /// <summary>
+        /// Issue #404: scan all text IDs for unreferenced "free area" slots
+        /// (mirror WF `SearcFreeArea_Click`, approximate scope per VM docstring).
+        /// Replaces the `TextList` items with the free-area results; user can
+        /// then select any to inspect it.
+        /// </summary>
+        void OnSearchFreeAreaClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var results = _vm.FindApproximatelyUnreferencedTexts();
+                TextList.SetItems(results);
+                FreeAreaStatusLabel.Text = R._("Free area: {0} results", results.Count);
+            }
+            catch (Exception ex)
+            {
+                FreeAreaStatusLabel.Text = $"Error: {ex.Message}";
+                Log.Error("SearchFreeArea failed: {0}", ex.Message);
+            }
         }
 
         public void SelectFirstItem()

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
-    public class TextViewerViewModel : ViewModelBase
+    public partial class TextViewerViewModel : ViewModelBase
     {
         uint _currentId;
         string _decodedText = "";
@@ -38,6 +38,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return false;
         }
 
+        /// <summary>
+        /// Resolve the text-pointer table base address, mirroring WinForms
+        /// <c>TextForm.Init()</c> recovery: try `rom.p32(rom.RomInfo.text_pointer)`;
+        /// if the dereferenced address fails <see cref="U.isSafetyOffset(uint, ROM)"/>,
+        /// fall back to <c>rom.RomInfo.text_recover_address</c>. Returns 0
+        /// when neither path yields a safe offset (ROM unloaded, missing
+        /// RomInfo, or both pointers unsafe).
+        ///
+        /// Used by <see cref="LoadTextList"/>, <see cref="ComputeOriginalEncodedLength"/>,
+        /// <see cref="WriteText"/>, <see cref="SearchTexts"/>,
+        /// <see cref="FindApproximatelyUnreferencedTexts"/>, and the view's
+        /// `OnTextSelected` selection routing. Keeping all consumers on a
+        /// single helper ensures the recovery path is uniform.
+        /// </summary>
+        public uint ResolveTextTableBase()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || rom.Data == null) return 0;
+
+            uint ptr = rom.RomInfo.text_pointer;
+            if (ptr == 0) return 0;
+            if (ptr + 4 > (uint)rom.Data.Length) return 0;
+
+            uint baseAddr = rom.p32(ptr);
+            if (U.isSafetyOffset(baseAddr, rom)) return baseAddr;
+
+            // Recovery fallback (matches WF TextForm.Init() behavior).
+            uint recover = rom.RomInfo.text_recover_address;
+            if (recover != 0 && U.isSafetyOffset(recover, rom)) return recover;
+
+            return 0;
+        }
+
         public List<AddrResult> LoadTextList()
         {
             try
@@ -45,14 +78,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null || rom.Data == null) return new List<AddrResult>();
 
-                uint ptr = rom.RomInfo.text_pointer;
-                if (ptr == 0) return new List<AddrResult>();
-
-                // Bounds check before reading text pointer table address
-                if (ptr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
-
-                uint baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+                uint baseAddr = ResolveTextTableBase();
+                if (baseAddr == 0) return new List<AddrResult>();
 
                 var result = new List<AddrResult>();
                 for (uint i = 0; i < 0x2000; i++) // reasonable max
@@ -135,11 +162,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null || rom.Data == null) return 0;
 
-                uint textPtr = rom.RomInfo.text_pointer;
-                if (textPtr + 4 > (uint)rom.Data.Length) return 0;
-
-                uint textBase = rom.p32(textPtr);
-                if (!U.isSafetyOffset(textBase, rom)) return 0;
+                uint textBase = ResolveTextTableBase();
+                if (textBase == 0) return 0;
 
                 uint writePointer = textBase + (id * 4);
                 if (writePointer + 4 > (uint)rom.Data.Length) return 0;
@@ -321,12 +345,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 useUnHuffman = true;
             }
 
-            uint textPtrAddr = rom.RomInfo.text_pointer;
-            if (textPtrAddr + 4 > (uint)rom.Data.Length)
-                throw new InvalidOperationException("Text pointer address out of ROM bounds.");
-
-            uint textBase = rom.p32(textPtrAddr);
-            if (!U.isSafetyOffset(textBase, rom))
+            uint textBase = ResolveTextTableBase();
+            if (textBase == 0)
                 throw new InvalidOperationException("Invalid text pointer table.");
 
             uint writePointer = textBase + (id * 4);
@@ -428,14 +448,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (rom?.RomInfo == null || rom.Data == null || string.IsNullOrWhiteSpace(query))
                     return new List<AddrResult>();
 
-                uint ptr = rom.RomInfo.text_pointer;
-                if (ptr == 0) return new List<AddrResult>();
-
-                // Bounds check before reading text pointer table address
-                if (ptr + 4 > (uint)rom.Data.Length) return new List<AddrResult>();
-
-                uint baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
+                uint baseAddr = ResolveTextTableBase();
+                if (baseAddr == 0) return new List<AddrResult>();
 
                 var result = new List<AddrResult>();
                 for (uint i = 0; i < 0x2000; i++)
@@ -473,6 +487,117 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => LoadTextList().Count;
+
+        /// <summary>
+        /// System-reserved text-id range check, mirrors WinForms
+        /// <c>TextForm.IsSystemReserve(textid)</c>:
+        /// <list type="bullet">
+        ///   <item>FE8 reserves IDs <c>0xE00..0xFFF</c> (patch text-string slots)</item>
+        ///   <item>FE7 reserves IDs <c>0x1E00..0x1FFF</c></item>
+        /// </list>
+        /// Used by <see cref="FindApproximatelyUnreferencedTexts"/> to exclude
+        /// system-reserved IDs from the "free area" result list (these are
+        /// reserved for patches even when nothing currently references them).
+        /// </summary>
+        public static bool IsSystemReserve(ROM rom, uint textid)
+        {
+            if (rom?.RomInfo == null) return false;
+            int version = rom.RomInfo.version;
+            if (version == 8)
+            {
+                if (textid >= 0xE00 && textid <= 0xFFF) return true;
+            }
+            else if (version == 7)
+            {
+                if (textid >= 0x1E00 && textid <= 0x1FFF) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Issue #404 free-area scan: find text IDs whose decoded text is
+        /// non-empty AND whose ID is NOT referenced by any descriptor-defined
+        /// ROM table. Mirrors WinForms <c>TextForm.SearcFreeArea_Click</c> in
+        /// intent but is APPROXIMATE — the descriptor set (built by
+        /// <see cref="TextRefTableRegistry.BuildForRom"/>) excludes EventCond
+        /// scripts, patch-defined text parameters, menu-definition chains,
+        /// status R-menu linked lists, and FE7 haiku tutorial event pointers.
+        /// WF's implementation also uses <c>AsmMapFileAsmCache.GetVarsIDArray()</c>
+        /// and <c>UseTextIDCache.AppendList()</c>, neither of which is yet
+        /// ported to Avalonia (the Core <c>IAsmMapCache</c> has no
+        /// <c>GetVarsIDArray</c> method; <c>UseTextIDCache</c> is an
+        /// <c>object</c> placeholder in <c>CoreState</c>). Until those Core
+        /// extractions land, this method should be considered a USEFUL HEURISTIC
+        /// (catches obviously-orphaned text slots in vanilla ROMs) but NOT a
+        /// definitive list.
+        ///
+        /// One-pass algorithm (vs the obvious O(N×M) per-ID Find):
+        ///   1. Build the descriptor table set ONCE via TextRefTableRegistry.
+        ///   2. Call <see cref="TextReferenceFinder.CollectReferencedTextIds"/>
+        ///      to accumulate every referenced text ID into a HashSet&lt;uint&gt;
+        ///      using the SAME traversal as <see cref="TextReferenceFinder.Find"/>
+        ///      (PointerField vs DirectBase, safety floor, fitting-count clamp,
+        ///      terminator predicate).
+        ///   3. Iterate text IDs <c>1..loadedCount-1</c> (skip ID 0 = system
+        ///      write-protect); for each non-system-reserved, non-empty ID
+        ///      not in the referenced set, emit an <see cref="AddrResult"/>.
+        ///
+        /// Output invariants (asserted by `TextViewerParityTests`):
+        ///   - <c>tag &lt; loadedCount</c> for every result
+        ///   - <c>addr = textBase + tag * 4</c> (matches <see cref="LoadTextList"/>)
+        ///   so <see cref="Controls.AddressListControl.SelectAddress"/> dispatch
+        ///   works uniformly between the regular list and free-area results.
+        /// </summary>
+        public List<AddrResult> FindApproximatelyUnreferencedTexts()
+        {
+            var result = new List<AddrResult>();
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null || rom.Data == null) return result;
+
+                uint textBase = ResolveTextTableBase();
+                if (textBase == 0) return result;
+
+                var tables = TextRefTableRegistry.BuildForRom(rom);
+                var referencedIds = TextReferenceFinder.CollectReferencedTextIds(rom, tables);
+
+                int loadedCount = LoadTextList().Count;
+                if (loadedCount <= 1) return result;
+
+                for (uint id = 1; id < (uint)loadedCount; id++)
+                {
+                    if (IsSystemReserve(rom, id)) continue;
+                    if (referencedIds.Contains(id)) continue;
+
+                    // Skip IDs whose decoded text is null/empty/whitespace.
+                    // Avoid false-positives from huge runs of "empty" slots
+                    // pointing at the same null string.
+                    string decoded;
+                    try { decoded = FETextDecode.Direct(id) ?? ""; }
+                    catch { continue; }
+                    if (string.IsNullOrWhiteSpace(decoded)) continue;
+
+                    string preview;
+                    try
+                    {
+                        string ftt = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
+                        ftt = StripControlChars(ftt) ?? "";
+                        preview = ftt.Length > 40 ? ftt.Substring(0, 40) + "..." : ftt;
+                    }
+                    catch { preview = ""; }
+
+                    uint addr = textBase + id * 4u;
+                    string name = U.ToHexString(id) + " (free) " + preview;
+                    result.Add(new AddrResult(addr, name, id));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerViewModel.FindApproximatelyUnreferencedTexts: {0}", ex.Message);
+            }
+            return result;
+        }
 
         /// <summary>
         /// Export all ROM texts to a TSV file via TranslateCore.

@@ -21688,3 +21688,67 @@ OBJ+BG 从左到右
 
 :ED (FE7)
 ED 关系
+
+:Pointer:
+指针：
+
+:Refs:
+引用：
+
+:Search Tools
+搜索工具
+
+:Search & Address Tools
+搜索与地址工具
+
+:Search Free Area
+搜索未引用的空闲区域
+
+:Import/Export
+导入/导出
+
+:Export Filter:
+导出筛选：
+
+:Include AI Hints
+添加 AI 登场人物提示
+
+:Export Limit:
+导出限制：
+
+:Translate from:
+翻译源：
+
+:Translate to:
+翻译目标：
+
+:Add Reference
+添加引用信息
+
+:(out-of-scope)
+(超出范围)
+
+:Free area: {0} results
+空闲区域：{0} 个结果
+
+:(invalid)
+(无效)
+
+:References found: {0}
+找到引用：{0} 项
+
+:Filter: All (out-of-scope)
+筛选：所有 (超出范围)
+
+:Out-of-scope: requires ToolTranslateROM Core extraction
+超出范围：需要 ToolTranslateROM Core 提取
+
+:Out-of-scope: requires UX review of SaaS-call disclaimer
+超出范围：需要 SaaS 调用免责声明的 UX 评审
+
+:Out-of-scope: requires UseTextIDCache.Update Core extraction
+超出范围：需要 UseTextIDCache.Update Core 提取
+
+:(No references found)
+(未找到引用)
+
