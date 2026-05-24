@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T10:52:54Z"
-git-sha: f725834eb
+generated: "2026-05-24T12:13:00Z"
+git-sha: d80bd2a8a
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 207 |
+| HIGH | |Δ%| ≥ 50 | 205 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 77 |
+| LOW | |Δ%| < 25 | 79 |
 
 ## Ranked Density Deltas
 
@@ -41,8 +41,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EmulatorMemoryForm` | `EmulatorMemoryView` | 353 | 5 | -348 | -98.6% | Heuristic |
 | High | `ImageBattleScreenForm` | `ImageBattleScreenView` | 133 | 3 | -130 | -97.7% | Heuristic |
 | High | `MapSettingFE6Form` | `MapSettingFE6View` | 126 | 3 | -123 | -97.6% | ListParityHelper |
-| High | `WorldMapImageForm` | `WorldMapImageView` | 107 | 3 | -104 | -97.2% | Heuristic |
-| High | `ImageTSAEditorForm` | `ImageTSAEditorView` | 100 | 3 | -97 | -97.0% | Heuristic |
 | High | `ClassFE6Form` | `ClassFE6View` | 173 | 8 | -165 | -95.4% | Heuristic |
 | High | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` | 62 | 3 | -59 | -95.2% | ListParityHelper |
 | High | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` | 61 | 3 | -58 | -95.1% | ListParityHelper |
@@ -219,6 +217,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `SupportTalkFE6Form` | `SupportTalkFE6View` | 26 | 21 | -5 | -19.2% | ListParityHelper |
 | Low | `StatusRMenuForm` | `StatusRMenuView` | 28 | 23 | -5 | -17.9% | ListParityHelper |
 | Low | `ClassForm` | `ClassEditorView` | 211 | 174 | -37 | -17.5% | ListParityHelper |
+| Low | `MonsterItemForm` | `MonsterItemViewerView` | 129 | 108 | -21 | -16.3% | ListParityHelper |
 | Low | `EventUnitFE6Form` | `EventUnitFE6View` | 64 | 54 | -10 | -15.6% | ListParityHelper |
 | Low | `AITargetForm` | `AITargetView` | 52 | 44 | -8 | -15.4% | ListParityHelper |
 | Low | `SoundBossBGMForm` | `SoundBossBGMViewerView` | 20 | 17 | -3 | -15.0% | ListParityHelper |
@@ -226,7 +225,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `AOERANGEForm` | `AOERANGEView` | 15 | 13 | -2 | -13.3% | Heuristic |
 | Low | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` | 99 | 86 | -13 | -13.1% | Heuristic |
 | Low | `UnitFE6Form` | `UnitFE6View` | 152 | 133 | -19 | -12.5% | ListParityHelper |
-| Low | `MonsterItemForm` | `MonsterItemViewerView` | 129 | 113 | -16 | -12.4% | ListParityHelper |
 | Low | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` | 41 | 36 | -5 | -12.2% | Heuristic |
 | Low | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` | 9 | 8 | -1 | -11.1% | Heuristic |
 | Low | `UnitFE7Form` | `UnitFE7View` | 160 | 143 | -17 | -10.6% | ListParityHelper |
@@ -253,6 +251,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 65 | 2 | +3.2% | Heuristic |
 | Low | `EDFE7Form` | `EDFE7View` | 81 | 84 | 3 | +3.7% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
+| Low | `ImageTSAEditorForm` | `ImageTSAEditorView` | 100 | 105 | 5 | +5.0% | Heuristic |
 | Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
 | Low | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 133 | 141 | 8 | +6.0% | ListParityHelper |
@@ -271,6 +270,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `RAMRewriteToolForm` | `RAMRewriteToolView` | 8 | 9 | 1 | +12.5% | Heuristic |
 | Low | `ImageBattleBGForm` | `ImageBattleBGView` | 26 | 30 | 4 | +15.4% | ListParityHelper |
 | Low | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` | 19 | 22 | 3 | +15.8% | ListParityHelper |
+| Low | `WorldMapImageForm` | `WorldMapImageView` | 107 | 124 | 17 | +15.9% | Heuristic |
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
 | Low | `ClassOPDemoForm` | `ClassOPDemoView` | 71 | 83 | 12 | +16.9% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
@@ -392,22 +392,6 @@ WF count: **126** · AV count: **3** · Δ: **-123** (-97.6%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MapSettingFE6View.axaml
 -->
 
-### WorldMapImageForm
-WF count: **107** · AV count: **3** · Δ: **-104** (-97.2%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/WorldMapImageForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/WorldMapImageView.axaml
--->
-
-### ImageTSAEditorForm
-WF count: **100** · AV count: **3** · Δ: **-97** (-97.0%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageTSAEditorForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageTSAEditorView.axaml
--->
-
 ### ClassFE6Form
 WF count: **173** · AV count: **8** · Δ: **-165** (-95.4%).
 
@@ -526,6 +510,22 @@ WF count: **72** · AV count: **8** · Δ: **-64** (-88.9%).
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/MoveCostForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MoveCostEditorView.axaml
+-->
+
+### SkillConfigFE8NVer3SkillForm
+WF count: **166** · AV count: **19** · Δ: **-147** (-88.6%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SkillConfigFE8NVer3SkillForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer3SkillView.axaml
+-->
+
+### SkillConfigFE8NVer2SkillForm
+WF count: **136** · AV count: **17** · Δ: **-119** (-87.5%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SkillConfigFE8NVer2SkillForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer2SkillView.axaml
 -->
 
 ## Unpaired Orphans
