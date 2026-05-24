@@ -21661,3 +21661,24 @@ OBJ+BG 从左到右
 
 :03 = Ranged / Magic Sword
 03 = 远程 / 魔法剑
+
+:Lyn Arc
+林篇
+
+:Lyn Arc Unit
+林篇单位
+
+:Cleared After
+通关后
+
+:Retreat After
+撤退后
+
+:Eliwood Route
+艾利乌德路线
+
+:Hector Route
+赫克托耳路线
+
+:ED (FE7)
+ED 关系
