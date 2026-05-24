@@ -300,6 +300,12 @@ namespace FEBuilderGBA
                 return $"Script file not found: {txtPath}";
             if (imageLoader == null)
                 return "Image loader callback is null.";
+            // Plan v3 + Copilot bot review on PR #620 (round 1 inline #4):
+            // validate that pointerAddr is in-bounds for a 4-byte write so a
+            // caller passing a garbage address gets a friendly error instead
+            // of an IndexOutOfRangeException from rom.write_u32.
+            if (!U.isSafetyOffset(pointerAddr, rom) || pointerAddr + 3 >= (uint)rom.Data.Length)
+                return $"Invalid pointer address: 0x{pointerAddr:X08}";
 
             string baseDir = Path.GetDirectoryName(Path.GetFullPath(txtPath)) ?? "";
             string[] lines;
@@ -369,15 +375,33 @@ namespace FEBuilderGBA
                 string pngName = sp[1];
                 uint sound = sp.Length >= 3 ? U.atoi0x(sp[2]) : 0;
 
+                // Plan v3 + Copilot bot review on PR #620 (round 1 inline #5):
+                // wait must fit in a byte (frame entry stores it as u8); sound
+                // must fit in a u16. Silently truncating a malformed script
+                // line would import the animation with wrong timing/sound.
+                if (wait > 0xFF)
+                    return $"Wait value {wait} at line {li + 1} exceeds the u8 frame-entry range (0..255).";
+                if (sound > 0xFFFF)
+                    return $"Sound value 0x{sound:X} at line {li + 1} exceeds the u16 frame-entry range (0..0xFFFF).";
+
                 byte[] tileBytes;
                 byte[] paletteBytes;
 
                 if (pendingRawTiles != null && pendingRawPalette != null)
                 {
                     tileBytes = HexToBytes(pendingRawTiles);
-                    paletteBytes = PadGBAPaletteTo16(HexToBytes(pendingRawPalette));
                     if (tileBytes == null || tileBytes.Length == 0)
-                        return $"Invalid RAW-TILES at line {li + 1}.";
+                        return $"Invalid RAW-TILES hex at line {li + 1} (preceding frame line).";
+
+                    // Plan v3 + Copilot bot review on PR #620 (round 1 inline #3):
+                    // a malformed RAW-PALETTE silently produces an all-zero
+                    // palette via PadGBAPaletteTo16(null). Validate explicitly
+                    // so a typo in the .txt fails the import loudly instead
+                    // of corrupting the palette.
+                    byte[] rawPaletteBytes = HexToBytes(pendingRawPalette);
+                    if (rawPaletteBytes == null)
+                        return $"Invalid RAW-PALETTE hex at line {li + 1} (preceding frame line).";
+                    paletteBytes = PadGBAPaletteTo16(rawPaletteBytes);
                 }
                 else
                 {

@@ -377,6 +377,127 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ----------------------------------------------------------------
+        // Copilot bot review on PR #620 (round 1 inlines #3 / #4 / #5)
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Inline #3: malformed RAW-PALETTE hex used to silently produce an
+        /// all-zero palette via PadGBAPaletteTo16(null). The validated path
+        /// now returns a descriptive error.
+        /// </summary>
+        [Fact]
+        public void ImportScript_MalformedRawPalette_ReturnsLocalizedError()
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeSyntheticRom(out string scratch);
+                string txtPath = Path.Combine(scratch, "badpal.MapActionAnimation.txt");
+                byte[] tiles = new byte[2048];
+                File.WriteAllLines(txtPath, new[]
+                {
+                    "# RAW-TILES: " + BytesToHex(tiles),
+                    "# RAW-PALETTE: ABCDE",        // odd-length hex → invalid
+                    "5\tframe0.png",
+                });
+                string err = MapActionAnimationExportImportCore.ImportScript(
+                    CoreState.ROM, POINTER_ADDR, txtPath, _ => null);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Contains("RAW-PALETTE", err);
+                Directory.Delete(scratch, recursive: true);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        /// <summary>
+        /// Inline #4: pointerAddr must be validated as in-bounds for a 4-byte
+        /// write before the import even begins.
+        /// </summary>
+        [Fact]
+        public void ImportScript_InvalidPointerAddress_ReturnsEarly()
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeSyntheticRom(out string scratch);
+                string txtPath = Path.Combine(scratch, "validfile.MapActionAnimation.txt");
+                File.WriteAllText(txtPath, "//NAME=Test\n");
+                uint badAddr = (uint)CoreState.ROM.Data.Length + 0x1000;
+                string err = MapActionAnimationExportImportCore.ImportScript(
+                    CoreState.ROM, badAddr, txtPath, _ => null);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Contains("0x", err);
+                Directory.Delete(scratch, recursive: true);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        /// <summary>
+        /// Inline #5: wait values > 255 used to be silently truncated to a u8.
+        /// </summary>
+        [Fact]
+        public void ImportScript_WaitOver255_ReturnsLocalizedError()
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeSyntheticRom(out string scratch);
+                string txtPath = Path.Combine(scratch, "bigwait.MapActionAnimation.txt");
+                File.WriteAllLines(txtPath, new[]
+                {
+                    "//NAME=BigWait",
+                    "300\tframe0.png",   // 300 > 0xFF
+                });
+                string err = MapActionAnimationExportImportCore.ImportScript(
+                    CoreState.ROM, POINTER_ADDR, txtPath,
+                    _ => (new byte[64*64*4], 64, 64));
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Contains("Wait", err);
+                Assert.Contains("300", err);
+                Directory.Delete(scratch, recursive: true);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        /// <summary>
+        /// Inline #5: sound values > 0xFFFF used to be silently truncated.
+        /// </summary>
+        [Fact]
+        public void ImportScript_SoundOverU16_ReturnsLocalizedError()
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeSyntheticRom(out string scratch);
+                string txtPath = Path.Combine(scratch, "bigsound.MapActionAnimation.txt");
+                File.WriteAllLines(txtPath, new[]
+                {
+                    "//NAME=BigSound",
+                    "5\tframe0.png\t0x10000", // sound 0x10000 > u16
+                });
+                string err = MapActionAnimationExportImportCore.ImportScript(
+                    CoreState.ROM, POINTER_ADDR, txtPath,
+                    _ => (new byte[64*64*4], 64, 64));
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Contains("Sound", err);
+                Directory.Delete(scratch, recursive: true);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        // ----------------------------------------------------------------
         // PadGBAPaletteTo16 — direct unit test
         // ----------------------------------------------------------------
 

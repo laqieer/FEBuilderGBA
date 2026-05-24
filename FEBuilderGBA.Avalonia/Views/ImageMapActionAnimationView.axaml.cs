@@ -287,9 +287,14 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Update IsEnabled/IsVisible state of the 4 #499 buttons after a
         /// list selection change. Mirrors WF
-        /// `AddressList_SelectedIndexChanged` which hides Export when
-        /// `IsAnimationValid` is false and toggles OpenSource/SelectSource
-        /// based on `Program.ResourceCache` lookup.
+        /// `AddressList_SelectedIndexChanged`:
+        /// - WF hides Export/Import; Avalonia keeps them rendered (Copilot bot
+        ///   review found the doc-vs-impl mismatch was misleading) but disables
+        ///   them via IsEnabled so the layout doesn't shift when selection
+        ///   changes. The disabled state is the Avalonia-equivalent of the
+        ///   WF "hidden" affordance — both signal "not actionable right now".
+        /// - OpenSource/SelectSource: hide when no source path is remembered
+        ///   (matches WF, which uses `this.OpenSourceButton.Hide()`).
         /// </summary>
         void RefreshExportImportButtonState()
         {
@@ -310,10 +315,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             string suggested = $"MapActionAnimation_{_vm.SelectedId:X02}.MapActionAnimation.txt";
+            // Multi-pattern SaveFilePicker (Copilot bot review on PR #620
+            // round 1, inline #1) — the user can pick the .txt script or the
+            // .gif export directly from the dropdown instead of having to
+            // type the extension manually under "All Files".
             string? path = await FileDialogHelper.SaveFile(this,
                 R._("Save Map Action Animation"),
-                "MapActionAnimation",
-                "*.MapActionAnimation.txt",
+                new[]
+                {
+                    (R._("Map Action Animation Script"), "*.MapActionAnimation.txt"),
+                    (R._("Animated GIF"), "*.gif"),
+                },
                 suggested);
             if (string.IsNullOrEmpty(path)) return;
             try
