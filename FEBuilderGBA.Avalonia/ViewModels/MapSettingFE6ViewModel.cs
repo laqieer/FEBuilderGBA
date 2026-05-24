@@ -181,8 +181,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // call already records into the ambient UndoData. Pushing a second
             // VM-local range-only entry would create a duplicate undo step.
             // Skip the local push when an ambient scope is detected. (#389)
-            bool ambientScopeActive = ROM.GetAmbientUndoData() != null;
-            if (undo != null && !ambientScopeActive)
+            //
+            // Offset-to-WF-label mapping reference (per Copilot CLI v2 review on
+            // issue #389). VM property names retain legacy spelling, but the
+            // ROM offsets match WinForms MapSettingFE6Form.Designer.cs labels:
+            //   0x11 (UnknownB17) → "天気" (Weather) — actually Weather lives here
+            //   0x12 (Weather)    → "戦闘背景" (Battle BG lookup)
+            //   0x13 (BattleBGLookup) → "ハードブースト" (Hard boost)
+            //   0x17 (HardBoost)  → "ワールドマップBGM" (World map BGM)
+            //   0x18 (UnknownB24) → "章オープニングBGM" (Chapter opening BGM)
+            //   0x1B-0x1E (UnknownB27-B30) → "攻略評価A-D" (Asset rating A-D)
+            //   0x20-0x26 (PlayerPhaseBGMW..UnknownW38) → "経験評価A-D" (Experience A-D)
+            //   0x28-0x2E (UnknownW40..W46) → "戦力評価A-D" (Strategy A-D)
+            // The AXAML labels use the WF-correct semantics; round-trip tests
+            // verify each byte writes to the documented offset.
+            if (undo != null && !ROM.IsAmbientUndoScopeActive)
             {
                 undoData = undo.NewUndoData("MapSettingFE6");
                 undoData.list.Add(new Undo.UndoPostion(addr, dataSize));

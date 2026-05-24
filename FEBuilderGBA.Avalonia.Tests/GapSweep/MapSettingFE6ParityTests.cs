@@ -181,6 +181,114 @@ public class MapSettingFE6ParityTests
     }
 
     // -----------------------------------------------------------------
+    // Offset-to-label adjacency — verify each critical input is paired with
+    // the WF-correct semantic label in the AXAML. Pure substring asserts
+    // (above) would pass even if a B17/B18/B19 label swap happened. This
+    // test walks every Grid in the AXAML and asserts that the TextBlock
+    // immediately to the left of each named NumericUpDown has the WF-correct
+    // label text. Catches accidental label / offset mismatches.
+    // -----------------------------------------------------------------
+
+    [Theory]
+    // (input control name, expected adjacent label literal)
+    // The labels come from MapSettingFE6Form.Designer.cs J_*.Text and
+    // label*.Text assignments at the matching layout positions. See the
+    // "Verified offset/label mapping" table in the plan comment on issue
+    // #389 for the full mapping.
+    [InlineData("NW4", "オブジェクトタイプ(Plist)")]
+    [InlineData("NB6", "パレット(Plist)")]
+    [InlineData("NB7", "チップセットクタイプ(Plist)")]
+    [InlineData("NB8", "マップポインタ(Plist)")]
+    [InlineData("NB9", "タイルアニメーション1")]
+    [InlineData("NB10", "タイルアニメーション2")]
+    [InlineData("NB11", "マップ部分変更(Plist)")]
+    [InlineData("NB12", "霧レベル")]
+    [InlineData("NB13", "戦闘準備の有無")]
+    [InlineData("NB14", "章タイトル画像")]
+    [InlineData("NB17", "天気")]
+    [InlineData("NB18", "戦闘背景")]
+    [InlineData("NB19", "ハードブースト")]
+    [InlineData("NB20", "味方フェーズBGM")]
+    [InlineData("NB21", "敵フェーズBGM")]
+    [InlineData("NB22", "友軍BGM")]
+    [InlineData("NB23", "ワールドマップBGM")]
+    [InlineData("NB24", "章オープニングBGM")]
+    [InlineData("NB25", "壊れる壁HP")]
+    [InlineData("NB27", "攻略評価A")]
+    [InlineData("NB28", "攻略評価B")]
+    [InlineData("NB29", "攻略評価C")]
+    [InlineData("NB30", "攻略評価D")]
+    [InlineData("NW32", "経験評価A")]
+    [InlineData("NW34", "経験評価B")]
+    [InlineData("NW36", "経験評価C")]
+    [InlineData("NW38", "経験評価D")]
+    [InlineData("NW40", "戦力評価A")]
+    [InlineData("NW42", "戦力評価B")]
+    [InlineData("NW44", "戦力評価C")]
+    [InlineData("NW46", "戦力評価D")]
+    [InlineData("NW48", "クリア条件(表示のみ)")]
+    [InlineData("NW50", "上の軍")]
+    [InlineData("NW52", "下の軍")]
+    [InlineData("NW54", "敵の軍旗")]
+    [InlineData("NW56", "章タイトル")]
+    [InlineData("NB58", "イベントID(Plist)")]
+    [InlineData("NB59", "ワールドマップ自動イベント")]
+    [InlineData("NW60", "ワールドマップ地名")]
+    [InlineData("NB62", "Chapter Number")]
+    [InlineData("NB63", "ワールドマップX")]
+    [InlineData("NB64", "ワールドマップY")]
+    [InlineData("NB65", "ワールドマップポイントX")]
+    [InlineData("NB66", "ワールドマップポイントY")]
+    [InlineData("NB67", "勝利BGMに変わる敵数")]
+    public void View_HasWfCorrectLabels_AtCorrectOffsets(string inputName, string expectedLabel)
+    {
+        // Walk the AXAML XML and verify the input's PRECEDING-SIBLING
+        // TextBlock literal matches the expected WF label.
+        var doc = XDocument.Load(AxamlPath());
+        // Avalonia XAML namespace
+        var avNs = doc.Root.GetDefaultNamespace();
+
+        // Find the NumericUpDown whose Name attribute matches inputName
+        var input = doc.Descendants(avNs + "NumericUpDown")
+            .FirstOrDefault(e => (string?)e.Attribute("Name") == inputName);
+        Assert.True(input != null,
+            $"NumericUpDown named '{inputName}' not found in AXAML.");
+
+        // The label is the TextBlock IN THE SAME PARENT Grid that sits at the
+        // same Grid.Row and Grid.Column = (input's column - 1). This catches
+        // any accidental swap between an input and its label.
+        var parent = input.Parent;
+        Assert.True(parent != null, $"Input '{inputName}' has no parent.");
+
+        int inputRow = ParseGridIndex(input, "Grid.Row");
+        int inputCol = ParseGridIndex(input, "Grid.Column");
+        int expectedLabelCol = inputCol - 1;
+        Assert.True(expectedLabelCol >= 0,
+            $"Input '{inputName}' must not be at Grid.Column=0; expected " +
+            $"adjacent label slot at column {expectedLabelCol}.");
+
+        var sibling = parent.Elements(avNs + "TextBlock")
+            .FirstOrDefault(e =>
+                ParseGridIndex(e, "Grid.Row") == inputRow &&
+                ParseGridIndex(e, "Grid.Column") == expectedLabelCol);
+        Assert.True(sibling != null,
+            $"No TextBlock at row={inputRow}, col={expectedLabelCol} adjacent " +
+            $"to '{inputName}' (expected WF label '{expectedLabel}').");
+
+        string actualLabel = (string?)sibling.Attribute("Text") ?? "";
+        Assert.True(actualLabel.Contains(expectedLabel),
+            $"Adjacent label for '{inputName}' should contain '{expectedLabel}'. " +
+            $"Got: '{actualLabel}'");
+    }
+
+    static int ParseGridIndex(XElement element, string attributeName)
+    {
+        var attr = element.Attribute(attributeName);
+        if (attr == null) return 0;
+        return int.TryParse(attr.Value, out int v) ? v : 0;
+    }
+
+    // -----------------------------------------------------------------
     // Code-behind / write-handler assertions.
     // -----------------------------------------------------------------
 
@@ -196,6 +304,39 @@ public class MapSettingFE6ParityTests
         Assert.Contains("_undoService", code);
         Assert.Matches(new Regex(
             @"_undoService\.Begin\([^)]*\)[\s\S]*?WriteMapSetting\(\)[\s\S]*?_undoService\.(Commit|Rollback)\(\)",
+            RegexOptions.Singleline), code);
+    }
+
+    /// <summary>
+    /// CP / Pointer (D0) is the only TextBox in the editor that accepts a
+    /// raw hex literal — the rest are NumericUpDown widgets that constrain
+    /// input to numbers. A typo in the CP TextBox must be rejected (with a
+    /// user-visible error) so the editor cannot silently write 0 to the ROM.
+    /// (PR #604 Copilot CLI review blocker #3.)
+    /// </summary>
+    [Fact]
+    public void View_WriteHandler_RejectsInvalidCpPointer()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // ReadUIToVM must use TryParseHexText (not ParseHexText) for D0 and
+        // show an error + return false on parse failure.
+        Assert.Contains("TryParseHexText(ND0.Text", code);
+        Assert.Contains("ShowError", code);
+    }
+
+    /// <summary>
+    /// After a successful write, the editor reloads from ROM. The reload
+    /// must run inside an `IsLoading=true` guard so `ViewModelBase.SetField`
+    /// does not re-dirty the VM right after `MarkClean()`, leaving the UI
+    /// stuck in a "modified" state. (PR #604 Copilot bot inline review #1.)
+    /// </summary>
+    [Fact]
+    public void View_WriteHandler_ReloadWrappedInIsLoadingGuard()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // The reload between Commit and MarkClean must set IsLoading=true.
+        Assert.Matches(new Regex(
+            @"_undoService\.Commit\(\)[\s\S]*?_vm\.IsLoading\s*=\s*true[\s\S]*?_vm\.LoadEntry\([\s\S]*?_vm\.IsLoading\s*=\s*false[\s\S]*?_vm\.MarkClean\(\)",
             RegexOptions.Singleline), code);
     }
 

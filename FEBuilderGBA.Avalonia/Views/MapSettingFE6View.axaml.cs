@@ -33,7 +33,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE6View.LoadList failed: {0}", ex.Message);
+                Log.Error("MapSettingFE6View.LoadList failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("MapSettingFE6View.OnSelected failed: {0}", ex.Message);
+                Log.Error("MapSettingFE6View.OnSelected failed: {0}", ex.ToString());
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
@@ -136,10 +136,24 @@ namespace FEBuilderGBA.Avalonia.Views
             NB67.Value = _vm.VictoryBGMEnemyCount;
         }
 
-        void ReadUIToVM()
+        /// <summary>
+        /// Copy UI controls back to the ViewModel. Returns false (and shows
+        /// an error dialog) when input validation fails — currently the only
+        /// validated field is the D0 CP pointer hex TextBox, which must be a
+        /// well-formed hex literal so a typo cannot silently write 0 to the
+        /// ROM. (PR #604 Copilot CLI review blocker #3.)
+        /// </summary>
+        bool ReadUIToVM()
         {
-            // Section 1 — CP / Pointer
-            _vm.CpPointer = ParseHexText(ND0.Text);
+            // Section 1 — CP / Pointer (validated)
+            if (!ViewHelpers.TryParseHexText(ND0.Text, out uint cpPointer))
+            {
+                CoreState.Services?.ShowError(
+                    $"CP / Pointer (D0) must be a valid hex value (e.g. 0x08123456). " +
+                    $"Got: '{ND0.Text}'");
+                return false;
+            }
+            _vm.CpPointer = cpPointer;
 
             // Section 2 — Map Style / PLIST
             _vm.ObjectTypePLIST = (uint)(NW4.Value ?? 0);
@@ -203,6 +217,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Section 8 — Victory BGM
             _vm.VictoryBGMEnemyCount = (uint)(NB67.Value ?? 0);
+            return true;
         }
 
         void OnWriteClick(object? sender, RoutedEventArgs e)
@@ -213,32 +228,48 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit FE6 Map Setting");
             try
             {
-                ReadUIToVM();
+                if (!ReadUIToVM())
+                {
+                    _undoService.Rollback();
+                    return;
+                }
                 _vm.WriteMapSetting();
                 _undoService.Commit();
-                _vm.MarkClean();
-                // Reload to confirm write
-                _vm.LoadEntry(_vm.CurrentAddr);
-                UpdateUI();
+
+                // Reload with IsLoading guard so SetField doesn't re-dirty
+                // the VM after the write completes successfully. (PR #604
+                // Copilot bot inline review #1.)
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadEntry(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+                finally
+                {
+                    _vm.IsLoading = false;
+                    _vm.MarkClean();
+                }
                 CoreState.Services?.ShowInfo("Map Setting (FE6) data written.");
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("MapSettingFE6View.Write failed: {0}", ex.Message);
+                Log.Error("MapSettingFE6View.Write failed: {0}", ex.ToString());
+                CoreState.Services?.ShowError(
+                    $"Failed to write Map Setting (FE6): {ex.Message}");
             }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
-        static uint ParseHexText(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return 0;
-            text = text.Trim();
-            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                text = text[2..];
-            return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var v) ? v : 0;
-        }
+        /// <summary>
+        /// Hex-parsing alias for tests that look for the legacy local helper.
+        /// Delegates to <see cref="ViewHelpers.ParseHexText"/> to keep the
+        /// canonical hex-parse logic in one place. (PR #604 Copilot bot
+        /// inline review #4.)
+        /// </summary>
+        private static uint ParseHexText(string? text) => ViewHelpers.ParseHexText(text);
     }
 }
