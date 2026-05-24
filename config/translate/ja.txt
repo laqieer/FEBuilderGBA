@@ -7727,3 +7727,24 @@ Debuff (B33):
 
 :Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
 復号化された能力補正値 (読み取り専用 — 上記の能力補正ポインタから編集):
+
+:Lyn Arc
+リン編
+
+:Lyn Arc Unit
+リン編ユニット
+
+:Cleared After
+クリア後　その後　
+
+:Retreat After
+撤退時　その後　
+
+:Eliwood Route
+エリウッド編
+
+:Hector Route
+ヘクトル編
+
+:ED (FE7)
+ED関係

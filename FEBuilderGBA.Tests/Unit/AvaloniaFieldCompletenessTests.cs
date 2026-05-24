@@ -87,6 +87,7 @@ namespace FEBuilderGBA.Tests.Unit
             ("MenuDefinitionView", "MenuDefinitionForm", "MenuDefinitionViewModel"),
             ("MenuCommandView", "MenuCommandForm", "MenuCommandViewModel"),
             ("EDView", "EDForm", "EDViewModel"),
+            ("EDFE7View", "EDFE7Form", "EDFE7ViewModel"),
             ("EDStaffRollView", "EDStaffRollForm", "EDStaffRollViewModel"),
             ("WorldMapPointView", "WorldMapPointForm", "WorldMapPointViewModel"),
             ("WorldMapBGMView", "WorldMapBGMForm", "WorldMapBGMViewModel"),
