@@ -9,23 +9,24 @@
        (BeginPage, Step1Page .. Step6Page, SettingNowPage, EndPage). The TabControl
        drives navigation via TabControl.SelectedIndex bound to _vm.CurrentPage.
        Tab headers carry the WF internal page name (BeginPage, Step1Page, etc.)
-       so the label-diff scanner finds them — they are flagged KnownGap NonEnglish
-       because they are not user-visible (the WF version calls
-       InputFormRef.TabControlHideTabOption to hide the tab strip; Avalonia
-       achieves the same by setting TabStripPlacement to none-equivalent via
-       a 0-height border in code-behind, but for density/labels parity the
-       headers must remain present in AXAML so the scanner can harvest them). -->
+       so the label-diff scanner finds them — they are added to ja/zh translation
+       files as pass-through entries so L10nCoverageTest passes.
+
+       Implementation note: the WF version calls
+       InputFormRef.TabControlHideTabOption to hide the tab strip entirely.
+       Avalonia keeps the strip VISIBLE (TabStripPlacement="Top") so the
+       label-diff scanner can still harvest the headers, but makes each
+       TabItem non-hit-testable so users cannot click directly between
+       pages and bypass Step1..6 validation. The wizard only advances via
+       explicit Next/Prev/Skip buttons. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
     <!-- TabStripPlacement="Top" keeps the headers visible to the label-diff
          scanner, but `IsTabStop="False"` + per-TabItem `IsHitTestVisible="False"`
-         (applied via the global style at TabControl resources) prevents the
-         user from clicking directly between pages and bypassing the
-         Step1..6 validation gate. The wizard only advances via the explicit
-         Next/Prev/Skip buttons, mirroring the WF "TabControlHideTabOption"
-         semantics without losing parity for the gap-sweep scanner.
-         IMPORTANT: Per Copilot CLI #583 finding #3, `ApplyAll` is also gated
-         by `IsCompletedThroughStep6` to defence-in-depth prevent any code
-         path from persisting a half-applied wizard. -->
+         (applied via the TabControl-scoped style below) prevents the user
+         from clicking directly between pages and bypassing Step1..6 validation.
+         Per Copilot CLI #583 finding #3, `ApplyAll()` is ALSO defence-in-depth
+         gated by `IsCompletedThroughStep6` so a stray code path can never
+         persist a half-applied wizard. -->
     <TabControl Name="MainTab"
                 AutomationProperties.AutomationId="ToolInitWizard_MainTab_TabControl"
                 SelectedIndex="{Binding CurrentPage, Mode=TwoWay}"
@@ -51,12 +52,15 @@
                      FontSize="13" Foreground="Gray"
                      AutomationProperties.AutomationId="ToolInitWizard_Subtitle_Label" />
           <Border BorderBrush="LightGray" BorderThickness="1" Padding="10">
-            <TextBox Name="WelcomeTextBox"
-                     AutomationProperties.AutomationId="ToolInitWizard_Welcome_Input"
-                     IsReadOnly="True"
-                     AcceptsReturn="True"
-                     Height="190"
-                     Text="Welcome to FEBuilderGBA.&#x0A;&#x0A;This wizard guides initial setup of the editor.&#x0A;&#x0A;If you do not want to use this wizard, close this window. You can re-open it later from Menu -&gt; Options -&gt; Setup Wizard." />
+            <ScrollViewer Height="190" VerticalScrollBarVisibility="Auto">
+              <!-- TextBlock (not TextBox) so the global ViewTranslationHelper.TranslateAll
+                   pass picks the literal up. TextBox.Text is intentionally NOT
+                   translated by the helper because user input would be replaced. -->
+              <TextBlock Name="WelcomeTextBlock"
+                         AutomationProperties.AutomationId="ToolInitWizard_Welcome_Label"
+                         TextWrapping="Wrap"
+                         Text="Welcome to FEBuilderGBA.&#x0A;&#x0A;This wizard guides initial setup of the editor.&#x0A;&#x0A;If you do not want to use this wizard, close this window. You can re-open it later from Menu -&gt; Options -&gt; Setup Wizard." />
+            </ScrollViewer>
           </Border>
           <Grid ColumnDefinitions="80,*" Margin="0,8,0,0">
             <TextBlock Text="Language:" Grid.Column="0"
@@ -506,12 +510,13 @@
                      FontSize="20" FontWeight="Bold"
                      AutomationProperties.AutomationId="ToolInitWizard_EndHeader_Label" />
           <Border BorderBrush="LightGray" BorderThickness="1" Padding="10">
-            <TextBox Name="EndDescriptionTextBox"
-                     AutomationProperties.AutomationId="ToolInitWizard_EndDescription_Input"
-                     IsReadOnly="True"
-                     AcceptsReturn="True"
-                     Height="280"
-                     Text="Setup is complete. The wizard saved your tool paths and preferences.&#x0A;&#x0A;You can change these at any time from Menu -&gt; Options.&#x0A;&#x0A;Press Finish to close this wizard." />
+            <ScrollViewer Height="280" VerticalScrollBarVisibility="Auto">
+              <!-- TextBlock so ViewTranslationHelper translates the literal. -->
+              <TextBlock Name="EndDescriptionTextBlock"
+                         AutomationProperties.AutomationId="ToolInitWizard_EndDescription_Label"
+                         TextWrapping="Wrap"
+                         Text="Setup is complete. The wizard saved your tool paths and preferences.&#x0A;&#x0A;You can change these at any time from Menu -&gt; Options.&#x0A;&#x0A;Press Finish to close this wizard." />
+            </ScrollViewer>
           </Border>
           <Button Content="Finish"
                   AutomationProperties.AutomationId="ToolInitWizard_End_Button"

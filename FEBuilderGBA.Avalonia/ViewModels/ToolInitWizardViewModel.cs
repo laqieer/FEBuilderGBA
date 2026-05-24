@@ -257,7 +257,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// the file header.
         /// </summary>
         public string DownloadDisabledTooltip { get; } =
-            "Download requires WinForms host. Use Browse instead.";
+            R._("Download requires WinForms host. Use Browse instead.");
 
         // -------------------------------------------------------------------
         // Initialise pending state from Program.Config (read-only).
@@ -281,7 +281,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 PendingSoxPath = config.at("sox");
                 PendingMidfix4agbPath = config.at("midfix4agb");
                 PendingGitPath = config.at("git_path");
-                PendingLanguage = config.at("func_lang", "auto");
+                // Avalonia uses "Language" with fallback to "func_lang" (WF
+                // backward compat) — mirrors App.axaml.cs and OptionsViewModel.
+                // Treat empty string as "not set" so the fallback chain works
+                // when a sibling Save() leaves the key as empty.
+                string lang = config.at("Language", "");
+                if (string.IsNullOrEmpty(lang))
+                    lang = config.at("func_lang", "auto");
+                PendingLanguage = lang;
                 PendingColorTheme = 0; // unset; user picks White / Black / Black2
                 CurrentPage = 0;
                 IsConfiguring = false;
@@ -412,7 +419,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // belt-and-braces with TabItem.IsHitTestVisible="False" in AXAML.
             if (!IsCompletedThroughStep6)
             {
-                SettingStatus = "Wizard not completed through Step 6 — nothing written.";
+                SettingStatus = R._("Wizard not completed through Step 6 - nothing written.");
                 return;
             }
 
@@ -456,13 +463,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     config["git_path"] = PendingGitPath;
 
                 // Language and color preferences (set from BeginPage).
+                // Avalonia reads "Language" with WF "func_lang" fallback —
+                // write BOTH so the wizard actually changes the active
+                // language regardless of which key the host prefers (mirrors
+                // OptionsViewModel.Save behaviour).
                 if (!string.IsNullOrEmpty(PendingLanguage))
+                {
+                    config["Language"] = PendingLanguage;
                     config["func_lang"] = PendingLanguage;
+                }
 
                 if (PendingColorTheme >= 1)
                     config["color_set"] = PendingColorTheme.ToString();
 
-                SettingStatus = "All settings applied.";
+                // Persist to disk. Mirrors OptionsViewModel.Save which calls
+                // Config.Save() explicitly because Avalonia has no global
+                // "save on exit" hook. Guarded against empty ConfigFilename
+                // for in-memory test fixtures.
+                if (!string.IsNullOrEmpty(config.ConfigFilename))
+                {
+                    try { config.Save(); }
+                    catch { /* non-fatal: tests with read-only fixtures */ }
+                }
+
+                SettingStatus = R._("All settings applied.");
             }
             finally
             {

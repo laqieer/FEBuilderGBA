@@ -302,6 +302,39 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
+    public void ViewModel_Initialize_PrefersLanguageKey_OverFuncLang()
+    {
+        // Copilot bot review #583: Avalonia prefers "Language" with fallback
+        // to "func_lang" (WF backward compat). When BOTH are set, Language wins.
+        using (new ConfigSnapshot())
+        {
+            CoreState.Config["Language"] = "zh";
+            CoreState.Config["func_lang"] = "ja"; // should be ignored
+
+            var vm = new ToolInitWizardViewModel();
+            vm.Initialize();
+
+            Assert.Equal("zh", vm.PendingLanguage);
+        }
+    }
+
+    [Fact]
+    public void ViewModel_Initialize_FallsBackToFuncLang_WhenLanguageNotSet()
+    {
+        // When "Language" is empty but "func_lang" is set, fallback kicks in.
+        using (new ConfigSnapshot())
+        {
+            CoreState.Config["Language"] = "";
+            CoreState.Config["func_lang"] = "ja";
+
+            var vm = new ToolInitWizardViewModel();
+            vm.Initialize();
+
+            Assert.Equal("ja", vm.PendingLanguage);
+        }
+    }
+
+    [Fact]
     public void ViewModel_SetPendingLanguage_DoesNotWriteConfig()
     {
         using (new ConfigSnapshot())
@@ -377,6 +410,9 @@ public class ToolInitWizardParityTests
                 Assert.Equal(sox.Path, CoreState.Config.at("sox"));
                 Assert.Equal(mid.Path, CoreState.Config.at("midfix4agb"));
                 Assert.Equal("git", CoreState.Config.at("git_path"));
+                // ApplyAll writes BOTH "Language" (Avalonia-preferred) AND
+                // "func_lang" (WF backward-compat) — Copilot bot #583 round-2.
+                Assert.Equal("en", CoreState.Config.at("Language"));
                 Assert.Equal("en", CoreState.Config.at("func_lang"));
                 Assert.Equal("2", CoreState.Config.at("color_set"));
             }
@@ -865,16 +901,19 @@ public class ToolInitWizardParityTests
         static readonly string[] TrackedKeys = new[]
         {
             "emulator", "emulator2", "devkitpro_eabi", "sappy", "event_assembler",
-            "gba_mus_riper", "sox", "midfix4agb", "git_path", "func_lang", "color_set",
+            "gba_mus_riper", "sox", "midfix4agb", "git_path", "func_lang", "Language",
+            "color_set",
         };
 
         public ConfigSnapshot()
         {
             if (CoreState.Config == null)
             {
-                // Create an empty in-memory Config for the test. We use the
-                // default constructor (no ConfigFilename) so Save() is a no-op
-                // path if anything calls it.
+                // Create an empty in-memory Config for the test. The default
+                // constructor leaves ConfigFilename null/empty, so the
+                // ApplyAll() persistence path skips Config.Save() (which would
+                // otherwise throw on an empty filename). The tests assert on
+                // in-memory key/value pairs only.
                 CoreState.Config = new Config();
                 _createdInMemoryConfig = true;
             }

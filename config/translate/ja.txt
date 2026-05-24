@@ -8076,3 +8076,39 @@ FEBuilderGBA 初期設定ウィザード
 
 :English
 English
+
+:Executables
+実行ファイル
+
+:Select Emulator
+エミュレータを選択
+
+:Select Event Assembler
+Event Assembler を選択
+
+:Select Sappy
+Sappy を選択
+
+:Select Debugger
+デバッガーを選択
+
+:Select Assembler
+アセンブラを選択
+
+:Select gba_mus_riper
+gba_mus_riper を選択
+
+:Select sox
+sox を選択
+
+:Select midfix4agb
+midfix4agb を選択
+
+:Select git
+git を選択
+
+:Wizard not completed through Step 6 - nothing written.
+ウィザードがステップ6まで完了していません。設定は書き込まれませんでした。
+
+:All settings applied.
+すべての設定を適用しました。

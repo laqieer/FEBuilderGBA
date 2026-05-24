@@ -8,8 +8,12 @@
 //   - 12 Step{N}Prev/Step{N}Next click handlers -> _vm.GoToPage / StageStep{N}.
 //   - 8 disabled download/install buttons -> set SettingStatus only
 //     (IsEnabled="False" in AXAML; handler is registered defensively).
-//   - 4 skip buttons -> set Pending Step{N}Mode = DO_NOT_SELECT.
-//   - 1 Finish button -> _vm.ApplyAll(), then Close().
+//   - 5 skip buttons (Step2-Step6) -> set Pending Step{N}Mode = DO_NOT_SELECT.
+//     Step6 skip ALSO routes through StageStep6() so the IsCompletedThroughStep6
+//     gate flips true (otherwise a valid Skip-Git completion would no-op
+//     ApplyAll and lose Step1..5 paths — Copilot CLI #583 round-2 review).
+//   - 2 Finish actions: Step6 "Finish setup" (after successful StageStep6) +
+//     EndPage "Finish" (idempotent re-apply + Close).
 //
 // This view writes ZERO ROM bytes. The parity test asserts this with
 //   Assert.DoesNotContain(".SetU", source)
@@ -357,18 +361,19 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Avalonia file picker. Returns the local path of the chosen file,
         /// or null if cancelled / no local path. Matches the pattern used by
-        /// OptionsView.BrowseFile_Click.
+        /// OptionsView.BrowseFile_Click — file-type labels and title are
+        /// localised via R._() so the dialog reads correctly in ja/zh.
         /// </summary>
         async System.Threading.Tasks.Task<string?> PickExeFileAsync(string title)
         {
             var storage = StorageProvider;
             if (storage == null)
                 return null;
-            var allFiles = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
-            var exeFiles = new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*" } };
+            var allFiles = new FilePickerFileType(FEBuilderGBA.R._("All Files")) { Patterns = new[] { "*" } };
+            var exeFiles = new FilePickerFileType(FEBuilderGBA.R._("Executables")) { Patterns = new[] { "*.exe", "*" } };
             var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = title,
+                Title = FEBuilderGBA.R._(title),
                 AllowMultiple = false,
                 FileTypeFilter = new[] { exeFiles, allFiles },
             });

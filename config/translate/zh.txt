@@ -21926,3 +21926,39 @@ FEBuilderGBA 初始设置向导
 
 :English
 English
+
+:Executables
+可执行文件
+
+:Select Emulator
+选择模拟器
+
+:Select Event Assembler
+选择 Event Assembler
+
+:Select Sappy
+选择 Sappy
+
+:Select Debugger
+选择调试器
+
+:Select Assembler
+选择汇编器
+
+:Select gba_mus_riper
+选择 gba_mus_riper
+
+:Select sox
+选择 sox
+
+:Select midfix4agb
+选择 midfix4agb
+
+:Select git
+选择 git
+
+:Wizard not completed through Step 6 - nothing written.
+向导未完成至步骤 6，未保存任何设置。
+
+:All settings applied.
+所有设置已应用。
