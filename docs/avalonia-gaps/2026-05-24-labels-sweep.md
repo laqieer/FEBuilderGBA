@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T02:20:07Z"
-git-sha: 4552097a3
+generated: "2026-05-24T09:32:16Z"
+git-sha: c33962870
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4536 |
-| Total AV-only labels | 3201 |
-| Total common labels | 164 |
+| Total WF-only labels | 4454 |
+| Total AV-only labels | 3357 |
+| Total common labels | 246 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -58,15 +58,15 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 9 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
 | 10 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
 | 11 | `TextForm` | `TextViewerView` | 46 | 32 | 2 |
-| 12 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
-| 13 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 14 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
-| 15 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
-| 16 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
-| 17 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 18 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 19 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
-| 20 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
+| 12 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
+| 13 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
+| 14 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 15 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 16 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 17 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 18 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
+| 19 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 20 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1434,77 +1434,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Translate to:`
 - `Write Text`
 
-### ImageUnitPaletteForm
-WF labels: **45** · AV labels: **17** · WF-only: **45** · AV-only: **17** · Common: **0** · Density verdict: **High** (WF 133 / AV 32)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `Size:`
-- `UNDO`
-- `↓文字列内訳`
-- `アドレス`
-- `クリップボード`
-- `コメント`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `ポインタ`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `利用クラスとアニメ`
-- `名前`
-- `戦闘アニメ`
-- `拡大`
-- `敵とNPC、グレーも同じ色に設定する`
-- `新規パレット割り当て`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `読込数`
-- `識別子`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Id 0:`
-- `Id 1:`
-- `Id 10:`
-- `Id 11:`
-- `Id 2:`
-- `Id 3:`
-- `Id 4:`
-- `Id 5:`
-- `Id 6:`
-- `Id 7:`
-- `Id 8:`
-- `Id 9:`
-- `Identifier:`
-- `Palette Ptr (P12):`
-- `Unit Palette Editor`
-- `Write`
-
 ### MapStyleEditorForm
 WF labels: **45** · AV labels: **5** · WF-only: **45** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 153 / AV 8)
 
@@ -1562,89 +1491,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Config Pointer:`
 - `Map Style Editor`
 - `OBJ Tile Pointer:`
-- `Write`
-
-### ItemFE6Form
-WF labels: **44** · AV labels: **30** · WF-only: **44** · AV-only: **30** · Common: **0** · Density verdict: **High** (WF 121 / AV 53)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `[HardCoding]`
-- `HP`
-- `ID`
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `ダメージ追加効果`
-- `リストの拡張`
-- `レベル`
-- `体格`
-- `使った場合`
-- `使用画面`
-- `先頭アドレス`
-- `再取得`
-- `単価`
-- `名前`
-- `命中`
-- `売却価格`
-- `守備`
-- `射程`
-- `幸運`
-- `店での買値`
-- `必殺`
-- `性能`
-- ` 技 `
-- `攻撃`
-- `書き込み`
-- `特効`
-- `特効効果\r\n新規割当`
-- `移動`
-- `種別`
-- `耐久`
-- `能力補正`
-- `能力補正\r\n新規割当`
-- `能力補正値`
-- `説明`
-- `読込数`
-- `速さ`
-- `進撃準備店`
-- `選択アドレス:`
-- `重さ`
-- `間接エフェクト Jump`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Crit (B24):`
-- `Decoded description text`
-- `Desc`
-- `Desc ID (W2):`
-- `Dmg Effect (B31):`
-- `Effective (P16):`
-- `Hit (B22):`
-- `Icon (B29):`
-- `Item # (B6):`
-- `Item Editor (FE6)`
-- `Might (B21):`
-- `Name:`
-- `Name ID (W0):`
-- `Open text viewer for this description`
-- `Price (W26):`
-- `Range (B25):`
-- `Rank (B28):`
-- `Stat Bonus (P12):`
-- `Text ID for the item's description`
-- `Trait 1 (B8):`
-- `Trait 2 (B9):`
-- `Trait 3 (B10):`
-- `Trait 4 (B11):`
-- `Type (B7):`
-- `Use Desc (W4):`
-- `Use Effect (B30):`
-- `Uses (B20):`
-- `Weight (B23):`
 - `Write`
 
 ### ItemForm
@@ -1776,67 +1622,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weight (B23):`
 - `Wep Exp (B32):`
 - `Write`
-
-### ToolInitWizardForm
-WF labels: **44** · AV labels: **8** · WF-only: **44** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 80 / AV 8)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `BeginPage`
-- `EA:`
-- `EN`
-- `EndPage`
-- `gba mus riper`
-- `git`
-- `JP`
-- `mGBAをダウンロードする`
-- `midfix4agb`
-- `Sappy:`
-- `Sappyをダウンロードする`
-- `Sappyを設定しない`
-- `SettingNowPage`
-- `sox`
-- `Step1Page`
-- `Step2Page`
-- `Step3Page`
-- `Step4Page`
-- `Step5Page`
-- `Step6Page`
-- `VGMusicStudioをダウンロードする`
-- `ZH`
-- `しばらくお待ちください....`
-- `すべての設定が完了しました。`
-- `または、`
-- `アセンブラ:`
-- `エミュレータ:`
-- `デバッガー:`
-- `参照`
-- `始める`
-- `安定して動作するバージョンのVBA-Mをダウンロードする`
-- `完了`
-- `戻る`
-- `最新版のEAをダウンロードする`
-- `最新版のGitを自動でダウンロードしてインストールします。`
-- `最新版を自動的にダウンロードします。`
-- `白背景`
-- `色`
-- `言語`
-- `設定して完了する`
-- `設定して次へ`
-- `設定しない`
-- `黒背景`
-- `黒背景2`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Initial Configuration`
-- `Setup Steps`
-- `Setup Wizard`
-- `Step 1: Select your clean Fire Emblem GBA ROM file.`
-- `Step 2: Choose your preferred language for the editor interface.`
-- `Step 3: Configure paths for external tools (emulators, assemblers).`
-- `Step 4: Review settings and begin editing.`
-- `You can change these settings later from the Options menu.`
 
 ### ClassFE6Form
 WF labels: **43** · AV labels: **5** · WF-only: **43** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 173 / AV 8)
@@ -2106,6 +1891,125 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Battle Screen Layout`
+
+### ItemFE6Form
+WF labels: **44** · AV labels: **70** · WF-only: **42** · AV-only: **68** · Common: **2** · Density verdict: **Low** (WF 121 / AV 97)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `HP`
+- `ID`
+- `アイコン`
+- `アドレス`
+- `ダメージ追加効果`
+- `リストの拡張`
+- `レベル`
+- `体格`
+- `使った場合`
+- `使用画面`
+- `先頭アドレス`
+- `再取得`
+- `単価`
+- `名前`
+- `命中`
+- `売却価格`
+- `守備`
+- `射程`
+- `幸運`
+- `店での買値`
+- `必殺`
+- `性能`
+- ` 技 `
+- `攻撃`
+- `書き込み`
+- `特効`
+- `特効効果\r\n新規割当`
+- `移動`
+- `種別`
+- `耐久`
+- `能力補正`
+- `能力補正\r\n新規割当`
+- `能力補正値`
+- `説明`
+- `読込数`
+- `速さ`
+- `進撃準備店`
+- `選択アドレス:`
+- `重さ`
+- `間接エフェクト Jump`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Attack power`
+- `Attack range (encoded as min-max)`
+- `Base Addr:`
+- `Base item price`
+- `Basic Info`
+- `Buy Price:`
+- `Count:`
+- `Crit (B24):`
+- `Critical hit rate bonus`
+- `Decoded description text`
+- `Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):`
+- `Decoded usage description text`
+- `Desc`
+- `Desc ID (W2):`
+- `Dmg Effect (B31):`
+- `Effect when using the item`
+- `Effective (P16):`
+- `Effective Against`
+- `Filter:`
+- `Hit (B22):`
+- `Hit rate bonus`
+- `Icon (B29):`
+- `Indirect Weapon Effect`
+- `Internal item number (unique ID)`
+- `Item # (B6):`
+- `Item Editor (FE6)`
+- `Item weight (reduces attack speed)`
+- `Jump`
+- `Might (B21):`
+- `Name:`
+- `Name ID (W0):`
+- `Number of uses before the item breaks`
+- `Open text viewer for this description`
+- `Open text viewer for this usage description`
+- `Open the indirect weapon effect table at the row for this item.`
+- `Pointer to effectiveness list (bonus vs. classes)`
+- `Pointer to stat bonuses when equipped`
+- `Price (W26):`
+- `Range (B25):`
+- `Rank (B28):`
+- `Reload`
+- `Sell Price:`
+- `Shingeki Shop:`
+- `Special effect applied on hit`
+- `Stat Bonus (P12):`
+- `Stat Bonuses Preview`
+- `Stats / Bonuses`
+- `Text ID for the item description (click to open Text Viewer)`
+- `Text ID for the item usage description (click to open Text Viewer)`
+- `Text ID for this item's display name (click to open Text Viewer)`
+- `This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.`
+- `Trait 1 (B8):`
+- `Trait 2 (B9):`
+- `Trait 3 (B10):`
+- `Trait 4 (B11):`
+- `Trait Flags`
+- `Type (B7):`
+- `Use Desc (W4):`
+- `Use Effect (B30):`
+- `Uses (B20):`
+- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
+- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
+- `Warnings`
+- `Weapon Properties`
+- `Weapon type (Sword, Lance, Axe, etc.)`
+- `Weight (B23):`
+- `Write`
 
 ### MonsterItemForm
 WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
@@ -3221,84 +3125,89 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Levels`
 - `Write`
 
-### ImageBattleAnimePalletForm
-WF labels: **29** · AV labels: **2** · WF-only: **29** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 99 / AV 3)
+### ToolInitWizardForm
+WF labels: **44** · AV labels: **61** · WF-only: **29** · AV-only: **46** · Common: **15** · Density verdict: **Medium** (WF 80 / AV 104)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `32ColorMode`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `UNDO`
-- `クリップボード`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `拡大`
-- `画像取出`
-- `画像読込`
+- `EN`
+- `JP`
+- `mGBAをダウンロードする`
+- `Sappyをダウンロードする`
+- `Sappyを設定しない`
+- `VGMusicStudioをダウンロードする`
+- `ZH`
+- `しばらくお待ちください....`
+- `すべての設定が完了しました。`
+- `または、`
+- `アセンブラ:`
+- `エミュレータ:`
+- `デバッガー:`
+- `参照`
+- `始める`
+- `安定して動作するバージョンのVBA-Mをダウンロードする`
+- `完了`
+- `戻る`
+- `最新版のEAをダウンロードする`
+- `最新版のGitを自動でダウンロードしてインストールします。`
+- `最新版を自動的にダウンロードします。`
+- `白背景`
+- `色`
+- `言語`
+- `設定して完了する`
+- `設定して次へ`
+- `設定しない`
+- `黒背景`
+- `黒背景2`
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Battle Animation Palette`
-
-### ImagePalletForm
-WF labels: **28** · AV labels: **2** · WF-only: **28** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 98 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `UNDO`
-- `クリップボード`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `拡大`
-- `画像取出`
-- `画像読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Palette Editor`
+- `All settings complete.`
+- `Assembler:`
+- `Black`
+- `Black 2`
+- `Browse`
+- `Color:`
+- `Configure Event Assembler (EA).\nSome patches are written in EA and require it to install.`
+- `Configure Git (version control).\nGit is used to keep config/patch2 patch data up to date.\nInstalling it makes pulling the latest patches easy.`
+- `Configure Sappy (or VG Music Studio).\nWhen Sappy is configured, the song-preview button can play music.`
+- `Configure the development environment.\nInstalling the toolchain enables ASM development and debugging.`
+- `Configure utilities used to convert music.`
+- `Debugger:`
+- `Download a stable version of VBA-M`
+- `Download and install the latest Git automatically`
+- `Download mGBA`
+- `Download Sappy`
+- `Download the latest EA`
+- `Download the latest tools automatically`
+- `Download VG Music Studio`
+- `Downloading required programs and configuring settings.`
+- `Emulator:`
+- `English`
+- `FEBuilderGBA Setup Wizard`
+- `Finish`
+- `Finish setup`
+- `Initial Configuration`
+- `Language:`
+- `Next`
+- `or,`
+- `Please wait...`
+- `Previous`
+- `Setup is complete. The wizard saved your tool paths and preferences.\n\nYou can change these at any time from Menu -> Options.\n\nPress Finish to close this wizard.`
+- `Skip`
+- `Skip Sappy`
+- `Specify an emulator to use for testing.\nPress F5 in FEBuilderGBA to launch the emulator and test the ROM.`
+- `Start`
+- `Step 1/6`
+- `Step 2/6`
+- `Step 3/6`
+- `Step 4/6`
+- `Step 5/6`
+- `Step 6/6`
+- `Welcome to FEBuilderGBA.\n\nThis wizard guides initial setup of the editor.\n\nIf you do not want to use this wizard, close this window. You can re-open it later from Menu -> Options -> Setup Wizard.`
+- `White`
+- `中文`
+- `日本語`
 
 ### StatusOptionForm
 WF labels: **28** · AV labels: **22** · WF-only: **28** · AV-only: **22** · Common: **0** · Density verdict: **Low** (WF 50 / AV 47)
@@ -3616,39 +3525,80 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Update`
 - `Write`
 
-### EDFE7Form
-WF labels: **23** · AV labels: **2** · WF-only: **23** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 81 / AV 3)
+### ImageUnitPaletteForm
+WF labels: **45** · AV labels: **65** · WF-only: **23** · AV-only: **43** · Common: **22** · Density verdict: **Low** (WF 133 / AV 141)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `0000`
-- `Size:`
-- `その後`
+- `↓文字列内訳`
 - `アドレス`
-- `クリア後　その後　`
-- `ユニット`
+- `クリップボード`
+- `コメント`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `ポインタ`
 - `リストの拡張`
-- `リン編`
-- `リン編ユニット`
 - `先頭アドレス`
-- `内容`
 - `再取得`
+- `利用クラスとアニメ`
 - `名前`
-- `指定`
-- `撤退`
-- `撤退指定 02`
-- `撤退時　その後　`
+- `戦闘アニメ`
+- `拡大`
+- `敵とNPC、グレーも同じ色に設定する`
+- `新規パレット割り当て`
 - `書き込み`
-- `条件:`
-- `登場ユニット`
+- `画像取出`
+- `画像読込`
 - `読込数`
-- `通り名`
+- `識別子`
 - `選択アドレス:`
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `ED (FE7)`
+- `0x10`
+- `[Battle-anime preview placeholder: requires DrawBattleAnime Core extraction.]`
+- `[KnownGap: class-uses list requires ImageBattleAnimeForm.GetAnimeIDByClassID Core port.]`
+- `Address`
+- `Battle Animation:`
+- `Class and Animation`
+- `Clipboard`
+- `Comment:`
+- `Edit`
+- `Expand List`
+- `Export Image`
+- `Filter`
+- `Id 0:`
+- `Id 1:`
+- `Id 10:`
+- `Id 11:`
+- `Id 2:`
+- `Id 3:`
+- `Id 4:`
+- `Id 5:`
+- `Id 6:`
+- `Id 7:`
+- `Id 8:`
+- `Id 9:`
+- `Identifier:`
+- `Import Image`
+- `KnownGap`
+- `New Palette Allocation`
+- `Override all palette slots`
+- `Palette`
+- `Palette Address:`
+- `Palette Type:`
+- `Palette Write`
+- `Pointer (P12):`
+- `Read Count`
+- `Reload List`
+- `Search Tools`
+- `Selected Address:`
+- `Start Address`
+- `Unit Palette Editor`
+- `Write`
+- `Zoom:`
+- `↓Identifier Breakdown`
 
 ### OPClassDemoFE7UForm
 WF labels: **24** · AV labels: **37** · WF-only: **23** · AV-only: **36** · Common: **1** · Density verdict: **Low** (WF 56 / AV 62)
@@ -3833,6 +3783,63 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Support Partners`
 - `Support Units (FE6)`
 - `Talk`
+- `Write`
+
+### EDFE7Form
+WF labels: **23** · AV labels: **27** · WF-only: **22** · AV-only: **26** · Common: **1** · Density verdict: **Low** (WF 81 / AV 84)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `0000`
+- `その後`
+- `アドレス`
+- `クリア後　その後　`
+- `ユニット`
+- `リストの拡張`
+- `リン編`
+- `リン編ユニット`
+- `先頭アドレス`
+- `内容`
+- `再取得`
+- `名前`
+- `指定`
+- `撤退`
+- `撤退指定 02`
+- `撤退時　その後　`
+- `書き込み`
+- `条件:`
+- `登場ユニット`
+- `読込数`
+- `通り名`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `00=Died, 01=Wounded/Left, 02=Wounded/Stayed, 03=Hawkeye, 04=Pent and Louise, 05=Athos`
+- `1=Solo`
+- `2=Support`
+- `Address`
+- `Cleared After`
+- `Designation`
+- `Eliwood Route`
+- `Epilogue`
+- `Epilogue Text`
+- `Epithet`
+- `Epithet Text`
+- `Filter:`
+- `Hector Route`
+- `List Expand`
+- `Lyn Arc`
+- `Read Count`
+- `Reload`
+- `Retreat`
+- `Retreat After`
+- `Retreat Spec 02`
+- `Selected Address:`
+- `Story Flag`
+- `Top Address`
+- `Unknown (0x02):`
+- `Unknown (0x03):`
 - `Write`
 
 ### ImagePortraitFE6Form
@@ -8845,6 +8852,39 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Search`
 - `Search disassembly output by argument pattern.`
 
+### ImageBattleAnimePalletForm
+WF labels: **29** · AV labels: **37** · WF-only: **8** · AV-only: **16** · Common: **21** · Density verdict: **Low** (WF 99 / AV 86)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `32ColorMode`
+- `クリップボード`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `拡大`
+- `画像取出`
+- `画像読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x00000000`
+- `32 Color Mode`
+- `Address`
+- `Animations`
+- `Clipboard`
+- `Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).`
+- `Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).`
+- `Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.`
+- `Export Image`
+- `Import Image`
+- `Palette Type`
+- `Palette Write`
+- `Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames.`
+- `Select an animation to load its palette block.`
+- `Source Pointer Slot:`
+- `Zoom`
+
 ### MapMiniMapTerrainImageForm
 WF labels: **8** · AV labels: **2** · WF-only: **8** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 12 / AV 3)
 
@@ -8988,6 +9028,40 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Event Template 6`
+
+### ImagePalletForm
+WF labels: **28** · AV labels: **39** · WF-only: **7** · AV-only: **18** · Common: **21** · Density verdict: **Low** (WF 98 / AV 104)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `クリップボード`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `拡大`
+- `画像取出`
+- `画像読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `2x`
+- `3x`
+- `4x`
+- `Clipboard`
+- `Edit R/G/B 0-248 (5-bit ticks)`
+- `Export Image`
+- `Fit to window`
+- `Import Image`
+- `Live bitmap preview pending Core extraction - tracked by #500.`
+- `Original size`
+- `Palette Address:`
+- `Palette Editor`
+- `Palette Index`
+- `Pending Core extraction - tracked by #500.`
+- `Pending Core RunRedo API - tracked by #500.`
+- `Preview`
+- `Write Palette`
+- `Zoom`
 
 ### MapEditorResizeDialogForm
 WF labels: **11** · AV labels: **11** · WF-only: **7** · AV-only: **7** · Common: **4** · Density verdict: **Low** (WF 19 / AV 19)

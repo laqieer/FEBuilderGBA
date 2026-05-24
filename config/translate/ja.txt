@@ -4525,7 +4525,10 @@ Data 読込数:
 Battle Animation パレット
 
 :Palette Editor
-パレット Editor
+パレットエディタ
+
+:Palette No {0}
+パレット No{0}
 
 :Write Notification
 書き込み Notification
@@ -7931,3 +7934,343 @@ AI用に登場人物のヒントを追加
 
 :翻訳する
 翻訳
+
+
+:Language:
+言語：
+
+:White
+白背景
+
+:Black
+黒背景
+
+:Black 2
+黒背景2
+
+:Emulator:
+エミュレータ:
+
+:Debugger:
+デバッガー:
+
+:Assembler:
+アセンブラ:
+
+:EA:
+EA:
+
+:Sappy:
+Sappy:
+
+:gba mus riper
+gba mus riper
+
+:sox
+sox
+
+:git
+git
+
+:or,
+または、
+
+:Step 1/6
+Step 1/6
+
+:Step 2/6
+Step 2/6
+
+:Step 3/6
+Step 3/6
+
+:Step 4/6
+Step 4/6
+
+:Step 5/6
+Step 5/6
+
+:Step 6/6
+Step 6/6
+
+:Finish setup
+設定して完了する
+
+:Browse
+参照
+
+:Skip Sappy
+Sappyを設定しない
+
+:Welcome to FEBuilderGBA.\r\n\r\nThis wizard guides initial setup of the editor.\r\n\r\nIf you do not want to use this wizard, close this window. You can re-open it later from Menu -> Options -> Setup Wizard.
+FEBuilderGBAへようこそ。\r\n\r\nここでは初期設定を行います。\r\n\r\nこのウィザードを使用したくない場合は、このウィンドウを閉じしてください。\r\n再び、実行したい場合は、「メニュー」->「設定」->「初期設定ウィザード」を選択してください。
+
+:Please wait...
+しばらくお待ちください....
+
+:All settings complete.
+すべての設定が完了しました。
+
+:Download a stable version of VBA-M
+安定して動作するバージョンのVBA-Mをダウンロードする
+
+:Download mGBA
+mGBAをダウンロードする
+
+:Download the latest EA
+最新版のEAをダウンロードする
+
+:Download Sappy
+Sappyをダウンロードする
+
+:Download VG Music Studio
+VGMusicStudioをダウンロードする
+
+:Download the latest tools automatically
+最新版を自動的にダウンロードします。
+
+:Download and install the latest Git automatically
+最新版のGitを自動でダウンロードしてインストールします。
+
+:Specify an emulator to use for testing.\r\nPress F5 in FEBuilderGBA to launch the emulator and test the ROM.
+テスト用に使用するエミュレータを指定してください。\r\nFEBuilderGBAでは、F5キーを押すと、エミュレータを起動してテストすることができます。
+
+:Configure Event Assembler (EA).\r\nSome patches are written in EA and require it to install.
+EAを設定してください。\r\nいくつかのパッチは、EAで書かれているため、それらを利用するには、EAが必要です。
+
+:Configure Sappy (or VG Music Studio).\r\nWhen Sappy is configured, the song-preview button can play music.
+Sappyを指定してください。\r\nSappyを設定すると、♪ボタンで、音楽を視聴できます。
+
+:Configure the development environment.\r\nInstalling the toolchain enables ASM development and debugging.
+開発環境を設定してください。\r\n開発環境をインストールすると、ASMコードの開発とデバッグができます。
+
+:Configure utilities used to convert music.
+音楽を変換するユーティリティを設定してください。
+
+:Configure Git (version control).\r\nGit is used to keep config/patch2 patch data up to date.\r\nInstalling it makes pulling the latest patches easy.
+Git（バージョン管理システム）を設定してください。\r\nGitはパッチデータ（config/patch2）の更新に使用されます。\r\nインストールすると、最新のパッチデータを簡単に取得できます。
+
+:Download requires WinForms host. Use Browse instead.
+ダウンロードはWinForms版のみ対応です。代わりに参照ボタンを使ってください。
+
+:Setup is complete. The wizard saved your tool paths and preferences.\r\n\r\nYou can change these at any time from Menu -> Options.\r\n\r\nPress Finish to close this wizard.
+設定が完了しました。ウィザードがツールパスと環境設定を保存しました。\r\n\r\nこれらは、メニュー -> 設定 から、いつでも変更できます。\r\n\r\n完了ボタンを押して、このウィザードを閉じてください。
+
+:Downloading required programs and configuring settings.
+必要なプログラムのダウンロードと、設定をしています。
+
+:BeginPage
+BeginPage
+
+:Step1Page
+Step1Page
+
+:Step2Page
+Step2Page
+
+:Step3Page
+Step3Page
+
+:Step4Page
+Step4Page
+
+:Step5Page
+Step5Page
+
+:Step6Page
+Step6Page
+
+:SettingNowPage
+SettingNowPage
+
+:EndPage
+EndPage
+
+:FEBuilderGBA Setup Wizard
+FEBuilderGBA 初期設定ウィザード
+
+:Finish
+完了
+
+:Previous
+戻る
+
+:English
+English
+
+:Executables
+実行ファイル
+
+:Select Emulator
+エミュレータを選択
+
+:Select Event Assembler
+Event Assembler を選択
+
+:Select Sappy
+Sappy を選択
+
+:Select Debugger
+デバッガーを選択
+
+:Select Assembler
+アセンブラを選択
+
+:Select gba_mus_riper
+gba_mus_riper を選択
+
+:Select sox
+sox を選択
+
+:Select midfix4agb
+midfix4agb を選択
+
+:Select git
+git を選択
+
+:Wizard not completed through Step 6 - nothing written.
+ウィザードがステップ6まで完了していません。設定は書き込まれませんでした。
+
+:All settings applied.
+すべての設定を適用しました。
+
+:Settings could not be saved to disk: {0}
+設定をディスクに保存できませんでした：{0}
+
+:KnownGap
+未対応領域
+
+:Class and Animation
+利用クラスとアニメ
+
+:Override all palette slots
+敵とNPC、グレーも同じ色に設定する
+
+:UNDO
+UNDO
+
+:REDO
+REDO
+
+:Reload List
+再取得
+
+:Pointer (P12):
+ポインタ (P12):
+
+:New Palette Allocation
+新規パレット割り当て
+
+:Comment
+コメント
+
+:パレット種類
+パレット種類
+
+:パレット書き込み
+パレット書き込み
+
+:戦闘アニメ
+戦闘アニメ
+
+:Battle Animation
+戦闘アニメ
+
+:Palette Type
+パレット種類
+
+:Palette Write
+パレット書き込み
+
+:32 Color Mode
+32カラーモード
+
+:Zoom
+拡大
+
+:Clipboard
+クリップボード
+
+:Import Image
+画像読込
+
+:Export Image
+画像取出
+
+:Undo
+元に戻す
+
+:Redo
+やり直し
+
+:Window Size
+ウィンドウサイズで表示する
+
+:Image Size
+画像の大きさで表示
+
+:2x Zoom
+2倍に拡大して表示
+
+:3x Zoom
+3倍に拡大して表示
+
+:4x Zoom
+4倍に拡大して表示
+
+:Player
+自軍
+
+:Enemy
+敵軍
+
+:Other
+友軍
+
+:4th Army
+第4軍
+
+:Source Pointer Slot:
+ソースポインタスロット:
+
+:Animations
+アニメーション
+
+:Select an animation to load its palette block.
+アニメーションを選択するとそのパレットブロックが読み込まれます。
+
+:Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames.
+サンプルプレビュー (保留中): 実際の戦闘アニメーションサンプル描画は WinForms に依存しています (DrawBattleAnime)。アニメフレームに対するパレット変更のプレビューには WinForms エディタを使用してください。
+
+:Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399).
+保留中の既知ギャップ: ImageFormRef.ExportImage は WinForms 依存です (#399)。
+
+:Deferred KnownGap: sample preview rendering is WinForms-coupled (#399).
+保留中の既知ギャップ: サンプルプレビュー描画は WinForms 依存です (#399)。
+
+:Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.
+保留中の既知ギャップ: ローカルパレット編集の Redo (PaletteFormRef Redo バッファ) は WinForms 依存です (#399)。ツールバー経由で ROM レベルの Undo を使用してください。
+
+:Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).
+保留中の既知ギャップ: Import は描画されたサンプルビットマップを必要とします (PaletteFormRef.MakePaletteBitmapToUIEx 経由の WinForms 依存 DrawBattleAnime) (#399)。
+
+:Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).
+保留中の既知ギャップ: Export は描画されたサンプルビットマップを必要とします (ImageFormRef.ExportImage 経由の WinForms 依存 DrawBattleAnime) (#399)。
+
+:Fit to window
+ウィンドウに合わせる
+
+:Write Palette
+パレット書き込み
+
+:Pending Core RunRedo API - tracked by #500.
+Core RunRedo API 未対応 - #500 で追跡中。
+
+:Palette Index
+パレットインデックス
+
+:Live bitmap preview pending Core extraction - tracked by #500.
+ライブビットマッププレビューは Core 抽出を待機中 - #500 で追跡中。
+
+:Edit R/G/B 0-248 (5-bit ticks)
+R/G/B を 0-248 で編集 (5ビット刻み)

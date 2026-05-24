@@ -826,7 +826,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToPalette_Click(object? sender, RoutedEventArgs e)
         {
-            try { WindowManager.Instance.Open<ImagePalletView>(); }
+            try
+            {
+                // Wire the portrait's palette address into the rebuilt
+                // ImagePalletView (#400 - Copilot CLI plan review #2).
+                // Portraits use a single palette block, so
+                // maxPaletteCount=1 hides the palette-index combo.
+                var window = WindowManager.Instance.Open<ImagePalletView>();
+                window.JumpTo(_vm.PalettePtr, maxPaletteCount: 1, defaultSelectPalette: 0, paletteNames: null);
+            }
             catch (Exception ex) { Log.Error("JumpToPalette failed: {0}", ex.Message); }
         }
 

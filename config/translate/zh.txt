@@ -21775,3 +21775,337 @@ ED 关系
 
 :Error: {0}
 错误：{0}
+
+
+:Language:
+语言：
+
+:White
+白色
+
+:Black
+黑色
+
+:Black 2
+黑色 2
+
+:Emulator:
+模拟器:
+
+:Debugger:
+调试器:
+
+:Assembler:
+汇编器:
+
+:EA:
+EA:
+
+:Sappy:
+Sappy:
+
+:gba mus riper
+gba mus riper
+
+:sox
+sox
+
+:git
+git
+
+:or,
+或者
+
+:Step 1/6
+步骤 1/6
+
+:Step 2/6
+步骤 2/6
+
+:Step 3/6
+步骤 3/6
+
+:Step 4/6
+步骤 4/6
+
+:Step 5/6
+步骤 5/6
+
+:Step 6/6
+步骤 6/6
+
+:Finish setup
+完成设置
+
+:Browse
+浏览
+
+:Skip Sappy
+跳过 Sappy
+
+:Welcome to FEBuilderGBA.\r\n\r\nThis wizard guides initial setup of the editor.\r\n\r\nIf you do not want to use this wizard, close this window. You can re-open it later from Menu -> Options -> Setup Wizard.
+欢迎使用 FEBuilderGBA。\r\n\r\n本向导将引导您完成初始设置。\r\n\r\n如不想使用该向导，请关闭此窗口。如需再次运行，请选择 "菜单"->"选项"->"初始设置向导"。
+
+:Please wait...
+请稍候...
+
+:All settings complete.
+全部设置已完成。
+
+:Download a stable version of VBA-M
+下载稳定版本的 VBA-M
+
+:Download mGBA
+下载 mGBA
+
+:Download the latest EA
+下载最新版 EA
+
+:Download Sappy
+下载 Sappy
+
+:Download VG Music Studio
+下载 VG Music Studio
+
+:Download the latest tools automatically
+自动下载最新版工具
+
+:Download and install the latest Git automatically
+自动下载并安装最新版 Git
+
+:Specify an emulator to use for testing.\r\nPress F5 in FEBuilderGBA to launch the emulator and test the ROM.
+请指定测试用的模拟器。\r\n在 FEBuilderGBA 中按 F5 即可启动模拟器测试 ROM。
+
+:Configure Event Assembler (EA).\r\nSome patches are written in EA and require it to install.
+请配置 Event Assembler（EA）。\r\n部分补丁使用 EA 编写，需要 EA 才能安装。
+
+:Configure Sappy (or VG Music Studio).\r\nWhen Sappy is configured, the song-preview button can play music.
+请配置 Sappy（或 VG Music Studio）。\r\n配置后，可通过♪按钮试听音乐。
+
+:Configure the development environment.\r\nInstalling the toolchain enables ASM development and debugging.
+请配置开发环境。\r\n安装工具链后，可以进行 ASM 代码开发和调试。
+
+:Configure utilities used to convert music.
+请配置用于音乐转换的工具。
+
+:Configure Git (version control).\r\nGit is used to keep config/patch2 patch data up to date.\r\nInstalling it makes pulling the latest patches easy.
+请配置 Git（版本控制系统）。\r\nGit 用于更新 config/patch2 补丁数据。\r\n安装后可便捷拉取最新补丁。
+
+:Download requires WinForms host. Use Browse instead.
+该下载功能仅 WinForms 版本支持，请使用浏览按钮替代。
+
+:Setup is complete. The wizard saved your tool paths and preferences.\r\n\r\nYou can change these at any time from Menu -> Options.\r\n\r\nPress Finish to close this wizard.
+设置已完成。向导已保存您的工具路径与偏好设置。\r\n\r\n您可以随时通过 菜单 -> 选项 进行修改。\r\n\r\n按完成按钮关闭该向导。
+
+:Downloading required programs and configuring settings.
+正在下载必要程序并完成设置。
+
+:BeginPage
+BeginPage
+
+:Step1Page
+Step1Page
+
+:Step2Page
+Step2Page
+
+:Step3Page
+Step3Page
+
+:Step4Page
+Step4Page
+
+:Step5Page
+Step5Page
+
+:Step6Page
+Step6Page
+
+:SettingNowPage
+SettingNowPage
+
+:EndPage
+EndPage
+
+:FEBuilderGBA Setup Wizard
+FEBuilderGBA 初始设置向导
+
+:Finish
+完成
+
+:Next
+下一步
+
+:Previous
+上一步
+
+:Start
+开始
+
+:English
+English
+
+:Executables
+可执行文件
+
+:Select Emulator
+选择模拟器
+
+:Select Event Assembler
+选择 Event Assembler
+
+:Select Sappy
+选择 Sappy
+
+:Select Debugger
+选择调试器
+
+:Select Assembler
+选择汇编器
+
+:Select gba_mus_riper
+选择 gba_mus_riper
+
+:Select sox
+选择 sox
+
+:Select midfix4agb
+选择 midfix4agb
+
+:Select git
+选择 git
+
+:Wizard not completed through Step 6 - nothing written.
+向导未完成至步骤 6，未保存任何设置。
+
+:All settings applied.
+所有设置已应用。
+
+:Settings could not be saved to disk: {0}
+设置无法保存到磁盘：{0}
+
+:KnownGap
+未实现功能
+
+:Class and Animation
+所用职业与动画
+
+:Override all palette slots
+为敌方、NPC、灰色等所有色板设置相同颜色
+
+:UNDO
+撤销
+
+:REDO
+重做
+
+:Reload List
+重新获取
+
+:Pointer (P12):
+指针 (P12):
+
+:New Palette Allocation
+新建调色板分配
+
+:Comment
+注释
+
+:Palette Type
+调色板类型
+
+:Palette Write
+写入调色板
+
+:32 Color Mode
+32色模式
+
+:Zoom
+缩放
+
+:Clipboard
+剪贴板
+
+:Import Image
+导入图像
+
+:Export Image
+导出图像
+
+:Undo
+撤销
+
+:Redo
+重做
+
+:Window Size
+窗口大小
+
+:Image Size
+图像大小
+
+:2x Zoom
+放大 2 倍
+
+:3x Zoom
+放大 3 倍
+
+:4x Zoom
+放大 4 倍
+
+:Player
+我方
+
+:Enemy
+敌方
+
+:Other
+友方
+
+:4th Army
+第 4 军
+
+:Source Pointer Slot:
+源指针槽:
+
+:Animations
+动画
+
+:Select an animation to load its palette block.
+选择一个动画以加载其调色板数据块。
+
+:Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames.
+样本预览 (待支持): 实际的战斗动画样本渲染依赖 WinForms (DrawBattleAnime)。请使用 WinForms 编辑器在动画帧上预览调色板变更。
+
+:Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399).
+待支持的已知缺口: ImageFormRef.ExportImage 依赖 WinForms (#399).
+
+:Deferred KnownGap: sample preview rendering is WinForms-coupled (#399).
+待支持的已知缺口: 样本预览渲染依赖 WinForms (#399).
+
+:Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.
+待支持的已知缺口: 本地调色板编辑 Redo (PaletteFormRef Redo 缓冲) 依赖 WinForms (#399)。请通过工具栏使用 ROM 级 Undo。
+
+:Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).
+待支持的已知缺口: 导入需要渲染好的样本位图 (依赖 WinForms 的 PaletteFormRef.MakePaletteBitmapToUIEx -> DrawBattleAnime) (#399)。
+
+:Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).
+待支持的已知缺口: 导出需要渲染好的样本位图 (依赖 WinForms 的 ImageFormRef.ExportImage -> DrawBattleAnime) (#399)。
+
+:Fit to window
+适应窗口
+
+:Write Palette
+写入调色板
+
+:Pending Core RunRedo API - tracked by #500.
+Core RunRedo API 待支持 - 由 #500 跟踪。
+
+:Palette Index
+调色板索引
+
+:Live bitmap preview pending Core extraction - tracked by #500.
+实时位图预览待 Core 抽出 - 由 #500 跟踪。
+
+:Edit R/G/B 0-248 (5-bit ticks)
+编辑 R/G/B 0-248 (5位步进)
