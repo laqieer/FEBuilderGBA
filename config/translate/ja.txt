@@ -8628,3 +8628,42 @@ KnownGap: InputFormRef 自動接続に依存 (#374 で追跡中)。
 
 :Candidate
 候補
+
+:FE8N Page:
+FE8Nページ:
+
+:Change Type:
+種類変更:
+
+:Icon ID
+アイコンID
+
+:Skill Name
+スキル名
+
+:Icon Display Condition
+アイコン表示条件
+
+:Other Skill List
+その他スキルリスト
+
+:Other Skill Sub-list
+その他スキルサブリスト
+
+:Per-skill 'other' sub-list editing is not yet implemented in Avalonia.
+スキルごとの「その他」サブリスト編集はまだ Avalonia で実装されていません。
+
+:W0 - icon address = iconBase + 128 * IconId
+W0 - アイコンアドレス = iconBase + 128 * IconId
+
+:The N03 sub-tab in WF holds 16 generic bytes (B16..B31) with no fixed semantics; the WF UI exposes them as unlabeled NumericUpDowns. The Avalonia view surfaces the base address so power users can drop down to the hex editor.
+WF の N03 サブタブには固定の意味を持たない汎用 16 バイト (B16..B31) が含まれます。WF の UI ではラベルなしの NumericUpDown として公開されます。Avalonia ビューはベースアドレスを表示し、上級ユーザーがヘックスエディターに切り替えられるようにします。
+
+:Caution: the icon display condition only controls whether the icon shows in the menu - it does NOT enable the skill itself. The condition fields hold a Unit ID, a Class ID, a stat (1-4), or an Item ID depending on the patch flavour. Layout varies between FE8N patch versions; there is no unified specification.
+注意: アイコン表示条件はメニューでアイコンが表示されるかどうかのみを制御します - スキル自体を有効にするわけではありません。条件フィールドには、パッチの種類に応じて、ユニット ID、クラス ID、ステータス (1-4)、またはアイテム ID が入ります。レイアウトは FE8N のパッチバージョンによって異なり、統一規格はありません。
+
+:Use the WinForms editor to assign 'other' bytes to a skill.
+スキルに「その他」バイトを割り当てるには WinForms エディターを使用してください。
+
+:Skill Configuration (FE8N)
+スキル設定 (FE8N)

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T08:45:38Z"
-git-sha: b5b2c0340
+generated: "2026-05-24T14:12:08Z"
+git-sha: af1647e7f
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 210 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 74 |
+| HIGH | |Δ%| ≥ 50 | 202 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 88 |
+| LOW | |Δ%| < 25 | 80 |
 
 ## Ranked Density Deltas
 
@@ -39,12 +39,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Verdict | WF Form | AV View | WF | AV | Δ | Δ% | Match |
 |---|---|---|---:|---:|---:|---:|---|
 | High | `EmulatorMemoryForm` | `EmulatorMemoryView` | 353 | 5 | -348 | -98.6% | Heuristic |
-| High | `ImageBattleScreenForm` | `ImageBattleScreenView` | 133 | 3 | -130 | -97.7% | Heuristic |
 | High | `MapSettingFE6Form` | `MapSettingFE6View` | 126 | 3 | -123 | -97.6% | ListParityHelper |
-| High | `WorldMapImageForm` | `WorldMapImageView` | 107 | 3 | -104 | -97.2% | Heuristic |
-| High | `ImageTSAEditorForm` | `ImageTSAEditorView` | 100 | 3 | -97 | -97.0% | Heuristic |
-| High | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` | 99 | 3 | -96 | -97.0% | Heuristic |
-| High | `ImagePalletForm` | `ImagePalletView` | 98 | 3 | -95 | -96.9% | Heuristic |
 | High | `ClassFE6Form` | `ClassFE6View` | 173 | 8 | -165 | -95.4% | Heuristic |
 | High | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` | 62 | 3 | -59 | -95.2% | ListParityHelper |
 | High | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` | 61 | 3 | -58 | -95.1% | ListParityHelper |
@@ -56,13 +51,11 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventHaikuFE6Form` | `EventHaikuFE6View` | 34 | 3 | -31 | -91.2% | ListParityHelper |
 | High | `FE8SpellMenuExtendsForm` | `FE8SpellMenuExtendsView` | 34 | 3 | -31 | -91.2% | Heuristic |
 | High | `MonsterWMapProbabilityForm` | `MonsterWMapProbabilityViewerView` | 66 | 6 | -60 | -90.9% | ListParityHelper |
-| High | `MonsterItemForm` | `MonsterItemViewerView` | 129 | 12 | -117 | -90.7% | ListParityHelper |
 | High | `EventCondForm` | `EventCondView` | 414 | 41 | -373 | -90.1% | ListParityHelper |
 | High | `EventBattleTalkForm` | `EventBattleTalkView` | 30 | 3 | -27 | -90.0% | ListParityHelper |
 | High | `EventHaikuForm` | `EventHaikuView` | 28 | 3 | -25 | -89.3% | ListParityHelper |
 | High | `MoveCostForm` | `MoveCostEditorView` | 72 | 8 | -64 | -88.9% | ListParityHelper |
 | High | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 166 | 19 | -147 | -88.6% | Heuristic |
-| High | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | 136 | 17 | -119 | -87.5% | Heuristic |
 | High | `WorldMapPathForm` | `WorldMapPathEditorView` | 24 | 3 | -21 | -87.5% | Heuristic |
 | High | `SongTrackImportWaveForm` | `SongTrackImportWaveView` | 23 | 3 | -20 | -87.0% | Heuristic |
 | High | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | 23 | 3 | -20 | -87.0% | Heuristic |
@@ -85,7 +78,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ClassOPFontForm` | `ClassOPFontView` | 16 | 3 | -13 | -81.3% | Heuristic |
 | High | `EventFinalSerifFE7Form` | `EventFinalSerifFE7View` | 16 | 3 | -13 | -81.3% | ListParityHelper |
 | High | `MainSimpleMenuImageSubForm` | `MainSimpleMenuImageSubView` | 16 | 3 | -13 | -81.3% | Heuristic |
-| High | `SkillConfigFE8NSkillForm` | `SkillConfigFE8NSkillView` | 169 | 33 | -136 | -80.5% | Heuristic |
 | High | `SkillAssignmentUnitCSkillSysForm` | `SkillAssignmentUnitCSkillSysView` | 35 | 7 | -28 | -80.0% | Heuristic |
 | High | `SkillAssignmentUnitSkillSystemForm` | `SkillAssignmentUnitSkillSystemView` | 35 | 7 | -28 | -80.0% | Heuristic |
 | High | `OPClassAlphaNameForm` | `OPClassAlphaNameView` | 34 | 7 | -27 | -79.4% | ListParityHelper |
@@ -152,6 +144,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `OAMSPForm` | `OAMSPView` | 6 | 3 | -3 | -50.0% | Heuristic |
 | High | `VersionForm` | `VersionView` | 2 | 1 | -1 | -50.0% | Heuristic |
 | Medium | `ImageChapterTitleForm` | `ChapterTitleViewerView` | 25 | 13 | -12 | -48.0% | ListParityHelper |
+| Medium | `SkillConfigFE8NSkillForm` | `SkillConfigFE8NSkillView` | 169 | 88 | -81 | -47.9% | Heuristic |
 | Medium | `MapEditorForm` | `MapEditorView` | 23 | 12 | -11 | -47.8% | ListParityHelper |
 | Medium | `EventForceSortieForm` | `EventForceSortieView` | 19 | 10 | -9 | -47.4% | ListParityHelper |
 | Medium | `WorldMapBGMForm` | `WorldMapBGMView` | 19 | 10 | -9 | -47.4% | ListParityHelper |
@@ -184,6 +177,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `TextToSpeechForm` | `TextToSpeechView` | 10 | 6 | -4 | -40.0% | Heuristic |
 | Medium | `ToolUPSOpenSimpleForm` | `ToolUPSOpenSimpleView` | 5 | 3 | -2 | -40.0% | Heuristic |
 | Medium | `ToolUndoForm` | `ToolUndoView` | 5 | 3 | -2 | -40.0% | Heuristic |
+| Medium | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | 136 | 82 | -54 | -39.7% | Heuristic |
 | Medium | `DisASMDumpAllArgGrepForm` | `DisASMDumpAllArgGrepView` | 11 | 7 | -4 | -36.4% | Heuristic |
 | Medium | `SoundRoomForm` | `SoundRoomViewerView` | 22 | 14 | -8 | -36.4% | ListParityHelper |
 | Medium | `MapSettingFE7Form` | `MapSettingFE7View` | 229 | 146 | -83 | -36.2% | ListParityHelper |
@@ -222,11 +216,13 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `SupportTalkFE6Form` | `SupportTalkFE6View` | 26 | 21 | -5 | -19.2% | ListParityHelper |
 | Low | `StatusRMenuForm` | `StatusRMenuView` | 28 | 23 | -5 | -17.9% | ListParityHelper |
 | Low | `ClassForm` | `ClassEditorView` | 211 | 174 | -37 | -17.5% | ListParityHelper |
+| Low | `MonsterItemForm` | `MonsterItemViewerView` | 129 | 108 | -21 | -16.3% | ListParityHelper |
 | Low | `EventUnitFE6Form` | `EventUnitFE6View` | 64 | 54 | -10 | -15.6% | ListParityHelper |
 | Low | `AITargetForm` | `AITargetView` | 52 | 44 | -8 | -15.4% | ListParityHelper |
 | Low | `SoundBossBGMForm` | `SoundBossBGMViewerView` | 20 | 17 | -3 | -15.0% | ListParityHelper |
 | Low | `TextForm` | `TextViewerView` | 62 | 53 | -9 | -14.5% | Heuristic |
 | Low | `AOERANGEForm` | `AOERANGEView` | 15 | 13 | -2 | -13.3% | Heuristic |
+| Low | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` | 99 | 86 | -13 | -13.1% | Heuristic |
 | Low | `UnitFE6Form` | `UnitFE6View` | 152 | 133 | -19 | -12.5% | ListParityHelper |
 | Low | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` | 41 | 36 | -5 | -12.2% | Heuristic |
 | Low | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` | 9 | 8 | -1 | -11.1% | Heuristic |
@@ -237,6 +233,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ItemStatBonusesSkillSystemsForm` | `ItemStatBonusesSkillSystemsView` | 51 | 47 | -4 | -7.8% | Heuristic |
 | Low | `UnitsShortTextForm` | `UnitsShortTextView` | 13 | 12 | -1 | -7.7% | Heuristic |
 | Low | `StatusOptionForm` | `StatusOptionView` | 50 | 47 | -3 | -6.0% | ListParityHelper |
+| Low | `ImageBattleScreenForm` | `ImageBattleScreenView` | 133 | 126 | -7 | -5.3% | Heuristic |
 | Low | `ToolLZ77Form` | `ToolLZ77View` | 50 | 48 | -2 | -4.0% | Heuristic |
 | Low | `MapSettingForm` | `MapSettingView` | 224 | 220 | -4 | -1.8% | ListParityHelper |
 | Low | `LogForm` | `LogViewerView` | 3 | 3 | 0 | 0.0% | Heuristic |
@@ -254,9 +251,11 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 65 | 2 | +3.2% | Heuristic |
 | Low | `EDFE7Form` | `EDFE7View` | 81 | 84 | 3 | +3.7% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
+| Low | `ImageTSAEditorForm` | `ImageTSAEditorView` | 100 | 105 | 5 | +5.0% | Heuristic |
 | Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
 | Low | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 133 | 141 | 8 | +6.0% | ListParityHelper |
+| Low | `ImagePalletForm` | `ImagePalletView` | 98 | 104 | 6 | +6.1% | Heuristic |
 | Low | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | 29 | 31 | 2 | +6.9% | ListParityHelper |
@@ -271,6 +270,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `RAMRewriteToolForm` | `RAMRewriteToolView` | 8 | 9 | 1 | +12.5% | Heuristic |
 | Low | `ImageBattleBGForm` | `ImageBattleBGView` | 26 | 30 | 4 | +15.4% | ListParityHelper |
 | Low | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` | 19 | 22 | 3 | +15.8% | ListParityHelper |
+| Low | `WorldMapImageForm` | `WorldMapImageView` | 107 | 124 | 17 | +15.9% | Heuristic |
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
 | Low | `ClassOPDemoForm` | `ClassOPDemoView` | 71 | 83 | 12 | +16.9% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
@@ -376,52 +376,12 @@ WF count: **353** · AV count: **5** · Δ: **-348** (-98.6%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EmulatorMemoryView.axaml
 -->
 
-### ImageBattleScreenForm
-WF count: **133** · AV count: **3** · Δ: **-130** (-97.7%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageBattleScreenForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageBattleScreenView.axaml
--->
-
 ### MapSettingFE6Form
 WF count: **126** · AV count: **3** · Δ: **-123** (-97.6%).
 
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/MapSettingFE6Form.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MapSettingFE6View.axaml
--->
-
-### WorldMapImageForm
-WF count: **107** · AV count: **3** · Δ: **-104** (-97.2%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/WorldMapImageForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/WorldMapImageView.axaml
--->
-
-### ImageTSAEditorForm
-WF count: **100** · AV count: **3** · Δ: **-97** (-97.0%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageTSAEditorForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageTSAEditorView.axaml
--->
-
-### ImageBattleAnimePalletForm
-WF count: **99** · AV count: **3** · Δ: **-96** (-97.0%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageBattleAnimePalletForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageBattleAnimePalletView.axaml
--->
-
-### ImagePalletForm
-WF count: **98** · AV count: **3** · Δ: **-95** (-96.9%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImagePalletForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImagePalletView.axaml
 -->
 
 ### ClassFE6Form
@@ -512,20 +472,60 @@ WF count: **66** · AV count: **6** · Δ: **-60** (-90.9%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MonsterWMapProbabilityViewerView.axaml
 -->
 
-### MonsterItemForm
-WF count: **129** · AV count: **12** · Δ: **-117** (-90.7%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/MonsterItemForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MonsterItemViewerView.axaml
--->
-
 ### EventCondForm
 WF count: **414** · AV count: **41** · Δ: **-373** (-90.1%).
 
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/EventCondForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EventCondView.axaml
+-->
+
+### EventBattleTalkForm
+WF count: **30** · AV count: **3** · Δ: **-27** (-90.0%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/EventBattleTalkForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EventBattleTalkView.axaml
+-->
+
+### EventHaikuForm
+WF count: **28** · AV count: **3** · Δ: **-25** (-89.3%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/EventHaikuForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EventHaikuView.axaml
+-->
+
+### MoveCostForm
+WF count: **72** · AV count: **8** · Δ: **-64** (-88.9%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/MoveCostForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MoveCostEditorView.axaml
+-->
+
+### SkillConfigFE8NVer3SkillForm
+WF count: **166** · AV count: **19** · Δ: **-147** (-88.6%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SkillConfigFE8NVer3SkillForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer3SkillView.axaml
+-->
+
+### WorldMapPathForm
+WF count: **24** · AV count: **3** · Δ: **-21** (-87.5%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/WorldMapPathForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/WorldMapPathEditorView.axaml
+-->
+
+### SongTrackImportWaveForm
+WF count: **23** · AV count: **3** · Δ: **-20** (-87.0%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SongTrackImportWaveForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SongTrackImportWaveView.axaml
 -->
 
 ## Unpaired Orphans
