@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T11:55:04Z"
-git-sha: cedbf79ee
+generated: "2026-05-24T14:25:22Z"
+git-sha: af1647e7f
 sweep-type: jumps
 ---
 
@@ -36,11 +36,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 435 |
-| Match | 62 |
-| MissingAvManifest (backlog) | 326 |
-| NoWfCallsite | 39 |
-| KnownGap (issue-tagged) | 8 |
+| Total rows | 443 |
+| Match | 64 |
+| MissingAvManifest (backlog) | 323 |
+| NoWfCallsite | 47 |
+| KnownGap (issue-tagged) | 9 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -50,6 +50,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `JumpToToolAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
+| `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
@@ -205,9 +206,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `ClassFE6Form` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassForm` | `ClassFE6View` | `—` | `CCBranchForm` | `CCBranchEditorView` |
-| `ClassForm` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `DisASMDumpAllArgGrepForm` | `DisASMDumpAllArgGrepView` | `—` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
 | `DisASMDumpAllForm` | `DisASMDumpAllView` | `—` | `DisASMDumpAllArgGrepForm` | `DisASMDumpAllArgGrepView` |
 | `EmulatorMemoryForm` | `EmulatorMemoryView` | `—` | `EventScriptForm` | `EventScriptView` |
@@ -290,7 +289,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
 | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `PatchForm` | `PatchManagerView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
@@ -402,6 +400,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ClassForm` | `ClassEditorView` | `JumpToPortrait` | `ImagePortraitForm` | `PortraitViewerView` |
 | `ClassForm` | `ClassEditorView` | `JumpToDescText` | `TextForm` | `TextViewerView` |
 | `ClassForm` | `ClassEditorView` | `JumpToNameText` | `TextForm` | `TextViewerView` |
+| `ClassForm` | `ClassFE6View` | `JumpToBattleAnime` | `ImageBattleAnimeForm` | `ImageBattleAnimeView` |
+| `ClassForm` | `ClassFE6View` | `JumpToMoveCost_FE6` | `MoveCostFE6Form` | `MoveCostFE6View` |
+| `ClassForm` | `ClassFE6View` | `JumpToTerrainAvoid_FE6` | `MoveCostFE6Form` | `MoveCostFE6View` |
+| `ClassForm` | `ClassFE6View` | `JumpToTerrainDef_FE6` | `MoveCostFE6Form` | `MoveCostFE6View` |
+| `ClassForm` | `ClassFE6View` | `JumpToTerrainRes_FE6` | `MoveCostFE6Form` | `MoveCostFE6View` |
+| `ClassForm` | `ClassFE6View` | `JumpToPortrait` | `ImagePortraitForm` | `PortraitViewerView` |
+| `ClassForm` | `ClassFE6View` | `JumpToDescText` | `TextForm` | `TextViewerView` |
+| `ClassForm` | `ClassFE6View` | `JumpToNameText` | `TextForm` | `TextViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToEffectivenessSkillSystem` | `ItemEffectivenessSkillSystemsReworkForm` | `ItemEffectivenessSkillSystemsReworkView` |
 | `ItemForm` | `ItemEditorView` | `JumpToEffectivenessVanilla` | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToStatBonusesSkillSystem` | `ItemStatBonusesSkillSystemsForm` | `ItemStatBonusesSkillSystemsView` |
@@ -437,6 +443,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `AIScriptForm` | `AIScriptView` | `JumpToPointerToolCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `ClassForm` | `ClassEditorView` | `JumpToCCBranch_FE8` | `CCBranchForm` | `CCBranchEditorView` |
 | `ClassForm` | `ClassEditorView` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
+| `ClassFE6Form` | `ClassFE6View` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
+| `ClassForm` | `ClassFE6View` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |

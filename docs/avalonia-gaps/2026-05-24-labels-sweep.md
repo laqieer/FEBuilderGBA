@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T11:55:02Z"
-git-sha: cedbf79ee
+generated: "2026-05-24T14:25:20Z"
+git-sha: af1647e7f
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4393 |
-| Total AV-only labels | 3451 |
-| Total common labels | 307 |
+| Total WF-only labels | 4387 |
+| Total AV-only labels | 3628 |
+| Total common labels | 313 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -59,12 +59,12 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 10 | `TextForm` | `TextViewerView` | 46 | 32 | 2 |
 | 11 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
 | 12 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
-| 13 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 14 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 15 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
-| 16 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
-| 17 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
-| 18 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
+| 13 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 14 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 15 | `ClassFE6Form` | `ClassFE6View` | 40 | 105 | 3 |
+| 16 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 17 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
+| 18 | `MonsterItemForm` | `MonsterItemViewerView` | 35 | 38 | 2 |
 | 19 | `UnitFE7Form` | `UnitFE7View` | 35 | 76 | 4 |
 | 20 | `EventUnitFE6Form` | `EventUnitFE6View` | 34 | 24 | 0 |
 
@@ -1565,63 +1565,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Wep Exp (B32):`
 - `Write`
 
-### ClassFE6Form
-WF labels: **43** · AV labels: **5** · WF-only: **43** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 173 / AV 8)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `- `
-- `??`
-- `???`
-- `[HardCoding]`
-- `HP`
-- `ID`
-- `LV`
-- `Size:`
-- `アドレス`
-- `クラスチェンジクラス`
-- `クラス基礎能力`
-- `クラス能力最大値`
-- `シミュレーション`
-- `ソート順`
-- `リストの拡張`
-- `一般兵顔`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `地形回避`
-- `地形防御`
-- `地形魔防`
-- `守備`
-- `幸運`
-- `待機アイコン`
-- `戦闘時アニメ`
-- ` 技 `
-- `攻撃`
-- `敵成長率(%)`
-- `書き込み`
-- `武器LV`
-- `移動`
-- `移動コスト`
-- `移動速度`
-- `経験値補正値`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `--- Growth Simulator ---`
-- `Address:`
-- `Calculate Growth`
-- `Class Editor (FE6)`
-- `Sim Level:`
-
 ### ClassForm
 WF labels: **58** · AV labels: **122** · WF-only: **43** · AV-only: **107** · Common: **15** · Density verdict: **Low** (WF 211 / AV 174)
 
@@ -1900,57 +1843,158 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weight (B23):`
 - `Write`
 
-### MonsterItemForm
-WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
+### ClassFE6Form
+WF labels: **43** · AV labels: **108** · WF-only: **40** · AV-only: **105** · Common: **3** · Density verdict: **Low** (WF 173 / AV 151)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `00`
-- `Size:`
-- `アイテム1`
-- `アイテム1確率`
-- `アイテム2`
-- `アイテム2確率`
-- `アイテム3`
-- `アイテム3確率`
-- `アイテム4`
-- `アイテム4確率`
-- `アイテム5`
-- `アイテム5確率`
-- `アイテム確率`
+- `??`
+- `???`
+- `HP`
+- `ID`
+- `LV`
 - `アドレス`
-- `クラス`
-- `コメント`
+- `クラスチェンジクラス`
+- `クラス基礎能力`
+- `クラス能力最大値`
+- `シミュレーション`
+- `ソート順`
 - `リストの拡張`
+- `一般兵顔`
+- `体格`
 - `先頭アドレス`
 - `再取得`
-- `合計`
-- `所持品1 候補1`
-- `所持品1 候補2`
-- `所持品1 候補3`
-- `所持品1 候補4`
-- `所持品1 候補5`
-- `所持品2 候補1`
-- `所持品2 候補2`
-- `所持品2 候補3`
-- `所持品2 候補4`
-- `所持品2 候補5`
+- `合計%`
+- `名前`
+- `地形回避`
+- `地形防御`
+- `地形魔防`
+- `守備`
+- `幸運`
+- `待機アイコン`
+- `戦闘時アニメ`
+- ` 技 `
+- `攻撃`
+- `敵成長率(%)`
 - `書き込み`
-- `確率`
+- `武器LV`
+- `移動`
+- `移動コスト`
+- `移動速度`
+- `経験値補正値`
+- `詳細`
 - `読込数`
+- `速さ`
 - `選択アドレス:`
-- `魔物アイテムテーブル`
-- `魔物アイテム確率`
-- `魔物所持品テーブル`
+- `魔力`
+- `魔防`
 
 AV-only labels (usually fine — layout polish or rewording):
 
+- `??? (D68):`
+- `Ability 1 (B36):`
+- `Ability 2 (B37):`
+- `Ability 3 (B38):`
+- `Ability 4 (B39):`
+- `Ability Flags`
 - `Address:`
-- `Drop Rate:`
-- `Monster Item Editor`
-- `Unknown 1:`
-- `Unknown 2:`
-- `Unknown 3:`
+- `Anima (B45):`
+- `Axe (B42):`
+- `Base constitution`
+- `Base HP for this class`
+- `Base movement range`
+- `Base Stats`
+- `Battle Anime (P48):`
+- `Bow (B43):`
+- `Calculate Growth`
+- `Class # (B4):`
+- `Class change class (0 = no promotion)`
+- `Class Editor (FE6)`
+- `Class power / EXP correction value`
+- `Con (B17):`
+- `Dark (B47):`
+- `Def (B15):`
+- `Def (B31):`
+- `Desc ID (W2):`
+- `Export All`
+- `Export all classes to a CSV file or clipboard`
+- `Export Selected`
+- `Export the selected class to a CSV file or clipboard`
+- `Export/Import Options`
+- `Generic enemy face portrait (click to open Portrait Viewer)`
+- `Growth Rates`
+- `Growth Simulator`
+- `Growths as Decimal`
+- `HP (B11):`
+- `HP (B27):`
+- `HP (b34):`
+- `HP bonus gained on class change`
+- `Identity / Misc`
+- `Import All`
+- `Import all classes from a CSV file or clipboard`
+- `Import Selected`
+- `Import the selected class from a CSV file or clipboard`
+- `Include Base Stats`
+- `Include Growths`
+- `Include Header`
+- `Include Name`
+- `Include UID`
+- `Include Wep Level`
+- `Internal class number`
+- `Jump`
+- `Lance (B41):`
+- `Lck (B33):`
+- `Light (B46):`
+- `Map sprite index when idle`
+- `Max Con (B25):`
+- `Max Def (B23):`
+- `Max HP (B19):`
+- `Max Res (B24):`
+- `Max Skl (B21):`
+- `Max Spd (B22):`
+- `Max Str (B20):`
+- `Maximum HP stat cap for this class`
+- `Mov (B18):`
+- `Move Cost (P52):`
+- `Name:`
+- `Name ID (W0):`
+- `Pointer to battle animation data`
+- `Pointer to terrain movement cost table`
+- `Pointers / Movement / Terrain`
+- `Portrait (W8):`
+- `Power (B26):`
+- `Promo Lv (B5):`
+- `Promotion Gains (CC Bonus)`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res (B16):`
+- `Res (B32):`
+- `Sim Level:`
+- `Skl (B13):`
+- `Skl (B29):`
+- `Sort Order (B10):`
+- `Sort order for class list`
+- `Spd (B14):`
+- `Spd (B30):`
+- `Staff (B44):`
+- `Stat Caps (Max Values)`
+- `Str (B12):`
+- `Str (B28):`
+- `Str (b35):`
+- `Sword (B40):`
+- `Terrain Avoid (P56):`
+- `Terrain Def (P60):`
+- `Terrain Res (P64):`
+- `Text ID for this class's description (click to open Text Viewer)`
+- `Text ID for this class's display name (click to open Text Viewer)`
+- `This class is referenced by hardcoded ASM. Click to view related patches.`
+- `Unknown u32 field at offset 68 (D68)`
+- `Use Clipboard`
+- `Wait Icon (B6):`
+- `Walk Spd (B7):`
+- `Walking speed on the map`
+- `Weapon Rank Levels (B40-B47)`
 - `Write`
 
 ### SkillConfigFE8NVer3SkillForm
@@ -2081,6 +2125,88 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Sprite Tile Sheet`
 - `Total animations: --`
 - `Weapon Type (B0):`
+- `Write`
+
+### MonsterItemForm
+WF labels: **37** · AV labels: **40** · WF-only: **35** · AV-only: **38** · Common: **2** · Density verdict: **Low** (WF 129 / AV 108)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アイテム1`
+- `アイテム1確率`
+- `アイテム2`
+- `アイテム2確率`
+- `アイテム3`
+- `アイテム3確率`
+- `アイテム4`
+- `アイテム4確率`
+- `アイテム5`
+- `アイテム5確率`
+- `アイテム確率`
+- `アドレス`
+- `クラス`
+- `コメント`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `合計`
+- `所持品1 候補1`
+- `所持品1 候補2`
+- `所持品1 候補3`
+- `所持品1 候補4`
+- `所持品1 候補5`
+- `所持品2 候補1`
+- `所持品2 候補2`
+- `所持品2 候補3`
+- `所持品2 候補4`
+- `所持品2 候補5`
+- `書き込み`
+- `確率`
+- `読込数`
+- `選択アドレス:`
+- `魔物アイテムテーブル`
+- `魔物アイテム確率`
+- `魔物所持品テーブル`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0%`
+- `1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row.`
+- `32`
+- `5`
+- `Address:`
+- `Candidate`
+- `Comment:`
+- `Count:`
+- `Expand List`
+- `Holdings Set 1`
+- `Holdings Set 2`
+- `Holdings Table`
+- `Item 2:`
+- `Item 3:`
+- `Item 4:`
+- `Item 5:`
+- `Item Probability`
+- `Item Table`
+- `Probability`
+- `Probability 1:`
+- `Probability 2:`
+- `Probability 3:`
+- `Probability 4:`
+- `Probability 5:`
+- `Probability Table`
+- `Read Start:`
+- `Reload`
+- `Selected Address:`
+- `Slot`
+- `Slot 1`
+- `Slot 2`
+- `Slot 3`
+- `Slot 4`
+- `Slot 5`
+- `Sum:`
+- `Sum 1:`
+- `Sum 2:`
 - `Write`
 
 ### UnitFE7Form
@@ -2664,56 +2790,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unused (B27):`
 - `Write`
 
-### SkillConfigFE8NVer2SkillForm
-WF labels: **31** · AV labels: **10** · WF-only: **31** · AV-only: **10** · Common: **0** · Density verdict: **High** (WF 136 / AV 17)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `??`
-- `Size:`
-- `アイコン`
-- `アイテム`
-- `アドレス`
-- `アニメ`
-- `アニメーション取出`
-- `アニメーション読込`
-- `エディタ`
-- `クラス`
-- `クラススキル`
-- `パレット`
-- `フレーム`
-- `ユニット`
-- `ユニットスキル建設予定地`
-- `リストの拡張`
-- `レベルアップで取得するスキルの先頭アドレス`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `所持アイテムスキル`
-- `拡大`
-- `書き込み`
-- `武器アイテムスキル`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `詳細`
-- `読込数`
-- `選択アドレス:`
-- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Class Skill Pointer:`
-- `Held Item Skill Pointer:`
-- `Palette:`
-- `Skill Configuration (FE8N v2)`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
-- `Text Detail:`
-- `Unit Skill Pointer:`
-- `Weapon Item Skill Pointer:`
-- `Write`
-
 ### UnitForm
 WF labels: **49** · AV labels: **93** · WF-only: **31** · AV-only: **75** · Common: **18** · Density verdict: **Low** (WF 183 / AV 146)
 
@@ -2905,6 +2981,99 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write Anime Tuple`
 - `Write Glyph Entry`
 - `Write JP Name Pointer`
+
+### SkillConfigFE8NVer2SkillForm
+WF labels: **31** · AV labels: **55** · WF-only: **30** · AV-only: **54** · Common: **1** · Density verdict: **Medium** (WF 136 / AV 82)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `??`
+- `アイコン`
+- `アイテム`
+- `アドレス`
+- `アニメ`
+- `アニメーション取出`
+- `アニメーション読込`
+- `エディタ`
+- `クラス`
+- `クラススキル`
+- `パレット`
+- `フレーム`
+- `ユニット`
+- `ユニットスキル建設予定地`
+- `リストの拡張`
+- `レベルアップで取得するスキルの先頭アドレス`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `所持アイテムスキル`
+- `拡大`
+- `書き込み`
+- `武器アイテムスキル`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `詳細`
+- `読込数`
+- `選択アドレス:`
+- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0 = system weapon palette; non-zero = icon palette`
+- `Address:`
+- `Animation`
+- `Animation Export`
+- `Animation Import`
+- `Class Skill List`
+- `Class Skill Pointer`
+- `Class Skill Sub-list`
+- `Display example`
+- `Editor`
+- `Entry count: -`
+- `Filter Name`
+- `Frame`
+- `Icon`
+- `Image Export`
+- `Image Import`
+- `Item Skill List`
+- `Item Skill Pointer`
+- `Item Skill Sub-list`
+- `Item2 Skill List`
+- `Item2 Skill Pointer`
+- `Item2 Skill Sub-list (sizeof-20+ layout)`
+- `KnownGap: depends on InputFormRef auto-wiring (tracked by #374).`
+- `List Expand`
+- `Original size`
+- `Palette`
+- `Pending Core extraction - tracked by #500.`
+- `Per-skill class sub-list (KnownGap: tracked by #374)`
+- `Per-skill class sub-list editing is not yet implemented in Avalonia.`
+- `Per-skill item sub-list (KnownGap: tracked by #374)`
+- `Per-skill item sub-list editing is not yet implemented in Avalonia.`
+- `Per-skill Item2 sub-list editing is not yet implemented in Avalonia.`
+- `Per-skill unit sub-list (KnownGap: tracked by #374)`
+- `Per-skill unit sub-list editing is not yet implemented in Avalonia.`
+- `Read Count:`
+- `Reload`
+- `Selected Address:`
+- `Sizeof-20+ layout only (KnownGap: tracked by #374)`
+- `Skill Configuration (FE8N v2)`
+- `Skill Detail`
+- `Skill system editors require the FE8N v2 skill patch to be installed.\r\nUse the Patch Manager to install it first.`
+- `Start Address:`
+- `Sub-list base: -`
+- `Text Detail`
+- `Unit Skill List`
+- `Unit Skill Pointer`
+- `Unit Skill Sub-list`
+- `Use the WinForms editor to assign classes to a skill.`
+- `Use the WinForms editor to assign items to a skill.`
+- `Use the WinForms editor to assign second-item-skills to a skill.`
+- `Use the WinForms editor to assign units to a skill.`
+- `Write`
+- `Zoom`
+- `Zoomed`
 
 ### SummonsDemonKingForm
 WF labels: **30** · AV labels: **17** · WF-only: **30** · AV-only: **17** · Common: **0** · Density verdict: **Medium** (WF 60 / AV 32)
@@ -6123,7 +6292,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Haiku (FE6)`
 
 ### ImageBattleScreenForm
-WF labels: **42** · AV labels: **64** · WF-only: **15** · AV-only: **37** · Common: **27** · Density verdict: **Low** (WF 133 / AV 125)
+WF labels: **42** · AV labels: **66** · WF-only: **15** · AV-only: **39** · Common: **27** · Density verdict: **Low** (WF 133 / AV 126)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -6149,6 +6318,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this edit… (truncated; see designer file)`
 - `Battle Screen`
 - `Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated.`
+- `Canvas:`
 - `Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells.`
 - `Clipboard`
 - `Image`
@@ -6179,6 +6349,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Palette Type`
 - `Palette Write`
 - `Right Side`
+- `Selected: 00`
 - `TSA1 Address`
 - `Write`
 - `Zoom`
