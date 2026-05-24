@@ -152,14 +152,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <paramref name="paletteAddr"/> + <paramref name="paletteIndex"/> * 0x20.
         /// Each entry is a little-endian ushort: 0RRRRR GGGGG BBBBB.
         /// Returned RGB bytes are 8-bit by left-shifting each 5-bit field by 3.
+        ///
+        /// Out-of-bounds inputs (negative index, invalid address, range that
+        /// does not fit in <c>ROM.Data</c>) return a 16-entry zero palette
+        /// instead of throwing, so a user typing an invalid Palette Address
+        /// cannot crash the load path. Callers that need to know about the
+        /// rejection should use <see cref="TryLoadPalette"/> instead.
         /// </summary>
         public (byte R, byte G, byte B)[] LoadPalette(uint paletteAddr, int paletteIndex)
         {
-            var result = new (byte R, byte G, byte B)[16];
+            TryLoadPalette(paletteAddr, paletteIndex, out var result);
+            return result;
+        }
+
+        /// <summary>
+        /// Bounds-checked variant of <see cref="LoadPalette"/>. Returns true
+        /// when the full 16-entry 0x20-byte block is readable; otherwise
+        /// fills <paramref name="result"/> with a 16-entry zero palette and
+        /// returns false so the caller can surface a UI error.
+        /// </summary>
+        public bool TryLoadPalette(uint paletteAddr, int paletteIndex, out (byte R, byte G, byte B)[] result)
+        {
+            result = new (byte R, byte G, byte B)[16];
             ROM rom = CoreState.ROM;
-            if (rom == null) return result;
+            if (rom == null) return false;
+            if (paletteIndex < 0) return false;
 
             uint baseAddr = paletteAddr + (uint)(paletteIndex * 0x20);
+            // 0x20 bytes (16 ushorts) must all be in-ROM.
+            if (!U.isSafetyOffset(baseAddr, rom)) return false;
+            if (!U.isSafetyOffset(baseAddr + 0x1F, rom)) return false;
+
             for (int i = 0; i < 16; i++)
             {
                 uint word = rom.u16(baseAddr + (uint)(i * 2));
@@ -168,7 +191,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 int b5 = (int)((word >> 10) & 0x1F);
                 result[i] = ((byte)(r5 << 3), (byte)(g5 << 3), (byte)(b5 << 3));
             }
-            return result;
+            return true;
         }
 
         /// <summary>
@@ -176,16 +199,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// write them at <paramref name="paletteAddr"/> +
         /// <paramref name="paletteIndex"/> * 0x20. Caller must wrap this in
         /// an ambient UndoService.Begin / Commit scope.
+        ///
+        /// Throws when <paramref name="paletteIndex"/> is negative or
+        /// (when PaletteCount is known) >= PaletteCount, or when the target
+        /// 0x20-byte range does not fit in ROM.Data. Failing fast before any
+        /// writes lets the surrounding UndoService.Rollback unwind cleanly
+        /// without touching the ROM.
         /// </summary>
         public void WritePalette(uint paletteAddr, int paletteIndex, (byte R, byte G, byte B)[] rgb)
         {
             if (rgb == null) throw new ArgumentNullException(nameof(rgb));
             if (rgb.Length != 16) throw new ArgumentException("WritePalette expects exactly 16 entries", nameof(rgb));
+            if (paletteIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(paletteIndex),
+                    "WritePalette: paletteIndex must be >= 0");
+            }
+            // Clamp against the caller-supplied PaletteCount when one was
+            // injected via Init (PaletteCount > 0). PaletteCount==0 means the
+            // ViewModel was never Init'd, which the View already gates with
+            // IsContextLoaded; we still guard here so direct VM callers and
+            // tests get a consistent failure mode.
+            if (_paletteCount > 0 && paletteIndex >= _paletteCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(paletteIndex),
+                    $"WritePalette: paletteIndex {paletteIndex} is out of range for PaletteCount {_paletteCount}");
+            }
 
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
             uint baseAddr = paletteAddr + (uint)(paletteIndex * 0x20);
+            if (!U.isSafetyOffset(baseAddr, rom) || !U.isSafetyOffset(baseAddr + 0x1F, rom))
+            {
+                throw new ArgumentOutOfRangeException(nameof(paletteAddr),
+                    $"WritePalette: 0x20-byte range [0x{baseAddr:X}..0x{baseAddr + 0x1F:X}] is outside ROM bounds");
+            }
+
             for (int i = 0; i < 16; i++)
             {
                 ushort word = PackRgb555(rgb[i].R, rgb[i].G, rgb[i].B);

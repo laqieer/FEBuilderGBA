@@ -79,8 +79,14 @@
         <Button AutomationProperties.AutomationId="ImageTSAEditor_Undo_Button"
                 Name="UndoButton" Content="Undo" Click="Undo_Click"
                 Margin="12,0,0,0" />
+        <!-- Redo is explicitly inert: Core Undo currently exposes only RunUndo
+             (no RunRedo). The button stays disabled in the AXAML so the user
+             sees the unavailability immediately (Copilot review feedback).
+             Click handler kept for the View_AllButtons_AreWiredOrExplicitlyInert
+             audit and for the programmatic-info-dialog fallback. -->
         <Button AutomationProperties.AutomationId="ImageTSAEditor_Redo_Button"
-                Name="RedoButton" Content="Redo" Click="Redo_Click" />
+                Name="RedoButton" Content="Redo" Click="Redo_Click"
+                IsEnabled="False" />
         <!-- Write is gated on IsContextLoaded - disabled until a caller Init's -->
         <Button AutomationProperties.AutomationId="ImageTSAEditor_Write_Button"
                 Name="WriteButton" Content="Write" Click="Write_Click"
@@ -375,12 +381,15 @@
                                Name="PaletteB16" Width="60" Minimum="0" Maximum="255" Increment="8" />
               </Grid>
 
-              <!-- Palette UNDO/REDO sub-buttons (mirrors WF UndoPlaetteButton/RedoPaletteButton) -->
+              <!-- Palette UNDO/REDO sub-buttons (mirrors WF UndoPlaetteButton/RedoPaletteButton).
+                   Redo is IsEnabled=False at the AXAML level (Core.Undo has no
+                   RunRedo yet); Copilot review feedback. -->
               <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
                 <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteUndo_Button"
                         Name="PaletteUndoButton" Content="Undo" Click="PaletteUndo_Click" Width="130" />
                 <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteRedo_Button"
-                        Name="PaletteRedoButton" Content="Redo" Click="PaletteRedo_Click" Width="130" />
+                        Name="PaletteRedoButton" Content="Redo" Click="PaletteRedo_Click"
+                        IsEnabled="False" Width="130" />
               </StackPanel>
 
             </StackPanel>

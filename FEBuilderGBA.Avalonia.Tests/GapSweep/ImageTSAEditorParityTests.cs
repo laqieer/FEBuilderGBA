@@ -587,6 +587,243 @@ public class ImageTSAEditorParityTests
         Assert.Throws<ArgumentException>(() => vm.WritePalette(0, 0, new (byte, byte, byte)[15]));
     }
 
+    // -----------------------------------------------------------------
+    // Copilot review feedback (round 1): bounds checks for LoadPalette
+    // and WritePalette so an invalid Palette Address / index doesn't
+    // crash the load path or silently overwrite an unintended ROM block.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TryLoadPalette_OutOfRangeAddress_ReturnsFalseAndZeros()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+
+            // Address beyond ROM.Data.Length must be rejected.
+            uint badAddr = (uint)rom.Data.Length + 0x100u;
+            bool ok = vm.TryLoadPalette(badAddr, 0, out var rgb);
+            Assert.False(ok);
+            Assert.Equal(16, rgb.Length);
+            foreach (var (r, g, b) in rgb)
+            {
+                Assert.Equal((byte)0, r);
+                Assert.Equal((byte)0, g);
+                Assert.Equal((byte)0, b);
+            }
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_TryLoadPalette_NegativeIndex_ReturnsFalse()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            bool ok = vm.TryLoadPalette(0x500000u, -1, out _);
+            Assert.False(ok);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadPalette_InvalidAddress_DoesNotThrow()
+    {
+        // Smoke regression: the legacy LoadPalette signature must not
+        // throw when the caller hands in an out-of-bounds address.
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            uint badAddr = (uint)rom.Data.Length + 0x100u;
+            var rgb = vm.LoadPalette(badAddr, 0);
+            Assert.Equal(16, rgb.Length);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WritePalette_ThrowsWhenIndexNegative()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, 0u, false, true, 0u, U.NOT_FOUND, 0u, paletteCount: 4);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                vm.WritePalette(0x500000u, -1, new (byte, byte, byte)[16]));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WritePalette_ThrowsWhenIndexExceedsPaletteCount()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            // PaletteCount=2 -> valid indices are 0 and 1 only.
+            vm.Init(32u, 20u, 0u, false, true, 0u, U.NOT_FOUND, 0u, paletteCount: 2);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                vm.WritePalette(0x500000u, 5, new (byte, byte, byte)[16]));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WritePalette_ThrowsWhenAddressOutOfBounds()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, 0u, false, true, 0u, U.NOT_FOUND, 0u, paletteCount: 4);
+
+            uint badAddr = (uint)rom.Data.Length + 0x100u;
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                vm.WritePalette(badAddr, 0, new (byte, byte, byte)[16]));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WritePalette_FailsFastBeforeAnyByteWrites()
+    {
+        // The out-of-range writePalette must reject before ANY rom.write_u16
+        // is dispatched — that's what lets the surrounding UndoService.Rollback
+        // unwind cleanly with no dirty bytes in ROM (Copilot review feedback).
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, 0u, false, true, 0u, U.NOT_FOUND, 0u, paletteCount: 2);
+
+            uint sentinelAddr = 0x500000u;
+            // Plant a canary (0xAAAA) so we can detect any partial write.
+            BitConverter.GetBytes((ushort)0xAAAAu).CopyTo(rom.Data, (int)sentinelAddr);
+
+            try
+            {
+                // index 5 is out of range for paletteCount=2 -> should throw
+                // BEFORE any byte is written.
+                vm.WritePalette(sentinelAddr, 5, new (byte, byte, byte)[16]);
+                Assert.Fail("Expected ArgumentOutOfRangeException");
+            }
+            catch (ArgumentOutOfRangeException) { /* expected */ }
+
+            // Canary at the original address must still be 0xAAAA — no
+            // partial write happened.
+            ushort canary = BitConverter.ToUInt16(rom.Data, (int)sentinelAddr);
+            Assert.Equal((ushort)0xAAAA, canary);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot review: Redo buttons must be explicitly inert in AXAML.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_RedoButton_IsExplicitlyInert()
+    {
+        string axaml = ReadAxaml();
+        var rx = new Regex(
+            "AutomationId=\"ImageTSAEditor_Redo_Button\"[\\s\\S]*?/>",
+            RegexOptions.Compiled);
+        Match m = rx.Match(axaml);
+        Assert.True(m.Success, "Redo button tag not found");
+        Assert.Contains("IsEnabled=\"False\"", m.Value);
+    }
+
+    [Fact]
+    public void View_PaletteRedoButton_IsExplicitlyInert()
+    {
+        string axaml = ReadAxaml();
+        var rx = new Regex(
+            "AutomationId=\"ImageTSAEditor_PaletteRedo_Button\"[\\s\\S]*?/>",
+            RegexOptions.Compiled);
+        Match m = rx.Match(axaml);
+        Assert.True(m.Success, "PaletteRedo button tag not found");
+        Assert.Contains("IsEnabled=\"False\"", m.Value);
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot review: view code-behind clamps PaletteIndexCombo and
+    // reloads the palette grid from ROM on Init / on combo change.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_HasPaletteIndexClamp()
+    {
+        // Static check: the code-behind exposes a ClampPaletteIndexComboToCount
+        // helper invoked from Init so the runtime user can never select an
+        // out-of-range slot.
+        string source = ReadCodeBehind();
+        Assert.Contains("ClampPaletteIndexComboToCount", source);
+        Assert.Matches(new Regex(
+            @"void\s+Init\s*\([^)]*\)\s*\{[\s\S]*?ClampPaletteIndexComboToCount",
+            RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_ReloadsPaletteGridOnInit()
+    {
+        string source = ReadCodeBehind();
+        Assert.Contains("ReloadPaletteIntoGrid", source);
+        Assert.Matches(new Regex(
+            @"void\s+Init\s*\([^)]*\)\s*\{[\s\S]*?ReloadPaletteIntoGrid",
+            RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_ReloadsPaletteGridOnComboChange()
+    {
+        // Static check: the constructor wires PaletteIndexCombo.SelectionChanged
+        // to ReloadPaletteIntoGrid (Copilot review feedback).
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"PaletteIndexCombo\.SelectionChanged[\s\S]*?ReloadPaletteIntoGrid",
+            RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_RedoButtons_AreDisabledInConstructor()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"RedoButton\.IsEnabled\s*=\s*false", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"PaletteRedoButton\.IsEnabled\s*=\s*false", RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_CodeBehind_NoUnusedAvaloniaDataUsing()
+    {
+        // The `using global::Avalonia.Data;` was unused (Copilot review).
+        // We don't reference Avalonia.Data symbols anywhere in the code-behind;
+        // make sure a future edit doesn't accidentally re-add the dead using.
+        string source = ReadCodeBehind();
+        Assert.DoesNotContain("using global::Avalonia.Data;", source);
+    }
+
     [Fact]
     public void ViewModel_PackRgb555_LowBitsArePreservedTo5Bits()
     {
