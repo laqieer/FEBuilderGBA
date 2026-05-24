@@ -32,6 +32,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             _vm.Initialize();
+            // Bind DataContext so ConnectionStatus / AutoUpdate / NoticeText /
+            // IsConnected bindings resolve (Copilot CLI v1 review non-blocking item).
+            DataContext = _vm;
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();

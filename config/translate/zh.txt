@@ -22713,9 +22713,6 @@ TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
 未知 u32 字段 (D68)
 
 
-:Emulator Memory
-模拟器内存
-
 :Auto-update
 自动更新
 
@@ -22818,9 +22815,6 @@ TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
 :Supply contents
 辎重队内容
 
-:Arena
-竞技场
-
 :Arena opponent selection data
 用于竞技场对手选出的数据
 
@@ -22856,9 +22850,6 @@ Worldmap FE8
 
 :Dump memory to file at 0x03000000
 将内存转储到文件 0x03000000
-
-:Selected Address:
-选择地址:
 
 :Party Table ID
 部队表 ID
@@ -22944,12 +22935,6 @@ Worldmap FE8
 :Fields set by unit actions
 由角色行动设定的项目
 
-:↑ Newest
-↑ 最新
-
-:Older ↓
-更早 ↓
-
 :Fog Level
 雾等级
 
@@ -22981,9 +22966,6 @@ Worldmap FE8
 :Support 7
 支援7
 
-:Event
-事件
-
 :Procs
 Procs
 
@@ -22992,9 +22974,6 @@ Procs
 
 :Trap Data
 陷阱数据
-
-:Palette
-调色板
 
 :BWL
 BWL
@@ -23026,9 +23005,6 @@ Worldmap
 :Dungeon
 Dungeon
 
-:Address
-地址
-
 :Turn
 回合
 
@@ -23044,26 +23020,14 @@ Dungeon
 :Edition
 篇
 
-:General
-通用
-
 :Lv
 Lv
 
 :Exp
 Exp
 
-:X
-X
-
-:Y
-Y
-
 :Search
 搜索
-
-:Status
-状态
 
 :Mark
 标记
@@ -23073,9 +23037,6 @@ Y
 
 :Mov+
 移动+
-
-:Skill
-技
 
 :Spd
 速度
@@ -23088,12 +23049,6 @@ Y
 
 :Lck
 幸运
-
-:Text
-文本
-
-:Name
-名称
 
 :Block Counter
 Block Counter
@@ -23200,23 +23155,8 @@ ERROR
 :Open related editors
 打开相关编辑器
 
-:Event Script
-事件脚本
-
-:Procs Script
-Procs 脚本
-
-:Hex Editor
-Hex 编辑器
-
-:Text Viewer
-文本浏览器
-
 :Map Change
 地图变化
-
-:RAM Rewrite Tool
-RAM 重写工具
 
 :RAM Rewrite Tool MAP
 RAM 重写工具 MAP
@@ -23226,18 +23166,6 @@ RAM 重写工具 MAP
 
 :BGM Mute Dialog
 BGM 静音对话框
-
-:Platform Notice
-平台说明
-
-:Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version.
-模拟器内存读取需要 Windows 的 P/Invoke, 在跨平台的 Avalonia 版本中不可用。
-
-:This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality.
-此功能使用 Windows 专用 API 读取正在运行的 GBA 模拟器进程的内存, 用于实时调试。请使用 FEBuilderGBA 的 Windows (WinForms) 版来使用此功能。
-
-:Map Chip Preview
-地图图块预览
 
 
 :Live memory dump not available in cross-platform Avalonia. Tracked by #385.

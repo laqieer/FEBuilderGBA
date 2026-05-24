@@ -28,6 +28,10 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using global::Avalonia.Controls;
+using global::Avalonia.Controls.Primitives;
+using global::Avalonia.Headless.XUnit;
+using global::Avalonia.LogicalTree;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -706,6 +710,128 @@ public class EmulatorMemoryParityTests
             Assert.True(zh.Contains(key) || zh.Contains($":{literal}\r\n"),
                 $"zh.txt is missing key for '{literal}'");
         }
+    }
+
+    // -----------------------------------------------------------------
+    // Headless runtime tests - instantiate the view and walk the logical
+    // tree to verify the AXAML actually loads + the real control surface
+    // is reachable (Copilot CLI v1 review blocking item: AXAML text-scan
+    // tests aren't enough; need headless [AvaloniaFact] tests that
+    // construct the real Window and exercise the logical tree).
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void View_Constructs_WithoutCrash()
+    {
+        var view = new EmulatorMemoryView();
+        Assert.NotNull(view);
+        Assert.Equal("Emulator Memory", view.ViewTitle);
+    }
+
+    [AvaloniaFact]
+    public void View_DataContext_BindsToViewModel()
+    {
+        var view = new EmulatorMemoryView();
+        // Bound in constructor for Copilot review non-blocking #2.
+        Assert.NotNull(view.DataContext);
+        Assert.IsType<EmulatorMemoryViewModel>(view.DataContext);
+    }
+
+    [AvaloniaFact]
+    public void View_LogicalTree_Has_MainTabControl_With6Tabs()
+    {
+        var view = new EmulatorMemoryView();
+        var tab = view.GetLogicalDescendants()
+            .OfType<TabControl>()
+            .FirstOrDefault(t => AvaloniaProperties.GetId(t) == "EmulatorMemory_Main_TabControl");
+        Assert.NotNull(tab);
+        // 6 outer TabItems expected.
+        Assert.Equal(6, tab.Items.Count);
+    }
+
+    [AvaloniaFact]
+    public void View_LogicalTree_Has_EtcSubTabControl_With16Tabs()
+    {
+        var view = new EmulatorMemoryView();
+        var tab = view.GetLogicalDescendants()
+            .OfType<TabControl>()
+            .FirstOrDefault(t => AvaloniaProperties.GetId(t) == "EmulatorMemory_EtcSub_TabControl");
+        Assert.NotNull(tab);
+        Assert.Equal(16, tab.Items.Count);
+    }
+
+    [AvaloniaFact]
+    public void View_LogicalTree_Has_9_EnabledFunctionalOpenButtons()
+    {
+        var view = new EmulatorMemoryView();
+        string[] functionalIds = new[]
+        {
+            "EmulatorMemory_OpenEventScript_Button",
+            "EmulatorMemory_OpenProcsScript_Button",
+            "EmulatorMemory_OpenHexEditor_Button",
+            "EmulatorMemory_OpenTextViewer_Button",
+            "EmulatorMemory_OpenSongTable_Button",
+            "EmulatorMemory_OpenToolBGMMuteDialog_Button",
+            "EmulatorMemory_OpenMapChange_Button",
+            "EmulatorMemory_OpenRAMRewriteTool_Button",
+            "EmulatorMemory_OpenRAMRewriteToolMAP_Button",
+        };
+        var buttons = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .ToList();
+        foreach (string id in functionalIds)
+        {
+            var btn = buttons.FirstOrDefault(b => AvaloniaProperties.GetId(b) == id);
+            Assert.NotNull(btn);
+            Assert.True(btn.IsEnabled,
+                $"Functional Open button {id} must be enabled (it routes through WindowManager.Open<T>())");
+        }
+    }
+
+    [AvaloniaFact]
+    public void View_LogicalTree_Has_KnownGapButtons_Disabled()
+    {
+        var view = new EmulatorMemoryView();
+        // Walk the realised logical tree and confirm every KnownGap
+        // button is actually present and IsEnabled=false at runtime
+        // (Copilot CLI review wanted runtime checks, not text-scans).
+        var allButtons = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .ToList();
+        foreach (string id in KnownGapButtonIds)
+        {
+            var btn = allButtons.FirstOrDefault(b => AvaloniaProperties.GetId(b) == id);
+            Assert.True(btn != null,
+                $"KnownGap button {id} must be present in the realised logical tree");
+            Assert.False(btn!.IsEnabled,
+                $"KnownGap button {id} must remain IsEnabled=false at runtime");
+        }
+        // CheckBox inherits from Button (via ToggleButton), so the
+        // disabled-Button count is KnownGapButtonIds.Length + 1 (the
+        // AutoUpdate_Check CheckBox is also disabled).
+        var disabled = allButtons.Where(b => !b.IsEnabled).ToList();
+        Assert.Equal(KnownGapButtonIds.Length + 1, disabled.Count);
+    }
+
+    [AvaloniaFact]
+    public void View_LogicalTree_Has_Close_Button_Enabled()
+    {
+        var view = new EmulatorMemoryView();
+        var close = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => AvaloniaProperties.GetId(b) == "EmulatorMemory_Close_Button");
+        Assert.NotNull(close);
+        Assert.True(close.IsEnabled, "Close button must remain enabled");
+    }
+
+    /// <summary>
+    /// Small helper to read AutomationProperties.AutomationId without
+    /// pulling in the heavyweight Automation namespace at every call site.
+    /// </summary>
+    static class AvaloniaProperties
+    {
+        public static string GetId(Control control)
+            => global::Avalonia.Automation.AutomationProperties.GetAutomationId(control) ?? string.Empty;
     }
 
     // -----------------------------------------------------------------

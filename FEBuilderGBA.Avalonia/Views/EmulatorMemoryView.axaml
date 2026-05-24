@@ -25,10 +25,19 @@
         <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Emulator Memory" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
           <TextBlock Grid.Row="0" Grid.Column="1" Text="Currently active unit" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="Gray" FontStyle="Italic" />
-          <TextBlock Grid.Row="0" Grid.Column="2" Text="ERROR" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="DarkRed" />
+          <!-- Connection status text - bound to ViewModel.ConnectionStatus
+               so it shows "Not Connected" in Avalonia (since there's no
+               live RAM reader) rather than a misleading hardcoded "ERROR".
+               WF showed "ERROR" only when the live connection failed; here
+               the connection is never attempted.
+               KnownGap: ERROR — the WF "ERROR" label is replaced by the
+               bound ConnectionStatus text. WinForms-only behaviour. -->
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding ConnectionStatus}"
+                     Margin="8,0,0,0" VerticalAlignment="Center" Foreground="DarkOrange"
+                     AutomationProperties.AutomationId="EmulatorMemory_ConnectionStatus_Label" />
           <CheckBox Grid.Row="0" Grid.Column="3" Content="Auto-update" Margin="16,0,0,0" VerticalAlignment="Center"
                     AutomationProperties.AutomationId="EmulatorMemory_AutoUpdate_Check"
-                    IsChecked="False"
+                    IsChecked="{Binding AutoUpdate}"
                     IsEnabled="False"
                     ToolTip.Tip="Live RAM polling not available in cross-platform Avalonia. Tracked by #385." />
           <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="Selected Address:" Margin="0,4,0,0" />
