@@ -55,7 +55,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             // Empty manifest: zero outgoing WindowManager.Navigate<T> callsites
             // wired in TextViewerView.axaml.cs as of this PR. See the file-level
-            // comment for the per-jump scope rationale.
+            // comment for the per-jump scope rationale (Core extractions
+            // blocking each of the 6 WF outgoing jumps).
             return Array.Empty<NavigationTarget>();
         }
     }
