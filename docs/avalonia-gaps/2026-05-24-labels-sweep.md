@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T08:41:57Z"
-git-sha: 4677149fb
+generated: "2026-05-24T07:46:29Z"
+git-sha: 6966a4db6
 sweep-type: labels
 ---
 
@@ -37,7 +37,7 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
 | Total WF-only labels | 4490 |
-| Total AV-only labels | 3305 |
+| Total AV-only labels | 3303 |
 | Total common labels | 210 |
 
 ## Top 20 Forms by WF-only Label Count
@@ -3186,8 +3186,8 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Levels`
 - `Write`
 
-### ImageBattleAnimePalletForm
-WF labels: **29** · AV labels: **2** · WF-only: **29** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 99 / AV 3)
+### ImagePalletForm
+WF labels: **28** · AV labels: **2** · WF-only: **28** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 98 / AV 3)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -3201,7 +3201,6 @@ WF-only labels (candidates for missing fields in AV):
 - `16`
 - `2`
 - `3`
-- `32ColorMode`
 - `4`
 - `5`
 - `6`
@@ -3224,7 +3223,7 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
-- `Battle Animation Palette`
+- `Palette Editor`
 
 ### StatusOptionForm
 WF labels: **28** · AV labels: **22** · WF-only: **28** · AV-only: **22** · Common: **0** · Density verdict: **Low** (WF 50 / AV 47)
@@ -8868,6 +8867,39 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Pattern:`
 - `Search`
 - `Search disassembly output by argument pattern.`
+
+### ImageBattleAnimePalletForm
+WF labels: **29** · AV labels: **37** · WF-only: **8** · AV-only: **16** · Common: **21** · Density verdict: **Low** (WF 99 / AV 86)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `32ColorMode`
+- `クリップボード`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `拡大`
+- `画像取出`
+- `画像読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x00000000`
+- `32 Color Mode`
+- `Address`
+- `Animations`
+- `Clipboard`
+- `Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399).`
+- `Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.`
+- `Deferred KnownGap: sample preview rendering is WinForms-coupled (#399).`
+- `Export Image`
+- `Import Image`
+- `Palette Type`
+- `Palette Write`
+- `Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames.`
+- `Select an animation to load its palette block.`
+- `Source Pointer Slot:`
+- `Zoom`
 
 ### MapMiniMapTerrainImageForm
 WF labels: **8** · AV labels: **2** · WF-only: **8** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 12 / AV 3)

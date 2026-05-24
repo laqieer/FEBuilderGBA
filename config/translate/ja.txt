@@ -8158,35 +8158,77 @@ REDO
 :Battle Animation
 戦闘アニメ
 
-:Fit to window
-ウィンドウサイズで表示
+:Palette Type
+パレット種類
 
-:Write Palette
+:Palette Write
 パレット書き込み
+
+:32 Color Mode
+32カラーモード
+
+:Zoom
+拡大
+
+:Clipboard
+クリップボード
+
+:Import Image
+画像読込
+
+:Export Image
+画像取出
+
+:Undo
+元に戻す
 
 :Redo
 やり直し
 
-:Pending Core RunRedo API - tracked by #500.
-Core RunRedo API待ち - #500で追跡中。
+:Window Size
+ウィンドウサイズで表示する
 
-:Palette Index
-パレット種類
+:Image Size
+画像の大きさで表示
 
-:Live bitmap preview pending Core extraction - tracked by #500.
-ライブビットマッププレビュー実装待ち - #500で追跡中。
+:2x Zoom
+2倍に拡大して表示
 
-:Edit R/G/B 0-248 (5-bit ticks)
-R/G/Bを0-248で編集（5ビット刻み）
+:3x Zoom
+3倍に拡大して表示
 
-:Edit Palette
-パレットを編集
+:4x Zoom
+4倍に拡大して表示
 
-:Palette written.
-パレットを書き込みました。
+:Player
+自軍
 
-:Write failed: {0}
-書き込みに失敗しました: {0}
+:Enemy
+敵軍
 
-:Invalid palette address
-無効なパレットアドレス
+:Other
+友軍
+
+:4th Army
+第4軍
+
+:Source Pointer Slot:
+ソースポインタスロット:
+
+:Animations
+アニメーション
+
+:Select an animation to load its palette block.
+アニメーションを選択するとそのパレットブロックが読み込まれます。
+
+:Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames.
+サンプルプレビュー (保留中): 実際の戦闘アニメーションサンプル描画は WinForms に依存しています (DrawBattleAnime)。アニメフレームに対するパレット変更のプレビューには WinForms エディタを使用してください。
+
+:Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399).
+保留中の既知ギャップ: ImageFormRef.ExportImage は WinForms 依存です (#399)。
+
+:Deferred KnownGap: sample preview rendering is WinForms-coupled (#399).
+保留中の既知ギャップ: サンプルプレビュー描画は WinForms 依存です (#399)。
+
+:Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.
+保留中の既知ギャップ: ローカルパレット編集の Redo (PaletteFormRef Redo バッファ) は WinForms 依存です (#399)。ツールバー経由で ROM レベルの Undo を使用してください。
