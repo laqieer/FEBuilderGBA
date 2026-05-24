@@ -21993,41 +21993,101 @@ English
 :Comment
 注释
 
+:Palette Type
+调色板类型
+
+:Palette Write
+写入调色板
+
+:32 Color Mode
+32色模式
+
+:Zoom
+缩放
+
+:Clipboard
+剪贴板
+
+:Import Image
+导入图像
+
+:Export Image
+导出图像
+
+:Undo
+撤销
+
+:Redo
+重做
+
+:Window Size
+窗口大小
+
+:Image Size
+图像大小
+
+:2x Zoom
+放大 2 倍
+
+:3x Zoom
+放大 3 倍
+
+:4x Zoom
+放大 4 倍
+
+:Player
+我方
+
+:Enemy
+敌方
+
+:Other
+友方
+
+:4th Army
+第 4 军
+
+:Source Pointer Slot:
+源指针槽:
+
+:Animations
+动画
+
+:Select an animation to load its palette block.
+选择一个动画以加载其调色板数据块。
+
+:Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames.
+样本预览 (待支持): 实际的战斗动画样本渲染依赖 WinForms (DrawBattleAnime)。请使用 WinForms 编辑器在动画帧上预览调色板变更。
+
+:Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399).
+待支持的已知缺口: ImageFormRef.ExportImage 依赖 WinForms (#399).
+
+:Deferred KnownGap: sample preview rendering is WinForms-coupled (#399).
+待支持的已知缺口: 样本预览渲染依赖 WinForms (#399).
+
+:Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.
+待支持的已知缺口: 本地调色板编辑 Redo (PaletteFormRef Redo 缓冲) 依赖 WinForms (#399)。请通过工具栏使用 ROM 级 Undo。
+
+:Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).
+待支持的已知缺口: 导入需要渲染好的样本位图 (依赖 WinForms 的 PaletteFormRef.MakePaletteBitmapToUIEx -> DrawBattleAnime) (#399)。
+
+:Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).
+待支持的已知缺口: 导出需要渲染好的样本位图 (依赖 WinForms 的 ImageFormRef.ExportImage -> DrawBattleAnime) (#399)。
+
 :Fit to window
 适应窗口
 
 :Write Palette
 写入调色板
 
-:Redo
-重做
-
 :Pending Core RunRedo API - tracked by #500.
-等待 Core RunRedo API - 由 #500 跟踪。
+Core RunRedo API 待支持 - 由 #500 跟踪。
 
 :Palette Index
 调色板索引
 
 :Live bitmap preview pending Core extraction - tracked by #500.
-实时位图预览待 Core 提取 - 由 #500 跟踪。
+实时位图预览待 Core 抽出 - 由 #500 跟踪。
 
 :Edit R/G/B 0-248 (5-bit ticks)
-编辑 R/G/B 0-248 （5位刻度）
-
-:Palette Editor
-调色板编辑器
-
-:Palette No {0}
-调色板 No{0}
-
-:Edit Palette
-编辑调色板
-
-:Palette written.
-调色板已写入。
-
-:Write failed: {0}
-写入失败：{0}
-
-:Invalid palette address
-无效的调色板地址
+编辑 R/G/B 0-248 (5位步进)

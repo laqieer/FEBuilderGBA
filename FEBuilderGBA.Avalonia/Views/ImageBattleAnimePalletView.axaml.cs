@@ -1,6 +1,15 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// ImageBattleAnimePalletView — Avalonia parity rebuild for #399. Mirrors
+// `ImageBattleAnimePalletForm` (panel1: 16 R/G/B + swatches + write +
+// zoom + clipboard + import/export + undo/redo). Uses the
+// `ImageBattleAnimePaletteCore` helper for the LZ77 decompress / splice /
+// recompress / pointer-rewrite write path under the ambient UndoService
+// scope.
 using System;
+using System.Globalization;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -9,15 +18,144 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageBattleAnimePalletView : TranslatedWindow, IEditorView
     {
         readonly ImageBattleAnimePalletViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Battle Animation Palette";
         public bool IsLoaded => _vm.IsLoaded;
 
+        // Cached references to the 48 numeric cells + 16 swatch borders so
+        // we don't have to walk the visual tree on every reload.
+        readonly NumericUpDown[] _rBoxes = new NumericUpDown[16];
+        readonly NumericUpDown[] _gBoxes = new NumericUpDown[16];
+        readonly NumericUpDown[] _bBoxes = new NumericUpDown[16];
+        readonly Border[] _swatchBoxes = new Border[16];
+
+        bool _suppressSpinnerEvents;
+
         public ImageBattleAnimePalletView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+
+            // Populate combos via R._() so they pick up ja/zh translations
+            // (ComboBoxItem.Content is not touched by ViewTranslationHelper —
+            // PR #571 Copilot bot review #6 pattern).
+            PaletteIndexCombo.Items.Add(R._("Player"));
+            PaletteIndexCombo.Items.Add(R._("Enemy"));
+            PaletteIndexCombo.Items.Add(R._("Other"));
+            PaletteIndexCombo.Items.Add(R._("4th Army"));
+            PaletteIndexCombo.SelectedIndex = 0;
+
+            ZoomCombo.Items.Add(R._("Window Size"));
+            ZoomCombo.Items.Add(R._("Image Size"));
+            ZoomCombo.Items.Add(R._("2x Zoom"));
+            ZoomCombo.Items.Add(R._("3x Zoom"));
+            ZoomCombo.Items.Add(R._("4x Zoom"));
+            ZoomCombo.SelectedIndex = 0;
+
+            CachePaletteCells();
+            InitializeSwatches();
+            WireSpinnerHandlers();
+
+            PaletteIndexCombo.SelectionChanged += PaletteIndexCombo_SelectionChanged;
+            EntryList.SelectedAddressChanged += OnSelectedEntry;
+
             Opened += (_, _) => LoadList();
+        }
+
+        void CachePaletteCells()
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                int n = i + 1;
+                _rBoxes[i] = this.FindControl<NumericUpDown>($"R{n}");
+                _gBoxes[i] = this.FindControl<NumericUpDown>($"G{n}");
+                _bBoxes[i] = this.FindControl<NumericUpDown>($"B{n}");
+                _swatchBoxes[i] = this.FindControl<Border>($"Swatch{n}");
+            }
+        }
+
+        void InitializeSwatches()
+        {
+            // Default swatches to black (set via code-behind rather than
+            // hardcoded XAML to satisfy AvaloniaDarkModeTests).
+            var defaultBrush = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+            for (int i = 0; i < 16; i++)
+            {
+                if (_swatchBoxes[i] != null) _swatchBoxes[i].Background = defaultBrush;
+            }
+        }
+
+        void WireSpinnerHandlers()
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                int idx = i;
+                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (s, e) => OnRgbChanged(idx, 'R');
+                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (s, e) => OnRgbChanged(idx, 'G');
+                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (s, e) => OnRgbChanged(idx, 'B');
+            }
+        }
+
+        void OnRgbChanged(int index, char channel)
+        {
+            if (_suppressSpinnerEvents) return;
+            NumericUpDown box = channel == 'R' ? _rBoxes[index]
+                              : channel == 'G' ? _gBoxes[index]
+                              : _bBoxes[index];
+            if (box == null) return;
+            byte rawValue = (byte)((int)(box.Value ?? 0));
+            switch (channel)
+            {
+                case 'R': _vm.SetR(index, rawValue); break;
+                case 'G': _vm.SetG(index, rawValue); break;
+                case 'B': _vm.SetB(index, rawValue); break;
+            }
+            // Per PR #589 Copilot bot review #1: the VM snaps to 5-bit
+            // (multiples of 8). Push the snapped value back into the
+            // spinner so the displayed number matches what will be
+            // written to ROM. Suppress recursive ValueChanged to avoid
+            // a loop.
+            byte snappedValue = channel == 'R' ? _vm.GetR(index)
+                              : channel == 'G' ? _vm.GetG(index)
+                              : _vm.GetB(index);
+            if (rawValue != snappedValue)
+            {
+                _suppressSpinnerEvents = true;
+                try { box.Value = snappedValue; }
+                finally { _suppressSpinnerEvents = false; }
+            }
+            UpdateSwatch(index);
+        }
+
+        void UpdateSwatch(int index)
+        {
+            if (_swatchBoxes[index] == null) return;
+            byte r = _vm.GetR(index);
+            byte g = _vm.GetG(index);
+            byte b = _vm.GetB(index);
+            _swatchBoxes[index].Background = new SolidColorBrush(Color.FromRgb(r, g, b));
+        }
+
+        void PopulateAllSpinnersAndSwatches()
+        {
+            _suppressSpinnerEvents = true;
+            try
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (_rBoxes[i] != null) _rBoxes[i].Value = _vm.GetR(i);
+                    if (_gBoxes[i] != null) _gBoxes[i].Value = _vm.GetG(i);
+                    if (_bBoxes[i] != null) _bBoxes[i].Value = _vm.GetB(i);
+                    UpdateSwatch(i);
+                }
+                AddressBox.Value = _vm.PaletteAddress;
+                SourceSlotLabel.Text = _vm.SourcePointerSlotDisplay;
+                Warning32ColorBorder.IsVisible = _vm.WarningVisible;
+            }
+            finally
+            {
+                _suppressSpinnerEvents = false;
+            }
         }
 
         void LoadList()
@@ -33,22 +171,210 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnSelected(uint addr)
+        void OnSelectedEntry(uint addr)
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                // Per PR #589 Copilot bot review #2: pull the matching
+                // AddrResult directly from AddressListControl.SelectedItem
+                // (which carries both `.addr` and `.tag`). The previous
+                // re-walk via _vm.LoadList() was O(N) and could pick the
+                // wrong row when two animations share the same palette
+                // pointer (the second one's source slot would be lost).
+                var selected = EntryList.SelectedItem;
+                uint sourceSlot = selected != null ? selected.tag : 0;
+                _vm.LoadEntry(addr, sourceSlot, _vm.PaletteTypeIndex);
+                PopulateAllSpinnersAndSwatches();
             }
             catch (Exception ex)
             {
-                Log.Error("ImageBattleAnimePalletView.OnSelected failed: {0}", ex.Message);
+                Log.Error("ImageBattleAnimePalletView.OnSelectedEntry failed: {0}", ex.Message);
             }
         }
 
-        void UpdateUI()
+        void PaletteIndexCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            try
+            {
+                int newIndex = PaletteIndexCombo.SelectedIndex;
+                if (newIndex < 0 || newIndex == _vm.PaletteTypeIndex) return;
+                _vm.PaletteTypeIndex = newIndex;
+
+                // Per PR #589 Copilot bot review round 3 #4: reload via
+                // the AUTHORITATIVE back-pointer slot (rom.p32(SourcePointerSlot))
+                // instead of the VM's cached _vm.PaletteAddress, which can be
+                // stale after a ROM-level Undo that restored the old pointer
+                // in the source slot without flowing back to the VM.
+                ReloadFromAuthoritativeSlot();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimePalletView.PaletteIndexCombo_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Reload the palette using the back-pointer slot as the authoritative
+        /// source of truth (rom.p32(SourcePointerSlot)). The VM's cached
+        /// _vm.PaletteAddress can diverge from the on-ROM pointer when
+        /// external operations (ROM-level Undo, Redo, third-party edits)
+        /// rewrite the slot without flowing the change back to the VM.
+        /// Per PR #589 Copilot bot review round 3 #4 + #5.
+        /// </summary>
+        void ReloadFromAuthoritativeSlot()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            uint slot = _vm.SourcePointerSlot;
+            if (slot == 0)
+            {
+                // No back-pointer slot known -- fall back to the cached
+                // VM offset (initial-load case before any selection).
+                if (_vm.PaletteAddress != 0)
+                {
+                    _vm.LoadEntry(U.toOffset(_vm.PaletteAddress), 0, _vm.PaletteTypeIndex);
+                    PopulateAllSpinnersAndSwatches();
+                }
+                return;
+            }
+            // Re-resolve the palette offset from the source pointer slot.
+            uint authoritativePaletteOffset = rom.p32(slot);
+            if (authoritativePaletteOffset == 0) return;
+            _vm.LoadEntry(authoritativePaletteOffset, slot, _vm.PaletteTypeIndex);
+            PopulateAllSpinnersAndSwatches();
+        }
+
+        void Zoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            _vm.ZoomIndex = ZoomCombo.SelectedIndex;
+            // Sample preview rendering is honestly deferred — no actual
+            // bitmap to scale. See SamplePreviewLabel for the deferred note.
+        }
+
+        // -----------------------------------------------------------------
+        // Write path — wraps the VM Write() in the UndoService scope so
+        // ALL `rom.write_*` calls inside the Core helper are tracked, and
+        // a failure triggers a true Rollback (per Plan v8 Finding #3).
+        // -----------------------------------------------------------------
+        void PaletteWrite_Click(object sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            if (_vm.PaletteAddress == 0)
+            {
+                Log.Notify("PaletteWrite_Click: no palette loaded.");
+                return;
+            }
+
+            _undoService.Begin("Edit Battle Anime Palette");
+            uint newOffset;
+            try
+            {
+                newOffset = _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimePalletView.Write threw: {0}", ex.Message);
+                _undoService.Rollback();
+                return;
+            }
+
+            if (newOffset == U.NOT_FOUND)
+            {
+                _undoService.Rollback();
+                Log.Notify("PaletteWrite_Click: write failed; rollback applied.");
+                return;
+            }
+
+            _undoService.Commit();
+            // Re-display the (possibly relocated) address.
+            AddressBox.Value = _vm.PaletteAddress;
+            // Per PR #589 Copilot bot review #5: if the palette block
+            // relocated, the master list's cached AddrResult.addr values
+            // are now stale (they were the old palette offsets before
+            // the rewrite). Reload the list and re-select the row that
+            // currently matches the VM's new source pointer slot so
+            // subsequent selections load from the new pointers.
+            if (newOffset != U.NOT_FOUND)
+            {
+                RefreshListPreservingSelection();
+            }
+        }
+
+        void RefreshListPreservingSelection()
+        {
+            try
+            {
+                uint preservedSlot = _vm.SourcePointerSlot;
+                var items = _vm.LoadList();
+                EntryList.SetItems(items);
+                if (preservedSlot != 0)
+                {
+                    // Per PR #589 Copilot bot review round 2: select by
+                    // INDEX rather than by palette address, because two
+                    // battle-animation rows can legitimately share the
+                    // same palette pointer (the bug the stable
+                    // source-pointer-slot tag was meant to fix).
+                    // SelectByIndex selects exactly the matched row.
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        if (items[i].tag == preservedSlot)
+                        {
+                            EntryList.SelectByIndex(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimePalletView.RefreshListPreservingSelection failed: {0}", ex.Message);
+            }
+        }
+
+        void Clipboard_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Build "RRGGBB,RRGGBB,..." line of 16 colors and copy to clipboard.
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < 16; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    sb.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}{1:X2}{2:X2}",
+                        _vm.GetR(i), _vm.GetG(i), _vm.GetB(i));
+                }
+                if (TopLevel.GetTopLevel(this) is { Clipboard: { } clipboard })
+                {
+                    _ = clipboard.SetTextAsync(sb.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Clipboard_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void Undo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                CoreState.Undo?.RunUndo();
+                // Per PR #589 Copilot bot review round 3 #5: reload via
+                // the AUTHORITATIVE back-pointer slot. After undo, the
+                // source slot in ROM has been restored to the old palette
+                // pointer; the VM's cached _vm.PaletteAddress is stale
+                // (still points to the post-relocate value).
+                ReloadFromAuthoritativeSlot();
+                // Also refresh the master list so any post-undo address
+                // shifts are reflected in the entry list (a relocate may
+                // have been reversed, so the listed addr changes back).
+                RefreshListPreservingSelection();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Undo_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

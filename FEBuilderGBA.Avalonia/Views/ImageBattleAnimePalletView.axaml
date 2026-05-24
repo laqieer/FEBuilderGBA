@@ -2,20 +2,400 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleAnimePalletView"
-        Title="Battle Animation Palette" Width="1241" Height="511"
+        Title="Battle Animation Palette" Width="1280" Height="780"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageBattleAnimePallet_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="270,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Battle Animation Palette" FontSize="18" FontWeight="Bold" />
+    <!-- ===========================================================
+         Master list panel (mirrors WF panel1 entry navigation):
+         Address list + List Expand.
+         =========================================================== -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" Margin="4">
+      <TextBlock Grid.Row="0" Text="Animations" FontWeight="SemiBold" Margin="0,0,0,4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="ImageBattleAnimePallet_Entry_List"
+                                   Grid.Row="1" Name="EntryList" Margin="0,0,0,4" />
+      <TextBlock Grid.Row="2" Text="Select an animation to load its palette block."
+                 FontSize="10" Foreground="Gray" TextWrapping="Wrap" />
+    </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="4">
+
+      <!-- ===========================================================
+           Top palette-type bar (mirrors WF PaletteIndexComboBox +
+           PaletteWriteButton + Warning32ColorMode + zoom combo).
+           =========================================================== -->
+      <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Palette Type" VerticalAlignment="Center" Width="100" />
+          <ComboBox AutomationProperties.AutomationId="ImageBattleAnimePallet_PaletteIndex_Combo"
+                    Name="PaletteIndexCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
+          <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_PaletteWrite_Button"
+                  Name="PaletteWriteButton" Content="Palette Write" Width="140"
+                  Click="PaletteWrite_Click" />
+          <Border AutomationProperties.AutomationId="ImageBattleAnimePallet_Warning32Color_Border"
+                  Name="Warning32ColorBorder" BorderBrush="OrangeRed" BorderThickness="1" Padding="4"
+                  IsVisible="False">
+            <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_Warning32Color_Label"
+                       Name="Warning32ColorLabel"
+                       Text="32 Color Mode" Foreground="OrangeRed" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" />
+          <ComboBox AutomationProperties.AutomationId="ImageBattleAnimePallet_Zoom_Combo"
+                    Name="ZoomCombo" Width="200" VerticalAlignment="Center" SelectedIndex="0"
+                    SelectionChanged="Zoom_SelectionChanged" />
+        </StackPanel>
+      </Border>
+
+      <!-- ===========================================================
+           Address bar (mirrors WF PALETTE_ADDRESS + label5).
+           =========================================================== -->
+      <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Address" VerticalAlignment="Center" Width="100" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageBattleAnimePallet_Address_Input"
+                         Name="AddressBox" Width="160" Minimum="0" Maximum="4294967295"
+                         FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
+          <TextBlock Text="Source Pointer Slot:" VerticalAlignment="Center" Width="130" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_SourceSlot_Label"
+                     Name="SourceSlotLabel" Text="0x00000000" Width="160" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+
+      <!-- ===========================================================
+           RGB header row (mirrors WF label53/52/51 'R' 'G' 'B' + label48/49/50).
+           =========================================================== -->
+      <Grid Grid.Row="2" Margin="0,0,0,2">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="36" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="0">
+          <TextBlock Text=" " Height="36" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_RHeader_Label"
+                     Text="R" Width="20" Height="28" TextAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_GHeader_Label"
+                     Text="G" Width="20" Height="28" TextAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_BHeader_Label"
+                     Text="B" Width="20" Height="28" TextAlignment="Center" />
+        </StackPanel>
+      </Grid>
+
+      <!-- ===========================================================
+           Palette grid (mirrors WF 16 x (PALETTE_P_n + label33..label7 +
+           PALETTE_R_n + PALETTE_G_n + PALETTE_B_n)). Generated by
+           code-behind to keep the AXAML compact, but each NumericUpDown
+           still carries its WF-parity AutomationId so Roslyn-static tests
+           can detect them.
+           =========================================================== -->
+      <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                    Margin="0,0,0,4">
+        <Grid Name="PaletteGrid">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="36" />
+            <RowDefinition Height="32" />
+            <RowDefinition Height="32" />
+            <RowDefinition Height="32" />
+          </Grid.RowDefinitions>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+            <ColumnDefinition Width="62" />
+          </Grid.ColumnDefinitions>
+
+          <!-- Column 1 (PALETTE_P_1 swatch + label7 '1' + PALETTE_R_1/G_1/B_1) -->
+          <Border Grid.Row="0" Grid.Column="0" Name="Swatch1" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch1_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="1" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index1_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="0" Name="R1" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R1_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="0" Name="G1" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G1_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="0" Name="B1" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B1_Input" />
+
+          <!-- Column 2 -->
+          <Border Grid.Row="0" Grid.Column="1" Name="Swatch2" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch2_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="2" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index2_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" Name="R2" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R2_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="1" Name="G2" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G2_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B2" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B2_Input" />
+
+          <!-- Column 3 -->
+          <Border Grid.Row="0" Grid.Column="2" Name="Swatch3" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch3_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="3" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index3_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="2" Name="R3" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R3_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="2" Name="G3" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G3_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="2" Name="B3" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B3_Input" />
+
+          <!-- Column 4 -->
+          <Border Grid.Row="0" Grid.Column="3" Name="Swatch4" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch4_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="3" Text="4" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index4_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="3" Name="R4" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R4_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="3" Name="G4" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G4_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B4" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B4_Input" />
+
+          <!-- Column 5 -->
+          <Border Grid.Row="0" Grid.Column="4" Name="Swatch5" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch5_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="4" Text="5" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index5_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="4" Name="R5" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R5_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="4" Name="G5" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G5_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="4" Name="B5" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B5_Input" />
+
+          <!-- Column 6 -->
+          <Border Grid.Row="0" Grid.Column="5" Name="Swatch6" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch6_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="5" Text="6" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index6_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="5" Name="R6" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R6_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="5" Name="G6" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G6_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="5" Name="B6" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B6_Input" />
+
+          <!-- Column 7 -->
+          <Border Grid.Row="0" Grid.Column="6" Name="Swatch7" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch7_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="6" Text="7" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index7_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="6" Name="R7" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R7_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="6" Name="G7" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G7_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="6" Name="B7" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B7_Input" />
+
+          <!-- Column 8 -->
+          <Border Grid.Row="0" Grid.Column="7" Name="Swatch8" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch8_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="7" Text="8" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index8_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="7" Name="R8" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R8_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="7" Name="G8" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G8_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="7" Name="B8" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B8_Input" />
+
+          <!-- Column 9 -->
+          <Border Grid.Row="0" Grid.Column="8" Name="Swatch9" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch9_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="8" Text="9" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index9_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="8" Name="R9" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R9_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="8" Name="G9" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G9_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="8" Name="B9" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B9_Input" />
+
+          <!-- Column 10 -->
+          <Border Grid.Row="0" Grid.Column="9" Name="Swatch10" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch10_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="9" Text="10" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index10_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="9" Name="R10" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R10_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="9" Name="G10" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G10_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="9" Name="B10" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B10_Input" />
+
+          <!-- Column 11 -->
+          <Border Grid.Row="0" Grid.Column="10" Name="Swatch11" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch11_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="10" Text="11" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index11_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="10" Name="R11" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R11_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="10" Name="G11" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G11_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="10" Name="B11" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B11_Input" />
+
+          <!-- Column 12 -->
+          <Border Grid.Row="0" Grid.Column="11" Name="Swatch12" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch12_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="11" Text="12" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index12_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="11" Name="R12" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R12_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="11" Name="G12" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G12_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="11" Name="B12" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B12_Input" />
+
+          <!-- Column 13 -->
+          <Border Grid.Row="0" Grid.Column="12" Name="Swatch13" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch13_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="12" Text="13" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index13_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="12" Name="R13" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R13_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="12" Name="G13" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G13_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="12" Name="B13" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B13_Input" />
+
+          <!-- Column 14 -->
+          <Border Grid.Row="0" Grid.Column="13" Name="Swatch14" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch14_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="13" Text="14" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index14_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="13" Name="R14" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R14_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="13" Name="G14" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G14_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="13" Name="B14" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B14_Input" />
+
+          <!-- Column 15 -->
+          <Border Grid.Row="0" Grid.Column="14" Name="Swatch15" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch15_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="14" Text="15" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index15_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="14" Name="R15" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R15_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="14" Name="G15" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G15_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="14" Name="B15" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B15_Input" />
+
+          <!-- Column 16 -->
+          <Border Grid.Row="0" Grid.Column="15" Name="Swatch16" Margin="2"
+                  AutomationProperties.AutomationId="ImageBattleAnimePallet_Swatch16_Label" />
+          <TextBlock Grid.Row="0" Grid.Column="15" Text="16" TextAlignment="Center" VerticalAlignment="Bottom"
+                     AutomationProperties.AutomationId="ImageBattleAnimePallet_Index16_Label" />
+          <NumericUpDown Grid.Row="1" Grid.Column="15" Name="R16" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_R16_Input" />
+          <NumericUpDown Grid.Row="2" Grid.Column="15" Name="G16" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_G16_Input" />
+          <NumericUpDown Grid.Row="3" Grid.Column="15" Name="B16" Minimum="0" Maximum="255" Increment="8"
+                         Margin="2" FormatString="0"
+                         AutomationProperties.AutomationId="ImageBattleAnimePallet_B16_Input" />
         </Grid>
-      </StackPanel>
-    </ScrollViewer>
+      </ScrollViewer>
+
+      <!-- ===========================================================
+           Action bar (mirrors WF PALETTE_TO_CLIPBOARD_BUTTON +
+           ImportButton + ExportButton + UNDOButton + REDOButton).
+           =========================================================== -->
+      <Border Grid.Row="4" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Clipboard_Button"
+                  Name="ClipboardButton" Content="Clipboard" Width="120"
+                  Click="Clipboard_Click" />
+          <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Import_Button"
+                  Name="ImportButton" Content="Import Image" Width="140"
+                  IsEnabled="False"
+                  ToolTip.Tip="Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399)." />
+          <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Export_Button"
+                  Name="ExportButton" Content="Export Image" Width="140"
+                  IsEnabled="False"
+                  ToolTip.Tip="Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399)." />
+          <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Undo_Button"
+                  Name="UndoButton" Content="Undo" Width="100"
+                  Click="Undo_Click" />
+          <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Redo_Button"
+                  Name="RedoButton" Content="Redo" Width="100"
+                  IsEnabled="False"
+                  ToolTip.Tip="Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar." />
+        </StackPanel>
+      </Border>
+
+      <!-- ===========================================================
+           Sample preview placeholder (mirrors WF X_PIC + AutoScrollPanel).
+           Real DrawBattleAnime rendering is WinForms-coupled (#399); placeholder
+           label states the deferred status honestly.
+           =========================================================== -->
+      <Border Grid.Row="5" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4"
+              MinHeight="60">
+        <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_SamplePreview_Label"
+                   Name="SamplePreviewLabel"
+                   Text="Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames."
+                   TextWrapping="Wrap" Foreground="Gray" VerticalAlignment="Center" />
+      </Border>
+    </Grid>
   </Grid>
 </Window>
