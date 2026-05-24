@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T23:42:39Z"
-git-sha: 924ecdd46
+generated: "2026-05-24T00:44:13Z"
+git-sha: 100a933c0
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 216 |
+| HIGH | |Δ%| ≥ 50 | 215 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 85 |
-| LOW | |Δ%| < 25 | 69 |
+| LOW | |Δ%| < 25 | 70 |
 
 ## Ranked Density Deltas
 
@@ -145,7 +145,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `MapPointerForm` | `MapPointerView` | 16 | 7 | -9 | -56.3% | ListParityHelper |
 | High | `OPClassFontFE8UForm` | `OPClassFontFE8UView` | 16 | 7 | -9 | -56.3% | ListParityHelper |
 | High | `OPClassFontForm` | `OPClassFontViewerView` | 16 | 7 | -9 | -56.3% | Heuristic |
-| High | `ItemFE6Form` | `ItemFE6View` | 121 | 53 | -68 | -56.2% | Heuristic |
 | High | `TextDicForm` | `TextDicView` | 60 | 27 | -33 | -55.0% | ListParityHelper |
 | High | `ImageItemIconForm` | `ItemIconViewerView` | 22 | 10 | -12 | -54.5% | ListParityHelper |
 | High | `EDStaffRollForm` | `EDStaffRollView` | 17 | 8 | -9 | -52.9% | ListParityHelper |
@@ -223,6 +222,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `MapTerrainNameForm` | `MapTerrainNameView` | 10 | 8 | -2 | -20.0% | Heuristic |
 | Low | `MenuDefinitionForm` | `MenuDefinitionView` | 35 | 28 | -7 | -20.0% | ListParityHelper |
 | Low | `SongInstrumentDirectSoundForm` | `SongInstrumentDirectSoundView` | 15 | 12 | -3 | -20.0% | Heuristic |
+| Low | `ItemFE6Form` | `ItemFE6View` | 121 | 97 | -24 | -19.8% | Heuristic |
 | Low | `WorldMapPointForm` | `WorldMapPointView` | 51 | 41 | -10 | -19.6% | ListParityHelper |
 | Low | `SupportTalkFE6Form` | `SupportTalkFE6View` | 26 | 21 | -5 | -19.2% | ListParityHelper |
 | Low | `StatusRMenuForm` | `StatusRMenuView` | 28 | 23 | -5 | -17.9% | ListParityHelper |
