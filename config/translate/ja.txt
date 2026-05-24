@@ -7841,3 +7841,75 @@ Debuff (B33):
 
 :ED (FE7)
 ED関係
+
+:Pointer:
+ポインタ:
+
+:Refs:
+参照:
+
+:Search Tools
+検索ツール
+
+:Search & Address Tools
+検索とアドレスツール
+
+:Search Free Area
+未参照の空き領域の探索
+
+:Import/Export
+インポート/エクスポート
+
+:Export Filter:
+エクスポートフィルタ:
+
+:Include AI Hints
+AI用に登場人物のヒントを追加
+
+:Export Limit:
+エクスポート制限:
+
+:Translate from:
+変換元:
+
+:Translate to:
+変換先:
+
+:Add Reference
+参照情報の追加
+
+:(out-of-scope)
+(範囲外)
+
+:Free area: {0} results
+空き領域: {0}件
+
+:(invalid)
+(無効)
+
+:References found: {0}
+参照: {0}件
+
+:Filter: All (out-of-scope)
+フィルタ: すべて (範囲外)
+
+:All (out-of-scope)
+すべて (範囲外)
+
+:Out-of-scope: requires ToolTranslateROM Core extraction
+範囲外: ToolTranslateROM Core 抽出が必要
+
+:Out-of-scope: requires UX review of SaaS-call disclaimer
+範囲外: SaaS 呼び出し免責事項の UX レビューが必要
+
+:Out-of-scope: requires UseTextIDCache.Update Core extraction
+範囲外: UseTextIDCache.Update Core 抽出が必要
+
+:(No references found)
+(参照が見つかりませんでした)
+
+:Error: {0}
+エラー: {0}
+
+:翻訳する
+翻訳

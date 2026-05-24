@@ -566,5 +566,270 @@ namespace FEBuilderGBA.Core.Tests
             // predicate returns true and the scan stops.
             Assert.Equal(11, result.Count);
         }
+
+        // ===========================================================
+        // Issue #404 — CollectReferencedTextIds (shared descriptor walker)
+        // ===========================================================
+
+        /// <summary>
+        /// Issue #404: the free-area scan in TextViewerViewModel needs to know
+        /// the FULL set of text IDs referenced across all configured tables, so
+        /// it can emit unreferenced IDs as "free area" results. The new helper
+        /// mirrors Find()'s descriptor traversal but returns the union of every
+        /// observed u16 text ID instead of comparing against a target.
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_PointerField_CollectsAllU16IdsAcrossOffsets()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            var entries = new List<byte>();
+            // entry 0: name=0x0100, desc=0x0200
+            entries.AddRange(LE16(0x0100));
+            entries.AddRange(LE16(0x0200));
+            // entry 1: name=0x0101, desc=0x0201
+            entries.AddRange(LE16(0x0101));
+            entries.AddRange(LE16(0x0201));
+            // entry 2: name=0x0102, desc=0x0202
+            entries.AddRange(LE16(0x0102));
+            entries.AddRange(LE16(0x0202));
+
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Unit",
+                PointerField = pointerField,
+                EntrySize = 4,
+                MaxCount = 3,
+                TextIdOffsets = new uint[] { 0, 2 },
+                NameResolver = id => $"U{id}",
+            };
+
+            var result = TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc });
+
+            // Expect all 6 distinct IDs across the 3 entries × 2 offsets
+            Assert.Equal(6, result.Count);
+            Assert.Contains(0x0100u, result);
+            Assert.Contains(0x0200u, result);
+            Assert.Contains(0x0101u, result);
+            Assert.Contains(0x0201u, result);
+            Assert.Contains(0x0102u, result);
+            Assert.Contains(0x0202u, result);
+        }
+
+        /// <summary>
+        /// Zero text IDs are NOT considered references (matches Find() which
+        /// short-circuits for textId 0). This keeps "ID 0 is free" out of the
+        /// referenced-set so consumers can treat ID 0 separately (it's the
+        /// system write-protect slot).
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_ZeroIdsAreSkipped()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            var entries = new List<byte>();
+            entries.AddRange(LE16(0x0000));
+            entries.AddRange(LE16(0x0042));
+            entries.AddRange(LE16(0x0000));
+            entries.AddRange(LE16(0x0000));
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Unit",
+                PointerField = pointerField,
+                EntrySize = 4,
+                MaxCount = 2,
+                TextIdOffsets = new uint[] { 0, 2 },
+                NameResolver = _ => "",
+            };
+
+            var result = TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc });
+
+            Assert.Single(result);
+            Assert.Contains(0x0042u, result);
+            Assert.DoesNotContain(0u, result);
+        }
+
+        /// <summary>
+        /// DirectBase descriptors bypass pointer dereferencing — mirrors Find()'s
+        /// behavior for FE7's ed_3c_pointer style direct-base tables.
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_DirectBase_BypassesPointerDeref()
+        {
+            uint dataBase = 0x400;
+            var entries = new List<byte>();
+            entries.AddRange(LE16(0x0AAA));
+            entries.AddRange(LE16(0x0BBB));
+            var bytes = new byte[0x1000];
+            Array.Copy(entries.ToArray(), 0, bytes, dataBase, entries.Count);
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "ED_Lyn",
+                DirectBase = dataBase + 0x08000000u,
+                EntrySize = 4,
+                MaxCount = 1,
+                TextIdOffsets = new uint[] { 0, 2 },
+                NameResolver = _ => "",
+            };
+
+            var result = TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc });
+
+            Assert.Equal(2, result.Count);
+            Assert.Contains(0x0AAAu, result);
+            Assert.Contains(0x0BBBu, result);
+        }
+
+        /// <summary>
+        /// Terminator predicate stops the collect early — mirrors Find()'s
+        /// behavior for WinForms-style "stop at sentinel" tables.
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_TerminatorStopsScanEarly()
+        {
+            uint pointerField = 0x200;
+            uint dataBase = 0x400;
+            var entries = new List<byte>();
+            // 10 entries, each unique text id, but the terminator stops at i > 4
+            for (ushort n = 0; n < 10; n++) entries.AddRange(LE16((ushort)(0x0100 + n)));
+            var rom = BuildRom(pointerField, dataBase, entries.ToArray());
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Test",
+                PointerField = pointerField,
+                EntrySize = 2,
+                MaxCount = 100,
+                TextIdOffsets = new uint[] { 0 },
+                Terminator = (r, addr, i) => i > 4,
+                NameResolver = _ => "",
+            };
+
+            var result = TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc });
+            // Entries 0..4 inclusive = 5 IDs (terminator stops scan at index 5).
+            Assert.Equal(5, result.Count);
+            for (ushort n = 0; n < 5; n++) Assert.Contains((uint)(0x0100 + n), result);
+            Assert.DoesNotContain((uint)(0x0100 + 5), result);
+        }
+
+        /// <summary>
+        /// Dereffed base below safety floor must short-circuit — matches Find()'s
+        /// guard (issue #357 follow-up). Without this, the collect could walk
+        /// arbitrary safe offsets and emit false referenced IDs.
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_DereffedBaseBelowSafetyFloor_ReturnsEmpty()
+        {
+            uint pointerField = 0x200;
+            uint badDataBase = 0x100; // below 0x200 safety floor
+            var bytes = new byte[0x1000];
+            uint ptrValue = badDataBase + 0x08000000u;
+            bytes[pointerField + 0] = (byte)(ptrValue & 0xFF);
+            bytes[pointerField + 1] = (byte)((ptrValue >> 8) & 0xFF);
+            bytes[pointerField + 2] = (byte)((ptrValue >> 16) & 0xFF);
+            bytes[pointerField + 3] = (byte)((ptrValue >> 24) & 0xFF);
+            // Salt: bytes elsewhere would match if scan walked.
+            for (int i = 0x300; i < 0x500; i += 4)
+            {
+                bytes[i + 0] = 0xAA;
+                bytes[i + 1] = 0x07;
+            }
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            var desc = new TextRefTableDescriptor
+            {
+                Kind = "Unit",
+                PointerField = pointerField,
+                EntrySize = 4,
+                MaxCount = 64,
+                TextIdOffsets = new uint[] { 0 },
+                NameResolver = _ => "",
+            };
+
+            var result = TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc });
+            Assert.Empty(result);
+        }
+
+        /// <summary>
+        /// Null/empty inputs return an empty set without crashing.
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_NullRomOrTables_ReturnsEmpty()
+        {
+            Assert.Empty(TextReferenceFinder.CollectReferencedTextIds(null!, new TextRefTableDescriptor[] { }));
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(new byte[0x400]);
+            Assert.Empty(TextReferenceFinder.CollectReferencedTextIds(rom, null!));
+            Assert.Empty(TextReferenceFinder.CollectReferencedTextIds(rom, new TextRefTableDescriptor[] { }));
+        }
+
+        /// <summary>
+        /// CollectReferencedTextIds across multiple descriptors unions correctly.
+        /// </summary>
+        [Fact]
+        public void CollectReferencedTextIds_MultipleDescriptors_UnionsResults()
+        {
+            uint unitPointer = 0x200;
+            uint classPointer = 0x204;
+            uint unitDataBase = 0x400;
+            uint classDataBase = 0x500;
+
+            var bytes = new byte[0x1000];
+            // Unit pointer
+            uint unitPtrValue = unitDataBase + 0x08000000u;
+            bytes[unitPointer + 0] = (byte)(unitPtrValue & 0xFF);
+            bytes[unitPointer + 1] = (byte)((unitPtrValue >> 8) & 0xFF);
+            bytes[unitPointer + 2] = (byte)((unitPtrValue >> 16) & 0xFF);
+            bytes[unitPointer + 3] = (byte)((unitPtrValue >> 24) & 0xFF);
+            // Class pointer
+            uint classPtrValue = classDataBase + 0x08000000u;
+            bytes[classPointer + 0] = (byte)(classPtrValue & 0xFF);
+            bytes[classPointer + 1] = (byte)((classPtrValue >> 8) & 0xFF);
+            bytes[classPointer + 2] = (byte)((classPtrValue >> 16) & 0xFF);
+            bytes[classPointer + 3] = (byte)((classPtrValue >> 24) & 0xFF);
+
+            // Unit entry 0: id=0x0111
+            bytes[unitDataBase + 0] = 0x11;
+            bytes[unitDataBase + 1] = 0x01;
+            // Class entry 0: id=0x0222 (different from any unit id — both should appear)
+            bytes[classDataBase + 0] = 0x22;
+            bytes[classDataBase + 1] = 0x02;
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(bytes);
+
+            var tables = new[]
+            {
+                new TextRefTableDescriptor
+                {
+                    Kind = "Unit",
+                    PointerField = unitPointer,
+                    EntrySize = 2,
+                    MaxCount = 1,
+                    TextIdOffsets = new uint[] { 0 },
+                    NameResolver = _ => "",
+                },
+                new TextRefTableDescriptor
+                {
+                    Kind = "Class",
+                    PointerField = classPointer,
+                    EntrySize = 2,
+                    MaxCount = 1,
+                    TextIdOffsets = new uint[] { 0 },
+                    NameResolver = _ => "",
+                },
+            };
+
+            var result = TextReferenceFinder.CollectReferencedTextIds(rom, tables);
+            Assert.Equal(2, result.Count);
+            Assert.Contains(0x0111u, result);
+            Assert.Contains(0x0222u, result);
+        }
     }
 }
