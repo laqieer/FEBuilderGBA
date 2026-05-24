@@ -21784,3 +21784,42 @@ ED 关系
 
 :Comment
 注释
+
+:Fit to window
+适应窗口
+
+:Write Palette
+写入调色板
+
+:Redo
+重做
+
+:Pending Core RunRedo API - tracked by #500.
+等待 Core RunRedo API - 由 #500 跟踪。
+
+:Palette Index
+调色板索引
+
+:Live bitmap preview pending Core extraction - tracked by #500.
+实时位图预览待 Core 提取 - 由 #500 跟踪。
+
+:Edit R/G/B 0-248 (5-bit ticks)
+编辑 R/G/B 0-248 （5位刻度）
+
+:Palette Editor
+调色板编辑器
+
+:Palette No {0}
+调色板 No{0}
+
+:Edit Palette
+编辑调色板
+
+:Palette written.
+调色板已写入。
+
+:Write failed: {0}
+写入失败：{0}
+
+:Invalid palette address
+无效的调色板地址

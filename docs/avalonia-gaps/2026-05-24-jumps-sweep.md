@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T02:20:10Z"
-git-sha: 4552097a3
+generated: "2026-05-24T08:41:59Z"
+git-sha: 4677149fb
 sweep-type: jumps
 ---
 
@@ -36,10 +36,10 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 431 |
-| Match | 60 |
-| MissingAvManifest (backlog) | 328 |
-| NoWfCallsite | 35 |
+| Total rows | 435 |
+| Match | 62 |
+| MissingAvManifest (backlog) | 326 |
+| NoWfCallsite | 39 |
 | KnownGap (issue-tagged) | 8 |
 
 ## Known Gaps (tracked by open issues)
@@ -254,8 +254,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
-| `ItemFE6Form` | `ItemFE6View` | `—` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
-| `ItemFE6Form` | `ItemFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageItemIconForm` | `ItemIconViewerView` | `—` | `ImageSystemIconForm` | `—` |
 | `ImageItemIconForm` | `ItemIconViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ItemPromotionForm` | `ItemPromotionViewerView` | `—` | `PatchForm` | `PatchManagerView` |
@@ -412,7 +410,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ItemForm` | `ItemEditorView` | `JumpToDescText` | `TextForm` | `TextViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToNameText` | `TextForm` | `TextViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToUseDescText` | `TextForm` | `TextViewerView` |
+| `—` | `ItemFE6View` | `JumpToEffectiveness` | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` |
+| `—` | `ItemFE6View` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `—` | `ItemFE6View` | `JumpToDescText` | `TextForm` | `TextViewerView` |
+| `—` | `ItemFE6View` | `JumpToNameText` | `TextForm` | `TextViewerView` |
+| `—` | `ItemFE6View` | `JumpToUseDescText` | `TextForm` | `TextViewerView` |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToTextA` | `TextForm` | `TextViewerView` |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToTextB` | `TextForm` | `TextViewerView` |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToTextC` | `TextForm` | `TextViewerView` |
@@ -462,6 +464,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ItemForm` | `ItemEditorView` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToWeaponDebuffs` | `PatchForm` | `PatchManagerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToWeaponDebuffs` | `PatchForm` | `PatchManagerView` |
+| `ItemFE6Form` | `ItemFE6View` | `JumpToWeaponEffect` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
+| `ItemFE6Form` | `ItemFE6View` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |
