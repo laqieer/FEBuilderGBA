@@ -172,14 +172,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return result;
 
+            // Per PR #589 Copilot bot review round 4 #1: validate the
+            // resolved table base with U.isSafetyOffset to avoid
+            // following a corrupt pointer slot into the ROM header /
+            // out-of-range regions.
             uint baseAddr = rom.p32(rom.RomInfo.image_battle_animelist_pointer);
-            if (baseAddr == 0 || baseAddr >= (uint)rom.Data.Length)
+            if (!U.isSafetyOffset(baseAddr, rom))
             {
                 return result;
             }
 
-            // Walk the list until we hit a zero palette pointer or exceed
-            // ROM bounds — matches WF capped-scan behavior.
+            // Per PR #589 Copilot bot review round 4 #2: scan until we
+            // hit either an invalid palette pointer (validated via
+            // U.isSafetyOffset, which catches zero, header overlap, and
+            // out-of-range slots in one check) or the ROM end.
             const int hardCap = 4096;
             for (int i = 0; i < hardCap; i++)
             {
@@ -192,15 +198,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint sourceSlot = entryOffset + PalettePointerOffsetInRecord;
                 uint paletteOffset = rom.p32(sourceSlot);
 
-                // Stop when the palette pointer is zero AND the rest of the
-                // record looks empty (avoids over-counting into unrelated
-                // data). Matches WF FEditor length-hint termination.
-                if (paletteOffset == 0)
-                {
-                    // Allow one zero entry then stop (skip stub entries).
-                    break;
-                }
-                if (paletteOffset >= (uint)rom.Data.Length)
+                // Single safety check: stop on any unsafe palette pointer
+                // (0, header overlap, out of ROM). This replaces the
+                // earlier two-step "zero stub then bounds check" -- a
+                // genuinely-zero slot was always already caught by
+                // U.isSafetyOffset, so the dedicated zero-stub branch
+                // was redundant.
+                if (!U.isSafetyOffset(paletteOffset, rom))
                 {
                     break;
                 }

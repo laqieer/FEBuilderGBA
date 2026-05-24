@@ -6,10 +6,8 @@
 // recompress / pointer-rewrite write path under the ambient UndoService
 // scope.
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using global::Avalonia.Controls;
-using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;

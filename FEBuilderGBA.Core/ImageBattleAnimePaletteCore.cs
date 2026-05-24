@@ -255,6 +255,12 @@ namespace FEBuilderGBA
             {
                 return U.NOT_FOUND;
             }
+            // Per PR #589 Copilot bot review round 4 #3: enforce the
+            // offsets-throughout contract on the writer return value
+            // too -- a test/future writer that returns the 0x08...
+            // pointer form would otherwise leak the pointer through
+            // the return type. U.toOffset is idempotent on real offsets.
+            newOffset = U.toOffset(newOffset);
 
             // -- Pointer rewrite. Collect LDR + raw fallback hits, union
             // with the source slot if provided.
@@ -282,14 +288,19 @@ namespace FEBuilderGBA
                     rewriteSet.Add(slotOffset);
                 }
             }
-            uint newPointer = U.toPointer(newOffset);
+            // Per PR #589 Copilot bot review round 4 #5: use the
+            // pointer-aware API (rom.write_p32) which takes an offset and
+            // applies U.toPointer internally. Centralizes the
+            // offset->pointer conversion (matches
+            // ImageImportCore.cs:396 and ImageBattleBGCore.cs:140
+            // patterns) and keeps the offsets-throughout contract clean.
             foreach (uint slot in rewriteSet)
             {
                 if (slot + 4 > (uint)rom.Data.Length)
                 {
                     continue;
                 }
-                rom.write_u32(slot, newPointer);
+                rom.write_p32(slot, newOffset);
             }
 
             // -- Zero-fill old block.
