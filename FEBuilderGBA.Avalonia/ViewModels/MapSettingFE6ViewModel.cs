@@ -177,7 +177,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (dataSize == 0) return;
             Undo undo = CoreState.Undo;
             Undo.UndoData undoData = null;
-            if (undo != null) { undoData = undo.NewUndoData("MapSettingFE6"); undoData.list.Add(new Undo.UndoPostion(addr, dataSize)); }
+            // When a View-level UndoService scope is active, every rom.write_*
+            // call already records into the ambient UndoData. Pushing a second
+            // VM-local range-only entry would create a duplicate undo step.
+            // Skip the local push when an ambient scope is detected. (#389)
+            bool ambientScopeActive = ROM.GetAmbientUndoData() != null;
+            if (undo != null && !ambientScopeActive)
+            {
+                undoData = undo.NewUndoData("MapSettingFE6");
+                undoData.list.Add(new Undo.UndoPostion(addr, dataSize));
+            }
 
             rom.write_u32(addr + 0, CpPointer);
             rom.write_u16(addr + 4, ObjectTypePLIST);

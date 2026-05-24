@@ -17489,6 +17489,18 @@ Mant动画
 :Map Resize
 地图缩放
 
+:Text IDs
+文本ID
+
+:Victory BGM
+胜利BGM
+
+:World Map / Event
+世界地图 / 事件
+
+:Chapter Number
+章节号
+
 :Map Setting Difficulty Extra
 地图设置难度额外
 

@@ -2,19 +2,288 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapSettingFE6View"
-        Title="Map Settings (FE6)" Width="1773" Height="1038"
+        Title="Map Settings (FE6)" Width="1280" Height="900"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE6_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="260,*">
+    <!-- Left: chapter/map entry list -->
+    <DockPanel Grid.Column="0" Margin="4">
+      <TextBlock DockPanel.Dock="Top" Text="先頭アドレス" Margin="2,0,2,2" FontWeight="Bold" />
+      <TextBlock DockPanel.Dock="Top" Text="読込数" Margin="2,0,2,2" Foreground="Gray" FontSize="11" />
+      <Button DockPanel.Dock="Top" Name="ExpandListPlaceholder" Content="リストの拡張" IsEnabled="False" Margin="2" />
+      <Button DockPanel.Dock="Top" Name="RefetchPlaceholder" Content="再取得" IsEnabled="False" Margin="2" />
+      <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE6_Entry_List" Name="EntryList" />
+    </DockPanel>
 
+    <!-- Right: editor body -->
     <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
+      <StackPanel Spacing="6" Margin="8">
+        <!-- Header -->
         <TextBlock Text="Map Settings (FE6)" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+        <Grid ColumnDefinitions="100,*,80,*" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="アドレス" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="MapSettingFE6_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MapSettingFE6_Size_Label" Grid.Row="0" Grid.Column="3" Name="SizeLabel" VerticalAlignment="Center" />
         </Grid>
+        <Grid ColumnDefinitions="100,*" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="名前" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MapSettingFE6_Name_Label" Grid.Row="0" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />
+        </Grid>
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="選択アドレス:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="MapSettingFE6_SelectAddr_Label" Grid.Row="0" Grid.Column="1" Name="SelectAddrLabel" VerticalAlignment="Center" />
+        </Grid>
+
+        <!-- ======== Section 1: CP / Pointer (D0) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="CP / Pointer" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,160,*" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="CP" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MapSettingFE6_D0_Input" Grid.Row="0" Grid.Column="1" Name="ND0" Width="140" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 2: Map Style / PLIST (W4, B6-B11) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Map Style / PLIST" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="オブジェクトタイプ(Plist)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W4_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW4" Minimum="0" Maximum="65535" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="パレット(Plist)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B6_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB6" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="チップセットクタイプ(Plist)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B7_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB7" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="マップポインタ(Plist)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B8_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB8" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="タイルアニメーション1" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B9_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB9" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="タイルアニメーション2" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B10_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB10" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="マップ部分変更(Plist)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B11_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB11" Minimum="0" Maximum="255" />
+
+              <!-- KnownGap: GUI placeholder for the WF "Map style change" popup
+                   (X_MAPSTYLE_CHANGE). The popup wires palette + tileset pickers;
+                   re-implementing it depends on the still-missing MapStyleEditorAppendPopup.
+                   Surface as a non-functional Button so labels-sweep sees the literal
+                   "マップスタイルの変更" and the density count includes it. -->
+              <Button Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Name="MapStyleChangePlaceholder" Content="マップスタイルの変更" IsEnabled="False" Margin="0,4,0,0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 3: Map Properties (B12-B19) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Map Properties" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="霧レベル" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B12_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB12" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="戦闘準備の有無" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B13_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB13" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="章タイトル画像" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B14_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB14" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="初期座標 X:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B15_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB15" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Y:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B16_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB16" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="天気" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B17_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="NB17" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="戦闘背景" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B18_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="NB18" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="ハードブースト" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B19_Input" FormatString="0" Grid.Row="7" Grid.Column="1" Name="NB19" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 4: BGM / Music (B20-B24) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="BGM / Music" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,40,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="味方フェーズBGM" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B20_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB20" Minimum="0" Maximum="255" />
+              <!-- KnownGap: GUI placeholder for song play preview (♪) — needs the
+                   GBA audio engine. Surface as a non-functional Button so the
+                   labels-sweep scanner sees the literal "♪" and the density
+                   count includes the 5 song-play slots. -->
+              <Button AutomationProperties.AutomationId="MapSettingFE6_B20_SongPlay_Button" Grid.Row="0" Grid.Column="2" Content="♪" IsEnabled="False" Width="32" />
+              <TextBlock Grid.Row="0" Grid.Column="3" AutomationProperties.AutomationId="MapSettingFE6_B20_SongName_Label" Name="B20SongLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="敵フェーズBGM" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B21_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB21" Minimum="0" Maximum="255" />
+              <Button AutomationProperties.AutomationId="MapSettingFE6_B21_SongPlay_Button" Grid.Row="1" Grid.Column="2" Content="♪" IsEnabled="False" Width="32" />
+              <TextBlock Grid.Row="1" Grid.Column="3" AutomationProperties.AutomationId="MapSettingFE6_B21_SongName_Label" Name="B21SongLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="友軍BGM" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B22_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB22" Minimum="0" Maximum="255" />
+              <Button AutomationProperties.AutomationId="MapSettingFE6_B22_SongPlay_Button" Grid.Row="2" Grid.Column="2" Content="♪" IsEnabled="False" Width="32" />
+              <TextBlock Grid.Row="2" Grid.Column="3" AutomationProperties.AutomationId="MapSettingFE6_B22_SongName_Label" Name="B22SongLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="ワールドマップBGM" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B23_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB23" Minimum="0" Maximum="255" />
+              <Button AutomationProperties.AutomationId="MapSettingFE6_B23_SongPlay_Button" Grid.Row="3" Grid.Column="2" Content="♪" IsEnabled="False" Width="32" />
+              <TextBlock Grid.Row="3" Grid.Column="3" AutomationProperties.AutomationId="MapSettingFE6_B23_SongName_Label" Name="B23SongLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="章オープニングBGM" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B24_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="NB24" Minimum="0" Maximum="255" />
+              <Button AutomationProperties.AutomationId="MapSettingFE6_B24_SongPlay_Button" Grid.Row="4" Grid.Column="2" Content="♪" IsEnabled="False" Width="32" />
+              <TextBlock Grid.Row="4" Grid.Column="3" AutomationProperties.AutomationId="MapSettingFE6_B24_SongName_Label" Name="B24SongLabel" VerticalAlignment="Center" Foreground="Blue" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 5: Breakable Wall HP + Difficulty Ratings ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Breakable Wall HP / Difficulty Ratings" FontWeight="Bold" FontSize="14" />
+
+            <!-- Breakable wall HP (B25) + unknown B26 -->
+            <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="壊れる壁HP" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B25_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB25" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="??" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B26_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="NB26" Minimum="0" Maximum="255" />
+            </Grid>
+
+            <!-- Asset Rating (攻略評価) byte slots B27-B30 + ?? (B31) -->
+            <TextBlock Text="攻略評価" FontWeight="SemiBold" Margin="0,8,0,2" />
+            <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="攻略評価A" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B27_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB27" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="攻略評価B" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B28_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="NB28" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="攻略評価C" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B29_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NB29" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="攻略評価D" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B30_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="NB30" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="??" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B31_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB31" Minimum="0" Maximum="255" />
+            </Grid>
+
+            <!-- Experience Rating (経験評価) word slots W32-W38 -->
+            <TextBlock Text="経験評価" FontWeight="SemiBold" Margin="0,8,0,2" />
+            <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="経験評価A" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W32_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW32" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="経験評価B" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W34_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="NW34" Minimum="0" Maximum="65535" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="経験評価C" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W36_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW36" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="経験評価D" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W38_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="NW38" Minimum="0" Maximum="65535" />
+            </Grid>
+
+            <!-- Strategy Rating (戦力評価) word slots W40-W46 -->
+            <TextBlock Text="戦力評価" FontWeight="SemiBold" Margin="0,8,0,2" />
+            <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="戦力評価A" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W40_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW40" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="戦力評価B" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W42_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="NW42" Minimum="0" Maximum="65535" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="戦力評価C" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W44_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW44" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="戦力評価D" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W46_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="NW46" Minimum="0" Maximum="65535" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 6: Text IDs (W48-W56) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Text IDs" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,10,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="クリア条件(表示のみ)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W48_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NW48" Minimum="0" Maximum="65535" />
+              <TextBlock AutomationProperties.AutomationId="MapSettingFE6_W48_Text_Label" Grid.Row="0" Grid.Column="3" Name="W48TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="上の軍" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W50_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW50" Minimum="0" Maximum="65535" />
+              <TextBlock AutomationProperties.AutomationId="MapSettingFE6_W50_Text_Label" Grid.Row="1" Grid.Column="3" Name="W50TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="下の軍" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W52_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NW52" Minimum="0" Maximum="65535" />
+              <TextBlock AutomationProperties.AutomationId="MapSettingFE6_W52_Text_Label" Grid.Row="2" Grid.Column="3" Name="W52TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="敵の軍旗" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W54_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NW54" Minimum="0" Maximum="65535" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="章タイトル" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W56_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="NW56" Minimum="0" Maximum="65535" />
+              <TextBlock AutomationProperties.AutomationId="MapSettingFE6_W56_Text_Label" Grid.Row="4" Grid.Column="3" Name="W56TextLabel" VerticalAlignment="Center" Foreground="Blue" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 7: World Map / Event (B58-B66) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="World Map / Event" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120,20,220,120" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="イベントID(Plist)" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B58_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB58" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="ワールドマップ自動イベント" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B59_Input" FormatString="0" Grid.Row="0" Grid.Column="4" Name="NB59" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="ワールドマップ地名" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_W60_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NW60" Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Row="1" Grid.Column="3" Text="Chapter Number" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B62_Input" FormatString="0" Grid.Row="1" Grid.Column="4" Name="NB62" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="ワールドマップX" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B63_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NB63" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="2" Grid.Column="3" Text="ワールドマップY" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B64_Input" FormatString="0" Grid.Row="2" Grid.Column="4" Name="NB64" Minimum="0" Maximum="255" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="ワールドマップポイントX" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B65_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NB65" Minimum="0" Maximum="255" />
+              <TextBlock Grid.Row="3" Grid.Column="3" Text="ワールドマップポイントY" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B66_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="NB66" Minimum="0" Maximum="255" />
+
+              <!-- KnownGap placeholders for WF jump-to-editor links. Surface
+                   as non-functional Buttons so labels-sweep sees them. -->
+              <Button Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Name="JumpMapEditorPlaceholder" Content="マップエディタへJump" IsEnabled="False" Margin="0,4,0,0" />
+              <Button Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2" Name="JumpExitPointPlaceholder" Content="離脱ポイントへJump" IsEnabled="False" Margin="0,4,0,0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- ======== Section 8: Victory BGM (B67) ======== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,4">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Victory BGM" FontWeight="Bold" FontSize="14" />
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="勝利BGMに変わる敵数" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B67_Input" FormatString="0" Grid.Row="0" Grid.Column="1" Name="NB67" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Write button -->
+        <Button AutomationProperties.AutomationId="MapSettingFE6_Write_Button" Name="WriteButton" Content="書き込み (Write)" HorizontalAlignment="Left" Margin="0,8" />
+
       </StackPanel>
     </ScrollViewer>
   </Grid>

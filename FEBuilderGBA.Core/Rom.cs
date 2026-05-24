@@ -751,8 +751,14 @@ namespace FEBuilderGBA
             return new UndoScope();
         }
 
-        /// <summary>Get the current ambient undo data (for testing).</summary>
-        internal static Undo.UndoData? GetAmbientUndoData() => _ambientUndoData;
+        /// <summary>
+        /// Get the current ambient undo data. Visible to ViewModels so they
+        /// can detect when the View has opened an <c>UndoService.Begin/Commit</c>
+        /// scope — every <c>rom.write_*</c> call inside that scope already
+        /// records into this ambient UndoData, so the ViewModel should skip
+        /// pushing a redundant VM-local <c>Undo.UndoData</c> entry. (#389)
+        /// </summary>
+        public static Undo.UndoData? GetAmbientUndoData() => _ambientUndoData;
 
         sealed class UndoScope : IDisposable
         {

@@ -2588,6 +2588,18 @@ Manually configure from オプション screen
 :Map Resize
 マップ Resize
 
+:Text IDs
+テキストID
+
+:Victory BGM
+勝利BGM
+
+:World Map / Event
+ワールドマップ / イベント
+
+:Chapter Number
+章番号
+
 :Map Setting Difficulty Extra
 マップ 設定 難易度 Extra
 
