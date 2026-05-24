@@ -691,6 +691,90 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal((sbyte)12, (sbyte)rom.u8(baseAddr + 11));
         }
 
+        /// <summary>
+        /// Regression guard for the includeName=true + includeUID=false
+        /// round-trip case (Copilot CLI inline review on PR #610). The
+        /// exporter emits a plain "Name" column (no embedded UID), so
+        /// ApplyImportCsv must route positionally rather than throwing
+        /// "missing UID". Without this fix the export of Include Name only
+        /// could never be imported back through Import All.
+        /// </summary>
+        [Fact]
+        public void Roundtrip_IncludeNameWithoutIncludeUID_RoutesPositionally()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(2);
+            var mgr = new ClassFE6CsvManager(
+                useClipboard: false, includeUID: false, includeHeader: false,
+                includeName: true, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+
+            byte[] beforeRow0 = new byte[7];
+            byte[] beforeRow1 = new byte[7];
+            Array.Copy(rom.Data, (int)(baseAddr + 11), beforeRow0, 0, 7);
+            Array.Copy(rom.Data, (int)(baseAddr + dataSize + 11), beforeRow1, 0, 7);
+
+            var addrs = new[] { baseAddr, baseAddr + dataSize };
+            string csv = mgr.BuildExportCsv(rom, addrs);
+
+            // Sanity: CSV must NOT contain "(0)" or "(1)" (no UID embed when includeUID=false).
+            Assert.DoesNotContain("(0)", csv);
+            Assert.DoesNotContain("(1)", csv);
+
+            // Zero base-stats so import has to write them.
+            for (int o = 11; o <= 17; o++)
+            {
+                rom.Data[baseAddr + o] = 0;
+                rom.Data[baseAddr + dataSize + o] = 0;
+            }
+
+            int n = mgr.ApplyImportCsv(rom, csv, addrs);
+            Assert.Equal(2, n);
+            for (int o = 0; o < 7; o++)
+            {
+                Assert.Equal(beforeRow0[o], rom.Data[baseAddr + 11 + o]);
+                Assert.Equal(beforeRow1[o], rom.Data[baseAddr + dataSize + 11 + o]);
+            }
+        }
+
+        /// <summary>
+        /// Sibling check: includeName=true AND includeUID=true must still
+        /// use UID routing (the Name(UID) embedded form). A reordered CSV
+        /// must land on the correct address by UID, NOT by position.
+        /// </summary>
+        [Fact]
+        public void Roundtrip_IncludeNameAndIncludeUID_RoutesByEmbeddedUid()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(2);
+            var mgr = new ClassFE6CsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: true, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+
+            var addrs = new[] { baseAddr, baseAddr + dataSize };
+            string csv = mgr.BuildExportCsv(rom, addrs);
+            Assert.Contains("(0)", csv);
+            Assert.Contains("(1)", csv);
+
+            byte[] row1Snap = new byte[7];
+            Array.Copy(rom.Data, (int)(baseAddr + dataSize + 11), row1Snap, 0, 7);
+
+            string[] lines = csv.Split('\n');
+            // Reorder: row 1 first, then row 0.
+            string reordered = string.Join("\n", new[] { lines[1], lines[0], lines[2] });
+
+            for (int o = 11; o <= 17; o++)
+            {
+                rom.Data[baseAddr + o] = 0;
+                rom.Data[baseAddr + dataSize + o] = 0;
+            }
+
+            int n = mgr.ApplyImportCsv(rom, reordered, addrs);
+            Assert.Equal(2, n);
+            // Row 1's stats restored at baseAddr+dataSize even though it's the FIRST line.
+            for (int o = 0; o < 7; o++)
+                Assert.Equal(row1Snap[o], rom.Data[baseAddr + dataSize + 11 + o]);
+        }
+
         [Fact]
         public void ImportAll_ParsesUidAndRoutesToCorrectRow()
         {

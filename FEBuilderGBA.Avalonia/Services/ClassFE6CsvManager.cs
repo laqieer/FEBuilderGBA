@@ -155,11 +155,20 @@ namespace FEBuilderGBA.Avalonia.Services
                 else
                 {
                     uint? parsedUid = null;
-                    if (_includeName)
+                    // includeName WITH includeUID produces "Name(UID)" — extract the embedded UID.
+                    // includeName WITHOUT includeUID produces just "Name" — no UID to parse, fall back
+                    // to positional routing (matches the exporter's symmetric output and the v5 plan
+                    // round-trip contract; Copilot CLI inline review on PR #610).
+                    if (_includeName && _includeUID)
                     {
                         string[] nameParts = cols[0].Split('(', ')');
                         if (nameParts.Length >= 2 && uint.TryParse(nameParts[1].Trim(), out uint nuid))
                             parsedUid = nuid;
+                        colIdx++;
+                    }
+                    else if (_includeName)
+                    {
+                        // Name column present but no UID requested — skip the column, route positionally.
                         colIdx++;
                     }
                     else if (_includeUID)
@@ -173,10 +182,20 @@ namespace FEBuilderGBA.Avalonia.Services
                     {
                         addr = rowAddresses[(int)parsedUid.Value];
                     }
-                    else if ((_includeUID || _includeName) && !parsedUid.HasValue)
+                    else if (_includeUID && !parsedUid.HasValue)
                     {
+                        // includeUID is explicit user opt-in for UID routing — if the column is
+                        // unparseable we abort rather than silently positional-fallback (matches WF
+                        // CsvManager). The same applies to "Name(UID)" when both flags are set; the
+                        // bare-name-only case above intentionally never reaches here.
                         throw new FormatException(
                             $"ClassFE6CsvManager: missing or invalid UID at CSV line {csvLine} (row index {i}). Aborting import.");
+                    }
+                    else if (_includeName && _includeUID && !parsedUid.HasValue)
+                    {
+                        // Name(UID) format requested but UID part unparseable — abort (same contract).
+                        throw new FormatException(
+                            $"ClassFE6CsvManager: missing or invalid UID inside Name(UID) at CSV line {csvLine} (row index {i}). Aborting import.");
                     }
                     else if (i < rowAddresses.Count)
                     {
