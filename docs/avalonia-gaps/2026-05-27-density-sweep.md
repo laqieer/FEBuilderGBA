@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T08:21:38Z"
-git-sha: c9d33f812
+generated: "2026-05-24T08:45:38Z"
+git-sha: b5b2c0340
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 211 |
+| HIGH | |Δ%| ≥ 50 | 210 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 73 |
+| LOW | |Δ%| < 25 | 74 |
 
 ## Ranked Density Deltas
 
@@ -97,7 +97,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `WorldMapEventPointerFE6Form` | `WorldMapEventPointerFE6View` | 14 | 3 | -11 | -78.6% | Heuristic |
 | High | `Command85PointerForm` | `Command85PointerView` | 13 | 3 | -10 | -76.9% | ListParityHelper |
 | High | `CCBranchForm` | `CCBranchEditorView` | 25 | 6 | -19 | -76.0% | ListParityHelper |
-| High | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 133 | 32 | -101 | -75.9% | ListParityHelper |
 | High | `AIMapSettingForm` | `AIMapSettingView` | 48 | 12 | -36 | -75.0% | ListParityHelper |
 | High | `EventAssemblerForm` | `EventAssemblerView` | 12 | 3 | -9 | -75.0% | Heuristic |
 | High | `EventTemplate2Form` | `EventTemplate2View` | 12 | 3 | -9 | -75.0% | Heuristic |
@@ -257,6 +256,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
 | Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
+| Low | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 133 | 141 | 8 | +6.0% | ListParityHelper |
 | Low | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | 16 | 17 | 1 | +6.3% | ListParityHelper |
 | Low | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | 29 | 31 | 2 | +6.9% | ListParityHelper |

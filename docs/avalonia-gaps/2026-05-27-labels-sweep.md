@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T08:21:42Z"
-git-sha: c9d33f812
+generated: "2026-05-24T08:45:44Z"
+git-sha: b5b2c0340
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4518 |
-| Total AV-only labels | 3301 |
-| Total common labels | 182 |
+| Total WF-only labels | 4496 |
+| Total AV-only labels | 3327 |
+| Total common labels | 204 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -58,15 +58,15 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 9 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
 | 10 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
 | 11 | `TextForm` | `TextViewerView` | 46 | 32 | 2 |
-| 12 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
-| 13 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 14 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
-| 15 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 16 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 17 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
-| 18 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
-| 19 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
-| 20 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 12 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
+| 13 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
+| 14 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 15 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 16 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 17 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 18 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
+| 19 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 20 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1433,77 +1433,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Translate from:`
 - `Translate to:`
 - `Write Text`
-
-### ImageUnitPaletteForm
-WF labels: **45** · AV labels: **17** · WF-only: **45** · AV-only: **17** · Common: **0** · Density verdict: **High** (WF 133 / AV 32)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `Size:`
-- `UNDO`
-- `↓文字列内訳`
-- `アドレス`
-- `クリップボード`
-- `コメント`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `ポインタ`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `利用クラスとアニメ`
-- `名前`
-- `戦闘アニメ`
-- `拡大`
-- `敵とNPC、グレーも同じ色に設定する`
-- `新規パレット割り当て`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `読込数`
-- `識別子`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Id 0:`
-- `Id 1:`
-- `Id 10:`
-- `Id 11:`
-- `Id 2:`
-- `Id 3:`
-- `Id 4:`
-- `Id 5:`
-- `Id 6:`
-- `Id 7:`
-- `Id 8:`
-- `Id 9:`
-- `Identifier:`
-- `Palette Ptr (P12):`
-- `Unit Palette Editor`
-- `Write`
 
 ### MapStyleEditorForm
 WF labels: **45** · AV labels: **5** · WF-only: **45** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 153 / AV 8)
@@ -3674,6 +3603,81 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Top Address`
 - `Update`
 - `Write`
+
+### ImageUnitPaletteForm
+WF labels: **45** · AV labels: **65** · WF-only: **23** · AV-only: **43** · Common: **22** · Density verdict: **Low** (WF 133 / AV 141)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `↓文字列内訳`
+- `アドレス`
+- `クリップボード`
+- `コメント`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `ポインタ`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `利用クラスとアニメ`
+- `名前`
+- `戦闘アニメ`
+- `拡大`
+- `敵とNPC、グレーも同じ色に設定する`
+- `新規パレット割り当て`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `読込数`
+- `識別子`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x10`
+- `[Battle-anime preview placeholder: requires DrawBattleAnime Core extraction.]`
+- `[KnownGap: class-uses list requires ImageBattleAnimeForm.GetAnimeIDByClassID Core port.]`
+- `Address`
+- `Battle Animation:`
+- `Class and Animation`
+- `Clipboard`
+- `Comment:`
+- `Edit`
+- `Expand List`
+- `Export Image`
+- `Filter`
+- `Id 0:`
+- `Id 1:`
+- `Id 10:`
+- `Id 11:`
+- `Id 2:`
+- `Id 3:`
+- `Id 4:`
+- `Id 5:`
+- `Id 6:`
+- `Id 7:`
+- `Id 8:`
+- `Id 9:`
+- `Identifier:`
+- `Import Image`
+- `KnownGap`
+- `New Palette Allocation`
+- `Override all palette slots`
+- `Palette`
+- `Palette Address:`
+- `Palette Type:`
+- `Palette Write`
+- `Pointer (P12):`
+- `Read Count`
+- `Reload List`
+- `Search Tools`
+- `Selected Address:`
+- `Start Address`
+- `Unit Palette Editor`
+- `Write`
+- `Zoom:`
+- `↓Identifier Breakdown`
 
 ### OPClassDemoFE7UForm
 WF labels: **24** · AV labels: **37** · WF-only: **23** · AV-only: **36** · Common: **1** · Density verdict: **Low** (WF 56 / AV 62)

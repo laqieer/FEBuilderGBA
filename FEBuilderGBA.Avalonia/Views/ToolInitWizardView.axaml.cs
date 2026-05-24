@@ -41,6 +41,13 @@ namespace FEBuilderGBA.Avalonia.Views
         // tab-header click (rejected).
         bool _allowProgrammaticPageChange;
 
+        // Last-known-good page index. Updated by NavigateToPage every time
+        // it accepts a programmatic change. SelectionChanged uses this as
+        // the authoritative source for reverting illegal direct-tab clicks
+        // (the TwoWay binding pushes the illegal target into _vm.CurrentPage
+        // BEFORE this handler can revert, so we can't rely on the VM's value).
+        int _lastValidPageIndex;
+
         public ToolInitWizardView()
         {
             InitializeComponent();
@@ -55,44 +62,61 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Intercept tab strip clicks. Per Copilot bot review #583 round-3:
-        /// IsHitTestVisible cannot be set on TabItem (it also disables the
-        /// content). Instead, watch the TabControl's SelectionChanged event
-        /// and revert any change that wasn't initiated by an explicit
-        /// Next/Prev/Skip handler. This keeps the wizard's pages reachable
-        /// only through validated transitions while leaving all controls
-        /// inside each page fully interactive.
+        /// Intercept tab strip clicks. Per Copilot bot review #583 round-3
+        /// and round-4: IsHitTestVisible cannot be set on TabItem (it also
+        /// disables content). Instead, watch SelectionChanged and revert.
+        ///
+        /// CRITICAL detail (Copilot CLI #583 round-4 finding): the binding
+        /// `SelectedIndex="{Binding CurrentPage, Mode=TwoWay}"` updates the
+        /// VM BEFORE this handler fires. So `_vm.CurrentPage` already
+        /// equals the illegal target. The fix captures the index of the
+        /// previous TabItem from e.RemovedItems and restores BOTH the
+        /// TabControl.SelectedIndex AND the VM's CurrentPage via the
+        /// gate-aware NavigateToPage helper.
         /// </summary>
         void OnMainTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (_vm == null) return;
+            if (sender is not TabControl tab) return;
+
             if (_allowProgrammaticPageChange)
             {
+                // The Next/Prev/Skip handler that fired this set both
+                // _lastValidPageIndex and _vm.CurrentPage already. Just
+                // clear the gate and accept.
                 _allowProgrammaticPageChange = false;
+                _lastValidPageIndex = tab.SelectedIndex;
                 return;
             }
-            // SelectionChanged also fires once during initial bind when
-            // CurrentPage = 0 — ignore that.
+
+            // SelectionChanged also fires once during initial bind. Ignore
+            // any event with no previous selection.
             if (e.RemovedItems == null || e.RemovedItems.Count == 0)
                 return;
-            if (sender is not TabControl tab) return;
-            // Revert to the previous tab. CurrentPage in the VM is the
-            // source of truth — re-applying it cancels the user-initiated
-            // click.
-            tab.SelectedIndex = _vm.CurrentPage;
+
+            // This is a direct user click — revert. The TwoWay binding
+            // already pushed the illegal target into _vm.CurrentPage, so
+            // restore BOTH the TabControl selection and the VM page from
+            // _lastValidPageIndex.
+            _allowProgrammaticPageChange = true;
+            tab.SelectedIndex = _lastValidPageIndex;
+            _vm.CurrentPage = _lastValidPageIndex;
         }
 
         /// <summary>
         /// Helper used by every Next/Prev/Skip click handler to advance
         /// the wizard programmatically (i.e. through validated state).
-        /// Sets the gate flag, calls _vm.GoToPage, and clears the flag in
-        /// case GoToPage was a no-op.
+        /// Sets the gate flag, calls _vm.GoToPage, and updates
+        /// _lastValidPageIndex so SelectionChanged knows the "good" state
+        /// for future reverts. Clears the gate if GoToPage was a no-op.
         /// </summary>
         void NavigateToPage(int index)
         {
             _allowProgrammaticPageChange = true;
             bool ok = _vm.GoToPage(index);
-            if (!ok)
+            if (ok)
+                _lastValidPageIndex = index;
+            else
                 _allowProgrammaticPageChange = false;
         }
 

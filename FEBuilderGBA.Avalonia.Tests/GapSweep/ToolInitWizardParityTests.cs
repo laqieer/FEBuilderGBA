@@ -857,6 +857,39 @@ public class ToolInitWizardParityTests
     // ===================================================================
 
     [AvaloniaFact]
+    public void View_DirectTabClick_IsReverted_BothInViewAndVM()
+    {
+        // Per Copilot CLI #583 round-4 review: the TwoWay binding on
+        // MainTab.SelectedIndex pushes the illegal target into _vm.CurrentPage
+        // BEFORE OnMainTabSelectionChanged fires. The fix must restore BOTH
+        // the TabControl.SelectedIndex AND the VM CurrentPage.
+        //
+        // This test mirrors Copilot CLI's headless probe: directly set
+        // SelectedIndex = 3 from page 0 (simulating a tab-header click) and
+        // assert both ends snap back to 0.
+        var view = new ToolInitWizardView();
+        var vm = (ToolInitWizardViewModel)view.DataViewModel!;
+        var tab = view.GetLogicalDescendants()
+            .OfType<TabControl>()
+            .FirstOrDefault(t => global::Avalonia.Automation.AutomationProperties.GetAutomationId(t)
+                == "ToolInitWizard_MainTab_TabControl");
+        Assert.NotNull(tab);
+
+        // Force the view into a known state (page 0).
+        Assert.Equal(0, tab!.SelectedIndex);
+        Assert.Equal(0, vm.CurrentPage);
+
+        // Simulate a tab-header click by setting SelectedIndex directly.
+        // The TwoWay binding pushes this to _vm.CurrentPage; then
+        // OnMainTabSelectionChanged fires and reverts both.
+        tab.SelectedIndex = 3;
+
+        // Both must have snapped back.
+        Assert.Equal(0, tab.SelectedIndex);
+        Assert.Equal(0, vm.CurrentPage);
+    }
+
+    [AvaloniaFact]
     public void View_TabControl_StartsOnBeginPage()
     {
         var view = new ToolInitWizardView();
@@ -873,13 +906,19 @@ public class ToolInitWizardParityTests
     [AvaloniaFact]
     public void View_StartButton_AdvancesToStep1Page()
     {
+        // Use the real click-event dispatch since the SelectionChanged
+        // guard (Copilot CLI #583 round-4) rejects direct vm.GoToPage()
+        // mutations as user-initiated jumps. The button click routes
+        // through the view's NavigateToPage helper which sets the
+        // programmatic-change gate.
         var view = new ToolInitWizardView();
         var vm = (ToolInitWizardViewModel)view.DataViewModel!;
-        vm.GoToPage(0);
-
-        // Simulate clicking Start by routing through the public VM API.
-        // (The view code-behind invokes _vm.GoToPage(1) on the Click event.)
-        vm.GoToPage(1);
+        var btn = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties.GetAutomationId(b)
+                == "ToolInitWizard_Start_Button");
+        Assert.NotNull(btn);
+        btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(1, vm.CurrentPage);
     }
 
@@ -913,11 +952,26 @@ public class ToolInitWizardParityTests
     [AvaloniaFact]
     public void View_Step1Prev_ReturnsToBeginPage()
     {
+        // Mirror the real click flow: Start advances to Step1, then Step1Prev
+        // returns to BeginPage. Both clicks route through NavigateToPage
+        // which sets the SelectionChanged-guard's programmatic flag.
         var view = new ToolInitWizardView();
         var vm = (ToolInitWizardViewModel)view.DataViewModel!;
-        vm.GoToPage(1);
-        // Mirror OnStep1Prev_Click which calls GoToPage(0).
-        vm.GoToPage(0);
+
+        var startBtn = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties.GetAutomationId(b)
+                == "ToolInitWizard_Start_Button");
+        Assert.NotNull(startBtn);
+        startBtn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(1, vm.CurrentPage);
+
+        var prevBtn = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties.GetAutomationId(b)
+                == "ToolInitWizard_Step1Prev_Button");
+        Assert.NotNull(prevBtn);
+        prevBtn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(0, vm.CurrentPage);
     }
 
