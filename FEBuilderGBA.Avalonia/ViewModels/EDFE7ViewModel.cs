@@ -459,9 +459,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetDataReport() => new()
         {
             ["addr"] = $"0x{LynAddr:X08}",
-            ["UnitId"] = $"0x{LynUnitId:X08}",
-            ["ClearedTextId"] = $"0x{LynClearedTextId:X08}",
-            ["RetreatTextId"] = $"0x{LynRetreatTextId:X08}",
+            // Lyn surface
+            ["LynUnitId"] = $"0x{LynUnitId:X08}",
+            ["LynClearedTextId"] = $"0x{LynClearedTextId:X08}",
+            ["LynRetreatTextId"] = $"0x{LynRetreatTextId:X08}",
+            // Retreat surface
+            ["RetreatUnitId"] = $"0x{RetreatUnitId:X02}",
+            ["RetreatCondition"] = $"0x{RetreatCondition:X02}",
+            ["RetreatB2"] = $"0x{RetreatB2:X02}",
+            ["RetreatB3"] = $"0x{RetreatB3:X02}",
+            // Epithet surface
+            ["EpithetUnitId"] = $"0x{EpithetUnitId:X08}",
+            ["EpithetTextId"] = $"0x{EpithetTextId:X08}",
+            // Epilogue surface
+            ["EpiloguePairFlag"] = $"0x{EpiloguePairFlag:X02}",
+            ["EpilogueUnitId1"] = $"0x{EpilogueUnitId1:X02}",
+            ["EpilogueUnitId2"] = $"0x{EpilogueUnitId2:X02}",
+            ["EpilogueStoryFlag"] = $"0x{EpilogueStoryFlag:X02}",
+            ["EpilogueTextId"] = $"0x{EpilogueTextId:X08}",
         };
 
         public Dictionary<string, string> GetRawRomReport()

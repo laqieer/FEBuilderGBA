@@ -30,7 +30,7 @@
 //   C6 - MakeMinimalFE7URom plants Eliwood + Hector tables. A separate
 //        FE7J smoke test verifies per-version dispatch.
 //   C7 - Retreat help text is on N4_L_1 in WF; mapped to
-//        `EDFE7_Retreat_HelpText_TextBlock` in AV.
+//        `EDFE7_Retreat_HelpText_Label` in AV.
 using System;
 using System.IO;
 using System.Linq;
@@ -147,7 +147,7 @@ public class EDFE7ParityTests
 
         // FE7-specific help text (N4_L_1 in WF; codes 03/04/05 are
         // Hawkeye / Pent and Louise / Athos).
-        Assert.Contains("AutomationId=\"EDFE7_Retreat_HelpText_TextBlock\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Retreat_HelpText_Label\"", axaml);
     }
 
     [Fact]
@@ -797,11 +797,15 @@ public class EDFE7ParityTests
             for (uint i = 0x500000; i < 0x510000; i++)
                 rom.Data[i] = 0x00;
 
-            // currentCount = 3 retreat entries, blockSize = 4. With the
-            // ExpandTerminatedTable wrapper we ask ExpandTable to reserve
-            // (liveCount + 1 = 4) records -> 16 bytes. Plant exactly 20
-            // bytes of 0xFF at 0x600000 (16 bytes for the reservation +
-            // some padding so 4-byte alignment doesn't push past).
+            // currentCount = 3 retreat entries, blockSize = 4. The
+            // ExpandTerminatedTable wrapper passes `liveCount + 1` to
+            // DataExpansionCore.ExpandTable, which then appends one more
+            // entry, so the resulting reservation is
+            //   (currentCount + 1) * blockSize = (liveCount + 2) * blockSize
+            //   = 5 * 4 = 20 bytes total.
+            // Plant exactly 20 bytes of 0xFF at 0x600000 to model an
+            // exact-fit free run (no extra slop) so we can detect any
+            // out-of-reservation write via the post-reservation sentinel.
             uint sentinelStart = 0x600000;
             for (uint i = sentinelStart; i < sentinelStart + 20; i++)
                 rom.Data[i] = 0xFF;

@@ -239,7 +239,7 @@
 
             <!-- WF N4_L_1.AccessibleDescription. FE7-specific characters
                  (Hawkeye / Pent and Louise / Athos) at codes 03/04/05. -->
-            <TextBlock AutomationProperties.AutomationId="EDFE7_Retreat_HelpText_TextBlock"
+            <TextBlock AutomationProperties.AutomationId="EDFE7_Retreat_HelpText_Label"
                        Name="Retreat_HelpTextBlock"
                        Text="00=Died, 01=Wounded/Left, 02=Wounded/Stayed, 03=Hawkeye, 04=Pent and Louise, 05=Athos"
                        FontSize="12" Foreground="Gray" TextWrapping="Wrap" />
