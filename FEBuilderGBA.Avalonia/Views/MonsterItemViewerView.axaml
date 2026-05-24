@@ -287,7 +287,8 @@
             <TextBlock Text="Holdings Set 1" FontSize="14" FontWeight="Bold" Margin="0,8,0,0" />
             <Grid ColumnDefinitions="100,100,100,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Slot" FontWeight="Bold" />
-              <TextBlock Grid.Row="0" Grid.Column="1" Text="Item ID" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="Candidate" FontWeight="Bold"
+                         ToolTip.Tip="1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row." />
               <TextBlock Grid.Row="0" Grid.Column="2" Text="Probability" FontWeight="Bold" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Item Probability" FontWeight="Bold" />
 
@@ -357,7 +358,8 @@
             <TextBlock Text="Holdings Set 2" FontSize="14" FontWeight="Bold" Margin="0,8,0,0" />
             <Grid ColumnDefinitions="100,100,100,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Slot" FontWeight="Bold" />
-              <TextBlock Grid.Row="0" Grid.Column="1" Text="Item ID" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="Candidate" FontWeight="Bold"
+                         ToolTip.Tip="1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row." />
               <TextBlock Grid.Row="0" Grid.Column="2" Text="Probability" FontWeight="Bold" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="Item Probability" FontWeight="Bold" />
 

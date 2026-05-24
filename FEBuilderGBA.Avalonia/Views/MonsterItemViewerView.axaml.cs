@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // Tab 1 — Item Table
         // ============================================================
 
-        void LoadItemList()
+        void LoadItemList(uint preserveAddress = 0)
         {
             _vm.IsLoading = true;
             try
@@ -67,7 +67,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 items = ApplyReadWindow(items,
                     (uint)(ItemReadStartBox.Value ?? 0),
                     (uint)(ItemReadCountBox.Value ?? 0));
-                EntryList.SetItems(items);
+                if (preserveAddress != 0)
+                    EntryList.SetItemsPreserveSelection(items, preserveAddress);
+                else
+                    EntryList.SetItems(items);
             }
             catch (Exception ex)
             {
@@ -118,10 +121,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
                 _vm.WriteMonsterItem();
                 WriteComment(_vm.CurrentAddr, ItemCommentBox.Text ?? string.Empty);
+                uint preserve = _vm.CurrentAddr;
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item data written.");
-                LoadItemList();
+                LoadItemList(preserve);
             }
             catch (Exception ex)
             {
@@ -150,8 +154,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(result.Error ?? "Expand failed.");
                     return;
                 }
+                uint preserve = _vm.CurrentAddr;
                 _undoService.Commit();
-                LoadItemList();
+                LoadItemList(preserve);
                 CoreState.Services?.ShowInfo($"Monster item table expanded to {result.NewCount} entries at 0x{result.NewBaseAddress:X08}.");
             }
             catch (Exception ex)
@@ -165,7 +170,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // Tab 2 — Probability Table
         // ============================================================
 
-        void LoadProbList()
+        void LoadProbList(uint preserveAddress = 0)
         {
             _vm.IsLoading = true;
             try
@@ -174,7 +179,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 items = ApplyReadWindow(items,
                     (uint)(ProbReadStartBox.Value ?? 0),
                     (uint)(ProbReadCountBox.Value ?? 0));
-                ProbEntryList.SetItems(items);
+                if (preserveAddress != 0)
+                    ProbEntryList.SetItemsPreserveSelection(items, preserveAddress);
+                else
+                    ProbEntryList.SetItems(items);
             }
             catch (Exception ex)
             {
@@ -232,10 +240,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Prob5 = (uint)(Prob5Box.Value ?? 0);
                 _vm.WriteMonsterItemProbability();
                 WriteComment(_vm.ProbabilityAddr, ProbCommentBox.Text ?? string.Empty);
+                uint preserve = _vm.ProbabilityAddr;
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item probability written.");
-                LoadProbList();
+                LoadProbList(preserve);
             }
             catch (Exception ex)
             {
@@ -264,8 +273,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(result.Error ?? "Expand failed.");
                     return;
                 }
+                uint preserve = _vm.ProbabilityAddr;
                 _undoService.Commit();
-                LoadProbList();
+                LoadProbList(preserve);
                 CoreState.Services?.ShowInfo($"Probability table expanded to {result.NewCount} entries.");
             }
             catch (Exception ex)
@@ -279,7 +289,7 @@ namespace FEBuilderGBA.Avalonia.Views
         // Tab 3 — Holdings Table
         // ============================================================
 
-        void LoadHoldList()
+        void LoadHoldList(uint preserveAddress = 0)
         {
             _vm.IsLoading = true;
             try
@@ -288,7 +298,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 items = ApplyReadWindow(items,
                     (uint)(HoldReadStartBox.Value ?? 0),
                     (uint)(HoldReadCountBox.Value ?? 0));
-                HoldingEntryList.SetItems(items);
+                if (preserveAddress != 0)
+                    HoldingEntryList.SetItemsPreserveSelection(items, preserveAddress);
+                else
+                    HoldingEntryList.SetItems(items);
             }
             catch (Exception ex)
             {
@@ -414,10 +427,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _vm.WriteMonsterItemHoldings();
                 WriteComment(_vm.HoldingAddr, HoldCommentBox.Text ?? string.Empty);
+                uint preserve = _vm.HoldingAddr;
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item holdings written.");
-                LoadHoldList();
+                LoadHoldList(preserve);
             }
             catch (Exception ex)
             {
@@ -446,8 +460,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowError(result.Error ?? "Expand failed.");
                     return;
                 }
+                uint preserve = _vm.HoldingAddr;
                 _undoService.Commit();
-                LoadHoldList();
+                LoadHoldList(preserve);
                 CoreState.Services?.ShowInfo($"Holdings table expanded to {result.NewCount} entries.");
             }
             catch (Exception ex)
@@ -480,7 +495,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 MainTabs.SelectedItem = ItemTab;
                 if (value == 0)
                 {
-                    EntryList.SelectByIndex(-1); // no-op when out of range
+                    EntryList.Deselect();
                     return;
                 }
                 EntryList.SelectByIndex((int)(value - 1));
@@ -501,7 +516,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 MainTabs.SelectedItem = ProbTab;
                 if (value == 0)
                 {
-                    ProbEntryList.SelectByIndex(-1);
+                    ProbEntryList.Deselect();
                     return;
                 }
                 ProbEntryList.SelectByIndex((int)(value - 1));

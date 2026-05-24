@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T12:30:35Z"
-git-sha: 98767c7b8
+generated: "2026-05-24T12:53:06Z"
+git-sha: 92ff538c7
 sweep-type: density
 ---
 
@@ -20,8 +20,8 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 204 |
-| MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
+| HIGH | |Δ%| ≥ 50 | 203 |
+| MEDIUM | 25 ≤ |Δ%| < 50 | 87 |
 | LOW | |Δ%| < 25 | 80 |
 
 ## Ranked Density Deltas
@@ -56,7 +56,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `EventHaikuForm` | `EventHaikuView` | 28 | 3 | -25 | -89.3% | ListParityHelper |
 | High | `MoveCostForm` | `MoveCostEditorView` | 72 | 8 | -64 | -88.9% | ListParityHelper |
 | High | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 166 | 19 | -147 | -88.6% | Heuristic |
-| High | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | 136 | 17 | -119 | -87.5% | Heuristic |
 | High | `WorldMapPathForm` | `WorldMapPathEditorView` | 24 | 3 | -21 | -87.5% | Heuristic |
 | High | `SongTrackImportWaveForm` | `SongTrackImportWaveView` | 23 | 3 | -20 | -87.0% | Heuristic |
 | High | `WorldMapImageFE7Form` | `WorldMapImageFE7View` | 23 | 3 | -20 | -87.0% | Heuristic |
@@ -178,6 +177,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Medium | `TextToSpeechForm` | `TextToSpeechView` | 10 | 6 | -4 | -40.0% | Heuristic |
 | Medium | `ToolUPSOpenSimpleForm` | `ToolUPSOpenSimpleView` | 5 | 3 | -2 | -40.0% | Heuristic |
 | Medium | `ToolUndoForm` | `ToolUndoView` | 5 | 3 | -2 | -40.0% | Heuristic |
+| Medium | `SkillConfigFE8NVer2SkillForm` | `SkillConfigFE8NVer2SkillView` | 136 | 82 | -54 | -39.7% | Heuristic |
 | Medium | `DisASMDumpAllArgGrepForm` | `DisASMDumpAllArgGrepView` | 11 | 7 | -4 | -36.4% | Heuristic |
 | Medium | `SoundRoomForm` | `SoundRoomViewerView` | 22 | 14 | -8 | -36.4% | ListParityHelper |
 | Medium | `MapSettingFE7Form` | `MapSettingFE7View` | 229 | 146 | -83 | -36.2% | ListParityHelper |
@@ -512,20 +512,20 @@ WF count: **166** · AV count: **19** · Δ: **-147** (-88.6%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer3SkillView.axaml
 -->
 
-### SkillConfigFE8NVer2SkillForm
-WF count: **136** · AV count: **17** · Δ: **-119** (-87.5%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/SkillConfigFE8NVer2SkillForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer2SkillView.axaml
--->
-
 ### WorldMapPathForm
 WF count: **24** · AV count: **3** · Δ: **-21** (-87.5%).
 
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/WorldMapPathForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/WorldMapPathEditorView.axaml
+-->
+
+### SongTrackImportWaveForm
+WF count: **23** · AV count: **3** · Δ: **-20** (-87.0%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SongTrackImportWaveForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SongTrackImportWaveView.axaml
 -->
 
 ## Unpaired Orphans

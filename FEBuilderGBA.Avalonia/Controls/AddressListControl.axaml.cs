@@ -70,6 +70,33 @@ namespace FEBuilderGBA.Avalonia.Controls
             SelectFirst();
         }
 
+        /// <summary>
+        /// Load address list and re-select the row that previously matched
+        /// <paramref name="preserveAddress"/>. If no row matches, falls back
+        /// to <see cref="SelectFirst"/>. Used by editor refresh handlers that
+        /// reload the list after a successful Write so the user does not lose
+        /// their selection (Copilot CLI PR #596 round-4 review threads).
+        /// </summary>
+        public void SetItemsPreserveSelection(List<AddrResult> items, uint preserveAddress)
+        {
+            _items = items ?? new List<AddrResult>();
+            _iconLoader = null;
+            RefreshDisplay();
+            if (preserveAddress != 0)
+            {
+                // SelectAddress walks the filtered list looking for the
+                // matching .addr; if not found we fall back to SelectFirst.
+                int before = AddressList.SelectedIndex;
+                SelectAddress(preserveAddress);
+                if (AddressList.SelectedIndex == before && before < 0)
+                    SelectFirst();
+            }
+            else
+            {
+                SelectFirst();
+            }
+        }
+
         /// <summary>Load address list with icon thumbnails for each item.</summary>
         /// <param name="items">The address list items.</param>
         /// <param name="iconLoader">Function that takes an item index and returns a Bitmap thumbnail, or null.</param>
@@ -130,6 +157,18 @@ namespace FEBuilderGBA.Avalonia.Controls
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Clear the current selection. After this call <see cref="SelectedItem"/>
+        /// returns null and the inner ListBox shows nothing highlighted.
+        /// Mirrors WinForms `ListBox.SelectedIndex = -1` and is used by
+        /// MonsterItemViewerView's cross-tab Jump handlers to honour the
+        /// WF "value 0 means no selection" contract.
+        /// </summary>
+        public void Deselect()
+        {
+            AddressList.SelectedIndex = -1;
         }
 
         /// <summary>Select the last item in the list.</summary>
