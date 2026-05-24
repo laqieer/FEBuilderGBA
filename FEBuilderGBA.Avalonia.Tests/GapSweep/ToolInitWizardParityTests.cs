@@ -89,15 +89,34 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
-    public void View_TabItems_AreNotUserClickable()
+    public void View_DirectTabClicks_AreInterceptedViaSelectionChanged()
     {
-        // Per Copilot CLI #583 review finding #3: direct tab clicks must NOT
-        // allow the user to jump past Step1..6 validation. The fix sets
-        // `IsHitTestVisible="False"` on every TabItem via a TabControl style,
-        // so the user can only navigate via the explicit Next/Prev/Skip buttons.
+        // Per Copilot CLI #583 review finding #3 + Copilot bot review
+        // #583 round-3 (rejecting IsHitTestVisible="False" on TabItem
+        // because it also disables the content): direct tab clicks must
+        // NOT allow the user to jump past Step1..6 validation. The fix
+        // intercepts the TabControl SelectionChanged event in code-behind
+        // (OnMainTabSelectionChanged) and reverts any selection that
+        // wasn't initiated by an explicit Next/Prev/Skip handler.
         string axaml = ReadAxaml();
-        Assert.Contains("<Style Selector=\"TabItem\">", axaml);
-        Assert.Contains("Property=\"IsHitTestVisible\" Value=\"False\"", axaml);
+        Assert.Contains("SelectionChanged=\"OnMainTabSelectionChanged\"", axaml);
+        // Tab content must remain interactive — verify the rejected
+        // IsHitTestVisible="False" pattern is NOT present on TabItem
+        // (preventing a regression).
+        Assert.DoesNotContain("<Style Selector=\"TabItem\">", axaml);
+        Assert.DoesNotContain("Property=\"IsHitTestVisible\" Value=\"False\"", axaml);
+    }
+
+    [Fact]
+    public void View_CodeBehind_HasSelectionChangedHandler_AndProgrammaticGate()
+    {
+        // The interception is meaningless without the _allowProgrammaticPageChange
+        // gate flag and the NavigateToPage helper that sets it. Verify both
+        // are present in the code-behind.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("OnMainTabSelectionChanged", source);
+        Assert.Contains("_allowProgrammaticPageChange", source);
+        Assert.Contains("NavigateToPage(", source);
     }
 
     [Theory]
@@ -741,12 +760,13 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
-    public void ViewModel_ApplyAll_ReportsSaveError_WhenSaveFails()
+    public void ViewModel_ApplyAll_ReportsSaveError_WhenFileDoesNotAppear()
     {
-        // Per Copilot bot review #583 round-2: when Config.Save() throws,
-        // ApplyAll must surface the failure via SettingStatus (NOT silently
-        // claim "All settings applied"). The in-memory mutation already
-        // happened so the user knows it isn't persisted.
+        // Per Copilot bot review #583 round-2/round-3: when Config.Save()
+        // fails to land a file on disk (because Config.Save catches its own
+        // exceptions internally and doesn't throw), ApplyAll must detect
+        // the failure via the post-save File.Exists + LastWriteTimeUtc
+        // comparison and surface "could not be saved" via SettingStatus.
         using (new ConfigSnapshot())
         {
             // Create a Config with a non-writable filename so Save() throws.
@@ -778,6 +798,44 @@ public class ToolInitWizardParityTests
             finally
             {
                 CoreState.Config = prevConfig;
+            }
+        }
+    }
+
+    [Fact]
+    public void ViewModel_ApplyAll_SuccessPath_LastWriteTimeAdvances()
+    {
+        // Per Copilot bot review #583 round-3: success detection compares
+        // LastWriteTimeUtc before/after Save so a stale file doesn't make
+        // a failed Save look like success. This test verifies the SUCCESS
+        // path with a real writable temp file — Save updates the timestamp,
+        // and SettingStatus reports "All settings applied."
+        using (new ConfigSnapshot())
+        {
+            var writableConfig = new Config();
+            // Use a real temp file we can write to.
+            string tmpPath = Path.Combine(Path.GetTempPath(),
+                "ToolInitWizardTest_" + Guid.NewGuid().ToString("N") + ".xml");
+            var prop = typeof(Config).GetProperty("ConfigFilename");
+            prop?.SetValue(writableConfig, tmpPath);
+
+            var prevConfig = CoreState.Config;
+            try
+            {
+                CoreState.Config = writableConfig;
+                var vm = new ToolInitWizardViewModel();
+                vm.Initialize();
+                vm.IsCompletedThroughStep6 = true;
+                vm.ApplyAll();
+
+                Assert.True(File.Exists(tmpPath), "Save should have created the file.");
+                Assert.Contains("applied", vm.SettingStatus,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                CoreState.Config = prevConfig;
+                try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
             }
         }
     }

@@ -34,6 +34,13 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Setup Wizard";
         public bool IsLoaded { get; private set; }
 
+        // Set true by the explicit Next/Prev/Skip handlers when they intend
+        // to advance via _vm.GoToPage(). Cleared after the selection-change
+        // gate has accepted the new tab. SelectionChanged consults this flag
+        // to distinguish a programmatic page advance (allowed) from a direct
+        // tab-header click (rejected).
+        bool _allowProgrammaticPageChange;
+
         public ToolInitWizardView()
         {
             InitializeComponent();
@@ -45,6 +52,48 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _vm.Initialize();
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Intercept tab strip clicks. Per Copilot bot review #583 round-3:
+        /// IsHitTestVisible cannot be set on TabItem (it also disables the
+        /// content). Instead, watch the TabControl's SelectionChanged event
+        /// and revert any change that wasn't initiated by an explicit
+        /// Next/Prev/Skip handler. This keeps the wizard's pages reachable
+        /// only through validated transitions while leaving all controls
+        /// inside each page fully interactive.
+        /// </summary>
+        void OnMainTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_vm == null) return;
+            if (_allowProgrammaticPageChange)
+            {
+                _allowProgrammaticPageChange = false;
+                return;
+            }
+            // SelectionChanged also fires once during initial bind when
+            // CurrentPage = 0 — ignore that.
+            if (e.RemovedItems == null || e.RemovedItems.Count == 0)
+                return;
+            if (sender is not TabControl tab) return;
+            // Revert to the previous tab. CurrentPage in the VM is the
+            // source of truth — re-applying it cancels the user-initiated
+            // click.
+            tab.SelectedIndex = _vm.CurrentPage;
+        }
+
+        /// <summary>
+        /// Helper used by every Next/Prev/Skip click handler to advance
+        /// the wizard programmatically (i.e. through validated state).
+        /// Sets the gate flag, calls _vm.GoToPage, and clears the flag in
+        /// case GoToPage was a no-op.
+        /// </summary>
+        void NavigateToPage(int index)
+        {
+            _allowProgrammaticPageChange = true;
+            bool ok = _vm.GoToPage(index);
+            if (!ok)
+                _allowProgrammaticPageChange = false;
         }
 
         public void NavigateTo(uint address) { }
@@ -87,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStartButton_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(1);
+            NavigateToPage(1);
         }
 
         // ===================================================================
@@ -96,14 +145,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStep1Prev_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(0);
+            NavigateToPage(0);
         }
 
         void OnStep1Next_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.Path;
             if (_vm.StageStep1())
-                _vm.GoToPage(2);
+                NavigateToPage(2);
             // else: stay on Step1Page so the user can fix the path.
         }
 
@@ -134,14 +183,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStep2Prev_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(1);
+            NavigateToPage(1);
         }
 
         void OnStep2Next_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.Path;
             if (_vm.StageStep2())
-                _vm.GoToPage(3);
+                NavigateToPage(3);
         }
 
         async void OnRefEA_Click(object? sender, RoutedEventArgs e)
@@ -160,7 +209,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnSkipStep2_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.DoNotSelect;
-            _vm.GoToPage(3);
+            NavigateToPage(3);
         }
 
         // ===================================================================
@@ -169,14 +218,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStep3Prev_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(2);
+            NavigateToPage(2);
         }
 
         void OnStep3Next_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.Path;
             if (_vm.StageStep3())
-                _vm.GoToPage(4);
+                NavigateToPage(4);
         }
 
         async void OnRefSappy_Click(object? sender, RoutedEventArgs e)
@@ -201,7 +250,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnSkipStep3_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.DoNotSelect;
-            _vm.GoToPage(4);
+            NavigateToPage(4);
         }
 
         // ===================================================================
@@ -210,14 +259,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStep4Prev_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(3);
+            NavigateToPage(3);
         }
 
         void OnStep4Next_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep4Mode = ToolInitWizardViewModel.Step4Mode_Enum.Path;
             if (_vm.StageStep4())
-                _vm.GoToPage(5);
+                NavigateToPage(5);
         }
 
         async void OnRefDebugger_Click(object? sender, RoutedEventArgs e)
@@ -243,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnSkipStep4_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep4Mode = ToolInitWizardViewModel.Step4Mode_Enum.DoNotSelect;
-            _vm.GoToPage(5);
+            NavigateToPage(5);
         }
 
         // ===================================================================
@@ -252,14 +301,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStep5Prev_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(4);
+            NavigateToPage(4);
         }
 
         void OnStep5Next_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep5Mode = ToolInitWizardViewModel.Step5Mode_Enum.Path;
             if (_vm.StageStep5())
-                _vm.GoToPage(6);
+                NavigateToPage(6);
         }
 
         async void OnRefGbaMusRiper_Click(object? sender, RoutedEventArgs e)
@@ -292,7 +341,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnSkipStep5_Click(object? sender, RoutedEventArgs e)
         {
             _vm.PendingStep5Mode = ToolInitWizardViewModel.Step5Mode_Enum.DoNotSelect;
-            _vm.GoToPage(6);
+            NavigateToPage(6);
         }
 
         // ===================================================================
@@ -301,7 +350,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnStep6Prev_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.GoToPage(5);
+            NavigateToPage(5);
         }
 
         void OnStep6Next_Click(object? sender, RoutedEventArgs e)
@@ -310,7 +359,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_vm.StageStep6())
             {
                 _vm.ApplyAll();
-                _vm.GoToPage(8); // jump straight to EndPage
+                NavigateToPage(8); // jump straight to EndPage
             }
         }
 
@@ -337,7 +386,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_vm.StageStep6())
             {
                 _vm.ApplyAll();
-                _vm.GoToPage(8);
+                NavigateToPage(8);
             }
         }
 

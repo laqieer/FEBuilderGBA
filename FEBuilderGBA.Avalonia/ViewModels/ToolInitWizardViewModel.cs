@@ -479,23 +479,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Persist to disk. Mirrors OptionsViewModel.Save which calls
                 // Config.Save() explicitly because Avalonia has no global
                 // "save on exit" hook. Guarded against empty ConfigFilename
-                // for in-memory test fixtures. Per Copilot bot review #583
-                // round-2: surface Save failures via SettingStatus (do NOT
-                // silently report success). Config.Save itself catches
-                // IOException internally and shows a dialog, but the
-                // file-existence check after the call gives us a positive
-                // confirmation signal for the success status.
+                // for in-memory test fixtures.
+                //
+                // Per Copilot bot review #583 round-3: File.Exists alone is
+                // insufficient because if the config already exists and Save
+                // fails (e.g. permission denied), the old file remains. We
+                // compare LastWriteTimeUtc before/after the call — Save
+                // success means the timestamp moves forward; failure leaves
+                // it unchanged. Falls back to File.Exists for the brand-new
+                // file case.
                 bool saveOk = true;
                 if (!string.IsNullOrEmpty(config.ConfigFilename))
                 {
+                    string path = config.ConfigFilename;
+                    System.DateTime preWriteTime = System.DateTime.MinValue;
+                    bool preExisted = System.IO.File.Exists(path);
+                    if (preExisted)
+                    {
+                        try { preWriteTime = System.IO.File.GetLastWriteTimeUtc(path); }
+                        catch { /* fall back to existence check */ }
+                    }
+
                     try
                     {
                         config.Save();
-                        // Verify the file actually landed on disk. Save's
-                        // internal try-catch swallows IOExceptions so we
-                        // cannot rely on exception propagation alone.
-                        if (!System.IO.File.Exists(config.ConfigFilename))
-                            saveOk = false;
                     }
                     catch (System.Exception ex)
                     {
@@ -503,11 +510,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         SettingStatus = R._("Settings could not be saved to disk: {0}", ex.Message);
                         CoreState.Services?.ShowError(SettingStatus);
                     }
-                    if (!saveOk && string.IsNullOrEmpty(SettingStatus))
+
+                    if (saveOk)
                     {
-                        SettingStatus = R._("Settings could not be saved to disk: {0}",
-                            config.ConfigFilename);
-                        CoreState.Services?.ShowError(SettingStatus);
+                        // Confirm the write actually landed. Either the file
+                        // is new (didn't exist before) or its LastWriteTimeUtc
+                        // moved forward.
+                        bool postExists = System.IO.File.Exists(path);
+                        if (!postExists)
+                        {
+                            saveOk = false;
+                        }
+                        else if (preExisted)
+                        {
+                            try
+                            {
+                                System.DateTime postWriteTime = System.IO.File.GetLastWriteTimeUtc(path);
+                                if (postWriteTime <= preWriteTime)
+                                    saveOk = false;
+                            }
+                            catch
+                            {
+                                saveOk = false;
+                            }
+                        }
+                        if (!saveOk)
+                        {
+                            SettingStatus = R._("Settings could not be saved to disk: {0}", path);
+                            CoreState.Services?.ShowError(SettingStatus);
+                        }
                     }
                 }
 

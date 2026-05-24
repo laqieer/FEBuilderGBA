@@ -27,20 +27,21 @@
          Per Copilot CLI #583 finding #3, `ApplyAll()` is ALSO defence-in-depth
          gated by `IsCompletedThroughStep6` so a stray code path can never
          persist a half-applied wizard. -->
+    <!-- Direct tab clicks bypass Step1..6 validation, so we intercept
+         SelectionChanged in code-behind (OnMainTabSelectionChanged) and
+         revert any selection that isn't allowed for the current Pending*
+         state. IsHitTestVisible MUST NOT be set on TabItem itself —
+         Copilot bot review #583 round-3 finding: disabling hit-testing on
+         a TabItem also makes its CONTENT (buttons, textboxes) unclickable.
+         The SelectionChanged interception approach keeps content
+         interactive while still preventing illegal page jumps. -->
     <TabControl Name="MainTab"
                 AutomationProperties.AutomationId="ToolInitWizard_MainTab_TabControl"
                 SelectedIndex="{Binding CurrentPage, Mode=TwoWay}"
                 TabStripPlacement="Top"
                 IsTabStop="False"
+                SelectionChanged="OnMainTabSelectionChanged"
                 Margin="4">
-      <TabControl.Styles>
-        <Style Selector="TabItem">
-          <!-- Disable header click to prevent direct tab jumps that bypass
-               StageStep1..6 validation. Headers stay visible so the
-               label-diff scanner still harvests them as "Common" labels. -->
-          <Setter Property="IsHitTestVisible" Value="False"/>
-        </Style>
-      </TabControl.Styles>
       <!-- ============================ Page 0: BeginPage ============================ -->
       <TabItem AutomationProperties.AutomationId="ToolInitWizard_BeginPage_Tab"
                Header="BeginPage"><!-- KnownGap NonEnglish: WF internal TabPage Name harvested by label-diff scanner -->
