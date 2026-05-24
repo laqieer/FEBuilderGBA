@@ -15935,6 +15935,9 @@ CSA魔法创建器
 :Change Pointer:
 变更指针:
 
+:Chipset Preview
+图块集预览
+
 :Change Records
 变更记录
 
@@ -17408,6 +17411,9 @@ MIDI write-back to ROM is not yet fully implemented. You can preview MIDI file m
 :Magic/??
 魔法/??
 
+:Main Image
+主图像
+
 :Main Portrait
 主头像
 
@@ -17707,6 +17713,9 @@ Next Node (Ephraim):
 
 :No tile selected
 未选择图块
+
+:No Zoom
+不放大
 
 :No$GBA SYM
 No$GBA SYM

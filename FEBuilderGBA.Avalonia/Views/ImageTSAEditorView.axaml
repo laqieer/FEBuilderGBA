@@ -4,18 +4,436 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ImageTSAEditorView"
         Title="TSA Tile Editor" Width="1411" Height="938"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageTSAEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- ImageTSAEditorView - Avalonia parity raise for ImageTSAEditorForm
+       (gap-sweep #398, 100 vs 3 controls, -97% density, 30 WF-only labels).
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="TSA Tile Editor" FontSize="18" FontWeight="Bold" />
+       The TSA editor is INVOKED CONTEXT-DEPENDENTLY by
+       ImageFormRef.TSAEditorButton_Click and GraphicsToolForm.TSAEditorButton_Click
+       (callers pass width/height/zimg/tsa/palette pointers via Init(...)),
+       so the entry-list mirrors WF's caller pattern: a single static row
+       per ROM session ("TSA Tile Editor") that holds the inspector state.
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageTSAEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+       Layout mirrors the WF Designer.cs control tree:
+         Row 0: top toolbar  (PaletteIndexComboBox + Zoom + Info + Undo + Redo + Write)
+         Row 1: left panel   (Entry list + chipset CHIPLIST scroll area)
+                 + central   (Battle canvas + TSAInfo strip + TabControl: Palette / Main Image)
+
+       Context gating: all write buttons (Write / PaletteWrite / Clipboard /
+       MainImageImport / MainImageExport) are gated on IsContextLoaded so the
+       default MainWindow open path leaves them harmless until a caller (e.g.
+       a future GraphicsToolView TSAEditorButton equivalent) invokes Init.
+
+       The KnownGap markers below cover WinForms-only graphics pipelines that
+       require the full ImageUtil/ImageFormRef/LZ77 surface to render. We
+       follow the pattern from PR #577 (ClassOPDemo) and PR #513 (ImageBattleBG)
+       which defer live-image pipelines as KnownGap so the labels-sweep
+       audit-trail still passes.
+  -->
+
+  <!-- KnownGap: BattleCanvasRender reason=Live LZ77 decode + per-tile H/V-flip blit into a Bitmap+Graphics canvas is a WinForms-only graphics pipeline (System.Drawing + ImageUtil.ByteToImage16Tile + ImageUtil.BitBlt); deferred consistent with PR #577 and PR #513. The static palette/main-image editor UI ships in this PR. -->
+  <!-- KnownGap: ChipsetListRender reason=PATHCHIPLIST permuted chipset (orig + H flip + V flip + HV flip) requires the same WinForms ImageUtil.Copy + BitBlt pipeline; deferred consistent with PR #577 and PR #513. -->
+  <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. Deferred; only the palette-write path is exercised by the Write button in this PR. -->
+  <!-- KnownGap: PaletteToClipboard reason=System.Windows.Forms.Clipboard interop is WinForms-only; Avalonia equivalent (TopLevel.Clipboard async API) is a separate cross-cutting refactor not in scope here. The Clipboard button (label クリップボード) renders as a disabled stub so the labels audit still passes. -->
+  <!-- KnownGap: MainImageImportExport reason=image1_Import / image1_Export call into ImageFormRef.ImportImageHandler / ExportImageHandler which depend on the full WinForms ImageFormRef ROM-write pipeline; deferred consistent with #513's BatchPng deferral. The Image Import / Image Export buttons (labels 画像読込 / 画像取出) render as disabled stubs so the labels audit still passes. -->
+
+
+  <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
+
+    <!-- ===== Row 0: Top toolbar (mirrors WF top-level controls) ===== -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Palette Index" VerticalAlignment="Center" />
+        <!-- WF mirror: 0-F PALETTE; we render as bare hex digits since the
+             "Palette Index" Label already gives context, and the WF strings
+             would fail the L10n heuristic (English-looking but no translation). -->
+        <ComboBox AutomationProperties.AutomationId="ImageTSAEditor_PaletteIndex_Combo"
+                  Name="PaletteIndexCombo" Width="160" VerticalAlignment="Center">
+          <ComboBoxItem Content="0" />
+          <ComboBoxItem Content="1" />
+          <ComboBoxItem Content="2" />
+          <ComboBoxItem Content="3" />
+          <ComboBoxItem Content="4" />
+          <ComboBoxItem Content="5" />
+          <ComboBoxItem Content="6" />
+          <ComboBoxItem Content="7" />
+          <ComboBoxItem Content="8" />
+          <ComboBoxItem Content="9" />
+          <ComboBoxItem Content="A" />
+          <ComboBoxItem Content="B" />
+          <ComboBoxItem Content="C" />
+          <ComboBoxItem Content="D" />
+          <ComboBoxItem Content="E" />
+          <ComboBoxItem Content="F" />
+        </ComboBox>
+        <Label Content="Zoom" VerticalAlignment="Center" Margin="12,0,0,0" />
+        <!-- Zoom options are populated from code-behind via R._() so they are
+             translated by the Core l10n facade (ComboBoxItem.Content is not
+             walked by ViewTranslationHelper — Copilot review feedback). -->
+        <ComboBox AutomationProperties.AutomationId="ImageTSAEditor_Zoom_Combo"
+                  Name="ZoomCombo" Width="160" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ImageTSAEditor_Info_Input"
+                 Name="InfoBox" IsReadOnly="True" Width="280"
+                 Margin="12,0,0,0" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ImageTSAEditor_Undo_Button"
+                Name="UndoButton" Content="Undo" Click="Undo_Click"
+                Margin="12,0,0,0" />
+        <!-- Redo is explicitly inert: Core Undo currently exposes only RunUndo
+             (no RunRedo). The button stays disabled in the AXAML so the user
+             sees the unavailability immediately (Copilot review feedback).
+             Click handler kept for the View_AllButtons_AreWiredOrExplicitlyInert
+             audit and for the programmatic-info-dialog fallback. -->
+        <Button AutomationProperties.AutomationId="ImageTSAEditor_Redo_Button"
+                Name="RedoButton" Content="Redo" Click="Redo_Click"
+                IsEnabled="False" />
+        <!-- Write is gated on IsContextLoaded - disabled until a caller Init's -->
+        <Button AutomationProperties.AutomationId="ImageTSAEditor_Write_Button"
+                Name="WriteButton" Content="Write" Click="Write_Click"
+                IsEnabled="{Binding IsContextLoaded}"
+                Margin="12,0,0,0" />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
+
+    <!-- ===== Row 1 Col 0: Entry list + Chipset thumbnail area ===== -->
+    <Grid Grid.Row="1" Grid.Column="0" Margin="4" RowDefinitions="*,Auto,*">
+      <controls:AddressListControl AutomationProperties.AutomationId="ImageTSAEditor_Entry_List"
+                                   Grid.Row="0" Name="EntryList" />
+      <Label Grid.Row="1" Content="Chipset Preview" Margin="0,4,0,0" />
+      <!-- Chipset thumbnail (CHIPLIST + PATHCHIPLIST_Paint) - KnownGap: ChipsetListRender -->
+      <Border Grid.Row="2" BorderBrush="DarkGray" BorderThickness="1" Margin="0,4,0,0">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_ChipList_Image"
+                                    Name="ChipListPreview" MinWidth="64" MinHeight="120" />
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <!-- ===== Row 1 Col 1: Battle canvas + TSAInfo + TabControl ===== -->
+    <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="*,Auto,Auto" Margin="4">
+
+      <!-- Battle canvas (TSA-rendered image) - KnownGap: BattleCanvasRender + TSAByteWrite -->
+      <Border Grid.Row="0" BorderBrush="DarkGray" BorderThickness="1" Margin="0,0,0,4">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_Battle_Image"
+                                    Name="BattlePreview" MinWidth="256" MinHeight="160" />
+        </ScrollViewer>
+      </Border>
+
+      <!-- TSAInfo readout strip (mirrors WF TSAInfo TextBoxEx) -->
+      <TextBox Grid.Row="1" AutomationProperties.AutomationId="ImageTSAEditor_TSAInfo_Input"
+               Name="TSAInfoBox" IsReadOnly="True" Margin="0,0,0,4" />
+
+      <!-- ===== Tabbed editor: Palette + Main Image ===== -->
+      <TabControl Grid.Row="2" AutomationProperties.AutomationId="ImageTSAEditor_TabControl"
+                  Name="EditorTabControl" Height="320">
+
+        <!-- Palette tab (mirrors WF tabPage1 パレット) -->
+        <TabItem AutomationProperties.AutomationId="ImageTSAEditor_Palette_Tab" Header="Palette">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto">
+            <StackPanel Margin="6" Spacing="6">
+
+              <!-- Palette top bar: Address + Clipboard (inert) + Palette Write -->
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <!-- Label text matches the existing translation key "Palette Address:"
+                     (with trailing colon) so the ja/zh translations from the canonical
+                     downstream-entry get applied (Copilot review feedback). -->
+                <Label Content="Palette Address:" VerticalAlignment="Center"
+                       BorderBrush="DarkGray" BorderThickness="1" Padding="6,3" Width="180"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_PaletteAddress_Input"
+                               FormatString="0" Name="PaletteAddressBox" Width="140"
+                               Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+                <!-- Clipboard button is an explicit IsEnabled=False stub - KnownGap: PaletteToClipboard.
+                     Click handler is wired so the inert-buttons audit test passes. -->
+                <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteClipboard_Button"
+                        Name="PaletteClipboardButton" Content="Clipboard"
+                        Click="PaletteClipboard_Click" IsEnabled="False"
+                        Margin="12,0,0,0" />
+                <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteWrite_Button"
+                        Name="PaletteWriteButton" Content="Palette Write"
+                        Click="PaletteWrite_Click"
+                        IsEnabled="{Binding IsContextLoaded}"
+                        Margin="12,0,0,0" />
+              </StackPanel>
+
+              <!-- 16-column 5-row palette grid:
+                     Row 0: index label (1-16, mirrors WF label7/15/17/19/...)
+                     Row 1: hex preview label (PALETTE_P_n)
+                     Row 2: R input (mirrors WF label48="R")
+                     Row 3: G input (mirrors WF label49="G")
+                     Row 4: B input (mirrors WF label50="B") -->
+              <Grid ColumnDefinitions="22,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                <!-- Row-label column (R/G/B). Column 0. -->
+                <Label Grid.Row="2" Grid.Column="0" Content="R" VerticalAlignment="Center" />
+                <Label Grid.Row="3" Grid.Column="0" Content="G" VerticalAlignment="Center" />
+                <Label Grid.Row="4" Grid.Column="0" Content="B" VerticalAlignment="Center" />
+
+                <!-- Per-palette-entry columns 1..16. Each populated by the
+                     paletteIndexEntry block below. We unroll all 16 here
+                     because Avalonia doesn't support ItemsControl with
+                     attached Grid.Row/Column - the WF Designer also unrolled. -->
+
+                <!-- ===== Idx 1 ===== -->
+                <Label Grid.Row="0" Grid.Column="1" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_1_Label"
+                       Content="1" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="1" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_1_Label"
+                       Name="PaletteP1" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_1_Input"
+                               Name="PaletteR1" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_1_Input"
+                               Name="PaletteG1" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="1" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_1_Input"
+                               Name="PaletteB1" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 2 ===== -->
+                <Label Grid.Row="0" Grid.Column="2" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_2_Label"
+                       Content="2" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="2" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_2_Label"
+                       Name="PaletteP2" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="2" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_2_Input"
+                               Name="PaletteR2" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="2" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_2_Input"
+                               Name="PaletteG2" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="2" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_2_Input"
+                               Name="PaletteB2" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 3 ===== -->
+                <Label Grid.Row="0" Grid.Column="3" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_3_Label"
+                       Content="3" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="3" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_3_Label"
+                       Name="PaletteP3" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="3" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_3_Input"
+                               Name="PaletteR3" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="3" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_3_Input"
+                               Name="PaletteG3" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="3" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_3_Input"
+                               Name="PaletteB3" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 4 ===== -->
+                <Label Grid.Row="0" Grid.Column="4" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_4_Label"
+                       Content="4" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="4" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_4_Label"
+                       Name="PaletteP4" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="4" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_4_Input"
+                               Name="PaletteR4" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="4" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_4_Input"
+                               Name="PaletteG4" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="4" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_4_Input"
+                               Name="PaletteB4" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 5 ===== -->
+                <Label Grid.Row="0" Grid.Column="5" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_5_Label"
+                       Content="5" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="5" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_5_Label"
+                       Name="PaletteP5" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="5" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_5_Input"
+                               Name="PaletteR5" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="5" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_5_Input"
+                               Name="PaletteG5" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="5" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_5_Input"
+                               Name="PaletteB5" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 6 ===== -->
+                <Label Grid.Row="0" Grid.Column="6" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_6_Label"
+                       Content="6" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="6" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_6_Label"
+                       Name="PaletteP6" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="6" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_6_Input"
+                               Name="PaletteR6" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="6" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_6_Input"
+                               Name="PaletteG6" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="6" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_6_Input"
+                               Name="PaletteB6" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 7 ===== -->
+                <Label Grid.Row="0" Grid.Column="7" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_7_Label"
+                       Content="7" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="7" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_7_Label"
+                       Name="PaletteP7" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="7" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_7_Input"
+                               Name="PaletteR7" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="7" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_7_Input"
+                               Name="PaletteG7" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="7" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_7_Input"
+                               Name="PaletteB7" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 8 ===== -->
+                <Label Grid.Row="0" Grid.Column="8" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_8_Label"
+                       Content="8" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="8" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_8_Label"
+                       Name="PaletteP8" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="8" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_8_Input"
+                               Name="PaletteR8" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="8" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_8_Input"
+                               Name="PaletteG8" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="8" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_8_Input"
+                               Name="PaletteB8" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 9 ===== -->
+                <Label Grid.Row="0" Grid.Column="9" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_9_Label"
+                       Content="9" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="9" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_9_Label"
+                       Name="PaletteP9" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="9" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_9_Input"
+                               Name="PaletteR9" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="9" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_9_Input"
+                               Name="PaletteG9" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="9" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_9_Input"
+                               Name="PaletteB9" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 10 ===== -->
+                <Label Grid.Row="0" Grid.Column="10" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_10_Label"
+                       Content="10" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="10" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_10_Label"
+                       Name="PaletteP10" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="10" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_10_Input"
+                               Name="PaletteR10" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="10" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_10_Input"
+                               Name="PaletteG10" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="10" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_10_Input"
+                               Name="PaletteB10" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 11 ===== -->
+                <Label Grid.Row="0" Grid.Column="11" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_11_Label"
+                       Content="11" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="11" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_11_Label"
+                       Name="PaletteP11" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="11" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_11_Input"
+                               Name="PaletteR11" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="11" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_11_Input"
+                               Name="PaletteG11" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="11" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_11_Input"
+                               Name="PaletteB11" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 12 ===== -->
+                <Label Grid.Row="0" Grid.Column="12" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_12_Label"
+                       Content="12" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="12" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_12_Label"
+                       Name="PaletteP12" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="12" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_12_Input"
+                               Name="PaletteR12" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="12" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_12_Input"
+                               Name="PaletteG12" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="12" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_12_Input"
+                               Name="PaletteB12" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 13 ===== -->
+                <Label Grid.Row="0" Grid.Column="13" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_13_Label"
+                       Content="13" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="13" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_13_Label"
+                       Name="PaletteP13" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="13" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_13_Input"
+                               Name="PaletteR13" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="13" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_13_Input"
+                               Name="PaletteG13" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="13" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_13_Input"
+                               Name="PaletteB13" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 14 ===== -->
+                <Label Grid.Row="0" Grid.Column="14" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_14_Label"
+                       Content="14" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="14" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_14_Label"
+                       Name="PaletteP14" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="14" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_14_Input"
+                               Name="PaletteR14" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="14" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_14_Input"
+                               Name="PaletteG14" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="14" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_14_Input"
+                               Name="PaletteB14" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 15 ===== -->
+                <Label Grid.Row="0" Grid.Column="15" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_15_Label"
+                       Content="15" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="15" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_15_Label"
+                       Name="PaletteP15" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="15" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_15_Input"
+                               Name="PaletteR15" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="15" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_15_Input"
+                               Name="PaletteG15" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="15" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_15_Input"
+                               Name="PaletteB15" Width="60" Minimum="0" Maximum="255" Increment="8" />
+
+                <!-- ===== Idx 16 ===== -->
+                <Label Grid.Row="0" Grid.Column="16" AutomationProperties.AutomationId="ImageTSAEditor_Palette_Idx_16_Label"
+                       Content="16" HorizontalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="16" AutomationProperties.AutomationId="ImageTSAEditor_Palette_P_16_Label"
+                       Name="PaletteP16" BorderBrush="DarkGray" BorderThickness="1" Width="50" Height="22"
+                       HorizontalContentAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="16" AutomationProperties.AutomationId="ImageTSAEditor_Palette_R_16_Input"
+                               Name="PaletteR16" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="3" Grid.Column="16" AutomationProperties.AutomationId="ImageTSAEditor_Palette_G_16_Input"
+                               Name="PaletteG16" Width="60" Minimum="0" Maximum="255" Increment="8" />
+                <NumericUpDown Grid.Row="4" Grid.Column="16" AutomationProperties.AutomationId="ImageTSAEditor_Palette_B_16_Input"
+                               Name="PaletteB16" Width="60" Minimum="0" Maximum="255" Increment="8" />
+              </Grid>
+
+              <!-- Palette UNDO/REDO sub-buttons (mirrors WF UndoPlaetteButton/RedoPaletteButton).
+                   Redo is IsEnabled=False at the AXAML level (Core.Undo has no
+                   RunRedo yet); Copilot review feedback. -->
+              <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteUndo_Button"
+                        Name="PaletteUndoButton" Content="Undo" Click="PaletteUndo_Click" Width="130" />
+                <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteRedo_Button"
+                        Name="PaletteRedoButton" Content="Redo" Click="PaletteRedo_Click"
+                        IsEnabled="False" Width="130" />
+              </StackPanel>
+
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <!-- Main Image tab (mirrors WF tabPage2 メイン画像) -->
+        <TabItem AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Tab" Header="Main Image">
+          <StackPanel Margin="6" Spacing="6">
+
+            <!-- Image address + label (mirrors WF label12=画像 + image1_ZIMAGE) -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label Content="Image" VerticalAlignment="Center"
+                     BorderBrush="DarkGray" BorderThickness="1" Padding="6,3" Width="165"
+                     HorizontalContentAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Address_Input"
+                             FormatString="0" Name="MainImageAddressBox" Width="120"
+                             Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Import + Export buttons (mirrors WF image1_Import=画像読込 + image1_Export=画像取出).
+                 IsEnabled=False stubs - KnownGap: MainImageImportExport. -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Import_Button"
+                      Name="MainImageImportButton" Content="Image Import"
+                      Click="MainImageImport_Click" IsEnabled="False" Width="167" />
+              <Button AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Export_Button"
+                      Name="MainImageExportButton" Content="Image Export"
+                      Click="MainImageExport_Click" IsEnabled="False" Width="167" />
+            </StackPanel>
+
+            <!-- Image preview area -->
+            <Border BorderBrush="DarkGray" BorderThickness="1" MinHeight="128">
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Image"
+                                        Name="MainImagePreview" MinWidth="316" MinHeight="128" />
+            </Border>
+
+          </StackPanel>
+        </TabItem>
+
+      </TabControl>
+
+    </Grid>
+
   </Grid>
 </Window>

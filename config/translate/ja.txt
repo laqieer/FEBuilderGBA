@@ -1463,6 +1463,9 @@ CSA 魔法 Creator
 :Change Pointer:
 Change ポインタ:
 
+:Chipset Preview
+チップセット プレビュー
+
 :Chapter / Transporter / Victory
 章 / Transporter / Victory
 
@@ -2510,6 +2513,9 @@ MIDI ファイル Metadata
 :Magic/??
 魔法/??
 
+:Main Image
+メイン画像
+
 :Main Portrait
 Main 顔画像
 
@@ -2734,6 +2740,9 @@ Multi サンプル ポインタ
 
 :No song selected
 いいえ song selected
+
+:No Zoom
+ズームなし
 
 :No tile selected
 いいえ tile selected
