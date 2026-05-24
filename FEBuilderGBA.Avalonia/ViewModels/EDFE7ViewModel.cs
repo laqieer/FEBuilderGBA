@@ -186,7 +186,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 LYN_BLOCK_SIZE,
                 (addr) => rom.u32(addr) != 0x00,
                 (addr) => {
-                    uint uid = rom.u8(addr);
+                    // FE7 Lyn record's UnitId is a DWord at +0 (WF N3_Init
+                    // uses Program.ROM.u32(addr)). Reading u8 here would
+                    // drop the upper 3 bytes and diverge from the u32==0
+                    // terminator predicate above.
+                    uint uid = rom.u32(addr);
                     return $"{U.ToHexString(uid)} {GetUnitNameForUid(uid)}";
                 });
         }
@@ -302,7 +306,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 EPITHET_BLOCK_SIZE,
                 (addr) => rom.u32(addr) != 0x00,
                 (addr) => {
-                    uint uid = rom.u8(addr);
+                    // FE7 epithet record's UnitId is a DWord at +0 (WF
+                    // N1_Init uses Program.ROM.u32(addr)). Reading u8
+                    // would drop the upper 3 bytes and diverge from the
+                    // u32==0 terminator predicate above.
+                    uint uid = rom.u32(addr);
                     uint textId = rom.u32(addr + 4);
                     string textPreview = textId != 0 ? NameResolver.GetTextById(textId) : "";
                     return $"{U.ToHexString(uid)} {GetUnitNameForUid(uid)} {textPreview}".Trim();
