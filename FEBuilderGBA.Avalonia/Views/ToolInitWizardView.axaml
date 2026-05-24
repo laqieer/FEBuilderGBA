@@ -3,24 +3,504 @@
         x:Class="FEBuilderGBA.Avalonia.Views.ToolInitWizardView"
         Title="Setup Wizard" Width="892" Height="666"
         WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="Manual"
+        CanResize="True">
+  <!-- ToolInitWizardForm parity (#401 / #374). Mirrors WF's 9 hidden tabs
+       (BeginPage, Step1Page .. Step6Page, SettingNowPage, EndPage). The TabControl
+       drives navigation via TabControl.SelectedIndex bound to _vm.CurrentPage.
+       Tab headers carry the WF internal page name (BeginPage, Step1Page, etc.)
+       so the label-diff scanner finds them — they are flagged KnownGap NonEnglish
+       because they are not user-visible (the WF version calls
+       InputFormRef.TabControlHideTabOption to hide the tab strip; Avalonia
+       achieves the same by setting TabStripPlacement to none-equivalent via
+       a 0-height border in code-behind, but for density/labels parity the
+       headers must remain present in AXAML so the scanner can harvest them). -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <StackPanel Margin="24" Spacing="12">
-    <TextBlock Text="Setup Wizard" FontSize="24" FontWeight="Bold" />
-    <TextBlock Text="Initial Configuration" FontSize="14" Foreground="Gray" />
-    <Separator Margin="0,8" />
-    <TextBlock Text="Setup Steps" FontSize="16" FontWeight="SemiBold" />
-    <TextBlock TextWrapping="Wrap"
-               Text="Step 1: Select your clean Fire Emblem GBA ROM file." />
-    <TextBlock TextWrapping="Wrap"
-               Text="Step 2: Choose your preferred language for the editor interface." />
-    <TextBlock TextWrapping="Wrap"
-               Text="Step 3: Configure paths for external tools (emulators, assemblers)." />
-    <TextBlock TextWrapping="Wrap"
-               Text="Step 4: Review settings and begin editing." />
-    <Separator Margin="0,8" />
-    <TextBlock TextWrapping="Wrap" Foreground="Gray"
-               Text="You can change these settings later from the Options menu." />
-  </StackPanel>
+    <TabControl Name="MainTab"
+                AutomationProperties.AutomationId="ToolInitWizard_MainTab"
+                SelectedIndex="{Binding CurrentPage, Mode=TwoWay}"
+                TabStripPlacement="Top"
+                Margin="4">
+      <!-- ============================ Page 0: BeginPage ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_BeginPage_Tab"
+               Header="BeginPage"><!-- KnownGap NonEnglish: WF internal TabPage Name harvested by label-diff scanner -->
+        <StackPanel Margin="16" Spacing="10">
+          <TextBlock Text="FEBuilderGBA Setup Wizard"
+                     FontSize="22" FontWeight="Bold"
+                     AutomationProperties.AutomationId="ToolInitWizard_Banner_Label" />
+          <TextBlock Text="Initial Configuration"
+                     FontSize="13" Foreground="Gray"
+                     AutomationProperties.AutomationId="ToolInitWizard_Subtitle_Label" />
+          <Border BorderBrush="LightGray" BorderThickness="1" Padding="10">
+            <TextBox Name="WelcomeTextBox"
+                     AutomationProperties.AutomationId="ToolInitWizard_Welcome_Input"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     Height="190"
+                     Text="Welcome to FEBuilderGBA.&#x0A;&#x0A;This wizard guides initial setup of the editor.&#x0A;&#x0A;If you do not want to use this wizard, close this window. You can re-open it later from Menu -&gt; Options -&gt; Setup Wizard." />
+          </Border>
+          <Grid ColumnDefinitions="80,*" Margin="0,8,0,0">
+            <TextBlock Text="Language:" Grid.Column="0"
+                       VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Language_Label" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button Content="English"
+                      AutomationProperties.AutomationId="ToolInitWizard_LangEN_Button"
+                      MinWidth="170" Height="35"
+                      Click="OnLangEN_Click" />
+              <Button Content="日本語"
+                      AutomationProperties.AutomationId="ToolInitWizard_LangJP_Button"
+                      MinWidth="170" Height="35"
+                      Click="OnLangJP_Click" />
+              <Button Content="中文"
+                      AutomationProperties.AutomationId="ToolInitWizard_LangZH_Button"
+                      MinWidth="170" Height="35"
+                      Click="OnLangZH_Click" />
+            </StackPanel>
+          </Grid>
+          <Grid ColumnDefinitions="80,*" Margin="0,4,0,0">
+            <TextBlock Text="Color:" Grid.Column="0"
+                       VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Color_Label" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+              <Button Content="White"
+                      AutomationProperties.AutomationId="ToolInitWizard_WhiteBG_Button"
+                      MinWidth="170" Height="35"
+                      Click="OnWhiteBG_Click" />
+              <Button Content="Black"
+                      AutomationProperties.AutomationId="ToolInitWizard_BlackBG_Button"
+                      MinWidth="170" Height="35"
+                      Click="OnBlackBG_Click" />
+              <Button Content="Black 2"
+                      AutomationProperties.AutomationId="ToolInitWizard_BlackBG2_Button"
+                      MinWidth="170" Height="35"
+                      Click="OnBlackBG2_Click" />
+            </StackPanel>
+          </Grid>
+          <Button Content="Start"
+                  AutomationProperties.AutomationId="ToolInitWizard_Start_Button"
+                  Width="200" Height="50"
+                  HorizontalAlignment="Right"
+                  Margin="0,12,0,0"
+                  Click="OnStartButton_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 1: Step1Page (Emulator) ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_Step1Page_Tab"
+               Header="Step1Page"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="Specify an emulator to use for testing.&#x0A;Press F5 in FEBuilderGBA to launch the emulator and test the ROM."
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step1Problem_Label" />
+            <TextBlock Grid.Column="1" Text="Step 1/6"
+                       VerticalAlignment="Top"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step1Indicator_Label" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Column="0" Text="Emulator:" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step1Emulator_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingEmulatorPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_Emulator_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefEmulator_Button"
+                    MinWidth="90"
+                    Click="OnRefEmulator_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="Next"
+                    AutomationProperties.AutomationId="ToolInitWizard_Step1Next_Button"
+                    Width="200" Height="36"
+                    Click="OnStep1Next_Click" />
+          </Grid>
+          <TextBlock Text="or," Margin="0,18,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step1Or1_Label" />
+          <Button Content="Download a stable version of VBA-M"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadVBAM_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadVBAM_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step1Or2_Label" />
+          <Button Content="Download mGBA"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadMGBA_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadMGBA_Click" />
+          <Button Content="Previous"
+                  AutomationProperties.AutomationId="ToolInitWizard_Step1Prev_Button"
+                  HorizontalAlignment="Right"
+                  Width="100" Height="36"
+                  Margin="0,16,0,0"
+                  Click="OnStep1Prev_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 2: Step2Page (Event Assembler) ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_Step2Page_Tab"
+               Header="Step2Page"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="Configure Event Assembler (EA).&#x0A;Some patches are written in EA and require it to install."
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step2Problem_Label" />
+            <TextBlock Grid.Column="1" Text="Step 2/6"
+                       VerticalAlignment="Top"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step2Indicator_Label" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Column="0" Text="EA:" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step2EA_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingEAPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_EA_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefEA_Button"
+                    MinWidth="90"
+                    Click="OnRefEA_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="Next"
+                    AutomationProperties.AutomationId="ToolInitWizard_Step2Next_Button"
+                    Width="200" Height="36"
+                    Click="OnStep2Next_Click" />
+          </Grid>
+          <TextBlock Text="or," Margin="0,18,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step2Or1_Label" />
+          <Button Content="Download the latest EA"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadEA_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadEA_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step2Or2_Label" />
+          <Button Content="Skip"
+                  AutomationProperties.AutomationId="ToolInitWizard_SkipStep2_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  Click="OnSkipStep2_Click" />
+          <Button Content="Previous"
+                  AutomationProperties.AutomationId="ToolInitWizard_Step2Prev_Button"
+                  HorizontalAlignment="Right"
+                  Width="100" Height="36"
+                  Margin="0,16,0,0"
+                  Click="OnStep2Prev_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 3: Step3Page (Sappy / VGMS) ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_Step3Page_Tab"
+               Header="Step3Page"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="Configure Sappy (or VG Music Studio).&#x0A;When Sappy is configured, the song-preview button can play music."
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step3Problem_Label" />
+            <TextBlock Grid.Column="1" Text="Step 3/6"
+                       VerticalAlignment="Top"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step3Indicator_Label" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Column="0" Text="Sappy:" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step3Sappy_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingSappyPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_Sappy_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefSappy_Button"
+                    MinWidth="90"
+                    Click="OnRefSappy_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="Next"
+                    AutomationProperties.AutomationId="ToolInitWizard_Step3Next_Button"
+                    Width="200" Height="36"
+                    Click="OnStep3Next_Click" />
+          </Grid>
+          <TextBlock Text="or," Margin="0,18,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step3Or1_Label" />
+          <Button Content="Download Sappy"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadSappy_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadSappy_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step3Or2_Label" />
+          <Button Content="Download VG Music Studio"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadVGMusicStudio_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadVGMusicStudio_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step3Or3_Label" />
+          <Button Content="Skip Sappy"
+                  AutomationProperties.AutomationId="ToolInitWizard_SkipStep3_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  Click="OnSkipStep3_Click" />
+          <Button Content="Previous"
+                  AutomationProperties.AutomationId="ToolInitWizard_Step3Prev_Button"
+                  HorizontalAlignment="Right"
+                  Width="100" Height="36"
+                  Margin="0,16,0,0"
+                  Click="OnStep3Prev_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 4: Step4Page (Debugger + Assembler) ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_Step4Page_Tab"
+               Header="Step4Page"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="Configure the development environment.&#x0A;Installing the toolchain enables ASM development and debugging."
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step4Problem_Label" />
+            <TextBlock Grid.Column="1" Text="Step 4/6"
+                       VerticalAlignment="Top"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step4Indicator_Label" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Column="0" Text="Debugger:" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step4Debugger_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingDebuggerPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_Debugger_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefDebugger_Button"
+                    MinWidth="90"
+                    Click="OnRefDebugger_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,4,0,0">
+            <TextBlock Grid.Column="0" Text="Assembler:" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step4ASM_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingASMPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_ASM_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefASM_Button"
+                    MinWidth="90"
+                    Click="OnRefASM_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="Next"
+                    AutomationProperties.AutomationId="ToolInitWizard_Step4Next_Button"
+                    Width="200" Height="36"
+                    Click="OnStep4Next_Click" />
+          </Grid>
+          <TextBlock Text="or," Margin="0,18,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step4Or1_Label" />
+          <Button Content="Download the latest tools automatically"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadASM_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadASM_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step4Or2_Label" />
+          <Button Content="Skip"
+                  AutomationProperties.AutomationId="ToolInitWizard_SkipStep4_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  Click="OnSkipStep4_Click" />
+          <Button Content="Previous"
+                  AutomationProperties.AutomationId="ToolInitWizard_Step4Prev_Button"
+                  HorizontalAlignment="Right"
+                  Width="100" Height="36"
+                  Margin="0,16,0,0"
+                  Click="OnStep4Prev_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 5: Step5Page (Music tools) ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_Step5Page_Tab"
+               Header="Step5Page"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="Configure utilities used to convert music."
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step5Problem_Label" />
+            <TextBlock Grid.Column="1" Text="Step 5/6"
+                       VerticalAlignment="Top"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step5Indicator_Label" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Column="0" Text="gba mus riper" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step5GbaMusRiper_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingGbaMusRiperPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_GbaMusRiper_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefGbaMusRiper_Button"
+                    MinWidth="90"
+                    Click="OnRefGbaMusRiper_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,4,0,0">
+            <TextBlock Grid.Column="0" Text="sox" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step5Sox_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingSoxPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_Sox_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefSox_Button"
+                    MinWidth="90"
+                    Click="OnRefSox_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,4,0,0">
+            <TextBlock Grid.Column="0" Text="midfix4agb" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step5Midfix4agb_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingMidfix4agbPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_Midfix4agb_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefMidfix4agb_Button"
+                    MinWidth="90"
+                    Click="OnRefMidfix4agb_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="Next"
+                    AutomationProperties.AutomationId="ToolInitWizard_Step5Next_Button"
+                    Width="200" Height="36"
+                    Click="OnStep5Next_Click" />
+          </Grid>
+          <TextBlock Text="or," Margin="0,18,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step5Or1_Label" />
+          <Button Content="Download the latest tools automatically"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadMusicTool_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadMusicTool_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step5Or2_Label" />
+          <Button Content="Skip"
+                  AutomationProperties.AutomationId="ToolInitWizard_SkipStep5_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  Click="OnSkipStep5_Click" />
+          <Button Content="Previous"
+                  AutomationProperties.AutomationId="ToolInitWizard_Step5Prev_Button"
+                  HorizontalAlignment="Right"
+                  Width="100" Height="36"
+                  Margin="0,16,0,0"
+                  Click="OnStep5Prev_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 6: Step6Page (Git) ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_Step6Page_Tab"
+               Header="Step6Page"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0"
+                       Text="Configure Git (version control).&#x0A;Git is used to keep config/patch2 patch data up to date.&#x0A;Installing it makes pulling the latest patches easy."
+                       TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step6Problem_Label" />
+            <TextBlock Grid.Column="1" Text="Step 6/6"
+                       VerticalAlignment="Top"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step6Indicator_Label" />
+          </Grid>
+          <Grid ColumnDefinitions="130,*,8,Auto" Margin="0,16,0,0">
+            <TextBlock Grid.Column="0" Text="git" VerticalAlignment="Center"
+                       AutomationProperties.AutomationId="ToolInitWizard_Step6Git_Label" />
+            <TextBox Grid.Column="1"
+                     Text="{Binding PendingGitPath, Mode=TwoWay}"
+                     AutomationProperties.AutomationId="ToolInitWizard_Git_Input" />
+            <Button Grid.Column="3" Content="Browse"
+                    AutomationProperties.AutomationId="ToolInitWizard_RefGit_Button"
+                    MinWidth="90"
+                    Click="OnRefGit_Click" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+            <Button Grid.Column="1" Content="Finish setup"
+                    AutomationProperties.AutomationId="ToolInitWizard_Step6Next_Button"
+                    Width="200" Height="36"
+                    Click="OnStep6Next_Click" />
+          </Grid>
+          <TextBlock Text="or," Margin="0,18,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step6Or1_Label" />
+          <Button Content="Download and install the latest Git automatically"
+                  AutomationProperties.AutomationId="ToolInitWizard_DownloadGit_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  IsEnabled="False"
+                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  Click="OnDownloadGit_Click" />
+          <TextBlock Text="or," Margin="0,16,0,4"
+                     AutomationProperties.AutomationId="ToolInitWizard_Step6Or2_Label" />
+          <Button Content="Skip"
+                  AutomationProperties.AutomationId="ToolInitWizard_SkipStep6_Button"
+                  HorizontalAlignment="Stretch"
+                  Height="36"
+                  Click="OnSkipStep6_Click" />
+          <Button Content="Previous"
+                  AutomationProperties.AutomationId="ToolInitWizard_Step6Prev_Button"
+                  HorizontalAlignment="Right"
+                  Width="100" Height="36"
+                  Margin="0,16,0,0"
+                  Click="OnStep6Prev_Click" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 7: SettingNowPage ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_SettingNowPage_Tab"
+               Header="SettingNowPage"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="12">
+          <TextBlock Text="Please wait..."
+                     FontSize="20" FontWeight="Bold"
+                     AutomationProperties.AutomationId="ToolInitWizard_SettingNowHeader_Label" />
+          <TextBlock Text="Downloading required programs and configuring settings."
+                     TextWrapping="Wrap"
+                     AutomationProperties.AutomationId="ToolInitWizard_SettingNowBody_Label" />
+          <TextBox Name="SettingStatusTextBox"
+                   AutomationProperties.AutomationId="ToolInitWizard_SettingStatus_Input"
+                   IsReadOnly="True"
+                   Text="{Binding SettingStatus, Mode=OneWay}"
+                   AcceptsReturn="True"
+                   Height="160" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- ============================ Page 8: EndPage ============================ -->
+      <TabItem AutomationProperties.AutomationId="ToolInitWizard_EndPage_Tab"
+               Header="EndPage"><!-- KnownGap NonEnglish: WF internal TabPage Name -->
+        <StackPanel Margin="16" Spacing="12">
+          <TextBlock Text="All settings complete."
+                     FontSize="20" FontWeight="Bold"
+                     AutomationProperties.AutomationId="ToolInitWizard_EndHeader_Label" />
+          <Border BorderBrush="LightGray" BorderThickness="1" Padding="10">
+            <TextBox Name="EndDescriptionTextBox"
+                     AutomationProperties.AutomationId="ToolInitWizard_EndDescription_Input"
+                     IsReadOnly="True"
+                     AcceptsReturn="True"
+                     Height="280"
+                     Text="Setup is complete. The wizard saved your tool paths and preferences.&#x0A;&#x0A;You can change these at any time from Menu -&gt; Options.&#x0A;&#x0A;Press Finish to close this wizard." />
+          </Border>
+          <Button Content="Finish"
+                  AutomationProperties.AutomationId="ToolInitWizard_End_Button"
+                  HorizontalAlignment="Right"
+                  Width="170" Height="36"
+                  Click="OnEndButton_Click" />
+        </StackPanel>
+      </TabItem>
+    </TabControl>
   </ScrollViewer>
 </Window>

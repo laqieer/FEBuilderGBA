@@ -21757,3 +21757,172 @@ ED 关系
 
 :Error: {0}
 错误：{0}
+
+
+:Language:
+语言：
+
+:White
+白色
+
+:Black
+黑色
+
+:Black 2
+黑色 2
+
+:Emulator:
+模拟器:
+
+:Debugger:
+调试器:
+
+:Assembler:
+汇编器:
+
+:EA:
+EA:
+
+:Sappy:
+Sappy:
+
+:gba mus riper
+gba mus riper
+
+:sox
+sox
+
+:git
+git
+
+:or,
+或者
+
+:Step 1/6
+步骤 1/6
+
+:Step 2/6
+步骤 2/6
+
+:Step 3/6
+步骤 3/6
+
+:Step 4/6
+步骤 4/6
+
+:Step 5/6
+步骤 5/6
+
+:Step 6/6
+步骤 6/6
+
+:Finish setup
+完成设置
+
+:Browse
+浏览
+
+:Skip Sappy
+跳过 Sappy
+
+:Welcome to FEBuilderGBA.\r\n\r\nThis wizard guides initial setup of the editor.\r\n\r\nIf you do not want to use this wizard, close this window. You can re-open it later from Menu -> Options -> Setup Wizard.
+欢迎使用 FEBuilderGBA。\r\n\r\n本向导将引导您完成初始设置。\r\n\r\n如不想使用该向导，请关闭此窗口。如需再次运行，请选择 "菜单"->"选项"->"初始设置向导"。
+
+:Please wait...
+请稍候...
+
+:All settings complete.
+全部设置已完成。
+
+:Download a stable version of VBA-M
+下载稳定版本的 VBA-M
+
+:Download mGBA
+下载 mGBA
+
+:Download the latest EA
+下载最新版 EA
+
+:Download Sappy
+下载 Sappy
+
+:Download VG Music Studio
+下载 VG Music Studio
+
+:Download the latest tools automatically
+自动下载最新版工具
+
+:Download and install the latest Git automatically
+自动下载并安装最新版 Git
+
+:Specify an emulator to use for testing.\r\nPress F5 in FEBuilderGBA to launch the emulator and test the ROM.
+请指定测试用的模拟器。\r\n在 FEBuilderGBA 中按 F5 即可启动模拟器测试 ROM。
+
+:Configure Event Assembler (EA).\r\nSome patches are written in EA and require it to install.
+请配置 Event Assembler（EA）。\r\n部分补丁使用 EA 编写，需要 EA 才能安装。
+
+:Configure Sappy (or VG Music Studio).\r\nWhen Sappy is configured, the song-preview button can play music.
+请配置 Sappy（或 VG Music Studio）。\r\n配置后，可通过♪按钮试听音乐。
+
+:Configure the development environment.\r\nInstalling the toolchain enables ASM development and debugging.
+请配置开发环境。\r\n安装工具链后，可以进行 ASM 代码开发和调试。
+
+:Configure utilities used to convert music.
+请配置用于音乐转换的工具。
+
+:Configure Git (version control).\r\nGit is used to keep config/patch2 patch data up to date.\r\nInstalling it makes pulling the latest patches easy.
+请配置 Git（版本控制系统）。\r\nGit 用于更新 config/patch2 补丁数据。\r\n安装后可便捷拉取最新补丁。
+
+:Download requires WinForms host. Use Browse instead.
+该下载功能仅 WinForms 版本支持，请使用浏览按钮替代。
+
+:Setup is complete. The wizard saved your tool paths and preferences.\r\n\r\nYou can change these at any time from Menu -> Options.\r\n\r\nPress Finish to close this wizard.
+设置已完成。向导已保存您的工具路径与偏好设置。\r\n\r\n您可以随时通过 菜单 -> 选项 进行修改。\r\n\r\n按完成按钮关闭该向导。
+
+:Downloading required programs and configuring settings.
+正在下载必要程序并完成设置。
+
+:BeginPage
+BeginPage
+
+:Step1Page
+Step1Page
+
+:Step2Page
+Step2Page
+
+:Step3Page
+Step3Page
+
+:Step4Page
+Step4Page
+
+:Step5Page
+Step5Page
+
+:Step6Page
+Step6Page
+
+:SettingNowPage
+SettingNowPage
+
+:EndPage
+EndPage
+
+:FEBuilderGBA Setup Wizard
+FEBuilderGBA 初始设置向导
+
+:Finish
+完成
+
+:Next
+下一步
+
+:Previous
+上一步
+
+:Start
+开始
+
+:English
+English

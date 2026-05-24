@@ -7913,3 +7913,166 @@ AI用に登場人物のヒントを追加
 
 :翻訳する
 翻訳
+
+
+:Language:
+言語：
+
+:White
+白背景
+
+:Black
+黒背景
+
+:Black 2
+黒背景2
+
+:Emulator:
+エミュレータ:
+
+:Debugger:
+デバッガー:
+
+:Assembler:
+アセンブラ:
+
+:EA:
+EA:
+
+:Sappy:
+Sappy:
+
+:gba mus riper
+gba mus riper
+
+:sox
+sox
+
+:git
+git
+
+:or,
+または、
+
+:Step 1/6
+Step 1/6
+
+:Step 2/6
+Step 2/6
+
+:Step 3/6
+Step 3/6
+
+:Step 4/6
+Step 4/6
+
+:Step 5/6
+Step 5/6
+
+:Step 6/6
+Step 6/6
+
+:Finish setup
+設定して完了する
+
+:Browse
+参照
+
+:Skip Sappy
+Sappyを設定しない
+
+:Welcome to FEBuilderGBA.\r\n\r\nThis wizard guides initial setup of the editor.\r\n\r\nIf you do not want to use this wizard, close this window. You can re-open it later from Menu -> Options -> Setup Wizard.
+FEBuilderGBAへようこそ。\r\n\r\nここでは初期設定を行います。\r\n\r\nこのウィザードを使用したくない場合は、このウィンドウを閉じしてください。\r\n再び、実行したい場合は、「メニュー」->「設定」->「初期設定ウィザード」を選択してください。
+
+:Please wait...
+しばらくお待ちください....
+
+:All settings complete.
+すべての設定が完了しました。
+
+:Download a stable version of VBA-M
+安定して動作するバージョンのVBA-Mをダウンロードする
+
+:Download mGBA
+mGBAをダウンロードする
+
+:Download the latest EA
+最新版のEAをダウンロードする
+
+:Download Sappy
+Sappyをダウンロードする
+
+:Download VG Music Studio
+VGMusicStudioをダウンロードする
+
+:Download the latest tools automatically
+最新版を自動的にダウンロードします。
+
+:Download and install the latest Git automatically
+最新版のGitを自動でダウンロードしてインストールします。
+
+:Specify an emulator to use for testing.\r\nPress F5 in FEBuilderGBA to launch the emulator and test the ROM.
+テスト用に使用するエミュレータを指定してください。\r\nFEBuilderGBAでは、F5キーを押すと、エミュレータを起動してテストすることができます。
+
+:Configure Event Assembler (EA).\r\nSome patches are written in EA and require it to install.
+EAを設定してください。\r\nいくつかのパッチは、EAで書かれているため、それらを利用するには、EAが必要です。
+
+:Configure Sappy (or VG Music Studio).\r\nWhen Sappy is configured, the song-preview button can play music.
+Sappyを指定してください。\r\nSappyを設定すると、♪ボタンで、音楽を視聴できます。
+
+:Configure the development environment.\r\nInstalling the toolchain enables ASM development and debugging.
+開発環境を設定してください。\r\n開発環境をインストールすると、ASMコードの開発とデバッグができます。
+
+:Configure utilities used to convert music.
+音楽を変換するユーティリティを設定してください。
+
+:Configure Git (version control).\r\nGit is used to keep config/patch2 patch data up to date.\r\nInstalling it makes pulling the latest patches easy.
+Git（バージョン管理システム）を設定してください。\r\nGitはパッチデータ（config/patch2）の更新に使用されます。\r\nインストールすると、最新のパッチデータを簡単に取得できます。
+
+:Download requires WinForms host. Use Browse instead.
+ダウンロードはWinForms版のみ対応です。代わりに参照ボタンを使ってください。
+
+:Setup is complete. The wizard saved your tool paths and preferences.\r\n\r\nYou can change these at any time from Menu -> Options.\r\n\r\nPress Finish to close this wizard.
+設定が完了しました。ウィザードがツールパスと環境設定を保存しました。\r\n\r\nこれらは、メニュー -> 設定 から、いつでも変更できます。\r\n\r\n完了ボタンを押して、このウィザードを閉じてください。
+
+:Downloading required programs and configuring settings.
+必要なプログラムのダウンロードと、設定をしています。
+
+:BeginPage
+BeginPage
+
+:Step1Page
+Step1Page
+
+:Step2Page
+Step2Page
+
+:Step3Page
+Step3Page
+
+:Step4Page
+Step4Page
+
+:Step5Page
+Step5Page
+
+:Step6Page
+Step6Page
+
+:SettingNowPage
+SettingNowPage
+
+:EndPage
+EndPage
+
+:FEBuilderGBA Setup Wizard
+FEBuilderGBA 初期設定ウィザード
+
+:Finish
+完了
+
+:Previous
+戻る
+
+:English
+English

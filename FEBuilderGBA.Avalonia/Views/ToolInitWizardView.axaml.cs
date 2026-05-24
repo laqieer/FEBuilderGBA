@@ -1,5 +1,24 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// ToolInitWizardForm gap-sweep parity (#401 / #374).
+//
+// Code-behind for ToolInitWizardView.axaml. Wires:
+//   - 6 language/color buttons (Begin page) -> set _vm.PendingLanguage /
+//     PendingColorTheme. Final write deferred to ApplyAll.
+//   - 9 Browse buttons -> Avalonia file picker, updates _vm.Pending*Path.
+//   - 12 Step{N}Prev/Step{N}Next click handlers -> _vm.GoToPage / StageStep{N}.
+//   - 8 disabled download/install buttons -> set SettingStatus only
+//     (IsEnabled="False" in AXAML; handler is registered defensively).
+//   - 4 skip buttons -> set Pending Step{N}Mode = DO_NOT_SELECT.
+//   - 1 Finish button -> _vm.ApplyAll(), then Close().
+//
+// This view writes ZERO ROM bytes. The parity test asserts this with
+//   Assert.DoesNotContain(".SetU", source)
+//   Assert.DoesNotContain(".write_u", source)
+// against this file.
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -9,16 +28,346 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ToolInitWizardViewModel _vm = new();
         public string ViewTitle => "Setup Wizard";
-        public bool IsLoaded => _vm.IsLoaded;
+        public bool IsLoaded { get; private set; }
 
         public ToolInitWizardView()
         {
             InitializeComponent();
-            Opened += (_, _) => _vm.Initialize();
+            DataContext = _vm;
+            Opened += OnOpened;
+        }
+
+        void OnOpened(object? sender, EventArgs e)
+        {
+            _vm.Initialize();
+            IsLoaded = true;
         }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
         public ViewModelBase? DataViewModel => _vm;
+
+        // ===================================================================
+        // BeginPage (page 0) — Language + Color + Start.
+        // ===================================================================
+
+        void OnLangEN_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingLanguage = "en";
+        }
+
+        void OnLangJP_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingLanguage = "ja";
+        }
+
+        void OnLangZH_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingLanguage = "zh";
+        }
+
+        void OnWhiteBG_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingColorTheme = 1;
+        }
+
+        void OnBlackBG_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingColorTheme = 2;
+        }
+
+        void OnBlackBG2_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingColorTheme = 3;
+        }
+
+        void OnStartButton_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(1);
+        }
+
+        // ===================================================================
+        // Step1Page — Emulator.
+        // ===================================================================
+
+        void OnStep1Prev_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(0);
+        }
+
+        void OnStep1Next_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.Path;
+            if (_vm.StageStep1())
+                _vm.GoToPage(2);
+            // else: stay on Step1Page so the user can fix the path.
+        }
+
+        async void OnRefEmulator_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select Emulator");
+            if (picked != null)
+                _vm.PendingEmulatorPath = picked;
+        }
+
+        void OnDownloadVBAM_Click(object? sender, RoutedEventArgs e)
+        {
+            // KnownGap: actual download is WinForms-coupled. The button is
+            // disabled in AXAML; this handler is registered defensively.
+            _vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.DownloadVBAM;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnDownloadMGBA_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.DownloadMGBA;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        // ===================================================================
+        // Step2Page — EA.
+        // ===================================================================
+
+        void OnStep2Prev_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(1);
+        }
+
+        void OnStep2Next_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.Path;
+            if (_vm.StageStep2())
+                _vm.GoToPage(3);
+        }
+
+        async void OnRefEA_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select Event Assembler");
+            if (picked != null)
+                _vm.PendingEAPath = picked;
+        }
+
+        void OnDownloadEA_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.DownloadEA;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnSkipStep2_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.DoNotSelect;
+            _vm.GoToPage(3);
+        }
+
+        // ===================================================================
+        // Step3Page — Sappy / VGMS.
+        // ===================================================================
+
+        void OnStep3Prev_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(2);
+        }
+
+        void OnStep3Next_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.Path;
+            if (_vm.StageStep3())
+                _vm.GoToPage(4);
+        }
+
+        async void OnRefSappy_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select Sappy");
+            if (picked != null)
+                _vm.PendingSappyPath = picked;
+        }
+
+        void OnDownloadSappy_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.DownloadSappy;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnDownloadVGMusicStudio_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.DownloadGbaMusicStudio;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnSkipStep3_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.DoNotSelect;
+            _vm.GoToPage(4);
+        }
+
+        // ===================================================================
+        // Step4Page — Debugger + ASM.
+        // ===================================================================
+
+        void OnStep4Prev_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(3);
+        }
+
+        void OnStep4Next_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep4Mode = ToolInitWizardViewModel.Step4Mode_Enum.Path;
+            if (_vm.StageStep4())
+                _vm.GoToPage(5);
+        }
+
+        async void OnRefDebugger_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select Debugger");
+            if (picked != null)
+                _vm.PendingDebuggerPath = picked;
+        }
+
+        async void OnRefASM_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select Assembler");
+            if (picked != null)
+                _vm.PendingASMPath = picked;
+        }
+
+        void OnDownloadASM_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep4Mode = ToolInitWizardViewModel.Step4Mode_Enum.DownloadBoth;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnSkipStep4_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep4Mode = ToolInitWizardViewModel.Step4Mode_Enum.DoNotSelect;
+            _vm.GoToPage(5);
+        }
+
+        // ===================================================================
+        // Step5Page — Music tools (gba_mus_riper / sox / midfix4agb).
+        // ===================================================================
+
+        void OnStep5Prev_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(4);
+        }
+
+        void OnStep5Next_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep5Mode = ToolInitWizardViewModel.Step5Mode_Enum.Path;
+            if (_vm.StageStep5())
+                _vm.GoToPage(6);
+        }
+
+        async void OnRefGbaMusRiper_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select gba_mus_riper");
+            if (picked != null)
+                _vm.PendingGbaMusRiperPath = picked;
+        }
+
+        async void OnRefSox_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select sox");
+            if (picked != null)
+                _vm.PendingSoxPath = picked;
+        }
+
+        async void OnRefMidfix4agb_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select midfix4agb");
+            if (picked != null)
+                _vm.PendingMidfix4agbPath = picked;
+        }
+
+        void OnDownloadMusicTool_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep5Mode = ToolInitWizardViewModel.Step5Mode_Enum.DownloadBoth;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnSkipStep5_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep5Mode = ToolInitWizardViewModel.Step5Mode_Enum.DoNotSelect;
+            _vm.GoToPage(6);
+        }
+
+        // ===================================================================
+        // Step6Page — Git.
+        // ===================================================================
+
+        void OnStep6Prev_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.GoToPage(5);
+        }
+
+        void OnStep6Next_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.Path;
+            if (_vm.StageStep6())
+            {
+                _vm.ApplyAll();
+                _vm.GoToPage(8); // jump straight to EndPage
+            }
+        }
+
+        async void OnRefGit_Click(object? sender, RoutedEventArgs e)
+        {
+            string? picked = await PickExeFileAsync("Select git");
+            if (picked != null)
+                _vm.PendingGitPath = ToolInitWizardViewModel.ProbeGitOrFindFallback(picked);
+        }
+
+        void OnDownloadGit_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DownloadGit;
+            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+        }
+
+        void OnSkipStep6_Click(object? sender, RoutedEventArgs e)
+        {
+            _vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DoNotSelect;
+            _vm.ApplyAll();
+            _vm.GoToPage(8);
+        }
+
+        // ===================================================================
+        // EndPage — Finish.
+        // ===================================================================
+
+        void OnEndButton_Click(object? sender, RoutedEventArgs e)
+        {
+            // ApplyAll is idempotent — calling it again on Finish guarantees
+            // the wizard state is persisted even if the user reached EndPage
+            // by other paths.
+            _vm.ApplyAll();
+            this.Close();
+        }
+
+        // ===================================================================
+        // Helpers.
+        // ===================================================================
+
+        /// <summary>
+        /// Avalonia file picker. Returns the local path of the chosen file,
+        /// or null if cancelled / no local path. Matches the pattern used by
+        /// OptionsView.BrowseFile_Click.
+        /// </summary>
+        async System.Threading.Tasks.Task<string?> PickExeFileAsync(string title)
+        {
+            var storage = StorageProvider;
+            if (storage == null)
+                return null;
+            var allFiles = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+            var exeFiles = new FilePickerFileType("Executables") { Patterns = new[] { "*.exe", "*" } };
+            var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false,
+                FileTypeFilter = new[] { exeFiles, allFiles },
+            });
+            if (files.Count > 0)
+                return files[0].TryGetLocalPath();
+            return null;
+        }
     }
 }
