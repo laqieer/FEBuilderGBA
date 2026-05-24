@@ -30,6 +30,8 @@ using System.Linq;
 using System.Xml.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Interactivity;
+using global::Avalonia.LogicalTree;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -778,6 +780,33 @@ public class ToolInitWizardParityTests
         // Simulate clicking Start by routing through the public VM API.
         // (The view code-behind invokes _vm.GoToPage(1) on the Click event.)
         vm.GoToPage(1);
+        Assert.Equal(1, vm.CurrentPage);
+    }
+
+    [AvaloniaFact]
+    public void View_StartButton_Click_DispatchesClickEvent_AdvancesPage()
+    {
+        // Per Copilot bot review #583: real click-event dispatch test that
+        // exercises the View code-behind handler (not just the VM API).
+        // Finds the Start button by AutomationId, raises Button.ClickEvent,
+        // and verifies the page advances.
+        var view = new ToolInitWizardView();
+        var vm = (ToolInitWizardViewModel)view.DataViewModel!;
+        Assert.Equal(0, vm.CurrentPage);
+
+        // Locate the Start button via the logical tree (no need to render
+        // the visual tree).
+        var btn = view.GetLogicalDescendants()
+            .OfType<Button>()
+            .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties.GetAutomationId(b)
+                == "ToolInitWizard_Start_Button");
+        Assert.NotNull(btn);
+
+        // Raise the same routed event the user's click would. This invokes
+        // OnStartButton_Click in the code-behind, which in turn calls
+        // _vm.GoToPage(1).
+        btn!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
         Assert.Equal(1, vm.CurrentPage);
     }
 
