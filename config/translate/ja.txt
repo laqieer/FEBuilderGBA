@@ -8265,3 +8265,81 @@ Core RunRedo API 未対応 - #500 で追跡中。
 
 :Edit R/G/B 0-248 (5-bit ticks)
 R/G/B を 0-248 で編集 (5ビット刻み)
+
+:AP
+AP
+:Border
+国境
+:Center X
+中心 X
+:Center Y
+中心 Y
+:Dark Map
+闇マップ
+:Dark Map Export
+闇マップ画像取出
+:Dark Map Import (Palette)
+闇マップ画像読込(パレット)
+:Dark Palette
+闇パレット
+:Decrease Color Tool
+減色ツール
+:Draw Example
+描画例
+:Event
+イベント用
+:Export
+取出
+:Icon Data
+アイコン用のデータ
+:Icon Palette
+アイコンパレット
+:Image Sheet Number
+画像シート番号
+:Main Field Map
+メインフィールドマップ
+:OAMTable entry
+OAMTable entry
+:Palette Map
+パレットマップ
+:Point 1 Preview
+拠点1プレビュー
+:Point 2 Preview
+拠点2プレビュー
+:Point Icon
+拠点アイコン
+:Point Image 1
+拠点画像1
+:Point Image 2
+拠点画像2
+:Road Image
+道画像
+:Road Preview
+道プレビュー
+:Start Address
+先頭アドレス
+:Width
+幅
+:Write Pointers
+ポインタを書き込む
+:X
+X
+:Y
+Y
+:tcs params??
+tcs params??
+:00 Padding
+00 Padding
+:??
+??
+
+:KnownGap: pending Core extraction.
+KnownGap: Core実装が未対応。
+:KnownGap: live bitmap preview pending Core extraction.
+KnownGap: ライブビットマッププレビューはCore実装待ち。
+:KnownGap: list-expand requires DataExpansionCore wiring not yet ported.
+KnownGap: リスト拡張はDataExpansionCoreの未移植配線が必要。
+:KnownGap: DecreaseColorTSAToolForm not yet ported.
+KnownGap: DecreaseColorTSAToolFormは未移植。
+:KnownGap: ResourceCache source-file feature not yet wired in Avalonia.
+KnownGap: ResourceCacheのソースファイル機能はAvaloniaでは未配線。
