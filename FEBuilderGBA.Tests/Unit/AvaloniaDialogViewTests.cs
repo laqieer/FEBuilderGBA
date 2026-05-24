@@ -918,7 +918,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("UnitEditorView.axaml", 934, 661)]
         [InlineData("ItemEditorView.axaml", 1408, 856)]
         [InlineData("ClassEditorView.axaml", 1200, 900)]
-        [InlineData("ClassFE6View.axaml", 1452, 923)]
+        [InlineData("ClassFE6View.axaml", 1200, 900)]
         [InlineData("CCBranchEditorView.axaml", 1264, 684)]
         [InlineData("MoveCostEditorView.axaml", 1601, 800)]
         [InlineData("TerrainNameEditorView.axaml", 1253, 790)]
