@@ -36,9 +36,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Decoded identifier name from B0-B11
         public string IdentifierName { get => _identifierName; set => SetField(ref _identifierName, value); }
 
-        // P12: Palette data pointer
+        // P12: Palette data pointer (raw GBA pointer for write-back; converted only at read time)
         public uint PalettePointer { get => _palettePointer; set => SetField(ref _palettePointer, value); }
 
+        // ----- Palette RGB editor channels (16 colors x 0-31 each) -----
+        readonly uint[] _r = new uint[16];
+        readonly uint[] _g = new uint[16];
+        readonly uint[] _b = new uint[16];
+
+        public uint[] RChannel => _r;
+        public uint[] GChannel => _g;
+        public uint[] BChannel => _b;
+
+        /// <summary>
+        /// Load the list of unit-palette rows. Matches WinForms
+        /// <c>ImageUnitPaletteForm.Init()</c> row-acceptance: a row is accepted
+        /// when its P12 slot holds a valid GBA pointer, OR P12 is zero AND the
+        /// 12-byte name is non-empty (i.e. <c>rom.u32(addr+0) != 0</c>). Both
+        /// P12 and name being zero is the terminator.
+        /// </summary>
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
@@ -54,11 +70,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 uint addr = baseAddr + (uint)(i * SIZE);
                 if (addr + SIZE > (uint)rom.Data.Length) break;
-                // Validate: pointer at offset 12 must be valid
                 uint p = rom.u32(addr + 12);
-                if (!U.isPointer(p)) break;
+                uint nameFirst = rom.u32(addr + 0);
 
-                // Read identifier string from bytes 0-11
+                if (U.isPointer(p))
+                {
+                    // Valid row: read identifier and emit.
+                }
+                else if (p == 0 && nameFirst != 0)
+                {
+                    // Valid row per WF parity: P12==0 but name is non-empty.
+                }
+                else
+                {
+                    // Terminator (both p==0 and name==0) or invalid pointer.
+                    break;
+                }
+
                 string ident = "";
                 for (int j = 0; j < 12; j++)
                 {
@@ -103,8 +131,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             IdentifierName = new string(chars).TrimEnd();
 
+            // Load palette RGB channels from the LZ77 stream at P12 (when valid).
+            LoadPaletteFromROM(PalettePointer);
+
             IsLoaded = true;
             CanWrite = true;
+        }
+
+        /// <summary>
+        /// Decode the 16-color LZ77 palette referenced by the GBA pointer.
+        /// Converts the raw 0x08xxxxxx pointer to a ROM offset via
+        /// <see cref="U.toOffset"/> before passing to <see cref="LZ77.decompress"/>.
+        /// On invalid/missing pointer, fills the channels with zero.
+        /// </summary>
+        public void LoadPaletteFromROM(uint palettePointer)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) { ClearPalette(); return; }
+            if (!U.isPointer(palettePointer)) { ClearPalette(); return; }
+            uint offset = U.toOffset(palettePointer);
+            if (!U.isSafetyOffset(offset, rom)) { ClearPalette(); return; }
+            if (LZ77.getCompressedSize(rom.Data, offset) == 0) { ClearPalette(); return; }
+            byte[] raw = LZ77.decompress(rom.Data, offset);
+            if (raw == null || raw.Length < 32) { ClearPalette(); return; }
+            for (int i = 0; i < 16; i++)
+            {
+                ushort c = (ushort)(raw[i * 2] | (raw[i * 2 + 1] << 8));
+                _r[i] = (uint)(c & 0x1F);
+                _g[i] = (uint)((c >> 5) & 0x1F);
+                _b[i] = (uint)((c >> 10) & 0x1F);
+            }
+            OnPropertyChanged(nameof(RChannel));
+            OnPropertyChanged(nameof(GChannel));
+            OnPropertyChanged(nameof(BChannel));
+        }
+
+        void ClearPalette()
+        {
+            for (int i = 0; i < 16; i++) { _r[i] = 0; _g[i] = 0; _b[i] = 0; }
+            OnPropertyChanged(nameof(RChannel));
+            OnPropertyChanged(nameof(GChannel));
+            OnPropertyChanged(nameof(BChannel));
         }
 
         public void Write()
@@ -129,6 +196,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         public int GetListCount() => LoadList().Count;
+
+        /// <summary>Get the base address of the unit-palette table as a hex string, or "" if unavailable.</summary>
+        public string LoadListBaseAddress()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return "";
+            uint pointer = rom.RomInfo.image_unit_palette_pointer;
+            if (pointer == 0) return "";
+            uint baseAddr = rom.p32(pointer);
+            return $"0x{baseAddr:X08}";
+        }
 
         public Dictionary<string, string> GetDataReport()
         {

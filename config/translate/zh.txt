@@ -21757,3 +21757,30 @@ ED 关系
 
 :Error: {0}
 错误：{0}
+
+:KnownGap
+未实现功能
+
+:Class and Animation
+所用职业与动画
+
+:Override all palette slots
+为敌方、NPC、灰色等所有色板设置相同颜色
+
+:UNDO
+撤销
+
+:REDO
+重做
+
+:Reload List
+重新获取
+
+:Pointer (P12):
+指针 (P12):
+
+:New Palette Allocation
+新建调色板分配
+
+:Comment
+注释
