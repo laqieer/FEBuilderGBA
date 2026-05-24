@@ -433,7 +433,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (addr + CondRecordSize > (uint)rom.Data.Length)
                 return;
 
-            if (CondRecordSize <= 6)
+            if (CondRecordSize == 4)
+            {
+                // TUTORIAL records: 4 bytes — single u32. WinForms reads this
+                // as `rom.u32(addr + 0)` (TUTORIAL_P0). Stop condition is u32 != 1
+                // and NOT isPointer. We surface the u32 as EventPtr so the user
+                // can edit either the special-value 1 or a pointer.
+                CondType = 0;
+                SubType = 0;
+                FlagId = 0;
+                EventPtr = rom.u32(addr + 0);
+                ExtraB8 = ExtraB9 = ExtraB10 = ExtraB11 = 0;
+                ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
+            }
+            else if (CondRecordSize <= 6)
             {
                 // TRAP records: 6 bytes — B0=type, B1=X, B2=Y, B3=subtype, B4-B5=extra
                 CondType = rom.u8(addr + 0);
@@ -524,12 +537,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     X1 = _extraB8;
                     Y1 = _extraB9;
                     EventType = _extraB10;
-                    // For N07 (chest): item id stored at B0 sub-field, gold/durability
-                    // typically share the event ptr u32 split — kept as separate
-                    // composite views for UI binding clarity.
+                    // For N07 (chest): WinForms layout is B4=item, B5=durability,
+                    // W6=gold (u16). The full u32 at offset +4 (which we
+                    // store as _eventPtr) packs them as:
+                    //   item    (B4) = _eventPtr & 0xFF
+                    //   durability (B5) = (_eventPtr >> 8) & 0xFF
+                    //   gold    (W6) = (_eventPtr >> 16) & 0xFFFF
                     ItemId = _condType == 0x07 ? _eventPtr & 0xFF : 0;
+                    Durability = _condType == 0x07 ? (_eventPtr >> 8) & 0xFF : 0;
                     Gold = _condType == 0x07 ? (_eventPtr >> 16) & 0xFFFF : 0;
-                    Durability = _condType == 0x07 ? (_eventPtr >> 24) & 0xFF : 0;
                     ShopType = _condType == 0x0A ? _extraB10 : 0;
                     break;
                 case CondCategory.ALWAYS:
@@ -558,8 +574,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ItemId = (_condType == 0x0B) ? _eventPtr & 0xFF : 0;
                     break;
                 case CondCategory.TUTORIAL:
-                    InitialTimer = _condType;
-                    RepeatTimer = _subType;
+                    // TUTORIAL: single u32 (TUTORIAL_P0) = either 1 or an event pointer.
+                    // No InitialTimer / RepeatTimer fields — these are WF
+                    // EventCondInnerControl artifacts that don't exist in the
+                    // 4-byte record. We expose the raw u32 via EventPtr; the
+                    // tutorial sub-panel labels InitialTimer/RepeatTimer are
+                    // out-of-scope visual hints (mirroring the WF tab title
+                    // structure, not the byte layout).
+                    InitialTimer = 0;
+                    RepeatTimer = 0;
                     break;
             }
         }
@@ -595,7 +618,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     _extraB10 = EventType;
                     if (_condType == 0x07)
                     {
-                        _eventPtr = ItemId | (Gold << 16) | (Durability << 24);
+                        // Chest: B4=item, B5=durability, W6=gold (u16).
+                        _eventPtr = (ItemId & 0xFF) | ((Durability & 0xFF) << 8) | ((Gold & 0xFFFF) << 16);
                     }
                     else if (_condType == 0x0A)
                     {
@@ -624,8 +648,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     else if (_condType == 0x0B) _eventPtr = ItemId;
                     break;
                 case CondCategory.TUTORIAL:
-                    _condType = InitialTimer;
-                    _subType = RepeatTimer;
+                    // TUTORIAL: single u32 (TUTORIAL_P0). The raw u32 is in
+                    // _eventPtr; nothing else to compose (CondType/SubType
+                    // are not stored for TUTORIAL records).
                     break;
             }
         }
@@ -660,7 +685,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (CondRecordAddr + CondRecordSize > (uint)rom.Data.Length) return;
 
-            if (CondRecordSize <= 6)
+            if (CondRecordSize == 4)
+            {
+                // TUTORIAL records: 4 bytes — single u32 (TUTORIAL_P0). Mirrors
+                // WinForms `rom.write_u32(addr, value)` where value is either
+                // the special-value 1 or an event pointer. Must NOT write bytes
+                // 4-5 because that would corrupt the next record.
+                rom.write_u32(CondRecordAddr + 0, EventPtr);
+            }
+            else if (CondRecordSize <= 6)
             {
                 // TRAP layout: B0=type, B1=X, B2=Y, B3=subtype, B4-B5=extra
                 rom.write_u8(CondRecordAddr + 0, (byte)CondType);
@@ -727,14 +760,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             uint baseAddr = U.toOffset(rawPtr);
 
-            // Count current records (terminator detection).
+            // Count current records (terminator detection — must match
+            // LoadConditionRecords stop conditions exactly so Expand creates
+            // a buffer the same scanner will iterate).
             uint count = 0;
             for (uint i = 0; i < 256; i++)
             {
                 uint addr = baseAddr + i * recordSize;
                 if (addr + recordSize > (uint)rom.Data.Length) break;
-                if (recordSize <= 6 && rom.u8(addr) == 0) break;
-                if (recordSize > 6 && rom.u32(addr) == 0) break;
+
+                if (slotDef.Category == CondCategory.TUTORIAL)
+                {
+                    // TUTORIAL stop: u32 != 1 and NOT isPointer (per WF InitTutorial).
+                    uint v = rom.u32(addr);
+                    if (v != 1 && !U.isPointer(v)) break;
+                }
+                else if (recordSize <= 6)
+                {
+                    if (rom.u8(addr) == 0) break;
+                }
+                else
+                {
+                    if (rom.u32(addr) == 0) break;
+                }
                 count++;
             }
 
@@ -753,7 +801,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         buffer[i * recordSize + j] = (byte)rom.u8(srcAddr + j);
                 }
             }
-            // New slot starts at offset = count * recordSize (zeroed initially).
+
+            // Initialize the NEW slot with category-appropriate non-terminator
+            // data so the scanner sees it as a real row (Copilot CLI review #3).
+            // - TUTORIAL: write u32 = 1 (the special "blank" value per WF
+            //   AddressListExpandsEventTutorial; isPointer would also work but
+            //   1 is the canonical "no event yet" marker).
+            // - Other categories: write a placeholder type byte = 1 so the
+            //   scanner doesn't see byte 0 as terminator (TURN/TALK/OBJECT/etc.
+            //   all stop on first-byte == 0 OR u32 == 0). The user can change
+            //   the type after the row is visible.
+            uint newSlotOffset = count * recordSize;
+            if (slotDef.Category == CondCategory.TUTORIAL)
+            {
+                // u32 = 1 in little-endian.
+                buffer[newSlotOffset + 0] = 1;
+                buffer[newSlotOffset + 1] = 0;
+                buffer[newSlotOffset + 2] = 0;
+                buffer[newSlotOffset + 3] = 0;
+            }
+            else
+            {
+                // Placeholder type byte at offset 0 so the row is non-terminator.
+                buffer[newSlotOffset + 0] = 1;
+            }
+
             // Terminator stays zeroed at offset = newCount * recordSize.
 
             // Append the buffer to ROM end (mirrors WF InputFormRef.AppendBinaryData).

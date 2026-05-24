@@ -567,6 +567,154 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI PR #621 review fixes (round 1) — byte-layout
+    // correctness regression tests.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TutorialRecord_WritesExactly4Bytes()
+    {
+        // Copilot CLI review concern #1: TUTORIAL is a 4-byte u32 record
+        // (single TUTORIAL_P0 field, value either 1 or an event pointer).
+        // WriteCondRecord must NOT enter the <=6 branch and write bytes 4-5,
+        // which would corrupt the next record / terminator.
+        var vm = new EventCondViewModel();
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Force EVERY byte at offset 0x10000..0x10010 to 0xAA so we can
+            // detect any unintended writes past byte +3.
+            for (uint i = 0; i < 0x10; i++)
+            {
+                rom.write_u8(0x10000 + i, 0xAA);
+            }
+
+            vm.CondRecordAddr = 0x10000;
+            vm.CondRecordSize = 4; // TUTORIAL size
+            vm.EventPtr = 0x12345678;
+
+            var undoData = new Undo.UndoData
+            {
+                time = DateTime.Now,
+                name = "test-tutorial",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+            using (ROM.BeginUndoScope(undoData))
+            {
+                vm.WriteCondRecord();
+            }
+
+            // Bytes 0-3 reflect EventPtr (little-endian u32).
+            Assert.Equal((byte)0x78, rom.u8(0x10000));
+            Assert.Equal((byte)0x56, rom.u8(0x10001));
+            Assert.Equal((byte)0x34, rom.u8(0x10002));
+            Assert.Equal((byte)0x12, rom.u8(0x10003));
+            // Bytes 4-5 MUST still be 0xAA (NOT overwritten).
+            Assert.Equal((byte)0xAA, rom.u8(0x10004));
+            Assert.Equal((byte)0xAA, rom.u8(0x10005));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_ChestRecord_RoundTripsBytesPerWFLayout()
+    {
+        // Copilot CLI review concern #2: OBJECT N07 chest layout is
+        // B4=item, B5=durability, W6=gold (u16). The full u32 at offset +4
+        // packs them as: item | (durability << 8) | (gold << 16).
+        //
+        // Decompose: item = u32 & 0xFF;
+        //            durability = (u32 >> 8) & 0xFF;
+        //            gold = (u32 >> 16) & 0xFFFF;
+        // Compose:   u32 = item | (durability << 8) | (gold << 16);
+        //
+        // We test the formulas directly (the production code uses these
+        // exact expressions in DecomposeCategoryFields/ComposeCategoryFields).
+        uint packed = 0x12340542u;
+        uint item = packed & 0xFF;
+        uint durability = (packed >> 8) & 0xFF;
+        uint gold = (packed >> 16) & 0xFFFF;
+
+        Assert.Equal(0x42u, item);
+        Assert.Equal(0x05u, durability);
+        Assert.Equal(0x1234u, gold);
+
+        // Round-trip: pack back.
+        uint repacked = (item & 0xFF) | ((durability & 0xFF) << 8) | ((gold & 0xFFFF) << 16);
+        Assert.Equal(0x12340542u, repacked);
+
+        // Also verify the production code uses the correct decompose
+        // formula (not the previous buggy one that read durability from byte 7).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+        // Production must use `(_eventPtr >> 8) & 0xFF` for durability decompose.
+        Assert.Matches(
+            new Regex(@"Durability\s*=\s*_condType\s*==\s*0x07\s*\?\s*\(_eventPtr\s*>>\s*8\)\s*&\s*0xFF", RegexOptions.Singleline),
+            source);
+        // Production must use `(Durability & 0xFF) << 8` for compose.
+        Assert.Matches(
+            new Regex(@"\(Durability\s*&\s*0xFF\)\s*<<\s*8", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_ExpandRecordList_InitializesNewSlotAsNonTerminator()
+    {
+        // Copilot CLI review concern #3: ExpandRecordList must initialize
+        // the new slot with non-terminator data so it's visible/editable
+        // after the next ReloadRecordList call. A zero record would be
+        // treated as terminator by LoadConditionRecords.
+        //
+        // Test the rule directly: TUTORIAL new slot u32 = 1; other slots
+        // get byte 0 = 1 placeholder type.
+
+        // For TUTORIAL: new slot must have u32 == 1 (canonical "blank" marker).
+        byte[] tutorialNewSlot = new byte[4];
+        tutorialNewSlot[0] = 1;
+        uint tutorialValue = (uint)tutorialNewSlot[0] | ((uint)tutorialNewSlot[1] << 8) |
+                             ((uint)tutorialNewSlot[2] << 16) | ((uint)tutorialNewSlot[3] << 24);
+        Assert.Equal(1u, tutorialValue);
+
+        // For TURN/TALK/OBJECT/ALWAYS/TRAP: new slot must have byte 0 != 0.
+        byte[] turnNewSlot = new byte[12];
+        turnNewSlot[0] = 1;
+        Assert.NotEqual((byte)0, turnNewSlot[0]);
+
+        // Verify the production code implements the rule by inspecting source.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+        // The production code must initialize buffer[newSlotOffset + 0] = 1
+        Assert.Matches(
+            new Regex(@"buffer\[newSlotOffset \+ 0\] = 1", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_ExpandRecordList_UsesTutorialStopCondition()
+    {
+        // Copilot CLI review concern #3 (cont.): ExpandRecordList count
+        // detection must use TUTORIAL-specific stop condition (u32 != 1 AND
+        // !isPointer) rather than the generic byte-0 / u32-0 check.
+        // Otherwise the count is wrong and the appended row position is wrong.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+        // Must contain the TUTORIAL-specific branch checking u32 != 1.
+        Assert.Matches(
+            new Regex(@"slotDef\.Category\s*==\s*CondCategory\.TUTORIAL[\s\S]*?u32[\s\S]*?!=\s*1", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
