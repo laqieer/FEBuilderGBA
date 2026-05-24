@@ -61,12 +61,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // ---- Border record (12 bytes) ----
         uint _borderP0, _borderP4, _borderW8, _borderW10, _borderCurrentAddr;
+        // Read-config indicators (populated by LoadBorderList; surface
+        // BaseAddress + DataCount mirroring WF InputFormRef semantics).
+        uint _borderReadStartAddress;
+        int _borderReadCount;
 
         public uint BorderP0 { get => _borderP0; set => SetField(ref _borderP0, value); }
         public uint BorderP4 { get => _borderP4; set => SetField(ref _borderP4, value); }
         public uint BorderW8 { get => _borderW8; set => SetField(ref _borderW8, value); }
         public uint BorderW10 { get => _borderW10; set => SetField(ref _borderW10, value); }
         public uint BorderCurrentAddr { get => _borderCurrentAddr; set => SetField(ref _borderCurrentAddr, value); }
+        public uint BorderReadStartAddress { get => _borderReadStartAddress; set => SetField(ref _borderReadStartAddress, value); }
+        public int BorderReadCount { get => _borderReadCount; set => SetField(ref _borderReadCount, value); }
 
         // ---- Icon record (16 bytes) ----
         // B0..B3 (bytes at +0..+3), P4 (pointer at +4), B8..B13 (bytes), W14 (u16 at +14).
@@ -75,6 +81,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         byte _iconB8, _iconB9, _iconB10, _iconB11, _iconB12, _iconB13;
         ushort _iconW14;
         uint _iconCurrentAddr;
+        // Read-config indicators (populated by LoadIconList; mirrors WF
+        // InputFormRef BaseAddress + DataCount).
+        uint _iconReadStartAddress;
+        int _iconReadCount;
 
         public byte IconB0 { get => _iconB0; set => SetField(ref _iconB0, value); }
         public byte IconB1 { get => _iconB1; set => SetField(ref _iconB1, value); }
@@ -89,6 +99,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public byte IconB13 { get => _iconB13; set => SetField(ref _iconB13, value); }
         public ushort IconW14 { get => _iconW14; set => SetField(ref _iconW14, value); }
         public uint IconCurrentAddr { get => _iconCurrentAddr; set => SetField(ref _iconCurrentAddr, value); }
+        public uint IconReadStartAddress { get => _iconReadStartAddress; set => SetField(ref _iconReadStartAddress, value); }
+        public int IconReadCount { get => _iconReadCount; set => SetField(ref _iconReadCount, value); }
 
         bool _isLoaded;
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -163,12 +175,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             var result = new List<AddrResult>();
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return result;
+            if (rom?.RomInfo == null)
+            {
+                BorderReadStartAddress = 0;
+                BorderReadCount = 0;
+                return result;
+            }
 
             uint basePtr = rom.RomInfo.worldmap_county_border_pointer;
-            if (basePtr == 0) return result;
+            if (basePtr == 0)
+            {
+                BorderReadStartAddress = 0;
+                BorderReadCount = 0;
+                return result;
+            }
             uint baseAddr = rom.p32(basePtr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return result;
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                BorderReadStartAddress = 0;
+                BorderReadCount = 0;
+                return result;
+            }
+
+            // Surface BaseAddress (as encoded GBA pointer for the X8
+            // hex display) and DataCount to mirror WF InputFormRef
+            // semantics (Copilot bot inline review on PR #592 round 2).
+            BorderReadStartAddress = U.toPointer(baseAddr);
 
             uint addr = baseAddr;
             for (int i = 0; i < LoadListHardCap; i++, addr += BorderRecordStride)
@@ -179,6 +211,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isPointer(a) || !U.isPointer(b)) break;
                 result.Add(new AddrResult(addr, U.ToHexString(i), 0));
             }
+            BorderReadCount = result.Count;
             return result;
         }
 
@@ -226,12 +259,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             var result = new List<AddrResult>();
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return result;
+            if (rom?.RomInfo == null)
+            {
+                IconReadStartAddress = 0;
+                IconReadCount = 0;
+                return result;
+            }
 
             uint basePtr = rom.RomInfo.worldmap_icon_data_pointer;
-            if (basePtr == 0) return result;
+            if (basePtr == 0)
+            {
+                IconReadStartAddress = 0;
+                IconReadCount = 0;
+                return result;
+            }
             uint baseAddr = rom.p32(basePtr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return result;
+            if (!U.isSafetyOffset(baseAddr, rom))
+            {
+                IconReadStartAddress = 0;
+                IconReadCount = 0;
+                return result;
+            }
+
+            // Surface BaseAddress (as encoded GBA pointer) and DataCount
+            // to mirror WF InputFormRef semantics (Copilot bot inline
+            // review on PR #592 round 2).
+            IconReadStartAddress = U.toPointer(baseAddr);
 
             uint addr = baseAddr;
             for (int i = 0; i < LoadListHardCap; i++, addr += IconRecordStride)
@@ -241,6 +294,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!U.isPointer(p4)) break;
                 result.Add(new AddrResult(addr, U.ToHexString(i), 0));
             }
+            IconReadCount = result.Count;
             return result;
         }
 

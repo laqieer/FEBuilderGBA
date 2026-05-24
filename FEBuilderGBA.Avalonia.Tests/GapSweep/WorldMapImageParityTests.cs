@@ -536,6 +536,87 @@ public class WorldMapImageParityTests
         finally { CoreState.ROM = prev; }
     }
 
+    /// <summary>
+    /// Per Copilot bot inline review on PR #592 round 2: LoadBorderList /
+    /// LoadIconList must surface BaseAddress + DataCount via VM
+    /// properties so the read panel reflects WF InputFormRef semantics.
+    /// </summary>
+    [Fact]
+    public void ViewModel_LoadBorderList_PopulatesReadConfigIndicators()
+    {
+        var rom = MakeMinimalFE8URom();
+        var prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint tableBase = 0x100000u;
+            PlantPointer(rom, rom.RomInfo.worldmap_county_border_pointer, tableBase);
+
+            for (int i = 0; i < 3; i++)
+            {
+                uint rowOff = tableBase + (uint)(i * 12);
+                PlantU32(rom, rowOff + 0, U.toPointer(0x200000u + (uint)i * 0x100u));
+                PlantU32(rom, rowOff + 4, U.toPointer(0x300000u + (uint)i * 0x100u));
+                PlantU32(rom, rowOff + 8, 0u);
+            }
+            uint terminator = tableBase + 3u * 12u;
+            PlantU32(rom, terminator + 0, 0xFFFFFFFFu);
+
+            var vm = new WorldMapImageViewModel();
+            var list = vm.LoadBorderList();
+            Assert.Equal(3, list.Count);
+            Assert.Equal(U.toPointer(tableBase), vm.BorderReadStartAddress);
+            Assert.Equal(3, vm.BorderReadCount);
+        }
+        finally { CoreState.ROM = prev; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadIconList_PopulatesReadConfigIndicators()
+    {
+        var rom = MakeMinimalFE8URom();
+        var prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint tableBase = 0x100000u;
+            PlantPointer(rom, rom.RomInfo.worldmap_icon_data_pointer, tableBase);
+
+            for (int i = 0; i < 4; i++)
+            {
+                uint rowOff = tableBase + (uint)(i * 16);
+                PlantU32(rom, rowOff + 4, U.toPointer(0x200000u + (uint)i * 0x100u));
+            }
+            uint terminator = tableBase + 4u * 16u;
+            PlantU32(rom, terminator + 4, 0xFFFFFFFFu);
+
+            var vm = new WorldMapImageViewModel();
+            var list = vm.LoadIconList();
+            Assert.Equal(4, list.Count);
+            Assert.Equal(U.toPointer(tableBase), vm.IconReadStartAddress);
+            Assert.Equal(4, vm.IconReadCount);
+        }
+        finally { CoreState.ROM = prev; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadBorderList_NullRom_ClearsReadConfigIndicators()
+    {
+        var prev = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            var vm = new WorldMapImageViewModel();
+            vm.BorderReadStartAddress = 0xDEADBEEFu;
+            vm.BorderReadCount = 99;
+            var list = vm.LoadBorderList();
+            Assert.Empty(list);
+            Assert.Equal(0u, vm.BorderReadStartAddress);
+            Assert.Equal(0, vm.BorderReadCount);
+        }
+        finally { CoreState.ROM = prev; }
+    }
+
     [Fact]
     public void ViewModel_LoadBorderEntry_ReadsAllFields()
     {

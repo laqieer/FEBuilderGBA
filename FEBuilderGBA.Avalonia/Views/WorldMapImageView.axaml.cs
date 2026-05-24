@@ -144,6 +144,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 var items = _vm.LoadBorderList();
                 Border_EntryList.SetItems(items);
+                // Mirror WF InputFormRef BaseAddress + DataCount in the
+                // read panel (Copilot bot inline review on PR #592 round 2).
+                Border_ReadStartAddressBox.Value = _vm.BorderReadStartAddress;
+                Border_ReadCountBox.Value = _vm.BorderReadCount;
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -219,6 +223,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 var items = _vm.LoadIconList();
                 IconData_EntryList.SetItems(items);
+                // Mirror WF InputFormRef BaseAddress + DataCount in the
+                // read panel (Copilot bot inline review on PR #592 round 2).
+                IconData_ReadStartAddressBox.Value = _vm.IconReadStartAddress;
+                IconData_ReadCountBox.Value = _vm.IconReadCount;
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
