@@ -8115,3 +8115,42 @@ git を選択
 
 :Settings could not be saved to disk: {0}
 設定をディスクに保存できませんでした：{0}
+
+:KnownGap
+未対応領域
+
+:Class and Animation
+利用クラスとアニメ
+
+:Override all palette slots
+敵とNPC、グレーも同じ色に設定する
+
+:UNDO
+UNDO
+
+:REDO
+REDO
+
+:Reload List
+再取得
+
+:Pointer (P12):
+ポインタ (P12):
+
+:New Palette Allocation
+新規パレット割り当て
+
+:Comment
+コメント
+
+:パレット種類
+パレット種類
+
+:パレット書き込み
+パレット書き込み
+
+:戦闘アニメ
+戦闘アニメ
+
+:Battle Animation
+戦闘アニメ
