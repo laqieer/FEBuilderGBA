@@ -294,7 +294,7 @@
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Slot 1" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item1_Input"
                                        Grid.Row="1" Grid.Column="1" Name="HoldItem1Box" Maximum="255"
-                                       JumpRequested="HoldingItem1_Jump" PickRequested="HoldingItem1_Pick" />
+                                       JumpRequested="HoldingItem1_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob1_Input"
                              Grid.Row="1" Grid.Column="2" Name="HoldProb1Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -305,7 +305,7 @@
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Slot 2" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item2_Input"
                                        Grid.Row="2" Grid.Column="1" Name="HoldItem2Box" Maximum="255"
-                                       JumpRequested="HoldingItem2_Jump" PickRequested="HoldingItem2_Pick" />
+                                       JumpRequested="HoldingItem2_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob2_Input"
                              Grid.Row="2" Grid.Column="2" Name="HoldProb2Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -316,7 +316,7 @@
               <TextBlock Grid.Row="3" Grid.Column="0" Text="Slot 3" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item3_Input"
                                        Grid.Row="3" Grid.Column="1" Name="HoldItem3Box" Maximum="255"
-                                       JumpRequested="HoldingItem3_Jump" PickRequested="HoldingItem3_Pick" />
+                                       JumpRequested="HoldingItem3_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob3_Input"
                              Grid.Row="3" Grid.Column="2" Name="HoldProb3Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -327,7 +327,7 @@
               <TextBlock Grid.Row="4" Grid.Column="0" Text="Slot 4" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item4_Input"
                                        Grid.Row="4" Grid.Column="1" Name="HoldItem4Box" Maximum="255"
-                                       JumpRequested="HoldingItem4_Jump" PickRequested="HoldingItem4_Pick" />
+                                       JumpRequested="HoldingItem4_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob4_Input"
                              Grid.Row="4" Grid.Column="2" Name="HoldProb4Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -338,7 +338,7 @@
               <TextBlock Grid.Row="5" Grid.Column="0" Text="Slot 5" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item5_Input"
                                        Grid.Row="5" Grid.Column="1" Name="HoldItem5Box" Maximum="255"
-                                       JumpRequested="HoldingItem5_Jump" PickRequested="HoldingItem5_Pick" />
+                                       JumpRequested="HoldingItem5_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob5_Input"
                              Grid.Row="5" Grid.Column="2" Name="HoldProb5Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -364,7 +364,7 @@
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Slot 1" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item6_Input"
                                        Grid.Row="1" Grid.Column="1" Name="HoldItem6Box" Maximum="255"
-                                       JumpRequested="HoldingItem6_Jump" PickRequested="HoldingItem6_Pick" />
+                                       JumpRequested="HoldingItem6_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob6_Input"
                              Grid.Row="1" Grid.Column="2" Name="HoldProb6Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -375,7 +375,7 @@
               <TextBlock Grid.Row="2" Grid.Column="0" Text="Slot 2" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item7_Input"
                                        Grid.Row="2" Grid.Column="1" Name="HoldItem7Box" Maximum="255"
-                                       JumpRequested="HoldingItem7_Jump" PickRequested="HoldingItem7_Pick" />
+                                       JumpRequested="HoldingItem7_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob7_Input"
                              Grid.Row="2" Grid.Column="2" Name="HoldProb7Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -386,7 +386,7 @@
               <TextBlock Grid.Row="3" Grid.Column="0" Text="Slot 3" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item8_Input"
                                        Grid.Row="3" Grid.Column="1" Name="HoldItem8Box" Maximum="255"
-                                       JumpRequested="HoldingItem8_Jump" PickRequested="HoldingItem8_Pick" />
+                                       JumpRequested="HoldingItem8_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob8_Input"
                              Grid.Row="3" Grid.Column="2" Name="HoldProb8Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -397,7 +397,7 @@
               <TextBlock Grid.Row="4" Grid.Column="0" Text="Slot 4" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item9_Input"
                                        Grid.Row="4" Grid.Column="1" Name="HoldItem9Box" Maximum="255"
-                                       JumpRequested="HoldingItem9_Jump" PickRequested="HoldingItem9_Pick" />
+                                       JumpRequested="HoldingItem9_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob9_Input"
                              Grid.Row="4" Grid.Column="2" Name="HoldProb9Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
@@ -408,7 +408,7 @@
               <TextBlock Grid.Row="5" Grid.Column="0" Text="Slot 5" VerticalAlignment="Center" />
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item10_Input"
                                        Grid.Row="5" Grid.Column="1" Name="HoldItem10Box" Maximum="255"
-                                       JumpRequested="HoldingItem10_Jump" PickRequested="HoldingItem10_Pick" />
+                                       JumpRequested="HoldingItem10_Jump" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob10_Input"
                              Grid.Row="5" Grid.Column="2" Name="HoldProb10Box"
                              FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />

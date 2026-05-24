@@ -464,27 +464,47 @@ namespace FEBuilderGBA.Avalonia.Views
         // ============================================================
 
         /// <summary>
-        /// Switch to the Item tab and select the row at <paramref name="rowIndex"/>.
+        /// Switch to the Item tab and select the row corresponding to the
+        /// holdings-tab item value <paramref name="value"/>.
+        /// Matches WF `JumpToItemSelect` semantics:
+        ///   - value 0 -> deselect (the WF UI shows "no selection" when the
+        ///     holding slot is empty).
+        ///   - value N (N > 0) -> select 0-based index (N - 1) — the WF
+        ///     stored value is 1-based with `<= 0` meaning "empty slot",
+        ///     so subtract 1 to land on the matching row.
         /// </summary>
-        void JumpToItemRow(uint rowIndex)
+        void JumpToItemRow(uint value)
         {
             try
             {
                 MainTabs.SelectedItem = ItemTab;
-                EntryList.SelectByIndex((int)rowIndex);
+                if (value == 0)
+                {
+                    EntryList.SelectByIndex(-1); // no-op when out of range
+                    return;
+                }
+                EntryList.SelectByIndex((int)(value - 1));
             }
             catch (Exception ex) { Log.Error("MonsterItemViewerView.JumpToItemRow: {0}", ex.Message); }
         }
 
         /// <summary>
-        /// Switch to the Probability tab and select the row at <paramref name="rowIndex"/>.
+        /// Switch to the Probability tab and select the row corresponding to
+        /// the holdings-tab item-probability value <paramref name="value"/>.
+        /// Same semantics as <see cref="JumpToItemRow"/>: 0 = deselect,
+        /// N > 0 = select index N - 1. Mirrors WF `JumpToProbabilitySelect`.
         /// </summary>
-        void JumpToProbRow(uint rowIndex)
+        void JumpToProbRow(uint value)
         {
             try
             {
                 MainTabs.SelectedItem = ProbTab;
-                ProbEntryList.SelectByIndex((int)rowIndex);
+                if (value == 0)
+                {
+                    ProbEntryList.SelectByIndex(-1);
+                    return;
+                }
+                ProbEntryList.SelectByIndex((int)(value - 1));
             }
             catch (Exception ex) { Log.Error("MonsterItemViewerView.JumpToProbRow: {0}", ex.Message); }
         }
@@ -501,17 +521,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void HoldingItem9_Jump(object? sender, RoutedEventArgs e) => JumpToItemRow(HoldItem9Box.Value);
         void HoldingItem10_Jump(object? sender, RoutedEventArgs e) => JumpToItemRow(HoldItem10Box.Value);
 
-        // 10 holding-item Pick handlers — pick a real item from the Item editor.
-        async void HoldingItem1_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem1Box);
-        async void HoldingItem2_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem2Box);
-        async void HoldingItem3_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem3Box);
-        async void HoldingItem4_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem4Box);
-        async void HoldingItem5_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem5Box);
-        async void HoldingItem6_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem6Box);
-        async void HoldingItem7_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem7Box);
-        async void HoldingItem8_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem8Box);
-        async void HoldingItem9_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem9Box);
-        async void HoldingItem10_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(HoldItem10Box);
+        // NOTE: Per Copilot CLI PR #596 round-3 review thread
+        // PRRT_kwDOH0Mc1M6EYelo: the holdings-tab item fields (B1..B10) store
+        // INDICES into the Tab-1 MonsterItem table, NOT FE item IDs. A Pick
+        // handler that opens the ItemEditor would write back a wrong-domain
+        // value (item id, not table index) and corrupt the holdings record.
+        // The Pick handlers are therefore intentionally OMITTED here — only
+        // the Jump handlers (JumpToItemRow + JumpToProbRow) navigate to the
+        // matching row. The IdFieldControl Pick affordance is unwired in
+        // AXAML for these 10 boxes.
 
         // 10 holding-item-probability jump handlers (B21..B30 -> Probability tab).
         void HoldingItemProb1_Jump(object? sender, RoutedEventArgs e) => JumpToProbRow(HoldItemProb1Box.Value);
