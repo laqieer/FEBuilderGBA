@@ -282,15 +282,17 @@
           <Border Background="{DynamicResource WarningBackgroundBrush}"
                   BorderBrush="{DynamicResource WarningBorderBrush}"
                   BorderThickness="1" CornerRadius="4" Padding="12">
-            <TextBlock TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status">
-              <Run Text="Per-skill unit sub-list editing is not yet implemented in Avalonia."/>
-              <LineBreak/>
-              <Run Text="Use the WinForms editor to assign units to a skill."/>
-              <LineBreak/>
-              <LineBreak/>
-              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
-            </TextBlock>
+            <StackPanel Spacing="8">
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status_L1"
+                         Text="Per-skill unit sub-list editing is not yet implemented in Avalonia." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status_L2"
+                         Text="Use the WinForms editor to assign units to a skill." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status_L3"
+                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+            </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_BaseAddr_Label"
                  Name="UnitTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
@@ -307,15 +309,17 @@
           <Border Background="{DynamicResource WarningBackgroundBrush}"
                   BorderBrush="{DynamicResource WarningBorderBrush}"
                   BorderThickness="1" CornerRadius="4" Padding="12">
-            <TextBlock TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status">
-              <Run Text="Per-skill class sub-list editing is not yet implemented in Avalonia."/>
-              <LineBreak/>
-              <Run Text="Use the WinForms editor to assign classes to a skill."/>
-              <LineBreak/>
-              <LineBreak/>
-              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
-            </TextBlock>
+            <StackPanel Spacing="8">
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status_L1"
+                         Text="Per-skill class sub-list editing is not yet implemented in Avalonia." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status_L2"
+                         Text="Use the WinForms editor to assign classes to a skill." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status_L3"
+                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+            </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_BaseAddr_Label"
                  Name="ClassTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
@@ -332,15 +336,17 @@
           <Border Background="{DynamicResource WarningBackgroundBrush}"
                   BorderBrush="{DynamicResource WarningBorderBrush}"
                   BorderThickness="1" CornerRadius="4" Padding="12">
-            <TextBlock TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status">
-              <Run Text="Per-skill item sub-list editing is not yet implemented in Avalonia."/>
-              <LineBreak/>
-              <Run Text="Use the WinForms editor to assign items to a skill."/>
-              <LineBreak/>
-              <LineBreak/>
-              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
-            </TextBlock>
+            <StackPanel Spacing="8">
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status_L1"
+                         Text="Per-skill item sub-list editing is not yet implemented in Avalonia." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status_L2"
+                         Text="Use the WinForms editor to assign items to a skill." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status_L3"
+                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+            </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_BaseAddr_Label"
                  Name="ItemTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
@@ -357,15 +363,17 @@
           <Border Background="{DynamicResource WarningBackgroundBrush}"
                   BorderBrush="{DynamicResource WarningBorderBrush}"
                   BorderThickness="1" CornerRadius="4" Padding="12">
-            <TextBlock TextWrapping="Wrap"
-                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status">
-              <Run Text="Per-skill Item2 sub-list editing is not yet implemented in Avalonia."/>
-              <LineBreak/>
-              <Run Text="Use the WinForms editor to assign second-item-skills to a skill."/>
-              <LineBreak/>
-              <LineBreak/>
-              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
-            </TextBlock>
+            <StackPanel Spacing="8">
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status_L1"
+                         Text="Per-skill Item2 sub-list editing is not yet implemented in Avalonia." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status_L2"
+                         Text="Use the WinForms editor to assign second-item-skills to a skill." />
+              <TextBlock TextWrapping="Wrap"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status_L3"
+                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+            </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_BaseAddr_Label"
                  Name="Item2TabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
