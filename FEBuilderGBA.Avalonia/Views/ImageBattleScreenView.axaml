@@ -5,17 +5,487 @@
         Title="Battle Screen Layout" Width="1411" Height="939"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageBattleScreen_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Battle Screen Layout" FontSize="18" FontWeight="Bold" />
+    <!-- ===========================================================
+         Master list panel (mirrors WF entry navigation - single
+         battle-screen entry per ROM).
+         =========================================================== -->
+    <Grid Grid.Column="0" RowDefinitions="Auto,*" Margin="4">
+      <TextBlock Grid.Row="0" Text="Battle Screen" FontWeight="SemiBold" Margin="0,0,0,4" />
+      <controls:AddressListControl AutomationProperties.AutomationId="ImageBattleScreen_Entry_List"
+                                   Grid.Row="1" Name="EntryList" Margin="0,0,0,4" />
+    </Grid>
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
+    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="4">
+
+      <!-- ===========================================================
+           Top toolbar: AllWrite button + Zoom combo + TSA info label.
+           Mirrors WF AllWriteButton + Zoom + TSAInfo.
+           =========================================================== -->
+      <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button AutomationProperties.AutomationId="ImageBattleScreen_AllWrite_Button"
+                  Name="WriteButton" Content="Write" Width="140"
+                  Click="WriteButton_Click" />
+          <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" />
+          <ComboBox AutomationProperties.AutomationId="ImageBattleScreen_Zoom_Combo"
+                    Name="ZoomCombo" Width="120" VerticalAlignment="Center" SelectedIndex="1"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands." />
+          <!-- TSAInfo split into separate TextBlocks so each fragment goes
+               through ViewTranslationHelper independently (a composite
+               'Selected: 00   Canvas:' string has no translation entry).
+               Per Copilot bot PR #594 round 5 thread #1. -->
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfoSelected_Label"
+                     Name="TSAInfoSelectedLabel" Text="Selected: 00"
+                     VerticalAlignment="Center" Margin="20,0,0,0" Foreground="DarkGray" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfoCanvas_Label"
+                     Name="TSAInfoCanvasLabel" Text="Canvas:"
+                     VerticalAlignment="Center" Margin="12,0,0,0" Foreground="DarkGray" />
+        </StackPanel>
+      </Border>
+
+      <!-- ===========================================================
+           Battle preview row (mirrors WF panel1 chipset + Battle preview).
+           Both are WF-coupled (live LZ77 decode + per-tile palette blit
+           requires System.Drawing + ImageUtil.BitBlt). Honestly deferred
+           with KnownGap placeholder labels (#393).
+           =========================================================== -->
+      <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4"
+              MinHeight="80">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_ChipsetPreview_Label"
+                     Name="ChipsetPreviewLabel"
+                     Text="Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells."
+                     TextWrapping="Wrap" Foreground="Gray" Width="280" VerticalAlignment="Center"
+                     ToolTip.Tip="KnownGap: chipset thumbnail rendering is WinForms-coupled (#393)." />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_BattlePreview_Label"
+                     Name="BattlePreviewLabel"
+                     Text="Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this editor are functional under the ambient undo scope."
+                     TextWrapping="Wrap" Foreground="Gray" Width="600" VerticalAlignment="Center"
+                     ToolTip.Tip="KnownGap: battle-screen bitmap rendering is WinForms-coupled (#393)." />
+        </StackPanel>
+      </Border>
+
+      <!-- ===========================================================
+           Address bar (mirrors WF AllWriteButton context).
+           =========================================================== -->
+      <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="TSA1 Address" VerticalAlignment="Center" Width="100" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Addr_Label"
+                     Name="AddrLabel" Text="0x00000000" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+
+      <!-- ===========================================================
+           Tab control (mirrors WF tabControl1 + 5 tabPages).
+           =========================================================== -->
+      <TabControl AutomationProperties.AutomationId="ImageBattleScreen_Tabs_TabControl"
+                  Grid.Row="3" Margin="0,0,0,4">
+
+        <!-- Tab 1: Palette -->
+        <TabItem AutomationProperties.AutomationId="ImageBattleScreen_PaletteTab_Tab"
+                 Header="Palette">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="8" Spacing="6">
+
+              <!-- Palette toolbar -->
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Palette Address" VerticalAlignment="Center" Width="120" />
+                <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_PaletteAddress_Input"
+                               Name="PaletteAddressBox" Width="160" Minimum="0" Maximum="4294967295"
+                               FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
+                <TextBlock Text="Palette Type" VerticalAlignment="Center" Width="100" Margin="20,0,0,0" />
+                <ComboBox AutomationProperties.AutomationId="ImageBattleScreen_PaletteIndex_Combo"
+                          Name="PaletteIndexCombo" Width="120" VerticalAlignment="Center" SelectedIndex="0"
+                          SelectionChanged="PaletteIndex_SelectionChanged" />
+                <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteWrite_Button"
+                        Name="PaletteWriteButton" Content="Palette Write" Width="140"
+                        Click="PaletteWrite_Click" />
+                <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteClipboard_Button"
+                        Name="PaletteClipboardButton" Content="Clipboard" Width="120"
+                        Click="PaletteClipboard_Click" />
+                <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteUndo_Button"
+                        Name="PaletteUndoButton" Content="Undo" Width="100"
+                        Click="PaletteUndo_Click" />
+                <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteRedo_Button"
+                        Name="PaletteRedoButton" Content="Redo" Width="100"
+                        IsEnabled="False"
+                        ToolTip.Tip="KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar." />
+              </StackPanel>
+
+              <!-- RGB header row -->
+              <Grid Margin="0,0,0,2">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="36" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="0">
+                  <TextBlock Text=" " Height="36" />
+                  <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_RHeader_Label"
+                             Text="R" Width="20" Height="28" TextAlignment="Center" />
+                  <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_GHeader_Label"
+                             Text="G" Width="20" Height="28" TextAlignment="Center" />
+                  <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_BHeader_Label"
+                             Text="B" Width="20" Height="28" TextAlignment="Center" />
+                </StackPanel>
+              </Grid>
+
+              <!-- 16-column palette grid (Swatch + Index + R/G/B) -->
+              <Grid Name="PaletteGrid">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="36" />
+                  <RowDefinition Height="32" />
+                  <RowDefinition Height="32" />
+                  <RowDefinition Height="32" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                  <ColumnDefinition Width="60" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Column 1 -->
+                <Border Grid.Row="0" Grid.Column="0" Name="Swatch1" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch1_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="1" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index1_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="0" Name="R1" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R1_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="0" Name="G1" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G1_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="0" Name="B1" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B1_Input" />
+                <!-- Column 2 -->
+                <Border Grid.Row="0" Grid.Column="1" Name="Swatch2" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch2_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="2" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index2_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Name="R2" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R2_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1" Name="G2" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G2_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1" Name="B2" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B2_Input" />
+                <!-- Column 3 -->
+                <Border Grid.Row="0" Grid.Column="2" Name="Swatch3" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch3_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="3" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index3_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="2" Name="R3" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R3_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="2" Name="G3" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G3_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="2" Name="B3" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B3_Input" />
+                <!-- Column 4 -->
+                <Border Grid.Row="0" Grid.Column="3" Name="Swatch4" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch4_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="3" Text="4" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index4_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="3" Name="R4" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R4_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="3" Name="G4" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G4_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="3" Name="B4" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B4_Input" />
+                <!-- Column 5 -->
+                <Border Grid.Row="0" Grid.Column="4" Name="Swatch5" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch5_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="4" Text="5" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index5_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="4" Name="R5" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R5_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="4" Name="G5" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G5_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="4" Name="B5" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B5_Input" />
+                <!-- Column 6 -->
+                <Border Grid.Row="0" Grid.Column="5" Name="Swatch6" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch6_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="5" Text="6" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index6_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="5" Name="R6" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R6_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="5" Name="G6" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G6_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="5" Name="B6" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B6_Input" />
+                <!-- Column 7 -->
+                <Border Grid.Row="0" Grid.Column="6" Name="Swatch7" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch7_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="6" Text="7" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index7_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="6" Name="R7" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R7_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="6" Name="G7" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G7_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="6" Name="B7" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B7_Input" />
+                <!-- Column 8 -->
+                <Border Grid.Row="0" Grid.Column="7" Name="Swatch8" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch8_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="7" Text="8" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index8_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="7" Name="R8" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R8_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="7" Name="G8" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G8_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="7" Name="B8" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B8_Input" />
+                <!-- Column 9 -->
+                <Border Grid.Row="0" Grid.Column="8" Name="Swatch9" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch9_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="8" Text="9" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index9_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="8" Name="R9" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R9_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="8" Name="G9" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G9_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="8" Name="B9" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B9_Input" />
+                <!-- Column 10 -->
+                <Border Grid.Row="0" Grid.Column="9" Name="Swatch10" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch10_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="9" Text="10" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index10_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="9" Name="R10" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R10_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="9" Name="G10" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G10_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="9" Name="B10" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B10_Input" />
+                <!-- Column 11 -->
+                <Border Grid.Row="0" Grid.Column="10" Name="Swatch11" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch11_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="10" Text="11" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index11_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="10" Name="R11" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R11_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="10" Name="G11" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G11_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="10" Name="B11" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B11_Input" />
+                <!-- Column 12 -->
+                <Border Grid.Row="0" Grid.Column="11" Name="Swatch12" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch12_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="11" Text="12" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index12_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="11" Name="R12" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R12_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="11" Name="G12" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G12_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="11" Name="B12" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B12_Input" />
+                <!-- Column 13 -->
+                <Border Grid.Row="0" Grid.Column="12" Name="Swatch13" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch13_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="12" Text="13" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index13_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="12" Name="R13" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R13_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="12" Name="G13" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G13_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="12" Name="B13" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B13_Input" />
+                <!-- Column 14 -->
+                <Border Grid.Row="0" Grid.Column="13" Name="Swatch14" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch14_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="13" Text="14" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index14_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="13" Name="R14" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R14_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="13" Name="G14" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G14_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="13" Name="B14" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B14_Input" />
+                <!-- Column 15 -->
+                <Border Grid.Row="0" Grid.Column="14" Name="Swatch15" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch15_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="14" Text="15" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index15_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="14" Name="R15" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R15_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="14" Name="G15" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G15_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="14" Name="B15" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B15_Input" />
+                <!-- Column 16 -->
+                <Border Grid.Row="0" Grid.Column="15" Name="Swatch16" Margin="2"
+                        AutomationProperties.AutomationId="ImageBattleScreen_Swatch16_Label" />
+                <TextBlock Grid.Row="0" Grid.Column="15" Text="16" TextAlignment="Center" VerticalAlignment="Bottom"
+                           AutomationProperties.AutomationId="ImageBattleScreen_Index16_Label" />
+                <NumericUpDown Grid.Row="1" Grid.Column="15" Name="R16" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_R16_Input" />
+                <NumericUpDown Grid.Row="2" Grid.Column="15" Name="G16" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_G16_Input" />
+                <NumericUpDown Grid.Row="3" Grid.Column="15" Name="B16" Minimum="0" Maximum="255" Increment="8" Margin="2" FormatString="0"
+                               AutomationProperties.AutomationId="ImageBattleScreen_B16_Input" />
+              </Grid>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+
+        <!-- Tab 2: Main Image -->
+        <TabItem AutomationProperties.AutomationId="ImageBattleScreen_MainImageTab_Tab"
+                 Header="Main Image">
+          <StackPanel Margin="8" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Tile1_Label"
+                         Text="Tile1" Width="60" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Tile2_Label"
+                         Text="Tile2" Width="60" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Tile3_Label"
+                         Text="Tile3" Width="60" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Tile4_Label"
+                         Text="Tile4" Width="60" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Tile5_Label"
+                         Text="Tile5" Width="60" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Image" Width="60" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_Image1_ZIMAGE_Input"
+                             Name="Image1ZImage" Width="160" Minimum="0" Maximum="4294967295"
+                             FormatString="0" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image1_Import_Button"
+                      Content="Image Import" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image1_Export_Button"
+                      Content="Image Export" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393)." />
+            </StackPanel>
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="8" MinHeight="60">
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image1_Preview_Label"
+                         Text="Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393)."
+                         TextWrapping="Wrap" Foreground="Gray" VerticalAlignment="Center" />
+            </Border>
+          </StackPanel>
+        </TabItem>
+
+        <!-- Tab 3: Left Side (image2 = Name, image3 = Item per WF designer) -->
+        <TabItem AutomationProperties.AutomationId="ImageBattleScreen_LeftSideTab_Tab"
+                 Header="Left Side">
+          <StackPanel Margin="8" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image2_Name_Label"
+                         Text="Name" Width="80" VerticalAlignment="Center" HorizontalAlignment="Center"
+                         TextAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_Image2_ZIMAGE_Input"
+                             Name="Image2ZImage" Width="160" Minimum="0" Maximum="4294967295"
+                             FormatString="0" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image2_Import_Button"
+                      Content="Image Import" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image2_Export_Button"
+                      Content="Image Export" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
+                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image2_Preview_Label"
+                           Text="Image2 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              </Border>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image3_Item_Label"
+                         Text="Item" Width="80" VerticalAlignment="Center" HorizontalAlignment="Center"
+                         TextAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_Image3_ZIMAGE_Input"
+                             Name="Image3ZImage" Width="160" Minimum="0" Maximum="4294967295"
+                             FormatString="0" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image3_Import_Button"
+                      Content="Image Import" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image3_Export_Button"
+                      Content="Image Export" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
+                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image3_Preview_Label"
+                           Text="Image3 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </TabItem>
+
+        <!-- Tab 4: Right Side (image4 = Name, image5 = Item per WF designer) -->
+        <TabItem AutomationProperties.AutomationId="ImageBattleScreen_RightSideTab_Tab"
+                 Header="Right Side">
+          <StackPanel Margin="8" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image4_Name_Label"
+                         Text="Name" Width="80" VerticalAlignment="Center" HorizontalAlignment="Center"
+                         TextAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_Image4_ZIMAGE_Input"
+                             Name="Image4ZImage" Width="160" Minimum="0" Maximum="4294967295"
+                             FormatString="0" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image4_Import_Button"
+                      Content="Image Import" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image4_Export_Button"
+                      Content="Image Export" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
+                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image4_Preview_Label"
+                           Text="Image4 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              </Border>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image5_Item_Label"
+                         Text="Item" Width="80" VerticalAlignment="Center" HorizontalAlignment="Center"
+                         TextAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageBattleScreen_Image5_ZIMAGE_Input"
+                             Name="Image5ZImage" Width="160" Minimum="0" Maximum="4294967295"
+                             FormatString="0" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image5_Import_Button"
+                      Content="Image Import" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_Image5_Export_Button"
+                      Content="Image Export" Width="140" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
+                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image5_Preview_Label"
+                           Text="Image5 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </TabItem>
+
+        <!-- Tab 5: Import/Export (bulk) -->
+        <TabItem AutomationProperties.AutomationId="ImageBattleScreen_ImportExportTab_Tab"
+                 Header="Import/Export">
+          <StackPanel Margin="8" Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_BulkDescription_Label"
+                       Text="Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated."
+                       TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkImport_Button"
+                      Content="Image Import" Width="160" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkExport_Button"
+                      Content="Image Export" Width="160" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393)." />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkUndo_Button"
+                      Content="Undo" Width="100"
+                      Click="BulkUndo_Click" />
+              <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkRedo_Button"
+                      Content="Redo" Width="100" IsEnabled="False"
+                      ToolTip.Tip="KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393)." />
+            </StackPanel>
+          </StackPanel>
+        </TabItem>
+      </TabControl>
+    </Grid>
   </Grid>
 </Window>

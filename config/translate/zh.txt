@@ -22256,3 +22256,111 @@ KnownGap: 列表扩展需要 DataExpansionCore 接线尚未移植。
 KnownGap: DecreaseColorTSAToolForm 尚未移植。
 :KnownGap: ResourceCache source-file feature not yet wired in Avalonia.
 KnownGap: ResourceCache 源文件功能在 Avalonia 中尚未接线。
+
+:Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells.
+图块集预览（已知缺口已延期）：实时 LZ77 解码 + 翻转置换依赖 WinForms (ImageUtil.BitBlt)。请使用 WinForms 编辑器绘制 TSA 单元格。
+
+:KnownGap: chipset thumbnail rendering is WinForms-coupled (#393).
+已知缺口：图块集缩略图渲染依赖 WinForms (#393)。
+
+:Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this editor are functional under the ambient undo scope.
+战斗预览（已知缺口已延期）：使用实时调色板渲染 32x20 TSA 网格需要 System.Drawing + ImageUtil.BitBlt。此编辑器中的数值字段以及调色板/图像指针写入路径在环境 Undo 作用域下可用。
+
+:KnownGap: battle-screen bitmap rendering is WinForms-coupled (#393).
+已知缺口：战斗画面位图渲染依赖 WinForms (#393)。
+
+:TSA1 Address
+TSA1 地址
+
+:KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar.
+已知缺口：本地调色板编辑的 Redo (PaletteFormRef redo 缓冲区) 依赖 WinForms (#393)。请使用工具栏中的主 ROM 级 Undo。
+
+:Tile1
+Tile1
+
+:Tile2
+Tile2
+
+:Tile3
+Tile3
+
+:Tile4
+Tile4
+
+:Tile5
+Tile5
+
+:KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393).
+已知缺口：每图像 LZ77 导入 (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) 依赖 WinForms (#393)。
+
+:KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393).
+已知缺口：每图像 PNG 导出 (ImageFormRef.ExportImage) 依赖 WinForms (#393)。
+
+:Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393).
+图像1 预览（已知缺口已延期）：每图块 LZ77 解压 + 调色板 blit 依赖 WinForms (#393)。
+
+:Left Side
+左侧
+
+:KnownGap: per-image LZ77 Import is WinForms-coupled (#393).
+已知缺口：每图像 LZ77 导入依赖 WinForms (#393)。
+
+:KnownGap: per-image PNG Export is WinForms-coupled (#393).
+已知缺口：每图像 PNG 导出依赖 WinForms (#393)。
+
+:Image2 Preview (deferred)
+图像2 预览（已延期）
+
+:Image3 Preview (deferred)
+图像3 预览（已延期）
+
+:Right Side
+右侧
+
+:Image4 Preview (deferred)
+图像4 预览（已延期）
+
+:Image5 Preview (deferred)
+图像5 预览（已延期）
+
+:Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated.
+将战斗画面作为单个图像批量导入/导出。TSA 布局意味着公共图块必须去重。
+
+:KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393).
+已知缺口：批量图像导入需要 ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA（WinForms 依赖，#393）。
+
+:KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393).
+已知缺口：批量图像导出需要 ImageFormRef.ExportImage + 实时战斗画面位图（WinForms 依赖，#393）。
+
+:KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393).
+已知缺口：本地 TSA Redo 缓冲区依赖 WinForms。请使用工具栏中的主 ROM 级 Undo (#393)。
+
+:Palette 1
+调色板 1
+
+:Palette 2
+调色板 2
+
+:Palette 3
+调色板 3
+
+:Palette 4
+调色板 4
+
+:1x Zoom
+1倍缩放
+
+:Selected: 00
+已选: 00
+
+:Canvas:
+画布:
+
+:Edit Battle Screen
+编辑战斗画面
+
+:Edit Battle Screen Palette
+编辑战斗画面调色板
+
+:KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
+已知缺口：缩放仅影响已延期的战斗/图块集预览渲染（WinForms 依赖，#393）。实时预览实现后将重新启用。
