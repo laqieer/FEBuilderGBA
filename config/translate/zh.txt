@@ -21574,3 +21574,33 @@ OBJ+BG 从左到右
 
 :Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
 解码后的能力补正值 (只读 — 通过上方能力补正指针编辑):
+
+:Class OP Demo Editor
+职业OP演示编辑器
+
+:Japanese Name Pointer Target
+日文名指针目标
+
+:Anime Spec Pointer Target
+动画指定指针目标
+
+:Anime Spec Shared
+动画指定共享
+
+:Fixed 05:
+固定05:
+
+:Fixed 00:
+固定00:
+
+:Wait Frames:
+等待帧:
+
+:Anime Special Spec:
+动画特殊指定:
+
+:??:
+??:
+
+:Write Anime Tuple
+写入动画元组

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T23:42:39Z"
-git-sha: 924ecdd46
+generated: "2026-05-24T01:01:55Z"
+git-sha: 100a933c0
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 216 |
+| HIGH | |Δ%| ≥ 50 | 215 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 85 |
-| LOW | |Δ%| < 25 | 69 |
+| LOW | |Δ%| < 25 | 70 |
 
 ## Ranked Density Deltas
 
@@ -46,7 +46,6 @@ Both represent pairing artifacts rather than real migration gaps.
 | High | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` | 99 | 3 | -96 | -97.0% | Heuristic |
 | High | `ImagePalletForm` | `ImagePalletView` | 98 | 3 | -95 | -96.9% | Heuristic |
 | High | `EDFE7Form` | `EDFE7View` | 81 | 3 | -78 | -96.3% | Heuristic |
-| High | `ClassOPDemoForm` | `ClassOPDemoView` | 71 | 3 | -68 | -95.8% | Heuristic |
 | High | `ClassFE6Form` | `ClassFE6View` | 173 | 8 | -165 | -95.4% | Heuristic |
 | High | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` | 62 | 3 | -59 | -95.2% | ListParityHelper |
 | High | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` | 61 | 3 | -58 | -95.1% | ListParityHelper |
@@ -274,6 +273,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `ImageBattleBGForm` | `ImageBattleBGView` | 26 | 30 | 4 | +15.4% | ListParityHelper |
 | Low | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` | 19 | 22 | 3 | +15.8% | ListParityHelper |
 | Low | `PointerToolCopyToForm` | `PointerToolCopyToView` | 6 | 7 | 1 | +16.7% | Heuristic |
+| Low | `ClassOPDemoForm` | `ClassOPDemoView` | 71 | 83 | 12 | +16.9% | Heuristic |
 | Low | `ToolWorkSupportForm` | `ToolWorkSupportView` | 17 | 20 | 3 | +17.6% | Heuristic |
 | Low | `EventMapChangeForm` | `EventMapChangeView` | 36 | 43 | 7 | +19.4% | ListParityHelper |
 | Low | `MainSimpleMenuEventErrorIgnoreErrorForm` | `MainSimpleMenuEventErrorIgnoreErrorView` | 5 | 6 | 1 | +20.0% | Heuristic |
@@ -432,14 +432,6 @@ WF count: **81** · AV count: **3** · Δ: **-78** (-96.3%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EDFE7View.axaml
 -->
 
-### ClassOPDemoForm
-WF count: **71** · AV count: **3** · Δ: **-68** (-95.8%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ClassOPDemoForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ClassOPDemoView.axaml
--->
-
 ### ClassFE6Form
 WF count: **173** · AV count: **8** · Δ: **-165** (-95.4%).
 
@@ -526,6 +518,14 @@ WF count: **66** · AV count: **6** · Δ: **-60** (-90.9%).
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/MonsterWMapProbabilityForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MonsterWMapProbabilityViewerView.axaml
+-->
+
+### MonsterItemForm
+WF count: **129** · AV count: **12** · Δ: **-117** (-90.7%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/MonsterItemForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MonsterItemViewerView.axaml
 -->
 
 ## Unpaired Orphans

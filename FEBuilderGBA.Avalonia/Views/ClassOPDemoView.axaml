@@ -2,19 +2,335 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ClassOPDemoView"
-        Title="Class OP Demo" Width="1429" Height="848"
+        Title="Class OP Demo Editor" Width="1534" Height="930"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ClassOPDemo_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- ClassOPDemoView — Avalonia parity for orphan WinForms ClassOPDemoForm
+       (gap-sweep #405). The orphan WF form is <Compile Remove>'d from the
+       WinForms build but its Designer.cs is still parsed by the gap-sweep.
+       This view rebuilds to a three-pane master/detail editor:
+         Row 0: filter / reload bar  (mirrors WF panel1)
+         Row 1: address-write bar    (mirrors WF AddressPanel)
+         Row 2: left  — main list    (mirrors WF panel12)
+                right — detail + N1 + N2 sub-panels (mirrors WF panel2)
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+       N1 (JP-name font glyph) sub-list: 1-byte rows, 0xFF terminator,
+       NO 16-entry cap (orphan validator stops only on 0xFF).
+       N2 (anime spec tuple): single 6-byte tuple (orphan validator `i < 1`).
+
+       KnownGap: BattleAnimePreview reason=Live ImageBattleAnimeForm.DrawBattleAnime PNG rendering is a large WinForms-only dep; deferred consistent with PRs #544/#549/#537. -->
+  <!-- KnownGap: N1FontGlyphPreview reason=N1_L_0_OPCLASSDEMOFONT PictureBox preview is a WinForms-only graphics pipeline; deferred consistent with PRs #544/#549/#537. -->
+  <!-- KnownGap: PatchAwareUI reason=Orphan ClassOPDemoForm constructor has zero PatchUtil calls; OPClassReelSort/Over255 affordances live in canonical OPClassDemoViewerView (PR #544). -->
+  <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="270,*">
+
+    <!-- ===== Row 0: Top filter / reload bar (mirrors WF panel1) ===== -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Start Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_ReadStart_Input"
+                       FormatString="0" Name="ReadStartAddressBox" Width="140"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="500"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ClassOPDemo_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
+    </Border>
+
+    <!-- ===== Row 1: Main address-write bar (mirrors WF AddressPanel) ===== -->
+    <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_Addr_Input"
+                       FormatString="0" Name="AddressBox" Width="140"
+                       Minimum="0" Maximum="65535999"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ClassOPDemo_BlockSize_Input"
+                 Name="BlockSizeBox" IsReadOnly="True" Text="28" Width="80"
+                 VerticalAlignment="Center" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <TextBox AutomationProperties.AutomationId="ClassOPDemo_SelectedAddress_Input"
+                 Name="SelectedAddressBox" IsReadOnly="True" Width="140"
+                 VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="ClassOPDemo_Write_Button"
+                Name="WriteButton" Content="Write" Click="Write_Click"
+                Margin="20,0,0,0" />
+        <TextBlock AutomationProperties.AutomationId="ClassOPDemo_Addr_Label"
+                   Name="AddrLabel" VerticalAlignment="Center" Margin="20,0,0,0" />
+      </StackPanel>
+    </Border>
+
+    <!-- ===== Row 2 left: Main address list (mirrors WF panel12) ===== -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top" Content="Name" />
+        <controls:AddressListControl AutomationProperties.AutomationId="ClassOPDemo_Entry_List"
+                                     Name="EntryList" Margin="2" />
+      </DockPanel>
+    </Border>
+
+    <!-- ===== Row 2 right: detail + two sub-lists ===== -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1">
       <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Class OP Demo" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="Class OP Demo Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ClassOPDemo_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+        <!-- ===== Group A: Main detail grid (mirrors WF panel2 main fields) ===== -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <Grid ColumnDefinitions="200,140,80,220,*"
+                RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+
+            <!-- Row 0: English Name Pointer (P0) -->
+            <Label Grid.Row="0" Grid.Column="0" Content="English Name Pointer:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_EnglishNamePtr_Input"
+                           FormatString="0" Grid.Row="0" Grid.Column="1"
+                           Name="EnglishNamePtrBox"
+                           Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="ClassOPDemo_EnglishName_Label"
+                     Grid.Row="0" Grid.Column="3" Grid.ColumnSpan="2"
+                     Name="EnglishNamePreview" IsReadOnly="True" VerticalAlignment="Center" />
+
+            <!-- Row 1: Description Text ID (D4) -->
+            <Label Grid.Row="1" Grid.Column="0" Content="Description Text ID:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_DescTextId_Input"
+                           FormatString="0" Grid.Row="1" Grid.Column="1"
+                           Name="DescTextIdBox"
+                           Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="ClassOPDemo_DescText_Label"
+                     Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="2"
+                     Name="DescTextPreview" IsReadOnly="True" VerticalAlignment="Center" />
+
+            <!-- Row 2: Japanese Name Pointer (P8) -->
+            <Label Grid.Row="2" Grid.Column="0" Content="Japanese Name Pointer:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_JpNamePtr_Input"
+                           FormatString="0" Grid.Row="2" Grid.Column="1"
+                           Name="JpNamePtrBox"
+                           Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+
+            <!-- Row 3: Japanese Name Length (B12) -->
+            <Label Grid.Row="3" Grid.Column="0" Content="Japanese Name Length:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_JpNameLen_Input"
+                           FormatString="0" Grid.Row="3" Grid.Column="1"
+                           Name="JpNameLenBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+            <!-- Row 4: Palette ID (B13) -->
+            <Label Grid.Row="4" Grid.Column="0" Content="Palette ID:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_PaletteId_Input"
+                           FormatString="0" Grid.Row="4" Grid.Column="1"
+                           Name="PaletteIdBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="ClassOPDemo_UnitPalette_Label"
+                     Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2"
+                     Name="PalettePreview" IsReadOnly="True" VerticalAlignment="Center" />
+
+            <!-- Row 5: Display Weapon (Class) (B14) -->
+            <Label Grid.Row="5" Grid.Column="0" Content="Display Weapon (Class):" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_DisplayWeapon_Input"
+                           FormatString="0" Grid.Row="5" Grid.Column="1"
+                           Name="DisplayWeaponBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="ClassOPDemo_ClassName_Label"
+                     Grid.Row="5" Grid.Column="3" Grid.ColumnSpan="2"
+                     Name="ClassNamePreview" IsReadOnly="True" VerticalAlignment="Center" />
+
+            <!-- Row 6: Ally / Enemy Color (B15) -->
+            <Label Grid.Row="6" Grid.Column="0" Content="Ally / Enemy Color:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_AllyEnemyColor_Input"
+                           FormatString="0" Grid.Row="6" Grid.Column="1"
+                           Name="AllyEnemyColorBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <ComboBox AutomationProperties.AutomationId="ClassOPDemo_AllyEnemyColor_Combo"
+                      Grid.Row="6" Grid.Column="3" Grid.ColumnSpan="2"
+                      Name="AllyEnemyColorCombo" Width="220" VerticalAlignment="Center" />
+
+            <!-- Row 7: Battle Anime (B16) -->
+            <Label Grid.Row="7" Grid.Column="0" Content="Battle Anime:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_BattleAnime_Input"
+                           FormatString="0" Grid.Row="7" Grid.Column="1"
+                           Name="BattleAnimeBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+            <!-- Row 8: Magic Effect (B17) -->
+            <Label Grid.Row="8" Grid.Column="0" Content="Magic Effect:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_MagicEffect_Input"
+                           FormatString="0" Grid.Row="8" Grid.Column="1"
+                           Name="MagicEffectBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <ComboBox AutomationProperties.AutomationId="ClassOPDemo_MagicEffect_Combo"
+                      Grid.Row="8" Grid.Column="3" Grid.ColumnSpan="2"
+                      Name="MagicEffectCombo" Width="220" VerticalAlignment="Center" />
+
+            <!-- Row 9: Unknown (0x12) (D18) -->
+            <Label Grid.Row="9" Grid.Column="0" Content="Unknown (0x12):" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_Unknown18_Input"
+                           FormatString="0" Grid.Row="9" Grid.Column="1"
+                           Name="Unknown18Box"
+                           Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+
+            <!-- Row 10: Terrain (Left Half) (B22) -->
+            <Label Grid.Row="10" Grid.Column="0" Content="Terrain (Left Half):" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_TerrainLeft_Input"
+                           FormatString="0" Grid.Row="10" Grid.Column="1"
+                           Name="TerrainLeftBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+            <!-- Row 11: Terrain (Right Half) (B23) -->
+            <Label Grid.Row="11" Grid.Column="0" Content="Terrain (Right Half):" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_TerrainRight_Input"
+                           FormatString="0" Grid.Row="11" Grid.Column="1"
+                           Name="TerrainRightBox"
+                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+            <!-- Row 12: Anime Spec Pointer (P24) -->
+            <Label Grid.Row="12" Grid.Column="0" Content="Anime Spec Pointer:" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_AnimePtr_Input"
+                           FormatString="0" Grid.Row="12" Grid.Column="1"
+                           Name="AnimePtrBox"
+                           Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
+
+          </Grid>
+        </Border>
+
+        <!-- ===== Group B: N1 sub-list — Japanese Name Pointer Target (mirrors WF groupBox2) ===== -->
+        <Border BorderBrush="DarkSlateGray" BorderThickness="1" Padding="6">
+          <DockPanel>
+            <Label DockPanel.Dock="Top" Content="Japanese Name Pointer Target"
+                   FontWeight="Bold" />
+            <!-- N1 sub-bar: Write Pointer / Address / Size / Selected / Glyph spinner / Write / List Expand -->
+            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
+              <Button Grid.Column="0"
+                      AutomationProperties.AutomationId="ClassOPDemo_N1_WritePtr_Button"
+                      Name="N1WritePtrButton" Content="Write JP Name Pointer" />
+              <Label Grid.Column="1" Content="Address" Margin="8,0,2,0" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="2"
+                             AutomationProperties.AutomationId="ClassOPDemo_N1_Addr_Input"
+                             FormatString="0" Name="N1AddrBox" Width="140"
+                             Minimum="0" Maximum="65535999"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Label Grid.Column="3" Content="Size:" Margin="8,0,2,0" VerticalAlignment="Center" />
+              <TextBox Grid.Column="4"
+                       AutomationProperties.AutomationId="ClassOPDemo_N1_BlockSize_Input"
+                       Name="N1BlockSizeBox" IsReadOnly="True" Text="1" Width="60"
+                       VerticalAlignment="Center" />
+              <Label Grid.Column="5" Content="Selected Address:" Margin="8,0,2,0" VerticalAlignment="Center" />
+              <TextBox Grid.Column="6"
+                       AutomationProperties.AutomationId="ClassOPDemo_N1_SelectedAddress_Input"
+                       Name="N1SelectedAddressBox" IsReadOnly="True" Width="140"
+                       VerticalAlignment="Center" />
+              <Label Grid.Column="7" Content="Glyph:" Margin="12,0,2,0" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="8"
+                             AutomationProperties.AutomationId="ClassOPDemo_N1_B0_Input"
+                             FormatString="0" Name="N1B0Box" Width="80"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <Button Grid.Column="9"
+                      AutomationProperties.AutomationId="ClassOPDemo_N1_Write_Button"
+                      Name="N1WriteButton" Content="Write Glyph Entry"
+                      Click="N1_Write_Click" Margin="8,0,0,0" />
+              <Button Grid.Column="10"
+                      AutomationProperties.AutomationId="ClassOPDemo_N1_ListExpand_Button"
+                      Name="N1ListExpandButton" Content="List Expand"
+                      Click="N1_ListExpand_Click" Margin="8,0,0,0" />
+            </Grid>
+            <controls:AddressListControl
+                AutomationProperties.AutomationId="ClassOPDemo_N1_List"
+                Name="N1List" Height="160" Margin="2" />
+          </DockPanel>
+        </Border>
+
+        <!-- ===== Group C: N2 sub-list — Anime Spec Pointer Target (mirrors WF groupBox1) ===== -->
+        <Border BorderBrush="DarkSlateGray" BorderThickness="1" Padding="6">
+          <DockPanel>
+            <Label DockPanel.Dock="Top" Content="Anime Spec Pointer Target"
+                   FontWeight="Bold" />
+            <!-- N2 sub-bar: Write Pointer / Address / Size / Selected -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,4,0,4">
+              <Button AutomationProperties.AutomationId="ClassOPDemo_N2_WritePtr_Button"
+                      Name="N2WritePtrButton" Content="Write Anime Spec Pointer" />
+              <Label Content="Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_N2_Addr_Input"
+                             FormatString="0" Name="N2AddrBox" Width="140"
+                             Minimum="0" Maximum="65535999"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Label Content="Size:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="ClassOPDemo_N2_BlockSize_Input"
+                       Name="N2BlockSizeBox" IsReadOnly="True" Text="6" Width="60"
+                       VerticalAlignment="Center" />
+              <Label Content="Selected Address:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="ClassOPDemo_N2_SelectedAddress_Input"
+                       Name="N2SelectedAddressBox" IsReadOnly="True" Width="140"
+                       VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="ClassOPDemo_N2_Write_Button"
+                      Name="N2WriteButton" Content="Write Anime Tuple"
+                      Click="N2_Write_Click" />
+            </StackPanel>
+
+            <!-- N2 six-byte tuple editor + AnimeShared list on the right -->
+            <Grid ColumnDefinitions="*,260">
+              <!-- Tuple editor (left) -->
+              <Grid Grid.Column="0" ColumnDefinitions="180,80,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" Margin="4">
+                <!-- B0 = Fixed 05 marker -->
+                <Label Grid.Row="0" Grid.Column="0" Content="Fixed 05:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="ClassOPDemo_N2_B0_Input"
+                               FormatString="0" Name="N2B0Box"
+                               Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+                <!-- B1 = Wait frames, displayed in /60 (sec) -->
+                <Label Grid.Row="1" Grid.Column="0" Content="Wait Frames:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="ClassOPDemo_N2_B1_Input"
+                               FormatString="0" Name="N2B1Box"
+                               Minimum="0" Maximum="255" VerticalAlignment="Center" />
+                <Label Grid.Row="1" Grid.Column="2" Content="/60 (sec)" Margin="8,0,0,0" VerticalAlignment="Center" />
+
+                <!-- B2 = Anime special spec — combo (1=Normal, 2=Critical, 3=Ranged/Magic Sword) -->
+                <Label Grid.Row="2" Grid.Column="0" Content="Anime Special Spec:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1"
+                               AutomationProperties.AutomationId="ClassOPDemo_N2_B2_Input"
+                               FormatString="0" Name="N2B2Box"
+                               Minimum="0" Maximum="255" VerticalAlignment="Center" />
+                <ComboBox Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2"
+                          AutomationProperties.AutomationId="ClassOPDemo_N2_Cmd_Combo"
+                          Name="N2CmdCombo" Width="220" Margin="8,0,0,0" VerticalAlignment="Center" />
+
+                <!-- B3 = Fixed 00 -->
+                <Label Grid.Row="3" Grid.Column="0" Content="Fixed 00:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1"
+                               AutomationProperties.AutomationId="ClassOPDemo_N2_B3_Input"
+                               FormatString="0" Name="N2B3Box"
+                               Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+                <!-- B4 = ?? (unknown) -->
+                <Label Grid.Row="4" Grid.Column="0" Content="??:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="4" Grid.Column="1"
+                               AutomationProperties.AutomationId="ClassOPDemo_N2_B4_Input"
+                               FormatString="0" Name="N2B4Box"
+                               Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+                <!-- B5 = Fixed 00 -->
+                <Label Grid.Row="5" Grid.Column="0" Content="Fixed 00:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="5" Grid.Column="1"
+                               AutomationProperties.AutomationId="ClassOPDemo_N2_B5_Input"
+                               FormatString="0" Name="N2B5Box"
+                               Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              </Grid>
+
+              <!-- Anime Spec Shared list (right) — read-only mirror -->
+              <DockPanel Grid.Column="1" Margin="8,4,4,4">
+                <Label DockPanel.Dock="Top" Content="Anime Spec Shared"
+                       FontWeight="Bold" />
+                <controls:AddressListControl
+                    AutomationProperties.AutomationId="ClassOPDemo_AnimeShared_List"
+                    Name="AnimeSharedList" Height="200" Margin="2" />
+              </DockPanel>
+            </Grid>
+          </DockPanel>
+        </Border>
+
       </StackPanel>
     </ScrollViewer>
   </Grid>

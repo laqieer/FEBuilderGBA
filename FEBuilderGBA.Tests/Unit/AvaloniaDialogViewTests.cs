@@ -942,7 +942,7 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("UnitCustomBattleAnimeView.axaml", 1314, 521)]
         [InlineData("UnitIncreaseHeightView.axaml", 1185, 658)]
         [InlineData("UnitPaletteView.axaml", 1443, 857)]
-        [InlineData("ClassOPDemoView.axaml", 1429, 848)]
+        [InlineData("ClassOPDemoView.axaml", 1534, 930)]
         [InlineData("ClassOPFontView.axaml", 1179, 475)]
         [InlineData("ExtraUnitView.axaml", 1121, 735)]
         [InlineData("ExtraUnitFE8UView.axaml", 1121, 735)]

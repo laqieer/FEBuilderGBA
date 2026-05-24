@@ -7727,3 +7727,33 @@ Debuff (B33):
 
 :Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
 復号化された能力補正値 (読み取り専用 — 上記の能力補正ポインタから編集):
+
+:Class OP Demo Editor
+クラスOPデモ エディタ
+
+:Japanese Name Pointer Target
+日本語名ポインタ先
+
+:Anime Spec Pointer Target
+アニメ指定のポインタ先
+
+:Anime Spec Shared
+アニメ指定共有
+
+:Fixed 05:
+05固定:
+
+:Fixed 00:
+00固定:
+
+:Wait Frames:
+ウェイト:
+
+:Anime Special Spec:
+アニメの特殊指定:
+
+:??:
+??:
+
+:Write Anime Tuple
+アニメタプル書き込み
