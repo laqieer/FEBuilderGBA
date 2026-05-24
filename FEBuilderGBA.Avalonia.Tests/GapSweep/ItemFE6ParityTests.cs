@@ -333,6 +333,80 @@ public class ItemFE6ParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI #576 follow-up - finding 3: dummy row 0 must NOT
+    // show null-pointer warnings even though CurrentAddr != 0. Mirrors
+    // WF AddressList.SelectedIndex > 0 gate exactly.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void RecalcAllocFlags_GatesOnSelectedListIndex_NotCurrentAddr()
+    {
+        var vm = new ItemFE6ViewModel();
+        // Row 0 (dummy) - CurrentAddr non-zero but SelectedListIndex = 0.
+        vm.CurrentAddr = 0x0060B648;
+        vm.StatBonusesPtr = 0;
+        vm.EffectivenessPtr = 0;
+        vm.SelectedListIndex = 0;
+        Assert.False(vm.ShowAllocStatBonuses,
+            "Dummy row 0 must NOT show null-ptr warning even when StatBonusesPtr=0.");
+        Assert.False(vm.ShowAllocEffectiveness,
+            "Dummy row 0 must NOT show null-ptr warning even when EffectivenessPtr=0.");
+
+        // Row 1 (real item) - CurrentAddr non-zero, SelectedListIndex > 0.
+        vm.SelectedListIndex = 1;
+        Assert.True(vm.ShowAllocStatBonuses,
+            "Row 1 should show null-ptr warning when StatBonusesPtr=0.");
+        Assert.True(vm.ShowAllocEffectiveness,
+            "Row 1 should show null-ptr warning when EffectivenessPtr=0.");
+
+        // Nothing selected (SelectedListIndex = -1).
+        vm.SelectedListIndex = -1;
+        Assert.False(vm.ShowAllocStatBonuses,
+            "No selection should never trigger null-ptr warning.");
+        Assert.False(vm.ShowAllocEffectiveness,
+            "No selection should never trigger null-ptr warning.");
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot CLI #576 follow-up - finding 4: FilterBox must be wired
+    // (typing narrows the list, NOT inert).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_WiresFilterBoxTextChanged()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("FilterBox.TextChanged", source);
+        Assert.Contains("FilterBox_TextChanged", source);
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot CLI #576 follow-up - finding 2: Write_Click must recompute
+    // derived fields and refresh the computed UI after the commit.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_WriteHandler_RecomputesDerivedFieldsAfterCommit()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        int writeIdx = source.IndexOf("void Write_Click", StringComparison.Ordinal);
+        Assert.True(writeIdx >= 0, "Write_Click handler missing.");
+        int commitIdx = source.IndexOf("_undoService.Commit()", writeIdx, StringComparison.Ordinal);
+        Assert.True(commitIdx > writeIdx, "Commit call missing in Write_Click.");
+        int handlerEnd = source.IndexOf("\n        }", commitIdx, StringComparison.Ordinal);
+        Assert.True(handlerEnd > commitIdx, "Could not delimit Write_Click scope.");
+        // Between Commit and the handler's close brace, the recalc helpers
+        // and UpdateComputedUI must be called so the derived labels reflect
+        // the post-write state without requiring item reselection.
+        string postCommit = source.Substring(commitIdx, handlerEnd - commitIdx);
+        Assert.Contains("RecalcShopPrices", postCommit);
+        Assert.Contains("RecalcAllocFlags", postCommit);
+        Assert.Contains("RecalcStatBonuses", postCommit);
+        Assert.Contains("UpdateEffectiveClassList", postCommit);
+        Assert.Contains("UpdateComputedUI", postCommit);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

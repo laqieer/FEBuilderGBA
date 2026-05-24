@@ -233,15 +233,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Selected list index (mirrors WF AddressList.SelectedIndex).
+        /// The Avalonia view sets this from EntryList.SelectedOriginalIndex
+        /// when an item is selected. Used by RecalcAllocFlags so the
+        /// dummy row 0 does NOT show null-pointer warnings (matches WF
+        /// `AddressList.SelectedIndex > 0` gate). -1 == nothing selected.
+        /// (Copilot CLI review #576 blocking finding 3.)
+        /// </summary>
+        int _selectedListIndex = -1;
+        public int SelectedListIndex
+        {
+            get => _selectedListIndex;
+            set
+            {
+                if (SetField(ref _selectedListIndex, value))
+                    RecalcAllocFlags();
+            }
+        }
+
+        /// <summary>
         /// Mirrors WF ItemFE6Form.AddressList_SelectedIndexChanged null
         /// pointer warning checks for P12 / P16. The Avalonia head shows
         /// a warning label (not a newalloc button - that's deferred via
         /// the KnownGap marker in the AXAML).
+        ///
+        /// Copilot CLI review #576 blocking finding 3: gate the warning
+        /// on `SelectedListIndex > 0`, NOT on `CurrentAddr != 0` — the
+        /// dummy row 0 has a non-zero ROM address but should never show
+        /// allocation warnings (matches WF `AddressList.SelectedIndex
+        /// > 0` gate exactly).
         /// </summary>
         internal void RecalcAllocFlags()
         {
-            ShowAllocStatBonuses = (StatBonusesPtr == 0) && CurrentAddr != 0;
-            ShowAllocEffectiveness = (EffectivenessPtr == 0) && CurrentAddr != 0;
+            ShowAllocStatBonuses = (StatBonusesPtr == 0) && SelectedListIndex > 0;
+            ShowAllocEffectiveness = (EffectivenessPtr == 0) && SelectedListIndex > 0;
         }
 
         /// <summary>

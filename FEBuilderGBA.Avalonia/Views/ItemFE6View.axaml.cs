@@ -37,6 +37,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // Wire desc text live update
             DescIdBox.ValueChanged += OnDescIdChanged;
             UseDescIdBox.ValueChanged += OnUseDescIdChanged;
+
+            // Copilot CLI review #576 finding 4: wire the Filter box so
+            // typing actually narrows the item list (was previously
+            // editable but inert). Mirrors WF `LabelFilter` text field.
+            FilterBox.TextChanged += FilterBox_TextChanged;
         }
 
         void LoadList()
@@ -84,12 +89,42 @@ namespace FEBuilderGBA.Avalonia.Views
             LoadList();
         }
 
+        /// <summary>
+        /// Filter the item list by substring match against each entry's
+        /// rendered name. Mirrors WF `LabelFilter` behavior (text-box
+        /// typing narrows the list). Copilot CLI #576 finding 4.
+        /// </summary>
+        void FilterBox_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        {
+            try
+            {
+                string filter = (FilterBox.Text ?? "").Trim();
+                var items = _vm.LoadItemList();
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    items = items
+                        .Where(r => r.name?.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                        .ToList();
+                }
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+                UpdateListMetadata(items.Count);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ItemFE6View.FilterBox_TextChanged failed: {0}", ex.Message);
+            }
+        }
+
         void OnSelected(uint addr)
         {
             try
             {
                 _vm.IsLoading = true;
                 _vm.LoadItem(addr);
+                // Copilot CLI review #576 finding 3: pass list index so
+                // RecalcAllocFlags uses the WF `SelectedIndex > 0` gate
+                // (dummy row 0 must NOT show null-pointer warnings).
+                _vm.SelectedListIndex = EntryList.SelectedOriginalIndex;
                 UpdateUI();
                 TryShowListPreview();
                 UpdateHardCodingWarning();
@@ -429,6 +464,19 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.WriteItem();
                 _undoService.Commit();
+
+                // Copilot CLI review #576 finding 2: recompute derived
+                // fields after the write so Buy/Sell/Shingeki labels,
+                // null-pointer warnings, stat-bonus preview, and
+                // effective-class list reflect the new Uses / Price /
+                // P12 / P16 values WITHOUT requiring the user to
+                // reselect the item.
+                _vm.RecalcShopPrices();
+                _vm.RecalcAllocFlags();
+                _vm.RecalcStatBonuses();
+                _vm.UpdateEffectiveClassList();
+                UpdateComputedUI();
+
                 _vm.MarkClean();
                 CoreState.Services.ShowInfo("Item data written.");
             }
