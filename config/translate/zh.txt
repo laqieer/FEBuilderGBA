@@ -17918,12 +17918,6 @@ Padding:
 :Palette Address:
 调色板地址:
 
-:Palette Write
-调色板写入
-
-:Palette Index
-调色板索引
-
 :Palette Change Colors
 调色板颜色更改
 
@@ -19123,9 +19117,6 @@ UPS补丁创建
 
 :Undo
 撤销
-
-:Redo
-重做
 
 :Undo Buffer
 撤销缓冲区

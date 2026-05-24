@@ -37,6 +37,15 @@ namespace FEBuilderGBA.Avalonia.Views
             // to ViewModel properties — so DataContext = _vm.
             DataContext = _vm;
 
+            // Populate the Zoom combo through R._() so the items are localised
+            // via the Core translation facade (ViewTranslationHelper does not
+            // walk ComboBoxItem.Content — Copilot review feedback).
+            string[] zoomKeys = { "No Zoom", "2x Zoom", "3x Zoom", "4x Zoom" };
+            foreach (string key in zoomKeys)
+            {
+                ZoomCombo.Items.Add(new ComboBoxItem { Content = R._(key) });
+            }
+
             EntryList.SelectedAddressChanged += OnSelected;
             // Selecting a different palette slot must repopulate the R/G/B
             // grid with that slot's existing ROM bytes so the user sees the

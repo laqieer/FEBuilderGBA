@@ -170,6 +170,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// when the full 16-entry 0x20-byte block is readable; otherwise
         /// fills <paramref name="result"/> with a 16-entry zero palette and
         /// returns false so the caller can surface a UI error.
+        ///
+        /// Uses 64-bit arithmetic for the base+offset computation so that
+        /// pathological inputs (a near-<see cref="uint.MaxValue"/> address
+        /// combined with a large palette index) cannot wrap into a "safe"
+        /// in-ROM range and bypass <see cref="U.isSafetyOffset"/>.
         /// </summary>
         public bool TryLoadPalette(uint paletteAddr, int paletteIndex, out (byte R, byte G, byte B)[] result)
         {
@@ -178,10 +183,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return false;
             if (paletteIndex < 0) return false;
 
-            uint baseAddr = paletteAddr + (uint)(paletteIndex * 0x20);
+            // 64-bit math to catch overflow before it bypasses U.isSafetyOffset.
+            ulong baseAddr64 = (ulong)paletteAddr + (ulong)((uint)paletteIndex) * 0x20UL;
+            ulong endAddr64 = baseAddr64 + 0x1FUL;
+            if (endAddr64 > uint.MaxValue) return false;
+
+            uint baseAddr = (uint)baseAddr64;
+            uint endAddr = (uint)endAddr64;
             // 0x20 bytes (16 ushorts) must all be in-ROM.
             if (!U.isSafetyOffset(baseAddr, rom)) return false;
-            if (!U.isSafetyOffset(baseAddr + 0x1F, rom)) return false;
+            if (!U.isSafetyOffset(endAddr, rom)) return false;
 
             for (int i = 0; i < 16; i++)
             {
@@ -229,11 +240,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
-            uint baseAddr = paletteAddr + (uint)(paletteIndex * 0x20);
-            if (!U.isSafetyOffset(baseAddr, rom) || !U.isSafetyOffset(baseAddr + 0x1F, rom))
+            // 64-bit math so a near-uint.MaxValue paletteAddr + paletteIndex*0x20
+            // cannot wrap and bypass U.isSafetyOffset (Copilot review feedback).
+            ulong baseAddr64 = (ulong)paletteAddr + (ulong)((uint)paletteIndex) * 0x20UL;
+            ulong endAddr64 = baseAddr64 + 0x1FUL;
+            if (endAddr64 > uint.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(paletteAddr),
-                    $"WritePalette: 0x20-byte range [0x{baseAddr:X}..0x{baseAddr + 0x1F:X}] is outside ROM bounds");
+                    $"WritePalette: address+index arithmetic overflows uint (base=0x{paletteAddr:X}, idx={paletteIndex})");
+            }
+            uint baseAddr = (uint)baseAddr64;
+            uint endAddr = (uint)endAddr64;
+            if (!U.isSafetyOffset(baseAddr, rom) || !U.isSafetyOffset(endAddr, rom))
+            {
+                throw new ArgumentOutOfRangeException(nameof(paletteAddr),
+                    $"WritePalette: 0x20-byte range [0x{baseAddr:X}..0x{endAddr:X}] is outside ROM bounds");
             }
 
             for (int i = 0; i < 16; i++)

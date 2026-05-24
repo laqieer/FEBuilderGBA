@@ -378,7 +378,7 @@ public class ImageTSAEditorParityTests
             // in AXAML to match Avalonia convention; WF used all-caps).
             ["REDO"] = "Redo",
             ["UNDO"] = "Undo",
-            ["パレットアドレス"] = "Palette Address",
+            ["パレットアドレス"] = "Palette Address:",
             ["パレット書き込み"] = "Palette Write",
             ["書き込み"] = "Write",
             // Main Image tab / image controls.
@@ -700,6 +700,49 @@ public class ImageTSAEditorParityTests
             uint badAddr = (uint)rom.Data.Length + 0x100u;
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 vm.WritePalette(badAddr, 0, new (byte, byte, byte)[16]));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot review (round 2): uint overflow must NOT bypass safety.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TryLoadPalette_OverflowReturnsFalse()
+    {
+        // paletteAddr near uint.MaxValue + a non-zero index would wrap
+        // into a small "safe" offset on naive uint arithmetic — the new
+        // 64-bit guard must reject that combo (Copilot review feedback).
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            uint nearMax = 0xFFFFFFE0u; // 32 bytes below uint.MaxValue
+            // index=1 would wrap baseAddr to 0x00000000 without 64-bit math.
+            bool ok = vm.TryLoadPalette(nearMax, 1, out _);
+            Assert.False(ok);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WritePalette_OverflowThrows()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, 0u, false, true, 0u, U.NOT_FOUND, 0u, paletteCount: 4);
+            uint nearMax = 0xFFFFFFE0u;
+            // index=1 would wrap baseAddr to 0 without 64-bit math —
+            // the guard must reject before any rom.write_u16 dispatches.
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                vm.WritePalette(nearMax, 1, new (byte, byte, byte)[16]));
         }
         finally { CoreState.ROM = prevRom; }
     }

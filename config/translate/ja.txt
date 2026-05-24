@@ -2861,12 +2861,6 @@ Page 上
 :Palette Address:
 パレットアドレス
 
-:Palette Write
-パレット書き込み
-
-:Palette Index
-パレットインデックス
-
 :Palette Change Colors
 パレット Change 色
 
@@ -3586,9 +3580,6 @@ UPS パッチ ファイル
 
 :Undo
 元に戻す
-
-:Redo
-やり直す
 
 :Undo Buffer
 元に戻す Buffer

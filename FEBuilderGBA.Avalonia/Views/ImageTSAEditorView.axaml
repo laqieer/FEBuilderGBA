@@ -33,7 +33,7 @@
   <!-- KnownGap: BattleCanvasRender reason=Live LZ77 decode + per-tile H/V-flip blit into a Bitmap+Graphics canvas is a WinForms-only graphics pipeline (System.Drawing + ImageUtil.ByteToImage16Tile + ImageUtil.BitBlt); deferred consistent with PR #577 and PR #513. The static palette/main-image editor UI ships in this PR. -->
   <!-- KnownGap: ChipsetListRender reason=PATHCHIPLIST permuted chipset (orig + H flip + V flip + HV flip) requires the same WinForms ImageUtil.Copy + BitBlt pipeline; deferred consistent with PR #577 and PR #513. -->
   <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. Deferred; only the palette-write path is exercised by the Write button in this PR. -->
-  <!-- KnownGap: PaletteToClipboard reason=System.Windows.Clipboard interop is WinForms-only; Avalonia equivalent (TopLevel.Clipboard async API) is a separate cross-cutting refactor not in scope here. The Clipboard button (label クリップボード) renders as a disabled stub so the labels audit still passes. -->
+  <!-- KnownGap: PaletteToClipboard reason=System.Windows.Forms.Clipboard interop is WinForms-only; Avalonia equivalent (TopLevel.Clipboard async API) is a separate cross-cutting refactor not in scope here. The Clipboard button (label クリップボード) renders as a disabled stub so the labels audit still passes. -->
   <!-- KnownGap: MainImageImportExport reason=image1_Import / image1_Export call into ImageFormRef.ImportImageHandler / ExportImageHandler which depend on the full WinForms ImageFormRef ROM-write pipeline; deferred consistent with #513's BatchPng deferral. The Image Import / Image Export buttons (labels 画像読込 / 画像取出) render as disabled stubs so the labels audit still passes. -->
 
 
@@ -66,13 +66,11 @@
           <ComboBoxItem Content="F" />
         </ComboBox>
         <Label Content="Zoom" VerticalAlignment="Center" Margin="12,0,0,0" />
+        <!-- Zoom options are populated from code-behind via R._() so they are
+             translated by the Core l10n facade (ComboBoxItem.Content is not
+             walked by ViewTranslationHelper — Copilot review feedback). -->
         <ComboBox AutomationProperties.AutomationId="ImageTSAEditor_Zoom_Combo"
-                  Name="ZoomCombo" Width="160" VerticalAlignment="Center">
-          <ComboBoxItem Content="No Zoom" />
-          <ComboBoxItem Content="2x Zoom" />
-          <ComboBoxItem Content="3x Zoom" />
-          <ComboBoxItem Content="4x Zoom" />
-        </ComboBox>
+                  Name="ZoomCombo" Width="160" VerticalAlignment="Center" />
         <TextBox AutomationProperties.AutomationId="ImageTSAEditor_Info_Input"
                  Name="InfoBox" IsReadOnly="True" Width="280"
                  Margin="12,0,0,0" VerticalAlignment="Center" />
@@ -135,7 +133,10 @@
 
               <!-- Palette top bar: Address + Clipboard (inert) + Palette Write -->
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <Label Content="Palette Address" VerticalAlignment="Center"
+                <!-- Label text matches the existing translation key "Palette Address:"
+                     (with trailing colon) so the ja/zh translations from the canonical
+                     downstream-entry get applied (Copilot review feedback). -->
+                <Label Content="Palette Address:" VerticalAlignment="Center"
                        BorderBrush="DarkGray" BorderThickness="1" Padding="6,3" Width="180"
                        HorizontalContentAlignment="Center" />
                 <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_PaletteAddress_Input"
