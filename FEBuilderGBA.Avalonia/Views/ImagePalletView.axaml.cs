@@ -23,6 +23,12 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImagePalletViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // Cache the original paletteNames passed via JumpTo so the
+        // Palette Index combo labels survive a Write+reload or Undo
+        // round-trip (Copilot bot round-3 inline reviews #2 + #3 on
+        // PR #586).
+        string[]? _lastPaletteNames;
+
         public string ViewTitle => "Palette Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -31,6 +37,36 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+            // Wire all 48 R/G/B NumericUpDowns so an edit refreshes
+            // the swatches immediately (Copilot bot round-3 inline
+            // review #1 on PR #586).
+            WireNudChangeHandlers();
+        }
+
+        void WireNudChangeHandlers()
+        {
+            var nuds = new[]
+            {
+                R1Box, G1Box, B1Box, R2Box, G2Box, B2Box,
+                R3Box, G3Box, B3Box, R4Box, G4Box, B4Box,
+                R5Box, G5Box, B5Box, R6Box, G6Box, B6Box,
+                R7Box, G7Box, B7Box, R8Box, G8Box, B8Box,
+                R9Box, G9Box, B9Box, R10Box, G10Box, B10Box,
+                R11Box, G11Box, B11Box, R12Box, G12Box, B12Box,
+                R13Box, G13Box, B13Box, R14Box, G14Box, B14Box,
+                R15Box, G15Box, B15Box, R16Box, G16Box, B16Box,
+            };
+            foreach (var n in nuds) n.ValueChanged += Nud_ValueChanged;
+        }
+
+        void Nud_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
+        {
+            // Re-render the 16 swatches from current NUD values so the
+            // user-edit -> swatch reflection is live (Copilot bot
+            // round-3 inline review #1 on PR #586). The VM is NOT
+            // touched here - VM sync happens at Write time via
+            // ReadNudsIntoVm().
+            RefreshSwatchesFromNuds();
         }
 
         // ---- entry / list loading ----
@@ -66,6 +102,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Cache the names so subsequent reload paths (Write,
+                // Undo) keep the override labels - passing null to
+                // LoadEntry would drop them (Copilot bot round-3
+                // inline reviews #2 + #3 on PR #586).
+                _lastPaletteNames = paletteNames;
                 _vm.LoadEntry(paletteAddress, maxPaletteCount, defaultSelectPalette, paletteNames);
                 UpdateUI();
             }
@@ -146,6 +187,41 @@ namespace FEBuilderGBA.Avalonia.Views
             SetSwatch(P14Swatch, _vm.R14, _vm.G14, _vm.B14);
             SetSwatch(P15Swatch, _vm.R15, _vm.G15, _vm.B15);
             SetSwatch(P16Swatch, _vm.R16, _vm.G16, _vm.B16);
+        }
+
+        /// <summary>
+        /// Refresh swatches from the CURRENT NumericUpDown values rather
+        /// than the VM state. Used by Nud_ValueChanged so a user edit
+        /// updates the swatch immediately, before any Write/reload
+        /// pushes the value into the VM (Copilot bot round-3 inline
+        /// review #1 on PR #586).
+        /// </summary>
+        void RefreshSwatchesFromNuds()
+        {
+            SetSwatch(P1Swatch,  NudByte(R1Box),  NudByte(G1Box),  NudByte(B1Box));
+            SetSwatch(P2Swatch,  NudByte(R2Box),  NudByte(G2Box),  NudByte(B2Box));
+            SetSwatch(P3Swatch,  NudByte(R3Box),  NudByte(G3Box),  NudByte(B3Box));
+            SetSwatch(P4Swatch,  NudByte(R4Box),  NudByte(G4Box),  NudByte(B4Box));
+            SetSwatch(P5Swatch,  NudByte(R5Box),  NudByte(G5Box),  NudByte(B5Box));
+            SetSwatch(P6Swatch,  NudByte(R6Box),  NudByte(G6Box),  NudByte(B6Box));
+            SetSwatch(P7Swatch,  NudByte(R7Box),  NudByte(G7Box),  NudByte(B7Box));
+            SetSwatch(P8Swatch,  NudByte(R8Box),  NudByte(G8Box),  NudByte(B8Box));
+            SetSwatch(P9Swatch,  NudByte(R9Box),  NudByte(G9Box),  NudByte(B9Box));
+            SetSwatch(P10Swatch, NudByte(R10Box), NudByte(G10Box), NudByte(B10Box));
+            SetSwatch(P11Swatch, NudByte(R11Box), NudByte(G11Box), NudByte(B11Box));
+            SetSwatch(P12Swatch, NudByte(R12Box), NudByte(G12Box), NudByte(B12Box));
+            SetSwatch(P13Swatch, NudByte(R13Box), NudByte(G13Box), NudByte(B13Box));
+            SetSwatch(P14Swatch, NudByte(R14Box), NudByte(G14Box), NudByte(B14Box));
+            SetSwatch(P15Swatch, NudByte(R15Box), NudByte(G15Box), NudByte(B15Box));
+            SetSwatch(P16Swatch, NudByte(R16Box), NudByte(G16Box), NudByte(B16Box));
+        }
+
+        static byte NudByte(NumericUpDown nud)
+        {
+            decimal v = nud.Value ?? 0m;
+            if (v < 0) v = 0;
+            if (v > 255) v = 255;
+            return (byte)v;
         }
 
         static void SetSwatch(Image image, byte r, byte g, byte b)
@@ -254,11 +330,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // Reload so the swatch images reflect the post-write
                 // 5-bit-quantized values (mirrors the
-                // ImageMagicCSACreator pattern).
+                // ImageMagicCSACreator pattern). Preserve the
+                // palette-name overrides across reload (Copilot bot
+                // round-3 inline review #2 on PR #586).
                 _vm.IsLoading = true;
                 try
                 {
-                    _vm.LoadEntry(reloadAddr, reloadMax, reloadIdx, null);
+                    _vm.LoadEntry(reloadAddr, reloadMax, reloadIdx, _lastPaletteNames);
                 }
                 finally
                 {
@@ -308,6 +386,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Undo?.RunUndo();
                 // Reload so the displayed values reflect the post-undo
                 // ROM state (Copilot CLI plan review #5 - Undo enabled).
+                // Preserve the palette-name overrides across reload
+                // (Copilot bot round-3 inline review #3 on PR #586).
                 if (_vm.IsLoaded)
                 {
                     uint addr = _vm.PaletteAddress;
@@ -316,7 +396,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.IsLoading = true;
                     try
                     {
-                        _vm.LoadEntry(addr, max, idx, null);
+                        _vm.LoadEntry(addr, max, idx, _lastPaletteNames);
                     }
                     finally
                     {

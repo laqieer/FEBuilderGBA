@@ -212,6 +212,46 @@ public class ImagePalletParityTests
     }
 
     /// <summary>
+    /// View must wire ValueChanged handlers on all 48 R/G/B NUDs so
+    /// edits refresh the swatch immediately (Copilot bot round-3
+    /// inline review #1 on PR #586).
+    /// </summary>
+    [Fact]
+    public void View_NudChangeHandlers_RefreshSwatchesLive()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        // The wire-up registers Nud_ValueChanged on every NUD.
+        Assert.Contains("WireNudChangeHandlers", source);
+        Assert.Contains("n.ValueChanged += Nud_ValueChanged", source);
+        // The handler refreshes swatches from the NUD values (NOT VM).
+        Assert.Contains("RefreshSwatchesFromNuds()", source);
+        Assert.Contains("NudByte(", source);
+    }
+
+    /// <summary>
+    /// View must cache the palette-name overrides passed via JumpTo
+    /// and pass them back into LoadEntry on every reload path (Write,
+    /// Undo) so the Palette Index combo labels survive (Copilot bot
+    /// round-3 inline reviews #2 + #3 on PR #586).
+    /// </summary>
+    [Fact]
+    public void View_ReloadPaths_PreservePaletteNames()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        // Field caching the names.
+        Assert.Contains("_lastPaletteNames", source);
+        // JumpTo writes to the cache.
+        Assert.Contains("_lastPaletteNames = paletteNames", source);
+        // Both reload sites (Write + Undo) pass the cached names back.
+        // We assert there is NO LoadEntry(..., null) call after the
+        // JumpTo flow - all reloads use _lastPaletteNames.
+        Assert.DoesNotContain("LoadEntry(reloadAddr, reloadMax, reloadIdx, null)", source);
+        Assert.DoesNotContain("LoadEntry(addr, max, idx, null)", source);
+        Assert.Contains("LoadEntry(reloadAddr, reloadMax, reloadIdx, _lastPaletteNames)", source);
+        Assert.Contains("LoadEntry(addr, max, idx, _lastPaletteNames)", source);
+    }
+
+    /// <summary>
     /// ViewModel.Write() must return U.NOT_FOUND on a sentinel
     /// PaletteAddress (Copilot CLI round-2 review on PR #586).
     /// </summary>
