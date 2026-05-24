@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T10:36:32Z"
-git-sha: 81ad8040b
+generated: "2026-05-24T11:55:07Z"
+git-sha: cedbf79ee
 sweep-type: undo
 ---
 
@@ -79,11 +79,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-undo --out=<path>`.
 
 | Tier | Count | % of total |
 |---|---:|---:|
-| Total write callsites | 1134 | 100% |
-| NoUndoServiceField (no plumbing) | 150 | 13.2% |
+| Total write callsites | 1135 | 100% |
+| NoUndoServiceField (no plumbing) | 151 | 13.3% |
 | MissingScope (unwrapped) | 4 | 0.4% |
 | AmbiguousScope (verify) | 0 | 0.0% |
-| Covered (healthy) | 980 | 86.4% |
+| Covered (healthy) | 980 | 86.3% |
 
 ## Highest priority — VMs with NO undo plumbing at all
 
@@ -358,6 +358,12 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 |---|---:|---|---|---|
 | `FEBuilderGBA.Avalonia/ViewModels/ImageGenericEnemyPortraitViewModel.cs` | 63 | `Write` | `rom.write_u32(addr + 0, ImagePointer)` | class 'ImageGenericEnemyPortraitViewModel' has no UndoService field/property/local |
 
+### `ImageTSAEditorViewModel` — 1 callsite
+
+| File | Line | Method | Write | Note |
+|---|---:|---|---|---|
+| `FEBuilderGBA.Avalonia/ViewModels/ImageTSAEditorViewModel.cs` | 263 | `WritePalette` | `rom.write_u16(baseAddr + (uint)(i * 2), word)` | class 'ImageTSAEditorViewModel' has no UndoService field/property/local |
+
 ### `SkillAssignmentUnitCSkillSysViewViewModel` — 1 callsite
 
 | File | Line | Method | Write | Note |
@@ -464,7 +470,7 @@ such a row almost always indicates the scanner's pattern set has missed a
 real write API (e.g. PR #380 review caught a `CoreState.ROM.write_u*`
 miss that surfaced as an unjustified zero-row warning before the fix).
 
-Classes with at least one detected write: 175.
+Classes with at least one detected write: 176.
 
 Writable VMs (matching the triplet convention): 146.  
 Writable VMs with zero detected ROM writes: 3.

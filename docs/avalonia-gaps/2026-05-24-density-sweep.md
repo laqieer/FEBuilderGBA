@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T10:36:19Z"
-git-sha: 81ad8040b
+generated: "2026-05-24T11:54:59Z"
+git-sha: cedbf79ee
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 207 |
+| HIGH | |Δ%| ≥ 50 | 205 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 86 |
-| LOW | |Δ%| < 25 | 77 |
+| LOW | |Δ%| < 25 | 79 |
 
 ## Ranked Density Deltas
 
@@ -39,9 +39,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Verdict | WF Form | AV View | WF | AV | Δ | Δ% | Match |
 |---|---|---|---:|---:|---:|---:|---|
 | High | `EmulatorMemoryForm` | `EmulatorMemoryView` | 353 | 5 | -348 | -98.6% | Heuristic |
-| High | `ImageBattleScreenForm` | `ImageBattleScreenView` | 133 | 3 | -130 | -97.7% | Heuristic |
 | High | `MapSettingFE6Form` | `MapSettingFE6View` | 126 | 3 | -123 | -97.6% | ListParityHelper |
-| High | `ImageTSAEditorForm` | `ImageTSAEditorView` | 100 | 3 | -97 | -97.0% | Heuristic |
 | High | `ClassFE6Form` | `ClassFE6View` | 173 | 8 | -165 | -95.4% | Heuristic |
 | High | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` | 62 | 3 | -59 | -95.2% | ListParityHelper |
 | High | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` | 61 | 3 | -58 | -95.1% | ListParityHelper |
@@ -234,6 +232,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `RAMRewriteToolMAPForm` | `RAMRewriteToolMAPView` | 11 | 10 | -1 | -9.1% | Heuristic |
 | Low | `ItemStatBonusesSkillSystemsForm` | `ItemStatBonusesSkillSystemsView` | 51 | 47 | -4 | -7.8% | Heuristic |
 | Low | `UnitsShortTextForm` | `UnitsShortTextView` | 13 | 12 | -1 | -7.7% | Heuristic |
+| Low | `ImageBattleScreenForm` | `ImageBattleScreenView` | 133 | 125 | -8 | -6.0% | Heuristic |
 | Low | `StatusOptionForm` | `StatusOptionView` | 50 | 47 | -3 | -6.0% | ListParityHelper |
 | Low | `ToolLZ77Form` | `ToolLZ77View` | 50 | 48 | -2 | -4.0% | Heuristic |
 | Low | `MapSettingForm` | `MapSettingView` | 224 | 220 | -4 | -1.8% | ListParityHelper |
@@ -252,6 +251,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `OPClassDemoForm` | `OPClassDemoViewerView` | 63 | 65 | 2 | +3.2% | Heuristic |
 | Low | `EDFE7Form` | `EDFE7View` | 81 | 84 | 3 | +3.7% | Heuristic |
 | Low | `MenuExtendSplitMenuForm` | `MenuExtendSplitMenuView` | 27 | 28 | 1 | +3.7% | ListParityHelper |
+| Low | `ImageTSAEditorForm` | `ImageTSAEditorView` | 100 | 105 | 5 | +5.0% | Heuristic |
 | Low | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | 19 | 20 | 1 | +5.3% | Heuristic |
 | Low | `ItemShopForm` | `ItemShopViewerView` | 17 | 18 | 1 | +5.9% | ListParityHelper |
 | Low | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 133 | 141 | 8 | +6.0% | ListParityHelper |
@@ -376,28 +376,12 @@ WF count: **353** · AV count: **5** · Δ: **-348** (-98.6%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/EmulatorMemoryView.axaml
 -->
 
-### ImageBattleScreenForm
-WF count: **133** · AV count: **3** · Δ: **-130** (-97.7%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageBattleScreenForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageBattleScreenView.axaml
--->
-
 ### MapSettingFE6Form
 WF count: **126** · AV count: **3** · Δ: **-123** (-97.6%).
 
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/MapSettingFE6Form.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MapSettingFE6View.axaml
--->
-
-### ImageTSAEditorForm
-WF count: **100** · AV count: **3** · Δ: **-97** (-97.0%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ImageTSAEditorForm.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ImageTSAEditorView.axaml
 -->
 
 ### ClassFE6Form
@@ -526,6 +510,22 @@ WF count: **72** · AV count: **8** · Δ: **-64** (-88.9%).
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/MoveCostForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MoveCostEditorView.axaml
+-->
+
+### SkillConfigFE8NVer3SkillForm
+WF count: **166** · AV count: **19** · Δ: **-147** (-88.6%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SkillConfigFE8NVer3SkillForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer3SkillView.axaml
+-->
+
+### SkillConfigFE8NVer2SkillForm
+WF count: **136** · AV count: **17** · Δ: **-119** (-87.5%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/SkillConfigFE8NVer2SkillForm.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SkillConfigFE8NVer2SkillView.axaml
 -->
 
 ## Unpaired Orphans

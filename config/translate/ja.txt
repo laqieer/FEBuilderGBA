@@ -8343,3 +8343,111 @@ KnownGap: リスト拡張はDataExpansionCoreの未移植配線が必要。
 KnownGap: DecreaseColorTSAToolFormは未移植。
 :KnownGap: ResourceCache source-file feature not yet wired in Avalonia.
 KnownGap: ResourceCacheのソースファイル機能はAvaloniaでは未配線。
+
+:Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells.
+チップセットプレビュー (KnownGap 延期): ライブ LZ77 デコード + 反転置換は WinForms 依存 (ImageUtil.BitBlt) です。WinForms エディタを使用して TSA セルを描画してください。
+
+:KnownGap: chipset thumbnail rendering is WinForms-coupled (#393).
+KnownGap: チップセットサムネイル描画は WinForms 依存 (#393) です。
+
+:Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this editor are functional under the ambient undo scope.
+戦闘プレビュー (KnownGap 延期): ライブパレットによる 32x20 TSA グリッドの描画には System.Drawing + ImageUtil.BitBlt が必要です。このエディタの数値フィールドとパレット/画像ポインタの書き込みパスは、アンビエント Undo スコープ下で機能します。
+
+:KnownGap: battle-screen bitmap rendering is WinForms-coupled (#393).
+KnownGap: 戦闘画面ビットマップ描画は WinForms 依存 (#393) です。
+
+:TSA1 Address
+TSA1 アドレス
+
+:KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar.
+KnownGap: ローカルパレット編集の Redo (PaletteFormRef redo バッファ) は WinForms 依存 (#393) です。ツールバーのメイン ROM レベルの Undo を使用してください。
+
+:Tile1
+Tile1
+
+:Tile2
+Tile2
+
+:Tile3
+Tile3
+
+:Tile4
+Tile4
+
+:Tile5
+Tile5
+
+:KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393).
+KnownGap: 画像ごとの LZ77 インポート (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) は WinForms 依存 (#393) です。
+
+:KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393).
+KnownGap: 画像ごとの PNG エクスポート (ImageFormRef.ExportImage) は WinForms 依存 (#393) です。
+
+:Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393).
+画像1 プレビュー (KnownGap 延期): タイルごとの LZ77 展開 + パレット blit は WinForms 依存 (#393) です。
+
+:Left Side
+左側
+
+:KnownGap: per-image LZ77 Import is WinForms-coupled (#393).
+KnownGap: 画像ごとの LZ77 インポートは WinForms 依存 (#393) です。
+
+:KnownGap: per-image PNG Export is WinForms-coupled (#393).
+KnownGap: 画像ごとの PNG エクスポートは WinForms 依存 (#393) です。
+
+:Image2 Preview (deferred)
+画像2 プレビュー (延期)
+
+:Image3 Preview (deferred)
+画像3 プレビュー (延期)
+
+:Right Side
+右側
+
+:Image4 Preview (deferred)
+画像4 プレビュー (延期)
+
+:Image5 Preview (deferred)
+画像5 プレビュー (延期)
+
+:Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated.
+戦闘画面を 1 つの画像として一括インポート/エクスポートします。TSA レイアウトのため、共通タイルは重複排除する必要があります。
+
+:KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393).
+KnownGap: 一括画像インポートには ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms 依存, #393) が必要です。
+
+:KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393).
+KnownGap: 一括画像エクスポートには ImageFormRef.ExportImage + ライブ戦闘画面ビットマップ (WinForms 依存, #393) が必要です。
+
+:KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393).
+KnownGap: ローカル TSA Redo バッファは WinForms 依存です。ツールバーのメイン ROM レベルの Undo を使用してください (#393)。
+
+:Palette 1
+パレット 1
+
+:Palette 2
+パレット 2
+
+:Palette 3
+パレット 3
+
+:Palette 4
+パレット 4
+
+:1x Zoom
+1 倍ズーム
+
+:Selected: 00
+選択: 00
+
+:Canvas:
+キャンバス:
+
+:Edit Battle Screen
+戦闘画面を編集
+
+:Edit Battle Screen Palette
+戦闘画面パレットを編集
+
+:KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
+KnownGap: ズームは延期された戦闘/チップセットプレビュー描画にのみ影響します (WinForms 依存, #393)。ライブプレビューが実装されると再有効化されます。

@@ -19890,3 +19890,114 @@ OBBGLeftToRight
 
 :FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
 FEditor / SCA_Creator magic-system patch not detected. Install the patch via the Patches manager.
+
+:Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells.
+Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells.
+
+:KnownGap: chipset thumbnail rendering is WinForms-coupled (#393).
+KnownGap: chipset thumbnail rendering is WinForms-coupled (#393).
+
+:Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this editor are functional under the ambient undo scope.
+Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this editor are functional under the ambient undo scope.
+
+:KnownGap: battle-screen bitmap rendering is WinForms-coupled (#393).
+KnownGap: battle-screen bitmap rendering is WinForms-coupled (#393).
+
+:TSA1 Address
+TSA1 Address
+
+:KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar.
+KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar.
+
+:Main Image
+Main Image
+
+:Tile1
+Tile1
+
+:Tile2
+Tile2
+
+:Tile3
+Tile3
+
+:Tile4
+Tile4
+
+:Tile5
+Tile5
+
+:KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393).
+KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393).
+
+:KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393).
+KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393).
+
+:Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393).
+Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393).
+
+:Left Side
+Left Side
+
+:KnownGap: per-image LZ77 Import is WinForms-coupled (#393).
+KnownGap: per-image LZ77 Import is WinForms-coupled (#393).
+
+:KnownGap: per-image PNG Export is WinForms-coupled (#393).
+KnownGap: per-image PNG Export is WinForms-coupled (#393).
+
+:Image2 Preview (deferred)
+Image2 Preview (deferred)
+
+:Image3 Preview (deferred)
+Image3 Preview (deferred)
+
+:Right Side
+Right Side
+
+:Image4 Preview (deferred)
+Image4 Preview (deferred)
+
+:Image5 Preview (deferred)
+Image5 Preview (deferred)
+
+:Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated.
+Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated.
+
+:KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393).
+KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393).
+
+:KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393).
+KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393).
+
+:KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393).
+KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393).
+
+:Palette 1
+Palette 1
+
+:Palette 2
+Palette 2
+
+:Palette 3
+Palette 3
+
+:Palette 4
+Palette 4
+
+:1x Zoom
+1x Zoom
+
+:Selected: 00
+Selected: 00
+
+:Canvas:
+Canvas:
+
+:Edit Battle Screen
+Edit Battle Screen
+
+:Edit Battle Screen Palette
+Edit Battle Screen Palette
+
+:KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
+KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
