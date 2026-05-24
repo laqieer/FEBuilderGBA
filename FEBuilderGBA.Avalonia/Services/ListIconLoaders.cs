@@ -589,5 +589,32 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Load a skill icon for the FE8N v2 skill expansion. Unlike SkillSystem
+        /// (separate striped tile table) and CSkillSys 0.9.x (per-row GBA
+        /// pointer), FE8N v2 uses the WF-standard
+        /// <c>rom.p32(RomInfo.icon_pointer) + 128 * (0x100 + id)</c> path with
+        /// palette selection driven by the per-skill W2 palette field.
+        /// Mirrors WinForms <c>SkillConfigFE8NVer2SkillForm.DrawSkillIconLow(id)</c>.
+        /// </summary>
+        /// <param name="items">List of skill rows from the address list.</param>
+        /// <param name="index">Index into the list.</param>
+        public static Bitmap? FE8NVer2SkillIconLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return null;
+                uint rowAddr = items[index].addr;
+                if (!U.isSafetyOffset(rowAddr + 4, rom)) return null;
+                // W2 = palette field at row+2.
+                uint paletteIndex = rom.u16(rowAddr + 2);
+                using var img = PreviewIconHelper.LoadFE8NVer2SkillIcon((uint)index, paletteIndex);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }

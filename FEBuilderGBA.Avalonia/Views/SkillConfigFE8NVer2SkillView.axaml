@@ -1,40 +1,373 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NVer2SkillView"
-        Title="Skill Configuration (FE8N v2)" Width="1189" Height="890"
+        Title="Skill Configuration (FE8N v2)" Width="980" Height="780"
         SizeToContent="WidthAndHeight">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <StackPanel Margin="16" Spacing="12">
-    <TextBlock Text="Skill Configuration (FE8N v2)" FontSize="18" FontWeight="Bold" />
-    <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="12">
-      <TextBlock AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Status_Label" TextWrapping="Wrap" Name="StatusText"
-                 Text="Skill system editors require a compatible skill patch to be installed.&#10;Use the Patch Manager to install a skill system patch first.&#10;&#10;Supported skill systems: CSkillSys, FE8N Skill System" />
+  <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
+
+    <!-- Row 0: top read-config bar (mirrors WF panel3: 先頭アドレス / 読込数 / 再取得) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Start Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ReadStart_Input"
+                       FormatString="0" Name="ReadStartAddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Read Count:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ReadCount_Input"
+                       FormatString="0" Name="ReadCountBox" Width="80"
+                       Minimum="0" Maximum="1024"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
+      </StackPanel>
     </Border>
 
-    <Grid ColumnDefinitions="220,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsVisible="False" Name="FieldsPanel">
-      <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-      <TextBlock AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+    <!-- Row 1: selection bar (mirrors WF panel5: アドレス / Size: / 選択アドレス / 書き込み) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Address_Input"
+                       FormatString="0" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="16" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+        <Button AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Write_Button"
+                Name="WriteButton" Content="Write" Click="WriteButton_Click" />
+      </StackPanel>
+    </Border>
 
-      <TextBlock Grid.Row="1" Grid.Column="0" Text="Text Detail:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_TextDetail_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextDetailBox" Minimum="0" Maximum="65535" Margin="0,4" />
+    <!-- Row 2 col 0: AddressList + Filter Name + List Expand -->
+    <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <DockPanel>
+        <Label DockPanel.Dock="Top"
+               AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_FilterName_Label"
+               Content="Filter Name" HorizontalAlignment="Stretch" />
+        <Button DockPanel.Dock="Bottom"
+                AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ListExpand_Button"
+                Name="ListExpandButton" Content="List Expand"
+                HorizontalAlignment="Stretch" Click="ListExpand_Click"
+                ToolTip.Tip="Pending Core extraction - tracked by #500." />
+        <controls:AddressListControl
+            AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Entry_List"
+            Name="EntryList" />
+      </DockPanel>
+    </Border>
 
-      <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Palette_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="PaletteBox" Minimum="0" Maximum="65535" Margin="0,4" />
+    <!-- Row 2 col 1: edit panel (TabControl with Main + 4 sub-list tabs) -->
+    <TabControl Grid.Row="2" Grid.Column="1" Margin="4" SelectedIndex="0">
 
-      <TextBlock Grid.Row="3" Grid.Column="0" Text="Unit Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSkillPointer_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="UnitSkillPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
+      <!-- Tab 1: Main skill row editor (functional) -->
+      <TabItem Header="Skill Detail">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="8">
+            <Label Content="Skill Configuration (FE8N v2)" FontSize="18" FontWeight="Bold" />
 
-      <TextBlock Grid.Row="4" Grid.Column="0" Text="Class Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSkillPointer_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="ClassSkillPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
+            <Border Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}"
+                    BorderThickness="1" CornerRadius="4" Padding="12">
+              <TextBlock AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Status_Label"
+                         TextWrapping="Wrap" Name="StatusText"
+                         Text="Skill system editors require the FE8N v2 skill patch to be installed.&#13;&#10;Use the Patch Manager to install it first." />
+            </Border>
 
-      <TextBlock Grid.Row="5" Grid.Column="0" Text="Weapon Item Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_WeaponItemSkillPointer_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="WeaponItemSkillPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
+            <!-- Icon row: label + image + import/export buttons + IconAddr label -->
+            <Grid ColumnDefinitions="120,80,Auto,Auto,Auto" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Icon_Label"
+                     Content="Icon" VerticalAlignment="Center" />
+              <Border Grid.Column="1" BorderBrush="DarkGray" BorderThickness="1"
+                      HorizontalAlignment="Left" Padding="2" Width="48" Height="48">
+                <Image AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Icon_Image"
+                       Name="IconImage" Width="40" Height="40" Stretch="Uniform" />
+              </Border>
+              <Button Grid.Column="2"
+                      AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ImageImport_Button"
+                      Name="ImageImportButton" Content="Image Import" Margin="8,0,0,0"
+                      Click="ImageImport_Click"
+                      ToolTip.Tip="Pending Core extraction - tracked by #500." />
+              <Button Grid.Column="3"
+                      AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ImageExport_Button"
+                      Name="ImageExportButton" Content="Image Export" Margin="8,0,0,0"
+                      Click="ImageExport_Click"
+                      ToolTip.Tip="Pending Core extraction - tracked by #500." />
+              <Label Grid.Column="4"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_IconAddr_Label"
+                     Name="IconAddrLabel" VerticalAlignment="Center" Margin="12,0,0,0"
+                     FontFamily="Consolas" />
+            </Grid>
 
-      <TextBlock Grid.Row="6" Grid.Column="0" Text="Held Item Skill Pointer:" VerticalAlignment="Center" Margin="0,4" />
-      <NumericUpDown AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_HeldItemSkillPointer_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="HeldItemSkillPointerBox" Minimum="0" Maximum="4294967295" Margin="0,4" />
-    </Grid>
+            <!-- Text Detail row: textId + read-only resolved name -->
+            <Grid ColumnDefinitions="120,80,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_TextDetail_Label"
+                     Content="Text Detail" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_TextDetail_Input"
+                             FormatString="0" Name="TextDetailBox"
+                             Minimum="0" Maximum="65535" />
+              <TextBox Grid.Column="2"
+                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_TextDetailText_Input"
+                       Name="TextDetailTextBox" IsReadOnly="True" AcceptsReturn="True"
+                       Margin="8,0,0,0" MinHeight="40" />
+            </Grid>
 
-    <Button AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Right" Margin="0,8" IsVisible="False" />
-  </StackPanel>
-  </ScrollViewer>
+            <!-- Palette row: u16 palette index -->
+            <Grid ColumnDefinitions="120,80,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Palette_Label"
+                     Content="Palette" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Palette_Input"
+                             FormatString="0" Name="PaletteBox"
+                             Minimum="0" Maximum="65535" />
+              <TextBlock Grid.Column="2"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_PaletteHint_Label"
+                         Text="0 = system weapon palette; non-zero = icon palette"
+                         VerticalAlignment="Center" Margin="8,0,0,0"
+                         FontStyle="Italic" Foreground="Gray" />
+            </Grid>
+
+            <!-- Unit Skill Pointer row -->
+            <Grid ColumnDefinitions="120,200,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSkillPointer_Label"
+                     Content="Unit Skill Pointer" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSkillPointer_Input"
+                             FormatString="0" Name="UnitSkillPointerBox"
+                             Minimum="0" Maximum="4294967295" />
+              <Label Grid.Column="2"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSkillPointer_Hint"
+                     Content="Per-skill unit sub-list (KnownGap: tracked by #374)"
+                     VerticalAlignment="Center" Margin="8,0,0,0"
+                     Foreground="Gray" />
+            </Grid>
+
+            <!-- Class Skill Pointer row -->
+            <Grid ColumnDefinitions="120,200,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSkillPointer_Label"
+                     Content="Class Skill Pointer" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSkillPointer_Input"
+                             FormatString="0" Name="ClassSkillPointerBox"
+                             Minimum="0" Maximum="4294967295" />
+              <Label Grid.Column="2"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSkillPointer_Hint"
+                     Content="Per-skill class sub-list (KnownGap: tracked by #374)"
+                     VerticalAlignment="Center" Margin="8,0,0,0"
+                     Foreground="Gray" />
+            </Grid>
+
+            <!-- Item Skill Pointer row -->
+            <Grid ColumnDefinitions="120,200,*" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemSkillPointer_Label"
+                     Content="Item Skill Pointer" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemSkillPointer_Input"
+                             FormatString="0" Name="ItemSkillPointerBox"
+                             Minimum="0" Maximum="4294967295" />
+              <Label Grid.Column="2"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemSkillPointer_Hint"
+                     Content="Per-skill item sub-list (KnownGap: tracked by #374)"
+                     VerticalAlignment="Center" Margin="8,0,0,0"
+                     Foreground="Gray" />
+            </Grid>
+
+            <!-- Item2 Skill Pointer row (only visible when stride >= 20) -->
+            <Grid ColumnDefinitions="120,200,*" RowDefinitions="Auto"
+                  Name="Item2PointerPanel" IsVisible="False">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2SkillPointer_Label"
+                     Content="Item2 Skill Pointer" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2SkillPointer_Input"
+                             FormatString="0" Name="Item2SkillPointerBox"
+                             Minimum="0" Maximum="4294967295" />
+              <Label Grid.Column="2"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2SkillPointer_Hint"
+                     Content="Sizeof-20+ layout only (KnownGap: tracked by #374)"
+                     VerticalAlignment="Center" Margin="8,0,0,0"
+                     Foreground="Gray" />
+            </Grid>
+
+            <!-- Animation row: label + animation pointer + import/export buttons -->
+            <Grid ColumnDefinitions="120,120,Auto,Auto" RowDefinitions="Auto">
+              <Label Grid.Column="0"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Animation_Label"
+                     Content="Animation" VerticalAlignment="Center" />
+              <!-- AnimationPointer holds a ROM OFFSET (e.g. 0x01000000), not a raw
+                   GBA pointer (e.g. 0x09000000). The WF Program.ROM.p32/write_p32
+                   round-trip strips/re-adds the 0x08000000 high bit. The Maximum
+                   must still accommodate the full 32-bit range so the binding
+                   doesn't clamp during typing or when transient pointer-like
+                   values are pasted in. -->
+              <NumericUpDown Grid.Column="1"
+                             AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_AnimationPointer_Input"
+                             FormatString="0" Name="AnimationPointerBox"
+                             Minimum="0" Maximum="4294967295" />
+              <Button Grid.Column="2"
+                      AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_AnimationImport_Button"
+                      Name="AnimationImportButton" Content="Animation Import" Margin="8,0,0,0"
+                      Click="AnimationImport_Click"
+                      ToolTip.Tip="Pending Core extraction - tracked by #500." />
+              <Button Grid.Column="3"
+                      AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_AnimationExport_Button"
+                      Name="AnimationExportButton" Content="Animation Export" Margin="8,0,0,0"
+                      Click="AnimationExport_Click"
+                      ToolTip.Tip="Pending Core extraction - tracked by #500." />
+            </Grid>
+
+            <!-- Animation preview panel - visible only when the animation pointer resolves safely -->
+            <Border Name="AnimationPanel" BorderBrush="Gray" BorderThickness="1" Padding="8" IsVisible="False">
+              <StackPanel Spacing="6">
+                <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_DisplayExample_Label"
+                       Content="Display example" FontWeight="SemiBold" />
+                <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto">
+                  <Label Grid.Row="0" Grid.Column="0"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Zoom_Label"
+                         Content="Zoom" VerticalAlignment="Center" />
+                  <!-- Wrap option text in TextBlock so ViewTranslationHelper picks them up
+                       (ComboBoxItem.Content is NOT translated by the helper - same pattern
+                       as PR #516 / #525). -->
+                  <ComboBox Grid.Row="0" Grid.Column="1"
+                            AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ShowZoom_Combo"
+                            Name="ShowZoomComboBox" Width="160"
+                            SelectionChanged="ShowZoomComboBox_SelectionChanged">
+                    <ComboBoxItem><TextBlock Text="Zoomed" /></ComboBoxItem>
+                    <ComboBoxItem><TextBlock Text="Original size" /></ComboBoxItem>
+                  </ComboBox>
+                  <Label Grid.Row="1" Grid.Column="0"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Frame_Label"
+                         Content="Frame" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                 AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ShowFrame_Input"
+                                 FormatString="0" Name="ShowFrameUpDown" Width="80"
+                                 Minimum="0" Maximum="255" ValueChanged="ShowFrameUpDown_ValueChanged" />
+                </Grid>
+                <Border BorderBrush="DarkGray" BorderThickness="1" HorizontalAlignment="Left" Padding="2">
+                  <Image AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Preview_Image"
+                         Name="PreviewImage" Width="160" Height="120" Stretch="Uniform" />
+                </Border>
+                <TextBox AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_BinInfo_Label"
+                         Name="BinInfoBox" IsReadOnly="True" FontFamily="Consolas" />
+                <Button AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_JumpToEditor_Button"
+                        Name="JumpToEditorButton" Content="Editor"
+                        HorizontalAlignment="Left" Click="JumpToEditor_Click"
+                        ToolTip.Tip="Pending Core extraction - tracked by #500." />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- Tab 2: Unit sub-list placeholder (KnownGap: tracked by #374) -->
+      <TabItem Header="Unit Skill List">
+        <StackPanel Margin="16" Spacing="8">
+          <Label Content="Unit Skill Sub-list" FontSize="16" FontWeight="Bold" />
+          <Border Background="{DynamicResource WarningBackgroundBrush}"
+                  BorderBrush="{DynamicResource WarningBorderBrush}"
+                  BorderThickness="1" CornerRadius="4" Padding="12">
+            <TextBlock TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status">
+              <Run Text="Per-skill unit sub-list editing is not yet implemented in Avalonia."/>
+              <LineBreak/>
+              <Run Text="Use the WinForms editor to assign units to a skill."/>
+              <LineBreak/>
+              <LineBreak/>
+              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
+            </TextBlock>
+          </Border>
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_BaseAddr_Label"
+                 Name="UnitTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Count_Label"
+                 Name="UnitTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- Tab 3: Class sub-list placeholder (KnownGap: tracked by #374) -->
+      <TabItem Header="Class Skill List">
+        <StackPanel Margin="16" Spacing="8">
+          <Label Content="Class Skill Sub-list" FontSize="16" FontWeight="Bold" />
+          <Border Background="{DynamicResource WarningBackgroundBrush}"
+                  BorderBrush="{DynamicResource WarningBorderBrush}"
+                  BorderThickness="1" CornerRadius="4" Padding="12">
+            <TextBlock TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status">
+              <Run Text="Per-skill class sub-list editing is not yet implemented in Avalonia."/>
+              <LineBreak/>
+              <Run Text="Use the WinForms editor to assign classes to a skill."/>
+              <LineBreak/>
+              <LineBreak/>
+              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
+            </TextBlock>
+          </Border>
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_BaseAddr_Label"
+                 Name="ClassTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Count_Label"
+                 Name="ClassTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- Tab 4: Item sub-list placeholder (KnownGap: tracked by #374) -->
+      <TabItem Header="Item Skill List">
+        <StackPanel Margin="16" Spacing="8">
+          <Label Content="Item Skill Sub-list" FontSize="16" FontWeight="Bold" />
+          <Border Background="{DynamicResource WarningBackgroundBrush}"
+                  BorderBrush="{DynamicResource WarningBorderBrush}"
+                  BorderThickness="1" CornerRadius="4" Padding="12">
+            <TextBlock TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status">
+              <Run Text="Per-skill item sub-list editing is not yet implemented in Avalonia."/>
+              <LineBreak/>
+              <Run Text="Use the WinForms editor to assign items to a skill."/>
+              <LineBreak/>
+              <LineBreak/>
+              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
+            </TextBlock>
+          </Border>
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_BaseAddr_Label"
+                 Name="ItemTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Count_Label"
+                 Name="ItemTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
+        </StackPanel>
+      </TabItem>
+
+      <!-- Tab 5: Item2 sub-list placeholder (KnownGap: tracked by #374) -->
+      <TabItem Header="Item2 Skill List" Name="Item2Tab" IsVisible="False">
+        <StackPanel Margin="16" Spacing="8">
+          <Label Content="Item2 Skill Sub-list (sizeof-20+ layout)" FontSize="16" FontWeight="Bold" />
+          <Border Background="{DynamicResource WarningBackgroundBrush}"
+                  BorderBrush="{DynamicResource WarningBorderBrush}"
+                  BorderThickness="1" CornerRadius="4" Padding="12">
+            <TextBlock TextWrapping="Wrap"
+                       AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status">
+              <Run Text="Per-skill Item2 sub-list editing is not yet implemented in Avalonia."/>
+              <LineBreak/>
+              <Run Text="Use the WinForms editor to assign second-item-skills to a skill."/>
+              <LineBreak/>
+              <LineBreak/>
+              <Run Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)."/>
+            </TextBlock>
+          </Border>
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_BaseAddr_Label"
+                 Name="Item2TabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
+          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Count_Label"
+                 Name="Item2TabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
+        </StackPanel>
+      </TabItem>
+
+    </TabControl>
+  </Grid>
 </Window>
