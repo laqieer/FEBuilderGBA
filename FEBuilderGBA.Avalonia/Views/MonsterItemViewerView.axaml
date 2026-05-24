@@ -120,6 +120,13 @@
                       Name="ItemWriteButton" Content="Write" Click="ItemWrite_Click" />
               <Button AutomationProperties.AutomationId="MonsterItemViewer_Item_Expand_Button"
                       Name="ItemExpandButton" Content="Expand List" Click="ItemExpand_Click" />
+              <!-- Legacy alias for the original single-tab Write button id.
+                   Hidden but FUNCTIONAL: clicking via automation invokes the
+                   same ItemWrite_Click handler the visible Write button does,
+                   so existing harnesses targeting `MonsterItemViewer_Write_Button`
+                   stay operational. -->
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Write_Button"
+                      IsVisible="False" Width="0" Height="0" Click="ItemWrite_Click" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>

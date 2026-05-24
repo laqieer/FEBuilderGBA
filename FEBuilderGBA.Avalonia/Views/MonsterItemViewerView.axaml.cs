@@ -13,9 +13,13 @@
 // `JumpToItemSelect` / `JumpToProbabilitySelect` handlers.
 //
 // Backward compatibility: legacy `EntryList`, `AddrLabel`, `ItemIdBox`,
-// `DropRateBox`, `Unknown1..3Box`, and `MonsterItemViewer_Write_Button`
-// AutomationId are preserved so existing AvaloniaEditorTests +
-// ListParityHelper keep working.
+// `DropRateBox`, `Unknown1..3Box` names + the legacy
+// `MonsterItemViewer_ItemId_Input` AutomationId on the slot-1
+// IdFieldControl + the legacy `MonsterItemViewer_Write_Button` Button
+// alias (kept as a hidden zero-size Button wired to the same
+// `ItemWrite_Click` handler) are preserved so existing
+// AvaloniaEditorTests + ListParityHelper + any automation harnesses
+// pointing at the original single-tab surface continue to resolve.
 
 using System;
 using global::Avalonia.Controls;
@@ -647,7 +651,10 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Slice <paramref name="items"/> using a WF-style read window:
         ///   - If both `start` and `count` are 0, return the full list.
         ///   - Otherwise return at most `count` entries starting at index `start`.
-        ///     `start` is clamped to [0, items.Count) and `count` to the remainder.
+        ///     `start` is clamped to [0, items.Count] (where `start == items.Count`
+        ///     deliberately yields an empty range, matching the WF reread-bar
+        ///     semantics — past-end is "show nothing", not an error); `count`
+        ///     is clamped to the remaining tail.
         /// Mirrors the WF panel1 Read Start Address + Read Count semantics.
         /// </summary>
         static System.Collections.Generic.List<AddrResult> ApplyReadWindow(

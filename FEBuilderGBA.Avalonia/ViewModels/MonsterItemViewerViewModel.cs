@@ -411,6 +411,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             else if (CurrentAddr != 0) { a = CurrentAddr; width = 5; }
             else return new Dictionary<string, string>();
 
+            // Defensive guard: if the resolved address is past ROM end (e.g., a
+            // stale CurrentAddr after a ROM reload to a smaller image), bail
+            // out before computing the read bound — without this `length - a`
+            // would underflow.
+            if (a >= (uint)rom.Data.Length) return new Dictionary<string, string>();
+
             // Bound the read by both the chosen width AND remaining ROM bytes.
             uint maxOffset = (uint)Math.Min(width, (uint)rom.Data.Length - a);
 
