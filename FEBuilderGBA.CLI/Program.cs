@@ -3420,17 +3420,20 @@ namespace FEBuilderGBA.CLI
             Array.Copy(paletteData, 0, pal16, 0, Math.Min(32, paletteData.Length));
 
             // Render each frame
-            var gifFrames = new List<GifEncoder.GifFrame>();
+            var gifFrames = new List<GifEncoderCore.GifFrame>();
             foreach (var fi in frames)
             {
-                // Get delay from frame data (first 2 bytes of the 0x86 command)
+                // Get delay from frame data (first 2 bytes of the 0x86 command).
+                // Use the Math.Round-based U.GameFrameSecToGifFrameSec helper
+                // (Core port of WinForms #499) so all Core consumers share
+                // identical rounding semantics.
                 uint wait = (uint)(frameData[fi.FrameDataOffset] | (frameData[fi.FrameDataOffset + 1] << 8));
-                int delayCs = (int)(wait * 100 / 60); // GBA frames (60fps) → centiseconds
+                int delayCs = U.GameFrameSecToGifFrameSec(wait);
 
                 using var image = BattleAnimeRendererCore.RenderSingleFrame(fi, oamData, pal16);
                 if (image == null) continue;
 
-                gifFrames.Add(new GifEncoder.GifFrame
+                gifFrames.Add(new GifEncoderCore.GifFrame
                 {
                     RgbaPixels = image.GetPixelData(),
                     Width = image.Width,
@@ -3442,7 +3445,7 @@ namespace FEBuilderGBA.CLI
             if (gifFrames.Count == 0)
                 return "No frames could be rendered.";
 
-            GifEncoder.Encode(gifFrames, outputPath);
+            GifEncoderCore.Encode(gifFrames, outputPath);
             Console.WriteLine($"  {gifFrames.Count} frames, {frames.Count} frame commands");
             return string.Empty;
         }

@@ -261,6 +261,19 @@ namespace FEBuilderGBA
         public static uint Padding16(uint p) { uint mod = p % 16; return mod == 0 ? p : p + (16 - mod); }
         public static int Padding16(int p) { int mod = p % 16; return mod == 0 ? p : p + (16 - mod); }
 
+        /// <summary>
+        /// Convert a GBA 60-fps frame count to GIF centisecond delay using
+        /// <see cref="Math.Round"/>. Mirrors the WinForms helper of the same
+        /// name exactly so that the Core/Avalonia GIF exporter (#499) writes
+        /// byte-equal delay timings to the WinForms equivalent.
+        /// </summary>
+        /// <param name="fps60">Frame count at 60 fps (one game frame == 1/60 s).</param>
+        /// <returns>Delay value in centiseconds (100ths of a second).</returns>
+        public static ushort GameFrameSecToGifFrameSec(uint fps60)
+        {
+            return (ushort)Math.Round(((double)fps60) * 100.0D / 60.0D);
+        }
+
         // ---- Byte array read (little-endian) ----------------------------------
         [MethodImpl(256)]
         public static uint u32(byte[] data, uint addr)

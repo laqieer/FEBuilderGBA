@@ -2,13 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace FEBuilderGBA.CLI
+namespace FEBuilderGBA
 {
     /// <summary>
-    /// Minimal GIF89a animated GIF encoder.
+    /// Minimal GIF89a animated GIF encoder. Ported from
+    /// <c>FEBuilderGBA.CLI.GifEncoder</c> to Core so the Avalonia
+    /// Map Action Animation export/import path can reuse it (#499).
+    ///
     /// Optimized for GBA-style 16-color palette images with transparency support.
     /// </summary>
-    internal static class GifEncoder
+    public static class GifEncoderCore
     {
         /// <summary>A single GIF frame with RGBA pixel data.</summary>
         public class GifFrame
@@ -22,6 +25,55 @@ namespace FEBuilderGBA.CLI
         // Sentinel: transparent pixels use index 0, which is distinct from any real RGB color.
         // We use -1 as the "transparent" key in the color map to avoid conflating it with black (0x000000).
         const int TRANSPARENT_KEY = -1;
+
+        /// <summary>
+        /// Convert an indexed pixel buffer (1 byte per pixel, palette index) into
+        /// an RGBA buffer (4 bytes per pixel) using the given RGBA palette.
+        /// Used by callers that feed indexed <c>IImage</c> output (from
+        /// <c>Decode4bppTiles</c>) into <see cref="Encode"/>.
+        ///
+        /// Addresses plan v3 B1 (Copilot CLI plan-review pass 2): the GIF encoder
+        /// expects RGBA but <c>ImageUtilMapActionAnimationCore.DrawFrame()</c>
+        /// returns indexed pixels.
+        /// </summary>
+        /// <param name="indexedPixels">1 byte per pixel (palette indices).</param>
+        /// <param name="paletteRgba">RGBA palette (4 bytes per color).</param>
+        /// <param name="width">Image width in pixels.</param>
+        /// <param name="height">Image height in pixels.</param>
+        public static byte[] IndexedToRgba(byte[] indexedPixels, byte[] paletteRgba, int width, int height)
+        {
+            if (indexedPixels == null) return Array.Empty<byte>();
+            if (paletteRgba == null) paletteRgba = Array.Empty<byte>();
+
+            int pixelCount = width * height;
+            int safeCount = Math.Min(pixelCount, indexedPixels.Length);
+            byte[] rgba = new byte[pixelCount * 4];
+            int paletteEntries = paletteRgba.Length / 4;
+
+            for (int i = 0; i < safeCount; i++)
+            {
+                int idx = indexedPixels[i];
+                if (idx >= 0 && idx < paletteEntries)
+                {
+                    int srcOff = idx * 4;
+                    int dstOff = i * 4;
+                    rgba[dstOff + 0] = paletteRgba[srcOff + 0];
+                    rgba[dstOff + 1] = paletteRgba[srcOff + 1];
+                    rgba[dstOff + 2] = paletteRgba[srcOff + 2];
+                    rgba[dstOff + 3] = paletteRgba[srcOff + 3];
+                }
+                else
+                {
+                    // Out-of-range palette index — emit fully transparent.
+                    int dstOff = i * 4;
+                    rgba[dstOff + 0] = 0;
+                    rgba[dstOff + 1] = 0;
+                    rgba[dstOff + 2] = 0;
+                    rgba[dstOff + 3] = 0;
+                }
+            }
+            return rgba;
+        }
 
         /// <summary>
         /// Encode frames as an animated GIF file.
