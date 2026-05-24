@@ -7893,6 +7893,9 @@ AI用に登場人物のヒントを追加
 :Filter: All (out-of-scope)
 フィルタ: すべて (範囲外)
 
+:All (out-of-scope)
+すべて (範囲外)
+
 :Out-of-scope: requires ToolTranslateROM Core extraction
 範囲外: ToolTranslateROM Core 抽出が必要
 
@@ -7904,6 +7907,9 @@ AI用に登場人物のヒントを追加
 
 :(No references found)
 (参照が見つかりませんでした)
+
+:Error: {0}
+エラー: {0}
 
 :翻訳する
 翻訳

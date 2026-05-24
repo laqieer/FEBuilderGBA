@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T01:33:45Z"
-git-sha: 14eeeac9e
+generated: "2026-05-24T02:20:07Z"
+git-sha: 4552097a3
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4538 |
-| Total AV-only labels | 3165 |
-| Total common labels | 162 |
+| Total WF-only labels | 4536 |
+| Total AV-only labels | 3201 |
+| Total common labels | 164 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -2555,49 +2555,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Track Count`
 - `Write`
 
-### ClassOPDemoForm
-WF labels: **32** · AV labels: **2** · WF-only: **32** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 71 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60 (秒)`
-- `00固定`
-- `05固定`
-- `??`
-- `size:`
-- `アドレス`
-- `アニメの特殊指定`
-- `アニメ指定\r\nポインタ書き込み`
-- `アニメ指定のポインタ`
-- `アニメ指定のポインタ先`
-- `アニメ指定共有`
-- `ウェイト`
-- `パレットID`
-- `リストの拡張`
-- `使用可能表示武器`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `戦闘アニメ`
-- `敵味方カラー`
-- `日本語名\r\nポインタ書き込み`
-- `日本語名の長さ`
-- `日本語名ポインタ`
-- `日本語名ポインタ先`
-- `書き込み`
-- `英語ポインタ`
-- `表示地形右半分`
-- `表示地形左半分`
-- `説明文ID`
-- `読込数`
-- `選択アドレス:`
-- `魔法エフェクト`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Class OP Demo`
-
 ### EventUnitFE7Form
 WF labels: **36** · AV labels: **39** · WF-only: **32** · AV-only: **35** · Common: **4** · Density verdict: **Low** (WF 66 / AV 80)
 
@@ -2990,6 +2947,83 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Warnings`
 - `Weapon Levels`
 - `Write`
+
+### ClassOPDemoForm
+WF labels: **32** · AV labels: **40** · WF-only: **30** · AV-only: **38** · Common: **2** · Density verdict: **Low** (WF 71 / AV 83)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60 (秒)`
+- `00固定`
+- `05固定`
+- `アドレス`
+- `アニメの特殊指定`
+- `アニメ指定\r\nポインタ書き込み`
+- `アニメ指定のポインタ`
+- `アニメ指定のポインタ先`
+- `アニメ指定共有`
+- `ウェイト`
+- `パレットID`
+- `リストの拡張`
+- `使用可能表示武器`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `戦闘アニメ`
+- `敵味方カラー`
+- `日本語名\r\nポインタ書き込み`
+- `日本語名の長さ`
+- `日本語名ポインタ`
+- `日本語名ポインタ先`
+- `書き込み`
+- `英語ポインタ`
+- `表示地形右半分`
+- `表示地形左半分`
+- `説明文ID`
+- `読込数`
+- `選択アドレス:`
+- `魔法エフェクト`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `/60 (sec)`
+- `1`
+- `28`
+- `6`
+- `Address`
+- `Ally / Enemy Color:`
+- `Anime Spec Pointer:`
+- `Anime Spec Pointer Target`
+- `Anime Spec Shared`
+- `Anime Special Spec:`
+- `Battle Anime:`
+- `Class OP Demo Editor`
+- `Description Text ID:`
+- `Display Weapon (Class):`
+- `English Name Pointer:`
+- `Fixed 00:`
+- `Fixed 05:`
+- `Glyph:`
+- `Japanese Name Length:`
+- `Japanese Name Pointer:`
+- `Japanese Name Pointer Target`
+- `List Expand`
+- `Magic Effect:`
+- `Name`
+- `Palette ID:`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Start Address`
+- `Terrain (Left Half):`
+- `Terrain (Right Half):`
+- `Unknown (0x12):`
+- `Wait Frames:`
+- `Write`
+- `Write Anime Spec Pointer`
+- `Write Anime Tuple`
+- `Write Glyph Entry`
+- `Write JP Name Pointer`
 
 ### ImageTSAEditorForm
 WF labels: **30** · AV labels: **2** · WF-only: **30** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 100 / AV 3)

@@ -21740,6 +21740,9 @@ ED 关系
 :Filter: All (out-of-scope)
 筛选：所有 (超出范围)
 
+:All (out-of-scope)
+所有 (超出范围)
+
 :Out-of-scope: requires ToolTranslateROM Core extraction
 超出范围：需要 ToolTranslateROM Core 提取
 
@@ -21751,4 +21754,7 @@ ED 关系
 
 :(No references found)
 (未找到引用)
+
+:Error: {0}
+错误：{0}
 
