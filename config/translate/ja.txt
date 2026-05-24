@@ -8628,3 +8628,66 @@ KnownGap: InputFormRef 自動接続に依存 (#374 で追跡中)。
 
 :Candidate
 候補
+
+:Class change class (0 = no promotion)
+クラスチェンジクラス (0 = 未昇格)
+
+:Generic enemy face portrait (click to open Portrait Viewer)
+一般兵顔 (クリックでポートレート ビューア)
+
+:Ability 1 (B36):
+特性1 (B36):
+
+:Ability 2 (B37):
+特性2 (B37):
+
+:Ability 3 (B38):
+特性3 (B38):
+
+:Ability 4 (B39):
+特性4 (B39):
+
+:Weapon Rank Levels (B40-B47)
+武器LV (B40-B47)
+
+:Sword (B40):
+剣 (B40):
+
+:Lance (B41):
+槍 (B41):
+
+:Axe (B42):
+斧 (B42):
+
+:Bow (B43):
+弓 (B43):
+
+:Staff (B44):
+杖 (B44):
+
+:Anima (B45):
+理 (B45):
+
+:Light (B46):
+光 (B46):
+
+:Dark (B47):
+闇 (B47):
+
+:Battle Anime (P48):
+戦闘アニメ (P48):
+
+:Move Cost (P52):
+移動コスト (P52):
+
+:Terrain Avoid (P56):
+地形回避 (P56):
+
+:Terrain Def (P60):
+地形防御 (P60):
+
+:Terrain Res (P64):
+地形魔防 (P64):
+
+:Unknown u32 field at offset 68 (D68)
+不明な u32 フィールド (D68)

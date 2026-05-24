@@ -22463,3 +22463,66 @@ KnownGap: 依赖 InputFormRef 自动连接 (#374 跟踪中)。
 
 :Candidate
 候选
+
+:Class change class (0 = no promotion)
+转职职业 (0 = 未转职)
+
+:Generic enemy face portrait (click to open Portrait Viewer)
+通用敌方头像 (点击打开头像查看器)
+
+:Ability 1 (B36):
+能力1 (B36):
+
+:Ability 2 (B37):
+能力2 (B37):
+
+:Ability 3 (B38):
+能力3 (B38):
+
+:Ability 4 (B39):
+能力4 (B39):
+
+:Weapon Rank Levels (B40-B47)
+武器等级 (B40-B47)
+
+:Sword (B40):
+剑 (B40):
+
+:Lance (B41):
+枪 (B41):
+
+:Axe (B42):
+斧 (B42):
+
+:Bow (B43):
+弓 (B43):
+
+:Staff (B44):
+杖 (B44):
+
+:Anima (B45):
+理 (B45):
+
+:Light (B46):
+光 (B46):
+
+:Dark (B47):
+暗 (B47):
+
+:Battle Anime (P48):
+战斗动画 (P48):
+
+:Move Cost (P52):
+移动消耗 (P52):
+
+:Terrain Avoid (P56):
+地形回避 (P56):
+
+:Terrain Def (P60):
+地形防御 (P60):
+
+:Terrain Res (P64):
+地形抗性 (P64):
+
+:Unknown u32 field at offset 68 (D68)
+未知 u32 字段 (D68)
