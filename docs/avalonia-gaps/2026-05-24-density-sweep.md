@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T12:53:06Z"
-git-sha: 92ff538c7
+generated: "2026-05-24T14:25:16Z"
+git-sha: af1647e7f
 sweep-type: density
 ---
 
@@ -20,9 +20,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-density --out=<path>`.
 
 | Verdict | Threshold | Count |
 |---|---|---|
-| HIGH | |Δ%| ≥ 50 | 203 |
+| HIGH | |Δ%| ≥ 50 | 202 |
 | MEDIUM | 25 ≤ |Δ%| < 50 | 87 |
-| LOW | |Δ%| < 25 | 80 |
+| LOW | |Δ%| < 25 | 81 |
 
 ## Ranked Density Deltas
 
@@ -40,7 +40,6 @@ Both represent pairing artifacts rather than real migration gaps.
 |---|---|---|---:|---:|---:|---:|---|
 | High | `EmulatorMemoryForm` | `EmulatorMemoryView` | 353 | 5 | -348 | -98.6% | Heuristic |
 | High | `MapSettingFE6Form` | `MapSettingFE6View` | 126 | 3 | -123 | -97.6% | ListParityHelper |
-| High | `ClassFE6Form` | `ClassFE6View` | 173 | 8 | -165 | -95.4% | Heuristic |
 | High | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` | 62 | 3 | -59 | -95.2% | ListParityHelper |
 | High | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` | 61 | 3 | -58 | -95.1% | ListParityHelper |
 | High | `EventHaikuFE7Form` | `EventHaikuFE7View` | 60 | 3 | -57 | -95.0% | ListParityHelper |
@@ -223,6 +222,7 @@ Both represent pairing artifacts rather than real migration gaps.
 | Low | `TextForm` | `TextViewerView` | 62 | 53 | -9 | -14.5% | Heuristic |
 | Low | `AOERANGEForm` | `AOERANGEView` | 15 | 13 | -2 | -13.3% | Heuristic |
 | Low | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` | 99 | 86 | -13 | -13.1% | Heuristic |
+| Low | `ClassFE6Form` | `ClassFE6View` | 173 | 151 | -22 | -12.7% | Heuristic |
 | Low | `UnitFE6Form` | `UnitFE6View` | 152 | 133 | -19 | -12.5% | ListParityHelper |
 | Low | `ItemStatBonusesVennoForm` | `ItemStatBonusesVennoView` | 41 | 36 | -5 | -12.2% | Heuristic |
 | Low | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` | 9 | 8 | -1 | -11.1% | Heuristic |
@@ -384,14 +384,6 @@ WF count: **126** · AV count: **3** · Δ: **-123** (-97.6%).
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/MapSettingFE6View.axaml
 -->
 
-### ClassFE6Form
-WF count: **173** · AV count: **8** · Δ: **-165** (-95.4%).
-
-<!-- Triage: list specific missing fields here. Suggested probe:
-  grep -E '\.Text\s*=' FEBuilderGBA/ClassFE6Form.Designer.cs
-  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/ClassFE6View.axaml
--->
-
 ### EventBattleTalkFE7Form
 WF count: **62** · AV count: **3** · Δ: **-59** (-95.2%).
 
@@ -526,6 +518,14 @@ WF count: **23** · AV count: **3** · Δ: **-20** (-87.0%).
 <!-- Triage: list specific missing fields here. Suggested probe:
   grep -E '\.Text\s*=' FEBuilderGBA/SongTrackImportWaveForm.Designer.cs
   grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/SongTrackImportWaveView.axaml
+-->
+
+### WorldMapImageFE7Form
+WF count: **23** · AV count: **3** · Δ: **-20** (-87.0%).
+
+<!-- Triage: list specific missing fields here. Suggested probe:
+  grep -E '\.Text\s*=' FEBuilderGBA/WorldMapImageFE7Form.Designer.cs
+  grep -E '(Text|Content|Header)=' FEBuilderGBA.Avalonia/Views/WorldMapImageFE7View.axaml
 -->
 
 ## Unpaired Orphans

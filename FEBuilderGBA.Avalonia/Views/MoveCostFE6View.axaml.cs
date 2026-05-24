@@ -124,5 +124,54 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        /// <summary>
+        /// Jump to <paramref name="classAddr"/> with the cost-type combo
+        /// pre-selected to <paramref name="costType"/>. Mirrors
+        /// <c>MoveCostEditorView.NavigateToWithCostType</c> so FE6 class jumps
+        /// (P52=MoveCostNormal, P56=TerrainAvoid, P60=TerrainDefense,
+        /// P64=TerrainResistance) land on the correct table without the user
+        /// having to manually change the combo.
+        ///
+        /// Used by <c>ClassFE6View.JumpToMoveCost_Click</c> /
+        /// <c>JumpToTerrainAvoid_Click</c> / <c>JumpToTerrainDef_Click</c> /
+        /// <c>JumpToTerrainRes_Click</c> (#388).
+        /// </summary>
+        public void NavigateToWithCostType(uint classAddr, CostType costType)
+        {
+            // Ensure the editor is fully initialized (matches
+            // MoveCostEditorView.NavigateToWithCostType). When invoked
+            // synchronously after WindowManager.Open<T>(), the Opened event
+            // may not have fired yet, so CostTypeCombo.ItemsSource and
+            // EntryList items are empty. Run LoadList eagerly in that case.
+            if (_vm.CostTypeItems.Count == 0 || EntryList.ItemCount == 0)
+            {
+                LoadList();
+            }
+
+            // Locate the combo entry matching the requested cost type. The
+            // FE6 cost-type list contains MoveCostNormal, TerrainAvoid,
+            // TerrainDefense, TerrainResistance, TerrainRecovery (built in
+            // MoveCostFE6ViewModel.BuildCostTypeItems()). Rain/Snow are FE7/8
+            // only, so a non-matching cost type leaves the combo untouched.
+            int targetIndex = -1;
+            for (int i = 0; i < _vm.CostTypeItems.Count; i++)
+            {
+                if (_vm.CostTypeItems[i].CostType == costType)
+                {
+                    targetIndex = i;
+                    break;
+                }
+            }
+            if (targetIndex >= 0 && CostTypeCombo.SelectedIndex != targetIndex)
+            {
+                // Setting SelectedIndex fires OnCostTypeChanged which updates
+                // _vm.SelectedCostType + reloads the cost data; SelectAddress
+                // below then reloads with the new cost type already active.
+                CostTypeCombo.SelectedIndex = targetIndex;
+            }
+
+            EntryList.SelectAddress(classAddr);
+        }
     }
 }
