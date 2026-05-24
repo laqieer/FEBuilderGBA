@@ -367,7 +367,7 @@ The text editor has read/write, TSV export/import, dialogue preview with control
 | ~~PointerTool (Main/Batch/CopyTo)~~ | **35%** | **FIXED** -- Pointer search scans ROM for references |
 | DisASM (DumpAll/ArgGrep) | 15% | No disassembly engine |
 | ToolASMEdit | 13% | No ASM compilation |
-| ToolAnimationCreator | 13% | No animation creation |
+| ~~ToolAnimationCreator~~ | **30%** | **FIXED (#500)** -- `InitFromRom` / `InitFromFile` flows + frame list browser + per-frame editor + Map Action Animation entry point. Bitmap rendering still deferred. |
 | ToolDecompileResult | 20% | No decompilation invocation |
 | ToolExportEAEvent | 22% | No EA export execution |
 | ToolInitWizard | 12% | No wizard flow |

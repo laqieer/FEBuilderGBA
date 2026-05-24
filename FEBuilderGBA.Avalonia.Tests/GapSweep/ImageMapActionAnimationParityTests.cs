@@ -90,31 +90,29 @@ public class ImageMapActionAnimationParityTests
     }
 
     /// <summary>
-    /// Copilot CLI plan-review point 3 — the JumpToAnimationCreator manifest
-    /// row MUST carry a non-null IssueRef so the gap-sweep scanner reports
-    /// it as `KnownGap` (not a false `Match`). Until the
-    /// `ToolAnimationCreatorView.Init` flow lands (#500), the jump button
-    /// is intentionally NOT rendered.
+    /// As of #500 the `ToolAnimationCreatorView.InitFromRom` flow is live,
+    /// `OpenInCreator_Click` is wired in `ImageMapActionAnimationView`, and
+    /// the manifest no longer carries an `IssueRef`. The gap-sweep scanner
+    /// now classifies this row as `Match`.
     /// </summary>
     [Fact]
-    public void ViewModel_JumpToAnimationCreator_IsMarkedAsKnownGap()
+    public void ViewModel_JumpToAnimationCreator_IsMarkedAsMatch()
     {
         var vm = new ImageMapActionAnimationViewModel();
         var target = vm.GetNavigationTargets()
             .FirstOrDefault(t => t.TargetViewType == typeof(ToolAnimationCreatorView));
         Assert.NotNull(target);
-        Assert.False(string.IsNullOrEmpty(target!.IssueRef),
-            "JumpToAnimationCreator must carry a non-null IssueRef until " +
-            "ToolAnimationCreatorView.Init lands (#500) — see Copilot CLI " +
-            "plan-review point 3 on issue #433.");
+        Assert.True(string.IsNullOrEmpty(target!.IssueRef),
+            "JumpToAnimationCreator must NOT carry an IssueRef now that " +
+            "ToolAnimationCreatorView.InitFromRom is implemented (#500).");
     }
 
     [Fact]
-    public void JumpParityScanner_ToCreator_IsKnownGap()
+    public void JumpParityScanner_ToCreator_IsMatch()
     {
         // Simulate the WF callsite for X_N_JumpEditor_Click and verify
-        // the scanner classifies it as `KnownGap` because the manifest
-        // entry carries an IssueRef.
+        // the scanner classifies it as `Match` now that the manifest entry
+        // has no IssueRef (#500).
         var wfCallsites = new[]
         {
             new WfJumpCallsite(
@@ -130,7 +128,7 @@ public class ImageMapActionAnimationParityTests
                 SourceView: "ImageMapActionAnimationView",
                 Command: "JumpToAnimationCreator",
                 TargetView: "ToolAnimationCreatorView",
-                IssueRef: "#500"),
+                IssueRef: null),
         };
 
         var rows = JumpParityScanner.ComputeJumpRows(wfCallsites, avManifests);
@@ -138,7 +136,17 @@ public class ImageMapActionAnimationParityTests
             r.SourceForm == "ImageMapActionAnimationForm" &&
             r.TargetWfType == "ToolAnimationCreatorForm");
         Assert.NotNull(match);
-        Assert.Equal(JumpRowStatus.KnownGap, match!.Status);
+        Assert.Equal(JumpRowStatus.Match, match!.Status);
+    }
+
+    [Fact]
+    public void View_HasOpenInCreatorButton_Wired()
+    {
+        // #500: the "Open in Animation Creator" button must be rendered in
+        // the selection bar with its click handler wired up.
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"ImageMapActionAnimation_OpenInCreator_Button\"", axaml);
+        Assert.Contains("Click=\"OpenInCreator_Click\"", axaml);
     }
 
     // -----------------------------------------------------------------

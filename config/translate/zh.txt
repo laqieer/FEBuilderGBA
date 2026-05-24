@@ -23285,3 +23285,27 @@ BattleRounds
 
 :BGM
 BGM
+
+:Save
+保存
+
+:Wait:
+等待:
+
+:Open in Animation Creator
+在动画创建工具中打开
+
+:Open the selected animation in the Animation Creator (frame editor).
+在动画创建工具(帧编辑器)中打开当前选中的动画。
+
+:Frames
+帧列表
+
+:Selected Frame
+选中帧
+
+:Animation preview (deferred — see #500 follow-up)
+动画预览(暂未实现 - 见 #500 后续任务)
+
+:Sound:
+音效:

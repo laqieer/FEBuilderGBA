@@ -9,19 +9,11 @@
 // The WinForms `ImageMapActionAnimationForm` exposes ONE JumpForm callsite:
 //   X_N_JumpEditor_Click -> InputFormRef.JumpFormLow<ToolAnimationCreatorForm>
 //
-// On the Avalonia side, `ToolAnimationCreatorView` is currently a UI shell
-// with empty `Create_Click` / `BrowseImage_Click` handlers — calling
-// `WindowManager.Open<ToolAnimationCreatorView>()` would just open a
-// non-functional window. Therefore the manifest declares this jump as a
-// `KnownGap` (non-null `IssueRef`) tracked by the follow-up issue #500
-// (`feat(tool-animation-creator): real Init() flow + Map Action Animation
-// entry point`). The view code-behind intentionally does NOT render a
-// jump button until the target editor implements its Init flow — this is
-// parity-via-declaration, not parity-via-broken-UI.
-//
-// Once the follow-up issue lands, the IssueRef can be cleared and a button
-// added to the AXAML — at that point the gap-sweep scanner will
-// automatically flip the row from KnownGap to Match.
+// As of #500 the Avalonia `ToolAnimationCreatorView` has a real
+// `InitFromRom(...)` flow (and a paired `InitFromFile(...)` for the script-
+// file path), and `ImageMapActionAnimationView.OpenInCreator_Click` invokes
+// it. The manifest entry below is now a `Match` (IssueRef = null) and the
+// gap-sweep scanner picks that up automatically.
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.Views;
@@ -35,14 +27,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new[]
             {
                 // WF X_N_JumpEditor_Click — open the Animation Creator on
-                // the current map-action animation. Tracked as KnownGap
-                // until the Avalonia `ToolAnimationCreatorView` implements
-                // a real Init flow (see issue #500).
+                // the current map-action animation. Wired in #500.
                 new NavigationTarget(
                     CommandName: "JumpToAnimationCreator",
                     TargetViewType: typeof(ToolAnimationCreatorView),
                     TargetAddress: null,
-                    IssueRef: "#500"),
+                    IssueRef: null),
             };
         }
     }
