@@ -460,7 +460,7 @@ miss that surfaced as an unjustified zero-row warning before the fix).
 
 Classes with at least one detected write: 173.
 
-Writable VMs (matching the triplet convention): 145.  
+Writable VMs (matching the triplet convention): 145.
 Writable VMs with zero detected ROM writes: 3.
 
 ### Writable VMs with zero detected ROM writes (warning)

@@ -566,13 +566,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // at the same condition `LoadTextList` uses (first invalid
                 // text pointer). This avoids the previous double-decode
                 // (LoadTextList counted + we decoded again per ID).
-                for (uint id = 1; id < 0x2000u; id++)
+                //
+                // Start at id=0 to keep the termination behaviour IDENTICAL
+                // to `LoadTextList` (a partial-list ROM with valid ID 0 but
+                // invalid ID 1 should report zero free-area results, not
+                // wrongly start at ID 1 and emit anything). Then skip ID 0
+                // emit because that is the system write-protect slot
+                // (matching WF `TextForm.UseWriteProtectionID00`).
+                for (uint id = 0; id < 0x2000u; id++)
                 {
                     uint entryAddr = textBase + id * 4u;
                     if (entryAddr + 4 > (uint)rom.Data.Length) break;
                     uint textPtr = rom.u32(entryAddr);
                     if (!IsValidTextPointer(textPtr)) break;
 
+                    if (id == 0) continue; // never emit ID 0 as "free"
                     if (IsSystemReserve(rom, id)) continue;
                     if (referencedIds.Contains(id)) continue;
 
