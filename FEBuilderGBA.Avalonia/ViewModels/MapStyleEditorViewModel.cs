@@ -193,25 +193,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CurrentAddr = addr;
             ObjPointer = rom.u32(addr);
+            ObjAddress = U.toOffset(ObjPointer);
 
             // Also load config pointer from the parallel config table
             uint configTablePointer = rom.RomInfo.map_config_pointer;
+            uint configTableBase = 0;
+            uint index = 0;
             if (configTablePointer != 0)
             {
                 uint objTableBase = rom.p32(rom.RomInfo.map_obj_pointer);
                 if (U.isSafetyOffset(objTableBase, rom) && addr >= objTableBase)
                 {
-                    uint index = (addr - objTableBase) / 4;
-                    uint configTableBase = rom.p32(configTablePointer);
+                    index = (addr - objTableBase) / 4;
+                    configTableBase = rom.p32(configTablePointer);
                     if (U.isSafetyOffset(configTableBase, rom))
                     {
                         uint configEntryAddr = configTableBase + index * 4;
                         if (configEntryAddr + 4 <= (uint)rom.Data.Length)
+                        {
                             ConfigPointer = rom.u32(configEntryAddr);
+                            ChipsetConfigAddress = U.toOffset(ConfigPointer);
+                        }
                     }
                 }
             }
 
+            // Resolve palette pointer from the parallel palette table.
+            uint palettePointer = rom.RomInfo.map_pal_pointer;
+            if (palettePointer != 0)
+            {
+                uint paletteTableBase = rom.p32(palettePointer);
+                if (U.isSafetyOffset(paletteTableBase, rom))
+                {
+                    uint paletteEntryAddr = paletteTableBase + index * 4;
+                    if (paletteEntryAddr + 4 <= (uint)rom.Data.Length)
+                    {
+                        uint palPtr = rom.u32(paletteEntryAddr);
+                        if (palPtr != 0 && U.isPointer(palPtr))
+                            PaletteAddress = U.toOffset(palPtr);
+                    }
+                }
+            }
+
+            // Populate the 16-color palette for the currently-selected
+            // PaletteIndex / IsFogPalette (defaults to 0 / false on first load).
+            // Safe-no-op when PaletteAddress is 0 or out-of-bounds.
+            LoadPalette(PaletteAddress, PaletteIndex, IsFogPalette);
+
+            ConfigNo = $"0x{index:X2}";
             IsLoaded = true;
         }
 
@@ -228,9 +257,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return false;
 
+            // Validate `paletteIndex` is in the WF-expected 0..4 range so the
+            // effective index (after the fog offset) stays in 0..9. Negative
+            // or out-of-range inputs would otherwise wrap when cast to uint
+            // and bypass the in-bounds check (Copilot bot inline review).
+            if (paletteIndex < 0 || paletteIndex >= 5) return false;
+
             int effectiveIndex = paletteIndex + (isFog ? 5 : 0);
-            uint addr = paletteBase + (uint)(effectiveIndex * 0x20);
-            if (addr + 0x20 > (uint)rom.Data.Length) return false;
+            // Compute the target address in ulong so out-of-range inputs
+            // can't wrap a uint addition past 2^32. The final uint cast is
+            // safe once we've bounds-checked against rom.Data.Length.
+            ulong target = (ulong)paletteBase + (ulong)effectiveIndex * 0x20UL;
+            if (target + 0x20UL > (ulong)rom.Data.Length) return false;
+            uint addr = (uint)target;
 
             for (int i = 0; i < 16; i++)
             {
