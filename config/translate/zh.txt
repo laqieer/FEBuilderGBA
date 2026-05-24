@@ -21652,3 +21652,12 @@ OBJ+BG 从左到右
 
 :Expansion failed.
 扩展失败。
+
+:01 = Normal
+01 = 普通
+
+:02 = Critical
+02 = 必杀
+
+:03 = Ranged / Magic Sword
+03 = 远程 / 魔法剑

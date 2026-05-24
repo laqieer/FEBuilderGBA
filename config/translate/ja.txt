@@ -7805,3 +7805,12 @@ Debuff (B33):
 
 :Expansion failed.
 拡張に失敗しました。
+
+:01 = Normal
+01 = 通常
+
+:02 = Critical
+02 = 必殺
+
+:03 = Ranged / Magic Sword
+03 = 間接や魔法剣
