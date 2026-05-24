@@ -178,24 +178,30 @@ namespace FEBuilderGBA.Avalonia.Services
                         colIdx++;
                     }
 
-                    if (parsedUid.HasValue && parsedUid.Value < rowAddresses.Count)
+                    // Determine routing:
+                    //  (a) UID was parsed -> validate range. Out-of-range when UID routing is opted in
+                    //      MUST abort (Copilot bot review on PR #610: prevents silent writes to wrong
+                    //      classes when a CSV carries a UID beyond rowAddresses.Count).
+                    //  (b) UID routing was opted in (includeUID true) but unparseable -> abort.
+                    //  (c) Neither UID routing nor Name(UID) -> positional fallback (i < count).
+                    bool uidRoutingEnabled = _includeUID; // Name(UID) requires both flags so this captures both opt-in modes.
+                    if (parsedUid.HasValue)
                     {
+                        if (parsedUid.Value >= rowAddresses.Count)
+                        {
+                            // Out-of-range parsed UID with routing opted in: hard error.
+                            throw new FormatException(
+                                $"ClassFE6CsvManager: UID {parsedUid.Value} at CSV line {csvLine} is out of range (max {rowAddresses.Count - 1}). Aborting import.");
+                        }
                         addr = rowAddresses[(int)parsedUid.Value];
                     }
-                    else if (_includeUID && !parsedUid.HasValue)
+                    else if (uidRoutingEnabled)
                     {
-                        // includeUID is explicit user opt-in for UID routing — if the column is
-                        // unparseable we abort rather than silently positional-fallback (matches WF
-                        // CsvManager). The same applies to "Name(UID)" when both flags are set; the
-                        // bare-name-only case above intentionally never reaches here.
+                        // UID column requested (incl. Name(UID) form) but unparseable -> abort.
+                        // Bare-name-only (_includeName && !_includeUID) intentionally falls through
+                        // to positional routing because no UID was ever in the CSV.
                         throw new FormatException(
                             $"ClassFE6CsvManager: missing or invalid UID at CSV line {csvLine} (row index {i}). Aborting import.");
-                    }
-                    else if (_includeName && _includeUID && !parsedUid.HasValue)
-                    {
-                        // Name(UID) format requested but UID part unparseable — abort (same contract).
-                        throw new FormatException(
-                            $"ClassFE6CsvManager: missing or invalid UID inside Name(UID) at CSV line {csvLine} (row index {i}). Aborting import.");
                     }
                     else if (i < rowAddresses.Count)
                     {

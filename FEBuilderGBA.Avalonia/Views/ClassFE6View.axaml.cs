@@ -212,12 +212,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateWeaponRankLabels()
         {
-            // FE6 uses a different rank threshold table than FE7/8 — pass
-            // romVersion=6 explicitly so the displayed letter matches the
-            // WinForms ClassFE6Form behaviour even when the user is editing
-            // a non-FE6 ROM cast into this view (defensive default also = 6,
-            // since this view is FE6-specific) — Copilot bot review on PR #610.
-            int romVersion = (int)(CoreState.ROM?.RomInfo?.version ?? 6);
+            // This view is FE6-specific by design (ClassFE6View handles the FE6
+            // class layout — B40-B47 weapon ranks, FE6 stat thresholds). Always
+            // pass romVersion=6 to WeaponRankUtil so the displayed rank letter
+            // uses FE6 thresholds (1-50=E, 51-100=D, 101-150=C, 151-200=B,
+            // 201-250=A, 251+=S) regardless of which ROM file is loaded
+            // (CoreState.ROM may be null or a non-FE6 version during
+            // headless tests). Copilot bot review on PR #610.
+            const int romVersion = 6;
             B40RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B40Box.Value ?? 0), romVersion);
             B41RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B41Box.Value ?? 0), romVersion);
             B42RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B42Box.Value ?? 0), romVersion);

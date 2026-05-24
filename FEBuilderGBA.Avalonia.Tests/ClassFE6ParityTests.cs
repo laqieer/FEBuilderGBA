@@ -639,6 +639,51 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("weapon level", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Regression guard for the out-of-range UID case (Copilot bot review
+        /// on PR #610). When the CSV embeds a UID that exceeds the
+        /// rowAddresses count (e.g. UID 99 with only 2 target rows), the
+        /// importer MUST abort with FormatException rather than silently
+        /// fall back to positional routing — silently writing to the wrong
+        /// class is the failure mode WF CsvManager avoids via its
+        /// safety-offset check.
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_MultiRow_UidOutOfRange_Throws()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(2);
+            var mgr = new ClassFE6CsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: false, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            // Row 0 with valid UID; row 1 with UID 99 (out of range — only 2 rows).
+            string csv = "0, 1, 2, 3, 4, 5, 6, 7\n99, 11, 12, 13, 14, 15, 16, 17\n";
+            var ex = Assert.Throws<FormatException>(() =>
+                mgr.ApplyImportCsv(rom, csv, new[] { baseAddr, baseAddr + dataSize }));
+            Assert.Contains("out of range", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("99", ex.Message);
+        }
+
+        /// <summary>
+        /// Same out-of-range UID contract but via the Name(UID) embedded
+        /// form. When both includeName and includeUID are set, an embedded
+        /// UID that's out of range must abort import.
+        /// </summary>
+        [Fact]
+        public void ApplyImportCsv_MultiRow_NameUidOutOfRange_Throws()
+        {
+            var (rom, baseAddr, dataSize) = MakeStubRom(2);
+            var mgr = new ClassFE6CsvManager(
+                useClipboard: false, includeUID: true, includeHeader: false,
+                includeName: true, includeBaseStats: true, includeGrowths: false,
+                includeWepLevel: false, growthsAsDecimal: false);
+            // Two rows with Name(UID) form, second has UID 99 (out of range).
+            string csv = "FirstClass(0), 1, 2, 3, 4, 5, 6, 7\nSecondClass(99), 11, 12, 13, 14, 15, 16, 17\n";
+            var ex = Assert.Throws<FormatException>(() =>
+                mgr.ApplyImportCsv(rom, csv, new[] { baseAddr, baseAddr + dataSize }));
+            Assert.Contains("out of range", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
         [Fact]
         public void ApplyImportCsv_MultiRow_WithUID_MissingUidThrows()
         {
