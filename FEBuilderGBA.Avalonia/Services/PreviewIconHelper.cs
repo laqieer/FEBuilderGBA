@@ -1288,6 +1288,253 @@ namespace FEBuilderGBA.Avalonia.Services
             }
         }
 
+        // -----------------------------------------------------------------
+        // FE8N v2 skill expansion helpers (#396)
+        //
+        // FE8N v2 is a third skill-patch flavour (distinct from SkillSystems
+        // and CSkillSys 0.9.x). It uses a byte-pattern scan to locate the
+        // skill-info table, but with two material differences vs SkillSystems:
+        //   1. The icon storage model is the WF-standard
+        //      `rom.p32(RomInfo.icon_pointer) + 128 * (0x100 + id)` — NOT a
+        //      separate striped table.
+        //   2. The row stride (ICON_LIST_SIZE) is detected at runtime from
+        //      the iconPointers array slot[11] (valid range 16..40, multiple
+        //      of 4).
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Cached results from <see cref="ScanFE8NVer2Layout"/> so callers
+        /// don't repeat the byte-pattern scan per row. Keyed by ROM filename
+        /// to invalidate cleanly when a different ROM is loaded.
+        /// </summary>
+        static (string romName, uint skillPointerLocation, uint animeBaseAddress, uint iconListSize) _fe8nVer2Cache;
+
+        /// <summary>
+        /// Reset the FE8N v2 scan cache. Called when the ROM changes (the
+        /// next call to a helper re-runs the scan).
+        /// </summary>
+        public static void ResetFE8NVer2Cache()
+        {
+            _fe8nVer2Cache = default;
+        }
+
+        /// <summary>
+        /// Run the WF byte-pattern scan and populate the cache. Returns the
+        /// `iconPointers` base address (the slot[0] of the icon-pointer
+        /// array), or <see cref="U.NOT_FOUND"/> on miss.
+        /// Mirrors <c>SkillConfigFE8NVer2SkillForm.FindSkillFE8NVer2IconPointersLow</c>.
+        /// </summary>
+        static uint ScanFE8NVer2Layout()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return U.NOT_FOUND;
+
+            // Use cached result when the ROM hasn't changed.
+            string currentName = rom.Filename ?? "";
+            if (_fe8nVer2Cache.romName == currentName && _fe8nVer2Cache.skillPointerLocation != 0)
+            {
+                return _fe8nVer2Cache.skillPointerLocation - 4 * 5; // back to iconPointers
+            }
+
+            try
+            {
+                // Step 1: iconExPointer at 0x89268+4 must be a safe pointer.
+                if (!U.isSafetyOffset(0x89268 + 4 + 3, rom)) return U.NOT_FOUND;
+                uint iconExPointer = rom.u32(0x89268 + 4);
+                if (!U.isSafetyPointer(iconExPointer)) return U.NOT_FOUND;
+
+                // Step 2: grep for the FE8N v2 marker pattern in 0xE00000..0.
+                byte[] need = new byte[] { 0x50, 0x93, 0x08, 0x08, 0x48, 0x93, 0x08, 0x08 };
+                // U.Grep with end=0 means scan to end of ROM data; we want
+                // start=0xE00000.
+                uint patternHit = U.Grep(rom.Data, need, 0xE00000, 0, 4);
+                if (patternHit == U.NOT_FOUND) return U.NOT_FOUND;
+
+                // Step 3: back up 4*5 bytes to land on iconPointers[0].
+                if (patternHit < 4 * 5) return U.NOT_FOUND;
+                uint iconPointers = patternHit - 4 * 5;
+
+                // Step 4: iterate the pointer array, accept slots whose
+                // dereferenced offset is >= 0xE00000 (excludes API pointers
+                // mixed into the same array). pointer[4] holds the slot
+                // whose dereferenced value is the skill table base.
+                int validCount = 0;
+                uint skillBaseLocation = 0;
+                for (uint p = iconPointers; ; p += 4)
+                {
+                    if (!U.isSafetyOffset(p + 3, rom)) break;
+                    uint pp = rom.u32(p);
+                    if (!U.isSafetyPointer(pp)) break;
+                    pp = U.toOffset(pp);
+                    if (pp < 0xE00000) continue;
+                    if (validCount == 4) skillBaseLocation = p;
+                    validCount++;
+                }
+                if (validCount <= 4 || skillBaseLocation == 0) return U.NOT_FOUND;
+
+                // Step 5: ICON_LIST_SIZE detection. WF reads u16 @ 0x70B96 as
+                // the "build flag" - when 0, the size-detect branch runs.
+                uint iconListSize = 16; // default
+                uint animeBase = 0;
+                if (U.isSafetyOffset(0x70B96 + 1, rom) && rom.u16(0x70B96) == 0)
+                {
+                    // Try the sizeof-20+ path first (slot[11] holds the
+                    // explicit size, slot[8] holds the anime pointer table
+                    // location).
+                    if (U.isSafetyOffset(iconPointers + 4 * 11 + 3, rom))
+                    {
+                        uint candidateSize = rom.u32(iconPointers + 4 * 11);
+                        if (candidateSize >= 16 && candidateSize <= 40 && (candidateSize % 4 == 0))
+                        {
+                            iconListSize = candidateSize;
+                            // sizeof-20+ path: slot[8] is the anime base pointer location.
+                            if (U.isSafetyOffset(iconPointers + 4 * 8 + 3, rom))
+                            {
+                                uint animePointerLoc = iconPointers + 4 * 8;
+                                uint maybeAnimePointer = rom.u32(animePointerLoc);
+                                if (U.isSafetyPointer(maybeAnimePointer))
+                                {
+                                    // WF reads p32 from U.toOffset(p) here, which
+                                    // is the offset form of the slot address. The
+                                    // result is the anime-table base offset.
+                                    uint slotOffset = U.toOffset(animePointerLoc);
+                                    if (U.isSafetyOffset(slotOffset + 3, rom))
+                                    {
+                                        animeBase = rom.p32(slotOffset);
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // sizeof-16 path: slot[3] is "nazo_pointer" - get its
+                            // offset, then the post-append pointer[5] holds the
+                            // dereferenced anime base.
+                            if (U.isSafetyOffset(iconPointers + 4 * 3 + 3, rom))
+                            {
+                                uint nazoPointer = rom.u32(iconPointers + 4 * 3);
+                                if (U.isSafetyPointer(nazoPointer))
+                                {
+                                    uint nazoOff = U.toOffset(nazoPointer);
+                                    if (U.isSafetyOffset(nazoOff + 3, rom))
+                                    {
+                                        animeBase = rom.p32(nazoOff);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Cache + return the skill pointer location.
+                _fe8nVer2Cache = (currentName, skillBaseLocation, animeBase, iconListSize);
+                return iconPointers;
+            }
+            catch
+            {
+                return U.NOT_FOUND;
+            }
+        }
+
+        /// <summary>
+        /// Find the FE8N v2 SKILL pointer LOCATION (the address holding the
+        /// skill-info-table GBA pointer). Mirrors <c>SkillConfigFE8NVer2SkillForm.g_SkillBaseAddress</c>
+        /// before its `Program.ROM.p32` dereference. Returns
+        /// <see cref="U.NOT_FOUND"/> if the FE8N v2 patch isn't installed.
+        /// </summary>
+        public static uint FindSkillFE8NVer2SkillPointerLocation()
+        {
+            uint iconPointers = ScanFE8NVer2Layout();
+            if (iconPointers == U.NOT_FOUND) return U.NOT_FOUND;
+            return _fe8nVer2Cache.skillPointerLocation;
+        }
+
+        /// <summary>
+        /// Find the FE8N v2 SKILL table base offset (dereferenced pointer).
+        /// Returns 0 if the patch isn't installed.
+        /// </summary>
+        public static uint FindSkillFE8NVer2SkillBaseAddress()
+        {
+            uint loc = FindSkillFE8NVer2SkillPointerLocation();
+            if (loc == U.NOT_FOUND) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return 0;
+            uint p = rom.u32(loc);
+            if (!U.isSafetyPointer(p)) return 0;
+            return U.toOffset(p);
+        }
+
+        /// <summary>
+        /// Find the FE8N v2 ANIME table base offset (dereferenced pointer).
+        /// Returns 0 if the patch isn't installed or the anime table couldn't
+        /// be resolved.
+        /// </summary>
+        public static uint FindSkillFE8NVer2AnimeBaseAddress()
+        {
+            uint iconPointers = ScanFE8NVer2Layout();
+            if (iconPointers == U.NOT_FOUND) return 0;
+            return _fe8nVer2Cache.animeBaseAddress;
+        }
+
+        /// <summary>
+        /// Returns the detected ICON_LIST_SIZE (row stride) for FE8N v2, in
+        /// the range 16..40 (multiple of 4). Returns 0 if the patch isn't
+        /// installed or the size couldn't be detected.
+        /// </summary>
+        public static uint GetFE8NVer2IconListSize()
+        {
+            uint iconPointers = ScanFE8NVer2Layout();
+            if (iconPointers == U.NOT_FOUND) return 0;
+            return _fe8nVer2Cache.iconListSize;
+        }
+
+        /// <summary>
+        /// Load a 16x16 skill icon for FE8N v2. Mirrors
+        /// <c>SkillConfigFE8NVer2SkillForm.DrawSkillIconLow(id)</c>:
+        ///   iconBaseAddr = rom.p32(RomInfo.icon_pointer)
+        ///   iconaddr     = iconBaseAddr + 128 * (0x100 + id)
+        ///   palette      = (W2==0) ? rom.p32(RomInfo.system_weapon_icon_palette_pointer)
+        ///                          : rom.p32(RomInfo.icon_palette_pointer)
+        /// </summary>
+        /// <param name="id">Skill index (0-based).</param>
+        /// <param name="paletteIndex">Palette field value (W2). When 0, uses
+        /// the system weapon icon palette; otherwise the regular icon palette.</param>
+        public static IImage LoadFE8NVer2SkillIcon(uint id, uint paletteIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                // Resolve the icon base address from the ROM-info icon pointer.
+                uint iconPointerAddr = rom.RomInfo.icon_pointer;
+                if (!U.isSafetyOffset(iconPointerAddr + 3, rom)) return null;
+                uint iconBaseAddr = rom.p32(iconPointerAddr);
+                if (!U.isSafetyOffset(iconBaseAddr, rom)) return null;
+
+                const uint TILE_SIZE = 128; // 16x16 4bpp = 128 bytes
+                uint iconAddr = iconBaseAddr + TILE_SIZE * (0x100 + id);
+                if (iconAddr + TILE_SIZE > (uint)rom.Data.Length) return null;
+
+                // Palette pointer selection mirrors WF GetSkillPaletteAddress.
+                uint palettePointerAddr = (paletteIndex == 0)
+                    ? rom.RomInfo.system_weapon_icon_palette_pointer
+                    : rom.RomInfo.icon_palette_pointer;
+                if (!U.isSafetyOffset(palettePointerAddr + 3, rom)) return null;
+                uint palAddr = rom.p32(palettePointerAddr);
+                if (!U.isSafetyOffset(palAddr, rom)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
+
+                return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         /// <summary>
         /// Load a map action animation thumbnail by rendering the first frame.
         /// The animation pointer is read from the map action animation table entry.

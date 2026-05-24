@@ -22364,3 +22364,99 @@ Tile5
 
 :KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
 已知缺口：缩放仅影响已延期的战斗/图块集预览渲染（WinForms 依赖，#393）。实时预览实现后将重新启用。
+
+:Skill Detail
+技能详情
+
+:Skill Configuration (FE8N v2)
+技能配置 (FE8N v2)
+
+:Skill system editors require the FE8N v2 skill patch to be installed.\r\nUse the Patch Manager to install it first.
+技能系统编辑器需要安装 FE8N v2 技能补丁。\r\n请先使用补丁管理器安装。
+
+:Text Detail
+文本详情
+
+:Unit Skill Pointer
+角色技能指针
+
+:Class Skill Pointer
+职业技能指针
+
+:Item Skill Pointer
+物品技能指针
+
+:Item2 Skill Pointer
+物品2技能指针
+
+:Unit Skill List
+角色技能列表
+
+:Class Skill List
+职业技能列表
+
+:Item Skill List
+物品技能列表
+
+:Item2 Skill List
+物品2技能列表
+
+:Unit Skill Sub-list
+角色技能子列表
+
+:Class Skill Sub-list
+职业技能子列表
+
+:Item Skill Sub-list
+物品技能子列表
+
+:Item2 Skill Sub-list (sizeof-20+ layout)
+物品2技能子列表 (sizeof-20+ 布局)
+
+:Per-skill unit sub-list (KnownGap: tracked by #374)
+按技能划分的角色子列表 (KnownGap: #374 跟踪中)
+
+:Per-skill class sub-list (KnownGap: tracked by #374)
+按技能划分的职业子列表 (KnownGap: #374 跟踪中)
+
+:Per-skill item sub-list (KnownGap: tracked by #374)
+按技能划分的物品子列表 (KnownGap: #374 跟踪中)
+
+:Sizeof-20+ layout only (KnownGap: tracked by #374)
+仅 sizeof-20+ 布局 (KnownGap: #374 跟踪中)
+
+:Per-skill unit sub-list editing is not yet implemented in Avalonia.
+按技能划分的角色子列表编辑尚未在 Avalonia 中实现。
+
+:Per-skill class sub-list editing is not yet implemented in Avalonia.
+按技能划分的职业子列表编辑尚未在 Avalonia 中实现。
+
+:Per-skill item sub-list editing is not yet implemented in Avalonia.
+按技能划分的物品子列表编辑尚未在 Avalonia 中实现。
+
+:Per-skill Item2 sub-list editing is not yet implemented in Avalonia.
+按技能划分的物品2子列表编辑尚未在 Avalonia 中实现。
+
+:Use the WinForms editor to assign units to a skill.
+请使用 WinForms 编辑器将角色分配给技能。
+
+:Use the WinForms editor to assign classes to a skill.
+请使用 WinForms 编辑器将职业分配给技能。
+
+:Use the WinForms editor to assign items to a skill.
+请使用 WinForms 编辑器将物品分配给技能。
+
+:Use the WinForms editor to assign second-item-skills to a skill.
+请使用 WinForms 编辑器将第二物品技能分配给技能。
+
+:KnownGap: depends on InputFormRef auto-wiring (tracked by #374).
+KnownGap: 依赖 InputFormRef 自动连接 (#374 跟踪中)。
+
+:Sub-list base: -
+子列表基址: -
+
+:Entry count: -
+条目数: -
+
+:0 = system weapon palette; non-zero = icon palette
+0 = 系统武器调色板，非0 = 图标调色板
