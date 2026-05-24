@@ -141,13 +141,22 @@ namespace FEBuilderGBA.Avalonia.Views
             CompositeSkillPointerBox.Value = _vm.CompositeSkillPointer;
             AnimationPointerBox.Value = _vm.AnimationPointer;
 
-            // Sub-list tab base addresses (informational only - actual sub-list
-            // editing is a KnownGap tracked by #374).
+            // Sub-list tab base addresses + entry counts (informational only - actual
+            // sub-list editing is a KnownGap tracked by #374).
             UnitTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.UnitSkillPointer:X08}";
             ClassTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.ClassSkillPointer:X08}";
             ItemTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.ItemSkillPointer:X08}";
             Item2TabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.Item2SkillPointer:X08}";
             CompositeTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.CompositeSkillPointer:X08}";
+
+            // Entry counts derived by walking the sub-list u8 terminator (WF
+            // sub-list iteration predicate: terminate when u8(addr) == 0).
+            // Addresses Copilot CLI PR-review finding #2 (round 1).
+            UnitTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.UnitSkillPointer)}";
+            ClassTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.ClassSkillPointer)}";
+            ItemTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.ItemSkillPointer)}";
+            Item2TabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.Item2SkillPointer)}";
+            CompositeTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.CompositeSkillPointer)}";
 
             // Icon Image render.
             try
@@ -212,6 +221,35 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("SkillConfigFE8NVer3SkillView.Write failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Count the entries in a sub-list pointed at by <paramref name="subListBase"/>.
+        /// WF iteration predicate (`SkillConfigFE8NVer3SkillForm.{N1..N5}_Init`
+        /// readCount callback) terminates when `u8(addr) == 0`. Returns 0 if
+        /// the pointer is null/unsafe or the table is empty.
+        /// Mirrors the WF N1..N5 InputFormRef block-size=1 iteration. Capped
+        /// at 256 entries to bound the walk.
+        ///
+        /// Addresses Copilot CLI PR-review finding #2 (round 1) - the AXAML
+        /// `Entry count: -` placeholder must be replaced with real counts so
+        /// the plan claim ("surface sub-list base + entry count") holds.
+        /// </summary>
+        static int CountSubListEntries(ROM rom, uint subListBase)
+        {
+            if (rom?.Data == null) return 0;
+            if (subListBase == 0) return 0;
+            if (!U.isSafetyOffset(subListBase, rom)) return 0;
+
+            int count = 0;
+            for (uint i = 0; i < 256; i++)
+            {
+                uint addr = subListBase + i;
+                if (addr >= (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0) break;
+                count++;
+            }
+            return count;
         }
 
         void SetIconBitmap(Bitmap? bmp)
