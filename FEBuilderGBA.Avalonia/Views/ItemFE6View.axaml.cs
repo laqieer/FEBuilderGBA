@@ -399,10 +399,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Copilot bot review #576: check rom is non-null and pass
+                // to isSafetyOffset(addr, rom) to avoid NRE when the view
+                // is opened without a ROM loaded.
+                var rom = CoreState.ROM;
+                if (rom == null) return;
                 uint ptr = ParseHexText(StatBonusesPtrBox.Text);
                 if (!U.isPointer(ptr)) return;
                 uint addr = ptr - 0x08000000;
-                if (!U.isSafetyOffset(addr)) return;
+                if (!U.isSafetyOffset(addr, rom)) return;
                 WindowManager.Instance.Navigate<ItemStatBonusesViewerView>(addr);
             }
             catch (Exception ex)
@@ -415,10 +420,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Copilot bot review #576: check rom is non-null and pass
+                // to isSafetyOffset(addr, rom) to avoid NRE when the view
+                // is opened without a ROM loaded.
+                var rom = CoreState.ROM;
+                if (rom == null) return;
                 uint ptr = ParseHexText(EffectivenessPtrBox.Text);
                 if (!U.isPointer(ptr)) return;
                 uint addr = ptr - 0x08000000;
-                if (!U.isSafetyOffset(addr)) return;
+                if (!U.isSafetyOffset(addr, rom)) return;
                 WindowManager.Instance.Navigate<ItemEffectivenessViewerView>(addr);
             }
             catch (Exception ex)
