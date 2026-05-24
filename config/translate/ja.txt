@@ -8625,3 +8625,6 @@ KnownGap: InputFormRef 自動接続に依存 (#374 で追跡中)。
 
 :0 = system weapon palette; non-zero = icon palette
 0 = システム武器パレット、非0 = アイコンパレット
+
+:Candidate
+候補

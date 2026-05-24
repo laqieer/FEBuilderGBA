@@ -22460,3 +22460,6 @@ KnownGap: 依赖 InputFormRef 自动连接 (#374 跟踪中)。
 
 :0 = system weapon palette; non-zero = icon palette
 0 = 系统武器调色板，非0 = 图标调色板
+
+:Candidate
+候选
