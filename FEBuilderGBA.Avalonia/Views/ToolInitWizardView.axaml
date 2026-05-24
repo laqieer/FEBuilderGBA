@@ -16,11 +16,30 @@
        a 0-height border in code-behind, but for density/labels parity the
        headers must remain present in AXAML so the scanner can harvest them). -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+    <!-- TabStripPlacement="Top" keeps the headers visible to the label-diff
+         scanner, but `IsTabStop="False"` + per-TabItem `IsHitTestVisible="False"`
+         (applied via the global style at TabControl resources) prevents the
+         user from clicking directly between pages and bypassing the
+         Step1..6 validation gate. The wizard only advances via the explicit
+         Next/Prev/Skip buttons, mirroring the WF "TabControlHideTabOption"
+         semantics without losing parity for the gap-sweep scanner.
+         IMPORTANT: Per Copilot CLI #583 finding #3, `ApplyAll` is also gated
+         by `IsCompletedThroughStep6` to defence-in-depth prevent any code
+         path from persisting a half-applied wizard. -->
     <TabControl Name="MainTab"
-                AutomationProperties.AutomationId="ToolInitWizard_MainTab"
+                AutomationProperties.AutomationId="ToolInitWizard_MainTab_TabControl"
                 SelectedIndex="{Binding CurrentPage, Mode=TwoWay}"
                 TabStripPlacement="Top"
+                IsTabStop="False"
                 Margin="4">
+      <TabControl.Styles>
+        <Style Selector="TabItem">
+          <!-- Disable header click to prevent direct tab jumps that bypass
+               StageStep1..6 validation. Headers stay visible so the
+               label-diff scanner still harvests them as "Common" labels. -->
+          <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+      </TabControl.Styles>
       <!-- ============================ Page 0: BeginPage ============================ -->
       <TabItem AutomationProperties.AutomationId="ToolInitWizard_BeginPage_Tab"
                Header="BeginPage"><!-- KnownGap NonEnglish: WF internal TabPage Name harvested by label-diff scanner -->

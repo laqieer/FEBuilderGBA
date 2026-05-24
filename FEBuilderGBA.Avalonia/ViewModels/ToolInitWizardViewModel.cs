@@ -95,6 +95,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _pendingColorTheme;
         int _currentPage;
         bool _isConfiguring;
+        bool _isCompletedThroughStep6;
         string _settingStatus = "";
 
         Step1Mode_Enum _step1Mode = Step1Mode_Enum.Path;
@@ -227,6 +228,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set => SetField(ref _isConfiguring, value);
         }
 
+        /// <summary>
+        /// Tracks whether the wizard has successfully advanced through StageStep6.
+        /// Per Copilot CLI #583 review finding #3: ApplyAll() is GATED on this
+        /// flag so that even if a user reaches the EndPage via some other code
+        /// path (e.g. direct CurrentPage mutation, or a future regression),
+        /// Config is NOT persisted unless the linear Step1..6 flow actually
+        /// completed and each step's File.Exists / GitUtil.ProbeGit validation
+        /// passed. Set true only by StageStep6() when it returns true. Cleared
+        /// on Initialize() and any GoToPage that goes upstream of Step6.
+        /// </summary>
+        public bool IsCompletedThroughStep6
+        {
+            get => _isCompletedThroughStep6;
+            set => SetField(ref _isCompletedThroughStep6, value);
+        }
+
         public string SettingStatus
         {
             get => _settingStatus;
@@ -268,6 +285,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 PendingColorTheme = 0; // unset; user picks White / Black / Black2
                 CurrentPage = 0;
                 IsConfiguring = false;
+                IsCompletedThroughStep6 = false;
                 SettingStatus = "";
             }
             finally
@@ -290,6 +308,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             if (index < 0 || index > 8)
                 return false;
+            // Per Copilot CLI #583 finding #3: clear the completed-through-Step6
+            // flag any time the user navigates upstream of Step 6. Going back
+            // forces revalidation on the way forward.
+            if (index < 6)
+                IsCompletedThroughStep6 = false;
             CurrentPage = index;
             return true;
         }
@@ -346,14 +369,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public bool StageStep6()
         {
+            bool ok;
             if (PendingStep6Mode == Step6Mode_Enum.Path)
             {
                 // Matches WF Step6NextButton_Click which calls GitUtil.ProbeGit
                 // (NOT File.Exists). ProbeGit runs `git --version` to confirm
                 // the executable is functional.
-                return GitUtil.ProbeGit(PendingGitPath);
+                ok = GitUtil.ProbeGit(PendingGitPath);
             }
-            return true;
+            else
+            {
+                // DownloadGit / DoNotSelect modes are valid for completion.
+                ok = true;
+            }
+            // Per Copilot CLI #583 finding #3: only flag the wizard as
+            // "completed through Step 6" when validation actually passed.
+            // ApplyAll() reads this flag to defence-in-depth gate the write.
+            if (ok)
+                IsCompletedThroughStep6 = true;
+            return ok;
         }
 
         // -------------------------------------------------------------------
@@ -370,6 +404,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public void ApplyAll()
         {
+            // Per Copilot CLI #583 finding #3: hard-gate Config writes behind
+            // IsCompletedThroughStep6. If the user reaches EndPage via some
+            // path that DIDN'T complete Step 6 validation, ApplyAll is a
+            // no-op. Set true only inside StageStep6() on a successful
+            // ProbeGit (or DownloadGit / DoNotSelect mode). The defence is
+            // belt-and-braces with TabItem.IsHitTestVisible="False" in AXAML.
+            if (!IsCompletedThroughStep6)
+            {
+                SettingStatus = "Wizard not completed through Step 6 — nothing written.";
+                return;
+            }
+
             var config = CoreState.Config;
             if (config == null)
                 return;

@@ -74,10 +74,28 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
-    public void View_HasMainTabAutomationId()
+    public void View_HasMainTabAutomationId_FollowsConvention()
     {
+        // AutomationId naming convention: {Editor}_{Field}_{Type}. Type for a
+        // TabControl is "TabControl" (per AutomationIdTests.ValidSuffixes).
+        // Renamed from "ToolInitWizard_MainTab" -> "ToolInitWizard_MainTab_TabControl"
+        // per Copilot CLI #583 review finding #1.
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationProperties.AutomationId=\"ToolInitWizard_MainTab\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"ToolInitWizard_MainTab_TabControl\"",
+            axaml);
+    }
+
+    [Fact]
+    public void View_TabItems_AreNotUserClickable()
+    {
+        // Per Copilot CLI #583 review finding #3: direct tab clicks must NOT
+        // allow the user to jump past Step1..6 validation. The fix sets
+        // `IsHitTestVisible="False"` on every TabItem via a TabControl style,
+        // so the user can only navigate via the explicit Next/Prev/Skip buttons.
+        string axaml = ReadAxaml();
+        Assert.Contains("<Style Selector=\"TabItem\">", axaml);
+        Assert.Contains("Property=\"IsHitTestVisible\" Value=\"False\"", axaml);
     }
 
     [Theory]
@@ -335,6 +353,19 @@ public class ToolInitWizardParityTests
                 vm.PendingLanguage = "en";
                 vm.PendingColorTheme = 2;
 
+                // Per the IsCompletedThroughStep6 gate: ApplyAll() is a no-op
+                // until StageStep6 sets the gate. Run the full Stage1..6 flow
+                // (the Path mode validation passes because all temp files exist).
+                Assert.True(vm.StageStep1());
+                Assert.True(vm.StageStep2());
+                Assert.True(vm.StageStep3());
+                Assert.True(vm.StageStep4());
+                Assert.True(vm.StageStep5());
+                // StageStep6 with PendingGitPath="git" depends on whether the
+                // host has git on PATH. The gate flag can also be set directly
+                // for test convenience.
+                vm.IsCompletedThroughStep6 = true;
+
                 vm.ApplyAll();
 
                 Assert.Equal(emu.Path, CoreState.Config.at("emulator"));
@@ -367,6 +398,9 @@ public class ToolInitWizardParityTests
             vm.PendingEAPath = "new.exe";
             vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.DoNotSelect;
 
+            // Bypass the IsCompletedThroughStep6 gate so we can exercise the
+            // DoNotSelect path-skip behavior in isolation.
+            vm.IsCompletedThroughStep6 = true;
             vm.ApplyAll();
 
             Assert.Equal("old.exe", CoreState.Config.at("event_assembler"));
@@ -528,6 +562,101 @@ public class ToolInitWizardParityTests
     {
         var vm = new ToolInitWizardViewModel();
         Assert.False(string.IsNullOrEmpty(vm.DownloadDisabledTooltip));
+    }
+
+    // ===================================================================
+    // 3b) Defence-in-depth: IsCompletedThroughStep6 gate (Copilot CLI
+    // #583 review finding #3). Even if a user reaches EndPage via some
+    // bypass path, ApplyAll() must NOT persist anything to Config unless
+    // the gate is set, and the gate can ONLY be set by StageStep6 on a
+    // successful ProbeGit (or DownloadGit / DoNotSelect modes).
+    // ===================================================================
+
+    [Fact]
+    public void ViewModel_ApplyAll_IsNoOp_WhenNotCompletedThroughStep6()
+    {
+        // Set up VM as if user reached EndPage by some bypass route — e.g.
+        // direct CurrentPage = 8 without ever calling StageStep6. ApplyAll
+        // must NOT write anything to Config.
+        using (new ConfigSnapshot())
+        using (var emu = new TempFile())
+        {
+            string before = CoreState.Config.at("emulator");
+            var vm = new ToolInitWizardViewModel();
+            vm.Initialize();
+            vm.PendingEmulatorPath = emu.Path;
+            vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.Path;
+            vm.CurrentPage = 8; // jump straight to EndPage
+            Assert.False(vm.IsCompletedThroughStep6);
+
+            vm.ApplyAll();
+
+            // Config["emulator"] is unchanged even though VM had a valid
+            // PendingEmulatorPath.
+            Assert.Equal(before, CoreState.Config.at("emulator"));
+        }
+    }
+
+    [Fact]
+    public void ViewModel_StageStep6_SetsIsCompletedThroughStep6_OnSuccess()
+    {
+        // Stub via DoNotSelect mode — StageStep6 returns true and sets the
+        // gate flag without needing a real git executable.
+        var vm = new ToolInitWizardViewModel();
+        vm.Initialize();
+        vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DoNotSelect;
+
+        Assert.False(vm.IsCompletedThroughStep6);
+        Assert.True(vm.StageStep6());
+        Assert.True(vm.IsCompletedThroughStep6);
+    }
+
+    [Fact]
+    public void ViewModel_StageStep6_LeavesGateFalse_OnFailure()
+    {
+        // Path mode with a fake git executable -> ProbeGit fails -> gate
+        // stays false.
+        using (var fakeGit = new TempFile())
+        {
+            var vm = new ToolInitWizardViewModel();
+            vm.Initialize();
+            vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.Path;
+            vm.PendingGitPath = fakeGit.Path; // exists but not a git binary
+
+            bool result = vm.StageStep6();
+            // result may be true on hosts where ProbeGit somehow accepts it,
+            // but if it returned false the gate must stay false.
+            Assert.Equal(result, vm.IsCompletedThroughStep6);
+        }
+    }
+
+    [Fact]
+    public void ViewModel_GoToPage_BackwardsResetsIsCompletedThroughStep6()
+    {
+        // After completing the wizard, going back upstream of Step 6 should
+        // force revalidation — i.e. the gate flag clears so a second
+        // ApplyAll on the way forward only fires after StageStep6 again.
+        var vm = new ToolInitWizardViewModel();
+        vm.Initialize();
+        vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DoNotSelect;
+        Assert.True(vm.StageStep6());
+        Assert.True(vm.IsCompletedThroughStep6);
+
+        // Go back to Step 1 to edit something.
+        Assert.True(vm.GoToPage(1));
+        Assert.False(vm.IsCompletedThroughStep6);
+    }
+
+    [Fact]
+    public void ViewModel_ApplyAll_WritesSettingStatus_OnGatedNoOp()
+    {
+        // A user-visible diagnostic for the no-op path. Helps the screenshot
+        // be self-documenting when the gate is closed.
+        var vm = new ToolInitWizardViewModel();
+        vm.Initialize();
+        vm.ApplyAll();
+        Assert.False(string.IsNullOrEmpty(vm.SettingStatus));
+        Assert.Contains("Step 6", vm.SettingStatus);
     }
 
     // ===================================================================
