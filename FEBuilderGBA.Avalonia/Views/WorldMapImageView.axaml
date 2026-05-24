@@ -355,7 +355,7 @@
           </Border>
 
           <!-- Row 2 Col 0: AddressList -->
-          <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_Border_AddressList"
+          <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_Border_Entry_List"
                                        Grid.Row="2" Grid.Column="0"
                                        Name="Border_EntryList" Margin="4" />
 
@@ -473,7 +473,7 @@
           </Border>
 
           <!-- Row 2 Col 0: AddressList -->
-          <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_IconData_AddressList"
+          <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_IconData_Entry_List"
                                        Grid.Row="2" Grid.Column="0"
                                        Name="IconData_EntryList" Margin="4" />
 

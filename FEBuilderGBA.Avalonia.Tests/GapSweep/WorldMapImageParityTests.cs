@@ -126,8 +126,10 @@ public class WorldMapImageParityTests
     public void View_HasBorderTabControls()
     {
         string axaml = ReadAxaml();
-        // AddressList for the border table.
-        Assert.Contains("AutomationId=\"WorldMapImage_Border_AddressList\"", axaml);
+        // AddressList for the border table. Suffix is `_List` (per the
+        // AutomationId naming convention enforced by
+        // scripts/validate-automation-ids.ps1).
+        Assert.Contains("AutomationId=\"WorldMapImage_Border_Entry_List\"", axaml);
         // The 4 fields P0 (image ptr), P4 (oam ptr), W8 (width), W10 (height).
         Assert.Contains("AutomationId=\"WorldMapImage_Border_P0_Input\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_Border_P4_Input\"", axaml);
@@ -149,8 +151,8 @@ public class WorldMapImageParityTests
     public void View_HasIconDataTabControls()
     {
         string axaml = ReadAxaml();
-        // AddressList for the icon-data table.
-        Assert.Contains("AutomationId=\"WorldMapImage_IconData_AddressList\"", axaml);
+        // AddressList for the icon-data table. Suffix is `_List`.
+        Assert.Contains("AutomationId=\"WorldMapImage_IconData_Entry_List\"", axaml);
         // The 12 fields: B0..B3 (bytes 0..3), P4 (pointer at +4), B8..B13, W14.
         for (int i = 0; i <= 3; i++)
         {
