@@ -122,10 +122,10 @@ public class MapStyleEditorParityTests
         string axaml = ReadAxaml();
         // PaletteCombo + PaletteTypeCombo (mirrors WF).
         Assert.Contains(
-            "AutomationProperties.AutomationId=\"MapStyleEditor_PaletteCombo\"",
+            "AutomationProperties.AutomationId=\"MapStyleEditor_Palette_Combo\"",
             axaml);
         Assert.Contains(
-            "AutomationProperties.AutomationId=\"MapStyleEditor_PaletteTypeCombo\"",
+            "AutomationProperties.AutomationId=\"MapStyleEditor_PaletteType_Combo\"",
             axaml);
         // 16 RGB rows -> 16 R, 16 G, 16 B NumericUpDowns.
         for (int i = 1; i <= 16; i++)

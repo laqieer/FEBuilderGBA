@@ -128,7 +128,7 @@
             <!-- Palette selectors -->
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Text="Palette No:" VerticalAlignment="Center" />
-              <ComboBox AutomationProperties.AutomationId="MapStyleEditor_PaletteCombo"
+              <ComboBox AutomationProperties.AutomationId="MapStyleEditor_Palette_Combo"
                         Name="PaletteCombo" Width="120" VerticalAlignment="Center">
                 <ComboBoxItem Content="Palette 1" />
                 <ComboBoxItem Content="Palette 2" />
@@ -136,7 +136,7 @@
                 <ComboBoxItem Content="Palette 4" />
                 <ComboBoxItem Content="Palette 5" />
               </ComboBox>
-              <ComboBox AutomationProperties.AutomationId="MapStyleEditor_PaletteTypeCombo"
+              <ComboBox AutomationProperties.AutomationId="MapStyleEditor_PaletteType_Combo"
                         Name="PaletteTypeCombo" Width="160" VerticalAlignment="Center"
                         SelectedIndex="0">
                 <ComboBoxItem Content="No Fog" />
