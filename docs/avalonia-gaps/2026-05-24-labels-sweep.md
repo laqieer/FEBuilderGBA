@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T06:45:43Z"
-git-sha: 9302e0016
+generated: "2026-05-24T08:41:57Z"
+git-sha: 4677149fb
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4511 |
-| Total AV-only labels | 3289 |
-| Total common labels | 189 |
+| Total WF-only labels | 4490 |
+| Total AV-only labels | 3305 |
+| Total common labels | 210 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -3225,45 +3225,6 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Battle Animation Palette`
-
-### ImagePalletForm
-WF labels: **28** · AV labels: **2** · WF-only: **28** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 98 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `UNDO`
-- `クリップボード`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `拡大`
-- `画像取出`
-- `画像読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Palette Editor`
 
 ### StatusOptionForm
 WF labels: **28** · AV labels: **22** · WF-only: **28** · AV-only: **22** · Common: **0** · Density verdict: **Low** (WF 50 / AV 47)
@@ -9051,6 +9012,40 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Event Template 6`
+
+### ImagePalletForm
+WF labels: **28** · AV labels: **39** · WF-only: **7** · AV-only: **18** · Common: **21** · Density verdict: **Low** (WF 98 / AV 104)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `クリップボード`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `拡大`
+- `画像取出`
+- `画像読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `2x`
+- `3x`
+- `4x`
+- `Clipboard`
+- `Edit R/G/B 0-248 (5-bit ticks)`
+- `Export Image`
+- `Fit to window`
+- `Import Image`
+- `Live bitmap preview pending Core extraction - tracked by #500.`
+- `Original size`
+- `Palette Address:`
+- `Palette Editor`
+- `Palette Index`
+- `Pending Core extraction - tracked by #500.`
+- `Pending Core RunRedo API - tracked by #500.`
+- `Preview`
+- `Write Palette`
+- `Zoom`
 
 ### MapEditorResizeDialogForm
 WF labels: **11** · AV labels: **11** · WF-only: **7** · AV-only: **7** · Common: **4** · Density verdict: **Low** (WF 19 / AV 19)
