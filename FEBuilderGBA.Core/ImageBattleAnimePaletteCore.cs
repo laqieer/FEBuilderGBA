@@ -261,7 +261,17 @@ namespace FEBuilderGBA
             }
             if (sourcePointerSlot.HasValue)
             {
-                rewriteSet.Add(sourcePointerSlot.Value);
+                // Per PR #589 Copilot bot review #3: enforce the
+                // offsets-throughout contract on the source slot too --
+                // normalize via U.toOffset (idempotent on offsets, strips
+                // the 0x08... pointer prefix if a caller mistakenly
+                // passes a GBA pointer) and ignore 0 so we never
+                // accidentally rewrite ROM offset 0.
+                uint slotOffset = U.toOffset(sourcePointerSlot.Value);
+                if (slotOffset != 0)
+                {
+                    rewriteSet.Add(slotOffset);
+                }
             }
             uint newPointer = U.toPointer(newOffset);
             foreach (uint slot in rewriteSet)

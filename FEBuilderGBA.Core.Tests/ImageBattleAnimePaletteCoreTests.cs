@@ -170,6 +170,70 @@ public class ImageBattleAnimePaletteCoreTests
     }
 
     [Fact]
+    public void WritePalette_SourcePointerSlot_AcceptsGbaPointerForm()
+    {
+        // Per PR #589 Copilot bot review #3: if a caller accidentally
+        // passes a 0x08...-prefixed GBA pointer instead of a ROM offset,
+        // U.toOffset normalizes it so the rewrite still hits the right slot.
+        var rom = MakeRomWithCompressedSlots(new ushort[][]
+        {
+            new ushort[16],
+        }, out uint paletteOffset);
+
+        const uint sourceSlotOffset = 0x180000;
+        uint sourceSlotPointer = U.toPointer(sourceSlotOffset); // 0x08180000
+        WriteU32(rom.Data, (int)sourceSlotOffset, U.toPointer(paletteOffset));
+
+        ushort[] newColors = new ushort[16];
+        for (int i = 0; i < 16; i++) newColors[i] = (ushort)(0xCAFE + i * 13);
+
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.Undo = new Undo();
+            // Pass the GBA pointer form -- Core must normalize it via U.toOffset.
+            uint result = ImageBattleAnimePaletteCore.WritePalette(
+                rom, paletteOffset, 0, newColors, sourcePointerSlot: sourceSlotPointer);
+            Assert.NotEqual(U.NOT_FOUND, result);
+            // Source slot at the offset form must contain the new pointer.
+            uint reReadSlot = rom.u32(sourceSlotOffset);
+            Assert.Equal(U.toPointer(result), reReadSlot);
+        }
+        finally { CoreState.Undo = prevUndo; }
+    }
+
+    [Fact]
+    public void WritePalette_SourcePointerSlot_ZeroIsIgnored()
+    {
+        // Per PR #589 Copilot bot review #3: passing 0 must NOT cause a
+        // write at ROM offset 0.
+        var rom = MakeRomWithCompressedSlots(new ushort[][]
+        {
+            new ushort[16],
+        }, out uint paletteOffset);
+
+        byte[] before = new byte[4];
+        for (int i = 0; i < 4; i++) before[i] = rom.Data[i];
+
+        ushort[] newColors = new ushort[16];
+        for (int i = 0; i < 16; i++) newColors[i] = (ushort)(0xBEEF + i * 7);
+
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.Undo = new Undo();
+            uint result = ImageBattleAnimePaletteCore.WritePalette(
+                rom, paletteOffset, 0, newColors, sourcePointerSlot: 0);
+            Assert.NotEqual(U.NOT_FOUND, result);
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.Equal(before[i], rom.Data[i]);
+            }
+        }
+        finally { CoreState.Undo = prevUndo; }
+    }
+
+    [Fact]
     public void WritePalette_ReturnsNotFoundOnInvalidArgs()
     {
         var rom = MakeRomWithCompressedSlots(new ushort[][]

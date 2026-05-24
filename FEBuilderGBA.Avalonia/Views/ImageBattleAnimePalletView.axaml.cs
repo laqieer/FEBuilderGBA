@@ -105,12 +105,26 @@ namespace FEBuilderGBA.Avalonia.Views
                               : channel == 'G' ? _gBoxes[index]
                               : _bBoxes[index];
             if (box == null) return;
-            byte value = (byte)((int)(box.Value ?? 0));
+            byte rawValue = (byte)((int)(box.Value ?? 0));
             switch (channel)
             {
-                case 'R': _vm.SetR(index, value); break;
-                case 'G': _vm.SetG(index, value); break;
-                case 'B': _vm.SetB(index, value); break;
+                case 'R': _vm.SetR(index, rawValue); break;
+                case 'G': _vm.SetG(index, rawValue); break;
+                case 'B': _vm.SetB(index, rawValue); break;
+            }
+            // Per PR #589 Copilot bot review #1: the VM snaps to 5-bit
+            // (multiples of 8). Push the snapped value back into the
+            // spinner so the displayed number matches what will be
+            // written to ROM. Suppress recursive ValueChanged to avoid
+            // a loop.
+            byte snappedValue = channel == 'R' ? _vm.GetR(index)
+                              : channel == 'G' ? _vm.GetG(index)
+                              : _vm.GetB(index);
+            if (rawValue != snappedValue)
+            {
+                _suppressSpinnerEvents = true;
+                try { box.Value = snappedValue; }
+                finally { _suppressSpinnerEvents = false; }
             }
             UpdateSwatch(index);
         }
@@ -163,10 +177,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // AddressListControl's event passes the palette offset; we
-                // need the source pointer slot stored in AddrResult.tag.
-                // Find the matching AddrResult by addr.
-                uint sourceSlot = FindSourceSlotForAddr(addr);
+                // Per PR #589 Copilot bot review #2: pull the matching
+                // AddrResult directly from AddressListControl.SelectedItem
+                // (which carries both `.addr` and `.tag`). The previous
+                // re-walk via _vm.LoadList() was O(N) and could pick the
+                // wrong row when two animations share the same palette
+                // pointer (the second one's source slot would be lost).
+                var selected = EntryList.SelectedItem;
+                uint sourceSlot = selected != null ? selected.tag : 0;
                 _vm.LoadEntry(addr, sourceSlot, _vm.PaletteTypeIndex);
                 PopulateAllSpinnersAndSwatches();
             }
@@ -174,20 +192,6 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageBattleAnimePalletView.OnSelectedEntry failed: {0}", ex.Message);
             }
-        }
-
-        uint FindSourceSlotForAddr(uint addr)
-        {
-            // EntryList stores AddrResult items via SetItems; query the
-            // underlying list for the matching tag (source pointer slot).
-            // Use ViewModel's LoadList copy: re-walk the table to look up
-            // by addr.
-            var items = _vm.LoadList();
-            foreach (var ar in items)
-            {
-                if (ar.addr == addr) return ar.tag;
-            }
-            return 0;
         }
 
         void PaletteIndexCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -256,6 +260,43 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Commit();
             // Re-display the (possibly relocated) address.
             AddressBox.Value = _vm.PaletteAddress;
+            // Per PR #589 Copilot bot review #5: if the palette block
+            // relocated, the master list's cached AddrResult.addr values
+            // are now stale (they were the old palette offsets before
+            // the rewrite). Reload the list and re-select the row that
+            // currently matches the VM's new source pointer slot so
+            // subsequent selections load from the new pointers.
+            if (newOffset != U.NOT_FOUND)
+            {
+                RefreshListPreservingSelection();
+            }
+        }
+
+        void RefreshListPreservingSelection()
+        {
+            try
+            {
+                uint preservedSlot = _vm.SourcePointerSlot;
+                var items = _vm.LoadList();
+                EntryList.SetItems(items);
+                if (preservedSlot != 0)
+                {
+                    // Find the row whose tag matches the (still-stable)
+                    // source pointer slot and re-select it.
+                    foreach (var ar in items)
+                    {
+                        if (ar.tag == preservedSlot)
+                        {
+                            EntryList.SelectAddress(ar.addr);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimePalletView.RefreshListPreservingSelection failed: {0}", ex.Message);
+            }
         }
 
         void Clipboard_Click(object sender, RoutedEventArgs e)

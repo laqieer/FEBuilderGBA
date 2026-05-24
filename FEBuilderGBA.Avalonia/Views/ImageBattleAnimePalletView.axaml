@@ -369,7 +369,7 @@
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Import_Button"
                   Name="ImportButton" Content="Import Image" Width="140"
                   IsEnabled="False"
-                  ToolTip.Tip="Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399)." />
+                  ToolTip.Tip="Deferred KnownGap: sample preview rendering is WinForms-coupled (#399)." />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Export_Button"
                   Name="ExportButton" Content="Export Image" Width="140"
                   IsEnabled="False"
