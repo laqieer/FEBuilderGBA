@@ -22091,3 +22091,81 @@ Core RunRedo API 待支持 - 由 #500 跟踪。
 
 :Edit R/G/B 0-248 (5-bit ticks)
 编辑 R/G/B 0-248 (5位步进)
+
+:Item 5:
+物品5:
+
+:Item Table
+物品表
+
+:Probability Table
+概率表
+
+:Holdings Table
+持有物表
+
+:Holdings Set 1
+持有物组1
+
+:Holdings Set 2
+持有物组2
+
+:Item Probability
+物品概率
+
+:Item Probability 1:
+物品概率1
+
+:Item Probability 2:
+物品概率2
+
+:Item Probability 3:
+物品概率3
+
+:Item Probability 4:
+物品概率4
+
+:Item Probability 5:
+物品概率5
+
+:Read Start:
+起始地址:
+
+:Sum:
+合计:
+
+:Sum 1:
+合计1:
+
+:Sum 2:
+合计2:
+
+:Slot 1
+槽位1
+
+:Slot 2
+槽位2
+
+:Slot 3
+槽位3
+
+:Slot 4
+槽位4
+
+:Slot 5
+槽位5
+
+:Expand List
+扩展列表
+
+:Class:
+职业:
+
+:Slot
+槽位
+
+:Item ID
+物品ID
+
+:Probability
+概率

@@ -895,7 +895,10 @@ namespace FEBuilderGBA.Tests.Unit
         [InlineData("ArenaEnemyWeaponViewerView.axaml", 1257, 809)]
         [InlineData("LinkArenaDenyUnitViewerView.axaml", 1201, 738)]
         [InlineData("MonsterProbabilityViewerView.axaml", 1203, 552)]
-        [InlineData("MonsterItemViewerView.axaml", 1645, 935)]
+        // #394: MonsterItemForm parity rebuild — 3-tab restructure
+        // brings AV control density to LOW; window dimensions changed
+        // to 1280x900 (was 1645x935) to fit the new tab layout.
+        [InlineData("MonsterItemViewerView.axaml", 1280, 900)]
         [InlineData("MonsterWMapProbabilityViewerView.axaml", 1786, 847)]
         [InlineData("SummonUnitViewerView.axaml", 1214, 462)]
         [InlineData("SummonsDemonKingViewerView.axaml", 1237, 700)]
