@@ -22972,9 +22972,6 @@ Procs
 :Etc
 其他
 
-:Trap Data
-陷阱数据
-
 :BWL
 BWL
 

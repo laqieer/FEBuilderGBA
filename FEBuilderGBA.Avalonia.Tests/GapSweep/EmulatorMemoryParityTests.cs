@@ -795,22 +795,36 @@ public class EmulatorMemoryParityTests
         // Walk the realised logical tree and confirm every KnownGap
         // button is actually present and IsEnabled=false at runtime
         // (Copilot CLI review wanted runtime checks, not text-scans).
-        var allButtons = view.GetLogicalDescendants()
+        // Exclude CheckBox (which inherits from Button via ToggleButton)
+        // so we count plain Buttons only — Copilot bot v2 review item
+        // PRRT_kwDOH0Mc1M6EbWTu: keep the disabled-Button count equal
+        // to KnownGapButtonIds.Length and verify the CheckBox separately.
+        var realButtons = view.GetLogicalDescendants()
             .OfType<Button>()
+            .Where(b => b is not CheckBox && b is not ToggleButton && b is not RadioButton)
             .ToList();
         foreach (string id in KnownGapButtonIds)
         {
-            var btn = allButtons.FirstOrDefault(b => AvaloniaProperties.GetId(b) == id);
+            var btn = realButtons.FirstOrDefault(b => AvaloniaProperties.GetId(b) == id);
             Assert.True(btn != null,
                 $"KnownGap button {id} must be present in the realised logical tree");
             Assert.False(btn!.IsEnabled,
                 $"KnownGap button {id} must remain IsEnabled=false at runtime");
         }
-        // CheckBox inherits from Button (via ToggleButton), so the
-        // disabled-Button count is KnownGapButtonIds.Length + 1 (the
-        // AutoUpdate_Check CheckBox is also disabled).
-        var disabled = allButtons.Where(b => !b.IsEnabled).ToList();
-        Assert.Equal(KnownGapButtonIds.Length + 1, disabled.Count);
+        var disabled = realButtons.Where(b => !b.IsEnabled).ToList();
+        Assert.Equal(KnownGapButtonIds.Length, disabled.Count);
+    }
+
+    [AvaloniaFact]
+    public void View_LogicalTree_AutoUpdateCheckBox_IsDisabled()
+    {
+        var view = new EmulatorMemoryView();
+        var cb = view.GetLogicalDescendants()
+            .OfType<CheckBox>()
+            .FirstOrDefault(c => AvaloniaProperties.GetId(c) == "EmulatorMemory_AutoUpdate_Check");
+        Assert.True(cb != null, "AutoUpdate CheckBox must be present in realised tree");
+        Assert.False(cb!.IsEnabled,
+            "AutoUpdate CheckBox is KnownGap (no live RAM polling in Avalonia)");
     }
 
     [AvaloniaFact]
