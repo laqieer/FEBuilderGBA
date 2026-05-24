@@ -25,7 +25,13 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// we explicitly assert that Image controls inside GbaImageControl use Stretch.Fill.
     ///
     /// Ref #211
+    /// Ref #404: serialize against `SharedState` so a parallel test class
+    /// holding a live `CoreState.ROM` via `RomFixture` (e.g.
+    /// `TextViewerParityTests`) doesn't race with these tests that
+    /// instantiate `TextCharCodeView` (which reads `rom.getString` via
+    /// `CoreState.SystemTextEncoder` during construction).
     /// </summary>
+    [Collection("SharedState")]
     public class ControlPropertyTests
     {
         private readonly ITestOutputHelper _output;

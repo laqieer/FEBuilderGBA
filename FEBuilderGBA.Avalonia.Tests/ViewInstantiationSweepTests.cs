@@ -19,7 +19,12 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// no headless instantiation tests otherwise.
     ///
     /// Closes #211.
+    /// Ref #404: serialize against `SharedState` so a parallel test class
+    /// holding a live `CoreState.ROM` via `RomFixture` doesn't race with the
+    /// View constructors that read `CoreState.ROM` / `SystemTextEncoder`
+    /// during their initialization paths.
     /// </summary>
+    [Collection("SharedState")]
     public class ViewInstantiationSweepTests
     {
         private readonly ITestOutputHelper _output;
