@@ -531,6 +531,13 @@ namespace FEBuilderGBA.Avalonia.Services
             // Declare the WF↔AV form pair here so JumpParityScanner can resolve
             // the cross-ref. Mirrors the exact pattern PR #598 used for v2.
             { "SkillConfigFE8NVer3SkillView", "SkillConfigFE8NVer3SkillForm" },
+            // #390 — SkillConfigFE8NSkillForm (FE8N v1 / yugudora) jumps to
+            // ToolAnimationCreatorForm via X_N_JumpEditor (same shape as
+            // #396/#427/#430/#433). Patch-dependent (needs FE8N v1 / yugudora
+            // skill patch installed to populate its list), so the EditorMap
+            // layer doesn't seed it. Declare the WF↔AV form pair here so
+            // JumpParityScanner can resolve the cross-ref.
+            { "SkillConfigFE8NSkillView", "SkillConfigFE8NSkillForm" },
             // #416 - SkillAssignmentClassSkillSystemForm is patch-dependent on
             // SkillSystems and lives in ContextDependentEditors. Declare the
             // WF<->AV form pair here so JumpParityScanner can resolve the

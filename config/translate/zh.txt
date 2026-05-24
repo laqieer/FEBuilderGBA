@@ -22476,6 +22476,42 @@ KnownGap: 依赖 InputFormRef 自动连接 (#374 跟踪中)。
 :Candidate
 候选
 
+:FE8N Page:
+FE8N页面:
+
+:Change Type:
+切换类型:
+
+:Icon ID
+图标ID
+
+:Skill Name
+技能名
+
+:Icon Display Condition
+图标显示条件
+
+:Other Skill List
+其他技能列表
+
+:Other Skill Sub-list
+其他技能子列表
+
+:Per-skill 'other' sub-list editing is not yet implemented in Avalonia.
+每技能"其他"子列表编辑尚未在 Avalonia 中实现。
+
+:W0 - icon address = iconBase + 128 * IconId
+W0 - 图标地址 = iconBase + 128 * IconId
+
+:The N03 sub-tab in WF holds 16 generic bytes (B16..B31) with no fixed semantics; the WF UI exposes them as unlabeled NumericUpDowns. The Avalonia view surfaces the base address so power users can drop down to the hex editor.
+WF 中的 N03 子标签包含 16 个无固定语义的通用字节 (B16..B31)。WF UI 将其暴露为未标记的 NumericUpDown。Avalonia 视图显示基地址，让高级用户切换到十六进制编辑器。
+
+:Caution: the icon display condition only controls whether the icon shows in the menu - it does NOT enable the skill itself. The condition fields hold a Unit ID, a Class ID, a stat (1-4), or an Item ID depending on the patch flavour. Layout varies between FE8N patch versions; there is no unified specification.
+注意: 图标显示条件仅控制图标是否在菜单中显示 - 不会启用技能本身。条件字段根据补丁类型保存单位 ID、职业 ID、状态 (1-4) 或物品 ID。布局因 FE8N 补丁版本而异，没有统一规范。
+
+:Use the WinForms editor to assign 'other' bytes to a skill.
+要为技能分配"其他"字节，请使用 WinForms 编辑器。
+
 :Skill Configuration (FE8N v3)
 技能配置 (FE8N v3)
 

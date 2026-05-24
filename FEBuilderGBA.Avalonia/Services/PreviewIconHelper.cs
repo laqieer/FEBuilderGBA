@@ -1776,6 +1776,173 @@ namespace FEBuilderGBA.Avalonia.Services
             }
         }
 
+        // -----------------------------------------------------------------
+        // FE8N v1 (original FE8N / yugudora) skill expansion helpers (#390)
+        //
+        // FE8N v1 is the ORIGINAL FE8N skill patch flavour (also reused by
+        // the `yugudora` patch). It uses a byte-pattern scan to locate the
+        // skill-info-table BUT differs from v2 in three material ways:
+        //   1. MULTI-POINTER discovery: FindSkillFE8NVer1IconPointersLow
+        //      returns uint[] (a list of pointer slot addresses, one per
+        //      FE8N table page). The FilterComboBox lets the user choose
+        //      which page to load.
+        //   2. SCAN OFFSET: pattern bytes `F0 40 00 02 00 3B 00 02`. The
+        //      iteration over icon-pointer slots starts at
+        //      `iconPointersBase = patternHit + need.Length + 4 + 4 + 4 =
+        //      patternHit + 20`. The slot array runs forward from
+        //      `patternHit + 20`.
+        //   3. ICON ADDRESSING: `iconBase + 128 * W0` where W0 is the row's
+        //      u16 icon ID (NOT the row index — differs from v2's
+        //      `0x100 + rowIndex`).
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Cached results from <see cref="FindSkillFE8NVer1IconPointers"/> so
+        /// callers don't repeat the byte-pattern scan per row. Keyed by ROM
+        /// filename to invalidate cleanly when a different ROM is loaded.
+        /// </summary>
+        static (string romName, uint[] pointers) _fe8nVer1Cache;
+
+        /// <summary>
+        /// Reset the FE8N v1 scan cache. Called when the ROM changes (the
+        /// next call to a helper re-runs the scan).
+        /// </summary>
+        public static void ResetFE8NVer1Cache()
+        {
+            _fe8nVer1Cache = default;
+        }
+
+        /// <summary>
+        /// Find all FE8N v1 skill-info-table pointer slot ADDRESSES. Mirrors
+        /// WinForms <c>SkillConfigFE8NSkillForm.FindSkillFE8NVer1IconPointersLow</c>
+        /// exactly. Returns an empty array when the FE8N v1 (or yugudora)
+        /// patch isn't installed.
+        /// </summary>
+        /// <remarks>
+        /// Scan formula (WF parity):
+        /// <list type="number">
+        ///   <item><description><c>iconExPointer = rom.u32(0x89268 + 4)</c>
+        ///   must be a safe GBA pointer (patch sentinel).</description></item>
+        ///   <item><description>Byte-pattern grep for
+        ///   <c>F0 40 00 02 00 3B 00 02</c> in <c>0xE00000..0</c> with
+        ///   block-size 4. Miss = empty array.</description></item>
+        ///   <item><description>Pattern hit lies in the header region 20
+        ///   bytes BEFORE the start of the slot array. Therefore
+        ///   <c>iconPointersBase = patternHit + need.Length + 4 + 4 + 4
+        ///   = patternHit + 20</c>.</description></item>
+        ///   <item><description>Iterate slots starting at iconPointersBase
+        ///   in 4-byte steps. For each slot u32:
+        ///     <list type="bullet">
+        ///       <item><description>If not <c>isSafetyPointer</c>, BREAK.</description></item>
+        ///       <item><description>Convert to offset. If <c>&lt; 0xE00000</c>
+        ///       (API pointer), CONTINUE (skip).</description></item>
+        ///       <item><description>Otherwise ACCEPT - add the slot ADDRESS
+        ///       (NOT the dereferenced value) to the result array.</description></item>
+        ///     </list>
+        ///   </description></item>
+        /// </list>
+        /// Empty result is normalized to <c>uint[0]</c> (WF returns null but
+        /// the Avalonia callers consistently use empty-array semantics).
+        /// </remarks>
+        public static uint[] FindSkillFE8NVer1IconPointers()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return System.Array.Empty<uint>();
+
+            // Use cached result when the ROM hasn't changed.
+            string currentName = rom.Filename ?? "";
+            if (_fe8nVer1Cache.romName == currentName && _fe8nVer1Cache.pointers != null)
+            {
+                return _fe8nVer1Cache.pointers;
+            }
+
+            try
+            {
+                // Step 1: iconExPointer sentinel.
+                if (!U.isSafetyOffset(0x89268 + 4 + 3, rom)) return System.Array.Empty<uint>();
+                uint iconExPointer = rom.u32(0x89268 + 4);
+                if (!U.isSafetyPointer(iconExPointer)) return System.Array.Empty<uint>();
+
+                // Step 2: grep for the FE8N v1 marker pattern in 0xE00000..0.
+                byte[] need = new byte[] { 0xF0, 0x40, 0x00, 0x02, 0x00, 0x3B, 0x00, 0x02 };
+                uint patternHit = U.Grep(rom.Data, need, 0xE00000, 0, 4);
+                if (patternHit == U.NOT_FOUND) return System.Array.Empty<uint>();
+
+                // Step 3: the slot array starts at patternHit + need.Length + 12
+                // (= patternHit + 20). The pattern lies in the header region
+                // BEFORE the slot array - so the array runs FORWARD from
+                // patternHit + 20.
+                uint iconPointersBase = patternHit + (uint)need.Length + 4u + 4u + 4u;
+                if (!U.isSafetyOffset(iconPointersBase + 3, rom)) return System.Array.Empty<uint>();
+
+                // Step 4: iterate slots (WF semantic).
+                var slots = new System.Collections.Generic.List<uint>();
+                for (uint p = iconPointersBase; ; p += 4u)
+                {
+                    if (!U.isSafetyOffset(p + 3, rom)) break;
+                    uint pp = rom.u32(p);
+                    if (!U.isSafetyPointer(pp)) break;
+                    uint off = U.toOffset(pp);
+                    if (off < 0xE00000u) continue; // API pointer - skip
+                    slots.Add(p);
+                }
+
+                uint[] result = slots.ToArray();
+                _fe8nVer1Cache = (currentName, result);
+                return result;
+            }
+            catch
+            {
+                return System.Array.Empty<uint>();
+            }
+        }
+
+        /// <summary>
+        /// Load a 16x16 skill icon for FE8N v1. Mirrors WinForms
+        /// <c>ImageItemIconForm.DrawIconWhereID_UsingWeaponPalette_SKILLFE8NVer2(W0)</c>
+        /// — note the shared `_SKILLFE8NVer2` helper name despite this being
+        /// for v1 (the helper is reused; FE8N v1 and v2 both pass through it).
+        /// Resolution:
+        /// <code>
+        /// iconBaseAddr = rom.p32(RomInfo.icon_pointer)
+        /// iconAddr     = iconBaseAddr + 128 * iconId  // iconId = W0 (NOT row index)
+        /// palette      = rom.p32(RomInfo.system_weapon_icon_palette_pointer)
+        /// </code>
+        /// </summary>
+        /// <param name="iconId">The row's W0 u16 icon ID (not the row index).</param>
+        public static IImage LoadFE8NVer1SkillIcon(uint iconId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                uint iconPointerAddr = rom.RomInfo.icon_pointer;
+                if (!U.isSafetyOffset(iconPointerAddr + 3, rom)) return null;
+                uint iconBaseAddr = rom.p32(iconPointerAddr);
+                if (!U.isSafetyOffset(iconBaseAddr, rom)) return null;
+
+                const uint TILE_SIZE = 128; // 16x16 4bpp = 128 bytes
+                uint iconAddr = iconBaseAddr + TILE_SIZE * iconId;
+                if (iconAddr + TILE_SIZE > (uint)rom.Data.Length) return null;
+
+                // FE8N v1 always uses the system weapon palette (matches
+                // WF DrawIconWhereID_UsingWeaponPalette_SKILLFE8NVer2 contract).
+                uint palettePointerAddr = rom.RomInfo.system_weapon_icon_palette_pointer;
+                if (!U.isSafetyOffset(palettePointerAddr + 3, rom)) return null;
+                uint palAddr = rom.p32(palettePointerAddr);
+                if (!U.isSafetyOffset(palAddr, rom)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
+
+                return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
         /// <summary>
         /// Load a map action animation thumbnail by rendering the first frame.
         /// The animation pointer is read from the map action animation table entry.
