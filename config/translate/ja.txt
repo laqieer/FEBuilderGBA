@@ -1463,6 +1463,9 @@ CSA 魔法 Creator
 :Change Pointer:
 Change ポインタ:
 
+:Chipset Preview
+チップセット プレビュー
+
 :Chapter / Transporter / Victory
 章 / Transporter / Victory
 
@@ -2510,6 +2513,9 @@ MIDI ファイル Metadata
 :Magic/??
 魔法/??
 
+:Main Image
+メイン画像
+
 :Main Portrait
 Main 顔画像
 
@@ -2735,6 +2741,9 @@ Multi サンプル ポインタ
 :No song selected
 いいえ song selected
 
+:No Zoom
+ズームなし
+
 :No tile selected
 いいえ tile selected
 
@@ -2851,6 +2860,12 @@ Page 上
 
 :Palette Address:
 パレットアドレス
+
+:Palette Write
+パレット書き込み
+
+:Palette Index
+パレットインデックス
 
 :Palette Change Colors
 パレット Change 色
@@ -3571,6 +3586,9 @@ UPS パッチ ファイル
 
 :Undo
 元に戻す
+
+:Redo
+やり直す
 
 :Undo Buffer
 元に戻す Buffer
