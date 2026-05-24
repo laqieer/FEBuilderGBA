@@ -4,10 +4,10 @@
         x:Class="FEBuilderGBA.Avalonia.Views.EventCondView"
         Title="Event Condition Editor" Width="1834" Height="999"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,250,*">
-    <!-- Column 0: Map list -->
+  <Grid ColumnDefinitions="220,250,*">
+    <!-- Column 0: Map list (mirrors WF MAP_LISTBOX with マップ名 header) -->
     <DockPanel Grid.Column="0" Margin="4">
-      <TextBlock DockPanel.Dock="Top" Text="Maps" FontWeight="Bold" Margin="0,0,0,4" />
+      <TextBlock AutomationProperties.AutomationId="EventCond_MapNames_Label" DockPanel.Dock="Top" Text="Map Names" FontWeight="Bold" Margin="0,0,0,4" />
       <controls:AddressListControl AutomationProperties.AutomationId="EventCond_Entry_List" Name="EntryList" />
     </DockPanel>
 
@@ -15,7 +15,8 @@
     <DockPanel Grid.Column="1" Margin="4">
       <TextBlock DockPanel.Dock="Top" Text="Condition Slot" FontWeight="Bold" Margin="0,0,0,4" />
       <ComboBox AutomationProperties.AutomationId="EventCond_Slot_Combo" DockPanel.Dock="Top" Name="SlotCombo" Margin="0,0,0,4" />
-      <TextBlock DockPanel.Dock="Top" Text="Records" FontWeight="Bold" Margin="0,4,0,4" />
+      <TextBlock AutomationProperties.AutomationId="EventCond_RecordName_Label" DockPanel.Dock="Top" Text="Name" FontWeight="Bold" Margin="0,4,0,4" />
+      <Button AutomationProperties.AutomationId="EventCond_ExpandList_Button" DockPanel.Dock="Bottom" Content="Expand List" Name="ExpandListBtn" Click="ExpandList_Click" Margin="0,4,0,0" />
       <ListBox AutomationProperties.AutomationId="EventCond_Record_List" Name="RecordList" />
     </DockPanel>
 
@@ -26,7 +27,29 @@
 
         <TextBlock AutomationProperties.AutomationId="EventCond_SlotInfo_Label" Name="SlotInfoLabel" Foreground="Gray" />
 
-        <Grid ColumnDefinitions="120,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <!-- Top read-config bar (mirrors WF panel1 with 先頭アドレス / 読込数 / 再取得) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Top Address" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="EventCond_TopAddr_Input" Name="TopAddrBox" Width="160" IsReadOnly="True" />
+            <TextBlock Text="Read Count" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="EventCond_ReadCount_Input" FormatString="0" Name="ReadCountBox" Minimum="0" Maximum="999" Width="100" IsReadOnly="True" />
+            <Button AutomationProperties.AutomationId="EventCond_Reload_Button" Content="Reload" Name="ReloadBtn" Click="Reload_Click" Margin="12,0,0,0" />
+          </StackPanel>
+        </Border>
+
+        <!-- Address bar with Size / Selected Address / Write (mirrors WF AddressPanel) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Size:" VerticalAlignment="Center" />
+            <TextBox AutomationProperties.AutomationId="EventCond_BlockSize_Input" Name="BlockSizeBox" Width="80" IsReadOnly="True" />
+            <TextBlock Text="Selected Address:" VerticalAlignment="Center" Margin="12,0,0,0" />
+            <TextBox AutomationProperties.AutomationId="EventCond_SelectedAddr_Input" Name="SelectedAddrBox" Width="160" IsReadOnly="True" />
+            <Button AutomationProperties.AutomationId="EventCond_Write_Button" Content="Write" Name="WriteButton" Click="Write_Click" Margin="12,0,0,0" />
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Record Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="EventCond_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center"
                      FontFamily="Consolas,Courier New,monospace" />
@@ -71,7 +94,7 @@
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB11_Input" Grid.Row="10" Grid.Column="1" Name="ExtraB11Box"
                          Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" />
 
-          <!-- FE7 extended fields (rows 12-15) -->
+          <!-- FE7 extended fields (rows 11-14) -->
           <TextBlock AutomationProperties.AutomationId="EventCond_LblB12_Label" Grid.Row="11" Grid.Column="0" Name="LblB12" Text="B12:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="EventCond_ExtraB12_Input" Grid.Row="11" Grid.Column="1" Name="ExtraB12Box"
                          Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" />
@@ -89,12 +112,217 @@
                          Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" />
         </Grid>
 
+        <!-- Comment row (mirrors WF コメント / Comment textbox; round-trip via CommentCache) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+          <TextBlock Text="Comment:" VerticalAlignment="Center" Width="120" />
+          <TextBox AutomationProperties.AutomationId="EventCond_Comment_Input" Name="CommentBox" Width="400" />
+        </StackPanel>
+
+        <!-- ================================================================
+             Category-specific sub-panels — visibility-toggled inline mirrors
+             of the WF UNIONTAB content (without nested tabs). Each panel
+             surfaces the WF labels listed in the issue's labels-sweep
+             disposition table. See plan v3 for the per-label mapping.
+             ================================================================ -->
+
+        <!-- TURN panel (WF ターン条件 / ターン条件FE7) -->
+        <Border AutomationProperties.AutomationId="EventCond_TurnPanel_Border" Name="TurnPanel" BorderBrush="LightBlue" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="EventCond_TurnHeader_Label" Text="Turn Condition" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_TurnStart_Label" Text="Turn Start:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TurnStart_Input" Name="TurnStartBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_TurnEnd_Label" Text="Turn End:" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TurnEnd_Input" Name="TurnEndBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Phase_Label" Text="Phase:" VerticalAlignment="Center" Width="120" />
+              <ComboBox AutomationProperties.AutomationId="EventCond_Phase_Combo" Name="PhaseCombo" Width="180">
+                <ComboBoxItem Content="0x00 Player" />
+                <ComboBoxItem Content="0x40 Ally" />
+                <ComboBoxItem Content="0x80 Enemy" />
+                <ComboBoxItem Content="0xC0 4th Allegiance" />
+              </ComboBox>
+            </StackPanel>
+            <TextBlock AutomationProperties.AutomationId="EventCond_PreTurnSpec_Label" Text="Pre-turn Specification" Foreground="Gray" FontSize="11" />
+          </StackPanel>
+        </Border>
+
+        <!-- TALK panel (WF 話す条件 / N03 talk condition + N04 ASM talk + FE6 N0D) -->
+        <Border AutomationProperties.AutomationId="EventCond_TalkPanel_Border" Name="TalkPanel" BorderBrush="LightGreen" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="EventCond_TalkHeader_Label" Text="Talk Condition" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Unit1_Label" Text="Unit 1 (Source):" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_Unit1_Input" Name="Unit1Box" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_Unit1Name_Label" Name="Unit1NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Unit2_Label" Text="Unit 2 (Target):" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_Unit2_Input" Name="Unit2Box" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_Unit2Name_Label" Name="Unit2NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_AdditionalDecision_Label" Text="Additional Decision:" VerticalAlignment="Center" Width="160" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_AdditionalDecision_Input" Name="AdditionalDecisionBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_DecisionFlag_Label" Text="Decision Flag:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_DecisionFlag_Input" Name="DecisionFlagBox" FormatString="0" Minimum="0" Maximum="65535" Width="100" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_TalkAsmFunc_Label" Text="ASM Function:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TalkAsmFunc_Input" Name="TalkAsmFuncBox" FormatString="0" Minimum="0" Maximum="4294967295" Width="160" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- OBJECT panel (WF マップオブジェクト / N05 制圧 N06 訪問村 N07 宝箱 N08 扉 N0A 店) -->
+        <Border AutomationProperties.AutomationId="EventCond_ObjectPanel_Border" Name="ObjectPanel" BorderBrush="LightCoral" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="EventCond_ObjectHeader_Label" Text="Map Object" FontWeight="Bold" />
+            <TextBlock AutomationProperties.AutomationId="EventCond_ObjectSubHeader_Label" Name="ObjectSubHeaderLabel" Foreground="DarkGray" FontSize="11" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Coordinates_Label" Text="Coordinates:" VerticalAlignment="Center" Width="120" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_ObjectX_Label" Text="X:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_ObjectX_Input" Name="ObjectXBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_ObjectY_Label" Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_ObjectY_Input" Name="ObjectYBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_EventType_Label" Text="Event Type:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_EventType_Input" Name="EventTypeBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_ChestItem_Label" Text="Chest Item:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_ChestItem_Input" Name="ChestItemBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_ChestItemName_Label" Name="ChestItemNameLabel" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Gold_Label" Text="Gold:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_Gold_Input" Name="GoldBox" FormatString="0" Minimum="0" Maximum="65535" Width="100" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Durability_Label" Text="Durability:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_Durability_Input" Name="DurabilityBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_ShopType_Label" Text="Shop Type:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_ShopType_Input" Name="ShopTypeBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_ItemList_Label" Text="Item List:" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_ItemList_Input" Name="ItemListBox" FormatString="0" Minimum="0" Maximum="4294967295" Width="120" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- ALWAYS panel (WF 常時条件 N01 + 範囲条件 N0B + ASM条件 N0E/N0D) -->
+        <Border AutomationProperties.AutomationId="EventCond_AlwaysPanel_Border" Name="AlwaysPanel" BorderBrush="LightGoldenrodYellow" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="EventCond_AlwaysHeader_Label" Text="Always / Range / ASM Condition" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_RangeStart_Label" Text="Range Start:" VerticalAlignment="Center" Width="120" />
+              <TextBlock Text="X:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_RangeStartX_Input" Name="RangeStartXBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_RangeStartY_Input" Name="RangeStartYBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_RangeEnd_Label" Text="Range End:" VerticalAlignment="Center" Width="120" />
+              <TextBlock Text="X:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_RangeEndX_Input" Name="RangeEndXBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_RangeEndY_Input" Name="RangeEndYBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_AsmFunc_Label" Text="ASM Function:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_AsmFunc_Input" Name="AsmFuncBox" FormatString="0" Minimum="0" Maximum="4294967295" Width="160" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- TRAP panel (WF トラップ / N01 アーチ N04 ダメージ床 N05 毒ガス N07 神の矢 N08 炎 N0B 地雷 N0C ゴーゴンの卵) -->
+        <Border AutomationProperties.AutomationId="EventCond_TrapPanel_Border" Name="TrapPanel" BorderBrush="LightPink" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="EventCond_TrapHeader_Label" Text="Trap" FontWeight="Bold" />
+            <TextBlock AutomationProperties.AutomationId="EventCond_TrapSubHeader_Label" Name="TrapSubHeaderLabel" Foreground="DarkGray" FontSize="11" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_TrapPlacement_Label" Text="Placement:" VerticalAlignment="Center" Width="120" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_TrapX_Label" Text="X:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TrapX_Input" Name="TrapXBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_TrapY_Label" Text="Y:" VerticalAlignment="Center" Margin="6,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TrapY_Input" Name="TrapYBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_BallistaType_Label" Text="Ballista Type:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_BallistaType_Input" Name="BallistaTypeBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_TrapDirection_Label" Text="Direction:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TrapDirection_Input" Name="TrapDirectionBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_TrapDurability_Label" Text="Durability:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TrapDurability_Input" Name="TrapDurabilityBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_DamageAmount_Label" Text="Damage Amount:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_DamageAmount_Input" Name="DamageAmountBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_GasDirection_Label" Text="Gas Direction:" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_GasDirection_Input" Name="GasDirectionBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_Duration_Label" Text="Duration:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_Duration_Input" Name="DurationBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_HatchingStart_Label" Text="Hatching Start:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_HatchingStart_Input" Name="HatchingStartBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <TextBlock AutomationProperties.AutomationId="EventCond_HatchingEnd_Label" Text="Hatching End:" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_HatchingEnd_Input" Name="HatchingEndBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_VeinEffectId_Label" Text="Vein Effect ID:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_VeinEffectId_Input" Name="VeinEffectIdBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- TUTORIAL panel (WF チュートリアル / 初期タイマー + リピートタイマー) -->
+        <Border AutomationProperties.AutomationId="EventCond_TutorialPanel_Border" Name="TutorialPanel" BorderBrush="LightSkyBlue" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <TextBlock AutomationProperties.AutomationId="EventCond_TutorialHeader_Label" Text="Tutorial" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_InitialTimer_Label" Text="Initial Timer:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_InitialTimer_Input" Name="InitialTimerBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_RepeatTimer_Label" Text="Repeat Timer:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_RepeatTimer_Input" Name="RepeatTimerBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock AutomationProperties.AutomationId="EventCond_TextId_Label" Text="Text ID:" VerticalAlignment="Center" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="EventCond_TextId_Input" Name="TextIdBox" FormatString="0" Minimum="0" Maximum="65535" Width="100" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
         <!-- Name resolution hints -->
         <TextBlock AutomationProperties.AutomationId="EventCond_NameHint_Label" Name="NameHintLabel" Foreground="DarkGreen" TextWrapping="Wrap" />
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="EventCond_Write_Button" Content="Write" Name="WriteButton" Click="Write_Click" />
-        </StackPanel>
+        <!-- Jump panel (mirrors WF cross-editor jumps + NewAlloc/Expand/PreciseAlloc buttons) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Cross-Editor Jumps" FontWeight="Bold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button AutomationProperties.AutomationId="EventCond_JumpEvent_Button" Content="Open in Event Editor" Name="JumpEventBtn" Click="JumpEvent_Click" ToolTip.Tip="Open the selected start/end event in the Event Editor" />
+              <Button AutomationProperties.AutomationId="EventCond_JumpEventUnit_Button" Content="Open in Unit Placement Editor" Name="JumpEventUnitBtn" Click="JumpEventUnit_Click" ToolTip.Tip="Open the selected placement in the Unit Placement Editor" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Button AutomationProperties.AutomationId="EventCond_NewAlloc_Button" Content="New Event" Name="NewAllocBtn" Click="NewAlloc_Click" ToolTip.Tip="Allocate a new event block and assign it to the current slot" />
+              <Button AutomationProperties.AutomationId="EventCond_PreciseAlloc_Button" Content="New Allocation" Name="PreciseAllocBtn" Click="PreciseAlloc_Click" ToolTip.Tip="Open MapPointerNewPLIST popup (commit-back state-machine deferred per #386)" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
 
         <!-- Raw hex dump for reference -->
         <TextBlock Text="Raw Hex:" FontWeight="Bold" Margin="0,16,0,4" />

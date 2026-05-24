@@ -555,6 +555,16 @@ namespace FEBuilderGBA.Avalonia.Services
             // resolve the cross-ref and the navigation manifest reaches Match.
             { "EventUnitNewAllocView", "EventUnitNewAllocForm" },
             { "EventUnitItemDropView", "EventUnitItemDropForm" },
+            // #386 — EventCondForm jumps to EventScriptForm (for the event
+            // pointer) and to MapPointerNewPLISTPopupForm (PLIST allocation).
+            // EventScriptView is registered in NoListEditors (script editor —
+            // no list-parity port), and MapPointerNewPLISTPopupView is a popup
+            // dialog (sub-editor of MapPointerForm). The EditorMap layer
+            // doesn't seed them; declare the WF↔AV form pair so
+            // JumpParityScanner can resolve the cross-refs from
+            // EventCondViewModel.NavigationTargets.
+            { "EventScriptView", "EventScriptForm" },
+            { "MapPointerNewPLISTPopupView", "MapPointerNewPLISTPopupForm" },
         };
 
         /// <summary>

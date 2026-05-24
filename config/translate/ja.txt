@@ -9483,3 +9483,129 @@ BGM
 
 :Map Action Animation #{0:X2}
 マップアクションアニメ #{0:X2}
+
+:Turn Condition
+ターン条件
+
+:Turn Start:
+開始ターン:
+
+:Turn End:
+終了ターン:
+
+:Phase:
+フェーズ:
+
+:Pre-turn Specification
+ターン前指定
+
+:Talk Condition
+会話条件
+
+:Unit 1 (Source):
+ユニット1 (会話元):
+
+:Unit 2 (Target):
+ユニット2 (会話先):
+
+:Additional Decision:
+追加判定:
+
+:Decision Flag:
+判定フラグ:
+
+:ASM Function:
+判定ASM関数:
+
+:Map Object
+マップオブジェクト
+
+:Coordinates:
+座標:
+
+:Event Type:
+イベント種類:
+
+:Chest Item:
+宝箱の中身:
+
+:Gold:
+ゴールド:
+
+:Durability:
+耐久:
+
+:Shop Type:
+店の種類:
+
+:Item List:
+店の売り物:
+
+:Always / Range / ASM Condition
+常時/範囲/ASM条件
+
+:Range Start:
+範囲開始:
+
+:Range End:
+範囲終了:
+
+:Trap
+トラップ
+
+:Placement:
+配置:
+
+:Ballista Type:
+アーチの種類:
+
+:Direction:
+向き:
+
+:Damage Amount:
+ダメージ量:
+
+:Gas Direction:
+ガスの方向:
+
+:Duration:
+持続時間:
+
+:Hatching Start:
+羽化開始:
+
+:Hatching End:
+羽化終了:
+
+:Vein Effect ID:
+VeinEffectID:
+
+:Tutorial
+チュートリアル
+
+:Initial Timer:
+初期タイマー:
+
+:Repeat Timer:
+リピートタイマー:
+
+:Open in Event Editor
+イベント編集画面で開く
+
+:Open in Unit Placement Editor
+ユニット配置画面で開く
+
+:Cross-Editor Jumps
+他画面へジャンプ
+
+:Open the selected start/end event in the Event Editor
+選択されている開始/終了イベントを、イベント編集画面で開く
+
+:Open the selected placement in the Unit Placement Editor
+選択されている配置情報を、ユニット配置画面で開く
+
+:Allocate a new event block and assign it to the current slot
+新しいイベントブロックを割り当てて、現在のスロットに設定します
+
+:Open MapPointerNewPLIST popup (commit-back state-machine deferred per #386)
+MapPointerNewPLIST ポップアップを開きます (コミットバック状態機械は #386 で延期)

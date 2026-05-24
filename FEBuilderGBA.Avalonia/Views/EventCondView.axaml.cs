@@ -41,6 +41,43 @@ namespace FEBuilderGBA.Avalonia.Views
             ExtraB13Box.Value ??= 0;
             ExtraB14Box.Value ??= 0;
             ExtraB15Box.Value ??= 0;
+
+            // Category-specific NUDs: initialise to 0 to satisfy UIVERIFY when
+            // their parent panels are hidden.
+            TurnStartBox.Value ??= 0;
+            TurnEndBox.Value ??= 0;
+            Unit1Box.Value ??= 0;
+            Unit2Box.Value ??= 0;
+            AdditionalDecisionBox.Value ??= 0;
+            DecisionFlagBox.Value ??= 0;
+            TalkAsmFuncBox.Value ??= 0;
+            ObjectXBox.Value ??= 0;
+            ObjectYBox.Value ??= 0;
+            EventTypeBox.Value ??= 0;
+            ChestItemBox.Value ??= 0;
+            GoldBox.Value ??= 0;
+            DurabilityBox.Value ??= 0;
+            ShopTypeBox.Value ??= 0;
+            ItemListBox.Value ??= 0;
+            RangeStartXBox.Value ??= 0;
+            RangeStartYBox.Value ??= 0;
+            RangeEndXBox.Value ??= 0;
+            RangeEndYBox.Value ??= 0;
+            AsmFuncBox.Value ??= 0;
+            TrapXBox.Value ??= 0;
+            TrapYBox.Value ??= 0;
+            BallistaTypeBox.Value ??= 0;
+            TrapDirectionBox.Value ??= 0;
+            TrapDurabilityBox.Value ??= 0;
+            DamageAmountBox.Value ??= 0;
+            GasDirectionBox.Value ??= 0;
+            DurationBox.Value ??= 0;
+            HatchingStartBox.Value ??= 0;
+            HatchingEndBox.Value ??= 0;
+            VeinEffectIdBox.Value ??= 0;
+            InitialTimerBox.Value ??= 0;
+            RepeatTimerBox.Value ??= 0;
+            TextIdBox.Value ??= 0;
         }
 
         void LoadAll()
@@ -87,6 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (ok)
                 {
                     ReloadRecordList();
+                    UpdateTopBar();
                 }
                 else
                 {
@@ -104,6 +142,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
+        }
+
+        void UpdateTopBar()
+        {
+            TopAddrBox.Text = $"0x{_vm.EventDataAddr:X08}";
+            ReadCountBox.Value = EventCondViewModel.SlotDefs.Count;
         }
 
         void OnSlotChanged(object? sender, SelectionChangedEventArgs e)
@@ -192,6 +236,9 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = $"0x{_vm.CondRecordAddr:X08}";
             RecordSizeLabel.Text = $"{_vm.CondRecordSize} bytes";
             CondTypeNameLabel.Text = _vm.CondTypeName;
+            BlockSizeBox.Text = $"0x{_vm.CondRecordSize:X02}";
+            SelectedAddrBox.Text = $"0x{_vm.CondRecordAddr:X08}";
+            CommentBox.Text = _vm.Comment ?? "";
 
             // Update field labels
             var labels = _vm.GetFieldLabels();
@@ -260,11 +307,110 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
 
+            // Update category-specific sub-panels
+            UpdateCategoryPanels();
+
             // Name hints
             UpdateNameHints();
 
             // Raw hex dump
             UpdateRawHex();
+        }
+
+        void UpdateCategoryPanels()
+        {
+            // Hide all sub-panels first.
+            TurnPanel.IsVisible = false;
+            TalkPanel.IsVisible = false;
+            ObjectPanel.IsVisible = false;
+            AlwaysPanel.IsVisible = false;
+            TrapPanel.IsVisible = false;
+            TutorialPanel.IsVisible = false;
+
+            int slotIdx = _vm.SelectedSlotIndex;
+            if (slotIdx < 0 || slotIdx >= EventCondViewModel.SlotDefs.Count) return;
+
+            var cat = EventCondViewModel.SlotDefs[slotIdx].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    TurnPanel.IsVisible = true;
+                    TurnStartBox.Value = _vm.TurnStart;
+                    TurnEndBox.Value = _vm.TurnEnd;
+                    PhaseCombo.SelectedIndex = _vm.Phase switch { 0x40 => 1, 0x80 => 2, 0xC0 => 3, _ => 0 };
+                    break;
+                case CondCategory.TALK:
+                    TalkPanel.IsVisible = true;
+                    Unit1Box.Value = _vm.Unit1;
+                    Unit2Box.Value = _vm.Unit2;
+                    Unit1NameLabel.Text = NameResolver.GetUnitName(_vm.Unit1);
+                    Unit2NameLabel.Text = NameResolver.GetUnitName(_vm.Unit2);
+                    AdditionalDecisionBox.Value = _vm.AdditionalDecision;
+                    DecisionFlagBox.Value = _vm.DecisionFlag;
+                    TalkAsmFuncBox.Value = _vm.AsmFunc;
+                    break;
+                case CondCategory.OBJECT:
+                    ObjectPanel.IsVisible = true;
+                    ObjectSubHeaderLabel.Text = _vm.CondType switch
+                    {
+                        0x05 => "Seize Point / House (制圧ポイントと民家)",
+                        0x06 => "Visit Village (訪問村)",
+                        0x07 => "Chest (宝箱)",
+                        0x08 => "Door (扉)",
+                        0x0A => "Shop (店)",
+                        _ => $"Unknown OBJECT type (0x{_vm.CondType:X02})",
+                    };
+                    ObjectXBox.Value = _vm.X1;
+                    ObjectYBox.Value = _vm.Y1;
+                    EventTypeBox.Value = _vm.EventType;
+                    ChestItemBox.Value = _vm.ItemId;
+                    ChestItemNameLabel.Text = NameResolver.GetItemName(_vm.ItemId);
+                    GoldBox.Value = _vm.Gold;
+                    DurabilityBox.Value = _vm.Durability;
+                    ShopTypeBox.Value = _vm.ShopType;
+                    ItemListBox.Value = _vm.EventPtr;
+                    break;
+                case CondCategory.ALWAYS:
+                    AlwaysPanel.IsVisible = true;
+                    RangeStartXBox.Value = _vm.X1;
+                    RangeStartYBox.Value = _vm.Y1;
+                    RangeEndXBox.Value = _vm.X2;
+                    RangeEndYBox.Value = _vm.Y2;
+                    AsmFuncBox.Value = _vm.AsmFunc;
+                    break;
+                case CondCategory.TRAP:
+                    TrapPanel.IsVisible = true;
+                    TrapSubHeaderLabel.Text = _vm.CondType switch
+                    {
+                        0x01 => "Ballista Placement (アーチ配置)",
+                        0x04 => "Damage Floor (トラップ床)",
+                        0x05 => "Poison Gas (毒ガス)",
+                        0x06 => "Dragon Vein",
+                        0x07 => "Arrow of God (神の矢)",
+                        0x08 => "Fire (炎)",
+                        0x0B => "Mine (地雷)",
+                        0x0C => "Gorgon Egg (ゴーゴンの卵)",
+                        _ => $"Unknown TRAP type (0x{_vm.CondType:X02})",
+                    };
+                    TrapXBox.Value = _vm.X1;
+                    TrapYBox.Value = _vm.Y1;
+                    BallistaTypeBox.Value = _vm.SubType;
+                    TrapDirectionBox.Value = _vm.TrapDirection;
+                    TrapDurabilityBox.Value = _vm.Durability;
+                    DamageAmountBox.Value = _vm.DamageAmount;
+                    GasDirectionBox.Value = _vm.GasDirection;
+                    DurationBox.Value = _vm.Duration;
+                    HatchingStartBox.Value = _vm.HatchingStart;
+                    HatchingEndBox.Value = _vm.HatchingEnd;
+                    VeinEffectIdBox.Value = _vm.SubType; // Vein effect typically in sub-type byte
+                    break;
+                case CondCategory.TUTORIAL:
+                    TutorialPanel.IsVisible = true;
+                    InitialTimerBox.Value = _vm.InitialTimer;
+                    RepeatTimerBox.Value = _vm.RepeatTimer;
+                    TextIdBox.Value = _vm.FlagId;
+                    break;
+            }
         }
 
         void SetFieldVisibility(bool b0, bool b1, bool b2b3, bool b4b7, bool b8, bool b9, bool b10, bool b11)
@@ -387,6 +533,15 @@ namespace FEBuilderGBA.Avalonia.Views
             CondTypeNameLabel.Text = "";
             NameHintLabel.Text = "";
             RawHexLabel.Text = "";
+            BlockSizeBox.Text = "";
+            SelectedAddrBox.Text = "";
+            CommentBox.Text = "";
+            TurnPanel.IsVisible = false;
+            TalkPanel.IsVisible = false;
+            ObjectPanel.IsVisible = false;
+            AlwaysPanel.IsVisible = false;
+            TrapPanel.IsVisible = false;
+            TutorialPanel.IsVisible = false;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -418,7 +573,14 @@ namespace FEBuilderGBA.Avalonia.Views
                         _vm.ExtraB14 = (uint)(ExtraB14Box.Value ?? 0);
                         _vm.ExtraB15 = (uint)(ExtraB15Box.Value ?? 0);
                     }
+
+                    // Also flush category-specific composite values into the VM
+                    // properties so ComposeCategoryFields() picks them up.
+                    UpdateVmCategoryProperties();
                 }
+
+                // Comment round-trip (also requires undo scope).
+                _vm.UpdateComment(CommentBox.Text ?? "");
 
                 _vm.WriteCondRecord();
                 _undoService.Commit();
@@ -435,6 +597,190 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("EventCondView.Write_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Pull category-specific values from the visible sub-panel NUDs into the
+        /// VM properties. Called before WriteCondRecord so ComposeCategoryFields
+        /// has the latest user edits.
+        /// </summary>
+        void UpdateVmCategoryProperties()
+        {
+            int slotIdx = _vm.SelectedSlotIndex;
+            if (slotIdx < 0 || slotIdx >= EventCondViewModel.SlotDefs.Count) return;
+
+            var cat = EventCondViewModel.SlotDefs[slotIdx].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    _vm.TurnStart = (uint)(TurnStartBox.Value ?? 0);
+                    _vm.TurnEnd = (uint)(TurnEndBox.Value ?? 0);
+                    _vm.Phase = PhaseCombo.SelectedIndex switch { 1 => 0x40, 2 => 0x80, 3 => 0xC0, _ => 0u };
+                    break;
+                case CondCategory.TALK:
+                    _vm.Unit1 = (uint)(Unit1Box.Value ?? 0);
+                    _vm.Unit2 = (uint)(Unit2Box.Value ?? 0);
+                    _vm.AdditionalDecision = (uint)(AdditionalDecisionBox.Value ?? 0);
+                    _vm.DecisionFlag = (uint)(DecisionFlagBox.Value ?? 0);
+                    _vm.AsmFunc = (uint)(TalkAsmFuncBox.Value ?? 0);
+                    break;
+                case CondCategory.OBJECT:
+                    _vm.X1 = (uint)(ObjectXBox.Value ?? 0);
+                    _vm.Y1 = (uint)(ObjectYBox.Value ?? 0);
+                    _vm.EventType = (uint)(EventTypeBox.Value ?? 0);
+                    _vm.ItemId = (uint)(ChestItemBox.Value ?? 0);
+                    _vm.Gold = (uint)(GoldBox.Value ?? 0);
+                    _vm.Durability = (uint)(DurabilityBox.Value ?? 0);
+                    _vm.ShopType = (uint)(ShopTypeBox.Value ?? 0);
+                    break;
+                case CondCategory.ALWAYS:
+                    _vm.X1 = (uint)(RangeStartXBox.Value ?? 0);
+                    _vm.Y1 = (uint)(RangeStartYBox.Value ?? 0);
+                    _vm.X2 = (uint)(RangeEndXBox.Value ?? 0);
+                    _vm.Y2 = (uint)(RangeEndYBox.Value ?? 0);
+                    _vm.AsmFunc = (uint)(AsmFuncBox.Value ?? 0);
+                    break;
+                case CondCategory.TRAP:
+                    _vm.X1 = (uint)(TrapXBox.Value ?? 0);
+                    _vm.Y1 = (uint)(TrapYBox.Value ?? 0);
+                    _vm.SubType = (uint)(BallistaTypeBox.Value ?? 0);
+                    _vm.TrapDirection = (uint)(TrapDirectionBox.Value ?? 0);
+                    _vm.Durability = (uint)(TrapDurabilityBox.Value ?? 0);
+                    _vm.DamageAmount = (uint)(DamageAmountBox.Value ?? 0);
+                    _vm.GasDirection = (uint)(GasDirectionBox.Value ?? 0);
+                    _vm.Duration = (uint)(DurationBox.Value ?? 0);
+                    _vm.HatchingStart = (uint)(HatchingStartBox.Value ?? 0);
+                    _vm.HatchingEnd = (uint)(HatchingEndBox.Value ?? 0);
+                    break;
+                case CondCategory.TUTORIAL:
+                    _vm.InitialTimer = (uint)(InitialTimerBox.Value ?? 0);
+                    _vm.RepeatTimer = (uint)(RepeatTimerBox.Value ?? 0);
+                    _vm.FlagId = (uint)(TextIdBox.Value ?? 0);
+                    break;
+            }
+        }
+
+        void ExpandList_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("Expand Event Condition List");
+            try
+            {
+                uint newPtr = _vm.ExpandRecordList();
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                if (newPtr != 0)
+                {
+                    ReloadRecordList();
+                    CoreState.Services.ShowInfo($"Record list expanded. New base pointer: 0x{newPtr:X08}");
+                }
+                else
+                {
+                    CoreState.Services.ShowInfo("Cannot expand this slot type (pointer-only or no allocator wired).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.ExpandList_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("Allocate New Event");
+            try
+            {
+                uint newPtr = _vm.AllocateNewEvent();
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                if (newPtr != 0)
+                {
+                    EventPtrBox.Value = newPtr;
+                    _vm.EventPtr = newPtr;
+                    CoreState.Services.ShowInfo($"New event allocated at: 0x{newPtr:X08}");
+                }
+                else
+                {
+                    CoreState.Services.ShowInfo("Cannot allocate new event (no allocator wired).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.NewAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void PreciseAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            // Opens the MapPointerNewPLISTPopupView. The commit-back state-machine
+            // (writing the selected PLIST back to the current map's event PLIST)
+            // is documented as KnownGap in #386 — the popup opens so users see
+            // the new-allocation UI, but the WF-equivalent state restoration is
+            // deferred. The undo scope still wraps the open in case the popup
+            // itself decides to mutate anything before close.
+            _undoService.Begin("Open PLIST Allocation Popup");
+            try
+            {
+                WindowManager.Instance.Navigate<MapPointerNewPLISTPopupView>(0);
+                _undoService.Commit();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.PreciseAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpEvent_Click(object? sender, RoutedEventArgs e)
+        {
+            // WF EventCondForm.cs line 2215: open EventScriptForm at the event pointer.
+            uint ptr = (uint)(EventPtrBox.Value ?? 0);
+            if (!U.isPointer(ptr))
+            {
+                CoreState.Services.ShowInfo("Event pointer is not a valid ROM address.");
+                return;
+            }
+            uint addr = U.toOffset(ptr);
+            WindowManager.Instance.Navigate<EventScriptView>(addr);
+        }
+
+        void JumpEventUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            // WF EventCondForm.cs lines 2219-2237: dispatch per ROM version.
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            uint ptr = (uint)(EventPtrBox.Value ?? 0);
+            if (!U.isPointer(ptr))
+            {
+                CoreState.Services.ShowInfo("Event pointer is not a valid ROM address.");
+                return;
+            }
+            uint addr = U.toOffset(ptr);
+
+            int ver = rom.RomInfo.version;
+            if (ver >= 8)
+                WindowManager.Instance.Navigate<EventUnitView>(addr);
+            else if (ver >= 7)
+                WindowManager.Instance.Navigate<EventUnitFE7View>(addr);
+            else
+                WindowManager.Instance.Navigate<EventUnitFE6View>(addr);
+        }
+
+        void Reload_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ReloadRecordList();
+                UpdateTopBar();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventCondView.Reload_Click failed: {0}", ex.Message);
             }
         }
 

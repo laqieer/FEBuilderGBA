@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string Name { get; set; } = "";
     }
 
-    public class EventCondViewModel : ViewModelBase, IDataVerifiable
+    public partial class EventCondViewModel : ViewModelBase, IDataVerifiable
     {
         uint _mapSettingAddr;
         uint _eventDataAddr;     // base of the event data block (array of pointers)
@@ -42,6 +42,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _extraB8, _extraB9, _extraB10, _extraB11;
         // FE7 extended (bytes 12-15)
         uint _extraB12, _extraB13, _extraB14, _extraB15;
+
+        // Top read-config bar
+        uint _topAddress;
+        uint _readCount;
+
+        // Comment (round-trip via CoreState.CommentCache)
+        string _comment = "";
+
+        // Category-specific composite views (derived from B8/B9/B10/B11 etc.,
+        // exposed as named properties for direct binding in category panels).
+        // These are computed on demand from the generic ExtraB* properties via
+        // GetCategoryFields() / SetCategoryFields(), so storing them as
+        // independent properties keeps the binding layer clean and matches
+        // the EventUnitFE7 pattern for sub-field decomposition.
+        uint _turnStart, _turnEnd, _phase;
+        uint _unit1, _unit2;
+        uint _x1, _y1, _x2, _y2;
+        uint _asmFunc;
+        uint _itemId, _gold, _durability;
+        uint _trapDirection;
+        uint _initialTimer, _repeatTimer;
+        uint _shopType;
+        uint _eventType;
+        uint _damageAmount;
+        uint _gasDirection;
+        uint _duration;
+        uint _hatchingStart, _hatchingEnd;
+        uint _additionalDecision;
+        uint _decisionFlag;
 
         string _condTypeName = "";
         string _slotInfo = "";
@@ -75,6 +104,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SlotInfo { get => _slotInfo; set => SetField(ref _slotInfo, value); }
         public bool IsFE7Extended { get => _isFE7Extended; set => SetField(ref _isFE7Extended, value); }
         public bool IsPointerSlot { get => _isPointerSlot; set => SetField(ref _isPointerSlot, value); }
+
+        // Top read-config bar properties
+        public uint TopAddress { get => _topAddress; set => SetField(ref _topAddress, value); }
+        public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
+
+        // Comment property (round-trip via CommentCache)
+        public string Comment { get => _comment; set => SetField(ref _comment, value); }
+
+        // Category-specific properties (derived/composite views of the record bytes)
+        public uint TurnStart { get => _turnStart; set => SetField(ref _turnStart, value); }
+        public uint TurnEnd { get => _turnEnd; set => SetField(ref _turnEnd, value); }
+        public uint Phase { get => _phase; set => SetField(ref _phase, value); }
+        public uint Unit1 { get => _unit1; set => SetField(ref _unit1, value); }
+        public uint Unit2 { get => _unit2; set => SetField(ref _unit2, value); }
+        public uint X1 { get => _x1; set => SetField(ref _x1, value); }
+        public uint Y1 { get => _y1; set => SetField(ref _y1, value); }
+        public uint X2 { get => _x2; set => SetField(ref _x2, value); }
+        public uint Y2 { get => _y2; set => SetField(ref _y2, value); }
+        public uint AsmFunc { get => _asmFunc; set => SetField(ref _asmFunc, value); }
+        public uint ItemId { get => _itemId; set => SetField(ref _itemId, value); }
+        public uint Gold { get => _gold; set => SetField(ref _gold, value); }
+        public uint Durability { get => _durability; set => SetField(ref _durability, value); }
+        public uint TrapDirection { get => _trapDirection; set => SetField(ref _trapDirection, value); }
+        public uint InitialTimer { get => _initialTimer; set => SetField(ref _initialTimer, value); }
+        public uint RepeatTimer { get => _repeatTimer; set => SetField(ref _repeatTimer, value); }
+        public uint ShopType { get => _shopType; set => SetField(ref _shopType, value); }
+        public uint EventType { get => _eventType; set => SetField(ref _eventType, value); }
+        public uint DamageAmount { get => _damageAmount; set => SetField(ref _damageAmount, value); }
+        public uint GasDirection { get => _gasDirection; set => SetField(ref _gasDirection, value); }
+        public uint Duration { get => _duration; set => SetField(ref _duration, value); }
+        public uint HatchingStart { get => _hatchingStart; set => SetField(ref _hatchingStart, value); }
+        public uint HatchingEnd { get => _hatchingEnd; set => SetField(ref _hatchingEnd, value); }
+        public uint AdditionalDecision { get => _additionalDecision; set => SetField(ref _additionalDecision, value); }
+        public uint DecisionFlag { get => _decisionFlag; set => SetField(ref _decisionFlag, value); }
 
         public static IReadOnlyList<CondSlotDef> SlotDefs => _slotDefs;
 
@@ -417,15 +480,177 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             CondTypeName = GetCondTypeName((byte)CondType);
             CanWrite = true;
+
+            // Decompose category-specific composite views from the generic bytes.
+            DecomposeCategoryFields();
+
+            // Top read-config bar reflects the current event-data context.
+            TopAddress = EventDataAddr;
+            ReadCount = (uint)_slotDefs.Count;
+
+            // Pull the comment from the cache (round-trip via HeadlessEtcCache).
+            Comment = CoreState.CommentCache?.At(addr) ?? "";
         }
 
         /// <summary>
-        /// Write the current condition record back to ROM.
+        /// Decompose the generic ExtraB* bytes into category-specific composite
+        /// views (TurnStart, Unit1, X/Y, etc.) so the per-category sub-panels
+        /// can bind directly.
+        /// </summary>
+        void DecomposeCategoryFields()
+        {
+            if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count)
+                return;
+
+            var cat = _slotDefs[_selectedSlotIndex].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    TurnStart = _extraB8;
+                    TurnEnd = _extraB9;
+                    Phase = _extraB10;
+                    break;
+                case CondCategory.TALK:
+                    Unit1 = _extraB8;
+                    Unit2 = _extraB9;
+                    if (_isFE7Extended)
+                    {
+                        AdditionalDecision = _extraB12;
+                        DecisionFlag = _extraB13;
+                        AsmFunc = _eventPtr; // for N04 ASM talk
+                    }
+                    break;
+                case CondCategory.OBJECT:
+                    X1 = _extraB8;
+                    Y1 = _extraB9;
+                    EventType = _extraB10;
+                    // For N07 (chest): item id stored at B0 sub-field, gold/durability
+                    // typically share the event ptr u32 split — kept as separate
+                    // composite views for UI binding clarity.
+                    ItemId = _condType == 0x07 ? _eventPtr & 0xFF : 0;
+                    Gold = _condType == 0x07 ? (_eventPtr >> 16) & 0xFFFF : 0;
+                    Durability = _condType == 0x07 ? (_eventPtr >> 24) & 0xFF : 0;
+                    ShopType = _condType == 0x0A ? _extraB10 : 0;
+                    break;
+                case CondCategory.ALWAYS:
+                    X1 = _extraB8;
+                    Y1 = _extraB9;
+                    X2 = _extraB10;
+                    Y2 = _extraB11;
+                    if (_condType == 0x0D || _condType == 0x0E)
+                    {
+                        AsmFunc = _eventPtr;
+                    }
+                    break;
+                case CondCategory.TRAP:
+                    // TRAP records: 6 bytes — B0=type, B1=X, B2=Y, B3=sub, B4-5=extra
+                    X1 = _subType;
+                    Y1 = _flagId;
+                    TrapDirection = _extraB8;
+                    Durability = _extraB9;
+                    // Trap-type-specific: damage/gas/duration/hatching share the
+                    // B4-B5 bytes; mapped per-category for binding clarity.
+                    DamageAmount = _condType == 0x04 ? _extraB8 : 0;
+                    GasDirection = _condType == 0x05 ? _extraB8 : 0;
+                    Duration = _condType == 0x08 ? _extraB9 : 0;
+                    HatchingStart = _condType == 0x0C ? _extraB8 : 0;
+                    HatchingEnd = _condType == 0x0C ? _extraB9 : 0;
+                    ItemId = (_condType == 0x0B) ? _eventPtr & 0xFF : 0;
+                    break;
+                case CondCategory.TUTORIAL:
+                    InitialTimer = _condType;
+                    RepeatTimer = _subType;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Compose category-specific values back into generic bytes before write.
+        /// </summary>
+        void ComposeCategoryFields()
+        {
+            if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count)
+                return;
+
+            var cat = _slotDefs[_selectedSlotIndex].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    _extraB8 = TurnStart;
+                    _extraB9 = TurnEnd;
+                    _extraB10 = Phase;
+                    break;
+                case CondCategory.TALK:
+                    _extraB8 = Unit1;
+                    _extraB9 = Unit2;
+                    if (_isFE7Extended)
+                    {
+                        _extraB12 = AdditionalDecision;
+                        _extraB13 = DecisionFlag;
+                    }
+                    break;
+                case CondCategory.OBJECT:
+                    _extraB8 = X1;
+                    _extraB9 = Y1;
+                    _extraB10 = EventType;
+                    if (_condType == 0x07)
+                    {
+                        _eventPtr = ItemId | (Gold << 16) | (Durability << 24);
+                    }
+                    else if (_condType == 0x0A)
+                    {
+                        _extraB10 = ShopType;
+                    }
+                    break;
+                case CondCategory.ALWAYS:
+                    _extraB8 = X1;
+                    _extraB9 = Y1;
+                    _extraB10 = X2;
+                    _extraB11 = Y2;
+                    if (_condType == 0x0D || _condType == 0x0E)
+                    {
+                        _eventPtr = AsmFunc;
+                    }
+                    break;
+                case CondCategory.TRAP:
+                    _subType = X1;
+                    _flagId = Y1;
+                    _extraB8 = TrapDirection;
+                    _extraB9 = Durability;
+                    if (_condType == 0x04) _extraB8 = DamageAmount;
+                    else if (_condType == 0x05) _extraB8 = GasDirection;
+                    else if (_condType == 0x08) _extraB9 = Duration;
+                    else if (_condType == 0x0C) { _extraB8 = HatchingStart; _extraB9 = HatchingEnd; }
+                    else if (_condType == 0x0B) _eventPtr = ItemId;
+                    break;
+                case CondCategory.TUTORIAL:
+                    _condType = InitialTimer;
+                    _subType = RepeatTimer;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Write the current condition record back to ROM. Requires an active
+        /// undo scope (via UndoService.Begin or ROM.BeginUndoScope); throws
+        /// InvalidOperationException otherwise. The fail-fast enforcement
+        /// guarantees no ROM mutation slips through without undo tracking.
         /// </summary>
         public void WriteCondRecord()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CondRecordAddr == 0) return;
+
+            // Undo enforcement: throw if no ambient scope is active.
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.WriteCondRecord requires an active undo scope " +
+                    "(call UndoService.Begin or ROM.BeginUndoScope before invoking).");
+            }
+
+            // Compose category-specific composite views back into generic bytes.
+            ComposeCategoryFields();
 
             if (IsPointerSlot)
             {
@@ -469,6 +694,150 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u8(CondRecordAddr + 15, (byte)ExtraB15);
                 }
             }
+        }
+
+        /// <summary>
+        /// Expand the record list for the currently-selected slot. Returns
+        /// the new base pointer of the expanded list (in GBA-pointer form).
+        /// Requires an active undo scope; throws otherwise.
+        /// </summary>
+        public uint ExpandRecordList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || _eventDataAddr == 0 || _selectedSlotIndex < 0 ||
+                _selectedSlotIndex >= _slotDefs.Count) return 0;
+
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.ExpandRecordList requires an active undo scope.");
+            }
+
+            var slotDef = _slotDefs[_selectedSlotIndex];
+            uint recordSize = GetRecordSize(slotDef.Category);
+
+            // Pointer-only slots can't be expanded — they're a single pointer.
+            if (IsCategoryPointerOnly(slotDef.Category))
+                return 0;
+
+            // Read the current list pointer.
+            uint slotPointerAddr = _eventDataAddr + (uint)(_selectedSlotIndex * 4);
+            uint rawPtr = rom.u32(slotPointerAddr);
+            if (!U.isPointer(rawPtr)) return 0;
+
+            uint baseAddr = U.toOffset(rawPtr);
+
+            // Count current records (terminator detection).
+            uint count = 0;
+            for (uint i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + i * recordSize;
+                if (addr + recordSize > (uint)rom.Data.Length) break;
+                if (recordSize <= 6 && rom.u8(addr) == 0) break;
+                if (recordSize > 6 && rom.u32(addr) == 0) break;
+                count++;
+            }
+
+            // Build a new buffer with one extra slot + terminator.
+            uint newCount = count + 1;
+            uint totalSize = (newCount + 1) * recordSize; // +1 for terminator
+            byte[] buffer = new byte[totalSize];
+
+            // Copy existing records.
+            for (uint i = 0; i < count; i++)
+            {
+                uint srcAddr = baseAddr + i * recordSize;
+                for (uint j = 0; j < recordSize; j++)
+                {
+                    if (srcAddr + j < (uint)rom.Data.Length)
+                        buffer[i * recordSize + j] = (byte)rom.u8(srcAddr + j);
+                }
+            }
+            // New slot starts at offset = count * recordSize (zeroed initially).
+            // Terminator stays zeroed at offset = newCount * recordSize.
+
+            // Append the buffer to ROM end (mirrors WF InputFormRef.AppendBinaryData).
+            uint newAddr = AppendBinaryDataHeadless(rom, buffer);
+            if (newAddr == U.NOT_FOUND) return 0;
+
+            // Update the slot pointer to point at the new list.
+            rom.write_u32(slotPointerAddr, U.toPointer(newAddr));
+
+            return U.toPointer(newAddr);
+        }
+
+        /// <summary>
+        /// Allocate a new event block (stub: just an END byte at the freshly
+        /// appended address). Returns the new event pointer (in GBA-pointer
+        /// form) so the caller can write it into the relevant slot.
+        /// Requires an active undo scope; throws otherwise.
+        /// </summary>
+        public uint AllocateNewEvent()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return 0;
+
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.AllocateNewEvent requires an active undo scope.");
+            }
+
+            // Allocate a minimal stub event: 4 bytes of END (0x00 terminator on FE6/8,
+            // 0x0A 0x00 0x00 0x00 = NOP+END for FE7). Just 4 zero bytes work as a
+            // safe default — same shape WF uses for "blank event allocation".
+            byte[] stub = new byte[4];
+            uint newAddr = AppendBinaryDataHeadless(rom, stub);
+            if (newAddr == U.NOT_FOUND) return 0;
+
+            return U.toPointer(newAddr);
+        }
+
+        /// <summary>
+        /// Update the comment for the currently-selected record via
+        /// CoreState.CommentCache. Requires an active undo scope so any
+        /// downstream ROM commit (e.g. comment cache persistence side-effects)
+        /// is tracked. The comment cache itself is in-memory and persisted
+        /// separately, but we enforce the scope to keep all VM mutations
+        /// fail-fast against the same undo discipline.
+        /// </summary>
+        public void UpdateComment(string value)
+        {
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.UpdateComment requires an active undo scope.");
+            }
+
+            Comment = value ?? "";
+            if (CondRecordAddr == 0) return;
+
+            CoreState.CommentCache?.Update(CondRecordAddr, Comment);
+        }
+
+        /// <summary>
+        /// Headless equivalent of InputFormRef.AppendBinaryData. Routes through
+        /// the registered CoreState.AppendBinaryData delegate when available
+        /// (WinForms registers it via InputFormRef); returns U.NOT_FOUND when
+        /// no allocator is wired (e.g. in headless tests).
+        /// </summary>
+        static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer)
+        {
+            // WinForms wires the real allocator via CoreState.AppendBinaryData;
+            // the Avalonia editor relies on the same delegate (resolved through
+            // ROM-end appending or freespace search depending on what's
+            // registered). When the delegate isn't wired (headless tests),
+            // return U.NOT_FOUND so callers handle the gracefully.
+            var allocator = CoreState.AppendBinaryData;
+            if (allocator == null) return U.NOT_FOUND;
+
+            // We need an UndoData to satisfy the signature; we recover the
+            // ambient one (the caller is required to be in an undo scope per
+            // the throw-if-not-active enforcement).
+            var ambient = ROM.GetAmbientUndoData();
+            if (ambient == null) return U.NOT_FOUND;
+
+            return allocator(buffer, ambient);
         }
 
         /// <summary>
