@@ -178,12 +178,14 @@ public class SkillConfigFE8NSkillParityTests
         try
         {
             CoreState.ROM = rom;
-            // Decode4bppTiles requires an IImageService. Most parity tests
-            // run in headless mode where this isn't wired by default.
-            if (CoreState.ImageService == null)
-            {
-                CoreState.ImageService = new FEBuilderGBA.SkiaSharp.SkiaImageService();
-            }
+            // Decode4bppTiles requires an IImageService. Always install a
+            // known-good SkiaImageService for this test so the assertion is
+            // deterministic on every platform (Ubuntu CI in particular ships
+            // with `CoreState.ImageService` populated by an earlier test, but
+            // that service may not be Skia-backed and the synthetic decode
+            // path can return null. The conditional-install previously left
+            // a non-Skia service in place on Linux, causing CI flake).
+            CoreState.ImageService = new FEBuilderGBA.SkiaSharp.SkiaImageService();
 
             uint iconPointerAddr = rom.RomInfo.icon_pointer;
             Assert.True(U.isSafetyOffset(iconPointerAddr + 3, rom));
@@ -230,7 +232,10 @@ public class SkillConfigFE8NSkillParityTests
         finally
         {
             CoreState.ROM = prevRom;
-            if (prevImageService != null) CoreState.ImageService = prevImageService;
+            // Always restore - even if prevImageService was null. Leaving a
+            // test-installed SkiaImageService leaking into a sibling test
+            // could perturb their headless-mode assertions.
+            CoreState.ImageService = prevImageService;
         }
     }
 
