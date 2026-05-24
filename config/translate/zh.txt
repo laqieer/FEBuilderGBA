@@ -22463,3 +22463,48 @@ KnownGap: 依赖 InputFormRef 自动连接 (#374 跟踪中)。
 
 :Candidate
 候选
+
+:Skill Configuration (FE8N v3)
+技能配置 (FE8N v3)
+
+:Skill system editors require the FE8N v3 skill patch to be installed.\r\nUse the Patch Manager to install it first.
+技能系统编辑器需要先安装 FE8N v3 技能补丁。\r\n请使用补丁管理器进行安装。
+
+:Composite Skill Pointer
+复合技能指针
+
+:Composite Skill List
+复合技能列表
+
+:Composite Skill Sub-list
+复合技能子列表
+
+:Item2 Skill Sub-list
+物品2技能子列表
+
+:Per-skill composite-skill sub-list editing is not yet implemented in Avalonia.
+每个技能的复合技能子列表编辑尚未在 Avalonia 中实现。
+
+:Use the WinForms editor to add other skills as composite effects.
+请使用 WinForms 编辑器添加其他技能作为复合效果。
+
+:Use the WinForms editor to assign held items to a skill.
+请使用 WinForms 编辑器将持有物品分配给技能。
+
+:Use the WinForms editor to assign weapon-equipped items to a skill.
+请使用 WinForms 编辑器将武器装备物品分配给技能。
+
+:When this item is held, the skill activates (KnownGap: tracked by #374)
+持有此物品时此技能生效 (KnownGap: #374 跟踪中)
+
+:When this item is equipped as weapon, the skill activates (KnownGap: tracked by #374)
+将此物品作为武器装备时此技能生效 (KnownGap: #374 跟踪中)
+
+:Adds the effect of another skill (KnownGap: tracked by #374)
+添加其他技能的效果 (KnownGap: #374 跟踪中)
+
+:PatchManagerView does not yet expose JumpToSelectStruct (tracked by #374).
+PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
+
+:Move to COMBAT_ART
+跳转到 COMBAT_ART
