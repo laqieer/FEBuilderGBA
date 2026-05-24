@@ -281,13 +281,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItems(items);
                 if (preservedSlot != 0)
                 {
-                    // Find the row whose tag matches the (still-stable)
-                    // source pointer slot and re-select it.
-                    foreach (var ar in items)
+                    // Per PR #589 Copilot bot review round 2: select by
+                    // INDEX rather than by palette address, because two
+                    // battle-animation rows can legitimately share the
+                    // same palette pointer (the bug the stable
+                    // source-pointer-slot tag was meant to fix).
+                    // SelectByIndex selects exactly the matched row.
+                    for (int i = 0; i < items.Count; i++)
                     {
-                        if (ar.tag == preservedSlot)
+                        if (items[i].tag == preservedSlot)
                         {
-                            EntryList.SelectAddress(ar.addr);
+                            EntryList.SelectByIndex(i);
                             break;
                         }
                     }
