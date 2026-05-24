@@ -72,7 +72,44 @@ public class ImageBattleScreenParityTests
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"ImageBattleScreen_AllWrite_Button\"", axaml);
         Assert.Contains("AutomationId=\"ImageBattleScreen_Zoom_Combo\"", axaml);
-        Assert.Contains("AutomationId=\"ImageBattleScreen_TSAInfo_Label\"", axaml);
+        // Per Copilot bot PR #594 round 5 thread #1: TSAInfo is split into
+        // two separate translatable TextBlocks (Selected + Canvas) so each
+        // fragment goes through ViewTranslationHelper independently.
+        Assert.Contains("AutomationId=\"ImageBattleScreen_TSAInfoSelected_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ImageBattleScreen_TSAInfoCanvas_Label\"", axaml);
+    }
+
+    /// <summary>
+    /// Per Copilot bot PR #594 round 5 thread #2: WriteButton_Click must
+    /// refuse to write if the VM has not been loaded yet (default zeros
+    /// would wipe the ROM TSA + image pointer slots).
+    /// </summary>
+    [Fact]
+    public void View_WriteHandler_GuardsAgainstUnloadedVM()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // The handler must check _vm.IsLoaded before invoking Write().
+        var match = Regex.Match(code,
+            @"void\s+WriteButton_Click[\s\S]*?(?=\n\s{4,}void\s|\n\s{0,4}\})",
+            RegexOptions.Singleline);
+        Assert.True(match.Success, "Could not locate WriteButton_Click handler");
+        Assert.Matches(new Regex(@"if\s*\(\s*!_vm\.IsLoaded", RegexOptions.Singleline), match.Value);
+    }
+
+    /// <summary>
+    /// Per Copilot bot PR #594 round 5 thread #3: PaletteWrite_Click must
+    /// refuse to write if the VM has not been loaded yet (default zero
+    /// R/G/B arrays would write a black palette over the existing one).
+    /// </summary>
+    [Fact]
+    public void View_PaletteWriteHandler_GuardsAgainstUnloadedVM()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        var match = Regex.Match(code,
+            @"void\s+PaletteWrite_Click[\s\S]*?(?=\n\s{4,}void\s|\n\s{0,4}\})",
+            RegexOptions.Singleline);
+        Assert.True(match.Success, "Could not locate PaletteWrite_Click handler");
+        Assert.Matches(new Regex(@"if\s*\(\s*!_vm\.IsLoaded", RegexOptions.Singleline), match.Value);
     }
 
     [Fact]

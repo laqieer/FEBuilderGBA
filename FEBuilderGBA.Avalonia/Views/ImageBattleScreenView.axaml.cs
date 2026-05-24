@@ -52,12 +52,6 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeSwatches();
             WireSpinnerHandlers();
 
-            // Default TSA info text. Set via code-behind so the translation
-            // chain picks it up (see PR #589 ComboBoxItem.Content pattern
-            // -- ViewTranslationHelper does not touch dynamic Text values
-            // populated from code, so we feed it through R._() ourselves).
-            TSAInfoLabel.Text = R._("Selected: 00") + "   " + R._("Canvas:");
-
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -195,6 +189,15 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
+            // Per Copilot bot PR #594 round 5 thread #2: refuse to write if
+            // no entry has been loaded -- default zeros would wipe TSA
+            // regions and write 0x08000000 into image pointer slots.
+            if (!_vm.IsLoaded)
+            {
+                Log.Notify("WriteButton_Click: no entry loaded; refusing to write defaults.");
+                return;
+            }
+
             // Pull the ZIMAGE numerics back into the VM so they are part of
             // the write batch.
             _vm.Image1Pointer = (uint)((double)(Image1ZImage.Value ?? 0));
@@ -230,6 +233,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
+
+            // Per Copilot bot PR #594 round 5 thread #3: refuse to write if
+            // no entry has been loaded -- all-zero R/G/B arrays would
+            // write a black palette over the existing one.
+            if (!_vm.IsLoaded || _vm.PaletteAddress == 0)
+            {
+                Log.Notify("PaletteWrite_Click: no entry loaded; refusing to write defaults.");
+                return;
+            }
 
             _undoService.Begin("Edit Battle Screen Palette");
             bool ok;

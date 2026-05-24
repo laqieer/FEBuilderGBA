@@ -32,9 +32,16 @@
                     Name="ZoomCombo" Width="120" VerticalAlignment="Center" SelectedIndex="1"
                     IsEnabled="False"
                     ToolTip.Tip="KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands." />
-          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfo_Label"
-                     Name="TSAInfoLabel" VerticalAlignment="Center"
-                     Margin="20,0,0,0" Foreground="DarkGray" />
+          <!-- TSAInfo split into separate TextBlocks so each fragment goes
+               through ViewTranslationHelper independently (a composite
+               'Selected: 00   Canvas:' string has no translation entry).
+               Per Copilot bot PR #594 round 5 thread #1. -->
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfoSelected_Label"
+                     Name="TSAInfoSelectedLabel" Text="Selected: 00"
+                     VerticalAlignment="Center" Margin="20,0,0,0" Foreground="DarkGray" />
+          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_TSAInfoCanvas_Label"
+                     Name="TSAInfoCanvasLabel" Text="Canvas:"
+                     VerticalAlignment="Center" Margin="12,0,0,0" Foreground="DarkGray" />
         </StackPanel>
       </Border>
 
