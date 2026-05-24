@@ -42,8 +42,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadAll()
         {
+            // Read-only initial load — wrap in an IsLoading scope so the VM's
+            // automatic SetField -> IsDirty propagation does NOT flip the
+            // dirty bit when the 13 pointer NUDs and two AddressLists
+            // populate (Copilot bot inline review #1, #2, #3, #4 on PR #592).
+            bool prevLoading = _vm.IsLoading;
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadAll();
                 RefreshTopRowNuds();
                 LoadBorderList();
@@ -52,6 +58,11 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("WorldMapImageView.LoadAll failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.IsLoading = prevLoading;
+                _vm.MarkClean();
             }
         }
 
@@ -106,6 +117,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 _undoService.Commit();
+                // Reset the dirty bit after a successful save (Copilot bot
+                // inline review #4 on PR #592). ReadNudsIntoVm did flip the
+                // VM SetField paths above, so the VM IsDirty would remain
+                // true unless we explicitly clear it here.
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
@@ -120,14 +136,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadBorderList()
         {
-            var items = _vm.LoadBorderList();
-            Border_EntryList.SetItems(items);
+            // Reload is a read-only action — keep IsLoading high so the
+            // selection-change side-effects don't flip IsDirty.
+            bool prevLoading = _vm.IsLoading;
+            try
+            {
+                _vm.IsLoading = true;
+                var items = _vm.LoadBorderList();
+                Border_EntryList.SetItems(items);
+            }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void OnBorderSelected(uint addr)
         {
+            // Save/restore the prior IsLoading state so a selection during
+            // initial load doesn't end the outer load scope early
+            // (Copilot bot inline review #2 on PR #592).
+            bool prevLoading = _vm.IsLoading;
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadBorderEntry(addr);
                 Border_AddressBox.Value = addr;
                 Border_SelectAddressLabel.Content = $"0x{addr:X08}";
@@ -140,6 +169,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapImageView.OnBorderSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void BorderWrite_Click(object? sender, RoutedEventArgs e)
@@ -158,6 +188,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 _undoService.Commit();
+                // Reset dirty after successful Border save (Copilot bot
+                // inline review #4 on PR #592).
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {
@@ -178,14 +211,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void LoadIconList()
         {
-            var items = _vm.LoadIconList();
-            IconData_EntryList.SetItems(items);
+            // Reload is a read-only action — keep IsLoading high so the
+            // selection-change side-effects don't flip IsDirty.
+            bool prevLoading = _vm.IsLoading;
+            try
+            {
+                _vm.IsLoading = true;
+                var items = _vm.LoadIconList();
+                IconData_EntryList.SetItems(items);
+            }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void OnIconSelected(uint addr)
         {
+            // Save/restore the prior IsLoading state so a selection during
+            // initial load doesn't end the outer load scope early
+            // (Copilot bot inline review #3 on PR #592).
+            bool prevLoading = _vm.IsLoading;
             try
             {
+                _vm.IsLoading = true;
                 _vm.LoadIconEntry(addr);
                 IconData_AddressBox.Value = addr;
                 IconData_SelectAddressLabel.Content = $"0x{addr:X08}";
@@ -206,6 +252,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("WorldMapImageView.OnIconSelected failed: {0}", ex.Message);
             }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         void IconWrite_Click(object? sender, RoutedEventArgs e)
@@ -232,6 +279,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
                 _undoService.Commit();
+                // Reset dirty after successful Icon save (Copilot bot
+                // inline review #4 on PR #592).
+                _vm.MarkClean();
             }
             catch (Exception ex)
             {

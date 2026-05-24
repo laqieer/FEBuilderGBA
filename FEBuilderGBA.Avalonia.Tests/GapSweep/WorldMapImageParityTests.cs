@@ -278,6 +278,79 @@ public class WorldMapImageParityTests
         Assert.Contains("CoreState.Undo?.RunUndo()", source);
     }
 
+    /// <summary>
+    /// Per Copilot bot inline review #1-#3 on PR #592: read-only load /
+    /// selection paths must wrap their VM SetField cascade in an
+    /// IsLoading scope and call MarkClean() in finally so a row
+    /// selection doesn't flip the VM IsDirty bit.
+    /// </summary>
+    [Fact]
+    public void View_LoadAndSelectionPaths_UseIsLoadingScope()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        // LoadAll, LoadBorderList, LoadIconList, OnBorderSelected,
+        // OnIconSelected must all set IsLoading = true and call
+        // MarkClean in finally.
+        Assert.Contains("_vm.IsLoading = true", source);
+        Assert.Contains("_vm.IsLoading = prevLoading", source);
+        Assert.Contains("_vm.MarkClean()", source);
+        // The pattern must appear in BOTH selection handlers and the
+        // initial-load entry-point.
+        int loadingAssignments = CountOccurrences(source, "_vm.IsLoading = true");
+        Assert.True(loadingAssignments >= 5,
+            $"Expected >= 5 `_vm.IsLoading = true` assignments " +
+            $"(LoadAll + LoadBorderList + LoadIconList + OnBorderSelected " +
+            $"+ OnIconSelected); got {loadingAssignments}.");
+    }
+
+    /// <summary>
+    /// Per Copilot bot inline review #4 on PR #592: after successful
+    /// writes the view must call <c>_vm.MarkClean()</c> so the VM
+    /// IsDirty bit resets (ReadNudsIntoVm + per-tab assignments flip
+    /// IsDirty via SetField during the write).
+    /// </summary>
+    [Fact]
+    public void View_WriteHandlers_CallMarkCleanAfterCommit()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        // Three distinct undo-scope strings, each followed by Commit
+        // then MarkClean.
+        string[] scopes =
+        {
+            "Write World Map Pointers",
+            "Write World Map Border",
+            "Write World Map Icon",
+        };
+        foreach (string scope in scopes)
+        {
+            int idx = source.IndexOf(scope, StringComparison.Ordinal);
+            Assert.True(idx > 0, $"Undo scope '{scope}' missing");
+            int commitIdx = source.IndexOf("_undoService.Commit()", idx, StringComparison.Ordinal);
+            Assert.True(commitIdx > idx, $"_undoService.Commit() not found after scope '{scope}'");
+            int markCleanIdx = source.IndexOf("_vm.MarkClean()", commitIdx, StringComparison.Ordinal);
+            Assert.True(markCleanIdx > commitIdx,
+                $"_vm.MarkClean() must follow _undoService.Commit() for scope '{scope}' " +
+                $"(commit at {commitIdx}, MarkClean at {markCleanIdx}).");
+            // Sanity: MarkClean should be close to Commit (within 1KB)
+            // so we don't accidentally match an unrelated later MarkClean.
+            Assert.True(markCleanIdx - commitIdx < 1024,
+                $"MarkClean is suspiciously far ({markCleanIdx - commitIdx} chars) " +
+                $"from Commit for scope '{scope}' — wrong site?");
+        }
+    }
+
+    static int CountOccurrences(string haystack, string needle)
+    {
+        int count = 0;
+        int idx = 0;
+        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            idx += needle.Length;
+        }
+        return count;
+    }
+
     // ===================================================================
     // ViewModel synthetic-ROM tests
     // ===================================================================
