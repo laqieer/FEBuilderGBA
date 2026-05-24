@@ -14,12 +14,14 @@
         x:Class="FEBuilderGBA.Avalonia.Views.MonsterItemViewerView"
         Title="Monster Item Editor" Width="1280" Height="900"
         SizeToContent="WidthAndHeight">
-  <TabControl Name="MainTabs" Margin="4">
+  <TabControl AutomationProperties.AutomationId="MonsterItemViewer_Main_TabControl"
+              Name="MainTabs" Margin="4">
 
     <!-- ===================================================================
          Tab 1 — Item Table  (monster_item_item_pointer, 5-byte rows)
          =================================================================== -->
-    <TabItem Header="Item Table" Name="ItemTab">
+    <TabItem AutomationProperties.AutomationId="MonsterItemViewer_ItemTab_Tab"
+             Header="Item Table" Name="ItemTab">
       <Grid ColumnDefinitions="250,*">
         <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Entry_List"
                                      Grid.Column="0" Name="EntryList" Margin="4" />
@@ -151,7 +153,8 @@
     <!-- ===================================================================
          Tab 2 — Probability Table  (monster_item_probability_pointer, 5-byte)
          =================================================================== -->
-    <TabItem Header="Probability Table" Name="ProbTab">
+    <TabItem AutomationProperties.AutomationId="MonsterItemViewer_ProbTab_Tab"
+             Header="Probability Table" Name="ProbTab">
       <Grid ColumnDefinitions="250,*">
         <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Prob_Entry_List"
                                      Grid.Column="0" Name="ProbEntryList" Margin="4" />
@@ -241,7 +244,8 @@
     <!-- ===================================================================
          Tab 3 — Holdings Table  (monster_item_table_pointer, 32-byte rows)
          =================================================================== -->
-    <TabItem Header="Holdings Table" Name="HoldingTab">
+    <TabItem AutomationProperties.AutomationId="MonsterItemViewer_HoldingTab_Tab"
+             Header="Holdings Table" Name="HoldingTab">
       <Grid ColumnDefinitions="250,*">
         <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Entry_List"
                                      Grid.Column="0" Name="HoldingEntryList" Margin="4" />
