@@ -22729,3 +22729,559 @@ TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
 
 :Reveal the last-imported source script file in the OS file manager.
 在操作系统的文件管理器中显示上次导入的源脚本文件。
+
+:Auto-update
+自动更新
+
+:Active Unit
+当前操作中的角色
+
+:Active Unit (live)
+当前操作中的角色 (实时)
+
+:Currently active unit
+当前正在操作的角色
+
+:Running Event
+正在执行的事件
+
+:Event History
+事件历史
+
+:Event History (newest first) - Time / Begin / Running / Event
+事件历史 (最新在上) - 时间 / 开始 / 执行中 / 事件
+
+:Currently Playing BGM
+正在播放的音乐
+
+:Memory Slot
+内存槽
+
+:Cheat
+作弊
+
+:Debug cheat utilities
+方便调试的作弊功能
+
+:Analyst tools
+面向分析者的功能
+
+:Change this unit's coordinates and warp it.
+更改此角色的坐标并将其传送。
+
+:Change Turn Count
+更改回合数
+
+:Warp to this chapter
+传送到该章节
+
+:Max out this unit's stats.
+将此角色的参数顶满。
+
+:Max out all player units. (Hotkey Ctrl + G)
+将所有我方角色都设为最强。(快捷键 Ctrl + G)
+
+:Max out all units including enemies
+将包括敌方在内的所有角色都设为最强
+
+:Set all enemy unit AI to 'Do not move'.
+将所有敌方 AI 设置为「不移动」。
+
+:Set all enemy units' HP to 1.
+将所有敌方角色的 HP 设为 1。
+
+:Set this unit's HP to 1.
+将此角色的 HP 设为 1。
+
+:Set Money to the value below
+将所持金更改为以下值
+
+:Change Weather (applies next turn).
+更改天气 (从下回合开始生效)。
+
+:Change Fog (applies next turn).
+更改雾等级 (从下回合开始生效)。
+
+:0 = no fog. 1 = max fog (vision 1 tile).
+0 表示无雾。1 表示视野最小 1 格的最大浓雾。
+
+:Give this unit the following item
+让此角色持有以下物品
+
+:Item to give
+要给予的物品
+
+:Clear the current chapter. (Hotkey: Ctrl + U)
+通关当前章节。(快捷键: Ctrl + U)
+
+:To change a non-clear flag, double-click the flag in the Event panel.
+要更改通关 flag 以外的其他 flag, 请在事件画面中, 双击要更改的 flag。
+
+:Trap Data
+陷阱数据
+
+:Clear Turns
+通关回合数
+
+:Chapter Data
+章节数据
+
+:Supply
+辎重队
+
+:Supply contents
+辎重队内容
+
+:Arena opponent selection data
+用于竞技场对手选出的数据
+
+:Battle History
+战绩数据
+
+:Battle-related data
+战斗相关数据
+
+:Battle data gBattleActor
+战斗数据 gBattleActor
+
+:Battle data gBattleTarget
+战斗数据 gBattleTarget
+
+:Tower and Ruins data
+塔与遗迹数据
+
+:Worldmap base
+世界地图据点
+
+:Worldmap FE8
+Worldmap FE8
+
+:Warp chapter
+传送目标章
+
+:Map ID
+地图 ID
+
+:Dump memory to file at 0x02000000
+将内存转储到文件 0x02000000
+
+:Dump memory to file at 0x03000000
+将内存转储到文件 0x03000000
+
+:Party Table ID
+部队表 ID
+
+:Sword EXP
+剑 EXP
+
+:Lance EXP
+枪 EXP
+
+:Axe EXP
+斧 EXP
+
+:Bow EXP
+弓 EXP
+
+:Staff EXP
+杖 EXP
+
+:Anima EXP
+理 EXP
+
+:Light EXP
+光 EXP
+
+:Dark EXP
+暗 EXP
+
+:Str / Mag
+力与魔力
+
+:Max HP
+最大 HP
+
+:Current HP
+当前 HP
+
+:Recovery Mode
+恢复模式
+
+:Holy Water / Torch
+圣水/火把
+
+:Companion ID
+同行者 ID
+
+:Status and Turn
+状态与回合
+
+:Support Flag
+支援标志
+
+:Item ID 1
+物品 ID 1
+
+:Item ID 2
+物品 ID 2
+
+:Item ID 3
+物品 ID 3
+
+:Item ID 4
+物品 ID 4
+
+:Item ID 5
+物品 ID 5
+
+:Item count 1
+物品数 1
+
+:Item count 2
+物品数 2
+
+:Item count 3
+物品数 3
+
+:Item count 4
+物品数 4
+
+:Item count 5
+物品数 5
+
+:Fields set by unit actions
+由角色行动设定的项目
+
+:Fog Level
+雾等级
+
+
+:Flag
+旗标
+
+:Party
+队伍
+
+:Support 1
+支援1
+
+:Support 2
+支援2
+
+:Support 3
+支援3
+
+:Support 4
+支援4
+
+:Support 5
+支援5
+
+:Support 6
+支援6
+
+:Support 7
+支援7
+
+:Procs
+Procs
+
+:Etc
+其他
+
+:BWL
+BWL
+
+:ChapterData
+ChapterData
+
+:ActionData
+ActionData
+
+:BattleActor
+BattleActor
+
+:BattleTarget
+BattleTarget
+
+:AIData
+AIData
+
+:BattleRound
+BattleRound
+
+:BattleSome
+BattleSome
+
+:Worldmap
+Worldmap
+
+:Dungeon
+Dungeon
+
+:Turn
+回合
+
+:Weather
+天气
+
+:Money
+所持金
+
+:Count
+数量
+
+:Edition
+篇
+
+:Lv
+Lv
+
+:Exp
+Exp
+
+:Search
+搜索
+
+:Mark
+标记
+
+:Con+
+体格+
+
+:Mov+
+移动+
+
+:Spd
+速度
+
+:Def
+守备
+
+:Res
+魔防
+
+:Lck
+幸运
+
+:Block Counter
+Block Counter
+
+:Code cursor
+Code cursor
+
+:Destructor Routine
+Destructor Routine
+
+:Loop Routine
+Loop Routine
+
+:Sleep Timer
+Sleep Timer
+
+:First Child Struct
+First Child Struct
+
+:Next Struct
+Next Struct
+
+:Previous Struct
+Previous Struct
+
+:Parent Procs
+Parent Procs
+
+:Some kind of bitfield
+Some kind of bitfield
+
+:Start of code
+Start of code
+
+:UserSpace
+UserSpace
+
+:UserSpace1
+UserSpace1
+
+:UserSpace2
+UserSpace2
+
+:UserSpace3
+UserSpace3
+
+:AI1
+AI1
+
+:AI1 Count
+AI1 Count
+
+:AI2
+AI2
+
+:AI2 Count
+AI2 Count
+
+:AI3
+AI3
+
+:AI4
+AI4
+
+:ROM Unit
+ROM Unit
+
+:ROM Class
+ROM Class
+
+:MapSprite
+MapSprite
+
+:PartyCount
+PartyCount
+
+:ERROR
+ERROR
+
+:Apply Turn
+应用回合数
+
+:Apply Money
+应用所持金
+
+:Apply Weather
+应用天气
+
+:Apply Fog
+应用雾等级
+
+:Warp Unit
+传送角色
+
+:Warp Chapter
+传送至章节
+
+:Give Item
+给予物品
+
+:Set Clear Flag 03
+设置通关 flag 03
+
+:Open related editors
+打开相关编辑器
+
+:Map Change
+地图变化
+
+:RAM Rewrite Tool MAP
+RAM 重写工具 MAP
+
+:Jump to Song
+跳转到曲目
+
+:BGM Mute Dialog
+BGM 静音对话框
+
+
+:Live memory dump not available in cross-platform Avalonia. Tracked by #385.
+跨平台 Avalonia 不支持实时内存转储。在 #385 中追踪。
+
+:Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385.
+跨平台 Avalonia 不支持实时 RAM 作弊写入。在 #385 中追踪。
+
+:Live RAM polling not available in cross-platform Avalonia. Tracked by #385.
+跨平台 Avalonia 不支持实时 RAM 轮询。在 #385 中追踪。
+
+:Live RAM unit address not available in Avalonia. Tracked by #385.
+Avalonia 不支持实时 RAM 角色地址。在 #385 中追踪。
+
+:Live VRAM palette search not available in Avalonia. Tracked by #385.
+Avalonia 不支持实时 VRAM 调色板搜索。在 #385 中追踪。
+
+:Subtitle window is not available in cross-platform Avalonia. Tracked by #385.
+跨平台 Avalonia 不支持字幕窗口。在 #385 中追踪。
+
+:TTS / speech playback is not available in cross-platform Avalonia. Tracked by #385.
+跨平台 Avalonia 不支持 TTS / 语音播放。在 #385 中追踪。
+
+
+:Speech
+朗读
+
+:Subtitle
+字幕
+
+:Manual
+手动
+
+
+:??? 1
+??? 1
+
+:??? 2
+??? 2
+
+:??? 3
+??? 3
+
+:??? 8
+??? 8
+
+:??? 9
+??? 9
+
+:100(0x64)
+100(0x64)
+
+:104(0x68)
+104(0x68)
+
+:41(0x29)
+41(0x29)
+
+:44(0x2C)
+44(0x2C)
+
+:48(0x30)
+48(0x30)
+
+:52(0x34)
+52(0x34)
+
+:56(0x38)
+56(0x38)
+
+:60(0x3C)
+60(0x3C)
+
+:64(0x40)
+64(0x40)
+
+:68(0x44)
+68(0x44)
+
+:72(0x48)
+72(0x48)
+
+:76(0x4C)
+76(0x4C)
+
+:80(0x50)
+80(0x50)
+
+:84(0x54)
+84(0x54)
+
+:88(0x58)
+88(0x58)
+
+:92(0x5C)
+92(0x5C)
+
+:96(0x60)
+96(0x60)
+
+:BattleRounds
+BattleRounds
+
+:BGM
+BGM
