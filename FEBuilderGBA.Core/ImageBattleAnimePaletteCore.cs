@@ -108,6 +108,15 @@ namespace FEBuilderGBA
             {
                 return 0;
             }
+            // Per PR #589 Copilot bot review round 3 #1: a block whose
+            // length is not a multiple of 0x20 is corrupt; integer
+            // division would silently truncate (e.g. length 0x21 ->
+            // 1 slot) and mislead diagnostics. Treat any
+            // non-aligned length as corrupt and return 0.
+            if (decompressed.Length % SlotByteSize != 0)
+            {
+                return 0;
+            }
             return decompressed.Length / SlotByteSize;
         }
 

@@ -202,17 +202,48 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (newIndex < 0 || newIndex == _vm.PaletteTypeIndex) return;
                 _vm.PaletteTypeIndex = newIndex;
 
-                // Reload the current entry to display the newly selected slot.
-                if (_vm.PaletteAddress != 0)
-                {
-                    _vm.LoadEntry(U.toOffset(_vm.PaletteAddress), _vm.SourcePointerSlot, _vm.PaletteTypeIndex);
-                    PopulateAllSpinnersAndSwatches();
-                }
+                // Per PR #589 Copilot bot review round 3 #4: reload via
+                // the AUTHORITATIVE back-pointer slot (rom.p32(SourcePointerSlot))
+                // instead of the VM's cached _vm.PaletteAddress, which can be
+                // stale after a ROM-level Undo that restored the old pointer
+                // in the source slot without flowing back to the VM.
+                ReloadFromAuthoritativeSlot();
             }
             catch (Exception ex)
             {
                 Log.Error("ImageBattleAnimePalletView.PaletteIndexCombo_SelectionChanged failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// Reload the palette using the back-pointer slot as the authoritative
+        /// source of truth (rom.p32(SourcePointerSlot)). The VM's cached
+        /// _vm.PaletteAddress can diverge from the on-ROM pointer when
+        /// external operations (ROM-level Undo, Redo, third-party edits)
+        /// rewrite the slot without flowing the change back to the VM.
+        /// Per PR #589 Copilot bot review round 3 #4 + #5.
+        /// </summary>
+        void ReloadFromAuthoritativeSlot()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+            uint slot = _vm.SourcePointerSlot;
+            if (slot == 0)
+            {
+                // No back-pointer slot known -- fall back to the cached
+                // VM offset (initial-load case before any selection).
+                if (_vm.PaletteAddress != 0)
+                {
+                    _vm.LoadEntry(U.toOffset(_vm.PaletteAddress), 0, _vm.PaletteTypeIndex);
+                    PopulateAllSpinnersAndSwatches();
+                }
+                return;
+            }
+            // Re-resolve the palette offset from the source pointer slot.
+            uint authoritativePaletteOffset = rom.p32(slot);
+            if (authoritativePaletteOffset == 0) return;
+            _vm.LoadEntry(authoritativePaletteOffset, slot, _vm.PaletteTypeIndex);
+            PopulateAllSpinnersAndSwatches();
         }
 
         void Zoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -331,12 +362,16 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 CoreState.Undo?.RunUndo();
-                // Reload the current entry so the UI reflects the rolled-back state.
-                if (_vm.PaletteAddress != 0)
-                {
-                    _vm.LoadEntry(U.toOffset(_vm.PaletteAddress), _vm.SourcePointerSlot, _vm.PaletteTypeIndex);
-                    PopulateAllSpinnersAndSwatches();
-                }
+                // Per PR #589 Copilot bot review round 3 #5: reload via
+                // the AUTHORITATIVE back-pointer slot. After undo, the
+                // source slot in ROM has been restored to the old palette
+                // pointer; the VM's cached _vm.PaletteAddress is stale
+                // (still points to the post-relocate value).
+                ReloadFromAuthoritativeSlot();
+                // Also refresh the master list so any post-undo address
+                // shifts are reflected in the entry list (a relocate may
+                // have been reversed, so the listed addr changes back).
+                RefreshListPreservingSelection();
             }
             catch (Exception ex)
             {

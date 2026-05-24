@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T07:46:29Z"
-git-sha: 6966a4db6
+generated: "2026-05-24T09:32:16Z"
+git-sha: c33962870
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4490 |
-| Total AV-only labels | 3303 |
-| Total common labels | 210 |
+| Total WF-only labels | 4454 |
+| Total AV-only labels | 3357 |
+| Total common labels | 246 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -60,13 +60,13 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 11 | `TextForm` | `TextViewerView` | 46 | 32 | 2 |
 | 12 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
 | 13 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
-| 14 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
-| 15 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 16 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 17 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
-| 18 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
-| 19 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
-| 20 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 14 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 15 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 16 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 17 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 18 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
+| 19 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 20 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1623,67 +1623,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Wep Exp (B32):`
 - `Write`
 
-### ToolInitWizardForm
-WF labels: **44** · AV labels: **8** · WF-only: **44** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 80 / AV 8)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `BeginPage`
-- `EA:`
-- `EN`
-- `EndPage`
-- `gba mus riper`
-- `git`
-- `JP`
-- `mGBAをダウンロードする`
-- `midfix4agb`
-- `Sappy:`
-- `Sappyをダウンロードする`
-- `Sappyを設定しない`
-- `SettingNowPage`
-- `sox`
-- `Step1Page`
-- `Step2Page`
-- `Step3Page`
-- `Step4Page`
-- `Step5Page`
-- `Step6Page`
-- `VGMusicStudioをダウンロードする`
-- `ZH`
-- `しばらくお待ちください....`
-- `すべての設定が完了しました。`
-- `または、`
-- `アセンブラ:`
-- `エミュレータ:`
-- `デバッガー:`
-- `参照`
-- `始める`
-- `安定して動作するバージョンのVBA-Mをダウンロードする`
-- `完了`
-- `戻る`
-- `最新版のEAをダウンロードする`
-- `最新版のGitを自動でダウンロードしてインストールします。`
-- `最新版を自動的にダウンロードします。`
-- `白背景`
-- `色`
-- `言語`
-- `設定して完了する`
-- `設定して次へ`
-- `設定しない`
-- `黒背景`
-- `黒背景2`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Initial Configuration`
-- `Setup Steps`
-- `Setup Wizard`
-- `Step 1: Select your clean Fire Emblem GBA ROM file.`
-- `Step 2: Choose your preferred language for the editor interface.`
-- `Step 3: Configure paths for external tools (emulators, assemblers).`
-- `Step 4: Review settings and begin editing.`
-- `You can change these settings later from the Options menu.`
-
 ### ClassFE6Form
 WF labels: **43** · AV labels: **5** · WF-only: **43** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 173 / AV 8)
 
@@ -3186,44 +3125,89 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Levels`
 - `Write`
 
-### ImagePalletForm
-WF labels: **28** · AV labels: **2** · WF-only: **28** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 98 / AV 3)
+### ToolInitWizardForm
+WF labels: **44** · AV labels: **61** · WF-only: **29** · AV-only: **46** · Common: **15** · Density verdict: **Medium** (WF 80 / AV 104)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `UNDO`
-- `クリップボード`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `拡大`
-- `画像取出`
-- `画像読込`
+- `EN`
+- `JP`
+- `mGBAをダウンロードする`
+- `Sappyをダウンロードする`
+- `Sappyを設定しない`
+- `VGMusicStudioをダウンロードする`
+- `ZH`
+- `しばらくお待ちください....`
+- `すべての設定が完了しました。`
+- `または、`
+- `アセンブラ:`
+- `エミュレータ:`
+- `デバッガー:`
+- `参照`
+- `始める`
+- `安定して動作するバージョンのVBA-Mをダウンロードする`
+- `完了`
+- `戻る`
+- `最新版のEAをダウンロードする`
+- `最新版のGitを自動でダウンロードしてインストールします。`
+- `最新版を自動的にダウンロードします。`
+- `白背景`
+- `色`
+- `言語`
+- `設定して完了する`
+- `設定して次へ`
+- `設定しない`
+- `黒背景`
+- `黒背景2`
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Palette Editor`
+- `All settings complete.`
+- `Assembler:`
+- `Black`
+- `Black 2`
+- `Browse`
+- `Color:`
+- `Configure Event Assembler (EA).\nSome patches are written in EA and require it to install.`
+- `Configure Git (version control).\nGit is used to keep config/patch2 patch data up to date.\nInstalling it makes pulling the latest patches easy.`
+- `Configure Sappy (or VG Music Studio).\nWhen Sappy is configured, the song-preview button can play music.`
+- `Configure the development environment.\nInstalling the toolchain enables ASM development and debugging.`
+- `Configure utilities used to convert music.`
+- `Debugger:`
+- `Download a stable version of VBA-M`
+- `Download and install the latest Git automatically`
+- `Download mGBA`
+- `Download Sappy`
+- `Download the latest EA`
+- `Download the latest tools automatically`
+- `Download VG Music Studio`
+- `Downloading required programs and configuring settings.`
+- `Emulator:`
+- `English`
+- `FEBuilderGBA Setup Wizard`
+- `Finish`
+- `Finish setup`
+- `Initial Configuration`
+- `Language:`
+- `Next`
+- `or,`
+- `Please wait...`
+- `Previous`
+- `Setup is complete. The wizard saved your tool paths and preferences.\n\nYou can change these at any time from Menu -> Options.\n\nPress Finish to close this wizard.`
+- `Skip`
+- `Skip Sappy`
+- `Specify an emulator to use for testing.\nPress F5 in FEBuilderGBA to launch the emulator and test the ROM.`
+- `Start`
+- `Step 1/6`
+- `Step 2/6`
+- `Step 3/6`
+- `Step 4/6`
+- `Step 5/6`
+- `Step 6/6`
+- `Welcome to FEBuilderGBA.\n\nThis wizard guides initial setup of the editor.\n\nIf you do not want to use this wizard, close this window. You can re-open it later from Menu -> Options -> Setup Wizard.`
+- `White`
+- `中文`
+- `日本語`
 
 ### StatusOptionForm
 WF labels: **28** · AV labels: **22** · WF-only: **28** · AV-only: **22** · Common: **0** · Density verdict: **Low** (WF 50 / AV 47)
@@ -8889,9 +8873,9 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address`
 - `Animations`
 - `Clipboard`
-- `Deferred KnownGap: ImageFormRef.ExportImage is WinForms-coupled (#399).`
+- `Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).`
+- `Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).`
 - `Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar.`
-- `Deferred KnownGap: sample preview rendering is WinForms-coupled (#399).`
 - `Export Image`
 - `Import Image`
 - `Palette Type`

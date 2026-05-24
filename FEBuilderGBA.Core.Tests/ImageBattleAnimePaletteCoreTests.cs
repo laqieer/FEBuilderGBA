@@ -78,6 +78,26 @@ public class ImageBattleAnimePaletteCoreTests
     }
 
     [Fact]
+    public void GetPaletteSlotCount_RejectsNonAlignedLength()
+    {
+        // Per PR #589 Copilot bot review round 3 #1: a block whose
+        // decompressed length is NOT a multiple of 0x20 is corrupt;
+        // truncating via integer division (e.g. length 0x21 -> 1 slot)
+        // would silently mislead callers. Such inputs must return 0.
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x10000], "BE8E01");
+
+        // Plant a deliberately weird-sized block: 0x21 bytes (one slot
+        // plus one trailing byte).
+        byte[] uncompressed = new byte[0x21];
+        for (int i = 0; i < uncompressed.Length; i++) uncompressed[i] = (byte)(i + 1);
+        byte[] compressed = LZ77.compress(uncompressed);
+        for (int i = 0; i < compressed.Length; i++) rom.Data[0x2000 + i] = compressed[i];
+
+        Assert.Equal(0, ImageBattleAnimePaletteCore.GetPaletteSlotCount(rom, 0x2000));
+    }
+
+    [Fact]
     public void WritePalette_InPlace_PreservesAddress()
     {
         // The original 16-color all-zero slot compresses very small;
