@@ -8760,3 +8760,6 @@ Core 抽出待ち (パレット PLIST 確保) - #374 で追跡中。
 
 :Pending Core extraction (LZ77 ChipsetData + CONFIG PLIST) - tracked by #374.
 Core 抽出待ち (LZ77 ChipsetData + CONFIG PLIST) - #374 で追跡中。
+
+:TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374).
+TSA グリッドは LZ77 + CONFIG PLIST 抽出が必要 (KnownGap: #374 で追跡中)。

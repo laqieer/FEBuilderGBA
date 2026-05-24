@@ -130,17 +130,21 @@
               <TextBlock Text="Palette No:" VerticalAlignment="Center" />
               <ComboBox AutomationProperties.AutomationId="MapStyleEditor_Palette_Combo"
                         Name="PaletteCombo" Width="120" VerticalAlignment="Center">
-                <ComboBoxItem Content="Palette 1" />
-                <ComboBoxItem Content="Palette 2" />
-                <ComboBoxItem Content="Palette 3" />
-                <ComboBoxItem Content="Palette 4" />
-                <ComboBoxItem Content="Palette 5" />
+                <!-- ComboBoxItem string Content doesn't trigger
+                     ViewTranslationHelper; using TextBlock children
+                     ensures ja/zh translations apply (Copilot bot v2
+                     inline review item). -->
+                <ComboBoxItem><TextBlock Text="Palette 1" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Palette 2" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Palette 3" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Palette 4" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Palette 5" /></ComboBoxItem>
               </ComboBox>
               <ComboBox AutomationProperties.AutomationId="MapStyleEditor_PaletteType_Combo"
                         Name="PaletteTypeCombo" Width="160" VerticalAlignment="Center"
                         SelectedIndex="0">
-                <ComboBoxItem Content="No Fog" />
-                <ComboBoxItem Content="Fog" />
+                <ComboBoxItem><TextBlock Text="No Fog" /></ComboBoxItem>
+                <ComboBoxItem><TextBlock Text="Fog" /></ComboBoxItem>
               </ComboBox>
             </StackPanel>
 
@@ -264,6 +268,15 @@
         <ScrollViewer>
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Chipset" FontSize="18" FontWeight="Bold" />
+
+            <!-- The 4 per-slot TSA fields below are disabled placeholders.
+                 Reading the chipset config requires LZ77-decompressing
+                 the buffer at the Chipset Config Address, and writing
+                 requires re-compressing + updating the CONFIG PLIST.
+                 Both paths require Core extraction (KnownGap #374). -->
+            <TextBlock AutomationProperties.AutomationId="MapStyleEditor_ChipsetTSA_KnownGap_Label"
+                       Text="TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374)."
+                       Foreground="Gray" FontStyle="Italic" TextWrapping="Wrap" />
 
             <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="Chipset Config Address:" VerticalAlignment="Center" />

@@ -92,10 +92,37 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                _vm.LoadPalette(_vm.PaletteAddress, idx, fog);
-                UpdatePaletteUI();
+                // Pass the STABLE base address (PaletteBaseAddress) not
+                // the slice (PaletteAddress) -- otherwise the previous
+                // slice becomes the new base and the read drifts by
+                // idx*0x20 on each selection (Copilot bot v2 inline review).
+                bool ok = _vm.LoadPalette(_vm.PaletteBaseAddress, idx, fog);
+                if (ok)
+                {
+                    UpdatePaletteUI();
+                    PaletteAddressLabel.Text = $"0x{_vm.PaletteAddress:X08}";
+                }
+                else
+                {
+                    // Out-of-bounds / invalid base -- clear stale RGB values
+                    // so the user doesn't see a wrong palette.
+                    ClearPaletteUI();
+                }
             }
             finally { _vm.IsLoading = false; }
+        }
+
+        void ClearPaletteUI()
+        {
+            for (int i = 1; i <= 16; i++)
+            {
+                var rBox = this.FindControl<NumericUpDown>($"Color{i}_RBox");
+                var gBox = this.FindControl<NumericUpDown>($"Color{i}_GBox");
+                var bBox = this.FindControl<NumericUpDown>($"Color{i}_BBox");
+                if (rBox != null) rBox.Value = 0;
+                if (gBox != null) gBox.Value = 0;
+                if (bBox != null) bBox.Value = 0;
+            }
         }
 
         void UpdateUI()

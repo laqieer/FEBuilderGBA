@@ -22595,3 +22595,6 @@ PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
 
 :Pending Core extraction (LZ77 ChipsetData + CONFIG PLIST) - tracked by #374.
 等待 Core 抽取 (LZ77 ChipsetData + CONFIG PLIST) - 跟踪于 #374。
+
+:TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374).
+TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。

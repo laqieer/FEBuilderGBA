@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         uint _objPointer;
         uint _configPointer;
+        uint _paletteBaseAddress;
         uint _paletteAddress;
         uint _objAddress;
         uint _objAddress2;
@@ -39,6 +40,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint ObjPointer { get => _objPointer; set => SetField(ref _objPointer, value); }
         public uint ConfigPointer { get => _configPointer; set => SetField(ref _configPointer, value); }
 
+        /// <summary>
+        /// Stable base address of the 5+5 palette table for the current
+        /// tileset. This is NOT mutated by <see cref="LoadPalette"/> —
+        /// the slice address is stored in <see cref="PaletteAddress"/>
+        /// separately so re-loading with a different paletteIndex/fog
+        /// flag uses the correct base (Copilot bot v2 inline review).
+        /// </summary>
+        public uint PaletteBaseAddress { get => _paletteBaseAddress; set => SetField(ref _paletteBaseAddress, value); }
+
+        /// <summary>
+        /// Slice address of the currently-loaded 16-color palette block.
+        /// Equals <c>PaletteBaseAddress + (paletteIndex + (isFog ? 5 : 0)) * 0x20</c>.
+        /// Computed by <see cref="LoadPalette"/>; do NOT pass this back
+        /// into <see cref="LoadPalette"/> — pass <see cref="PaletteBaseAddress"/>.
+        /// </summary>
         public uint PaletteAddress { get => _paletteAddress; set => SetField(ref _paletteAddress, value); }
         public uint ObjAddress { get => _objAddress; set => SetField(ref _objAddress, value); }
         public uint ObjAddress2 { get => _objAddress2; set => SetField(ref _objAddress2, value); }
@@ -219,6 +235,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // Resolve palette pointer from the parallel palette table.
+            // The dereferenced pointer is the BASE of the 5+5 palette
+            // block — stored in PaletteBaseAddress (NOT PaletteAddress)
+            // so subsequent PaletteCombo/PaletteTypeCombo changes can
+            // re-index from this stable origin (Copilot bot v2 inline
+            // review). PaletteAddress holds the slice address per
+            // LoadPalette's contract.
             uint palettePointer = rom.RomInfo.map_pal_pointer;
             if (palettePointer != 0)
             {
@@ -230,15 +252,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     {
                         uint palPtr = rom.u32(paletteEntryAddr);
                         if (palPtr != 0 && U.isPointer(palPtr))
-                            PaletteAddress = U.toOffset(palPtr);
+                            PaletteBaseAddress = U.toOffset(palPtr);
                     }
                 }
             }
 
             // Populate the 16-color palette for the currently-selected
             // PaletteIndex / IsFogPalette (defaults to 0 / false on first load).
-            // Safe-no-op when PaletteAddress is 0 or out-of-bounds.
-            LoadPalette(PaletteAddress, PaletteIndex, IsFogPalette);
+            // Safe-no-op when PaletteBaseAddress is 0 or out-of-bounds.
+            LoadPalette(PaletteBaseAddress, PaletteIndex, IsFogPalette);
 
             ConfigNo = $"0x{index:X2}";
             IsLoaded = true;
@@ -278,6 +300,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 _g[i] = (ushort)((packed >> 5) & 0x1F);
                 _b[i] = (ushort)((packed >> 10) & 0x1F);
             }
+            // CRITICAL: Preserve the base in PaletteBaseAddress so the
+            // next ReloadPalette call (PaletteCombo/PaletteTypeCombo
+            // change) re-indexes from the same base rather than drifting
+            // by idx*0x20 on each selection (Copilot bot v2 inline review).
+            PaletteBaseAddress = paletteBase;
             PaletteAddress = addr;
             PaletteIndex = paletteIndex;
             IsFogPalette = isFog;
