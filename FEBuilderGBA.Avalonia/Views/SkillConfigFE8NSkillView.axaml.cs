@@ -157,9 +157,22 @@ namespace FEBuilderGBA.Avalonia.Views
         void ChangeTypeComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (_suppressChangeTypeChange) return;
-            // WF parity: ChangeType selection switches the active sub-tab.
-            // Pure UI hint - no ROM mutation, no list refresh needed.
-            // Sub-tab editing is a KnownGap tracked by #374.
+            // WF parity: ChangeType selection switches the active sub-tab in
+            // the right-hand TabControl. Map combobox index to tab index:
+            //   0 (Unit)  -> Unit Skill List   tab (index 1)
+            //   1 (Class) -> Class Skill List  tab (index 2)
+            //   2 (Item)  -> Item Skill List   tab (index 3)
+            //   3 (Other) -> Other Skill List  tab (index 4)
+            // Tab 0 (Skill Detail) is the functional editor; the 4 sub-list
+            // tabs are KnownGap placeholders (#374) but the navigation
+            // affordance still mirrors WF.
+            int comboIndex = ChangeTypeComboBox.SelectedIndex;
+            if (comboIndex < 0 || comboIndex > 3) return;
+            int tabIndex = comboIndex + 1; // shift past Skill Detail tab[0]
+            if (MainTabControl != null && tabIndex < MainTabControl.ItemCount)
+            {
+                MainTabControl.SelectedIndex = tabIndex;
+            }
         }
 
         void OnSelected(uint addr)
@@ -208,12 +221,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     : "";
                 TextDetailTextBox.Text = textPreview;
                 // Split-string description: the WF ParseTextToSkillName
-                // extracts the part between `「` and `」`.
+                // extracts the part between U+300E (LEFT WHITE CORNER BRACKET
+                // 『) and U+300F (RIGHT WHITE CORNER BRACKET 』). NOTE: white
+                // corner brackets - NOT 「」 (U+300C / U+300D regular corner
+                // brackets) which would not match real FE8N skill texts.
                 string splitName = "";
                 if (!string.IsNullOrEmpty(textPreview))
                 {
-                    int s = textPreview.IndexOf('「');
-                    int eIdx = textPreview.IndexOf('」', s + 1);
+                    int s = textPreview.IndexOf('『');
+                    int eIdx = textPreview.IndexOf('』', s + 1);
                     if (s >= 0 && eIdx > s)
                         splitName = textPreview.Substring(s + 1, eIdx - s - 1);
                 }

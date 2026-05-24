@@ -271,9 +271,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string text = NameResolver.GetTextById(textId);
                 if (string.IsNullOrEmpty(text) || text == "???") return "";
                 // Mirror WF ParseTextToSkillName: extract substring between
-                // `「` and `」`.
-                int start = text.IndexOf('「');
-                int end = text.IndexOf('」', start + 1);
+                // U+300E (LEFT WHITE CORNER BRACKET 『) and U+300F (RIGHT WHITE
+                // CORNER BRACKET 』). NOTE: these are the white corner brackets
+                // - distinct from the regular 「」 (U+300C / U+300D) which would
+                // not match real FE8N skill texts.
+                int start = text.IndexOf('『');
+                int end = text.IndexOf('』', start + 1);
                 if (start >= 0 && end > start) return text.Substring(start + 1, end - start - 1).Trim();
                 return text;
             }

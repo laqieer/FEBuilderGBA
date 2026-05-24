@@ -78,6 +78,7 @@
 
     <!-- Row 2 col 1: edit panel (TabControl with Main + 5 sub-list tabs). -->
     <TabControl AutomationProperties.AutomationId="SkillConfigFE8NSkill_Main_TabControl"
+                Name="MainTabControl"
                 Grid.Row="2" Grid.Column="1" Margin="4" SelectedIndex="0">
 
       <!-- Tab 1: Main skill row editor (functional). -->

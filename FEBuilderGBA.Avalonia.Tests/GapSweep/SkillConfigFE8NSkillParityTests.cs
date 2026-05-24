@@ -159,29 +159,32 @@ public class SkillConfigFE8NSkillParityTests
     /// FE8N v1's icon loader takes the row's W0 icon ID directly and resolves
     /// `iconBase + 128 * W0`. Unlike v2 (which uses `0x100 + rowIndex`), v1
     /// drives the icon by the per-row u16 value at addr+0.
+    ///
+    /// This test plants distinct 4bpp tile bytes at the two expected icon
+    /// addresses (W0=0x102 and W0=0x103) and asserts:
+    ///   (a) both helper calls return non-null images (proves the addressing
+    ///       resolves successfully end-to-end with the synthetic ROM);
+    ///   (b) the returned bitmaps have different pixel data (proves the
+    ///       helper actually used W0 as the multiplier - if it used a fixed
+    ///       row index instead, both calls would address the SAME tile and
+    ///       return identical pixel buffers).
     /// </summary>
     [Fact]
     public void Helper_LoadFE8NVer1SkillIcon_UsesW0Not_RowIndex()
     {
         ROM rom = MakeMinimalFE8NVer1Rom();
         var prevRom = CoreState.ROM;
+        var prevImageService = CoreState.ImageService;
         try
         {
             CoreState.ROM = rom;
+            // Decode4bppTiles requires an IImageService. Most parity tests
+            // run in headless mode where this isn't wired by default.
+            if (CoreState.ImageService == null)
+            {
+                CoreState.ImageService = new FEBuilderGBA.SkiaSharp.SkiaImageService();
+            }
 
-            // Different W0 values must produce different addressing.
-            // The helper must NOT silently use a row index — load by W0 = 0x102
-            // and W0 = 0x103, then assert the underlying icon byte address
-            // differs by 128 (the per-icon stride).
-            //
-            // Public surface: LoadFE8NVer1SkillIcon(iconId) returns the rendered
-            // image (or null if the ROM doesn't expose the icon table). For a
-            // synthetic ROM without a real icon table, the image will be null
-            // but the addressing math is still exercised through the call.
-            //
-            // To prove the formula, plant distinct 4bpp tile bytes at the two
-            // expected addresses and verify the returned bitmap pixel data
-            // differs between W0=0x102 and W0=0x103.
             uint iconPointerAddr = rom.RomInfo.icon_pointer;
             Assert.True(U.isSafetyOffset(iconPointerAddr + 3, rom));
             uint iconBaseAddr = rom.p32(iconPointerAddr);
@@ -190,30 +193,45 @@ public class SkillConfigFE8NSkillParityTests
             uint addr102 = iconBaseAddr + 128u * 0x102u;
             uint addr103 = iconBaseAddr + 128u * 0x103u;
 
-            // Plant a single distinguishing byte at each address.
-            rom.Data[(int)addr102] = 0xAB;
-            rom.Data[(int)addr103] = 0xCD;
+            // Plant distinct distinguishing bytes at each address. 4bpp means
+            // each byte encodes 2 pixels (palette indices); using nibbles
+            // that map to different palette entries guarantees the decoded
+            // RGBA pixel data differs between the two tiles.
+            for (int i = 0; i < 128; i++)
+            {
+                rom.Data[(int)addr102 + i] = 0x12; // nibbles -> palette 1, 2
+                rom.Data[(int)addr103 + i] = 0x34; // nibbles -> palette 3, 4
+            }
 
             // Sanity: the bytes are different.
             Assert.NotEqual(rom.Data[(int)addr102], rom.Data[(int)addr103]);
-            // Sanity: the addresses are 128 bytes apart.
             Assert.Equal(128u, addr103 - addr102);
 
-            // Call the helper twice. Even if it returns null for the synthetic
-            // palette (which we accept), it must NOT throw and the underlying
-            // byte addressing must use W0 directly.
-            var img102 = PreviewIconHelper.LoadFE8NVer1SkillIcon(0x102u);
-            var img103 = PreviewIconHelper.LoadFE8NVer1SkillIcon(0x103u);
+            using var img102 = PreviewIconHelper.LoadFE8NVer1SkillIcon(0x102u);
+            using var img103 = PreviewIconHelper.LoadFE8NVer1SkillIcon(0x103u);
 
-            // The helper is allowed to return null for synthetic ROMs without
-            // a valid palette pointer; the test's purpose is to prove the
-            // function exists, accepts a uint W0 parameter, and doesn't throw.
-            // (The exact byte addressing is verified by the planted-distinct-
-            // bytes assertion above.)
-            _ = img102;
-            _ = img103;
+            // (a) Both helper calls must return non-null images.
+            Assert.NotNull(img102);
+            Assert.NotNull(img103);
+
+            // (b) The returned bitmaps must have different pixel buffers.
+            // If the helper used a fixed row index instead of W0, both calls
+            // would address the same tile and return identical pixel data.
+            byte[] pixels102 = img102.GetPixelData();
+            byte[] pixels103 = img103.GetPixelData();
+            Assert.NotNull(pixels102);
+            Assert.NotNull(pixels103);
+            Assert.Equal(pixels102.Length, pixels103.Length);
+            Assert.False(System.Linq.Enumerable.SequenceEqual(pixels102, pixels103),
+                "Icon for W0=0x102 must differ from icon for W0=0x103 - " +
+                "if pixel data is identical, the helper is using a fixed row " +
+                "index instead of W0 (regression: v1 must use iconBase + 128 * W0).");
         }
-        finally { CoreState.ROM = prevRom; }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevImageService != null) CoreState.ImageService = prevImageService;
+        }
     }
 
     // -----------------------------------------------------------------
