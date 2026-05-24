@@ -22508,3 +22508,90 @@ PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
 
 :Move to COMBAT_ART
 跳转到 COMBAT_ART
+
+:Map Style:
+地图样式:
+
+:Object Address:
+对象地址:
+
+:Object Address 2:
+对象地址 2:
+
+:Tileset Type:
+图块集类型:
+
+:Map Chip Preview
+地图图块 预览
+
+:Map Chip Save
+地图图块 保存
+
+:Map Chip Load
+地图图块 读取
+
+:Chipset
+图块集
+
+:Chipset No:
+图块集编号:
+
+:Chipset Config Address:
+图块集配置地址:
+
+:Terrain Type:
+地形类型:
+
+:Top-Left
+左上
+
+:Top-Right
+右上
+
+:Bottom-Left
+左下
+
+:Bottom-Right
+右下
+
+:Palette No:
+调色板编号:
+
+:Palette 5
+调色板 5
+
+:Palette Import
+调色板 导入
+
+:Palette Export
+调色板 导出
+
+:No Fog
+无雾
+
+:Fog
+有雾
+
+:Config Write
+配置写入
+
+:Copy Tile (Alt+T)
+复制图块 (Alt+T)
+
+:Copy Type (Alt+C)
+复制类型 (Alt+C)
+
+:Paste (Alt+V)
+粘贴 (Alt+V)
+
+:Pending Core extraction - tracked by #374.
+等待 Core 抽取 - 跟踪于 #374。
+
+:Flip
+翻转
+
+:Pending Core extraction (palette PLIST allocation) - tracked by #374.
+等待 Core 抽取 (调色板 PLIST 分配) - 跟踪于 #374。
+
+:Pending Core extraction (LZ77 ChipsetData + CONFIG PLIST) - tracked by #374.
+等待 Core 抽取 (LZ77 ChipsetData + CONFIG PLIST) - 跟踪于 #374。

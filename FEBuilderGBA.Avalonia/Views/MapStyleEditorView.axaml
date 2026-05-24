@@ -2,30 +2,385 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorView"
-        Title="Map Style Editor" Width="900" Height="550"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MapStyleEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
-
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Map Style Editor" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="MapStyleEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="OBJ Tile Pointer:" VerticalAlignment="Center" />
-          <TextBox AutomationProperties.AutomationId="MapStyleEditor_ObjPtr_Input" Grid.Row="1" Grid.Column="1" Name="ObjPtrBox" Width="160" HorizontalAlignment="Left" />
-
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Config Pointer:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="MapStyleEditor_ConfigPtr_Label" Grid.Row="2" Grid.Column="1" Name="ConfigPtrLabel" VerticalAlignment="Center" Foreground="Gray" />
-        </Grid>
-
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="MapStyleEditor_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
+        Title="Map Style Editor" Width="1080" Height="780"
+        SizeToContent="Manual">
+  <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
+    <!-- Row 0: top selection bar (mirrors WF MapStyle ComboBox + Address) -->
+    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <TextBlock Text="Map Style:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="MapStyleEditor_MapStyle_Combo"
+                  Name="MapStyleCombo" Width="380"
+                  VerticalAlignment="Center" />
+        <TextBlock Text="Address:" VerticalAlignment="Center" Margin="16,0,0,0" />
+        <TextBlock AutomationProperties.AutomationId="MapStyleEditor_Addr_Label"
+                   Name="AddrLabel" VerticalAlignment="Center" Width="100"
+                   FontFamily="Consolas" />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
+
+    <!-- Row 1 col 0: address list (legacy, preserved AutomationId) -->
+    <controls:AddressListControl
+        AutomationProperties.AutomationId="MapStyleEditor_Entry_List"
+        Grid.Row="1" Grid.Column="0" Name="EntryList" Margin="4" />
+
+    <!-- Row 1 col 1: TabControl (3 tabs mirror WF 3-panel layout) -->
+    <TabControl AutomationProperties.AutomationId="MapStyleEditor_Main_TabControl"
+                Grid.Row="1" Grid.Column="1" Margin="4" SelectedIndex="0">
+
+      <!-- ============================================================== -->
+      <!-- Tab 1: Map Style (オブジェクト)                               -->
+      <!-- ============================================================== -->
+      <TabItem AutomationProperties.AutomationId="MapStyleEditor_MapStyle_Tab"
+               Header="Map Style">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Map Style Editor" FontSize="18" FontWeight="Bold" />
+
+            <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Object Address:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="MapStyleEditor_ObjAddress_Label"
+                         Name="ObjAddressLabel" VerticalAlignment="Center"
+                         FontFamily="Consolas" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Object Address 2:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         AutomationProperties.AutomationId="MapStyleEditor_ObjAddress2_Label"
+                         Name="ObjAddress2Label" VerticalAlignment="Center"
+                         FontFamily="Consolas" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette Address:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="2" Grid.Column="1"
+                         AutomationProperties.AutomationId="MapStyleEditor_PaletteAddress_Label"
+                         Name="PaletteAddressLabel" VerticalAlignment="Center"
+                         FontFamily="Consolas" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="OBJ Tile Pointer:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MapStyleEditor_ObjPtr_Input"
+                       Grid.Row="3" Grid.Column="1" Name="ObjPtrBox" Width="180"
+                       HorizontalAlignment="Left" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Config Pointer:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="MapStyleEditor_ConfigPtr_Label"
+                         Grid.Row="4" Grid.Column="1" Name="ConfigPtrLabel"
+                         VerticalAlignment="Center" Foreground="Gray"
+                         FontFamily="Consolas" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="Tileset Type:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="5" Grid.Column="1"
+                         AutomationProperties.AutomationId="MapStyleEditor_TilesetType_Label"
+                         Name="TilesetTypeLabel" VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- Map chip thumbnail placeholder (KnownGap — image-decode WF-only) -->
+            <Border BorderBrush="DarkGray" BorderThickness="1" Width="256" Height="128"
+                    HorizontalAlignment="Left">
+              <TextBlock AutomationProperties.AutomationId="MapStyleEditor_MapChipPreview_Label"
+                         Text="Map Chip Preview"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Foreground="Gray" />
+            </Border>
+
+            <!-- Object / Map Chip / Undo / Redo / Write button strip -->
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="MapStyleEditor_ObjExport_Button"
+                      Content="Image Export"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_ObjImport_Button"
+                      Content="Image Import"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipExport_Button"
+                      Content="Map Chip Save"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipImport_Button"
+                      Content="Map Chip Load"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_Undo_Button"
+                      Content="UNDO"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_Redo_Button"
+                      Content="REDO"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_Write_Button"
+                      Name="WriteButton" Content="Write"
+                      Click="Write_Click" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ============================================================== -->
+      <!-- Tab 2: Palette (パレット)                                       -->
+      <!-- ============================================================== -->
+      <TabItem AutomationProperties.AutomationId="MapStyleEditor_Palette_Tab"
+               Header="Palette">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Palette" FontSize="18" FontWeight="Bold" />
+
+            <!-- Palette selectors -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="Palette No:" VerticalAlignment="Center" />
+              <ComboBox AutomationProperties.AutomationId="MapStyleEditor_PaletteCombo"
+                        Name="PaletteCombo" Width="120" VerticalAlignment="Center">
+                <ComboBoxItem Content="Palette 1" />
+                <ComboBoxItem Content="Palette 2" />
+                <ComboBoxItem Content="Palette 3" />
+                <ComboBoxItem Content="Palette 4" />
+                <ComboBoxItem Content="Palette 5" />
+              </ComboBox>
+              <ComboBox AutomationProperties.AutomationId="MapStyleEditor_PaletteTypeCombo"
+                        Name="PaletteTypeCombo" Width="160" VerticalAlignment="Center"
+                        SelectedIndex="0">
+                <ComboBoxItem Content="No Fog" />
+                <ComboBoxItem Content="Fog" />
+              </ComboBox>
+            </StackPanel>
+
+            <!-- 16 RGB rows — each row: Color {i} label + R/G/B inputs.
+                 The single-char labels "1".."16", "R", "G", "B" come from
+                 the per-row headers (covers labels-sweep entries). -->
+            <Grid ColumnDefinitions="48,32,72,32,72,32,72" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="No" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="R" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="G" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="5" Text="B" FontWeight="Bold" HorizontalAlignment="Center" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="1" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="1" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color1_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="1" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color1_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="1" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color1_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="2" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="2" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color2_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="2" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color2_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="2" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color2_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="3" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="3" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color3_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="3" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color3_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="3" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color3_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="4" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="4" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color4_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="4" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color4_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="4" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color4_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="5" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="5" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color5_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="5" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color5_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="5" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color5_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="6" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="6" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color6_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="6" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color6_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="6" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color6_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="7" Grid.Column="0" Text="7" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="7" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color7_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="7" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color7_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="7" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color7_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="8" Grid.Column="0" Text="8" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="8" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color8_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="8" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color8_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="8" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color8_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="9" Grid.Column="0" Text="9" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="9" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color9_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="9" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color9_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="9" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color9_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="10" Grid.Column="0" Text="10" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="10" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color10_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="10" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color10_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="10" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color10_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="11" Grid.Column="0" Text="11" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="11" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color11_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="11" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color11_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="11" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color11_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="12" Grid.Column="0" Text="12" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="12" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color12_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="12" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color12_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="12" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color12_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="13" Grid.Column="0" Text="13" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="13" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color13_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="13" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color13_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="13" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color13_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="14" Grid.Column="0" Text="14" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="14" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color14_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="14" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color14_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="14" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color14_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="15" Grid.Column="0" Text="15" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="15" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color15_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="15" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color15_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="15" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color15_B_Input" Minimum="0" Maximum="31" Width="68" />
+
+              <TextBlock Grid.Row="16" Grid.Column="0" Text="16" HorizontalAlignment="Center" />
+              <NumericUpDown Grid.Row="16" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color16_R_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="16" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color16_G_Input" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="16" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color16_B_Input" Minimum="0" Maximum="31" Width="68" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteExport_Button"
+                      Content="Palette Export"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteImport_Button"
+                      Content="Palette Import"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteClipboard_Button"
+                      Content="Clipboard"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteWrite_Button"
+                      Content="Palette Write"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction (palette PLIST allocation) - tracked by #374." />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ============================================================== -->
+      <!-- Tab 3: Chipset (種類)                                          -->
+      <!-- ============================================================== -->
+      <TabItem AutomationProperties.AutomationId="MapStyleEditor_Chipset_Tab"
+               Header="Chipset">
+        <ScrollViewer>
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Chipset" FontSize="18" FontWeight="Bold" />
+
+            <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Chipset Config Address:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="1"
+                         AutomationProperties.AutomationId="MapStyleEditor_ChipsetConfigAddress_Label"
+                         Name="ChipsetConfigAddressLabel" VerticalAlignment="Center"
+                         FontFamily="Consolas" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Chipset No:" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         AutomationProperties.AutomationId="MapStyleEditor_ConfigNo_Label"
+                         Name="ConfigNoLabel" VerticalAlignment="Center"
+                         FontFamily="Consolas" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Terrain Type:" VerticalAlignment="Center" />
+              <ComboBox Grid.Row="2" Grid.Column="1"
+                        AutomationProperties.AutomationId="MapStyleEditor_ConfigTerrain_Combo"
+                        Name="ConfigTerrainCombo" Width="200" HorizontalAlignment="Left"
+                        IsEnabled="True" />
+            </Grid>
+
+            <!-- 4 tile-slot TSA grids (Top-Left, Top-Right, Bottom-Left, Bottom-Right).
+                 Each grid mirrors WF Config_L_{N}_TSA_{X,Y,PALETTE,FLIP} + Config_W{N}. -->
+
+            <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Top-Left" FontWeight="Bold" />
+                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_X_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_Y_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_PALETTE_Input" Minimum="0" Maximum="15" Width="64" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_FLIP_Input" Minimum="0" Maximum="3" Width="64" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot0_W_Input" Minimum="0" Maximum="65535" Width="80" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Top-Right" FontWeight="Bold" />
+                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_X_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_Y_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_PALETTE_Input" Minimum="0" Maximum="15" Width="64" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_FLIP_Input" Minimum="0" Maximum="3" Width="64" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot2_W_Input" Minimum="0" Maximum="65535" Width="80" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Bottom-Left" FontWeight="Bold" />
+                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_X_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_Y_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_PALETTE_Input" Minimum="0" Maximum="15" Width="64" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_FLIP_Input" Minimum="0" Maximum="3" Width="64" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot4_W_Input" Minimum="0" Maximum="65535" Width="80" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Bottom-Right" FontWeight="Bold" />
+                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_X_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_Y_Input" Minimum="0" Maximum="31" Width="64" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_PALETTE_Input" Minimum="0" Maximum="15" Width="64" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_FLIP_Input" Minimum="0" Maximum="3" Width="64" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot6_W_Input" Minimum="0" Maximum="65535" Width="80" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="MapStyleEditor_CopyTile_Button"
+                      Content="Copy Tile (Alt+T)"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_CopyType_Button"
+                      Content="Copy Type (Alt+C)"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_Paste_Button"
+                      Content="Paste (Alt+V)"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_ConfigWrite_Button"
+                      Content="Config Write"
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction (LZ77 ChipsetData + CONFIG PLIST) - tracked by #374." />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
   </Grid>
 </Window>

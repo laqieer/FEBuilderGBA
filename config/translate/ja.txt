@@ -8673,3 +8673,90 @@ PatchManagerView は JumpToSelectStruct をまだ公開していません (#374 
 
 :Move to COMBAT_ART
 COMBAT_ARTへ移動
+
+:Map Style:
+マップスタイル:
+
+:Object Address:
+オブジェクトアドレス:
+
+:Object Address 2:
+オブジェクトアドレス 2:
+
+:Tileset Type:
+タイルセット種類:
+
+:Map Chip Preview
+マップチップ プレビュー
+
+:Map Chip Save
+マップチップ 保存
+
+:Map Chip Load
+マップチップ 読込
+
+:Chipset
+種類
+
+:Chipset No:
+種類 No:
+
+:Chipset Config Address:
+チップセット設定アドレス:
+
+:Terrain Type:
+地形タイプ:
+
+:Top-Left
+左上
+
+:Top-Right
+右上
+
+:Bottom-Left
+左下
+
+:Bottom-Right
+右下
+
+:Palette No:
+パレット No:
+
+:Palette 5
+パレット5
+
+:Palette Import
+パレット 取込
+
+:Palette Export
+パレット 出力
+
+:No Fog
+霧なし
+
+:Fog
+霧あり
+
+:Config Write
+設定書込
+
+:Copy Tile (Alt+T)
+タイルのコピー (Alt+T)
+
+:Copy Type (Alt+C)
+種類のコピー (Alt+C)
+
+:Paste (Alt+V)
+貼付け (Alt+V)
+
+:Pending Core extraction - tracked by #374.
+Core 抽出待ち - #374 で追跡中。
+
+:Flip
+反転
+
+:Pending Core extraction (palette PLIST allocation) - tracked by #374.
+Core 抽出待ち (パレット PLIST 確保) - #374 で追跡中。
+
+:Pending Core extraction (LZ77 ChipsetData + CONFIG PLIST) - tracked by #374.
+Core 抽出待ち (LZ77 ChipsetData + CONFIG PLIST) - #374 で追跡中。

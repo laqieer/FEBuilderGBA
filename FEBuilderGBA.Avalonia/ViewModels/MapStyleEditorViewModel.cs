@@ -10,11 +10,151 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         uint _objPointer;
         uint _configPointer;
+        uint _paletteAddress;
+        uint _objAddress;
+        uint _objAddress2;
+        uint _chipsetConfigAddress;
+        int _paletteIndex;
+        bool _isFogPalette;
+        string _configNo = "";
+
+        // 16 RGB rows × 3 channels — flat backing store keeps the helper
+        // surface (`GetColorR/G/B`, `SetColorR/G/B`) compact and avoids
+        // a `Color` struct dependency that some Avalonia themes ban.
+        readonly ushort[] _r = new ushort[16];
+        readonly ushort[] _g = new ushort[16];
+        readonly ushort[] _b = new ushort[16];
+
+        // 4 tile slots (0/2/4/6) — each has split (X, Y, palette, flip) +
+        // raw word. The split-to-raw setters keep both surfaces synchronized
+        // so the editable view never diverges from the encoded word.
+        readonly int[] _slotX = new int[4];   // index 0..3 for slot 0/2/4/6
+        readonly int[] _slotY = new int[4];
+        readonly int[] _slotPal = new int[4];
+        readonly int[] _slotFlip = new int[4];
+        readonly ushort[] _slotW = new ushort[4];
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint ObjPointer { get => _objPointer; set => SetField(ref _objPointer, value); }
         public uint ConfigPointer { get => _configPointer; set => SetField(ref _configPointer, value); }
+
+        public uint PaletteAddress { get => _paletteAddress; set => SetField(ref _paletteAddress, value); }
+        public uint ObjAddress { get => _objAddress; set => SetField(ref _objAddress, value); }
+        public uint ObjAddress2 { get => _objAddress2; set => SetField(ref _objAddress2, value); }
+        public uint ChipsetConfigAddress { get => _chipsetConfigAddress; set => SetField(ref _chipsetConfigAddress, value); }
+        public int PaletteIndex { get => _paletteIndex; set => SetField(ref _paletteIndex, value); }
+        public bool IsFogPalette { get => _isFogPalette; set => SetField(ref _isFogPalette, value); }
+        public string ConfigNo { get => _configNo; set => SetField(ref _configNo, value); }
+
+        // ----- Palette helpers (5-5-5 RGB, 16 colors per palette) -----
+        // colorIndex is 1-based to match the WF "PALETTE_P_1..16" labels.
+
+        public ushort GetColorR(int colorIndex) => _r[colorIndex - 1];
+        public ushort GetColorG(int colorIndex) => _g[colorIndex - 1];
+        public ushort GetColorB(int colorIndex) => _b[colorIndex - 1];
+        public void SetColorR(int colorIndex, ushort v) { _r[colorIndex - 1] = (ushort)(v & 0x1F); OnPropertyChanged($"Color{colorIndex}_R"); }
+        public void SetColorG(int colorIndex, ushort v) { _g[colorIndex - 1] = (ushort)(v & 0x1F); OnPropertyChanged($"Color{colorIndex}_G"); }
+        public void SetColorB(int colorIndex, ushort v) { _b[colorIndex - 1] = (ushort)(v & 0x1F); OnPropertyChanged($"Color{colorIndex}_B"); }
+
+        // ----- Slot helpers (TSA word + split fields synchronized) -----
+
+        static int SlotKeyToIndex(int slot) => slot switch
+        {
+            0 => 0,
+            2 => 1,
+            4 => 2,
+            6 => 3,
+            _ => throw new ArgumentOutOfRangeException(nameof(slot), $"Unknown slot key: {slot} (expected 0/2/4/6)"),
+        };
+
+        public ushort GetSlotW(int slot) => _slotW[SlotKeyToIndex(slot)];
+
+        /// <summary>
+        /// Set the raw TSA word for a slot. Repopulates the split fields
+        /// via DecodeTsaWord so the editable surface always reflects the
+        /// raw word (Copilot v2 review item 2 setter synchronization).
+        /// </summary>
+        public void SetSlotW(int slot, ushort w)
+        {
+            int i = SlotKeyToIndex(slot);
+            _slotW[i] = w;
+            var (x, y, p, f) = DecodeTsaWord(w);
+            _slotX[i] = x;
+            _slotY[i] = y;
+            _slotPal[i] = p;
+            _slotFlip[i] = f;
+            OnPropertyChanged($"Slot{slot}_W");
+        }
+
+        public int GetSlotSplitField(int slot, string field)
+        {
+            int i = SlotKeyToIndex(slot);
+            return field switch
+            {
+                "X" => _slotX[i],
+                "Y" => _slotY[i],
+                "PALETTE" => _slotPal[i],
+                "FLIP" => _slotFlip[i],
+                _ => throw new ArgumentException($"Unknown split field: {field}", nameof(field)),
+            };
+        }
+
+        /// <summary>
+        /// Set one split field and re-encode the raw word so the two surfaces
+        /// stay synchronized (Copilot v2 review item 2 setter synchronization).
+        /// </summary>
+        public void SetSlotSplitField(int slot, string field, int value)
+        {
+            int i = SlotKeyToIndex(slot);
+            switch (field)
+            {
+                case "X": _slotX[i] = value; break;
+                case "Y": _slotY[i] = value; break;
+                case "PALETTE": _slotPal[i] = value; break;
+                case "FLIP": _slotFlip[i] = value; break;
+                default: throw new ArgumentException($"Unknown split field: {field}", nameof(field));
+            }
+            _slotW[i] = EncodeTsaWord(_slotX[i], _slotY[i], _slotPal[i], _slotFlip[i]);
+            OnPropertyChanged($"Slot{slot}_{field}");
+            OnPropertyChanged($"Slot{slot}_W");
+        }
+
+        /// <summary>Set all four split fields at once and re-encode the raw word.</summary>
+        public void SetSlotSplit(int slot, int x, int y, int palette, int flip)
+        {
+            int i = SlotKeyToIndex(slot);
+            _slotX[i] = x;
+            _slotY[i] = y;
+            _slotPal[i] = palette;
+            _slotFlip[i] = flip;
+            _slotW[i] = EncodeTsaWord(x, y, palette, flip);
+            OnPropertyChanged($"Slot{slot}_W");
+        }
+
+        /// <summary>
+        /// Pack the split fields into the GBA TSA word format. Matches the
+        /// GBA hardware BG-map word layout: tile in bits 0-9, flip in
+        /// bits 10-11, palette in bits 12-15. WF's `MapEditorForm.DecodeTsaWord`
+        /// uses this same packing implicitly via `tile = x + y * 32`.
+        /// </summary>
+        public static ushort EncodeTsaWord(int x, int y, int palette, int flip)
+        {
+            int tile = (x & 0x1F) + (y & 0x1F) * 32; // 5 bits of x + 5 bits of y => bits 0..9
+            int word = (tile & 0x3FF) | ((flip & 0x3) << 10) | ((palette & 0xF) << 12);
+            return (ushort)word;
+        }
+
+        /// <summary>The inverse of EncodeTsaWord. Round-trips exactly for in-range inputs.</summary>
+        public static (int x, int y, int palette, int flip) DecodeTsaWord(ushort word)
+        {
+            int tile = word & 0x3FF;
+            int x = tile & 0x1F;
+            int y = (tile >> 5) & 0x1F;
+            int flip = (word >> 10) & 0x3;
+            int palette = (word >> 12) & 0xF;
+            return (x, y, palette, flip);
+        }
 
         public List<AddrResult> LoadList()
         {
@@ -75,6 +215,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
         }
 
+        /// <summary>
+        /// Load a 16-color palette from a flat RGB-555 region. Effective
+        /// offset is <c>paletteBase + (paletteIndex + (isFog ? 5 : 0)) * 0x20</c>
+        /// per WF's MapStyle palette indexing (5 normal + 5 fog palettes).
+        /// Returns false (without writing properties) when the address
+        /// is unsafe; this is a pure read — no allocation, no PLIST update.
+        /// </summary>
+        public bool LoadPalette(uint paletteBase, int paletteIndex, bool isFog)
+        {
+            if (paletteBase == 0) return false;
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+
+            int effectiveIndex = paletteIndex + (isFog ? 5 : 0);
+            uint addr = paletteBase + (uint)(effectiveIndex * 0x20);
+            if (addr + 0x20 > (uint)rom.Data.Length) return false;
+
+            for (int i = 0; i < 16; i++)
+            {
+                ushort packed = (ushort)rom.u16(addr + (uint)(i * 2));
+                _r[i] = (ushort)(packed & 0x1F);
+                _g[i] = (ushort)((packed >> 5) & 0x1F);
+                _b[i] = (ushort)((packed >> 10) & 0x1F);
+            }
+            PaletteAddress = addr;
+            PaletteIndex = paletteIndex;
+            IsFogPalette = isFog;
+            return true;
+        }
+
         public void Write()
         {
             ROM rom = CoreState.ROM;
@@ -91,6 +261,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["ObjPointer"] = $"0x{ObjPointer:X08}",
                 ["ConfigPointer"] = $"0x{ConfigPointer:X08}",
+                ["PaletteAddress"] = $"0x{PaletteAddress:X08}",
             };
         }
 
