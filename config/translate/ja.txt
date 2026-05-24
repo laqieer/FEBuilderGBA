@@ -7728,6 +7728,12 @@ Debuff (B33):
 :Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):
 復号化された能力補正値 (読み取り専用 — 上記の能力補正ポインタから編集):
 
+:Base Addr:
+先頭アドレス:
+
+:Shingeki Shop:
+進撃準備店:
+
 :Class OP Demo Editor
 クラスOPデモ エディタ
 

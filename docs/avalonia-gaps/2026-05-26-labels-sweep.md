@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T01:20:06Z"
-git-sha: a7d2d4844
+generated: "2026-05-24T02:11:44Z"
+git-sha: 2ee666903
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4538 |
-| Total AV-only labels | 3182 |
-| Total common labels | 162 |
+| Total WF-only labels | 4536 |
+| Total AV-only labels | 3220 |
+| Total common labels | 164 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -60,12 +60,12 @@ Cross-link to the [density sweep](2026-05-26-density-sweep.md) for quantitative 
 | 11 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
 | 12 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
 | 13 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 14 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
-| 15 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
-| 16 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
-| 17 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 18 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 19 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 14 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
+| 15 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
+| 16 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 17 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 18 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 19 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
 | 20 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
@@ -1547,89 +1547,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `OBJ Tile Pointer:`
 - `Write`
 
-### ItemFE6Form
-WF labels: **44** · AV labels: **30** · WF-only: **44** · AV-only: **30** · Common: **0** · Density verdict: **High** (WF 121 / AV 53)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `[HardCoding]`
-- `HP`
-- `ID`
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `ダメージ追加効果`
-- `リストの拡張`
-- `レベル`
-- `体格`
-- `使った場合`
-- `使用画面`
-- `先頭アドレス`
-- `再取得`
-- `単価`
-- `名前`
-- `命中`
-- `売却価格`
-- `守備`
-- `射程`
-- `幸運`
-- `店での買値`
-- `必殺`
-- `性能`
-- ` 技 `
-- `攻撃`
-- `書き込み`
-- `特効`
-- `特効効果\r\n新規割当`
-- `移動`
-- `種別`
-- `耐久`
-- `能力補正`
-- `能力補正\r\n新規割当`
-- `能力補正値`
-- `説明`
-- `読込数`
-- `速さ`
-- `進撃準備店`
-- `選択アドレス:`
-- `重さ`
-- `間接エフェクト Jump`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Crit (B24):`
-- `Decoded description text`
-- `Desc`
-- `Desc ID (W2):`
-- `Dmg Effect (B31):`
-- `Effective (P16):`
-- `Hit (B22):`
-- `Icon (B29):`
-- `Item # (B6):`
-- `Item Editor (FE6)`
-- `Might (B21):`
-- `Name:`
-- `Name ID (W0):`
-- `Open text viewer for this description`
-- `Price (W26):`
-- `Range (B25):`
-- `Rank (B28):`
-- `Stat Bonus (P12):`
-- `Text ID for the item's description`
-- `Trait 1 (B8):`
-- `Trait 2 (B9):`
-- `Trait 3 (B10):`
-- `Trait 4 (B11):`
-- `Type (B7):`
-- `Use Desc (W4):`
-- `Use Effect (B30):`
-- `Uses (B20):`
-- `Weight (B23):`
-- `Write`
-
 ### ItemForm
 WF labels: **45** · AV labels: **78** · WF-only: **44** · AV-only: **77** · Common: **1** · Density verdict: **Low** (WF 128 / AV 97)
 
@@ -2089,6 +2006,125 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Battle Screen Layout`
+
+### ItemFE6Form
+WF labels: **44** · AV labels: **70** · WF-only: **42** · AV-only: **68** · Common: **2** · Density verdict: **Low** (WF 121 / AV 97)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `HP`
+- `ID`
+- `アイコン`
+- `アドレス`
+- `ダメージ追加効果`
+- `リストの拡張`
+- `レベル`
+- `体格`
+- `使った場合`
+- `使用画面`
+- `先頭アドレス`
+- `再取得`
+- `単価`
+- `名前`
+- `命中`
+- `売却価格`
+- `守備`
+- `射程`
+- `幸運`
+- `店での買値`
+- `必殺`
+- `性能`
+- ` 技 `
+- `攻撃`
+- `書き込み`
+- `特効`
+- `特効効果\r\n新規割当`
+- `移動`
+- `種別`
+- `耐久`
+- `能力補正`
+- `能力補正\r\n新規割当`
+- `能力補正値`
+- `説明`
+- `読込数`
+- `速さ`
+- `進撃準備店`
+- `選択アドレス:`
+- `重さ`
+- `間接エフェクト Jump`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Attack power`
+- `Attack range (encoded as min-max)`
+- `Base Addr:`
+- `Base item price`
+- `Basic Info`
+- `Buy Price:`
+- `Count:`
+- `Crit (B24):`
+- `Critical hit rate bonus`
+- `Decoded description text`
+- `Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):`
+- `Decoded usage description text`
+- `Desc`
+- `Desc ID (W2):`
+- `Dmg Effect (B31):`
+- `Effect when using the item`
+- `Effective (P16):`
+- `Effective Against`
+- `Filter:`
+- `Hit (B22):`
+- `Hit rate bonus`
+- `Icon (B29):`
+- `Indirect Weapon Effect`
+- `Internal item number (unique ID)`
+- `Item # (B6):`
+- `Item Editor (FE6)`
+- `Item weight (reduces attack speed)`
+- `Jump`
+- `Might (B21):`
+- `Name:`
+- `Name ID (W0):`
+- `Number of uses before the item breaks`
+- `Open text viewer for this description`
+- `Open text viewer for this usage description`
+- `Open the indirect weapon effect table at the row for this item.`
+- `Pointer to effectiveness list (bonus vs. classes)`
+- `Pointer to stat bonuses when equipped`
+- `Price (W26):`
+- `Range (B25):`
+- `Rank (B28):`
+- `Reload`
+- `Sell Price:`
+- `Shingeki Shop:`
+- `Special effect applied on hit`
+- `Stat Bonus (P12):`
+- `Stat Bonuses Preview`
+- `Stats / Bonuses`
+- `Text ID for the item description (click to open Text Viewer)`
+- `Text ID for the item usage description (click to open Text Viewer)`
+- `Text ID for this item's display name (click to open Text Viewer)`
+- `This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.`
+- `Trait 1 (B8):`
+- `Trait 2 (B9):`
+- `Trait 3 (B10):`
+- `Trait 4 (B11):`
+- `Trait Flags`
+- `Type (B7):`
+- `Use Desc (W4):`
+- `Use Effect (B30):`
+- `Uses (B20):`
+- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
+- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
+- `Warnings`
+- `Weapon Properties`
+- `Weapon type (Sword, Lance, Axe, etc.)`
+- `Weight (B23):`
+- `Write`
 
 ### MonsterItemForm
 WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
