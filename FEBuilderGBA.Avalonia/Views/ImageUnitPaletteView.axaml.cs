@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -11,6 +12,12 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImageUnitPaletteViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // Per-swatch control references for fast UI updates.
+        NumericUpDown[] _rBoxes = Array.Empty<NumericUpDown>();
+        NumericUpDown[] _gBoxes = Array.Empty<NumericUpDown>();
+        NumericUpDown[] _bBoxes = Array.Empty<NumericUpDown>();
+        Border[] _swatches = Array.Empty<Border>();
+
         public string ViewTitle => "Unit Palette Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -18,7 +25,31 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) =>
+            {
+                CacheSwatchControls();
+                LoadList();
+            };
+        }
+
+        void CacheSwatchControls()
+        {
+            _rBoxes = new NumericUpDown[16];
+            _gBoxes = new NumericUpDown[16];
+            _bBoxes = new NumericUpDown[16];
+            _swatches = new Border[16];
+            for (int i = 0; i < 16; i++)
+            {
+                int idx = i + 1;
+                _rBoxes[i] = this.FindControl<NumericUpDown>($"R{idx}Box")!;
+                _gBoxes[i] = this.FindControl<NumericUpDown>($"G{idx}Box")!;
+                _bBoxes[i] = this.FindControl<NumericUpDown>($"B{idx}Box")!;
+                _swatches[i] = this.FindControl<Border>($"Swatch{idx}")!;
+                int captureIdx = i;
+                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => RefreshSwatch(captureIdx);
+                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => RefreshSwatch(captureIdx);
+                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => RefreshSwatch(captureIdx);
+            }
         }
 
         void LoadList()
@@ -28,6 +59,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                ReadStartAddressBox.Text = _vm.LoadListBaseAddress();
+                ReadCountBox.Text = items.Count.ToString();
             }
             catch (Exception ex)
             {
@@ -54,6 +87,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            SelectedAddressBox.Text = $"0x{_vm.CurrentAddr:X08}";
             IdentNameLabel.Text = _vm.IdentifierName;
             Id0Box.Value = _vm.Id0;
             Id1Box.Value = _vm.Id1;
@@ -68,6 +102,30 @@ namespace FEBuilderGBA.Avalonia.Views
             Id10Box.Value = _vm.Id10;
             Id11Box.Value = _vm.Id11;
             PalettePointerBox.Text = $"0x{_vm.PalettePointer:X08}";
+            PaletteAddressBox.Text = $"0x{_vm.PalettePointer:X08}";
+
+            // Push RGB channels from VM to the 16 swatch inputs.
+            for (int i = 0; i < 16; i++)
+            {
+                if (_rBoxes.Length > i && _rBoxes[i] != null) _rBoxes[i].Value = _vm.RChannel[i];
+                if (_gBoxes.Length > i && _gBoxes[i] != null) _gBoxes[i].Value = _vm.GChannel[i];
+                if (_bBoxes.Length > i && _bBoxes[i] != null) _bBoxes[i].Value = _vm.BChannel[i];
+                RefreshSwatch(i);
+            }
+        }
+
+        /// <summary>Repaint a swatch from the current (R, G, B) NumericUpDown values.</summary>
+        void RefreshSwatch(int i)
+        {
+            if (_swatches.Length <= i || _swatches[i] == null) return;
+            uint r = (uint)(_rBoxes[i]?.Value ?? 0);
+            uint g = (uint)(_gBoxes[i]?.Value ?? 0);
+            uint b = (uint)(_bBoxes[i]?.Value ?? 0);
+            // RGB555 -> RGB888 expand-to-8bit (replicate top 3 bits in low nibble)
+            byte r8 = (byte)((r << 3) | (r >> 2));
+            byte g8 = (byte)((g << 3) | (g >> 2));
+            byte b8 = (byte)((b << 3) | (b >> 2));
+            _swatches[i].Background = new SolidColorBrush(Color.FromRgb(r8, g8, b8));
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -94,6 +152,57 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageUnitPaletteView.Write: {0}", ex.Message); }
         }
+
+        /// <summary>
+        /// Functional palette write-back using <see cref="UnitPaletteWriteCore"/>.
+        /// Reads the 16 RGB NumericUpDowns, compresses the new palette via LZ77,
+        /// writes in-place when it fits or reallocates at ROM end and patches
+        /// the P12 slot under the same undo scope.
+        /// </summary>
+        void PaletteWrite_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.CurrentAddr == 0)
+            {
+                Log.Error("ImageUnitPaletteView.PaletteWrite: no selected entry.");
+                return;
+            }
+            var r = new uint[16];
+            var g = new uint[16];
+            var b = new uint[16];
+            for (int i = 0; i < 16; i++)
+            {
+                r[i] = (uint)(_rBoxes[i]?.Value ?? 0);
+                g[i] = (uint)(_gBoxes[i]?.Value ?? 0);
+                b[i] = (uint)(_bBoxes[i]?.Value ?? 0);
+            }
+            _undoService.Begin("Write Unit Palette");
+            try
+            {
+                uint newP12 = UnitPaletteWriteCore.WritePalette(
+                    CoreState.ROM,
+                    _vm.CurrentAddr + 12,
+                    r, g, b,
+                    _undoService.GetActiveUndoData());
+                if (newP12 == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND (invalid pointer or LZ77 stream).");
+                    return;
+                }
+                _vm.PalettePointer = newP12;
+                PalettePointerBox.Text = $"0x{newP12:X08}";
+                PaletteAddressBox.Text = $"0x{newP12:X08}";
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ImageUnitPaletteView.PaletteWrite: {0}", ex.Message);
+            }
+        }
+
+        void Reload_Click(object? sender, RoutedEventArgs e) => LoadList();
 
         static uint ParseHexText(string? text)
         {
