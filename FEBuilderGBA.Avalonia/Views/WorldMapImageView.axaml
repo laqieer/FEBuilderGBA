@@ -2,20 +2,600 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.WorldMapImageView"
-        Title="World Map Image" Width="717" Height="457"
+        Title="World Map Image" Width="1080" Height="640"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <!-- Six-tab parity raise (#395) - mirrors WF WorldMapImageForm.WMTabControl.
+       tabPage1 / Main:      4 main-map pointers (image / palette / dark / palettemap)
+       tabPage2 / Event:     3 pointers (image / palette / TSA)
+       tabPage3 / Mini:      2 pointers (image / palette)
+       WMPointIconTabPage:   3 image pointers (Point1 / Point2 / Road) +
+                             shared icon palette
+       tabPage4 / Border:    pointer-backed AddressList + 4 NUDs (P0 / P4 / W8 / W10)
+       tabPage5 / IconData:  pointer-backed AddressList + 12 NUDs
+                             (B0..B3 / P4 / B8..B13 / W14)
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="World Map Image" FontSize="18" FontWeight="Bold" />
+       Heavy graphics flows (LZ77 import/export, dark-map preview,
+       decrease-color tool, border bitmap rendering, source-file
+       resource cache) are KnownGap-marked - disabled buttons with
+       ToolTip.Tip referencing the architectural blocker. No follow-up
+       issues per task scope discipline.
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="WorldMapImage_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+       Per Copilot CLI plan-review v1 -> v2:
+         C1 - ONE top-level Write-Pointers button writes all 13 pointer
+              slots in one undo scope (mirrors WF AllWriteButton semantics).
+         C3 - No per-tab Undo controls (WinForms has none); exactly one
+              top-level Undo button. -->
+
+  <DockPanel>
+    <!-- ==================== Top global panel ==================== -->
+    <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button AutomationProperties.AutomationId="WorldMapImage_WriteAll_Button"
+                Name="WriteAllButton" Content="Write Pointers"
+                Click="WriteAll_Click" />
+        <Button AutomationProperties.AutomationId="WorldMapImage_Undo_Button"
+                Name="UndoButton" Content="Undo"
+                Click="Undo_Click" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+    </Border>
+
+    <!-- ==================== Six tabs ==================== -->
+    <TabControl AutomationProperties.AutomationId="WorldMapImage_TabControl">
+
+      <!-- ============================================================
+           Tab 1 - Main field map (WF tabPage1 "メインフィールドマップ")
+           ============================================================ -->
+      <TabItem AutomationProperties.AutomationId="WorldMapImage_Main_Tab" Header="Main Field Map">
+        <Grid RowDefinitions="*" ColumnDefinitions="320,*">
+
+          <!-- Col 0: 4 hex pointer NUDs + 7 buttons -->
+          <StackPanel Grid.Column="0" Margin="6" Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Main_Image_Label"
+                     Content="Image" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Main_Image_Input"
+                             FormatString="0" Name="MainImageBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Main_Palette_Label"
+                     Content="Palette" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Main_Palette_Input"
+                             FormatString="0" Name="MainPaletteBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Main_DarkPalette_Label"
+                     Content="Dark Palette" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Main_DarkPalette_Input"
+                             FormatString="0" Name="MainDarkPaletteBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Main_PaletteMap_Label"
+                     Content="Palette Map" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Main_PaletteMap_Input"
+                             FormatString="0" Name="MainPaletteMapBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_Import_Button"
+                    Content="Import Image"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_Export_Button"
+                    Content="Export Image"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+
+            <Label AutomationProperties.AutomationId="WorldMapImage_Main_DarkSection_Label"
+                   Content="Dark Map" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_DarkImport_Button"
+                    Content="Dark Map Import (Palette)"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_DarkExport_Button"
+                    Content="Dark Map Export"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_DecreaseColor_Button"
+                    Content="Decrease Color Tool"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: DecreaseColorTSAToolForm not yet ported." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_OpenSource_Button"
+                    Content="Open Source File"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: ResourceCache source-file feature not yet wired in Avalonia." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_SelectSource_Button"
+                    Content="Open Source Folder"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: ResourceCache source-file feature not yet wired in Avalonia." />
+          </StackPanel>
+
+          <!-- Col 1: preview image (deferred) -->
+          <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="6">
+            <Image AutomationProperties.AutomationId="WorldMapImage_Main_Preview_Image"
+                   Name="MainPreviewImage" Stretch="Uniform"
+                   ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- ============================================================
+           Tab 2 - Event (WF tabPage2 "イベント用")
+           ============================================================ -->
+      <TabItem AutomationProperties.AutomationId="WorldMapImage_Event_Tab" Header="Event">
+        <Grid RowDefinitions="*" ColumnDefinitions="320,*">
+
+          <StackPanel Grid.Column="0" Margin="6" Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Event_Image_Label"
+                     Content="Image" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Event_Image_Input"
+                             FormatString="0" Name="EventImageBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Event_Palette_Label"
+                     Content="Palette" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Event_Palette_Input"
+                             FormatString="0" Name="EventPaletteBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Event_TSA_Label"
+                     Content="TSA" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Event_TSA_Input"
+                             FormatString="0" Name="EventTsaBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+
+            <Button AutomationProperties.AutomationId="WorldMapImage_Event_Import_Button"
+                    Content="Import Image"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Event_Export_Button"
+                    Content="Export Image"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Event_DecreaseColor_Button"
+                    Content="Decrease Color Tool"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: DecreaseColorTSAToolForm not yet ported." />
+          </StackPanel>
+
+          <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="6">
+            <Image AutomationProperties.AutomationId="WorldMapImage_Event_Preview_Image"
+                   Name="EventPreviewImage" Stretch="Uniform"
+                   ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- ============================================================
+           Tab 3 - Mini Map (WF tabPage3 "ミニマップ")
+           ============================================================ -->
+      <TabItem AutomationProperties.AutomationId="WorldMapImage_Mini_Tab" Header="Mini Map">
+        <Grid RowDefinitions="*" ColumnDefinitions="320,*">
+
+          <StackPanel Grid.Column="0" Margin="6" Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Mini_Image_Label"
+                     Content="Image" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Mini_Image_Input"
+                             FormatString="0" Name="MiniImageBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label AutomationProperties.AutomationId="WorldMapImage_Mini_Palette_Label"
+                     Content="Palette" Width="120" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Mini_Palette_Input"
+                             FormatString="0" Name="MiniPaletteBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+            </StackPanel>
+
+            <Button AutomationProperties.AutomationId="WorldMapImage_Mini_Import_Button"
+                    Content="Import Image"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+            <Button AutomationProperties.AutomationId="WorldMapImage_Mini_Export_Button"
+                    Content="Export Image"
+                    IsEnabled="False"
+                    ToolTip.Tip="KnownGap: pending Core extraction." />
+          </StackPanel>
+
+          <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="6">
+            <Image AutomationProperties.AutomationId="WorldMapImage_Mini_Preview_Image"
+                   Name="MiniPreviewImage" Stretch="Uniform"
+                   ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- ============================================================
+           Tab 4 - Point Icon (WF WMPointIconTabPage "拠点アイコン")
+           ============================================================ -->
+      <TabItem AutomationProperties.AutomationId="WorldMapImage_PointIcon_Tab" Header="Point Icon">
+        <Grid RowDefinitions="*" ColumnDefinitions="380,*">
+
+          <StackPanel Grid.Column="0" Margin="6" Spacing="6">
+            <!-- Point 1 -->
+            <Label AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Image_Label"
+                   Content="Point Image 1" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Image_Input"
+                             FormatString="0" Name="Point1ImageBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Import_Button"
+                      Content="Import"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: pending Core extraction." />
+              <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Export_Button"
+                      Content="Export"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: pending Core extraction." />
+            </StackPanel>
+
+            <!-- Point 2 -->
+            <Label AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Image_Label"
+                   Content="Point Image 2" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Image_Input"
+                             FormatString="0" Name="Point2ImageBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Import_Button"
+                      Content="Import"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: pending Core extraction." />
+              <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Export_Button"
+                      Content="Export"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: pending Core extraction." />
+            </StackPanel>
+
+            <!-- Road -->
+            <Label AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadImage_Label"
+                   Content="Road Image" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadImage_Input"
+                             FormatString="0" Name="RoadImageBox" Width="170"
+                             Minimum="0" Maximum="4294967295" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadImport_Button"
+                      Content="Import"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: pending Core extraction." />
+              <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadExport_Button"
+                      Content="Export"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: pending Core extraction." />
+            </StackPanel>
+
+            <!-- Shared icon palette -->
+            <Label AutomationProperties.AutomationId="WorldMapImage_PointIcon_IconPalette_Label"
+                   Content="Icon Palette" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_IconPalette_Input"
+                           FormatString="0" Name="IconPaletteBox" Width="170"
+                           Minimum="0" Maximum="4294967295" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Margin="6" Spacing="4">
+            <Label Content="Point 1 Preview" FontWeight="SemiBold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinHeight="80">
+              <Image AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Preview_Image"
+                     Name="Point1PreviewImage" Stretch="Uniform"
+                     ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            </Border>
+            <Label Content="Point 2 Preview" FontWeight="SemiBold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinHeight="80">
+              <Image AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Preview_Image"
+                     Name="Point2PreviewImage" Stretch="Uniform"
+                     ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            </Border>
+            <Label Content="Road Preview" FontWeight="SemiBold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinHeight="80">
+              <Image AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadPreview_Image"
+                     Name="RoadPreviewImage" Stretch="Uniform"
+                     ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            </Border>
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <!-- ============================================================
+           Tab 5 - Border (WF tabPage4 "国境")
+           ============================================================ -->
+      <TabItem AutomationProperties.AutomationId="WorldMapImage_Border_Tab" Header="Border">
+        <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="240,*">
+
+          <!-- Row 0: Read-config bar (mirrors WF panel4) -->
+          <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+              <Label Content="Start Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Border_ReadStartAddress_Input"
+                             Name="Border_ReadStartAddressBox" FormatString="0"
+                             Minimum="0" Maximum="4294967295" Width="130"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Label Content="Read Count" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Border_ReadCount_Input"
+                             Name="Border_ReadCountBox" FormatString="0"
+                             Minimum="0" Maximum="65535" Width="80"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_Border_Reload_Button"
+                      Name="Border_ReloadButton" Content="Reload"
+                      Click="BorderReload_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_Border_AddressListExpand_Button"
+                      Name="Border_AddressListExpandButton" Content="List Expand"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
+            </StackPanel>
+          </Border>
+
+          <!-- Row 1: Selection bar (mirrors WF AddressPanel) -->
+          <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+              <Label Content="Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Border_Address_Input"
+                             Name="Border_AddressBox" FormatString="0"
+                             Minimum="0" Maximum="4294967295" Width="130"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Label Content="Size:" VerticalAlignment="Center" />
+              <Label AutomationProperties.AutomationId="WorldMapImage_Border_BlockSize_Label"
+                     Name="Border_BlockSizeLabel"
+                     Content="12" VerticalAlignment="Center" />
+              <Label Content="Selected Address:" VerticalAlignment="Center" />
+              <Label AutomationProperties.AutomationId="WorldMapImage_Border_SelectAddress_Label"
+                     Name="Border_SelectAddressLabel"
+                     Width="130" VerticalAlignment="Center"
+                     FontFamily="Consolas" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_Border_Write_Button"
+                      Name="Border_WriteButton" Content="Write"
+                      Click="BorderWrite_Click" />
+            </StackPanel>
+          </Border>
+
+          <!-- Row 2 Col 0: AddressList -->
+          <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_Border_AddressList"
+                                       Grid.Row="2" Grid.Column="0"
+                                       Name="Border_EntryList" Margin="4" />
+
+          <!-- Row 2 Col 1: Border fields + preview -->
+          <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+            <StackPanel Spacing="6" Margin="6">
+              <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto">
+
+                <Label Grid.Row="0" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_Border_P0_Label"
+                       Content="Image" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_Border_P0_Input"
+                               Name="Border_P0Box" FormatString="0"
+                               Minimum="0" Maximum="4294967295" Width="170" Margin="0,2" />
+
+                <Label Grid.Row="1" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_Border_P4_Label"
+                       Content="AP" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_Border_P4_Input"
+                               Name="Border_P4Box" FormatString="0"
+                               Minimum="0" Maximum="4294967295" Width="170" Margin="0,2" />
+
+                <Label Grid.Row="2" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_Border_W8_Label"
+                       Content="X" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_Border_W8_Input"
+                               Name="Border_W8Box" FormatString="0"
+                               Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+
+                <Label Grid.Row="3" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_Border_W10_Label"
+                       Content="Y" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_Border_W10_Input"
+                               Name="Border_W10Box" FormatString="0"
+                               Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+              </Grid>
+
+              <Label AutomationProperties.AutomationId="WorldMapImage_Border_DrawSample_Label"
+                     Content="Draw Example" FontWeight="SemiBold" Margin="0,6,0,0" />
+              <Border BorderBrush="Gray" BorderThickness="1" MinHeight="120">
+                <Image AutomationProperties.AutomationId="WorldMapImage_Border_DrawSample_Image"
+                       Name="BorderDrawSampleImage" Stretch="Uniform"
+                       ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+              </Border>
+
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                <Button AutomationProperties.AutomationId="WorldMapImage_Border_Import_Button"
+                        Content="Import Image"
+                        IsEnabled="False"
+                        ToolTip.Tip="KnownGap: pending Core extraction." />
+                <Button AutomationProperties.AutomationId="WorldMapImage_Border_Export_Button"
+                        Content="Export Image"
+                        IsEnabled="False"
+                        ToolTip.Tip="KnownGap: pending Core extraction." />
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+
+      <!-- ============================================================
+           Tab 6 - Icon Data (WF tabPage5 "アイコン用のデータ")
+           ============================================================ -->
+      <TabItem AutomationProperties.AutomationId="WorldMapImage_IconData_Tab" Header="Icon Data">
+        <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="240,*">
+
+          <!-- Row 0: Read-config bar -->
+          <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+              <Label Content="Start Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_IconData_ReadStartAddress_Input"
+                             Name="IconData_ReadStartAddressBox" FormatString="0"
+                             Minimum="0" Maximum="4294967295" Width="130"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Label Content="Read Count" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_IconData_ReadCount_Input"
+                             Name="IconData_ReadCountBox" FormatString="0"
+                             Minimum="0" Maximum="65535" Width="80"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_IconData_Reload_Button"
+                      Name="IconData_ReloadButton" Content="Reload"
+                      Click="IconDataReload_Click" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_IconData_AddressListExpand_Button"
+                      Name="IconData_AddressListExpandButton" Content="List Expand"
+                      IsEnabled="False"
+                      ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
+            </StackPanel>
+          </Border>
+
+          <!-- Row 1: Selection bar -->
+          <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+              <Label Content="Address" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_IconData_Address_Input"
+                             Name="IconData_AddressBox" FormatString="0"
+                             Minimum="0" Maximum="4294967295" Width="130"
+                             IsEnabled="False" VerticalAlignment="Center" />
+              <Label Content="Size:" VerticalAlignment="Center" />
+              <Label AutomationProperties.AutomationId="WorldMapImage_IconData_BlockSize_Label"
+                     Name="IconData_BlockSizeLabel"
+                     Content="16" VerticalAlignment="Center" />
+              <Label Content="Selected Address:" VerticalAlignment="Center" />
+              <Label AutomationProperties.AutomationId="WorldMapImage_IconData_SelectAddress_Label"
+                     Name="IconData_SelectAddressLabel"
+                     Width="130" VerticalAlignment="Center"
+                     FontFamily="Consolas" />
+              <Button AutomationProperties.AutomationId="WorldMapImage_IconData_Write_Button"
+                      Name="IconData_WriteButton" Content="Write"
+                      Click="IconWrite_Click" />
+            </StackPanel>
+          </Border>
+
+          <!-- Row 2 Col 0: AddressList -->
+          <controls:AddressListControl AutomationProperties.AutomationId="WorldMapImage_IconData_AddressList"
+                                       Grid.Row="2" Grid.Column="0"
+                                       Name="IconData_EntryList" Margin="4" />
+
+          <!-- Row 2 Col 1: 12 NUDs with their unique WF row labels -->
+          <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
+            <StackPanel Spacing="4" Margin="6">
+              <Grid ColumnDefinitions="180,*"
+                    RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+
+                <!-- B0: image sheet number (画像シート番号) -->
+                <Label Grid.Row="0" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B0_Label"
+                       Content="Image Sheet Number" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B0_Input"
+                               Name="IconData_B0Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B1: 00 Padding (alias for B0..B3 secondary byte) -->
+                <Label Grid.Row="1" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B1_Label"
+                       Content="00 Padding" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B1_Input"
+                               Name="IconData_B1Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B2: 00 Padding -->
+                <Label Grid.Row="2" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B2_Label"
+                       Content="00 Padding" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="2" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B2_Input"
+                               Name="IconData_B2Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B3: 00 Padding -->
+                <Label Grid.Row="3" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B3_Label"
+                       Content="00 Padding" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="3" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B3_Input"
+                               Name="IconData_B3Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- P4: OAMTable entry -->
+                <Label Grid.Row="4" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_P4_Label"
+                       Content="OAMTable entry" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="4" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_P4_Input"
+                               Name="IconData_P4Box" FormatString="0"
+                               Minimum="0" Maximum="4294967295" Width="170" Margin="0,2" />
+
+                <!-- B8: Center X -->
+                <Label Grid.Row="5" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B8_Label"
+                       Content="Center X" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="5" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B8_Input"
+                               Name="IconData_B8Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B9: Center Y -->
+                <Label Grid.Row="6" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B9_Label"
+                       Content="Center Y" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="6" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B9_Input"
+                               Name="IconData_B9Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B10: Width -->
+                <Label Grid.Row="7" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B10_Label"
+                       Content="Width" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="7" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B10_Input"
+                               Name="IconData_B10Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B11: Height -->
+                <Label Grid.Row="8" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B11_Label"
+                       Content="Height" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="8" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B11_Input"
+                               Name="IconData_B11Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B12: tcs params?? -->
+                <Label Grid.Row="9" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B12_Label"
+                       Content="tcs params??" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="9" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B12_Input"
+                               Name="IconData_B12Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- B13: ?? -->
+                <Label Grid.Row="10" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_B13_Label"
+                       Content="??" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="10" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_B13_Input"
+                               Name="IconData_B13Box" FormatString="0"
+                               Minimum="0" Maximum="255" Width="100" Margin="0,2" />
+
+                <!-- W14: 00 Padding (alias) -->
+                <Label Grid.Row="11" Grid.Column="0"
+                       AutomationProperties.AutomationId="WorldMapImage_IconData_W14_Label"
+                       Content="00 Padding" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="11" Grid.Column="1"
+                               AutomationProperties.AutomationId="WorldMapImage_IconData_W14_Input"
+                               Name="IconData_W14Box" FormatString="0"
+                               Minimum="0" Maximum="65535" Width="100" Margin="0,2" />
+              </Grid>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+
+    </TabControl>
+  </DockPanel>
 </Window>

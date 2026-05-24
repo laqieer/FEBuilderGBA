@@ -22091,3 +22091,81 @@ Core RunRedo API 待支持 - 由 #500 跟踪。
 
 :Edit R/G/B 0-248 (5-bit ticks)
 编辑 R/G/B 0-248 (5位步进)
+
+:AP
+AP
+:Border
+国境
+:Center X
+中心 X
+:Center Y
+中心 Y
+:Dark Map
+黑暗地图
+:Dark Map Export
+黑暗地图导出
+:Dark Map Import (Palette)
+黑暗地图导入(调色板)
+:Dark Palette
+黑暗调色板
+:Decrease Color Tool
+减色工具
+:Draw Example
+绘制示例
+:Event
+事件用
+:Export
+导出
+:Icon Data
+图标数据
+:Icon Palette
+图标调色板
+:Image Sheet Number
+图像表序号
+:Main Field Map
+主战场地图
+:OAMTable entry
+OAMTable 条目
+:Palette Map
+调色板地图
+:Point 1 Preview
+据点1预览
+:Point 2 Preview
+据点2预览
+:Point Icon
+据点图标
+:Point Image 1
+据点图像1
+:Point Image 2
+据点图像2
+:Road Image
+道路图像
+:Road Preview
+道路预览
+:Start Address
+起始地址
+:Width
+宽度
+:Write Pointers
+写入指针
+:X
+X
+:Y
+Y
+:tcs params??
+tcs 参数??
+:00 Padding
+00 填充
+:??
+??
+
+:KnownGap: pending Core extraction.
+KnownGap: 等待 Core 抽取。
+:KnownGap: live bitmap preview pending Core extraction.
+KnownGap: 实时位图预览等待 Core 抽取。
+:KnownGap: list-expand requires DataExpansionCore wiring not yet ported.
+KnownGap: 列表扩展需要 DataExpansionCore 接线尚未移植。
+:KnownGap: DecreaseColorTSAToolForm not yet ported.
+KnownGap: DecreaseColorTSAToolForm 尚未移植。
+:KnownGap: ResourceCache source-file feature not yet wired in Avalonia.
+KnownGap: ResourceCache 源文件功能在 Avalonia 中尚未接线。

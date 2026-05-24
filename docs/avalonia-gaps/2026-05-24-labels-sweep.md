@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T09:32:16Z"
-git-sha: c33962870
+generated: "2026-05-24T10:36:26Z"
+git-sha: 81ad8040b
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4454 |
-| Total AV-only labels | 3357 |
-| Total common labels | 246 |
+| Total WF-only labels | 4441 |
+| Total AV-only labels | 3400 |
+| Total common labels | 259 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -55,18 +55,18 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 6 | `MapSettingForm` | `MapSettingView` | 78 | 116 | 0 |
 | 7 | `MapSettingFE6Form` | `MapSettingFE6View` | 65 | 2 | 0 |
 | 8 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
-| 9 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
-| 10 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
-| 11 | `TextForm` | `TextViewerView` | 46 | 32 | 2 |
-| 12 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 13 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
-| 14 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 15 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 16 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
-| 17 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
-| 18 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
-| 19 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
-| 20 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
+| 9 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
+| 10 | `TextForm` | `TextViewerView` | 46 | 32 | 2 |
+| 11 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
+| 12 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
+| 13 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 14 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 15 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 16 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 17 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
+| 18 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 19 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
+| 20 | `UnitFE7Form` | `UnitFE7View` | 35 | 76 | 4 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1192,64 +1192,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Wave Pointer:`
 - `Wave Pointer + ADSR`
 - `Write`
-
-### WorldMapImageForm
-WF labels: **47** · AV labels: **2** · WF-only: **47** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 107 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00 Padding`
-- `??`
-- `AP`
-- `Center X`
-- `Center Y`
-- `Height`
-- `OAMTable entry`
-- `Size:`
-- `tcs params??`
-- `TSA`
-- `Width`
-- `X`
-- `Y`
-- `アイコン用のデータ`
-- `アドレス`
-- `イベント用`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `パレットマップ`
-- `ポインタを書き込む`
-- `ミニマップ`
-- `メインフィールドマップ`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `国境`
-- `拠点アイコン`
-- `拠点画像1`
-- `拠点画像2`
-- `描画例`
-- `書き込み`
-- `減色ツール`
-- `画像`
-- `画像シート番号`
-- `画像取出`
-- `画像取出し`
-- `画像読込`
-- `読込数`
-- `通常時パレット`
-- `道画像`
-- `選択アドレス:`
-- `闇パレット`
-- `闇マップ`
-- `闇マップ画像取出`
-- `闇マップ画像読込(パレット)`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `World Map Image`
 
 ### EventUnitForm
 WF labels: **50** · AV labels: **45** · WF-only: **46** · AV-only: **41** · Common: **4** · Density verdict: **Low** (WF 95 / AV 85)
@@ -2380,6 +2322,94 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unit Info:`
 - `Units`
 - `Write`
+
+### WorldMapImageForm
+WF labels: **47** · AV labels: **58** · WF-only: **34** · AV-only: **45** · Common: **13** · Density verdict: **Low** (WF 107 / AV 124)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アイコン用のデータ`
+- `アドレス`
+- `イベント用`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `パレットマップ`
+- `ポインタを書き込む`
+- `ミニマップ`
+- `メインフィールドマップ`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `国境`
+- `拠点アイコン`
+- `拠点画像1`
+- `拠点画像2`
+- `描画例`
+- `書き込み`
+- `減色ツール`
+- `画像`
+- `画像シート番号`
+- `画像取出`
+- `画像取出し`
+- `画像読込`
+- `読込数`
+- `通常時パレット`
+- `道画像`
+- `選択アドレス:`
+- `闇パレット`
+- `闇マップ`
+- `闇マップ画像取出`
+- `闇マップ画像読込(パレット)`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `12`
+- `16`
+- `Address`
+- `Border`
+- `Dark Map`
+- `Dark Map Export`
+- `Dark Map Import (Palette)`
+- `Dark Palette`
+- `Decrease Color Tool`
+- `Draw Example`
+- `Event`
+- `Export`
+- `Export Image`
+- `Icon Data`
+- `Icon Palette`
+- `Image`
+- `Image Sheet Number`
+- `Import`
+- `Import Image`
+- `KnownGap: DecreaseColorTSAToolForm not yet ported.`
+- `KnownGap: list-expand requires DataExpansionCore wiring not yet ported.`
+- `KnownGap: live bitmap preview pending Core extraction.`
+- `KnownGap: pending Core extraction.`
+- `KnownGap: ResourceCache source-file feature not yet wired in Avalonia.`
+- `List Expand`
+- `Main Field Map`
+- `Mini Map`
+- `Open Source File`
+- `Open Source Folder`
+- `Palette`
+- `Palette Map`
+- `Point 1 Preview`
+- `Point 2 Preview`
+- `Point Icon`
+- `Point Image 1`
+- `Point Image 2`
+- `Read Count`
+- `Reload`
+- `Road Image`
+- `Road Preview`
+- `Selected Address:`
+- `Start Address`
+- `Undo`
+- `Write`
+- `Write Pointers`
 
 ### SongTrackForm
 WF labels: **37** · AV labels: **40** · WF-only: **33** · AV-only: **36** · Common: **4** · Density verdict: **Medium** (WF 45 / AV 63)
