@@ -181,6 +181,13 @@ namespace FEBuilderGBA.Avalonia.Services
             Register("SoundRoomFE6View", "SoundRoomFE6Form", BuildSoundRoomFE6List);
 
             // ---- Monster editors ----
+            // MonsterItemForm exposes 3 list builders in WinForms
+            // (MakeAllDataLength registers MonsterItemForm / MonsterItemFormProbability /
+            // MonsterItemFormTable). The Avalonia counterpart is a single 3-tab view,
+            // so EditorMap holds the canonical pair (MonsterItemViewerView ->
+            // MonsterItemForm). The additional builders `BuildMonsterItemProbabilityList`
+            // and `BuildMonsterItemHoldingsList` are exposed below for the
+            // MonsterItemParityTests round-trip tests covering tabs 2 + 3. See #394.
             Register("MonsterItemViewerView", "MonsterItemForm", BuildMonsterItemList);
             Register("MonsterWMapProbabilityViewerView", "MonsterWMapProbabilityForm", BuildMonsterWMapProbabilityList);
 
@@ -2927,6 +2934,55 @@ namespace FEBuilderGBA.Avalonia.Services
                 string itemName = NameResolver.GetItemName(itemId);
                 string name = $"{U.ToHexString(i)} {itemName}";
                 result.Add(new AddrResult(addr, name, i));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Build monster item probability list — 5-byte entries at
+        /// `monster_item_probability_pointer`, stop at 0xFF. Mirrors
+        /// the WF N1 sub-list of MonsterItemForm. See #394.
+        /// </summary>
+        public static List<AddrResult> BuildMonsterItemProbabilityList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.monster_item_probability_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 5;
+                if (addr + 5 > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0xFF) break;
+                result.Add(new AddrResult(addr, $"{U.ToHexString(i)} Prob", i));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Build monster item holdings list — 32-byte entries at
+        /// `monster_item_table_pointer`, stop at 0xFF. Mirrors the WF
+        /// N2 sub-list of MonsterItemForm. See #394.
+        /// </summary>
+        public static List<AddrResult> BuildMonsterItemHoldingsList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.monster_item_table_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var result = new List<AddrResult>();
+            for (uint i = 0; i < 0x200; i++)
+            {
+                uint addr = baseAddr + i * 32;
+                if (addr + 32 > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0xFF) break;
+
+                uint classId = rom.u8(addr);
+                string className = NameResolver.GetClassName(classId);
+                result.Add(new AddrResult(addr, $"{U.ToHexString(i)} {className}", i));
             }
             return result;
         }

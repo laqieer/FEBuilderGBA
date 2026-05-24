@@ -70,6 +70,28 @@ namespace FEBuilderGBA.Avalonia.Controls
             SelectFirst();
         }
 
+        /// <summary>
+        /// Load address list and re-select the row matching
+        /// <paramref name="preserveAddress"/>. If no row matches, falls back
+        /// to <see cref="SelectFirst"/>. Used by editor refresh handlers that
+        /// reload the list after a successful Write so the user does not lose
+        /// their selection (Copilot CLI PR #596 round-4 review threads).
+        /// </summary>
+        public void SetItemsPreserveSelection(List<AddrResult> items, uint preserveAddress)
+        {
+            _items = items ?? new List<AddrResult>();
+            _iconLoader = null;
+            RefreshDisplay();
+            // Clear before attempting to select so the fallback path can
+            // reliably detect "preserveAddress not found" by checking
+            // SelectedIndex == -1 after the SelectAddress call.
+            AddressList.SelectedIndex = -1;
+            if (preserveAddress != 0)
+                SelectAddress(preserveAddress);
+            if (AddressList.SelectedIndex < 0)
+                SelectFirst();
+        }
+
         /// <summary>Load address list with icon thumbnails for each item.</summary>
         /// <param name="items">The address list items.</param>
         /// <param name="iconLoader">Function that takes an item index and returns a Bitmap thumbnail, or null.</param>
@@ -130,6 +152,18 @@ namespace FEBuilderGBA.Avalonia.Controls
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Clear the current selection. After this call <see cref="SelectedItem"/>
+        /// returns null and the inner ListBox shows nothing highlighted.
+        /// Mirrors WinForms `ListBox.SelectedIndex = -1` and is used by
+        /// MonsterItemViewerView's cross-tab Jump handlers to honour the
+        /// WF "value 0 means no selection" contract.
+        /// </summary>
+        public void Deselect()
+        {
+            AddressList.SelectedIndex = -1;
         }
 
         /// <summary>Select the last item in the list.</summary>

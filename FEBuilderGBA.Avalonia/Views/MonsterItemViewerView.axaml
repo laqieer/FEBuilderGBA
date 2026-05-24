@@ -1,51 +1,453 @@
+<!--
+  MonsterItemViewerView (#394 parity rebuild).
+  Three-tab structure matching WinForms `MonsterItemForm`:
+    Tab 1 — Item Table        (monster_item_item_pointer, 5-byte rows)
+    Tab 2 — Probability Table (monster_item_probability_pointer, 5-byte rows)
+    Tab 3 — Holdings Table    (monster_item_table_pointer, 32-byte rows)
+  Legacy controls (EntryList / AddrLabel / ItemIdBox / DropRateBox /
+  Unknown1..3Box) are preserved on Tab 1 so existing AvaloniaEditorTests +
+  ListParityHelper keep working.
+-->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MonsterItemViewerView"
-        Title="Monster Item Editor" Width="1645" Height="935"
+        Title="Monster Item Editor" Width="1280" Height="900"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <TabControl AutomationProperties.AutomationId="MonsterItemViewer_Main_TabControl"
+              Name="MainTabs" Margin="4">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Monster Item Editor" FontSize="18" FontWeight="Bold" />
+    <!-- ===================================================================
+         Tab 1 — Item Table  (monster_item_item_pointer, 5-byte rows)
+         =================================================================== -->
+    <TabItem AutomationProperties.AutomationId="MonsterItemViewer_ItemTab_Tab"
+             Header="Item Table" Name="ItemTab">
+      <Grid ColumnDefinitions="250,*">
+        <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Entry_List"
+                                     Grid.Column="0" Name="EntryList" Margin="4" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <ScrollViewer Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Item Table" FontSize="18" FontWeight="Bold" />
 
-          <!-- #360: replaces "Hyperlink TextBlock + NumericUpDown" with a single
-               IdFieldControl. Host Name="ItemIdBox" preserved so FindControl<>
-               lookups resolve; AutomationId preserved and forwarded by
-               IdFieldControl.PropagateInnerAutomationIds onto the inner
-               NumericUpDown so E2E selectors keep working. -->
-          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_ItemId_Input"
-                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                   Name="ItemIdBox"
-                                   Label="Item ID:"
-                                   Maximum="255"
-                                   JumpRequested="ItemId_Jump"
-                                   PickRequested="ItemId_Pick"
-                                   ValueChanged="ItemId_ValueChanged" />
+            <!-- Reread bar — mirrors WF panel1 (Read Start Address / Read Count / Reload).
+                 Read Start + Count are wired into LoadItemList via ApplyReadWindow:
+                   - BOTH 0 (default): full list, no slicing.
+                   - Either > 0: slice from Start for up to Count entries.
+                     Count==0 with Start>0 reads to the end of the list.
+                 See ApplyReadWindow in MonsterItemViewerView.axaml.cs for the
+                 full clamping semantics. -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
+                <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_ReadStart_Input"
+                               Grid.Column="1" Name="ItemReadStartBox" Minimum="0" Maximum="33554432"
+                               Value="0" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="Count:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_ReadCount_Input"
+                               Grid.Column="3" Name="ItemReadCountBox" Minimum="0" Maximum="512"
+                               Value="0" VerticalAlignment="Center" />
+                <Button AutomationProperties.AutomationId="MonsterItemViewer_Item_Reload_Button"
+                        Grid.Column="4" Name="ItemReloadButton" Content="Reload" Margin="8,0,0,0" Click="ItemReload_Click" />
+              </Grid>
+            </Border>
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Drop Rate:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_DropRate_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DropRateBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <!-- Address bar — mirrors WF AddressPanel (Address / Block Size / Selected Address). -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <Grid ColumnDefinitions="120,140,100,100,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Item_Addr_Label"
+                           Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Item_BlockSize_Label"
+                           Grid.Row="0" Grid.Column="3" Name="ItemBlockSizeLabel" Text="5"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected Address:" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Item_SelectedAddr_Label"
+                           Grid.Row="1" Grid.Column="1" Name="ItemSelectedAddrLabel"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </Border>
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown 1:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Unknown1_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <!-- 5 item-id pickers. Tab 1 is the "item table" where each row stores
+                 5 item ids; ItemIdBox is preserved as the legacy alias for slot 1.
+                 NOTE: The legacy `MonsterItemViewer_ItemId_Input` AutomationId stays
+                 on the slot-1 IdFieldControl so existing UnifiedIdFieldMigrationTests
+                 and any E2E selectors targeting the original single-list surface
+                 continue to resolve. The new Tab 1 ids (`Item_Item1_Input`..
+                 `Item_Item5_Input`) are added by the parity tests for
+                 multi-list discoverability. -->
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <!-- Slot-1 is the same byte as the legacy `ItemId` field, so the
+                   IdFieldControl keeps the legacy `MonsterItemViewer_ItemId_Input`
+                   AutomationId. UnifiedIdFieldMigrationTests asserts that this id
+                   resolves to the inner NumericUpDown uniquely (via
+                   IdFieldControl.PropagateInnerAutomationIds), and the parity
+                   tests accept the legacy id as the canonical slot-1 id. -->
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_ItemId_Input"
+                                       Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Name="ItemIdBox"
+                                       Label="Item ID:"
+                                       Maximum="255"
+                                       JumpRequested="ItemId_Jump"
+                                       PickRequested="ItemId_Pick"
+                                       ValueChanged="ItemId_ValueChanged" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown 2:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Unknown2_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown2Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item2_Input"
+                             FormatString="0" Grid.Row="1" Grid.Column="1" Name="DropRateBox"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Unknown 3:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Unknown3_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="Unknown3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
-        </Grid>
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item3_Input"
+                             FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown1Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
 
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="MonsterItemViewer_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item4_Input"
+                             FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Item 5:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item5_Input"
+                             FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MonsterItemViewer_Item_Comment_Input"
+                       Grid.Row="5" Grid.Column="1" Name="ItemCommentBox" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Item_Write_Button"
+                      Name="ItemWriteButton" Content="Write" Click="ItemWrite_Click" />
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Item_Expand_Button"
+                      Name="ItemExpandButton" Content="Expand List" Click="ItemExpand_Click" />
+              <!-- Legacy alias for the original single-tab Write button id.
+                   Hidden but FUNCTIONAL: clicking via automation invokes the
+                   same ItemWrite_Click handler the visible Write button does,
+                   so existing harnesses targeting `MonsterItemViewer_Write_Button`
+                   stay operational. -->
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Write_Button"
+                      IsVisible="False" Width="0" Height="0" Click="ItemWrite_Click" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+    <!-- ===================================================================
+         Tab 2 — Probability Table  (monster_item_probability_pointer, 5-byte)
+         =================================================================== -->
+    <TabItem AutomationProperties.AutomationId="MonsterItemViewer_ProbTab_Tab"
+             Header="Probability Table" Name="ProbTab">
+      <Grid ColumnDefinitions="250,*">
+        <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Prob_Entry_List"
+                                     Grid.Column="0" Name="ProbEntryList" Margin="4" />
+
+        <ScrollViewer Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Probability Table" FontSize="18" FontWeight="Bold" />
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
+                <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_ReadStart_Input"
+                               Grid.Column="1" Name="ProbReadStartBox" Minimum="0" Maximum="33554432"
+                               Value="0" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="Count:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_ReadCount_Input"
+                               Grid.Column="3" Name="ProbReadCountBox" Minimum="0" Maximum="512"
+                               Value="0" VerticalAlignment="Center" />
+                <Button AutomationProperties.AutomationId="MonsterItemViewer_Prob_Reload_Button"
+                        Grid.Column="4" Name="ProbReloadButton" Content="Reload" Margin="8,0,0,0" Click="ProbReload_Click" />
+              </Grid>
+            </Border>
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <Grid ColumnDefinitions="120,140,100,100,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Prob_Addr_Label"
+                           Grid.Row="0" Grid.Column="1" Name="ProbAddrLabel" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Prob_BlockSize_Label"
+                           Grid.Row="0" Grid.Column="3" Name="ProbBlockSizeLabel" Text="5"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected Address:" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Prob_SelectedAddr_Label"
+                           Grid.Row="1" Grid.Column="1" Name="ProbSelectedAddrLabel"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Sum:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Prob_Sum_Label"
+                         Grid.Row="0" Grid.Column="1" Name="ProbSumLabel" Text="0%"
+                         VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Probability 1:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_Prob1_Input"
+                             FormatString="0" Grid.Row="1" Grid.Column="1" Name="Prob1Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Probability 2:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_Prob2_Input"
+                             FormatString="0" Grid.Row="2" Grid.Column="1" Name="Prob2Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Probability 3:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_Prob3_Input"
+                             FormatString="0" Grid.Row="3" Grid.Column="1" Name="Prob3Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Probability 4:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_Prob4_Input"
+                             FormatString="0" Grid.Row="4" Grid.Column="1" Name="Prob4Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="Probability 5:" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_Prob5_Input"
+                             FormatString="0" Grid.Row="5" Grid.Column="1" Name="Prob5Box"
+                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+
+              <TextBlock Grid.Row="6" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MonsterItemViewer_Prob_Comment_Input"
+                       Grid.Row="6" Grid.Column="1" Name="ProbCommentBox" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Prob_Write_Button"
+                      Name="ProbWriteButton" Content="Write" Click="ProbabilityWrite_Click" />
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Prob_Expand_Button"
+                      Name="ProbExpandButton" Content="Expand List" Click="ProbExpand_Click" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+    <!-- ===================================================================
+         Tab 3 — Holdings Table  (monster_item_table_pointer, 32-byte rows)
+         =================================================================== -->
+    <TabItem AutomationProperties.AutomationId="MonsterItemViewer_HoldingTab_Tab"
+             Header="Holdings Table" Name="HoldingTab">
+      <Grid ColumnDefinitions="250,*">
+        <controls:AddressListControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Entry_List"
+                                     Grid.Column="0" Name="HoldingEntryList" Margin="4" />
+
+        <ScrollViewer Grid.Column="1" Margin="4">
+          <StackPanel Spacing="8" Margin="8">
+            <TextBlock Text="Holdings Table" FontSize="18" FontWeight="Bold" />
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
+                <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_ReadStart_Input"
+                               Grid.Column="1" Name="HoldReadStartBox" Minimum="0" Maximum="33554432"
+                               Value="0" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="Count:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_ReadCount_Input"
+                               Grid.Column="3" Name="HoldReadCountBox" Minimum="0" Maximum="512"
+                               Value="0" VerticalAlignment="Center" />
+                <Button AutomationProperties.AutomationId="MonsterItemViewer_Holding_Reload_Button"
+                        Grid.Column="4" Name="HoldReloadButton" Content="Reload" Margin="8,0,0,0" Click="HoldReload_Click" />
+              </Grid>
+            </Border>
+
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+              <Grid ColumnDefinitions="120,140,100,100,Auto" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Holding_Addr_Label"
+                           Grid.Row="0" Grid.Column="1" Name="HoldAddrLabel" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Holding_BlockSize_Label"
+                           Grid.Row="0" Grid.Column="3" Name="HoldBlockSizeLabel" Text="32"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected Address:" VerticalAlignment="Center" />
+                <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Holding_SelectedAddr_Label"
+                           Grid.Row="1" Grid.Column="1" Name="HoldSelectedAddrLabel"
+                           VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+
+            <!-- Class ID picker (B0). -->
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ClassId_Input"
+                                       Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Name="HoldClassIdBox"
+                                       Label="Class:"
+                                       Maximum="255"
+                                       JumpRequested="HoldClassId_Jump"
+                                       PickRequested="HoldClassId_Pick"
+                                       ValueChanged="HoldClassId_ValueChanged" />
+            </Grid>
+
+            <!-- Holdings Set 1 — 5 slots (B1..B5 / B11..B15 / B21..B25). -->
+            <TextBlock Text="Holdings Set 1" FontSize="14" FontWeight="Bold" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="100,100,100,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Slot" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="Candidate" FontWeight="Bold"
+                         ToolTip.Tip="1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row." />
+              <TextBlock Grid.Row="0" Grid.Column="2" Text="Probability" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="Item Probability" FontWeight="Bold" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Slot 1" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item1_Input"
+                                       Grid.Row="1" Grid.Column="1" Name="HoldItem1Box" Maximum="255"
+                                       JumpRequested="HoldingItem1_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob1_Input"
+                             Grid.Row="1" Grid.Column="2" Name="HoldProb1Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb1_Input"
+                                       Grid.Row="1" Grid.Column="3" Name="HoldItemProb1Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb1_Jump" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Slot 2" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item2_Input"
+                                       Grid.Row="2" Grid.Column="1" Name="HoldItem2Box" Maximum="255"
+                                       JumpRequested="HoldingItem2_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob2_Input"
+                             Grid.Row="2" Grid.Column="2" Name="HoldProb2Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb2_Input"
+                                       Grid.Row="2" Grid.Column="3" Name="HoldItemProb2Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb2_Jump" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Slot 3" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item3_Input"
+                                       Grid.Row="3" Grid.Column="1" Name="HoldItem3Box" Maximum="255"
+                                       JumpRequested="HoldingItem3_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob3_Input"
+                             Grid.Row="3" Grid.Column="2" Name="HoldProb3Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb3_Input"
+                                       Grid.Row="3" Grid.Column="3" Name="HoldItemProb3Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb3_Jump" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Slot 4" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item4_Input"
+                                       Grid.Row="4" Grid.Column="1" Name="HoldItem4Box" Maximum="255"
+                                       JumpRequested="HoldingItem4_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob4_Input"
+                             Grid.Row="4" Grid.Column="2" Name="HoldProb4Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb4_Input"
+                                       Grid.Row="4" Grid.Column="3" Name="HoldItemProb4Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb4_Jump" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="Slot 5" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item5_Input"
+                                       Grid.Row="5" Grid.Column="1" Name="HoldItem5Box" Maximum="255"
+                                       JumpRequested="HoldingItem5_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob5_Input"
+                             Grid.Row="5" Grid.Column="2" Name="HoldProb5Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb5_Input"
+                                       Grid.Row="5" Grid.Column="3" Name="HoldItemProb5Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb5_Jump" />
+            </Grid>
+
+            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto">
+              <TextBlock Grid.Column="0" Text="Sum 1:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Holding_Sum1_Label"
+                         Grid.Column="1" Name="HoldSum1Label" Text="0%" VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- Holdings Set 2 — 5 slots (B6..B10 / B16..B20 / B26..B30). -->
+            <TextBlock Text="Holdings Set 2" FontSize="14" FontWeight="Bold" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="100,100,100,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Slot" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="Candidate" FontWeight="Bold"
+                         ToolTip.Tip="1-based index into the Item Table (Tab 1) — NOT a FE item ID. Click the field to Jump to the matching row." />
+              <TextBlock Grid.Row="0" Grid.Column="2" Text="Probability" FontWeight="Bold" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Text="Item Probability" FontWeight="Bold" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Slot 1" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item6_Input"
+                                       Grid.Row="1" Grid.Column="1" Name="HoldItem6Box" Maximum="255"
+                                       JumpRequested="HoldingItem6_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob6_Input"
+                             Grid.Row="1" Grid.Column="2" Name="HoldProb6Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb6_Input"
+                                       Grid.Row="1" Grid.Column="3" Name="HoldItemProb6Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb6_Jump" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Slot 2" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item7_Input"
+                                       Grid.Row="2" Grid.Column="1" Name="HoldItem7Box" Maximum="255"
+                                       JumpRequested="HoldingItem7_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob7_Input"
+                             Grid.Row="2" Grid.Column="2" Name="HoldProb7Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb7_Input"
+                                       Grid.Row="2" Grid.Column="3" Name="HoldItemProb7Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb7_Jump" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Slot 3" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item8_Input"
+                                       Grid.Row="3" Grid.Column="1" Name="HoldItem8Box" Maximum="255"
+                                       JumpRequested="HoldingItem8_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob8_Input"
+                             Grid.Row="3" Grid.Column="2" Name="HoldProb8Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb8_Input"
+                                       Grid.Row="3" Grid.Column="3" Name="HoldItemProb8Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb8_Jump" />
+
+              <TextBlock Grid.Row="4" Grid.Column="0" Text="Slot 4" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item9_Input"
+                                       Grid.Row="4" Grid.Column="1" Name="HoldItem9Box" Maximum="255"
+                                       JumpRequested="HoldingItem9_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob9_Input"
+                             Grid.Row="4" Grid.Column="2" Name="HoldProb9Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb9_Input"
+                                       Grid.Row="4" Grid.Column="3" Name="HoldItemProb9Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb9_Jump" />
+
+              <TextBlock Grid.Row="5" Grid.Column="0" Text="Slot 5" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_Item10_Input"
+                                       Grid.Row="5" Grid.Column="1" Name="HoldItem10Box" Maximum="255"
+                                       JumpRequested="HoldingItem10_Jump" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_Prob10_Input"
+                             Grid.Row="5" Grid.Column="2" Name="HoldProb10Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Holding_ItemProb10_Input"
+                                       Grid.Row="5" Grid.Column="3" Name="HoldItemProb10Box" Maximum="255"
+                                       JumpRequested="HoldingItemProb10_Jump" />
+            </Grid>
+
+            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto">
+              <TextBlock Grid.Column="0" Text="Sum 2:" VerticalAlignment="Center" />
+              <TextBlock AutomationProperties.AutomationId="MonsterItemViewer_Holding_Sum2_Label"
+                         Grid.Column="1" Name="HoldSum2Label" Text="0%" VerticalAlignment="Center" />
+            </Grid>
+
+            <!-- B31 = unknown / 00 (mirrors WF label56). The "00" literal must be
+                 present in the AXAML so the labels-sweep scanner picks it up.
+                 Per Copilot CLI plan-review v1 finding #2. -->
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="00" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_B31_Input"
+                             Grid.Row="0" Grid.Column="1" Name="HoldB31Box"
+                             FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
+              <TextBox AutomationProperties.AutomationId="MonsterItemViewer_Holding_Comment_Input"
+                       Grid.Row="1" Grid.Column="1" Name="HoldCommentBox" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Holding_Write_Button"
+                      Name="HoldWriteButton" Content="Write" Click="HoldingsWrite_Click" />
+              <Button AutomationProperties.AutomationId="MonsterItemViewer_Holding_Expand_Button"
+                      Name="HoldExpandButton" Content="Expand List" Click="HoldExpand_Click" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </TabItem>
+
+  </TabControl>
 </Window>
