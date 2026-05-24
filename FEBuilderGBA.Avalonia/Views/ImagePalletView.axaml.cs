@@ -239,7 +239,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (writtenOffset == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
-                    Log.Error("ImagePalletView.Write_Click: write was no-op (addr=0x{0:X08})", _vm.PaletteAddress.ToString("X8"));
+                    // Pre-format the address so we pass a single
+                    // already-rendered string into Log.Error's
+                    // params string[]. Using "{0:X08}" + a string
+                    // arg crashes Log.Error since the format spec
+                    // expects a uint (Copilot bot round-2 inline
+                    // review on PR #586).
+                    Log.Error("ImagePalletView.Write_Click: write was no-op (addr=0x" + _vm.PaletteAddress.ToString("X8") + ")");
                     CoreState.Services?.ShowError(R._("Write failed: {0}", R._("Invalid palette address")));
                     return;
                 }
