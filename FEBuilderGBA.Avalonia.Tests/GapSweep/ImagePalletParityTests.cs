@@ -193,6 +193,48 @@ public class ImagePalletParityTests
         Assert.Contains("CoreState.Undo?.RunUndo()", source);
     }
 
+    /// <summary>
+    /// Write_Click must honor _vm.Write()'s U.NOT_FOUND return value
+    /// (Copilot CLI round-2 review on PR #586). When PaletteCore.Write
+    /// no-ops (invalid address / overflow), the handler must rollback,
+    /// surface an error, and NOT show the success toast.
+    /// </summary>
+    [Fact]
+    public void View_WriteHandler_HonorsNoOpReturn()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        // Capture the return value of _vm.Write() into a uint variable.
+        Assert.Contains("uint writtenOffset = _vm.Write()", source);
+        // Branch on U.NOT_FOUND and rollback rather than commit.
+        Assert.Contains("writtenOffset == U.NOT_FOUND", source);
+        // Error toast on no-op (uses the new "Invalid palette address" key).
+        Assert.Contains("Invalid palette address", source);
+    }
+
+    /// <summary>
+    /// ViewModel.Write() must return U.NOT_FOUND on a sentinel
+    /// PaletteAddress (Copilot CLI round-2 review on PR #586).
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_ReturnsNotFound_OnInvalidAddress()
+    {
+        var rom = MakeMinimalRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImagePalletViewModel();
+            // Plant a valid address first via LoadEntry, then mutate
+            // PaletteAddress to U.NOT_FOUND so the IsLoaded guard does
+            // not short-circuit.
+            vm.LoadEntry(0x100000u, 1, 0, null);
+            vm.PaletteAddress = U.NOT_FOUND;
+            uint result = vm.Write();
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     // ===================================================================
     // ViewModel state - round-trip semantics + JumpTo wiring.
     // ===================================================================

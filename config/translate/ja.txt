@@ -7985,3 +7985,6 @@ R/G/Bを0-248で編集（5ビット刻み）
 
 :Write failed: {0}
 書き込みに失敗しました: {0}
+
+:Invalid palette address
+無効なパレットアドレス

@@ -231,7 +231,18 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 ReadNudsIntoVm();
-                _vm.Write();
+                // Honor PaletteCore.WritePalette's no-op return so an
+                // invalid/out-of-range destination surfaces as an
+                // error toast instead of a fake success path
+                // (Copilot CLI round-2 review on PR #586).
+                uint writtenOffset = _vm.Write();
+                if (writtenOffset == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    Log.Error("ImagePalletView.Write_Click: write was no-op (addr=0x{0:X08})", _vm.PaletteAddress.ToString("X8"));
+                    CoreState.Services?.ShowError(R._("Write failed: {0}", R._("Invalid palette address")));
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
 

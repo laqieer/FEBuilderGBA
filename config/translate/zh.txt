@@ -21820,3 +21820,6 @@ ED 关系
 
 :Write failed: {0}
 写入失败：{0}
+
+:Invalid palette address
+无效的调色板地址
