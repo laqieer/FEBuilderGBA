@@ -1536,6 +1536,247 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         // -----------------------------------------------------------------
+        // FE8N v3 skill expansion helpers (#392)
+        //
+        // FE8N v3 is the fourth skill-patch flavour, sibling of FE8N v2.
+        // Unlike v2 (which uses a byte-pattern grep to locate the icon
+        // pointer array) v3 uses FIXED ROM OFFSETS:
+        //   - rom.u32(0x89268+4) (= 0x8926C) -> iconExPointer sentinel.
+        //     Must be a safe GBA pointer; absence means the patch isn't
+        //     installed.
+        //   - rom.u32(0x892A8+4) (= 0x892AC) -> skill-table GBA pointer.
+        //     The WF g_SkillBaseAddress is THIS SLOT ADDRESS (0x892AC),
+        //     not its dereferenced offset (because InputFormRef.Init
+        //     dereferences a slot-address argument).
+        //   - rom.u32(0x892A8+8) (= 0x892B0) -> ICON_LIST_SIZE (row stride).
+        //     Valid range 24..100 with size % 4 == 0 (v3 row layout has
+        //     fields at D4/D8/D12/D16/D20 so smallest valid stride is 24
+        //     - anything less aliases CompositeSkillPointer onto next row).
+        //   - rom.u32(0x892A8+20) (= 0x892BC) -> anime-table GBA pointer
+        //     (skl_anime_table).
+        //
+        // Row layout (sizeof-24+):
+        //   u16 textId @ +0
+        //   u16 palette @ +2
+        //   u32 unit-skill-pointer (P4) @ +4
+        //   u32 class-skill-pointer (P8) @ +8
+        //   u32 item-skill-pointer (P12) @ +12
+        //   u32 item2-skill-pointer (P16) @ +16
+        //   u32 composite-skill-pointer (P20) @ +20
+        //
+        // Icon storage mirrors v2 exactly:
+        //   rom.p32(RomInfo.icon_pointer) + 128 * (0x100 + id)
+        // with palette selection on W2 (==0 -> system_weapon_palette,
+        // !=0 -> icon_palette).
+        // -----------------------------------------------------------------
+
+        // Sentinel values for fixed-offset reads.
+        const uint FE8NVer3_IconExPointer = 0x89268 + 4;     // 0x8926C
+        const uint FE8NVer3_SkillPointerLoc = 0x892A8 + 4;   // 0x892AC
+        const uint FE8NVer3_IconListSizeLoc = 0x892A8 + 8;   // 0x892B0
+        const uint FE8NVer3_AnimePointerLoc = 0x892A8 + 20;  // 0x892BC
+
+        /// <summary>
+        /// Cached results from <see cref="ScanFE8NVer3Layout"/> so callers
+        /// don't repeat the fixed-offset reads per row. Keyed by ROM
+        /// filename to invalidate cleanly when a different ROM is loaded.
+        /// resolved == false means the scan was already attempted and the
+        /// patch isn't installed (no need to retry).
+        /// </summary>
+        static (string romName, bool resolved, uint skillPointerLocation, uint skillBaseAddress, uint animeBaseAddress, uint iconListSize) _fe8nVer3Cache;
+
+        /// <summary>
+        /// Reset the FE8N v3 scan cache. Called when the ROM changes (the
+        /// next call to a helper re-runs the scan).
+        /// </summary>
+        public static void ResetFE8NVer3Cache()
+        {
+            _fe8nVer3Cache = default;
+        }
+
+        /// <summary>
+        /// Read the fixed FE8N v3 offsets and populate the cache. Returns
+        /// the skill pointer location (`0x892AC`) on success, or
+        /// <see cref="U.NOT_FOUND"/> on miss (patch not installed or
+        /// validation failed).
+        /// Mirrors <c>SkillConfigFE8NVer3SkillForm.FindSkillFE8NVer3IconPointersLow</c>.
+        /// </summary>
+        static uint ScanFE8NVer3Layout()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null) return U.NOT_FOUND;
+
+            string currentName = rom.Filename ?? "";
+
+            // Use cached result when the ROM hasn't changed.
+            if (_fe8nVer3Cache.romName == currentName)
+            {
+                return _fe8nVer3Cache.resolved
+                    ? _fe8nVer3Cache.skillPointerLocation
+                    : U.NOT_FOUND;
+            }
+
+            try
+            {
+                // Step 1: iconExPointer at 0x8926C must be a safe pointer.
+                if (!U.isSafetyOffset(FE8NVer3_IconExPointer + 3, rom))
+                {
+                    _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                    return U.NOT_FOUND;
+                }
+                uint iconExPointer = rom.u32(FE8NVer3_IconExPointer);
+                if (!U.isSafetyPointer(iconExPointer))
+                {
+                    _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                    return U.NOT_FOUND;
+                }
+
+                // Step 2: skill-table GBA pointer at 0x892AC must be safe.
+                if (!U.isSafetyOffset(FE8NVer3_SkillPointerLoc + 3, rom))
+                {
+                    _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                    return U.NOT_FOUND;
+                }
+                uint skillTablePtr = rom.u32(FE8NVer3_SkillPointerLoc);
+                if (!U.isSafetyPointer(skillTablePtr))
+                {
+                    _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                    return U.NOT_FOUND;
+                }
+                uint skillBaseAddress = U.toOffset(skillTablePtr);
+
+                // Step 3: ICON_LIST_SIZE at 0x892B0 must be 24..100,
+                // multiple of 4 (Copilot plan-review #1: 24 is the
+                // smallest stride that fits D4/D8/D12/D16/D20).
+                if (!U.isSafetyOffset(FE8NVer3_IconListSizeLoc + 3, rom))
+                {
+                    _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                    return U.NOT_FOUND;
+                }
+                uint iconListSize = rom.u32(FE8NVer3_IconListSizeLoc);
+                if (iconListSize < 24 || iconListSize > 100 || (iconListSize % 4) != 0)
+                {
+                    _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                    return U.NOT_FOUND;
+                }
+
+                // Step 4: anime-table GBA pointer at 0x892BC (optional —
+                // 0 means animations aren't available for this ROM).
+                uint animeBaseAddress = 0;
+                if (U.isSafetyOffset(FE8NVer3_AnimePointerLoc + 3, rom))
+                {
+                    uint animeTablePtr = rom.u32(FE8NVer3_AnimePointerLoc);
+                    if (U.isSafetyPointer(animeTablePtr))
+                    {
+                        animeBaseAddress = U.toOffset(animeTablePtr);
+                    }
+                }
+
+                _fe8nVer3Cache = (currentName, true, FE8NVer3_SkillPointerLoc,
+                    skillBaseAddress, animeBaseAddress, iconListSize);
+                return FE8NVer3_SkillPointerLoc;
+            }
+            catch
+            {
+                _fe8nVer3Cache = (currentName, false, 0, 0, 0, 0);
+                return U.NOT_FOUND;
+            }
+        }
+
+        /// <summary>
+        /// Find the FE8N v3 SKILL pointer LOCATION (the address holding the
+        /// skill-info-table GBA pointer). Mirrors WinForms
+        /// <c>SkillConfigFE8NVer3SkillForm.g_SkillBaseAddress</c> which IS
+        /// the slot address (0x892AC), NOT the dereferenced offset (the WF
+        /// `InputFormRef.Init` dereferences it). Returns
+        /// <see cref="U.NOT_FOUND"/> if the patch isn't installed or the
+        /// stride is too narrow for the v3 row layout.
+        /// </summary>
+        public static uint FindSkillFE8NVer3SkillPointerLocation()
+        {
+            return ScanFE8NVer3Layout();
+        }
+
+        /// <summary>
+        /// Find the FE8N v3 SKILL table base offset (dereferenced pointer).
+        /// Returns 0 if the patch isn't installed.
+        /// </summary>
+        public static uint FindSkillFE8NVer3SkillBaseAddress()
+        {
+            if (ScanFE8NVer3Layout() == U.NOT_FOUND) return 0;
+            return _fe8nVer3Cache.skillBaseAddress;
+        }
+
+        /// <summary>
+        /// Find the FE8N v3 ANIME table base offset (dereferenced pointer).
+        /// Returns 0 if the patch isn't installed or the anime table
+        /// couldn't be resolved.
+        /// </summary>
+        public static uint FindSkillFE8NVer3AnimeBaseAddress()
+        {
+            if (ScanFE8NVer3Layout() == U.NOT_FOUND) return 0;
+            return _fe8nVer3Cache.animeBaseAddress;
+        }
+
+        /// <summary>
+        /// Returns the detected ICON_LIST_SIZE (row stride) for FE8N v3,
+        /// in the range 24..100 (multiple of 4). Returns 0 if the patch
+        /// isn't installed or the size is out of range (Copilot plan-review
+        /// #1: strides below 24 alias CompositeSkillPointer onto next row).
+        /// </summary>
+        public static uint GetFE8NVer3IconListSize()
+        {
+            if (ScanFE8NVer3Layout() == U.NOT_FOUND) return 0;
+            return _fe8nVer3Cache.iconListSize;
+        }
+
+        /// <summary>
+        /// Load a 16x16 skill icon for FE8N v3. Identical formula to v2
+        /// (<see cref="LoadFE8NVer2SkillIcon"/>):
+        ///   iconBaseAddr = rom.p32(RomInfo.icon_pointer)
+        ///   iconaddr     = iconBaseAddr + 128 * (0x100 + id)
+        ///   palette      = (W2==0) ? rom.p32(RomInfo.system_weapon_icon_palette_pointer)
+        ///                          : rom.p32(RomInfo.icon_palette_pointer)
+        /// Mirrors WF <c>SkillConfigFE8NVer3SkillForm.DrawSkillIconLow</c>.
+        /// </summary>
+        /// <param name="id">Skill index (0-based).</param>
+        /// <param name="paletteIndex">Palette field value (W2). When 0 uses
+        /// the system weapon icon palette; otherwise the regular icon palette.</param>
+        public static IImage LoadFE8NVer3SkillIcon(uint id, uint paletteIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+
+            try
+            {
+                uint iconPointerAddr = rom.RomInfo.icon_pointer;
+                if (!U.isSafetyOffset(iconPointerAddr + 3, rom)) return null;
+                uint iconBaseAddr = rom.p32(iconPointerAddr);
+                if (!U.isSafetyOffset(iconBaseAddr, rom)) return null;
+
+                const uint TILE_SIZE = 128; // 16x16 4bpp = 128 bytes
+                uint iconAddr = iconBaseAddr + TILE_SIZE * (0x100 + id);
+                if (iconAddr + TILE_SIZE > (uint)rom.Data.Length) return null;
+
+                uint palettePointerAddr = (paletteIndex == 0)
+                    ? rom.RomInfo.system_weapon_icon_palette_pointer
+                    : rom.RomInfo.icon_palette_pointer;
+                if (!U.isSafetyOffset(palettePointerAddr + 3, rom)) return null;
+                uint palAddr = rom.p32(palettePointerAddr);
+                if (!U.isSafetyOffset(palAddr, rom)) return null;
+
+                byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
+                if (palette == null) return null;
+
+                return CoreState.ImageService?.Decode4bppTiles(rom.Data, (int)iconAddr, 16, 16, palette);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // -----------------------------------------------------------------
         // FE8N v1 (original FE8N / yugudora) skill expansion helpers (#390)
         //
         // FE8N v1 is the ORIGINAL FE8N skill patch flavour (also reused by
@@ -1702,7 +1943,6 @@ namespace FEBuilderGBA.Avalonia.Services
                 return null;
             }
         }
-
         /// <summary>
         /// Load a map action animation thumbnail by rendering the first frame.
         /// The animation pointer is read from the map action animation table entry.

@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T14:12:24Z"
-git-sha: af1647e7f
+generated: "2026-05-24T15:32:15Z"
+git-sha: d7e92bfc8
 sweep-type: undo
 ---
 
@@ -79,11 +79,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-undo --out=<path>`.
 
 | Tier | Count | % of total |
 |---|---:|---:|
-| Total write callsites | 1154 | 100% |
-| NoUndoServiceField (no plumbing) | 151 | 13.1% |
+| Total write callsites | 1158 | 100% |
+| NoUndoServiceField (no plumbing) | 152 | 13.1% |
 | MissingScope (unwrapped) | 4 | 0.3% |
 | AmbiguousScope (verify) | 0 | 0.0% |
-| Covered (healthy) | 999 | 86.6% |
+| Covered (healthy) | 1002 | 86.5% |
 
 ## Highest priority — VMs with NO undo plumbing at all
 
@@ -149,56 +149,56 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 
 | File | Line | Method | Write | Note |
 |---|---:|---|---|---|
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 182 | `WriteMapSetting` | `rom.write_u32(addr + 0, CpPointer)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 183 | `WriteMapSetting` | `rom.write_u16(addr + 4, ObjectTypePLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 184 | `WriteMapSetting` | `rom.write_u8(addr + 7, ChipsetConfigPLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 184 | `WriteMapSetting` | `rom.write_u8(addr + 6, PalettePLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 185 | `WriteMapSetting` | `rom.write_u8(addr + 9, TileAnimation1PLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 185 | `WriteMapSetting` | `rom.write_u8(addr + 8, MapPointerPLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 186 | `WriteMapSetting` | `rom.write_u8(addr + 11, MapChangePLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 186 | `WriteMapSetting` | `rom.write_u8(addr + 10, TileAnimation2PLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 187 | `WriteMapSetting` | `rom.write_u8(addr + 13, BattlePreparation)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 187 | `WriteMapSetting` | `rom.write_u8(addr + 12, FogLevel)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 188 | `WriteMapSetting` | `rom.write_u8(addr + 15, UnknownB15)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 188 | `WriteMapSetting` | `rom.write_u8(addr + 14, ChapterTitleImage)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 189 | `WriteMapSetting` | `rom.write_u8(addr + 17, UnknownB17)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 189 | `WriteMapSetting` | `rom.write_u8(addr + 16, UnknownB16)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 190 | `WriteMapSetting` | `rom.write_u8(addr + 19, BattleBGLookup)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 190 | `WriteMapSetting` | `rom.write_u8(addr + 18, Weather)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 191 | `WriteMapSetting` | `rom.write_u8(addr + 21, EnemyPhaseBGM)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 191 | `WriteMapSetting` | `rom.write_u8(addr + 20, PlayerPhaseBGM)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 192 | `WriteMapSetting` | `rom.write_u8(addr + 23, HardBoost)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 192 | `WriteMapSetting` | `rom.write_u8(addr + 22, NpcPhaseBGM)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 193 | `WriteMapSetting` | `rom.write_u8(addr + 25, BreakableWallHP)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 193 | `WriteMapSetting` | `rom.write_u8(addr + 24, UnknownB24)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 194 | `WriteMapSetting` | `rom.write_u8(addr + 27, UnknownB27)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 194 | `WriteMapSetting` | `rom.write_u8(addr + 26, UnknownB26)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 195 | `WriteMapSetting` | `rom.write_u8(addr + 29, UnknownB29)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 195 | `WriteMapSetting` | `rom.write_u8(addr + 28, UnknownB28)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 196 | `WriteMapSetting` | `rom.write_u8(addr + 31, UnknownB31)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 196 | `WriteMapSetting` | `rom.write_u8(addr + 30, UnknownB30)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 197 | `WriteMapSetting` | `rom.write_u16(addr + 34, EnemyPhaseBGMW)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 197 | `WriteMapSetting` | `rom.write_u16(addr + 32, PlayerPhaseBGMW)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 198 | `WriteMapSetting` | `rom.write_u16(addr + 38, UnknownW38)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 198 | `WriteMapSetting` | `rom.write_u16(addr + 36, NpcPhaseBGMW)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 199 | `WriteMapSetting` | `rom.write_u16(addr + 42, UnknownW42)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 199 | `WriteMapSetting` | `rom.write_u16(addr + 40, UnknownW40)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 200 | `WriteMapSetting` | `rom.write_u16(addr + 46, UnknownW46)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 200 | `WriteMapSetting` | `rom.write_u16(addr + 44, UnknownW44)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 201 | `WriteMapSetting` | `rom.write_u16(addr + 50, UpperArmyText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 201 | `WriteMapSetting` | `rom.write_u16(addr + 48, ClearConditionText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 202 | `WriteMapSetting` | `rom.write_u16(addr + 54, EnemyBannerFlag)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 202 | `WriteMapSetting` | `rom.write_u16(addr + 52, LowerArmyText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 203 | `WriteMapSetting` | `rom.write_u16(addr + 56, ChapterTitleText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 204 | `WriteMapSetting` | `rom.write_u8(addr + 58, EventIdPLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 205 | `WriteMapSetting` | `rom.write_u8(addr + 59, WorldMapAutoEvent)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 206 | `WriteMapSetting` | `rom.write_u16(addr + 60, WorldMapPlaceName)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 207 | `WriteMapSetting` | `rom.write_u8(addr + 62, ChapterNumber)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 208 | `WriteMapSetting` | `rom.write_u8(addr + 63, WorldMapX)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 209 | `WriteMapSetting` | `rom.write_u8(addr + 64, WorldMapY)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 210 | `WriteMapSetting` | `rom.write_u8(addr + 65, WorldMapPointX)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 211 | `WriteMapSetting` | `rom.write_u8(addr + 66, WorldMapPointY)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
-| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 212 | `WriteMapSetting` | `rom.write_u8(addr + 67, VictoryBGMEnemyCount)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 204 | `WriteMapSetting` | `rom.write_u32(addr + 0, CpPointer)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 205 | `WriteMapSetting` | `rom.write_u16(addr + 4, ObjectTypePLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 206 | `WriteMapSetting` | `rom.write_u8(addr + 7, ChipsetConfigPLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 206 | `WriteMapSetting` | `rom.write_u8(addr + 6, PalettePLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 207 | `WriteMapSetting` | `rom.write_u8(addr + 9, TileAnimation1PLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 207 | `WriteMapSetting` | `rom.write_u8(addr + 8, MapPointerPLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 208 | `WriteMapSetting` | `rom.write_u8(addr + 11, MapChangePLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 208 | `WriteMapSetting` | `rom.write_u8(addr + 10, TileAnimation2PLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 209 | `WriteMapSetting` | `rom.write_u8(addr + 13, BattlePreparation)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 209 | `WriteMapSetting` | `rom.write_u8(addr + 12, FogLevel)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 210 | `WriteMapSetting` | `rom.write_u8(addr + 15, UnknownB15)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 210 | `WriteMapSetting` | `rom.write_u8(addr + 14, ChapterTitleImage)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 211 | `WriteMapSetting` | `rom.write_u8(addr + 17, UnknownB17)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 211 | `WriteMapSetting` | `rom.write_u8(addr + 16, UnknownB16)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 212 | `WriteMapSetting` | `rom.write_u8(addr + 19, BattleBGLookup)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 212 | `WriteMapSetting` | `rom.write_u8(addr + 18, Weather)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 213 | `WriteMapSetting` | `rom.write_u8(addr + 21, EnemyPhaseBGM)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 213 | `WriteMapSetting` | `rom.write_u8(addr + 20, PlayerPhaseBGM)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 214 | `WriteMapSetting` | `rom.write_u8(addr + 23, HardBoost)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 214 | `WriteMapSetting` | `rom.write_u8(addr + 22, NpcPhaseBGM)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 215 | `WriteMapSetting` | `rom.write_u8(addr + 25, BreakableWallHP)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 215 | `WriteMapSetting` | `rom.write_u8(addr + 24, UnknownB24)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 216 | `WriteMapSetting` | `rom.write_u8(addr + 27, UnknownB27)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 216 | `WriteMapSetting` | `rom.write_u8(addr + 26, UnknownB26)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 217 | `WriteMapSetting` | `rom.write_u8(addr + 29, UnknownB29)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 217 | `WriteMapSetting` | `rom.write_u8(addr + 28, UnknownB28)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 218 | `WriteMapSetting` | `rom.write_u8(addr + 31, UnknownB31)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 218 | `WriteMapSetting` | `rom.write_u8(addr + 30, UnknownB30)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 219 | `WriteMapSetting` | `rom.write_u16(addr + 34, EnemyPhaseBGMW)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 219 | `WriteMapSetting` | `rom.write_u16(addr + 32, PlayerPhaseBGMW)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 220 | `WriteMapSetting` | `rom.write_u16(addr + 38, UnknownW38)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 220 | `WriteMapSetting` | `rom.write_u16(addr + 36, NpcPhaseBGMW)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 221 | `WriteMapSetting` | `rom.write_u16(addr + 42, UnknownW42)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 221 | `WriteMapSetting` | `rom.write_u16(addr + 40, UnknownW40)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 222 | `WriteMapSetting` | `rom.write_u16(addr + 46, UnknownW46)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 222 | `WriteMapSetting` | `rom.write_u16(addr + 44, UnknownW44)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 223 | `WriteMapSetting` | `rom.write_u16(addr + 50, UpperArmyText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 223 | `WriteMapSetting` | `rom.write_u16(addr + 48, ClearConditionText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 224 | `WriteMapSetting` | `rom.write_u16(addr + 54, EnemyBannerFlag)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 224 | `WriteMapSetting` | `rom.write_u16(addr + 52, LowerArmyText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 225 | `WriteMapSetting` | `rom.write_u16(addr + 56, ChapterTitleText)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 226 | `WriteMapSetting` | `rom.write_u8(addr + 58, EventIdPLIST)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 227 | `WriteMapSetting` | `rom.write_u8(addr + 59, WorldMapAutoEvent)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 228 | `WriteMapSetting` | `rom.write_u16(addr + 60, WorldMapPlaceName)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 229 | `WriteMapSetting` | `rom.write_u8(addr + 62, ChapterNumber)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 230 | `WriteMapSetting` | `rom.write_u8(addr + 63, WorldMapX)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 231 | `WriteMapSetting` | `rom.write_u8(addr + 64, WorldMapY)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 232 | `WriteMapSetting` | `rom.write_u8(addr + 65, WorldMapPointX)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 233 | `WriteMapSetting` | `rom.write_u8(addr + 66, WorldMapPointY)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/MapSettingFE6ViewModel.cs` | 234 | `WriteMapSetting` | `rom.write_u8(addr + 67, VictoryBGMEnemyCount)` | class 'MapSettingFE6ViewModel' has no UndoService field/property/local |
 
 ### `ImageCGFE7UViewModel` — 7 callsites
 
@@ -255,6 +255,13 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 |---|---:|---|---|---|
 | `FEBuilderGBA.Avalonia/ViewModels/SkillConfigFE8NVer2SkillViewModel.cs` | 401 | `WritePointerOffset` | `rom.write_u32(slotAddr, 0)` | class 'SkillConfigFE8NVer2SkillViewModel' has no UndoService field/property/local |
 | `FEBuilderGBA.Avalonia/ViewModels/SkillConfigFE8NVer2SkillViewModel.cs` | 405 | `WritePointerOffset` | `rom.write_p32(slotAddr, offset)` | class 'SkillConfigFE8NVer2SkillViewModel' has no UndoService field/property/local |
+
+### `SkillConfigFE8NVer3SkillViewModel` — 2 callsites
+
+| File | Line | Method | Write | Note |
+|---|---:|---|---|---|
+| `FEBuilderGBA.Avalonia/ViewModels/SkillConfigFE8NVer3SkillViewModel.cs` | 417 | `WritePointerOffset` | `rom.write_u32(slotAddr, 0)` | class 'SkillConfigFE8NVer3SkillViewModel' has no UndoService field/property/local |
+| `FEBuilderGBA.Avalonia/ViewModels/SkillConfigFE8NVer3SkillViewModel.cs` | 421 | `WritePointerOffset` | `rom.write_p32(slotAddr, offset)` | class 'SkillConfigFE8NVer3SkillViewModel' has no UndoService field/property/local |
 
 ### `TextCharCodeViewModel` — 2 callsites
 
@@ -389,12 +396,6 @@ These ViewModels have no `UndoService` field/property/local. Every write here by
 |---|---:|---|---|---|
 | `FEBuilderGBA.Avalonia/ViewModels/SkillAssignmentUnitSkillSystemViewModel.cs` | 50 | `Write` | `EditorFormRef.WriteFields(rom, addr, values, _fields)` | class 'SkillAssignmentUnitSkillSystemViewModel' has no UndoService field/property/local |
 
-### `SkillConfigFE8NVer3SkillViewViewModel` — 1 callsite
-
-| File | Line | Method | Write | Note |
-|---|---:|---|---|---|
-| `FEBuilderGBA.Avalonia/ViewModels/SkillConfigFE8NVer3SkillViewViewModel.cs` | 62 | `Write` | `EditorFormRef.WriteFields(rom, addr, values, _fields)` | class 'SkillConfigFE8NVer3SkillViewViewModel' has no UndoService field/property/local |
-
 ### `SkillSystemsEffectivenessReworkClassTypeViewViewModel` — 1 callsite
 
 | File | Line | Method | Write | Note |
@@ -451,7 +452,7 @@ _None._
 
 ## Covered (healthy)
 
-`999` callsites are inside a Begin/Commit (or Begin/Rollback) scope in the same method body, OR pass an explicit Undo argument. Covered classes: `MapSettingViewModel` (99), `MapSettingFE7UViewModel` (97), `MapSettingFE7ViewModel` (95), `ClassEditorViewModel` (75), `MoveCostFE6ViewModel` (51), `SongInstrumentViewModel` (46), `UnitEditorViewModel` (46), `UnitFE7ViewModel` (46), `UnitFE6ViewModel` (42), `WorldMapImageViewModel` (28), `ItemEditorViewModel` (26), `ItemFE6ViewModel` (22), `EventCondViewModel` (19), `BattleTerrainViewerViewModel` (15), `SkillConfigFE8NSkillViewModel` (14), `ImagePortraitViewModel` (13), `ImageUnitPaletteViewModel` (13), `PortraitViewerViewModel` (13), `SkillAssignmentClassSkillSystemViewModel` (11), `TextViewerViewModel` (10), `SkillAssignmentClassCSkillSysViewModel` (9), `ClassOPDemoViewModel` (8), `ImageMagicFEditorViewModel` (8), `TextDicViewModel` (8), `ImagePortraitFE6ViewModel` (7), `MapChangeViewModel` (7), `EventScriptPopupViewModel` (6), `ImageTSAAnime2ViewModel` (5), `SongTrackViewModel` (5), `WorldMapEventPointerViewModel` (5), `EDFE7ViewModel` (4), `ImageMagicCSACreatorViewModel` (4), `OPClassDemoViewerViewModel` (4), `BattleBGViewerViewModel` (3), `BigCGViewerViewModel` (3), `ChapterTitleViewerViewModel` (3), `EDViewModel` (3), `ImageBGViewModel` (3), `ImageBattleAnimeViewModel` (3), `ImageBattleBGViewModel` (3), `ImageMapActionAnimationViewModel` (3), `MonsterItemViewerViewModel` (3), `OPClassDemoFE7UViewModel` (3), `OPClassDemoFE7ViewModel` (3), `SkillConfigFE8NVer2SkillViewModel` (3), `SkillConfigFE8UCSkillSys09xViewModel` (3), `ClassOPDemoView` (2), `MapTileAnimation2ViewModel` (2), `SMEPromoListViewModel` (2), `SkillConfigSkillSystemViewModel` (2), `SongTableViewModel` (2), `AIASMCALLTALKViewModel` (1), `AIASMCoordinateViewModel` (1), `AIASMRangeViewModel` (1), `AIMapSettingViewModel` (1), `AIPerformItemViewModel` (1), `AIPerformStaffViewModel` (1), `AIStealItemViewModel` (1), `AITargetViewModel` (1), `AITilesViewModel` (1), `AIUnitsViewModel` (1), `AOERANGEViewModel` (1), `ArenaClassViewerViewModel` (1), `ArenaEnemyWeaponViewerViewModel` (1), `CCBranchEditorViewModel` (1), `EDSensekiCommentViewModel` (1), `EDStaffRollViewModel` (1), `EventMapChangeViewModel` (1), `EventUnitFE6ViewModel` (1), `EventUnitFE7ViewModel` (1), `EventUnitViewModel` (1), `ExtraUnitFE8UViewModel` (1), `ExtraUnitViewModel` (1), `ImageChapterTitleFE7ViewModel` (1), `ImageSystemAreaViewModel` (1), `ItemEffectPointerViewerViewModel` (1), `ItemRandomChestViewModel` (1), `ItemShopViewerViewModel` (1), `ItemStatBonusesSkillSystemsViewModel` (1), `ItemStatBonusesVennoViewModel` (1), `ItemStatBonusesViewerViewModel` (1), `ItemUsagePointerViewerViewModel` (1), `ItemWeaponEffectViewerViewModel` (1), `ItemWeaponTriangleViewerViewModel` (1), `LinkArenaDenyUnitViewerViewModel` (1), `MapEditorViewModel` (1), `MapExitPointViewModel` (1), `MapLoadFunctionViewModel` (1), `MapPointerViewModel` (1), `MapStyleEditorViewModel` (1), `MapTerrainBGLookupTableViewModel` (1), `MapTerrainFloorLookupTableViewModel` (1), `MapTerrainNameEngViewModel` (1), `MapTerrainNameViewModel` (1), `MapTileAnimation1ViewModel` (1), `MapTileAnimationViewModel` (1), `MenuCommandViewModel` (1), `MenuDefinitionViewModel` (1), `MenuExtendSplitMenuViewModel` (1), `MonsterProbabilityViewerViewModel` (1), `MonsterWMapProbabilityViewerViewModel` (1), `MoveCostEditorViewModel` (1), `OPClassAlphaNameFE6ViewModel` (1), `OPClassAlphaNameViewModel` (1), `OPClassDemoFE8UViewModel` (1), `OPClassFontFE8UViewModel` (1), `OPClassFontViewerViewModel` (1), `OPPrologueViewerView` (1), `OPPrologueViewerViewModel` (1), `PointerToolViewModel` (1), `SomeClassListViewModel` (1), `SongInstrumentDirectSoundViewModel` (1), `SoundBossBGMViewerViewModel` (1), `SoundFootStepsViewerViewModel` (1), `SoundRoomCGViewModel` (1), `SoundRoomFE6ViewModel` (1), `SoundRoomViewerViewModel` (1), `StatusOptionOrderViewModel` (1), `StatusOptionViewModel` (1), `StatusParamViewModel` (1), `StatusRMenuViewModel` (1), `StatusUnitsMenuViewModel` (1), `SummonUnitViewerViewModel` (1), `SummonsDemonKingViewerViewModel` (1), `SupportAttributeViewModel` (1), `SupportTalkFE6ViewModel` (1), `SupportTalkFE7ViewModel` (1), `SupportTalkViewModel` (1), `SupportUnitEditorViewModel` (1), `SupportUnitFE6ViewModel` (1), `TerrainNameEditorViewModel` (1), `ToolASMEditView` (1), `ToolLZ77ViewModel` (1), `UnitCustomBattleAnimeViewModel` (1), `UnitPaletteViewModel` (1), `UnitsShortTextViewModel` (1), `WorldMapBGMViewModel` (1), `WorldMapPathMoveEditorViewModel` (1), `WorldMapPathViewModel` (1), `WorldMapPointViewModel` (1).
+`1002` callsites are inside a Begin/Commit (or Begin/Rollback) scope in the same method body, OR pass an explicit Undo argument. Covered classes: `MapSettingViewModel` (99), `MapSettingFE7UViewModel` (97), `MapSettingFE7ViewModel` (95), `ClassEditorViewModel` (75), `MoveCostFE6ViewModel` (51), `SongInstrumentViewModel` (46), `UnitEditorViewModel` (46), `UnitFE7ViewModel` (46), `UnitFE6ViewModel` (42), `WorldMapImageViewModel` (28), `ItemEditorViewModel` (26), `ItemFE6ViewModel` (22), `EventCondViewModel` (19), `BattleTerrainViewerViewModel` (15), `SkillConfigFE8NSkillViewModel` (14), `ImagePortraitViewModel` (13), `ImageUnitPaletteViewModel` (13), `PortraitViewerViewModel` (13), `SkillAssignmentClassSkillSystemViewModel` (11), `TextViewerViewModel` (10), `SkillAssignmentClassCSkillSysViewModel` (9), `ClassOPDemoViewModel` (8), `ImageMagicFEditorViewModel` (8), `TextDicViewModel` (8), `ImagePortraitFE6ViewModel` (7), `MapChangeViewModel` (7), `EventScriptPopupViewModel` (6), `ImageTSAAnime2ViewModel` (5), `SongTrackViewModel` (5), `WorldMapEventPointerViewModel` (5), `EDFE7ViewModel` (4), `ImageMagicCSACreatorViewModel` (4), `OPClassDemoViewerViewModel` (4), `BattleBGViewerViewModel` (3), `BigCGViewerViewModel` (3), `ChapterTitleViewerViewModel` (3), `EDViewModel` (3), `ImageBGViewModel` (3), `ImageBattleAnimeViewModel` (3), `ImageBattleBGViewModel` (3), `ImageMapActionAnimationViewModel` (3), `MonsterItemViewerViewModel` (3), `OPClassDemoFE7UViewModel` (3), `OPClassDemoFE7ViewModel` (3), `SkillConfigFE8NVer2SkillViewModel` (3), `SkillConfigFE8NVer3SkillViewModel` (3), `SkillConfigFE8UCSkillSys09xViewModel` (3), `ClassOPDemoView` (2), `MapTileAnimation2ViewModel` (2), `SMEPromoListViewModel` (2), `SkillConfigSkillSystemViewModel` (2), `SongTableViewModel` (2), `AIASMCALLTALKViewModel` (1), `AIASMCoordinateViewModel` (1), `AIASMRangeViewModel` (1), `AIMapSettingViewModel` (1), `AIPerformItemViewModel` (1), `AIPerformStaffViewModel` (1), `AIStealItemViewModel` (1), `AITargetViewModel` (1), `AITilesViewModel` (1), `AIUnitsViewModel` (1), `AOERANGEViewModel` (1), `ArenaClassViewerViewModel` (1), `ArenaEnemyWeaponViewerViewModel` (1), `CCBranchEditorViewModel` (1), `EDSensekiCommentViewModel` (1), `EDStaffRollViewModel` (1), `EventMapChangeViewModel` (1), `EventUnitFE6ViewModel` (1), `EventUnitFE7ViewModel` (1), `EventUnitViewModel` (1), `ExtraUnitFE8UViewModel` (1), `ExtraUnitViewModel` (1), `ImageChapterTitleFE7ViewModel` (1), `ImageSystemAreaViewModel` (1), `ItemEffectPointerViewerViewModel` (1), `ItemRandomChestViewModel` (1), `ItemShopViewerViewModel` (1), `ItemStatBonusesSkillSystemsViewModel` (1), `ItemStatBonusesVennoViewModel` (1), `ItemStatBonusesViewerViewModel` (1), `ItemUsagePointerViewerViewModel` (1), `ItemWeaponEffectViewerViewModel` (1), `ItemWeaponTriangleViewerViewModel` (1), `LinkArenaDenyUnitViewerViewModel` (1), `MapEditorViewModel` (1), `MapExitPointViewModel` (1), `MapLoadFunctionViewModel` (1), `MapPointerViewModel` (1), `MapStyleEditorViewModel` (1), `MapTerrainBGLookupTableViewModel` (1), `MapTerrainFloorLookupTableViewModel` (1), `MapTerrainNameEngViewModel` (1), `MapTerrainNameViewModel` (1), `MapTileAnimation1ViewModel` (1), `MapTileAnimationViewModel` (1), `MenuCommandViewModel` (1), `MenuDefinitionViewModel` (1), `MenuExtendSplitMenuViewModel` (1), `MonsterProbabilityViewerViewModel` (1), `MonsterWMapProbabilityViewerViewModel` (1), `MoveCostEditorViewModel` (1), `OPClassAlphaNameFE6ViewModel` (1), `OPClassAlphaNameViewModel` (1), `OPClassDemoFE8UViewModel` (1), `OPClassFontFE8UViewModel` (1), `OPClassFontViewerViewModel` (1), `OPPrologueViewerView` (1), `OPPrologueViewerViewModel` (1), `PointerToolViewModel` (1), `SomeClassListViewModel` (1), `SongInstrumentDirectSoundViewModel` (1), `SoundBossBGMViewerViewModel` (1), `SoundFootStepsViewerViewModel` (1), `SoundRoomCGViewModel` (1), `SoundRoomFE6ViewModel` (1), `SoundRoomViewerViewModel` (1), `StatusOptionOrderViewModel` (1), `StatusOptionViewModel` (1), `StatusParamViewModel` (1), `StatusRMenuViewModel` (1), `StatusUnitsMenuViewModel` (1), `SummonUnitViewerViewModel` (1), `SummonsDemonKingViewerViewModel` (1), `SupportAttributeViewModel` (1), `SupportTalkFE6ViewModel` (1), `SupportTalkFE7ViewModel` (1), `SupportTalkViewModel` (1), `SupportUnitEditorViewModel` (1), `SupportUnitFE6ViewModel` (1), `TerrainNameEditorViewModel` (1), `ToolASMEditView` (1), `ToolLZ77ViewModel` (1), `UnitCustomBattleAnimeViewModel` (1), `UnitPaletteViewModel` (1), `UnitsShortTextViewModel` (1), `WorldMapBGMViewModel` (1), `WorldMapPathMoveEditorViewModel` (1), `WorldMapPathViewModel` (1), `WorldMapPointViewModel` (1).
 
 ## Registry cross-check
 
@@ -467,7 +468,7 @@ miss that surfaced as an unjustified zero-row warning before the fix).
 
 Classes with at least one detected write: 176.
 
-Writable VMs (matching the triplet convention): 148.  
+Writable VMs (matching the triplet convention): 149.  
 Writable VMs with zero detected ROM writes: 3.
 
 ### Writable VMs with zero detected ROM writes (warning)

@@ -523,6 +523,14 @@ namespace FEBuilderGBA.Avalonia.Services
             // Declare the WF↔AV form pair here so JumpParityScanner can
             // resolve the cross-ref.
             { "SkillConfigFE8NVer2SkillView", "SkillConfigFE8NVer2SkillForm" },
+            // #392 — SkillConfigFE8NVer3SkillForm jumps to PatchForm (combat-art
+            // navigation), ErrorPaletteShowForm (palette-mismatch dialog), and
+            // ToolAnimationCreatorForm (X_N_JumpEditor). The Avalonia view is
+            // patch-dependent (needs the FE8N v3 skill patch installed to
+            // populate its list), so the EditorMap layer doesn't seed it.
+            // Declare the WF↔AV form pair here so JumpParityScanner can resolve
+            // the cross-ref. Mirrors the exact pattern PR #598 used for v2.
+            { "SkillConfigFE8NVer3SkillView", "SkillConfigFE8NVer3SkillForm" },
             // #390 — SkillConfigFE8NSkillForm (FE8N v1 / yugudora) jumps to
             // ToolAnimationCreatorForm via X_N_JumpEditor (same shape as
             // #396/#427/#430/#433). Patch-dependent (needs FE8N v1 / yugudora

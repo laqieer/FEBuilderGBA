@@ -17489,6 +17489,18 @@ Mant动画
 :Map Resize
 地图缩放
 
+:Text IDs
+文本ID
+
+:Victory BGM
+胜利BGM
+
+:World Map / Event
+世界地图 / 事件
+
+:Chapter Number
+章节号
+
 :Map Setting Difficulty Extra
 地图设置难度额外
 
@@ -22502,3 +22514,140 @@ WF 中的 N03 子标签包含 16 个无固定语义的通用字节 (B16..B31)。
 
 :Skill Configuration (FE8N)
 技能设置 (FE8N)
+:Skill Configuration (FE8N v3)
+技能配置 (FE8N v3)
+
+:Skill system editors require the FE8N v3 skill patch to be installed.\r\nUse the Patch Manager to install it first.
+技能系统编辑器需要先安装 FE8N v3 技能补丁。\r\n请使用补丁管理器进行安装。
+
+:Composite Skill Pointer
+复合技能指针
+
+:Composite Skill List
+复合技能列表
+
+:Composite Skill Sub-list
+复合技能子列表
+
+:Item2 Skill Sub-list
+物品2技能子列表
+
+:Per-skill composite-skill sub-list editing is not yet implemented in Avalonia.
+每个技能的复合技能子列表编辑尚未在 Avalonia 中实现。
+
+:Use the WinForms editor to add other skills as composite effects.
+请使用 WinForms 编辑器添加其他技能作为复合效果。
+
+:Use the WinForms editor to assign held items to a skill.
+请使用 WinForms 编辑器将持有物品分配给技能。
+
+:Use the WinForms editor to assign weapon-equipped items to a skill.
+请使用 WinForms 编辑器将武器装备物品分配给技能。
+
+:When this item is held, the skill activates (KnownGap: tracked by #374)
+持有此物品时此技能生效 (KnownGap: #374 跟踪中)
+
+:When this item is equipped as weapon, the skill activates (KnownGap: tracked by #374)
+将此物品作为武器装备时此技能生效 (KnownGap: #374 跟踪中)
+
+:Adds the effect of another skill (KnownGap: tracked by #374)
+添加其他技能的效果 (KnownGap: #374 跟踪中)
+
+:PatchManagerView does not yet expose JumpToSelectStruct (tracked by #374).
+PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
+
+:Move to COMBAT_ART
+跳转到 COMBAT_ART
+
+:Map Style:
+地图样式:
+
+:Object Address:
+对象地址:
+
+:Object Address 2:
+对象地址 2:
+
+:Tileset Type:
+图块集类型:
+
+:Map Chip Preview
+地图图块 预览
+
+:Map Chip Save
+地图图块 保存
+
+:Map Chip Load
+地图图块 读取
+
+:Chipset
+图块集
+
+:Chipset No:
+图块集编号:
+
+:Chipset Config Address:
+图块集配置地址:
+
+:Terrain Type:
+地形类型:
+
+:Top-Left
+左上
+
+:Top-Right
+右上
+
+:Bottom-Left
+左下
+
+:Bottom-Right
+右下
+
+:Palette No:
+调色板编号:
+
+:Palette 5
+调色板 5
+
+:Palette Import
+调色板 导入
+
+:Palette Export
+调色板 导出
+
+:No Fog
+无雾
+
+:Fog
+有雾
+
+:Config Write
+配置写入
+
+:Copy Tile (Alt+T)
+复制图块 (Alt+T)
+
+:Copy Type (Alt+C)
+复制类型 (Alt+C)
+
+:Paste (Alt+V)
+粘贴 (Alt+V)
+
+:Pending Core extraction - tracked by #374.
+等待 Core 抽取 - 跟踪于 #374。
+
+:Flip
+翻转
+
+:Pending Core extraction (palette PLIST allocation) - tracked by #374.
+等待 Core 抽取 (调色板 PLIST 分配) - 跟踪于 #374。
+
+:Pending Core extraction (LZ77 ChipsetData + CONFIG PLIST) - tracked by #374.
+等待 Core 抽取 (LZ77 ChipsetData + CONFIG PLIST) - 跟踪于 #374。
+
+:TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374).
+TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
+
+:Pending Core extraction (terrain list from LZ77 ChipsetData) - tracked by #374.
+等待 Core 抽取 (LZ77 ChipsetData 中的地形列表) - 跟踪于 #374。

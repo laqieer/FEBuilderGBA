@@ -751,8 +751,20 @@ namespace FEBuilderGBA
             return new UndoScope();
         }
 
-        /// <summary>Get the current ambient undo data (for testing).</summary>
+        /// <summary>Get the current ambient undo data (for testing and
+        /// internal cross-assembly use via InternalsVisibleTo).</summary>
         internal static Undo.UndoData? GetAmbientUndoData() => _ambientUndoData;
+
+        /// <summary>
+        /// True when a <c>BeginUndoScope</c> call is currently active on this
+        /// thread (i.e. every <c>rom.write_*</c> is recording into ambient
+        /// UndoData). ViewModels that previously created their own
+        /// <c>Undo.UndoData</c> use this to skip a redundant local push when a
+        /// View has already opened an <c>UndoService</c> scope. <c>internal</c>
+        /// so the API surface does not grow; cross-assembly access is granted
+        /// via <c>InternalsVisibleTo("FEBuilderGBA.Avalonia")</c>. (#389)
+        /// </summary>
+        internal static bool IsAmbientUndoScopeActive => _ambientUndoData != null;
 
         sealed class UndoScope : IDisposable
         {

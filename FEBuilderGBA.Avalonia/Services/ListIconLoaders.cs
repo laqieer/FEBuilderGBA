@@ -616,5 +616,29 @@ namespace FEBuilderGBA.Avalonia.Services
             }
             catch { return null; }
         }
+
+        /// <summary>
+        /// Load a skill icon for the FE8N v3 skill expansion. Identical
+        /// formula to v2 - palette selection driven by the per-skill W2
+        /// palette field, icon storage uses
+        /// <c>rom.p32(RomInfo.icon_pointer) + 128 * (0x100 + id)</c>.
+        /// Mirrors WinForms <c>SkillConfigFE8NVer3SkillForm.DrawSkillIconLow(id)</c>.
+        /// </summary>
+        public static Bitmap? FE8NVer3SkillIconLoader(List<AddrResult> items, int index)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return null;
+                uint rowAddr = items[index].addr;
+                if (!U.isSafetyOffset(rowAddr + 4, rom)) return null;
+                // W2 = palette field at row+2.
+                uint paletteIndex = rom.u16(rowAddr + 2);
+                using var img = PreviewIconHelper.LoadFE8NVer3SkillIcon((uint)index, paletteIndex);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
     }
 }
