@@ -8628,3 +8628,48 @@ KnownGap: InputFormRef 自動接続に依存 (#374 で追跡中)。
 
 :Candidate
 候補
+
+:Skill Configuration (FE8N v3)
+スキル設定 (FE8N v3)
+
+:Skill system editors require the FE8N v3 skill patch to be installed.\r\nUse the Patch Manager to install it first.
+スキル系エディターには FE8N v3 スキルパッチのインストールが必要です。\r\nパッチマネージャーを使ってインストールしてください。
+
+:Composite Skill Pointer
+複合スキルポインタ
+
+:Composite Skill List
+複合スキルリスト
+
+:Composite Skill Sub-list
+複合スキルサブリスト
+
+:Item2 Skill Sub-list
+アイテム2スキルサブリスト
+
+:Per-skill composite-skill sub-list editing is not yet implemented in Avalonia.
+スキルごとの複合スキルサブリスト編集はまだ Avalonia で実装されていません。
+
+:Use the WinForms editor to add other skills as composite effects.
+他のスキルを複合効果として追加するには WinForms エディターを使用してください。
+
+:Use the WinForms editor to assign held items to a skill.
+所持アイテムをスキルに割り当てるには WinForms エディターを使用してください。
+
+:Use the WinForms editor to assign weapon-equipped items to a skill.
+武器装備アイテムをスキルに割り当てるには WinForms エディターを使用してください。
+
+:When this item is held, the skill activates (KnownGap: tracked by #374)
+このアイテムを所持しているときに、このスキルを有効にします (KnownGap: #374 で追跡中)
+
+:When this item is equipped as weapon, the skill activates (KnownGap: tracked by #374)
+このアイテムを武器として装備しているときに、このスキルを有効にします (KnownGap: #374 で追跡中)
+
+:Adds the effect of another skill (KnownGap: tracked by #374)
+他のスキルの効果を追加します (KnownGap: #374 で追跡中)
+
+:PatchManagerView does not yet expose JumpToSelectStruct (tracked by #374).
+PatchManagerView は JumpToSelectStruct をまだ公開していません (#374 で追跡中)。
+
+:Move to COMBAT_ART
+COMBAT_ARTへ移動
