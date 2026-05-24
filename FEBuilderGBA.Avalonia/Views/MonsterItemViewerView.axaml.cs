@@ -120,9 +120,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
                 _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
                 _vm.WriteMonsterItem();
-                WriteComment(_vm.CurrentAddr, ItemCommentBox.Text ?? string.Empty);
                 uint preserve = _vm.CurrentAddr;
                 _undoService.Commit();
+                // CommentCache lives outside the ambient undo scope, so
+                // we persist the comment ONLY after a successful Commit
+                // — otherwise a mid-write Rollback would undo the ROM
+                // bytes but leave a stale comment behind.
+                WriteComment(preserve, ItemCommentBox.Text ?? string.Empty);
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item data written.");
                 LoadItemList(preserve);
@@ -239,9 +243,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Prob4 = (uint)(Prob4Box.Value ?? 0);
                 _vm.Prob5 = (uint)(Prob5Box.Value ?? 0);
                 _vm.WriteMonsterItemProbability();
-                WriteComment(_vm.ProbabilityAddr, ProbCommentBox.Text ?? string.Empty);
                 uint preserve = _vm.ProbabilityAddr;
                 _undoService.Commit();
+                // CommentCache persisted AFTER Commit — see ItemWrite_Click.
+                WriteComment(preserve, ProbCommentBox.Text ?? string.Empty);
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item probability written.");
                 LoadProbList(preserve);
@@ -426,9 +431,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.B31 = (uint)(HoldB31Box.Value ?? 0);
 
                 _vm.WriteMonsterItemHoldings();
-                WriteComment(_vm.HoldingAddr, HoldCommentBox.Text ?? string.Empty);
                 uint preserve = _vm.HoldingAddr;
                 _undoService.Commit();
+                // CommentCache persisted AFTER Commit — see ItemWrite_Click.
+                WriteComment(preserve, HoldCommentBox.Text ?? string.Empty);
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item holdings written.");
                 LoadHoldList(preserve);

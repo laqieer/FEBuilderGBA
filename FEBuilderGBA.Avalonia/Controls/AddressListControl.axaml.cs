@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
-        /// Load address list and re-select the row that previously matched
+        /// Load address list and re-select the row matching
         /// <paramref name="preserveAddress"/>. If no row matches, falls back
         /// to <see cref="SelectFirst"/>. Used by editor refresh handlers that
         /// reload the list after a successful Write so the user does not lose
@@ -82,19 +82,14 @@ namespace FEBuilderGBA.Avalonia.Controls
             _items = items ?? new List<AddrResult>();
             _iconLoader = null;
             RefreshDisplay();
+            // Clear before attempting to select so the fallback path can
+            // reliably detect "preserveAddress not found" by checking
+            // SelectedIndex == -1 after the SelectAddress call.
+            AddressList.SelectedIndex = -1;
             if (preserveAddress != 0)
-            {
-                // SelectAddress walks the filtered list looking for the
-                // matching .addr; if not found we fall back to SelectFirst.
-                int before = AddressList.SelectedIndex;
                 SelectAddress(preserveAddress);
-                if (AddressList.SelectedIndex == before && before < 0)
-                    SelectFirst();
-            }
-            else
-            {
+            if (AddressList.SelectedIndex < 0)
                 SelectFirst();
-            }
         }
 
         /// <summary>Load address list with icon thumbnails for each item.</summary>

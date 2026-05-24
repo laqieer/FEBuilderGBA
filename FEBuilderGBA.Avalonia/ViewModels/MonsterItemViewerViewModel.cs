@@ -382,9 +382,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetDataReport()
         {
+            // Use the same address-priority chain as GetRawRomReport
+            // (Holdings -> Probability -> Item) so the two reports stay
+            // aligned for --data-verify. Without this, DataVerify would
+            // see GetDataReport.addr (CurrentAddr) != GetRawRomReport.addr
+            // (HoldingAddr/ProbabilityAddr when those are set) and flag
+            // a deterministic mismatch. See PR #596 round-6 thread
+            // PRRT_kwDOH0Mc1M6EYyrp.
+            uint a;
+            if (HoldingAddr != 0) a = HoldingAddr;
+            else if (ProbabilityAddr != 0) a = ProbabilityAddr;
+            else a = CurrentAddr;
             return new Dictionary<string, string>
             {
-                ["addr"] = $"0x{CurrentAddr:X08}",
+                ["addr"] = $"0x{a:X08}",
                 ["ItemId"] = $"0x{ItemId:X02}",
                 ["DropRate"] = $"0x{DropRate:X02}",
                 ["Unknown1"] = $"0x{Unknown1:X02}",
