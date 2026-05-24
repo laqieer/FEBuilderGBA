@@ -82,8 +82,15 @@ public class MonsterItemParityTests
         // Address list (legacy name preserved so existing test
         // `MonsterItemView_HasSelectFirstItem` keeps passing).
         Assert.Contains("Name=\"EntryList\"", axaml);
-        // 5 item ID pickers (Tab 1).
-        for (int i = 1; i <= 5; i++)
+        // 5 item-id slot inputs (Tab 1). Slot 1 reuses the legacy
+        // `MonsterItemViewer_ItemId_Input` AutomationId on the IdFieldControl
+        // (UnifiedIdFieldMigrationTests verifies it resolves to the inner
+        // NumericUpDown). Slots 2..5 carry the new
+        // `MonsterItemViewer_Item_ItemN_Input` ids.
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MonsterItemViewer_ItemId_Input\"",
+            axaml);
+        for (int i = 2; i <= 5; i++)
         {
             Assert.Contains(
                 $"AutomationProperties.AutomationId=\"MonsterItemViewer_Item_Item{i}_Input\"",

@@ -60,6 +60,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadMonsterItemList();
+                items = ApplyReadWindow(items,
+                    (uint)(ItemReadStartBox.Value ?? 0),
+                    (uint)(ItemReadCountBox.Value ?? 0));
                 EntryList.SetItems(items);
             }
             catch (Exception ex)
@@ -90,11 +93,12 @@ namespace FEBuilderGBA.Avalonia.Views
             ItemSelectedAddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             ItemIdBox.Value = _vm.ItemId;
             try { ItemIdBox.NameText = NameResolver.GetItemName(_vm.ItemId); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            catch (Exception ex) { Log.Error("MonsterItemViewerView.UpdateItemUI ItemName: {0}", ex.Message); }
             DropRateBox.Value = _vm.DropRate;
             Unknown1Box.Value = _vm.Unknown1;
             Unknown2Box.Value = _vm.Unknown2;
             Unknown3Box.Value = _vm.Unknown3;
+            ItemCommentBox.Text = ReadComment(_vm.CurrentAddr);
         }
 
         void ItemWrite_Click(object? sender, RoutedEventArgs e)
@@ -109,6 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
                 _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
                 _vm.WriteMonsterItem();
+                WriteComment(_vm.CurrentAddr, ItemCommentBox.Text ?? string.Empty);
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item data written.");
@@ -162,6 +167,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadMonsterItemProbabilityList();
+                items = ApplyReadWindow(items,
+                    (uint)(ProbReadStartBox.Value ?? 0),
+                    (uint)(ProbReadCountBox.Value ?? 0));
                 ProbEntryList.SetItems(items);
             }
             catch (Exception ex)
@@ -195,6 +203,7 @@ namespace FEBuilderGBA.Avalonia.Views
             Prob3Box.Value = _vm.Prob3;
             Prob4Box.Value = _vm.Prob4;
             Prob5Box.Value = _vm.Prob5;
+            ProbCommentBox.Text = ReadComment(_vm.ProbabilityAddr);
             UpdateProbSum();
         }
 
@@ -218,6 +227,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Prob4 = (uint)(Prob4Box.Value ?? 0);
                 _vm.Prob5 = (uint)(Prob5Box.Value ?? 0);
                 _vm.WriteMonsterItemProbability();
+                WriteComment(_vm.ProbabilityAddr, ProbCommentBox.Text ?? string.Empty);
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item probability written.");
@@ -271,6 +281,9 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadMonsterItemHoldingsList();
+                items = ApplyReadWindow(items,
+                    (uint)(HoldReadStartBox.Value ?? 0),
+                    (uint)(HoldReadCountBox.Value ?? 0));
                 HoldingEntryList.SetItems(items);
             }
             catch (Exception ex)
@@ -337,6 +350,7 @@ namespace FEBuilderGBA.Avalonia.Views
             HoldItemProb10Box.Value = _vm.HoldingItemProb10;
 
             HoldB31Box.Value = _vm.B31;
+            HoldCommentBox.Text = ReadComment(_vm.HoldingAddr);
             UpdateHoldingSums();
         }
 
@@ -395,6 +409,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.B31 = (uint)(HoldB31Box.Value ?? 0);
 
                 _vm.WriteMonsterItemHoldings();
+                WriteComment(_vm.HoldingAddr, HoldCommentBox.Text ?? string.Empty);
                 _undoService.Commit();
                 _vm.MarkClean();
                 CoreState.Services?.ShowInfo("Monster item holdings written.");
@@ -623,5 +638,62 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
+
+        // ============================================================
+        // Comment + ReadWindow helpers (Copilot CLI PR review threads).
+        // ============================================================
+
+        /// <summary>
+        /// Slice <paramref name="items"/> using a WF-style read window:
+        ///   - If both `start` and `count` are 0, return the full list.
+        ///   - Otherwise return at most `count` entries starting at index `start`.
+        ///     `start` is clamped to [0, items.Count) and `count` to the remainder.
+        /// Mirrors the WF panel1 Read Start Address + Read Count semantics.
+        /// </summary>
+        static System.Collections.Generic.List<AddrResult> ApplyReadWindow(
+            System.Collections.Generic.List<AddrResult> items, uint start, uint count)
+        {
+            if (start == 0 && count == 0) return items;
+            int s = (int)Math.Min(start, (uint)items.Count);
+            int remaining = items.Count - s;
+            int c = (count == 0) ? remaining : (int)Math.Min(count, (uint)remaining);
+            return items.GetRange(s, c);
+        }
+
+        /// <summary>
+        /// Read the persisted comment for <paramref name="addr"/> from
+        /// <see cref="CoreState.CommentCache"/> (mirrors the WF
+        /// InputFormRef.UI_WriteCommentToUI pattern). Returns an empty string
+        /// when the address is 0 or the cache is unavailable.
+        /// </summary>
+        static string ReadComment(uint addr)
+        {
+            if (addr == 0) return string.Empty;
+            try
+            {
+                if (CoreState.CommentCache != null &&
+                    CoreState.CommentCache.TryGetValue(addr, out string value))
+                    return value ?? string.Empty;
+            }
+            catch (Exception ex) { Log.Error("MonsterItemViewerView.ReadComment: {0}", ex.Message); }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Persist <paramref name="comment"/> for <paramref name="addr"/> to
+        /// <see cref="CoreState.CommentCache"/>. No-op when address is 0 or
+        /// the cache is unavailable. Comments are stored separately from the
+        /// ROM bytes (CommentCache is a sidecar map), so this write is NOT
+        /// part of the ambient undo scope.
+        /// </summary>
+        static void WriteComment(uint addr, string comment)
+        {
+            if (addr == 0) return;
+            try
+            {
+                CoreState.CommentCache?.Update(addr, comment ?? string.Empty);
+            }
+            catch (Exception ex) { Log.Error("MonsterItemViewerView.WriteComment: {0}", ex.Message); }
+        }
     }
 }

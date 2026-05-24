@@ -30,7 +30,10 @@
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Item Table" FontSize="18" FontWeight="Bold" />
 
-            <!-- Reread bar — mirrors WF panel1 (Read Start Address / Read Count / Reload). -->
+            <!-- Reread bar — mirrors WF panel1 (Read Start Address / Read Count / Reload).
+                 Read Start + Count are wired into LoadItemList: when both > 0, the
+                 VM slices the loaded list to [start..start+count). Default 0/0 means
+                 "load the full table" (matches WF behavior when fields are unset). -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
               <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
                 <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
@@ -72,6 +75,12 @@
                  `Item_Item5_Input`) are added by the parity tests for
                  multi-list discoverability. -->
             <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <!-- Slot-1 is the same byte as the legacy `ItemId` field, so the
+                   IdFieldControl keeps the legacy `MonsterItemViewer_ItemId_Input`
+                   AutomationId. UnifiedIdFieldMigrationTests asserts that this id
+                   resolves to the inner NumericUpDown uniquely (via
+                   IdFieldControl.PropagateInnerAutomationIds), and the parity
+                   tests accept the legacy id as the canonical slot-1 id. -->
               <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_ItemId_Input"
                                        Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                        Name="ItemIdBox"
@@ -80,17 +89,6 @@
                                        JumpRequested="ItemId_Jump"
                                        PickRequested="ItemId_Pick"
                                        ValueChanged="ItemId_ValueChanged" />
-
-              <!-- AutomationId-only proxy element so the new
-                   `MonsterItemViewer_Item_Item1_Input` selector resolves to a
-                   real control (the parity-test contract). The hidden proxy
-                   shares its visual storage with ItemIdBox via a dummy
-                   NumericUpDown so a) it does not affect rendering and
-                   b) the AutomationId remains discoverable in the visual
-                   tree at runtime + at XML scan time. -->
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item1_Input"
-                             Grid.Row="0" Grid.Column="0" IsVisible="False"
-                             Minimum="0" Maximum="255" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item2_Input"
@@ -115,23 +113,6 @@
               <TextBlock Grid.Row="5" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="MonsterItemViewer_Item_Comment_Input"
                        Grid.Row="5" Grid.Column="1" Name="ItemCommentBox" VerticalAlignment="Center" />
-              <!-- Legacy DropRate/Unknown1..3 AutomationIds for backward compat
-                   (mirrored onto the same NumericUpDown controls under the new
-                   Item2..Item5 AutomationIds above). The hidden proxies here
-                   keep pre-existing E2E selectors resolving without affecting
-                   layout. -->
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_DropRate_Input"
-                             Grid.Row="6" Grid.Column="0" IsVisible="False"
-                             Minimum="0" Maximum="255" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Unknown1_Input"
-                             Grid.Row="6" Grid.Column="0" IsVisible="False"
-                             Minimum="0" Maximum="255" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Unknown2_Input"
-                             Grid.Row="6" Grid.Column="0" IsVisible="False"
-                             Minimum="0" Maximum="255" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Unknown3_Input"
-                             Grid.Row="6" Grid.Column="0" IsVisible="False"
-                             Minimum="0" Maximum="255" />
             </Grid>
 
             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
@@ -139,11 +120,6 @@
                       Name="ItemWriteButton" Content="Write" Click="ItemWrite_Click" />
               <Button AutomationProperties.AutomationId="MonsterItemViewer_Item_Expand_Button"
                       Name="ItemExpandButton" Content="Expand List" Click="ItemExpand_Click" />
-              <!-- Legacy alias for the original Write button automation id (preserved
-                   so existing automation harnesses that addressed the single-tab
-                   surface keep resolving). -->
-              <Button AutomationProperties.AutomationId="MonsterItemViewer_Write_Button"
-                      IsVisible="False" Click="ItemWrite_Click" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>

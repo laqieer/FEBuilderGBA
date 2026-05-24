@@ -396,48 +396,63 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetRawRomReport()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
-            uint a = CurrentAddr;
+            if (rom == null) return new Dictionary<string, string>();
+
+            // Pick the most-specific currently-selected record (in priority:
+            // Holdings -> Probability -> Item) so the raw bytes match the
+            // record-width assumption: 32 bytes for Holdings, 5 for the
+            // others. This addresses the bounds + slice issue raised by
+            // Copilot CLI on PR #596 — a 5-byte Item record's CurrentAddr
+            // sitting near ROM end would have thrown reading 0x20 bytes.
+            uint a;
+            uint width;
+            if (HoldingAddr != 0) { a = HoldingAddr; width = 32; }
+            else if (ProbabilityAddr != 0) { a = ProbabilityAddr; width = 5; }
+            else if (CurrentAddr != 0) { a = CurrentAddr; width = 5; }
+            else return new Dictionary<string, string>();
+
+            // Bound the read by both the chosen width AND remaining ROM bytes.
+            uint maxOffset = (uint)Math.Min(width, (uint)rom.Data.Length - a);
+
+            var result = new Dictionary<string, string> { ["addr"] = $"0x{a:X08}" };
             // Static u8@0xXX keys so AvaloniaFieldCompletenessTests
             // `AllViewModels_ReportMethodsAreConsistent` finds a matching
             // u8 entry for every ["BN"] write-key referenced anywhere in
-            // this ViewModel (covers the full 32-byte holdings record).
-            return new Dictionary<string, string>
-            {
-                ["addr"] = $"0x{a:X08}",
-                ["u8@0x00"] = $"0x{rom.u8(a + 0x00):X02}",
-                ["u8@0x01"] = $"0x{rom.u8(a + 0x01):X02}",
-                ["u8@0x02"] = $"0x{rom.u8(a + 0x02):X02}",
-                ["u8@0x03"] = $"0x{rom.u8(a + 0x03):X02}",
-                ["u8@0x04"] = $"0x{rom.u8(a + 0x04):X02}",
-                ["u8@0x05"] = $"0x{rom.u8(a + 0x05):X02}",
-                ["u8@0x06"] = $"0x{rom.u8(a + 0x06):X02}",
-                ["u8@0x07"] = $"0x{rom.u8(a + 0x07):X02}",
-                ["u8@0x08"] = $"0x{rom.u8(a + 0x08):X02}",
-                ["u8@0x09"] = $"0x{rom.u8(a + 0x09):X02}",
-                ["u8@0x0A"] = $"0x{rom.u8(a + 0x0A):X02}",
-                ["u8@0x0B"] = $"0x{rom.u8(a + 0x0B):X02}",
-                ["u8@0x0C"] = $"0x{rom.u8(a + 0x0C):X02}",
-                ["u8@0x0D"] = $"0x{rom.u8(a + 0x0D):X02}",
-                ["u8@0x0E"] = $"0x{rom.u8(a + 0x0E):X02}",
-                ["u8@0x0F"] = $"0x{rom.u8(a + 0x0F):X02}",
-                ["u8@0x10"] = $"0x{rom.u8(a + 0x10):X02}",
-                ["u8@0x11"] = $"0x{rom.u8(a + 0x11):X02}",
-                ["u8@0x12"] = $"0x{rom.u8(a + 0x12):X02}",
-                ["u8@0x13"] = $"0x{rom.u8(a + 0x13):X02}",
-                ["u8@0x14"] = $"0x{rom.u8(a + 0x14):X02}",
-                ["u8@0x15"] = $"0x{rom.u8(a + 0x15):X02}",
-                ["u8@0x16"] = $"0x{rom.u8(a + 0x16):X02}",
-                ["u8@0x17"] = $"0x{rom.u8(a + 0x17):X02}",
-                ["u8@0x18"] = $"0x{rom.u8(a + 0x18):X02}",
-                ["u8@0x19"] = $"0x{rom.u8(a + 0x19):X02}",
-                ["u8@0x1A"] = $"0x{rom.u8(a + 0x1A):X02}",
-                ["u8@0x1B"] = $"0x{rom.u8(a + 0x1B):X02}",
-                ["u8@0x1C"] = $"0x{rom.u8(a + 0x1C):X02}",
-                ["u8@0x1D"] = $"0x{rom.u8(a + 0x1D):X02}",
-                ["u8@0x1E"] = $"0x{rom.u8(a + 0x1E):X02}",
-                ["u8@0x1F"] = $"0x{rom.u8(a + 0x1F):X02}",
-            };
+            // this ViewModel. Each line gates on `maxOffset` so reads
+            // stop at the record boundary AND the ROM boundary.
+            if (maxOffset > 0x00) result["u8@0x00"] = $"0x{rom.u8(a + 0x00):X02}";
+            if (maxOffset > 0x01) result["u8@0x01"] = $"0x{rom.u8(a + 0x01):X02}";
+            if (maxOffset > 0x02) result["u8@0x02"] = $"0x{rom.u8(a + 0x02):X02}";
+            if (maxOffset > 0x03) result["u8@0x03"] = $"0x{rom.u8(a + 0x03):X02}";
+            if (maxOffset > 0x04) result["u8@0x04"] = $"0x{rom.u8(a + 0x04):X02}";
+            if (maxOffset > 0x05) result["u8@0x05"] = $"0x{rom.u8(a + 0x05):X02}";
+            if (maxOffset > 0x06) result["u8@0x06"] = $"0x{rom.u8(a + 0x06):X02}";
+            if (maxOffset > 0x07) result["u8@0x07"] = $"0x{rom.u8(a + 0x07):X02}";
+            if (maxOffset > 0x08) result["u8@0x08"] = $"0x{rom.u8(a + 0x08):X02}";
+            if (maxOffset > 0x09) result["u8@0x09"] = $"0x{rom.u8(a + 0x09):X02}";
+            if (maxOffset > 0x0A) result["u8@0x0A"] = $"0x{rom.u8(a + 0x0A):X02}";
+            if (maxOffset > 0x0B) result["u8@0x0B"] = $"0x{rom.u8(a + 0x0B):X02}";
+            if (maxOffset > 0x0C) result["u8@0x0C"] = $"0x{rom.u8(a + 0x0C):X02}";
+            if (maxOffset > 0x0D) result["u8@0x0D"] = $"0x{rom.u8(a + 0x0D):X02}";
+            if (maxOffset > 0x0E) result["u8@0x0E"] = $"0x{rom.u8(a + 0x0E):X02}";
+            if (maxOffset > 0x0F) result["u8@0x0F"] = $"0x{rom.u8(a + 0x0F):X02}";
+            if (maxOffset > 0x10) result["u8@0x10"] = $"0x{rom.u8(a + 0x10):X02}";
+            if (maxOffset > 0x11) result["u8@0x11"] = $"0x{rom.u8(a + 0x11):X02}";
+            if (maxOffset > 0x12) result["u8@0x12"] = $"0x{rom.u8(a + 0x12):X02}";
+            if (maxOffset > 0x13) result["u8@0x13"] = $"0x{rom.u8(a + 0x13):X02}";
+            if (maxOffset > 0x14) result["u8@0x14"] = $"0x{rom.u8(a + 0x14):X02}";
+            if (maxOffset > 0x15) result["u8@0x15"] = $"0x{rom.u8(a + 0x15):X02}";
+            if (maxOffset > 0x16) result["u8@0x16"] = $"0x{rom.u8(a + 0x16):X02}";
+            if (maxOffset > 0x17) result["u8@0x17"] = $"0x{rom.u8(a + 0x17):X02}";
+            if (maxOffset > 0x18) result["u8@0x18"] = $"0x{rom.u8(a + 0x18):X02}";
+            if (maxOffset > 0x19) result["u8@0x19"] = $"0x{rom.u8(a + 0x19):X02}";
+            if (maxOffset > 0x1A) result["u8@0x1A"] = $"0x{rom.u8(a + 0x1A):X02}";
+            if (maxOffset > 0x1B) result["u8@0x1B"] = $"0x{rom.u8(a + 0x1B):X02}";
+            if (maxOffset > 0x1C) result["u8@0x1C"] = $"0x{rom.u8(a + 0x1C):X02}";
+            if (maxOffset > 0x1D) result["u8@0x1D"] = $"0x{rom.u8(a + 0x1D):X02}";
+            if (maxOffset > 0x1E) result["u8@0x1E"] = $"0x{rom.u8(a + 0x1E):X02}";
+            if (maxOffset > 0x1F) result["u8@0x1F"] = $"0x{rom.u8(a + 0x1F):X02}";
+            return result;
         }
 
         public Dictionary<string, string> GetFieldOffsetMap() => new()
