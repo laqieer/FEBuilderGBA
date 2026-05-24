@@ -8112,3 +8112,6 @@ git を選択
 
 :All settings applied.
 すべての設定を適用しました。
+
+:Settings could not be saved to disk: {0}
+設定をディスクに保存できませんでした：{0}

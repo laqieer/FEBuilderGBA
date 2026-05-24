@@ -21962,3 +21962,6 @@ English
 
 :All settings applied.
 所有设置已应用。
+
+:Settings could not be saved to disk: {0}
+设置无法保存到磁盘：{0}

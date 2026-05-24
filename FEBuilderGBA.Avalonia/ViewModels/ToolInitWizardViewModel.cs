@@ -479,14 +479,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Persist to disk. Mirrors OptionsViewModel.Save which calls
                 // Config.Save() explicitly because Avalonia has no global
                 // "save on exit" hook. Guarded against empty ConfigFilename
-                // for in-memory test fixtures.
+                // for in-memory test fixtures. Per Copilot bot review #583
+                // round-2: surface Save failures via SettingStatus (do NOT
+                // silently report success). Config.Save itself catches
+                // IOException internally and shows a dialog, but the
+                // file-existence check after the call gives us a positive
+                // confirmation signal for the success status.
+                bool saveOk = true;
                 if (!string.IsNullOrEmpty(config.ConfigFilename))
                 {
-                    try { config.Save(); }
-                    catch { /* non-fatal: tests with read-only fixtures */ }
+                    try
+                    {
+                        config.Save();
+                        // Verify the file actually landed on disk. Save's
+                        // internal try-catch swallows IOExceptions so we
+                        // cannot rely on exception propagation alone.
+                        if (!System.IO.File.Exists(config.ConfigFilename))
+                            saveOk = false;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        saveOk = false;
+                        SettingStatus = R._("Settings could not be saved to disk: {0}", ex.Message);
+                        CoreState.Services?.ShowError(SettingStatus);
+                    }
+                    if (!saveOk && string.IsNullOrEmpty(SettingStatus))
+                    {
+                        SettingStatus = R._("Settings could not be saved to disk: {0}",
+                            config.ConfigFilename);
+                        CoreState.Services?.ShowError(SettingStatus);
+                    }
                 }
 
-                SettingStatus = R._("All settings applied.");
+                if (saveOk)
+                    SettingStatus = R._("All settings applied.");
             }
             finally
             {

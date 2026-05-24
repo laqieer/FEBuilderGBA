@@ -741,6 +741,48 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
+    public void ViewModel_ApplyAll_ReportsSaveError_WhenSaveFails()
+    {
+        // Per Copilot bot review #583 round-2: when Config.Save() throws,
+        // ApplyAll must surface the failure via SettingStatus (NOT silently
+        // claim "All settings applied"). The in-memory mutation already
+        // happened so the user knows it isn't persisted.
+        using (new ConfigSnapshot())
+        {
+            // Create a Config with a non-writable filename so Save() throws.
+            var failingConfig = new Config();
+            // Use a path inside a non-existent directory so XML write fails.
+            string badPath = Path.Combine(
+                Path.GetTempPath(),
+                Guid.NewGuid().ToString("N"),
+                "does", "not", "exist", "config.xml");
+            // Reflection to set ConfigFilename since the setter is protected.
+            var prop = typeof(Config).GetProperty("ConfigFilename");
+            prop?.SetValue(failingConfig, badPath);
+
+            var prevConfig = CoreState.Config;
+            try
+            {
+                CoreState.Config = failingConfig;
+
+                var vm = new ToolInitWizardViewModel();
+                vm.Initialize();
+                vm.IsCompletedThroughStep6 = true;
+                vm.ApplyAll();
+
+                // SettingStatus must report the save failure, NOT
+                // "All settings applied."
+                Assert.Contains("could not be saved", vm.SettingStatus,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                CoreState.Config = prevConfig;
+            }
+        }
+    }
+
+    [Fact]
     public void ViewModel_ApplyAll_WritesSettingStatus_OnGatedNoOp()
     {
         // A user-visible diagnostic for the no-op path. Helps the screenshot
