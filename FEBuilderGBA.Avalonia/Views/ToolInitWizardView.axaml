@@ -15,26 +15,24 @@
        Implementation note: the WF version calls
        InputFormRef.TabControlHideTabOption to hide the tab strip entirely.
        Avalonia keeps the strip VISIBLE (TabStripPlacement="Top") so the
-       label-diff scanner can still harvest the headers, but makes each
-       TabItem non-hit-testable so users cannot click directly between
-       pages and bypass Step1..6 validation. The wizard only advances via
-       explicit Next/Prev/Skip buttons. -->
+       label-diff scanner can still harvest the headers, but the wizard
+       intercepts direct user clicks via SelectionChanged in code-behind
+       so the user can only advance through the validated
+       Next/Prev/Skip handlers. The wizard only advances via explicit
+       Next/Prev/Skip buttons. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-    <!-- TabStripPlacement="Top" keeps the headers visible to the label-diff
-         scanner, but `IsTabStop="False"` + per-TabItem `IsHitTestVisible="False"`
-         (applied via the TabControl-scoped style below) prevents the user
-         from clicking directly between pages and bypassing Step1..6 validation.
-         Per Copilot CLI #583 finding #3, `ApplyAll()` is ALSO defence-in-depth
-         gated by `IsCompletedThroughStep6` so a stray code path can never
-         persist a half-applied wizard. -->
-    <!-- Direct tab clicks bypass Step1..6 validation, so we intercept
-         SelectionChanged in code-behind (OnMainTabSelectionChanged) and
-         revert any selection that isn't allowed for the current Pending*
-         state. IsHitTestVisible MUST NOT be set on TabItem itself —
-         Copilot bot review #583 round-3 finding: disabling hit-testing on
-         a TabItem also makes its CONTENT (buttons, textboxes) unclickable.
-         The SelectionChanged interception approach keeps content
-         interactive while still preventing illegal page jumps. -->
+    <!-- Direct tab clicks would bypass Step1..6 validation, so the
+         OnMainTabSelectionChanged handler in code-behind reverts any
+         non-programmatic selection change. The view code-behind tracks
+         `_lastValidPageIndex` (updated by NavigateToPage) and uses that
+         as the authoritative source for the revert — restoring BOTH
+         TabControl.SelectedIndex AND _vm.CurrentPage. Headers stay
+         visible for the label-diff scanner; content stays interactive
+         (IsHitTestVisible="False" on TabItem was rejected in #583
+         round-3 because it also disables the page content). Per
+         Copilot CLI #583 finding #3, `ApplyAll()` is ALSO
+         defence-in-depth gated by `IsCompletedThroughStep6` so a stray
+         code path can never persist a half-applied wizard. -->
     <TabControl Name="MainTab"
                 AutomationProperties.AutomationId="ToolInitWizard_MainTab_TabControl"
                 SelectedIndex="{Binding CurrentPage, Mode=TwoWay}"

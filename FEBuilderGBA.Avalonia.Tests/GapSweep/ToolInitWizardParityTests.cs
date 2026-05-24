@@ -584,13 +584,34 @@ public class ToolInitWizardParityTests
     [InlineData(3, 3)]
     [InlineData(8, 8)]
     [InlineData(20, 8)]
-    public void ViewModel_GoToPage_ClampsToValidRange(int input, int expected)
+    public void ViewModel_CurrentPage_Setter_ClampsToValidRange(int input, int expected)
     {
+        // Per Copilot bot review #583 round-4: clarify that this test
+        // exercises the CurrentPage SETTER, not GoToPage. GoToPage has
+        // its own out-of-range rejection (returns false). The CurrentPage
+        // setter always clamps to [0, 8] regardless of source.
         var vm = new ToolInitWizardViewModel();
-        // Clamping happens inside CurrentPage setter. GoToPage returns false
-        // for out-of-range inputs but still clamps the value into [0, 8].
         vm.CurrentPage = input;
         Assert.Equal(expected, vm.CurrentPage);
+    }
+
+    [Theory]
+    [InlineData(-5, false, 0)]   // out-of-range: GoToPage rejects, CurrentPage stays
+    [InlineData(0, true, 0)]
+    [InlineData(3, true, 3)]
+    [InlineData(8, true, 8)]
+    [InlineData(20, false, 0)]   // out-of-range: GoToPage rejects, CurrentPage stays
+    public void ViewModel_GoToPage_ReturnsFalseAndIsNoOp_WhenOutOfRange(
+        int input, bool expectedResult, int expectedCurrentPage)
+    {
+        // Per Copilot bot review #583 round-4: cover the GoToPage API
+        // explicitly. Returns true for valid [0, 8], false for out-of-range,
+        // and the CurrentPage stays at its previous value when rejected.
+        var vm = new ToolInitWizardViewModel();
+        vm.Initialize(); // CurrentPage = 0
+        bool result = vm.GoToPage(input);
+        Assert.Equal(expectedResult, result);
+        Assert.Equal(expectedCurrentPage, vm.CurrentPage);
     }
 
     [Fact]
