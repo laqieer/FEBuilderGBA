@@ -243,7 +243,11 @@ namespace FEBuilderGBA
         /// hard-capped at <see cref="LOOKAHEAD_LIMIT"/> bytes (or
         /// <paramref name="frameLimit"/> frames, whichever is smaller).
         /// </summary>
-        /// <param name="rom">ROM to read from. Returns an empty list when null.</param>
+        /// <param name="rom">
+        /// ROM to read from. Marked as <c>ROM?</c> because the method
+        /// explicitly tolerates a null ROM and returns an empty list
+        /// (Copilot CLI inline review on PR #619).
+        /// </param>
         /// <param name="animeAddress">
         /// ROM offset OR GBA pointer of the frame table. Converted via
         /// <c>U.toOffset</c> so callers can pass either form.
@@ -253,7 +257,7 @@ namespace FEBuilderGBA
         /// unit tests; production callers leave this null.
         /// </param>
         public static List<MapActionFrame> ReadFromRom(
-            ROM rom, uint animeAddress, uint? frameLimit = null)
+            ROM? rom, uint animeAddress, uint? frameLimit = null)
         {
             var frames = new List<MapActionFrame>();
             if (rom == null || rom.Data == null) return frames;
@@ -271,8 +275,13 @@ namespace FEBuilderGBA
 
             for (uint n = offset; n + ROW_SIZE <= limiter; n += ROW_SIZE)
             {
+                // Use pointer-safe reads for the terminator check (matches
+                // WF parity — invalid/out-of-range pointers become 0 via
+                // p32, which prevents scanning far into garbage data when
+                // the table is corrupted). Copilot CLI inline review on
+                // PR #619.
                 uint term1 = rom.u32(n);
-                uint term2 = rom.u32(n + 4);
+                uint term2 = rom.p32(n + 4);
                 if (term1 == 0 && term2 == 0)
                     break;
 

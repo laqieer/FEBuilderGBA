@@ -30,7 +30,7 @@
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Frame Count:" VerticalAlignment="Center" />
           <TextBox AutomationProperties.AutomationId="ToolAnimationCreator_FrameCountText_Input"
                    Grid.Row="2" Grid.Column="2" Name="FrameCountTextBox"
-                   Text="{Binding FrameCount}" IsReadOnly="True" Watermark="(populated by Init)" />
+                   Text="{Binding FrameCount}" IsReadOnly="True" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Image Source:" VerticalAlignment="Center" />
           <StackPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal" Spacing="8">
@@ -52,10 +52,18 @@
                    SelectionChanged="FramesList_SelectionChanged">
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Grid ColumnDefinitions="80,*,120">
-                  <TextBlock Grid.Column="0" Text="{Binding Wait, StringFormat='Wait: {0}'}" />
-                  <TextBlock Grid.Column="1" Text="{Binding ImageName}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Grid.Column="2" Text="{Binding Sound, StringFormat='Sound: 0x{0:X}'}" />
+                <!-- Separate prefix TextBlocks (translated by
+                     ViewTranslationHelper) + value TextBlocks (bound to VM)
+                     so non-English UIs render the prefix in their locale —
+                     Copilot CLI inline review on PR #619. Avoids the
+                     StringFormat binding (translation helper does not walk
+                     binding format strings). -->
+                <Grid ColumnDefinitions="Auto,4,40,Auto,*,Auto,4,80">
+                  <TextBlock Grid.Column="0" Text="Wait:" />
+                  <TextBlock Grid.Column="2" Text="{Binding Wait}" />
+                  <TextBlock Grid.Column="4" Text="{Binding ImageName}" TextTrimming="CharacterEllipsis" Margin="8,0,0,0" />
+                  <TextBlock Grid.Column="5" Text="Sound:" />
+                  <TextBlock Grid.Column="7" Text="{Binding Sound, StringFormat='0x{0:X}'}" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -92,9 +100,15 @@
                            IsEnabled="{Binding SelectedFrame, Converter={x:Static ObjectConverters.IsNotNull}}" />
           </Grid>
 
-          <TextBlock AutomationProperties.AutomationId="ToolAnimationCreator_ContextLabel_Label"
-                     Name="ContextLabel" TextWrapping="Wrap"
-                     Text="{Binding FileHint, StringFormat='Context: {0}'}" />
+          <!-- Split into prefix + value TextBlocks so ViewTranslationHelper
+               picks up "Context:" (StringFormat strings in bindings are
+               ignored by the helper) — Copilot CLI inline review on PR #619. -->
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <TextBlock Text="Context:" FontWeight="SemiBold" />
+            <TextBlock AutomationProperties.AutomationId="ToolAnimationCreator_ContextLabel_Label"
+                       Name="ContextLabel" TextWrapping="Wrap"
+                       Text="{Binding FileHint}" />
+          </StackPanel>
 
           <Border BorderBrush="Gray" BorderThickness="1" Height="120" Padding="4">
             <TextBlock Text="Animation preview (deferred — see #500 follow-up)"
