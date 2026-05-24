@@ -760,11 +760,11 @@ namespace FEBuilderGBA
         /// thread (i.e. every <c>rom.write_*</c> is recording into ambient
         /// UndoData). ViewModels that previously created their own
         /// <c>Undo.UndoData</c> use this to skip a redundant local push when a
-        /// View has already opened an <c>UndoService</c> scope. Exposed as a
-        /// boolean (not the mutable UndoData itself) so the public surface
-        /// stays minimal. (#389)
+        /// View has already opened an <c>UndoService</c> scope. <c>internal</c>
+        /// so the API surface does not grow; cross-assembly access is granted
+        /// via <c>InternalsVisibleTo("FEBuilderGBA.Avalonia")</c>. (#389)
         /// </summary>
-        public static bool IsAmbientUndoScopeActive => _ambientUndoData != null;
+        internal static bool IsAmbientUndoScopeActive => _ambientUndoData != null;
 
         sealed class UndoScope : IDisposable
         {

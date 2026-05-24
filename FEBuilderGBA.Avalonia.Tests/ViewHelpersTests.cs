@@ -63,5 +63,59 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             Assert.Equal(0xFFFFFFFFu, ViewHelpers.ParseHexText("0xFFFFFFFF"));
         }
+
+        // -----------------------------------------------------------------
+        // TryParseHexText — strict variant used by editors that validate
+        // user input (e.g. MapSettingFE6View CP pointer). #389
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void TryParseHexText_NullReturnsFalse()
+        {
+            Assert.False(ViewHelpers.TryParseHexText(null, out uint v));
+            Assert.Equal(0u, v);
+        }
+
+        [Fact]
+        public void TryParseHexText_EmptyReturnsFalse()
+        {
+            Assert.False(ViewHelpers.TryParseHexText("", out uint v));
+            Assert.Equal(0u, v);
+        }
+
+        [Fact]
+        public void TryParseHexText_WhitespaceReturnsFalse()
+        {
+            Assert.False(ViewHelpers.TryParseHexText("   ", out uint v));
+            Assert.Equal(0u, v);
+        }
+
+        [Fact]
+        public void TryParseHexText_PrefixOnlyReturnsFalse()
+        {
+            Assert.False(ViewHelpers.TryParseHexText("0x", out uint v));
+            Assert.Equal(0u, v);
+        }
+
+        [Fact]
+        public void TryParseHexText_InvalidReturnsFalse()
+        {
+            Assert.False(ViewHelpers.TryParseHexText("ZZZZ", out uint v));
+            Assert.Equal(0u, v);
+        }
+
+        [Fact]
+        public void TryParseHexText_ValidReturnsTrue()
+        {
+            Assert.True(ViewHelpers.TryParseHexText("0x08123456", out uint v));
+            Assert.Equal(0x08123456u, v);
+        }
+
+        [Fact]
+        public void TryParseHexText_NoPrefix_ValidReturnsTrue()
+        {
+            Assert.True(ViewHelpers.TryParseHexText("ABCD", out uint v));
+            Assert.Equal(0xABCDu, v);
+        }
     }
 }

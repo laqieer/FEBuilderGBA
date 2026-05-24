@@ -22,19 +22,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Try-parse variant of <see cref="ParseHexText(string?)"/>. Returns
-        /// <c>false</c> when the input is whitespace-only OR when the body
-        /// (after stripping any 0x prefix) is not a valid hex literal. An
-        /// empty/null input returns <c>(true, 0)</c> — callers that need to
-        /// reject empty input must check the value separately.
+        /// <c>false</c> when the input is null, empty, whitespace-only, OR
+        /// when the body (after stripping any 0x prefix) is not a valid hex
+        /// literal. Callers use the return value to surface validation errors
+        /// instead of silently treating bad input as 0.
         /// </summary>
         internal static bool TryParseHexText(string? text, out uint value)
         {
             value = 0;
-            if (string.IsNullOrEmpty(text)) return true;
+            if (string.IsNullOrWhiteSpace(text)) return false;
             string trimmed = text.Trim();
-            if (trimmed.Length == 0) return true;
             if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 trimmed = trimmed[2..];
+            if (trimmed.Length == 0) return false;
             return uint.TryParse(trimmed, System.Globalization.NumberStyles.HexNumber, null, out value);
         }
     }

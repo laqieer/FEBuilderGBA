@@ -656,31 +656,40 @@ public class MapSettingFE6ParityTests
         rom.LoadLow("synth.gba", data, "AFEJ01");
 
         uint mapBase = 0x200000;
+        int mapBaseInt = checked((int)mapBase);
         // Patch the map_setting_pointer slot at 0x2BB20.
         WriteU32(rom.Data, 0x2BB20, 0x08000000u | mapBase);
 
         // Seed the entry with sentinel bytes at every offset. u32 at 0
         // must be a valid GBA pointer so IsMapSettingValid accepts it.
-        WriteU32(rom.Data, mapBase + 0, 0x08123456);
-        for (uint i = 4; i < dataSize; i++)
-            rom.Data[mapBase + i] = (byte)i;
+        WriteU32(rom.Data, mapBaseInt + 0, 0x08123456);
+        for (int i = 4; i < (int)dataSize; i++)
+            rom.Data[mapBaseInt + i] = (byte)i;
         // Clear weather byte 12 — IsMapSettingValid checks weather < 0xE.
-        rom.Data[mapBase + 12] = 0x0C;
+        rom.Data[mapBaseInt + 12] = 0x0C;
         // PLISTs at 4 must be readable.
-        // u16 at 4..5 → ObjectTypePLIST = 0x0504. We want 0x1234 for the
-        // round-trip read test; set explicitly.
-        rom.Data[mapBase + 4] = 0x34;
-        rom.Data[mapBase + 5] = 0x12;
+        // u16 at 4..5 → ObjectTypePLIST = 0x1234 for the round-trip read
+        // test; set explicitly (little-endian: low byte at lower offset).
+        rom.Data[mapBaseInt + 4] = 0x34;
+        rom.Data[mapBaseInt + 5] = 0x12;
         return (rom, mapBase);
     }
 
-    static void WriteU32(byte[] data, uint addr, uint value)
+    /// <summary>
+    /// Write a little-endian u32 at the given byte-array offset. Uses
+    /// <c>int</c> for the offset so the array indexer is unambiguously
+    /// integer-indexed.
+    /// </summary>
+    static void WriteU32(byte[] data, int addr, uint value)
     {
         data[addr + 0] = (byte)(value >> 0);
         data[addr + 1] = (byte)(value >> 8);
         data[addr + 2] = (byte)(value >> 16);
         data[addr + 3] = (byte)(value >> 24);
     }
+
+    static void WriteU32(byte[] data, uint addr, uint value)
+        => WriteU32(data, checked((int)addr), value);
 
     static string AxamlPath() => Path.Combine(AvaloniaDir, "Views", "MapSettingFE6View.axaml");
     static string CodeBehindPath() => Path.Combine(AvaloniaDir, "Views", "MapSettingFE6View.axaml.cs");
