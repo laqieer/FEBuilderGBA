@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
@@ -83,6 +84,16 @@ namespace FEBuilderGBA.Avalonia.Views
                     skillType == PatchDetectionService.SkillSystemType.SkillSystem ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys09x ||
                     skillType == PatchDetectionService.SkillSystemType.CSkillSys300;
+
+                // CC Branch jump is FE8-only (mirrors WF ClassForm.J_5_Click guard).
+                // Default to 0 (not 8) when ROM/RomInfo is null so the button stays
+                // hidden before a ROM is loaded — addresses Copilot CLI review on
+                // PR #570 (the click handler also short-circuits for non-FE8, but
+                // we don't want to expose a visible-but-non-functional button).
+                JumpToCCBranchButton.IsVisible = (CoreState.ROM?.RomInfo?.version ?? 0) == 8;
+
+                // Refresh address-bar infra (#406 gap-sweep parity).
+                UpdateAddressBarInfra();
             }
             catch (Exception ex)
             {
@@ -199,6 +210,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 TryShowListPreview();
                 UpdateClassCard();
                 UpdateWarnings();
+                RefreshHardCodingWarning();
             }
             catch (Exception ex)
             {
@@ -824,15 +836,242 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        async void ExportTSV_Click(object? sender, RoutedEventArgs e)
+        // -------------------------------------------------------------
+        // #406: 4-button CSV Export/Import surface (parity with WF
+        // ClassForm.ExportAllBtn / ExportSelectedBtn / ImportAllBtn /
+        // ImportSelectedStatsBtn). Replaces the prior 2-button TSV stub
+        // (the previous ExportTSV_Click / ImportTSV_Click handlers were
+        // removed in PR #570 — Copilot bot inline review). CSV is now
+        // the only export/import surface on ClassEditorView.
+        // -------------------------------------------------------------
+
+        /// <summary>Build a ClassCsvManager from the UI's 8 option checkboxes.</summary>
+        ClassCsvManager MakeCsvManager()
         {
-            await TableExportImportHelper.ExportTableAsync(this, "classes");
+            return new ClassCsvManager(
+                useClipboard: UseClipboardCheck.IsChecked == true,
+                includeUID: IncludeUIDCheck.IsChecked == true,
+                includeHeader: IncludeHeaderCheck.IsChecked == true,
+                includeName: IncludeNameCheck.IsChecked == true,
+                includeBaseStats: IncludeBaseStatsCheck.IsChecked == true,
+                includeGrowths: IncludeGrowthsCheck.IsChecked == true,
+                includeWepLevel: IncludeWepLevelCheck.IsChecked == true,
+                growthsAsDecimal: GrowthsAsDecimalCheck.IsChecked == true);
         }
 
-        async void ImportTSV_Click(object? sender, RoutedEventArgs e)
+        /// <summary>
+        /// Enumerate every class-row address currently in the AddressList.
+        /// Mirrors <c>ClassEditorViewModel.LoadClassList()</c>: iterates
+        /// from i=0..0xFF, stops on row-end-overrun OR on the
+        /// "u8(addr+4)==0 for i>0" sentinel that LoadClassList uses to
+        /// terminate the class table (matches WF ClassForm.Init's max
+        /// search lambda).
+        /// </summary>
+        uint[] GetAllClassAddresses()
         {
-            await TableExportImportHelper.ImportTableAsync(this, "classes", _undoService,
-                ReloadCurrentClassAfterImport);
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return Array.Empty<uint>();
+                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return Array.Empty<uint>();
+                uint size = rom.RomInfo.class_datasize;
+                if (size == 0) size = (rom.RomInfo.version == 6) ? 72u : 84u;
+                var addrs = new List<uint>(0x100);
+                for (uint i = 0; i <= 0xFF; i++)
+                {
+                    uint addr = baseAddr + i * size;
+                    if (addr + size > (uint)rom.Data.Length) break;
+                    // Mirror the VM's sentinel: stop when row index >0 has
+                    // u8(addr+4)==0 (matches WF Init lambda + LoadClassList).
+                    if (i > 0 && rom.u8(addr + 4) == 0) break;
+                    addrs.Add(addr);
+                }
+                return addrs.ToArray();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("GetAllClassAddresses failed: {0}", ex.Message);
+                return Array.Empty<uint>();
+            }
+        }
+
+        async void ExportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                var addrs = GetAllClassAddresses();
+                if (addrs.Length == 0) return;
+                await MakeCsvManager().ExportAllAsync(this, rom, addrs);
+            }
+            catch (Exception ex) { Log.Error("ExportAll_Click failed: {0}", ex.Message); }
+        }
+
+        async void ExportSelected_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) return;
+                // Pass the SELECTED class id (0-based AddressList index) so
+                // the exported single-row CSV carries the correct UID
+                // (Copilot CLI inline review on PR #570). Falls back to 0
+                // when no selection is resolvable.
+                int idx = ClassList.SelectedOriginalIndex;
+                uint uid = idx >= 0 ? (uint)idx : 0u;
+                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
+            }
+            catch (Exception ex) { Log.Error("ExportSelected_Click failed: {0}", ex.Message); }
+        }
+
+        async void ImportAll_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                var addrs = GetAllClassAddresses();
+                if (addrs.Length == 0) return;
+                var mgr = MakeCsvManager();
+                // Read the CSV FIRST so the undo scope only wraps the
+                // actual ROM writes (matches PR #559 / UnitEditorView).
+                string? csv = await mgr.ReadCsvForUiAsync(this);
+                if (csv == null) return;
+                _undoService.Begin(R._("Import Classes CSV"));
+                int written;
+                try
+                {
+                    written = mgr.ApplyImportCsv(rom, csv, addrs);
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+                if (written > 0 && _vm.CurrentAddr != 0)
+                {
+                    ReloadCurrentClassAfterImport();
+                }
+            }
+            catch (Exception ex) { Log.Error("ImportAll_Click failed: {0}", ex.Message); }
+        }
+
+        async void ImportSelected_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                if (_vm.CurrentAddr == 0) return;
+                var mgr = MakeCsvManager();
+                string? csv = await mgr.ReadCsvForUiAsync(this);
+                if (csv == null) return;
+                _undoService.Begin(R._("Import Class CSV"));
+                int written;
+                try
+                {
+                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr });
+                    _undoService.Commit();
+                }
+                catch { _undoService.Rollback(); throw; }
+                if (written > 0)
+                {
+                    ReloadCurrentClassAfterImport();
+                }
+            }
+            catch (Exception ex) { Log.Error("ImportSelected_Click failed: {0}", ex.Message); }
+        }
+
+        // ---- #406: Address-bar infrastructure (parity with WF ClassForm) ----
+
+        /// <summary>
+        /// Populate the address-bar labels with the current ROM's class-table
+        /// metadata. Mirrors WF ClassForm's ReadStartAddress / ReadCount /
+        /// BlockSize labels. ReadStartAddress is the resolved table base
+        /// (the value at the pointer slot), not the pointer's storage offset.
+        /// ReadCount is derived by walking the table to its sentinel (same
+        /// algorithm as the VM's LoadClassList).
+        /// </summary>
+        void UpdateAddressBarInfra()
+        {
+            try
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+                uint resolvedBase = rom.p32(rom.RomInfo.class_pointer);
+                ReadStartAddressLabel.Text = $"0x{resolvedBase:X8}";
+                // ROMFEINFO has no class_maxcount field — derive it the same
+                // way LoadClassList does (walk to the u8(addr+4)==0 sentinel).
+                ReadCountLabel.Text = GetAllClassAddresses().Length.ToString();
+                SizeLabel.Text = $"0x{rom.RomInfo.class_datasize:X}";
+            }
+            catch (Exception ex) { Log.Error("ClassEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
+        }
+
+        void Reload_Click(object? sender, RoutedEventArgs e)
+        {
+            // LoadList() already calls UpdateAddressBarInfra() on its success
+            // path; the prior duplicate call was redundant (Copilot CLI inline
+            // review on PR #570).
+            LoadList();
+        }
+
+        // ---- #406: HardCoding warning (parity with WF ClassForm) ----
+
+        /// <summary>
+        /// Refresh the HardCoding-warning hyperlink's visibility based on the
+        /// current class id. Mirrors WF ClassForm.CheckHardCodingWarning.
+        /// The class id key is 0-based (matches WF where the cache uses
+        /// AddressList.SelectedIndex directly as the lookup key).
+        /// </summary>
+        void RefreshHardCodingWarning()
+        {
+            try
+            {
+                int idx = ClassList.SelectedOriginalIndex;
+                if (idx < 0)
+                {
+                    HardCodingWarningLabel.IsVisible = false;
+                    return;
+                }
+                uint classId = (uint)idx;
+                bool r = CoreState.AsmMapFileAsmCache?.IsHardCodeClass(classId) ?? false;
+                HardCodingWarningLabel.IsVisible = r;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ClassEditorView.RefreshHardCodingWarning failed: {0}", ex.Message);
+                HardCodingWarningLabel.IsVisible = false;
+            }
+        }
+
+        void HardCodingWarning_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                int idx = ClassList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                uint classId = (uint)idx;
+                var pv = WindowManager.Instance.Open<PatchManagerView>();
+                pv.JumpTo($"HARDCODING_CLASS={classId:X2}", 0);
+            }
+            catch (Exception ex) { Log.Error("ClassEditorView.HardCodingWarning_Click failed: {0}", ex.Message); }
+        }
+
+        // ---- #406: CC Branch jump (FE8 parity with WF ClassForm.J_5_Click) ----
+
+        void JumpToCCBranch_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if ((CoreState.ROM?.RomInfo?.version ?? 0) != 8) return;
+                int idx = ClassList.SelectedOriginalIndex;
+                if (idx < 0) return;
+                // CCBranchEditorView uses the class id as the lookup key —
+                // mirrors WF InputFormRef.JumpForm<CCBranchForm>(SelectedIndex).
+                WindowManager.Instance.Navigate<CCBranchEditorView>((uint)idx);
+            }
+            catch (Exception ex) { Log.Error("ClassEditorView.JumpToCCBranch_Click failed: {0}", ex.Message); }
         }
 
         /// <summary>

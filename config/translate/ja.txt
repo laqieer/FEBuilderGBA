@@ -7626,6 +7626,25 @@ UIDを含む
 :Bytes +2..+3 are reserved (WF designer doesn't expose).
 バイト +2..+3 は予約済み (WFデザイナでは未公開)。
 
+# ClassEditorView additions (#406)
+:Export all classes to a CSV file or clipboard
+すべてのクラスをCSVファイルまたはクリップボードへエクスポート
+
+:Export the selected class to a CSV file or clipboard
+選択中のクラスをCSVファイルまたはクリップボードへエクスポート
+
+:Import all classes from a CSV file or clipboard
+すべてのクラスをCSVファイルまたはクリップボードからインポート
+
+:Import the selected class from a CSV file or clipboard
+選択中のクラスをCSVファイルまたはクリップボードからインポート
+
+:This class is referenced by hardcoded ASM. Click to view related patches.
+このクラスはハードコードASMから参照されています。関連パッチを表示するにはクリックしてください。
+
+:Open the class-change branch editor for this class (FE8 only)
+このクラスのクラスチェンジ分岐エディタを開きます (FE8のみ)
+
 # AIScriptView additions (#410)
 :Parameter 1
 パラメータ1

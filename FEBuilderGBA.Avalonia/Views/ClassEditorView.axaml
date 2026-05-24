@@ -25,12 +25,37 @@
       <StackPanel Spacing="4" Margin="8">
         <TextBlock Text="Class Editor" FontSize="18" FontWeight="Bold" />
 
-        <!-- Address/Name -->
+        <!-- Address/Name + address-bar infra (gap-sweep #406) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
-          <TextBlock Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
+          <TextBlock AutomationProperties.AutomationId="ClassEditor_SelectedAddressPrefix_Label"
+                     Name="SelectedAddressPrefixLabel"
+                     Text="Address:" VerticalAlignment="Center" FontWeight="SemiBold" />
           <TextBlock AutomationProperties.AutomationId="ClassEditor_Addr_Label" Name="AddrLabel" VerticalAlignment="Center" />
           <TextBlock Text="Name:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="16,0,0,0" />
           <TextBlock AutomationProperties.AutomationId="ClassEditor_Name_Label" Name="NameLabel" VerticalAlignment="Center" />
+          <!-- HardCoding warning hyperlink (parity with WF ClassForm.HardCodingWarningLabel) -->
+          <TextBlock AutomationProperties.AutomationId="ClassEditor_HardCoding_Warning_Label"
+                     Name="HardCodingWarningLabel"
+                     Text="[HardCoding]"
+                     Classes="Hyperlink"
+                     Foreground="OrangeRed"
+                     FontWeight="Bold"
+                     IsVisible="False"
+                     VerticalAlignment="Center"
+                     Margin="16,0,0,0"
+                     PointerPressed="HardCodingWarning_Click"
+                     ToolTip.Tip="This class is referenced by hardcoded ASM. Click to view related patches." />
+        </StackPanel>
+
+        <!-- Read-table infra row (parity with WF ClassForm.ReadStartAddress / ReadCount / ReloadListButton / BlockSize) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+          <TextBlock Text="Read Start Address:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" />
+          <TextBlock AutomationProperties.AutomationId="ClassEditor_ReadStartAddress_Label" Name="ReadStartAddressLabel" VerticalAlignment="Center" FontSize="11" />
+          <TextBlock Text="Read Count:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" Margin="12,0,0,0" />
+          <TextBlock AutomationProperties.AutomationId="ClassEditor_ReadCount_Label" Name="ReadCountLabel" VerticalAlignment="Center" FontSize="11" />
+          <TextBlock Text="Size:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" Margin="12,0,0,0" />
+          <TextBlock AutomationProperties.AutomationId="ClassEditor_Size_Label" Name="SizeLabel" VerticalAlignment="Center" FontSize="11" />
+          <Button AutomationProperties.AutomationId="ClassEditor_Reload_Button" Content="Reload" Click="Reload_Click" FontSize="11" Padding="6,2" Margin="12,0,0,0" />
         </StackPanel>
 
         <!-- Class Card Preview (issue #357): mirrors WinForms ClassForm top-right
@@ -376,14 +401,49 @@
           </StackPanel>
         </Border>
 
+        <!-- Export/Import Options panel (parity with WF ClassForm CSV checkbox bank — gap-sweep #406) -->
+        <Expander AutomationProperties.AutomationId="ClassEditor_ExportImportOptions_Expander"
+                  Header="Export/Import Options" IsExpanded="False" Margin="0,8,0,0">
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <!-- Defaults match WF ClassForm: UseClipboard=false, all 7 others=true -->
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_UseClipboard_Check"
+                        Grid.Row="0" Grid.Column="0" Name="UseClipboardCheck" Content="Use Clipboard" Margin="0,2" IsChecked="False" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_IncludeHeader_Check"
+                        Grid.Row="0" Grid.Column="1" Name="IncludeHeaderCheck" Content="Include Header" Margin="0,2" IsChecked="True" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_IncludeUID_Check"
+                        Grid.Row="1" Grid.Column="0" Name="IncludeUIDCheck" Content="Include UID" Margin="0,2" IsChecked="True" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_IncludeName_Check"
+                        Grid.Row="1" Grid.Column="1" Name="IncludeNameCheck" Content="Include Name" Margin="0,2" IsChecked="True" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_IncludeBaseStats_Check"
+                        Grid.Row="2" Grid.Column="0" Name="IncludeBaseStatsCheck" Content="Include Base Stats" Margin="0,2" IsChecked="True" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_IncludeGrowths_Check"
+                        Grid.Row="2" Grid.Column="1" Name="IncludeGrowthsCheck" Content="Include Growths" Margin="0,2" IsChecked="True" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_IncludeWepLevel_Check"
+                        Grid.Row="3" Grid.Column="0" Name="IncludeWepLevelCheck" Content="Include Wep Level" Margin="0,2" IsChecked="True" />
+              <CheckBox AutomationProperties.AutomationId="ClassEditor_GrowthsAsDecimal_Check"
+                        Grid.Row="3" Grid.Column="1" Name="GrowthsAsDecimalCheck" Content="Growths as Decimal" Margin="0,2" IsChecked="True" />
+            </Grid>
+          </Border>
+        </Expander>
+
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
           <Button AutomationProperties.AutomationId="ClassEditor_Write_Button" Content="Write" Click="Write_Click" />
           <Border Width="1" Background="Gray" Margin="4,2" />
-          <Button AutomationProperties.AutomationId="ClassEditor_ExportTSV_Button" Content="Export TSV" Click="ExportTSV_Click" FontSize="11" Padding="8,4"
-                  ToolTip.Tip="Export all classes to a TSV file" />
-          <Button AutomationProperties.AutomationId="ClassEditor_ImportTSV_Button" Content="Import TSV" Click="ImportTSV_Click" FontSize="11" Padding="8,4"
-                  ToolTip.Tip="Import classes from a TSV file" />
+          <!-- 4 CSV buttons (parity with WF ClassForm Export/Import All/Selected — gap-sweep #406) -->
+          <Button AutomationProperties.AutomationId="ClassEditor_ExportAll_Button" Content="Export All" Click="ExportAll_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Export all classes to a CSV file or clipboard" />
+          <Button AutomationProperties.AutomationId="ClassEditor_ExportSelected_Button" Content="Export Selected" Click="ExportSelected_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Export the selected class to a CSV file or clipboard" />
+          <Button AutomationProperties.AutomationId="ClassEditor_ImportAll_Button" Content="Import All" Click="ImportAll_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Import all classes from a CSV file or clipboard" />
+          <Button AutomationProperties.AutomationId="ClassEditor_ImportSelected_Button" Content="Import Selected" Click="ImportSelected_Click" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Import the selected class from a CSV file or clipboard" />
           <Border Width="1" Background="Gray" Margin="4,2" />
+          <!-- CC Branch jump (FE8 only — parity with WF ClassForm.J_5_Click) -->
+          <Button AutomationProperties.AutomationId="ClassEditor_JumpToCCBranch_Button" Content="CC Branch" Click="JumpToCCBranch_Click" Name="JumpToCCBranchButton"
+                  IsVisible="False" FontSize="11" Padding="8,4"
+                  ToolTip.Tip="Open the class-change branch editor for this class (FE8 only)" />
           <Button AutomationProperties.AutomationId="ClassEditor_EditSkills_Button" Content="Edit Skills" Click="EditSkills_Click" Name="EditSkillsButton"
                   IsVisible="False" FontSize="11" Padding="8,4"
                   ToolTip.Tip="Open skill assignment editor for this class" />

@@ -182,6 +182,8 @@ namespace FEBuilderGBA.Tests.Unit
         {
             public void ClearCache() { }
             public bool IsHardCodeUnit(uint unitId) => false;
+            // IsHardCodeClass added in #406 (additive interface member).
+            public bool IsHardCodeClass(uint classId) => false;
         }
     }
 }

@@ -121,6 +121,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             public TogglingAsmMapCache(params uint[] hardcoded) { _hardcoded = new(hardcoded); }
             public void ClearCache() { }
             public bool IsHardCodeUnit(uint unitId) => _hardcoded.Contains(unitId);
+            // IsHardCodeClass added in #406 (additive interface member).
+            // Stub returns false so existing unit-editor tests remain valid.
+            public bool IsHardCodeClass(uint classId) => false;
         }
 
         [AvaloniaFact]
