@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T02:27:45Z"
-git-sha: 2451b8f2c
+generated: "2026-05-24T02:11:49Z"
+git-sha: 2ee666903
 sweep-type: jumps
 ---
 
@@ -36,11 +36,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Metric | Count |
 |---|---:|
-| Total rows | 429 |
-| Match | 31 |
-| MissingAvManifest (backlog) | 358 |
-| NoWfCallsite | 35 |
-| KnownGap (issue-tagged) | 5 |
+| Total rows | 435 |
+| Match | 62 |
+| MissingAvManifest (backlog) | 326 |
+| NoWfCallsite | 39 |
+| KnownGap (issue-tagged) | 8 |
 
 ## Known Gaps (tracked by open issues)
 
@@ -48,7 +48,10 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 |---|---|---|---|---|---|
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass1` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
 | `CCBranchForm` | `CCBranchEditorView` | `JumpToPromotionClass2` | `ClassForm` | `ClassEditorView` | [#365](https://github.com/laqieer/FEBuilderGBA/issues/365) |
+| `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `JumpToToolAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `ImageMapActionAnimationForm` | `ImageMapActionAnimationView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
+| `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
+| `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `JumpToAnimationCreator` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` | [#500](https://github.com/laqieer/FEBuilderGBA/issues/500) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner1` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToPartner2` | `UnitForm` | `UnitEditorView` | [#360](https://github.com/laqieer/FEBuilderGBA/issues/360) |
 
@@ -172,8 +175,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `Program` | `—` | `—` | `WelcomeForm` | `WelcomeView` |
 | `R` | `—` | `—` | `ErrorLongMessageDialogForm` | `ErrorLongMessageDialogView` |
 | `R` | `—` | `—` | `ErrorLongMessageDialogForm` | `ErrorLongMessageDialogView` |
-| `SkillConfigCSkillSystem09xForm` | `—` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `SkillConfigCSkillSystem09xForm` | `—` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ToolAnimationCreatorUserControl` | `—` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ToolAnimationCreatorUserControl` | `—` | `—` | `ImageBattleAnimeForm` | `ImageBattleAnimeView` |
 | `ToolAnimationCreatorUserControl` | `—` | `—` | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` |
@@ -198,15 +199,12 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `AIScriptForm` | `AIScriptView` | `—` | `ClassFE6Form` | `ClassFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `ClassForm` | `ClassFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `DisASMForm` | `DisASMView` |
-| `AIScriptForm` | `AIScriptView` | `—` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitForm` | `UnitEditorView` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitFE6Form` | `UnitFE6View` |
 | `AIScriptForm` | `AIScriptView` | `—` | `UnitFE7Form` | `UnitFE7View` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageChapterTitleForm` | `ChapterTitleViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `ClassForm` | `ClassEditorView` | `—` | `CCBranchForm` | `CCBranchEditorView` |
-| `ClassForm` | `ClassEditorView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassFE6Form` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ClassForm` | `ClassFE6View` | `—` | `CCBranchForm` | `CCBranchEditorView` |
 | `ClassForm` | `ClassFE6View` | `—` | `PatchForm` | `PatchManagerView` |
@@ -232,15 +230,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `EventCondForm` | `EventCondView` | `—` | `MapPointerNewPLISTPopupForm` | `MapPointerNewPLISTPopupView` |
 | `EventUnitFE6Form` | `EventUnitFE6View` | `—` | `EventBattleTalkFE6Form` | `EventBattleTalkFE6View` |
 | `EventUnitFE6Form` | `EventUnitFE6View` | `—` | `EventHaikuFE6Form` | `EventHaikuFE6View` |
-| `EventUnitFE7Form` | `EventUnitFE7View` | `—` | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` |
-| `EventUnitFE7Form` | `EventUnitFE7View` | `—` | `EventHaikuFE7Form` | `EventHaikuFE7View` |
-| `EventUnitFE7Form` | `EventUnitFE7View` | `—` | `SoundBossBGMForm` | `SoundBossBGMViewerView` |
-| `EventUnitForm` | `EventUnitView` | `—` | `EventBattleTalkForm` | `EventBattleTalkView` |
-| `EventUnitForm` | `EventUnitView` | `—` | `EventHaikuForm` | `EventHaikuView` |
-| `EventUnitForm` | `EventUnitView` | `—` | `EventUnitItemDropForm` | `EventUnitItemDropView` |
-| `EventUnitForm` | `EventUnitView` | `—` | `EventUnitNewAllocForm` | `EventUnitNewAllocView` |
-| `EventUnitForm` | `EventUnitView` | `—` | `MonsterProbabilityForm` | `MonsterProbabilityViewerView` |
-| `EventUnitForm` | `EventUnitView` | `—` | `SoundBossBGMForm` | `SoundBossBGMViewerView` |
 | `GraphicsToolForm` | `GraphicsToolView` | `—` | `GraphicsToolPatchMakerForm` | `GraphicsToolPatchMakerView` |
 | `GraphicsToolForm` | `GraphicsToolView` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `GraphicsToolForm` | `GraphicsToolView` | `—` | `ImageTSAEditorForm` | `ImageTSAEditorView` |
@@ -253,9 +242,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `HowDoYouLikePatch2Form` | `HowDoYouLikePatch2View` | `—` | `PatchForm` | `PatchManagerView` |
 | `HowDoYouLikePatchForm` | `HowDoYouLikePatchView` | `—` | `HowDoYouLikePatchForm` | `HowDoYouLikePatchView` |
 | `HowDoYouLikePatchForm` | `HowDoYouLikePatchView` | `—` | `PatchForm` | `PatchManagerView` |
-| `ImageBGForm` | `ImageBGView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
-| `ImageBGForm` | `ImageBGView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
-| `ImageBGForm` | `ImageBGView` | `—` | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` |
 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | `—` | `ImageBattleAnimePalletForm` | `ImageBattleAnimePalletView` |
 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImageCGFE7UForm` | `ImageCGFE7UView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
@@ -263,20 +249,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ImageChapterTitleFE7Form` | `ImageChapterTitleFE7View` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ImageGenericEnemyPortraitForm` | `ImageGenericEnemyPortraitView` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageMagicCSACreatorForm` | `ImageMagicCSACreatorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
-| `ImageMagicFEditorForm` | `ImageMagicFEditorView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitFE6Form` | `ImagePortraitFE6View` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePalletForm` | `ImagePalletView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
-| `ImagePortraitForm` | `ImagePortraitView` | `—` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
 | `ImageRomAnimeForm` | `ImageRomAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageTSAAnimeForm` | `ImageTSAAnimeView` | `—` | `GraphicsToolForm` | `GraphicsToolView` |
-| `ItemForm` | `ItemEditorView` | `—` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
-| `ItemForm` | `ItemEditorView` | `—` | `PatchForm` | `PatchManagerView` |
-| `ItemForm` | `ItemEditorView` | `—` | `PatchForm` | `PatchManagerView` |
-| `ItemFE6Form` | `ItemFE6View` | `—` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
-| `ItemFE6Form` | `ItemFE6View` | `—` | `PatchForm` | `PatchManagerView` |
 | `ImageItemIconForm` | `ItemIconViewerView` | `—` | `ImageSystemIconForm` | `—` |
 | `ImageItemIconForm` | `ItemIconViewerView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `ItemPromotionForm` | `ItemPromotionViewerView` | `—` | `PatchForm` | `PatchManagerView` |
@@ -309,9 +286,6 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `PatchForm` | `PatchManagerView` | `—` | `PatchFilterExForm` | `PatchFilterExView` |
 | `PatchForm` | `PatchManagerView` | `—` | `PatchFormUninstallDialogForm` | `PatchFormUninstallDialogView` |
 | `PointerToolCopyToForm` | `PointerToolCopyToView` | `—` | `HexEditorForm` | `HexEditorView` |
-| `PointerToolForm` | `PointerToolView` | `—` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
-| `PointerToolForm` | `PointerToolView` | `—` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
-| `PointerToolForm` | `PointerToolView` | `—` | `PointerToolForm` | `PointerToolView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `ImagePalletForm` | `ImagePalletView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
 | `ImagePortraitForm` | `PortraitViewerView` | `—` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
@@ -320,13 +294,10 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `PatchForm` | `PatchManagerView` |
 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
+| `SkillConfigCSkillSystem09xForm` | `SkillConfigFE8UCSkillSys09xView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
 | `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ErrorPaletteShowForm` | `ErrorPaletteShowView` |
-| `SkillConfigSkillSystemForm` | `SkillConfigSkillSystemView` | `—` | `ToolAnimationCreatorForm` | `ToolAnimationCreatorView` |
 | `SongExchangeForm` | `SongExchangeView` | `—` | `SongExchangeForm` | `SongExchangeView` |
 | `SongInstrumentForm` | `SongInstrumentView` | `—` | `SongInstrumentImportWaveForm` | `SongInstrumentImportWaveView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongExchangeForm` | `SongExchangeView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
-| `SongTrackForm` | `SongTrackView` | `—` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportMidiForm` | `SongTrackImportMidiView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportSelectInstrumentForm` | `SongTrackImportSelectInstrumentView` |
 | `SongTrackForm` | `SongTrackView` | `—` | `SongTrackImportWaveForm` | `SongTrackImportWaveView` |
@@ -439,7 +410,11 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `ItemForm` | `ItemEditorView` | `JumpToDescText` | `TextForm` | `TextViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToNameText` | `TextForm` | `TextViewerView` |
 | `ItemForm` | `ItemEditorView` | `JumpToUseDescText` | `TextForm` | `TextViewerView` |
+| `—` | `ItemFE6View` | `JumpToEffectiveness` | `ItemEffectivenessForm` | `ItemEffectivenessViewerView` |
+| `—` | `ItemFE6View` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `—` | `ItemFE6View` | `JumpToDescText` | `TextForm` | `TextViewerView` |
+| `—` | `ItemFE6View` | `JumpToNameText` | `TextForm` | `TextViewerView` |
+| `—` | `ItemFE6View` | `JumpToUseDescText` | `TextForm` | `TextViewerView` |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToTextA` | `TextForm` | `TextViewerView` |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToTextB` | `TextForm` | `TextViewerView` |
 | `SupportTalkForm` | `SupportTalkView` | `JumpToTextC` | `TextForm` | `TextViewerView` |
@@ -459,13 +434,38 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 
 | Source Form | Source View | Command | Target WF | Target AV |
 |---|---|---|---|---|
+| `AIScriptForm` | `AIScriptView` | `JumpToPointerToolCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `ClassForm` | `ClassEditorView` | `JumpToCCBranch_FE8` | `CCBranchForm` | `CCBranchEditorView` |
+| `ClassForm` | `ClassEditorView` | `JumpToHardCodingPatch` | `PatchForm` | `PatchManagerView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToSelf` | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `ShowExportText` | `DumpStructSelectToTextDialogForm` | `DumpStructSelectToTextDialogView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToHexEditor` | `HexEditorForm` | `HexEditorView` |
 | `DumpStructSelectDialogForm` | `DumpStructSelectDialogView` | `JumpToPointerTool` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `EventUnitFE7Form` | `EventUnitFE7View` | `JumpToBattleTalk` | `EventBattleTalkFE7Form` | `EventBattleTalkFE7View` |
+| `EventUnitFE7Form` | `EventUnitFE7View` | `JumpToHaiku` | `EventHaikuFE7Form` | `EventHaikuFE7View` |
+| `EventUnitFE7Form` | `EventUnitFE7View` | `JumpToBattleBGM` | `SoundBossBGMForm` | `SoundBossBGMViewerView` |
+| `EventUnitForm` | `EventUnitView` | `JumpToBattleTalk` | `EventBattleTalkForm` | `EventBattleTalkView` |
+| `EventUnitForm` | `EventUnitView` | `JumpToHaiku` | `EventHaikuForm` | `EventHaikuView` |
+| `EventUnitForm` | `EventUnitView` | `JumpToItemDrop` | `EventUnitItemDropForm` | `EventUnitItemDropView` |
+| `EventUnitForm` | `EventUnitView` | `JumpToNewAlloc` | `EventUnitNewAllocForm` | `EventUnitNewAllocView` |
+| `EventUnitForm` | `EventUnitView` | `JumpToMonsterProbability` | `MonsterProbabilityForm` | `MonsterProbabilityViewerView` |
+| `EventUnitForm` | `EventUnitView` | `JumpToBattleBGM` | `SoundBossBGMForm` | `SoundBossBGMViewerView` |
+| `ImageBGForm` | `ImageBGView` | `JumpToDecreaseColor` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
+| `ImageBGForm` | `ImageBGView` | `JumpToGraphicsTool` | `GraphicsToolForm` | `GraphicsToolView` |
+| `ImageBGForm` | `ImageBGView` | `JumpToBGSelectPopup` | `ImageBGSelectPopupForm` | `ImageBGSelectPopupView` |
 | `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToDecreaseColor` | `DecreaseColorTSAToolForm` | `DecreaseColorTSAToolView` |
 | `ImageBattleBGForm` | `ImageBattleBGView` | `JumpToGraphicsTool` | `GraphicsToolForm` | `GraphicsToolView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `JumpToPalette` | `ImagePalletForm` | `ImagePalletView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `JumpToImporter` | `ImagePortraitImporterForm` | `ImagePortraitImporterView` |
+| `ImagePortraitForm` | `ImagePortraitView` | `JumpToStatusHeight` | `UnitIncreaseHeightForm` | `UnitIncreaseHeightView` |
+| `ItemForm` | `ItemEditorView` | `JumpToWeaponEffect` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToWeaponDebuffs` | `PatchForm` | `PatchManagerView` |
+| `ItemForm` | `ItemEditorView` | `JumpToWeaponDebuffs` | `PatchForm` | `PatchManagerView` |
+| `ItemFE6Form` | `ItemFE6View` | `JumpToWeaponEffect` | `ItemWeaponEffectForm` | `ItemWeaponEffectViewerView` |
+| `ItemFE6Form` | `ItemFE6View` | `JumpToHardcoding` | `PatchForm` | `PatchManagerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToPromotion` | `ItemPromotionForm` | `ItemPromotionViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToStatBonuses` | `ItemStatBonusesForm` | `ItemStatBonusesViewerView` |
 | `ItemUsagePointerForm` | `ItemUsagePointerViewerView` | `JumpToIerPatch` | `PatchForm` | `PatchManagerView` |
@@ -475,6 +475,12 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-jumps --out=<path>`.
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToBGLookup` | `MapTerrainBGLookupTableForm` | `MapTerrainBGLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToSelfFromRef` | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` |
 | `MapTerrainFloorLookupTableForm` | `MapTerrainFloorLookupTableView` | `JumpToPatchExtendsBattleBG` | `PatchForm` | `PatchManagerView` |
+| `PointerToolForm` | `PointerToolView` | `JumpToBatchInput` | `PointerToolBatchInputForm` | `PointerToolBatchInputView` |
+| `PointerToolForm` | `PointerToolView` | `JumpToCopyTo` | `PointerToolCopyToForm` | `PointerToolCopyToView` |
+| `PointerToolForm` | `PointerToolView` | `JumpToSelf` | `PointerToolForm` | `PointerToolView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongExchange` | `SongExchangeForm` | `SongExchangeView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackAllChangeTrack` | `SongTrackAllChangeTrackForm` | `SongTrackAllChangeTrackView` |
+| `SongTrackForm` | `SongTrackView` | `JumpToSongTrackChangeTrack` | `SongTrackChangeTrackForm` | `SongTrackChangeTrackView` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE6` | `SupportTalkFE6Form` | `SupportTalkFE6View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE7` | `SupportTalkFE7Form` | `SupportTalkFE7View` |
 | `SupportUnitForm` | `SupportUnitEditorView` | `JumpToSupportTalk_FE8` | `SupportTalkForm` | `SupportTalkView` |

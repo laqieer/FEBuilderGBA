@@ -7733,3 +7733,90 @@ Debuff (B33):
 
 :Shingeki Shop:
 進撃準備店:
+
+:Class OP Demo Editor
+クラスOPデモ エディタ
+
+:Japanese Name Pointer Target
+日本語名ポインタ先
+
+:Anime Spec Pointer Target
+アニメ指定のポインタ先
+
+:Anime Spec Shared
+アニメ指定共有
+
+:Fixed 05:
+05固定:
+
+:Fixed 00:
+00固定:
+
+:Wait Frames:
+ウェイト:
+
+:Anime Special Spec:
+アニメの特殊指定:
+
+:??:
+??:
+
+:Write Anime Tuple
+アニメタプル書き込み
+
+:Class OP Demo data written.
+クラスOPデモデータを書き込みました。
+
+:JP name font glyph written.
+日本語名フォントグリフを書き込みました。
+
+:Anime spec tuple written.
+アニメ指定タプルを書き込みました。
+
+:JP name pointer written.
+日本語名ポインタを書き込みました。
+
+:Anime spec pointer written.
+アニメ指定ポインタを書き込みました。
+
+:Select a JP name font row first.
+最初に日本語名フォント行を選択してください。
+
+:Select an entry with a valid anime pointer first.
+最初に有効なアニメポインタを持つエントリを選択してください。
+
+:Select a Class OP Demo entry first.
+最初にクラスOPデモエントリを選択してください。
+
+:Failed to write Class OP Demo entry: {0}
+クラスOPデモエントリの書き込みに失敗しました: {0}
+
+:Failed to write JP name font glyph: {0}
+日本語名フォントグリフの書き込みに失敗しました: {0}
+
+:Failed to write anime spec tuple: {0}
+アニメ指定タプルの書き込みに失敗しました: {0}
+
+:Failed to write JP name pointer: {0}
+日本語名ポインタの書き込みに失敗しました: {0}
+
+:Failed to write anime spec pointer: {0}
+アニメ指定ポインタの書き込みに失敗しました: {0}
+
+:Failed to expand JP name font block: {0}
+日本語名フォントブロックの拡張に失敗しました: {0}
+
+:JP name font block expanded. New base: 0x{0:X08}, new count: {1}.
+日本語名フォントブロックを拡張しました。新しいベース: 0x{0:X08}, 新しい個数: {1}。
+
+:Expansion failed.
+拡張に失敗しました。
+
+:01 = Normal
+01 = 通常
+
+:02 = Critical
+02 = 必殺
+
+:03 = Ranged / Magic Sword
+03 = 間接や魔法剣

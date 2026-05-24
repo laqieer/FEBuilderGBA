@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-23T02:27:40Z"
-git-sha: 2451b8f2c
+generated: "2026-05-24T02:11:44Z"
+git-sha: 2ee666903
 sweep-type: labels
 ---
 
@@ -36,14 +36,14 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4632 |
-| Total AV-only labels | 2726 |
-| Total common labels | 68 |
+| Total WF-only labels | 4536 |
+| Total AV-only labels | 3220 |
+| Total common labels | 164 |
 
 ## Top 20 Forms by WF-only Label Count
 
 Each row's WF-only count is the upper bound on missing fields in the AV view.
-Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative context.
+Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative context.
 
 | Rank | WF Form | AV View | WF-only | AV-only | Common |
 |---:|---|---|---:|---:|---:|
@@ -54,19 +54,19 @@ Cross-link to the [density sweep](2026-05-23-density-sweep.md) for quantitative 
 | 5 | `EventCondForm` | `EventCondView` | 81 | 21 | 0 |
 | 6 | `MapSettingForm` | `MapSettingView` | 78 | 116 | 0 |
 | 7 | `MapSettingFE6Form` | `MapSettingFE6View` | 65 | 2 | 0 |
-| 8 | `ClassForm` | `ClassEditorView` | 57 | 100 | 1 |
-| 9 | `EventUnitForm` | `EventUnitView` | 50 | 24 | 0 |
-| 10 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
-| 11 | `TextForm` | `TextViewerView` | 48 | 13 | 0 |
-| 12 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
-| 13 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
-| 14 | `ItemForm` | `ItemEditorView` | 45 | 71 | 0 |
-| 15 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
-| 16 | `UnitForm` | `UnitEditorView` | 45 | 70 | 4 |
-| 17 | `ItemFE6Form` | `ItemFE6View` | 44 | 30 | 0 |
-| 18 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
-| 19 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
-| 20 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 8 | `SongInstrumentForm` | `SongInstrumentView` | 50 | 21 | 1 |
+| 9 | `TextForm` | `TextViewerView` | 48 | 13 | 0 |
+| 10 | `WorldMapImageForm` | `WorldMapImageView` | 47 | 2 | 0 |
+| 11 | `EventUnitForm` | `EventUnitView` | 46 | 41 | 4 |
+| 12 | `ImageUnitPaletteForm` | `ImageUnitPaletteView` | 45 | 17 | 0 |
+| 13 | `MapStyleEditorForm` | `MapStyleEditorView` | 45 | 5 | 0 |
+| 14 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
+| 15 | `ToolInitWizardForm` | `ToolInitWizardView` | 44 | 8 | 0 |
+| 16 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
+| 17 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
+| 18 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
+| 19 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 20 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1113,255 +1113,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Map Settings (FE6)`
 
-### ClassForm
-WF labels: **58** · AV labels: **101** · WF-only: **57** · AV-only: **100** · Common: **1** · Density verdict: **Medium** (WF 211 / AV 154)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `???`
-- `[HardCoding]`
-- `CCボーナス`
-- `Export All`
-- `Export Selected`
-- `Growths as Decimal`
-- `HP`
-- `ID`
-- `Import All`
-- `Import Selected`
-- `Include Base Stats`
-- `Include Growths`
-- `Include Header`
-- `Include Name`
-- `Include UID`
-- `Include Wep Level`
-- `LV`
-- `Size:`
-- `Use Clipboard`
-- `アドレス`
-- `クラスチェンジクラス`
-- `クラス基礎能力`
-- `クラス能力最大値`
-- `シミュレーション`
-- `スキル`
-- `ソート順`
-- `リストの拡張`
-- `一般兵顔`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `地形回避`
-- `地形防御`
-- `地形魔防`
-- `守備`
-- `幸運`
-- `待機アイコン`
-- `戦闘時アニメ`
-- ` 技 `
-- `攻撃`
-- `敵成長率(%)`
-- `書き込み`
-- `武器LV`
-- `移動`
-- `移動コスト`
-- `移動コスト(雨)`
-- `移動コスト(雪)`
-- `移動速度`
-- `経験値補正値`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `??? (D80):`
-- `Ability 1 (B40):`
-- `Ability 2 (B41):`
-- `Ability 3 (B42):`
-- `Ability 4 (B43):`
-- `Ability Flags`
-- `Address:`
-- `Anima (B49):`
-- `Axe (B46):`
-- `Base constitution`
-- `Base HP for this class`
-- `Base movement range`
-- `Base Stats`
-- `Battle Anime (P52):`
-- `Bow (B47):`
-- `Calculate Growth`
-- `Class # (B4):`
-- `Class Card`
-- `Class Editor`
-- `Class power / EXP correction value`
-- `Con (B17):`
-- `Dark (B51):`
-- `Decoded description text`
-- `Def (B15):`
-- `Def (B31):`
-- `Def (b38):`
-- `Desc`
-- `Desc ID (W2):`
-- `Edit Skills`
-- `Export all classes to a TSV file`
-- `Export TSV`
-- `Growth Rates`
-- `Growth Simulator`
-- `HP (B11):`
-- `HP (B27):`
-- `HP (b34):`
-- `HP bonus gained on class change`
-- `Identity / Misc`
-- `Import classes from a TSV file`
-- `Import TSV`
-- `Internal class number`
-- `Jump`
-- `Lance (B45):`
-- `Lck (B33):`
-- `Level required for promotion (0=unpromoted)`
-- `Light (B50):`
-- `Map sprite index when idle`
-- `Max Con (B25):`
-- `Max Def (B23):`
-- `Max HP (B19):`
-- `Max Res (B24):`
-- `Max Skl (B21):`
-- `Max Spd (B22):`
-- `Max Str (B20):`
-- `Maximum HP stat cap for this class`
-- `Mov (B18):`
-- `Move Cost (P56):`
-- `Move Cost Rain (P60):`
-- `Move Cost Snow (P64):`
-- `Name:`
-- `Name ID (W0):`
-- `Open skill assignment editor for this class`
-- `Open text viewer for this description`
-- `Pointer to battle animation data`
-- `Pointer to terrain movement cost table`
-- `Pointers / Movement / Terrain`
-- `Portrait (W8):`
-- `Portrait graphic index (click to open Portrait Viewer)`
-- `Power (B26):`
-- `Promo Lv (B5):`
-- `Promotion Gains (CC Bonus)`
-- `Res (B16):`
-- `Res (B32):`
-- `Res (b39):`
-- `Sim Level:`
-- `Skl (B13):`
-- `Skl (B29):`
-- `Skl (b36):`
-- `Sort Order (B10):`
-- `Sort order for class list`
-- `Spd (B14):`
-- `Spd (B30):`
-- `Spd (b37):`
-- `Staff (B48):`
-- `Stat Caps (Max Values)`
-- `Str (B12):`
-- `Str (B28):`
-- `Str (b35):`
-- `Sword (B44):`
-- `Terrain Avoid (P68):`
-- `Terrain Def (P72):`
-- `Terrain Res (P76):`
-- `Text ID for this class's description (click to open Text Viewer)`
-- `Text ID for this class's display name (click to open Text Viewer)`
-- `Wait Icon (B6):`
-- `Walk Spd (B7):`
-- `Walking speed on the map`
-- `Warnings`
-- `Weapon Rank Levels (B44-B51)`
-- `Write`
-
-### EventUnitForm
-WF labels: **50** · AV labels: **24** · WF-only: **50** · AV-only: **24** · Common: **0** · Density verdict: **Medium** (WF 95 / AV 54)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60秒`
-- `1次AI`
-- `2次AI`
-- `??`
-- `Close`
-- `FF`
-- `LV:`
-- `Size:`
-- `X:`
-- `Y:`
-- `↑`
-- `↓`
-- `アイテムドロップ`
-- `アドレス`
-- `イベント名前`
-- `クラス`
-- `コメント`
-- `マップ名前`
-- `ユニット情報`
-- `ユニット番号`
-- `リストの拡張`
-- `交戦時BGMへJump`
-- `交戦時セリフへJump`
-- `先頭アドレス`
-- `再取得`
-- `削除`
-- `名前`
-- `変更`
-- `座標`
-- `待機`
-- `成長率:`
-- `所属:`
-- `所持品1`
-- `所持品2`
-- `所持品3`
-- `所持品4`
-- `指揮官`
-- `新規挿入`
-- `新規領域の確保`
-- `書き込み`
-- `標的と回復AI`
-- `死亡時セリフへJump`
-- `特殊`
-- `移動後座標`
-- `移動速度`
-- `読込数`
-- `追従`
-- `退避AI`
-- `選択アドレス:`
-- `配置後座標格納アドレス`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `0x Address`
-- `Address:`
-- `AI1 Primary:`
-- `AI2 Secondary:`
-- `AI3 Target/Recovery:`
-- `AI4 Retreat:`
-- `Class ID:`
-- `Coord Count:`
-- `Coord Pointer:`
-- `Event Unit Placement (FE8)`
-- `Item 1:`
-- `Item 2:`
-- `Item 3:`
-- `Item 4:`
-- `Leader Unit ID:`
-- `Load`
-- `Maps`
-- `Reserved (0x06):`
-- `Unit Groups`
-- `Unit Growth:`
-- `Unit ID:`
-- `Unit Info:`
-- `Units`
-- `Write`
-
 ### SongInstrumentForm
 WF labels: **51** · AV labels: **22** · WF-only: **50** · AV-only: **21** · Common: **1** · Density verdict: **High** (WF 323 / AV 54)
 
@@ -1570,6 +1321,102 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `World Map Image`
 
+### EventUnitForm
+WF labels: **50** · AV labels: **45** · WF-only: **46** · AV-only: **41** · Common: **4** · Density verdict: **Low** (WF 95 / AV 85)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60秒`
+- `1次AI`
+- `2次AI`
+- `??`
+- `Close`
+- `FF`
+- `↑`
+- `↓`
+- `アイテムドロップ`
+- `アドレス`
+- `イベント名前`
+- `クラス`
+- `コメント`
+- `マップ名前`
+- `ユニット情報`
+- `ユニット番号`
+- `リストの拡張`
+- `交戦時BGMへJump`
+- `交戦時セリフへJump`
+- `先頭アドレス`
+- `再取得`
+- `削除`
+- `名前`
+- `変更`
+- `座標`
+- `待機`
+- `成長率:`
+- `所属:`
+- `所持品1`
+- `所持品2`
+- `所持品3`
+- `所持品4`
+- `指揮官`
+- `新規挿入`
+- `新規領域の確保`
+- `書き込み`
+- `標的と回復AI`
+- `死亡時セリフへJump`
+- `特殊`
+- `移動後座標`
+- `移動速度`
+- `読込数`
+- `追従`
+- `退避AI`
+- `選択アドレス:`
+- `配置後座標格納アドレス`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x Address`
+- `0x14`
+- `Address:`
+- `After Coordinates:`
+- `Allegiance:`
+- `Battle BGM Jump`
+- `Battle Talk Jump`
+- `Before Coordinates:`
+- `Class:`
+- `Commander:`
+- `Comment:`
+- `Count:`
+- `Death Quote Jump`
+- `Drop Item`
+- `Event Names`
+- `Event Unit Placement (FE8)`
+- `Expand List`
+- `Growth Rate:`
+- `Item 1:`
+- `Item 2:`
+- `Item 3:`
+- `Item 4:`
+- `Item Drop Dialog...`
+- `Load`
+- `Map Names`
+- `Names`
+- `New Allocation`
+- `Pointer:`
+- `Primary AI:`
+- `Random Monster`
+- `Read Count`
+- `Reload`
+- `Reserved (0x06):`
+- `Retreat AI:`
+- `Secondary AI:`
+- `Selected Address:`
+- `Target/Recovery AI:`
+- `Top Address`
+- `Unit Info:`
+- `Unit Number:`
+- `Write`
+
 ### ImageUnitPaletteForm
 WF labels: **45** · AV labels: **17** · WF-only: **45** · AV-only: **17** · Common: **0** · Density verdict: **High** (WF 133 / AV 32)
 
@@ -1641,131 +1488,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unit Palette Editor`
 - `Write`
 
-### ItemForm
-WF labels: **45** · AV labels: **71** · WF-only: **45** · AV-only: **71** · Common: **0** · Density verdict: **Medium** (WF 128 / AV 88)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `??`
-- `[HardCoding]`
-- `HP`
-- `ID`
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `ダメージ追加効果`
-- `リストの拡張`
-- `レベル`
-- `体格`
-- `使った場合`
-- `使用画面`
-- `先頭アドレス`
-- `再取得`
-- `単価`
-- `名前`
-- `命中`
-- `売却価格`
-- `守備`
-- `幸運`
-- `店での買値`
-- `必殺`
-- `性能`
-- ` 技 `
-- `攻撃`
-- `書き込み`
-- `武器LV熟練度`
-- `特効`
-- `特効効果\r\n新規割当`
-- `移動`
-- `種別`
-- `耐久`
-- `能力補正`
-- `能力補正\r\n新規割当`
-- `能力補正値`
-- `説明`
-- `読込数`
-- `速さ`
-- `進撃準備店`
-- `選択アドレス:`
-- `重さ`
-- `間接エフェクト Jump`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Attack power`
-- `Attack range (encoded as min-max)`
-- `Base item price`
-- `Basic Info`
-- `Buy Price:`
-- `Crit (B24):`
-- `Critical hit rate bonus`
-- `Decoded description text`
-- `Decoded usage description text`
-- `Desc`
-- `Desc ID (W2):`
-- `Dmg Effect (B31):`
-- `Edit Skill Config`
-- `Effect when using the item`
-- `Effective (P16):`
-- `Effective Against`
-- `Export all items to a TSV file`
-- `Export TSV`
-- `Forge Price:`
-- `Hit (B22):`
-- `Hit rate bonus`
-- `Icon (B29):`
-- `Import items from a TSV file`
-- `Import TSV`
-- `Internal item number (unique ID)`
-- `Item # (B6):`
-- `Item Editor`
-- `Item weight (reduces attack speed)`
-- `Jump`
-- `Might (B21):`
-- `Name:`
-- `Name ID (W0):`
-- `Number of uses before the item breaks`
-- `Open skill configuration editor`
-- `Open text viewer for this description`
-- `Open text viewer for this usage description`
-- `Pointer to effectiveness list (bonus vs. classes)`
-- `Pointer to stat bonuses when equipped`
-- `Price (W26):`
-- `Range (B25):`
-- `Rank (B28):`
-- `Sell Price:`
-- `Special effect applied on hit`
-- `Stat Bonus (P12):`
-- `Stat Bonuses Preview`
-- `Stats / Bonuses`
-- `Text ID for the item description (click to open Text Viewer)`
-- `Text ID for the item usage description (click to open Text Viewer)`
-- `Text ID for this item's display name (click to open Text Viewer)`
-- `Trait 1 (B8):`
-- `Trait 2 (B9):`
-- `Trait 3 (B10):`
-- `Trait 4 (B11):`
-- `Trait Flags`
-- `Type (B7):`
-- `Unk33 (B33):`
-- `Unk34 (B34):`
-- `Unk35 (B35):`
-- `Use Desc (W4):`
-- `Use Effect (B30):`
-- `Uses (B20):`
-- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
-- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
-- `Warnings`
-- `Weapon experience gained per use`
-- `Weapon Properties`
-- `Weapon type (Sword, Lance, Axe, etc.)`
-- `Weight (B23):`
-- `Wep Exp (B32):`
-- `Write`
-
 ### MapStyleEditorForm
 WF labels: **45** · AV labels: **5** · WF-only: **45** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 153 / AV 8)
 
@@ -1825,136 +1547,12 @@ AV-only labels (usually fine — layout polish or rewording):
 - `OBJ Tile Pointer:`
 - `Write`
 
-### UnitForm
-WF labels: **49** · AV labels: **74** · WF-only: **45** · AV-only: **70** · Common: **4** · Density verdict: **Medium** (WF 183 / AV 127)
+### ItemForm
+WF labels: **45** · AV labels: **78** · WF-only: **44** · AV-only: **77** · Common: **1** · Density verdict: **Low** (WF 128 / AV 97)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `[HardCoding]`
-- `Export All`
-- `Export Selected`
-- `Growths as Decimal`
-- `ID`
-- `Import All`
-- `Import Selected`
-- `Include Base Stats`
-- `Include Growths`
-- `Include Header`
-- `Include Name`
-- `Include UID`
-- `Include Wep Level`
-- `Size:`
-- `Use Clipboard`
-- `アドレス`
-- `シミュレーション`
-- `スキル`
-- `マップ顔`
-- `ユニットソート順`
-- `ユニット別パレットへジャンプ`
-- `ユニット別能力`
-- `会話グループ`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `守備`
-- `属性:-`
-- `幸運`
-- `成長率(%)`
-- ` 技 `
-- `支援クラス`
-- `支援データ`
-- `攻撃`
-- `書き込み`
-- `武器LV`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `顔`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Ability Flags`
-- `Address:`
-- `Affinity:`
-- `Anima:`
-- `Axe:`
-- `Base Hit Points (signed offset from class base)`
-- `Base Stats`
-- `Base Strength/Magic (signed offset from class base)`
-- `Bow:`
-- `Byte 1:`
-- `Byte 2:`
-- `Byte 3:`
-- `Byte 4:`
-- `Calculate Growth`
-- `Class ID:`
-- `Con:`
-- `Dark:`
-- `Decoded description text`
-- `Def:`
-- `Desc`
-- `Desc ID:`
-- `Edit Skills`
-- `Elemental affinity for support bonuses`
-- `Export all units to a TSV file`
-- `Export TSV`
-- `Growth Rates (%)`
-- `Growth Simulator`
-- `Identity`
-- `Import TSV`
-- `Import units from a TSV file`
-- `Jump`
-- `Lance:`
-- `Lck:`
-- `Light:`
-- `Map Face:`
-- `Map sprite face index`
-- `Name:`
-- `Name ID:`
-- `Open skill assignment editor for this unit`
-- `Open Support`
-- `Open text viewer for this description`
-- `Percent chance of HP increasing on level up`
-- `Pick class from editor`
-- `Pick portrait from editor`
-- `Pick...`
-- `Portrait:`
-- `Portrait graphic index (click to open Portrait Viewer)`
-- `Res:`
-- `Simulate to LV:`
-- `Skl:`
-- `Sort:`
-- `Spd:`
-- `Staff:`
-- `Starting level of this unit`
-- `Str:`
-- `Support & Other`
-- `Support Ptr:`
-- `Sword:`
-- `Talk:`
-- `Text ID for the unit's description (click to open Text Viewer)`
-- `Text ID for the unit's display name (click to open Text Viewer)`
-- `The unit's class (click to open Class Editor)`
-- `Undo`
-- `Unique identifier for this unit`
-- `Unit Editor`
-- `Unit ID:`
-- `Unit or class name associated with this portrait ID`
-- `Warnings`
-- `Weapon Levels`
-- `Write`
-
-### ItemFE6Form
-WF labels: **44** · AV labels: **30** · WF-only: **44** · AV-only: **30** · Common: **0** · Density verdict: **High** (WF 121 / AV 53)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `[HardCoding]`
+- `??`
 - `HP`
 - `ID`
 - `Size:`
@@ -1973,7 +1571,6 @@ WF-only labels (candidates for missing fields in AV):
 - `命中`
 - `売却価格`
 - `守備`
-- `射程`
 - `幸運`
 - `店での買値`
 - `必殺`
@@ -1981,6 +1578,7 @@ WF-only labels (candidates for missing fields in AV):
 - ` 技 `
 - `攻撃`
 - `書き込み`
+- `武器LV熟練度`
 - `特効`
 - `特効効果\r\n新規割当`
 - `移動`
@@ -2002,34 +1600,81 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Attack power`
+- `Attack range (encoded as min-max)`
+- `Base item price`
+- `Basic Info`
+- `Buy Price:`
 - `Crit (B24):`
+- `Critical hit rate bonus`
+- `Debuff Table`
 - `Decoded description text`
+- `Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):`
+- `Decoded usage description text`
 - `Desc`
 - `Desc ID (W2):`
 - `Dmg Effect (B31):`
+- `Edit Skill Config`
+- `Effect when using the item`
 - `Effective (P16):`
+- `Effective Against`
+- `Export all items to a TSV file`
+- `Export TSV`
+- `Forge Price:`
 - `Hit (B22):`
+- `Hit rate bonus`
 - `Icon (B29):`
+- `Import items from a TSV file`
+- `Import TSV`
+- `Indirect Weapon Effect`
+- `Internal item number (unique ID)`
 - `Item # (B6):`
-- `Item Editor (FE6)`
+- `Item Editor`
+- `Item weight (reduces attack speed)`
+- `Jump`
 - `Might (B21):`
 - `Name:`
 - `Name ID (W0):`
+- `Number of uses before the item breaks`
+- `Open skill configuration editor`
 - `Open text viewer for this description`
+- `Open text viewer for this usage description`
+- `Open the indirect weapon effect table at the row for this item.`
+- `Open the Patch Manager filtered to the SkillSystem WeaponDebuffsTable definition.`
+- `Pointer to effectiveness list (bonus vs. classes)`
+- `Pointer to stat bonuses when equipped`
 - `Price (W26):`
 - `Range (B25):`
 - `Rank (B28):`
+- `Sell Price:`
+- `Special effect applied on hit`
 - `Stat Bonus (P12):`
-- `Text ID for the item's description`
+- `Stat Bonuses Preview`
+- `Stats / Bonuses`
+- `Text ID for the item description (click to open Text Viewer)`
+- `Text ID for the item usage description (click to open Text Viewer)`
+- `Text ID for this item's display name (click to open Text Viewer)`
+- `This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.`
 - `Trait 1 (B8):`
 - `Trait 2 (B9):`
 - `Trait 3 (B10):`
 - `Trait 4 (B11):`
+- `Trait Flags`
 - `Type (B7):`
+- `Unk33 (B33):`
+- `Unk34 (B34):`
+- `Unk35 (B35):`
 - `Use Desc (W4):`
 - `Use Effect (B30):`
 - `Uses (B20):`
+- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
+- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
+- `Warnings`
+- `Weapon experience gained per use`
+- `Weapon Properties`
+- `Weapon type (Sword, Lance, Axe, etc.)`
 - `Weight (B23):`
+- `Wep Exp (B32):`
 - `Write`
 
 ### ToolInitWizardForm
@@ -2150,6 +1795,165 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Class Editor (FE6)`
 - `Sim Level:`
 
+### ClassForm
+WF labels: **58** · AV labels: **122** · WF-only: **43** · AV-only: **107** · Common: **15** · Density verdict: **Low** (WF 211 / AV 174)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `???`
+- `CCボーナス`
+- `HP`
+- `ID`
+- `LV`
+- `アドレス`
+- `クラスチェンジクラス`
+- `クラス基礎能力`
+- `クラス能力最大値`
+- `シミュレーション`
+- `スキル`
+- `ソート順`
+- `リストの拡張`
+- `一般兵顔`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `地形回避`
+- `地形防御`
+- `地形魔防`
+- `守備`
+- `幸運`
+- `待機アイコン`
+- `戦闘時アニメ`
+- ` 技 `
+- `攻撃`
+- `敵成長率(%)`
+- `書き込み`
+- `武器LV`
+- `移動`
+- `移動コスト`
+- `移動コスト(雨)`
+- `移動コスト(雪)`
+- `移動速度`
+- `経験値補正値`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `??? (D80):`
+- `Ability 1 (B40):`
+- `Ability 2 (B41):`
+- `Ability 3 (B42):`
+- `Ability 4 (B43):`
+- `Ability Flags`
+- `Address:`
+- `Anima (B49):`
+- `Axe (B46):`
+- `Base constitution`
+- `Base HP for this class`
+- `Base movement range`
+- `Base Stats`
+- `Battle Anime (P52):`
+- `Bow (B47):`
+- `Calculate Growth`
+- `CC Branch`
+- `Class # (B4):`
+- `Class Card`
+- `Class Editor`
+- `Class power / EXP correction value`
+- `Con (B17):`
+- `Dark (B51):`
+- `Decoded description text`
+- `Def (B15):`
+- `Def (B31):`
+- `Def (b38):`
+- `Desc`
+- `Desc ID (W2):`
+- `Edit Skills`
+- `Export all classes to a CSV file or clipboard`
+- `Export the selected class to a CSV file or clipboard`
+- `Export/Import Options`
+- `Growth Rates`
+- `Growth Simulator`
+- `HP (B11):`
+- `HP (B27):`
+- `HP (b34):`
+- `HP bonus gained on class change`
+- `Identity / Misc`
+- `Import all classes from a CSV file or clipboard`
+- `Import the selected class from a CSV file or clipboard`
+- `Internal class number`
+- `Jump`
+- `Lance (B45):`
+- `Lck (B33):`
+- `Level required for promotion (0=unpromoted)`
+- `Light (B50):`
+- `Map sprite index when idle`
+- `Max Con (B25):`
+- `Max Def (B23):`
+- `Max HP (B19):`
+- `Max Res (B24):`
+- `Max Skl (B21):`
+- `Max Spd (B22):`
+- `Max Str (B20):`
+- `Maximum HP stat cap for this class`
+- `Mov (B18):`
+- `Move Cost (P56):`
+- `Move Cost Rain (P60):`
+- `Move Cost Snow (P64):`
+- `Name:`
+- `Name ID (W0):`
+- `Open skill assignment editor for this class`
+- `Open text viewer for this description`
+- `Open the class-change branch editor for this class (FE8 only)`
+- `Pointer to battle animation data`
+- `Pointer to terrain movement cost table`
+- `Pointers / Movement / Terrain`
+- `Portrait (W8):`
+- `Portrait graphic index (click to open Portrait Viewer)`
+- `Power (B26):`
+- `Promo Lv (B5):`
+- `Promotion Gains (CC Bonus)`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res (B16):`
+- `Res (B32):`
+- `Res (b39):`
+- `Sim Level:`
+- `Skl (B13):`
+- `Skl (B29):`
+- `Skl (b36):`
+- `Sort Order (B10):`
+- `Sort order for class list`
+- `Spd (B14):`
+- `Spd (B30):`
+- `Spd (b37):`
+- `Staff (B48):`
+- `Stat Caps (Max Values)`
+- `Str (B12):`
+- `Str (B28):`
+- `Str (b35):`
+- `Sword (B44):`
+- `Terrain Avoid (P68):`
+- `Terrain Def (P72):`
+- `Terrain Res (P76):`
+- `Text ID for this class's description (click to open Text Viewer)`
+- `Text ID for this class's display name (click to open Text Viewer)`
+- `This class is referenced by hardcoded ASM. Click to view related patches.`
+- `Wait Icon (B6):`
+- `Walk Spd (B7):`
+- `Walking speed on the map`
+- `Warnings`
+- `Weapon Rank Levels (B44-B51)`
+- `Write`
+
 ### ImageBattleScreenForm
 WF labels: **42** · AV labels: **2** · WF-only: **42** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 133 / AV 3)
 
@@ -2202,6 +2006,125 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Battle Screen Layout`
+
+### ItemFE6Form
+WF labels: **44** · AV labels: **70** · WF-only: **42** · AV-only: **68** · Common: **2** · Density verdict: **Low** (WF 121 / AV 97)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `HP`
+- `ID`
+- `アイコン`
+- `アドレス`
+- `ダメージ追加効果`
+- `リストの拡張`
+- `レベル`
+- `体格`
+- `使った場合`
+- `使用画面`
+- `先頭アドレス`
+- `再取得`
+- `単価`
+- `名前`
+- `命中`
+- `売却価格`
+- `守備`
+- `射程`
+- `幸運`
+- `店での買値`
+- `必殺`
+- `性能`
+- ` 技 `
+- `攻撃`
+- `書き込み`
+- `特効`
+- `特効効果\r\n新規割当`
+- `移動`
+- `種別`
+- `耐久`
+- `能力補正`
+- `能力補正\r\n新規割当`
+- `能力補正値`
+- `説明`
+- `読込数`
+- `速さ`
+- `進撃準備店`
+- `選択アドレス:`
+- `重さ`
+- `間接エフェクト Jump`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Attack power`
+- `Attack range (encoded as min-max)`
+- `Base Addr:`
+- `Base item price`
+- `Basic Info`
+- `Buy Price:`
+- `Count:`
+- `Crit (B24):`
+- `Critical hit rate bonus`
+- `Decoded description text`
+- `Decoded stat bonus values (read-only — edit through the Stat Bonus pointer above):`
+- `Decoded usage description text`
+- `Desc`
+- `Desc ID (W2):`
+- `Dmg Effect (B31):`
+- `Effect when using the item`
+- `Effective (P16):`
+- `Effective Against`
+- `Filter:`
+- `Hit (B22):`
+- `Hit rate bonus`
+- `Icon (B29):`
+- `Indirect Weapon Effect`
+- `Internal item number (unique ID)`
+- `Item # (B6):`
+- `Item Editor (FE6)`
+- `Item weight (reduces attack speed)`
+- `Jump`
+- `Might (B21):`
+- `Name:`
+- `Name ID (W0):`
+- `Number of uses before the item breaks`
+- `Open text viewer for this description`
+- `Open text viewer for this usage description`
+- `Open the indirect weapon effect table at the row for this item.`
+- `Pointer to effectiveness list (bonus vs. classes)`
+- `Pointer to stat bonuses when equipped`
+- `Price (W26):`
+- `Range (B25):`
+- `Rank (B28):`
+- `Reload`
+- `Sell Price:`
+- `Shingeki Shop:`
+- `Special effect applied on hit`
+- `Stat Bonus (P12):`
+- `Stat Bonuses Preview`
+- `Stats / Bonuses`
+- `Text ID for the item description (click to open Text Viewer)`
+- `Text ID for the item usage description (click to open Text Viewer)`
+- `Text ID for this item's display name (click to open Text Viewer)`
+- `This item is referenced by hardcoded ASM. Click to open the Patch Manager filtered on HARDCODING_ITEM=.`
+- `Trait 1 (B8):`
+- `Trait 2 (B9):`
+- `Trait 3 (B10):`
+- `Trait 4 (B11):`
+- `Trait Flags`
+- `Type (B7):`
+- `Use Desc (W4):`
+- `Use Effect (B30):`
+- `Uses (B20):`
+- `Warning: Effectiveness pointer is null (P16=0). Consider allocating.`
+- `Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.`
+- `Warnings`
+- `Weapon Properties`
+- `Weapon type (Sword, Lance, Axe, etc.)`
+- `Weight (B23):`
+- `Write`
 
 ### MonsterItemForm
 WF labels: **37** · AV labels: **7** · WF-only: **37** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 129 / AV 12)
@@ -2311,75 +2234,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Text Detail:`
 - `Unit/Class Pointer:`
 - `Weapon Item Skill Pointer:`
-- `Write`
-
-### EventUnitFE7Form
-WF labels: **36** · AV labels: **24** · WF-only: **36** · AV-only: **24** · Common: **0** · Density verdict: **Low** (WF 66 / AV 54)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1次AI`
-- `2次AI`
-- `LV:`
-- `Size:`
-- `X:`
-- `Y:`
-- `アイテムドロップ`
-- `アドレス`
-- `イベント名前`
-- `クラス`
-- `コメント`
-- `マップ名前`
-- `ユニット情報`
-- `ユニット番号`
-- `リストの拡張`
-- `交戦時BGMへJump`
-- `交戦時セリフへJump`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `成長率:`
-- `所属:`
-- `所持品1`
-- `所持品2`
-- `所持品3`
-- `所持品4`
-- `指揮官`
-- `新規領域の確保`
-- `書き込み`
-- `標的と回復AI`
-- `死亡時セリフへJump`
-- `読込数`
-- `退避AI`
-- `選択アドレス:`
-- `配置前座標`
-- `配置後座標`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `0x Address`
-- `Address:`
-- `AI1 Primary:`
-- `AI2 Secondary:`
-- `AI3 Target/Recovery:`
-- `AI4 Retreat:`
-- `Class ID:`
-- `End X:`
-- `End Y:`
-- `Event Unit (FE7)`
-- `Item 1:`
-- `Item 2:`
-- `Item 3:`
-- `Item 4:`
-- `Leader Unit ID:`
-- `Load`
-- `Maps`
-- `Start X:`
-- `Start Y:`
-- `Unit Groups`
-- `Unit ID:`
-- `Unit Info:`
-- `Units`
 - `Write`
 
 ### ImageBattleAnimeForm
@@ -2643,12 +2497,11 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### SongTrackForm
-WF labels: **37** · AV labels: **11** · WF-only: **34** · AV-only: **8** · Common: **3** · Density verdict: **High** (WF 45 / AV 19)
+WF labels: **37** · AV labels: **40** · WF-only: **33** · AV-only: **36** · Common: **4** · Density verdict: **Medium** (WF 45 / AV 63)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `Sappyで再生`
-- `Size:`
 - `アドレス`
 - `インターネットから新しいリソースを探す`
 - `ソースファイルを開く`
@@ -2684,145 +2537,118 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Export MIDI`
-- `Import MIDI`
-- `Instrument Set:`
-- `Song Track Editor`
-- `Track Count:`
-- `Tracks`
+- `0 (0x00) = inherit from previous song (default). 128 (0x80) = reverb off. 255 (0xFF) = reverb max. Use values in 128-255 (0x80-0xFF) when reverb is enabled. Vanilla: SFX=0, field FE6=158 (0x9E), FE7=1… (truncated; see designer file)`
+- `Address`
+- `All Tracks (Score) - click to bulk-change all tracks`
+- `Export Music File`
+- `First Address`
+- `Import Music File`
+- `Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.`
+- `Instrument Set`
+- `Open Source File`
+- `Open Source Folder`
+- `Pending Core extraction (ResourceCache shell integration).`
+- `Pending Core extraction (Sappy emulator integration is WinForms-only).`
+- `Play in Sappy`
+- `Read Count`
+- `Reload`
+- `Search for new resources online`
+- `Selected Address:`
+- `Song Exchange`
+- `Track 1`
+- `Track 10`
+- `Track 11`
+- `Track 12`
+- `Track 13`
+- `Track 14`
+- `Track 15`
+- `Track 16`
+- `Track 2`
+- `Track 3`
+- `Track 4`
+- `Track 5`
+- `Track 6`
+- `Track 7`
+- `Track 8`
+- `Track 9`
+- `Track Count`
 - `Write`
 
-### UnitFE6Form
-WF labels: **36** · AV labels: **49** · WF-only: **33** · AV-only: **46** · Common: **3** · Density verdict: **Medium** (WF 152 / AV 98)
+### EventUnitFE7Form
+WF labels: **36** · AV labels: **39** · WF-only: **32** · AV-only: **35** · Common: **4** · Density verdict: **Low** (WF 66 / AV 80)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `- `
-- `[HardCoding]`
-- `ID`
-- `Size:`
+- `1次AI`
+- `2次AI`
+- `アイテムドロップ`
 - `アドレス`
-- `シミュレーション`
-- `マップ顔`
-- `ユニットソート順`
-- `ユニット別能力`
-- `上位クラス戦闘アニメ色`
-- `下位クラス戦闘アニメ色`
-- `体格`
-- `先頭アドレス`
-- `再取得`
-- `合計%`
-- `名前`
-- `守備`
-- `属性:-`
-- `幸運`
-- `成長率(%)`
-- ` 技 `
-- `支援クラス`
-- `支援データ`
-- `攻撃`
-- `書き込み`
-- `武器LV`
-- `詳細`
-- `読込数`
-- `速さ`
-- `選択アドレス:`
-- `顔`
-- `魔力`
-- `魔防`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Ability Flags`
-- `Address:`
-- `Affinity:`
-- `Anima:`
-- `Axe:`
-- `Base Stats`
-- `Bow:`
-- `Byte1:`
-- `Byte2:`
-- `Byte3:`
-- `Byte4:`
-- `Click to open Portrait Viewer`
-- `Con:`
-- `Dark:`
-- `Decoded description text`
-- `Def:`
-- `Desc`
-- `Desc ID:`
-- `Growth Rates (%)`
-- `Identity`
-- `Lance:`
-- `Lck:`
-- `Light:`
-- `Lower Class Anim Color`
-- `Map Face:`
-- `Name:`
-- `Name ID:`
-- `Open Support`
-- `Open text viewer for this description`
-- `Portrait:`
-- `Res:`
-- `Skl:`
-- `Sort:`
-- `Spd:`
-- `Staff:`
-- `Str:`
-- `Support & Other`
-- `Support Ptr:`
-- `Sword:`
-- `Text ID for the unit's description`
-- `Undo`
-- `Unit Editor (FE6)`
-- `Unit ID:`
-- `Upper Class Anim Color`
-- `Weapon Levels`
-- `Write`
-
-### ClassOPDemoForm
-WF labels: **32** · AV labels: **2** · WF-only: **32** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 71 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60 (秒)`
-- `00固定`
-- `05固定`
-- `??`
-- `size:`
-- `アドレス`
-- `アニメの特殊指定`
-- `アニメ指定\r\nポインタ書き込み`
-- `アニメ指定のポインタ`
-- `アニメ指定のポインタ先`
-- `アニメ指定共有`
-- `ウェイト`
-- `パレットID`
+- `イベント名前`
+- `クラス`
+- `コメント`
+- `マップ名前`
+- `ユニット情報`
+- `ユニット番号`
 - `リストの拡張`
-- `使用可能表示武器`
+- `交戦時BGMへJump`
+- `交戦時セリフへJump`
 - `先頭アドレス`
 - `再取得`
 - `名前`
-- `戦闘アニメ`
-- `敵味方カラー`
-- `日本語名\r\nポインタ書き込み`
-- `日本語名の長さ`
-- `日本語名ポインタ`
-- `日本語名ポインタ先`
+- `成長率:`
+- `所属:`
+- `所持品1`
+- `所持品2`
+- `所持品3`
+- `所持品4`
+- `指揮官`
+- `新規領域の確保`
 - `書き込み`
-- `英語ポインタ`
-- `表示地形右半分`
-- `表示地形左半分`
-- `説明文ID`
+- `標的と回復AI`
+- `死亡時セリフへJump`
 - `読込数`
+- `退避AI`
 - `選択アドレス:`
-- `魔法エフェクト`
+- `配置前座標`
+- `配置後座標`
 
 AV-only labels (usually fine — layout polish or rewording):
 
+- `0x Address`
+- `0x10`
 - `Address:`
-- `Class OP Demo`
+- `After Coordinates:`
+- `Allegiance:`
+- `Battle BGM Jump`
+- `Battle Talk Jump`
+- `Before Coordinates:`
+- `Class:`
+- `Commander:`
+- `Comment:`
+- `Death Quote Jump`
+- `Event Names`
+- `Event Unit (FE7)`
+- `Expand List`
+- `Growth Rate:`
+- `Item 1:`
+- `Item 2:`
+- `Item 3:`
+- `Item 4:`
+- `Load`
+- `Map Names`
+- `Names`
+- `New Allocation`
+- `Primary AI:`
+- `Read Count`
+- `Reload`
+- `Retreat AI:`
+- `Secondary AI:`
+- `Selected Address:`
+- `Target/Recovery AI:`
+- `Top Address`
+- `Unit Info:`
+- `Unit Number:`
+- `Write`
 
 ### ImagePortraitForm
 WF labels: **32** · AV labels: **22** · WF-only: **32** · AV-only: **22** · Common: **0** · Density verdict: **Medium** (WF 63 / AV 37)
@@ -2888,13 +2714,12 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### ImagePortraitForm
-WF labels: **32** · AV labels: **28** · WF-only: **32** · AV-only: **28** · Common: **0** · Density verdict: **Medium** (WF 63 / AV 45)
+WF labels: **32** · AV labels: **50** · WF-only: **31** · AV-only: **49** · Common: **1** · Density verdict: **Low** (WF 63 / AV 77)
 
 WF-only labels (candidates for missing fields in AV):
 
 - `00`
 - `mug_exceed用のタイルをどこに配置するか設定してください`
-- `Size:`
 - `X:`
 - `Y:`
 - `アドレス`
@@ -2927,8 +2752,12 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
+- `0 = Close Mouth (deprecated)`
+- `1 = Normal`
+- `6 = Close Eyes`
 - `Address:`
 - `Class Card`
+- `Comment:`
 - `Export Face`
 - `Export Mini`
 - `Export PAL`
@@ -2939,22 +2768,39 @@ AV-only labels (usually fine — layout polish or rewording):
 - `FE-Repo`
 - `Import PAL`
 - `Import PNG`
+- `Jump to Importer`
+- `Jump to Palette`
+- `Jump to Status Height`
 - `Map Face:`
 - `Map Face (32x32)`
 - `Mouth Frames:`
 - `Mouth Frames (32x16 x6)`
 - `Mouth X:`
 - `Mouth Y:`
+- `MugExceed Tile1 X:`
+- `MugExceed Tile1 Y:`
+- `MugExceed Tile2 X:`
+- `MugExceed Tile2 Y:`
+- `Open Source File`
 - `Palette:`
 - `Portrait Image Editor`
+- `Read Count:`
+- `Reload`
+- `Select Source Folder`
+- `Selected Address:`
+- `Set mug_exceed tile positions:`
+- `Show Example (Frame 4)`
 - `Show Frame:`
+- `Start Address:`
 - `Status:`
+- `Tile 1`
+- `Tile 2`
 - `Unit Face:`
 - `Unit Face (96x80)`
 - `Unused (B25):`
 - `Unused (B26):`
 - `Unused (B27):`
-- `Write Positions`
+- `Write`
 
 ### SkillConfigFE8NVer2SkillForm
 WF labels: **31** · AV labels: **10** · WF-only: **31** · AV-only: **10** · Common: **0** · Density verdict: **High** (WF 136 / AV 17)
@@ -3005,6 +2851,198 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unit Skill Pointer:`
 - `Weapon Item Skill Pointer:`
 - `Write`
+
+### UnitForm
+WF labels: **49** · AV labels: **93** · WF-only: **31** · AV-only: **75** · Common: **18** · Density verdict: **Low** (WF 183 / AV 146)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `ID`
+- `アドレス`
+- `シミュレーション`
+- `スキル`
+- `マップ顔`
+- `ユニットソート順`
+- `ユニット別パレットへジャンプ`
+- `ユニット別能力`
+- `会話グループ`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `守備`
+- `属性:-`
+- `幸運`
+- `成長率(%)`
+- ` 技 `
+- `支援クラス`
+- `支援データ`
+- `攻撃`
+- `書き込み`
+- `武器LV`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `顔`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Ability Flags`
+- `Affinity:`
+- `Anima:`
+- `Axe:`
+- `Base Hit Points (signed offset from class base)`
+- `Base Stats`
+- `Base Strength/Magic (signed offset from class base)`
+- `Bow:`
+- `Byte 1:`
+- `Byte 2:`
+- `Byte 3:`
+- `Byte 4:`
+- `Calculate Growth`
+- `Class ID:`
+- `Con:`
+- `Dark:`
+- `Decoded description text`
+- `Def:`
+- `Desc`
+- `Desc ID:`
+- `Edit Skills`
+- `Elemental affinity for support bonuses`
+- `Export all units to a CSV file or clipboard`
+- `Export the selected unit to a CSV file or clipboard`
+- `Export/Import Options`
+- `Growth Rates (%)`
+- `Growth Simulator`
+- `Identity`
+- `Import all units from a CSV file or clipboard`
+- `Import the selected unit from a CSV file or clipboard`
+- `Jump`
+- `Lance:`
+- `Lck:`
+- `Light:`
+- `Map Face:`
+- `Map sprite face index`
+- `Name:`
+- `Name ID:`
+- `Open skill assignment editor for this unit`
+- `Open Support`
+- `Open text viewer for this description`
+- `Percent chance of HP increasing on level up`
+- `Pick class from editor`
+- `Pick portrait from editor`
+- `Pick...`
+- `Portrait:`
+- `Portrait graphic index (click to open Portrait Viewer)`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res:`
+- `Selected Address:`
+- `Simulate to LV:`
+- `Skl:`
+- `Sort:`
+- `Spd:`
+- `Staff:`
+- `Starting level of this unit`
+- `Str:`
+- `Support & Other`
+- `Support Ptr:`
+- `Sword:`
+- `Talk:`
+- `Text ID for the unit's description (click to open Text Viewer)`
+- `Text ID for the unit's display name (click to open Text Viewer)`
+- `The unit's class (click to open Class Editor)`
+- `This unit is referenced by hardcoded ASM. Click to view related patches.`
+- `Undo`
+- `Unique identifier for this unit`
+- `Unit Editor`
+- `Unit ID:`
+- `Unit or class name associated with this portrait ID`
+- `Warnings`
+- `Weapon Levels`
+- `Write`
+
+### ClassOPDemoForm
+WF labels: **32** · AV labels: **40** · WF-only: **30** · AV-only: **38** · Common: **2** · Density verdict: **Low** (WF 71 / AV 83)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60 (秒)`
+- `00固定`
+- `05固定`
+- `アドレス`
+- `アニメの特殊指定`
+- `アニメ指定\r\nポインタ書き込み`
+- `アニメ指定のポインタ`
+- `アニメ指定のポインタ先`
+- `アニメ指定共有`
+- `ウェイト`
+- `パレットID`
+- `リストの拡張`
+- `使用可能表示武器`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `戦闘アニメ`
+- `敵味方カラー`
+- `日本語名\r\nポインタ書き込み`
+- `日本語名の長さ`
+- `日本語名ポインタ`
+- `日本語名ポインタ先`
+- `書き込み`
+- `英語ポインタ`
+- `表示地形右半分`
+- `表示地形左半分`
+- `説明文ID`
+- `読込数`
+- `選択アドレス:`
+- `魔法エフェクト`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `/60 (sec)`
+- `1`
+- `28`
+- `6`
+- `Address`
+- `Ally / Enemy Color:`
+- `Anime Spec Pointer:`
+- `Anime Spec Pointer Target`
+- `Anime Spec Shared`
+- `Anime Special Spec:`
+- `Battle Anime:`
+- `Class OP Demo Editor`
+- `Description Text ID:`
+- `Display Weapon (Class):`
+- `English Name Pointer:`
+- `Fixed 00:`
+- `Fixed 05:`
+- `Glyph:`
+- `Japanese Name Length:`
+- `Japanese Name Pointer:`
+- `Japanese Name Pointer Target`
+- `List Expand`
+- `Magic Effect:`
+- `Name`
+- `Palette ID:`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Start Address`
+- `Terrain (Left Half):`
+- `Terrain (Right Half):`
+- `Unknown (0x12):`
+- `Wait Frames:`
+- `Write`
+- `Write Anime Spec Pointer`
+- `Write Anime Tuple`
+- `Write Glyph Entry`
+- `Write JP Name Pointer`
 
 ### ImageTSAEditorForm
 WF labels: **30** · AV labels: **2** · WF-only: **30** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 100 / AV 3)
@@ -3103,6 +3141,105 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Target/Recovery AI:`
 - `Write`
 
+### UnitFE6Form
+WF labels: **36** · AV labels: **66** · WF-only: **30** · AV-only: **60** · Common: **6** · Density verdict: **Low** (WF 152 / AV 133)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `ID`
+- `アドレス`
+- `シミュレーション`
+- `マップ顔`
+- `ユニットソート順`
+- `ユニット別能力`
+- `上位クラス戦闘アニメ色`
+- `下位クラス戦闘アニメ色`
+- `体格`
+- `先頭アドレス`
+- `再取得`
+- `合計%`
+- `名前`
+- `守備`
+- `属性:-`
+- `幸運`
+- `成長率(%)`
+- ` 技 `
+- `支援クラス`
+- `支援データ`
+- `攻撃`
+- `書き込み`
+- `武器LV`
+- `詳細`
+- `読込数`
+- `速さ`
+- `選択アドレス:`
+- `顔`
+- `魔力`
+- `魔防`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Ability Flags`
+- `Affinity:`
+- `Anima:`
+- `Axe:`
+- `Base Stats`
+- `Bow:`
+- `Byte1:`
+- `Byte2:`
+- `Byte3:`
+- `Byte4:`
+- `Click to open Portrait Viewer`
+- `Con:`
+- `Dark:`
+- `Decoded description text`
+- `Def:`
+- `Desc`
+- `Desc ID:`
+- `Growth Rates (%)`
+- `Growth Simulation`
+- `Identity`
+- `Lance:`
+- `Lck:`
+- `Light:`
+- `Lower Class Anim Color`
+- `Map Face:`
+- `Name:`
+- `Name ID:`
+- `Open Support`
+- `Open text viewer for this description`
+- `Portrait:`
+- `Read Count:`
+- `Read Start Address:`
+- `Reload`
+- `Res:`
+- `Selected Address:`
+- `Sim DEF:`
+- `Sim HP:`
+- `Sim LCK:`
+- `Sim Level:`
+- `Sim RES:`
+- `Sim SKL:`
+- `Sim SPD:`
+- `Sim STR:`
+- `Skl:`
+- `Sort:`
+- `Spd:`
+- `Staff:`
+- `Str:`
+- `Support & Other`
+- `Support Ptr:`
+- `Sword:`
+- `Text ID for the unit's description`
+- `This unit is referenced by hardcoded ASM. Click to view related patches.`
+- `Total Growth %:`
+- `Undo`
+- `Unit Editor (FE6)`
+- `Unit ID:`
+- `Upper Class Anim Color`
+- `Weapon Levels`
+- `Write`
+
 ### ImageBattleAnimePalletForm
 WF labels: **29** · AV labels: **2** · WF-only: **29** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 99 / AV 3)
 
@@ -3182,60 +3319,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Palette Editor`
 
-### OPClassDemoFE7Form
-WF labels: **28** · AV labels: **17** · WF-only: **28** · AV-only: **17** · Common: **0** · Density verdict: **High** (WF 64 / AV 32)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60 (秒)`
-- `00`
-- `??`
-- `Commamd`
-- `Size:`
-- `アドレス`
-- `アニメ指定\r\nポインタ書き込み`
-- `アニメ指定のポインタ`
-- `グラフィックツール`
-- `パレットID`
-- `リストの拡張`
-- `使用可能表示武器`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `戦闘アニメ`
-- `敵味方カラー`
-- `日本語名 開始位置`
-- `日本語名の長さ`
-- `日本語名アドレス`
-- `書き込み`
-- `英語ポインタ`
-- `表示地形右半分`
-- `表示地形左半分`
-- `説明文ID`
-- `読込数`
-- `選択アドレス:`
-- `魔法エフェクト`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Ally/Enemy Color:`
-- `Anime Pointer:`
-- `Battle Anime:`
-- `Class ID:`
-- `Click to open Class Editor`
-- `Description Text ID:`
-- `Display Weapon:`
-- `English Name Pointer:`
-- `Japanese Name Length:`
-- `Japanese Name Pointer:`
-- `Magic Effect:`
-- `OP Class Demo (FE7) Editor`
-- `Palette ID:`
-- `Terrain Left:`
-- `Terrain Right:`
-- `Write`
-
 ### StatusOptionForm
 WF labels: **28** · AV labels: **22** · WF-only: **28** · AV-only: **22** · Common: **0** · Density verdict: **Low** (WF 50 / AV 47)
 
@@ -3295,8 +3378,8 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Y Position:`
 - `Yes Text ID:`
 
-### OPClassDemoForm
-WF labels: **27** · AV labels: **16** · WF-only: **27** · AV-only: **16** · Common: **0** · Density verdict: **High** (WF 63 / AV 31)
+### OPClassDemoFE7Form
+WF labels: **28** · AV labels: **41** · WF-only: **27** · AV-only: **40** · Common: **1** · Density verdict: **Low** (WF 64 / AV 78)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -3304,7 +3387,82 @@ WF-only labels (candidates for missing fields in AV):
 - `00`
 - `??`
 - `Commamd`
-- `Size:`
+- `アドレス`
+- `アニメ指定\r\nポインタ書き込み`
+- `アニメ指定のポインタ`
+- `グラフィックツール`
+- `パレットID`
+- `リストの拡張`
+- `使用可能表示武器`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `戦闘アニメ`
+- `敵味方カラー`
+- `日本語名 開始位置`
+- `日本語名の長さ`
+- `日本語名アドレス`
+- `書き込み`
+- `英語ポインタ`
+- `表示地形右半分`
+- `表示地形左半分`
+- `説明文ID`
+- `読込数`
+- `選択アドレス:`
+- `魔法エフェクト`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `/60 (sec)`
+- `1=Ranged attack anime`
+- `2=Ranged critical anime`
+- `3=Set anime state to 'hit effect applied'`
+- `4=Ranged attack anime (alt)`
+- `5=Wait N frames (arg = N/60 sec)`
+- `6=Ranged evade anime`
+- `7=Hit effect applied (FE8 unused)`
+- `8=Wait for C01/C02/C18 cmd`
+- `Address`
+- `Ally/Enemy Color:`
+- `Animation Pointer Target Block`
+- `Anime Pointer:`
+- `Battle Anime:`
+- `Class ID:`
+- `Click to open Class Editor`
+- `Command`
+- `Command Description:`
+- `Description Text ID:`
+- `English Name Pointer:`
+- `Japanese Name Length:`
+- `Japanese Name Pointer:`
+- `Japanese Name Start:`
+- `Magic Effect:`
+- `OP Class Demo (FE7) Editor`
+- `Palette ID:`
+- `Selected Address:`
+- `Terrain Left:`
+- `Terrain Right:`
+- `Unknown (0x06):`
+- `Unknown (0x13):`
+- `Unknown (0x14):`
+- `Unknown (0x15):`
+- `Unknown (0x16):`
+- `Unknown (0x19):`
+- `Unknown (0x1A):`
+- `Unknown (0x1B):`
+- `Wait Frames`
+- `Write Animation Command`
+- `Write to ROM`
+
+### OPClassDemoForm
+WF labels: **27** · AV labels: **32** · WF-only: **26** · AV-only: **31** · Common: **1** · Density verdict: **Low** (WF 63 / AV 65)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60 (秒)`
+- `00`
+- `??`
+- `Commamd`
 - `アドレス`
 - `アニメ指定\r\nポインタ書き込み`
 - `アニメ指定のポインタ`
@@ -3330,252 +3488,37 @@ WF-only labels (candidates for missing fields in AV):
 
 AV-only labels (usually fine — layout polish or rewording):
 
-- `Address:`
-- `Ally/Enemy Color:`
-- `Anime Pointer:`
+- `28`
+- `Address`
+- `Address (decimal)`
+- `Ally / Enemy Color:`
+- `Animation Commands (pointer P24)`
+- `Anime Spec Pointer:`
+- `Arg (/60 sec):`
 - `Battle Anime:`
+- `Battle Anime (Patch +1):`
+- `Command:`
+- `Data Expansion`
 - `Description Text ID:`
-- `Display Weapon:`
+- `Display Weapon (Class):`
 - `English Name Pointer:`
+- `Glyph:`
+- `Japanese Name Font Glyphs (pointer P8)`
 - `Japanese Name Length:`
 - `Japanese Name Pointer:`
 - `Magic Effect:`
+- `Name`
 - `OP Class Demo Editor`
 - `Palette ID:`
-- `Terrain Left:`
-- `Terrain Right:`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Terrain (Left Half):`
+- `Terrain (Right Half):`
 - `Unknown (0x12):`
 - `Write`
-
-### ImageMagicCSACreatorForm
-WF labels: **25** · AV labels: **2** · WF-only: **25** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `dim`
-- `FrameData`
-- `OBJBGLeftToRight`
-- `OBJBGRightToLeft`
-- `OBJLeftToRight`
-- `OBJRightToLeft`
-- `Size:`
-- `アドレス`
-- `インターネットから新しいリソースを探す`
-- `エディタ`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `フレーム`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-- `魔法アニメの書出し`
-- `魔法アニメの読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `CSA Magic Creator`
-
-### ImageMagicFEditorForm
-WF labels: **25** · AV labels: **2** · WF-only: **25** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `dim`
-- `FrameData`
-- `OBBGLeftToRight`
-- `OBJBGRightToLeft`
-- `OBJLeftToRight`
-- `OBJRightToLeft`
-- `Size:`
-- `アドレス`
-- `インターネットから新しいリソースを探す`
-- `エディタ`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `フレーム`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `表示例`
-- `読込数`
-- `選択アドレス:`
-- `魔法アニメの書出し`
-- `魔法アニメの読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Magic Effect Editor (FEditor)`
-
-### AIScriptForm
-WF labels: **24** · AV labels: **2** · WF-only: **24** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 37 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Close`
-- `アドレス`
-- `コメント`
-- `バイナリコード`
-- `パラメータ1`
-- `パラメータ2`
-- `パラメータ3`
-- `パラメータ4`
-- `パラメータ5`
-- `ファイルからインポート`
-- `ファイルへエクスポート`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `切替`
-- `削除`
-- `名前`
-- `命令変更`
-- `変更`
-- `新規挿入`
-- `書き込み`
-- `説明`
-- `読込バイト数`
-- `読込数`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `AI Script Editor`
-
-### OPClassDemoFE7UForm
-WF labels: **24** · AV labels: **14** · WF-only: **24** · AV-only: **14** · Common: **0** · Density verdict: **High** (WF 56 / AV 26)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `/60 (秒)`
-- `00`
-- `??`
-- `Commamd`
-- `Size:`
-- `アドレス`
-- `アニメ指定\r\nポインタ書き込み`
-- `アニメ指定のポインタ`
-- `クラス`
-- `パレットID`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `戦闘アニメ`
-- `敵味方カラー`
-- `書き込み`
-- `英語ポインタ`
-- `表示地形右半分`
-- `表示地形左半分`
-- `説明文ID`
-- `読込数`
-- `選択アドレス:`
-- `魔法エフェクト`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Ally/Enemy Color:`
-- `Anime Pointer:`
-- `Battle Anime:`
-- `Class ID:`
-- `Click to open Class Editor`
-- `Description Text ID:`
-- `English Name Pointer:`
-- `Japanese Name Length:`
-- `Magic Effect:`
-- `OP Class Demo (FE7U) Editor`
-- `Terrain Left:`
-- `Terrain Right:`
-- `Write`
-
-### SkillAssignmentClassCSkillSysForm
-WF labels: **24** · AV labels: **5** · WF-only: **24** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 43 / AV 7)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `EnemyOnly(LV+64)`
-- `Hard only (LV+128)`
-- `Normal&&Hard (LV+96)`
-- `PlayerOnly(LV+32)`
-- `Size:`
-- `このテーブルは、複数のクラスで参照されています。`
-- `アドレス`
-- `クラススキル`
-- `スキル`
-- `リストの拡張`
-- `レベル`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `書き込み`
-- `習得レベル`
-- `習得レベルとスキルの詳細は、ここをクリックしてください。`
-- `習得レベルの内訳`
-- `読込数`
-- `選択アドレス:`
-- `選択クラスの分離独立`
-- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Class Skill:`
-- `Skill Assignment - Class (CSkillSys)`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
-- `Write`
-
-### SkillAssignmentClassSkillSystemForm
-WF labels: **24** · AV labels: **5** · WF-only: **24** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 43 / AV 7)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `EnemyOnly(LV+64)`
-- `Hard only (LV+128)`
-- `Normal&&Hard (LV+96)`
-- `PlayerOnly(LV+32)`
-- `Size:`
-- `このテーブルは、複数のクラスで参照されています。`
-- `アドレス`
-- `クラススキル`
-- `スキル`
-- `リストの拡張`
-- `レベル`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `書き込み`
-- `習得レベル`
-- `習得レベルとスキルの詳細は、ここをクリックしてください。`
-- `習得レベルの内訳`
-- `読込数`
-- `選択アドレス:`
-- `選択クラスの分離独立`
-- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Assigns a skill to each class via the SkillSystem patch.`
-- `Class Skill:`
-- `Skill Assignment (Class)`
-- `Write`
+- `Write Anime Command`
+- `Write Glyph Entry`
 
 ### WorldMapPointForm
 WF labels: **24** · AV labels: **21** · WF-only: **24** · AV-only: **21** · Common: **0** · Density verdict: **Low** (WF 51 / AV 41)
@@ -3631,6 +3574,67 @@ AV-only labels (usually fine — layout polish or rewording):
 - `World Map Point Editor`
 - `Write`
 
+### AIScriptForm
+WF labels: **24** · AV labels: **30** · WF-only: **23** · AV-only: **29** · Common: **1** · Density verdict: **Medium** (WF 37 / AV 49)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `コメント`
+- `バイナリコード`
+- `パラメータ1`
+- `パラメータ2`
+- `パラメータ3`
+- `パラメータ4`
+- `パラメータ5`
+- `ファイルからインポート`
+- `ファイルへエクスポート`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `切替`
+- `削除`
+- `名前`
+- `命令変更`
+- `変更`
+- `新規挿入`
+- `書き込み`
+- `説明`
+- `読込バイト数`
+- `読込数`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0`
+- `0x00000000`
+- `Address`
+- `Binary Code`
+- `Comment`
+- `Description`
+- `Detail Address`
+- `Disassembly`
+- `Export To File`
+- `Import From File`
+- `List Expand`
+- `Name`
+- `New Insert`
+- `Parameter 1`
+- `Parameter 2`
+- `Parameter 3`
+- `Parameter 4`
+- `Parameter 5`
+- `Re-read`
+- `Read Byte Count`
+- `Read Count`
+- `Reload`
+- `Remove`
+- `Script Bytes:`
+- `Script Change`
+- `Switch`
+- `Top Address`
+- `Update`
+- `Write`
+
 ### EDFE7Form
 WF labels: **23** · AV labels: **2** · WF-only: **23** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 81 / AV 3)
 
@@ -3664,6 +3668,74 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `ED (FE7)`
+
+### OPClassDemoFE7UForm
+WF labels: **24** · AV labels: **37** · WF-only: **23** · AV-only: **36** · Common: **1** · Density verdict: **Low** (WF 56 / AV 62)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `/60 (秒)`
+- `00`
+- `??`
+- `Commamd`
+- `アドレス`
+- `アニメ指定\r\nポインタ書き込み`
+- `アニメ指定のポインタ`
+- `クラス`
+- `パレットID`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `戦闘アニメ`
+- `敵味方カラー`
+- `書き込み`
+- `英語ポインタ`
+- `表示地形右半分`
+- `表示地形左半分`
+- `説明文ID`
+- `読込数`
+- `選択アドレス:`
+- `魔法エフェクト`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `/60 (sec)`
+- `1=Ranged attack anime`
+- `2=Ranged critical anime`
+- `3=Set anime state to 'hit effect applied'`
+- `4=Ranged attack anime (alt)`
+- `5=Wait N frames (arg = N/60 sec)`
+- `6=Ranged evade anime`
+- `7=Hit effect applied (FE8 unused)`
+- `8=Wait for C01/C02/C18 cmd`
+- `Address`
+- `Ally/Enemy Color:`
+- `Animation Pointer Target Block`
+- `Anime Pointer:`
+- `Battle Anime:`
+- `Class ID:`
+- `Click to open Class Editor`
+- `Command`
+- `Command Description:`
+- `Description Text ID:`
+- `English Name Pointer:`
+- `Japanese Name Length:`
+- `Japanese Name Pointer:`
+- `Magic Effect:`
+- `OP Class Demo (FE7U) Editor`
+- `Selected Address:`
+- `Terrain Left:`
+- `Terrain Right:`
+- `Unknown (0x0F):`
+- `Unknown (0x10):`
+- `Unknown (0x11):`
+- `Unknown (0x13):`
+- `Unknown (0x16):`
+- `Unknown (0x17):`
+- `Wait Frames`
+- `Write Animation Command`
+- `Write to ROM`
 
 ### OPClassDemoFE8UForm
 WF labels: **23** · AV labels: **12** · WF-only: **23** · AV-only: **12** · Common: **0** · Density verdict: **High** (WF 50 / AV 24)
@@ -3885,42 +3957,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown 2:`
 - `Write`
 
-### SkillConfigSkillSystemForm
-WF labels: **22** · AV labels: **5** · WF-only: **22** · AV-only: **5** · Common: **0** · Density verdict: **High** (WF 30 / AV 7)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
-- `アイコン`
-- `アドレス`
-- `アニメーション`
-- `アニメーション取出`
-- `アニメーション読込`
-- `エディタ`
-- `フレーム`
-- `リストの拡張`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `拡大`
-- `書き込み`
-- `画像取出`
-- `画像読込`
-- `表示例`
-- `詳細`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Configures skill text details for the SkillSystem patch.`
-- `Skill Config (SkillSystem)`
-- `Text Detail:`
-- `Write`
-
 ### SupportUnitForm
 WF labels: **22** · AV labels: **33** · WF-only: **22** · AV-only: **33** · Common: **0** · Density verdict: **Medium** (WF 50 / AV 73)
 
@@ -3985,73 +4021,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Talk`
 - `Write`
 
-### ToolTranslateROMForm
-WF labels: **22** · AV labels: **2** · WF-only: **22** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 35 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `..`
-- `from:`
-- `OneLiner`
-- `to:`
-- `すべてのテキストをテキストファイルに書きだします。`
-- `フォント取込`
-- `全テキストの書出し`
-- `全テキストの読込`
-- `利用フォント`
-- `変更`
-- `定型文ROM FROM`
-- `定型文ROM TO`
-- `定型文の翻訳(FROM ROMと TO ROMから、定型文を取得し、翻訳の参考にする)`
-- `改造されたテキストのみ取得する`
-- `日本語フォントの上書き`
-- `現行ROMに足りないフォントを、以下のROMにあるフォントからコピーする`
-- `簡易`
-- `翻訳データ`
-- `翻訳開始`
-- `詳細`
-- `足りないフォントの自動生成`
-- `追加フォント ROM`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `ROM Translation Tool`
-
-### MapExitPointForm
-WF labels: **21** · AV labels: **4** · WF-only: **21** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 32 / AV 6)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `Size:`
-- `X:`
-- `Y:`
-- `これは敵のエスケープポイントです。\r\nNPC用は、左上のコンボボックスを切り替えてください。`
-- `アドレス`
-- `マップ名`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `新規領域の確保`
-- `書き込み`
-- `条件:`
-- `消滅方法`
-- `読込数`
-- `選択アドレス:`
-- `離脱ポインタ`
-- `離脱ポインタ書き込み`
-- `離脱ポイント再取得`
-- `離脱座標`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Exit Pointer:`
-- `Map Exit Point Editor`
-- `Write`
-
 ### MenuCommandForm
 WF labels: **21** · AV labels: **13** · WF-only: **21** · AV-only: **13** · Common: **0** · Density verdict: **Medium** (WF 39 / AV 26)
 
@@ -4096,7 +4065,7 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 
 ### PointerToolForm
-WF labels: **21** · AV labels: **20** · WF-only: **21** · AV-only: **20** · Common: **0** · Density verdict: **Low** (WF 31 / AV 33)
+WF labels: **21** · AV labels: **32** · WF-only: **21** · AV-only: **32** · Common: **0** · Density verdict: **Medium** (WF 31 / AV 45)
 
 WF-only labels (candidates for missing fields in AV):
 
@@ -4133,171 +4102,45 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Content Type`
 - `Data Address\n(if pointer)`
 - `e.g. 0x08000000`
+- `e.g. 0x100`
 - `First Reference`
+- `LDR Match\nAddress`
+- `LDR Reference`
 - `Little Endian`
+- `Load Other ROM`
 - `Match Method`
 - `Other ROM\nData Address`
 - `Other ROM Ref`
 - `Pointer`
+- `ROM offset (without 0x08000000 base) to write as a pointer at Address. Accepts hex with or without 0x prefix.`
 - `Search Options`
 - `Slide Search`
 - `Use ASM Map for search`
 - `Warning Level`
+- `Warning: Very far from origin (direct match)`
+- `Warning: Very far from origin (LDR match)`
+- `Warning: Zero region (direct match)`
+- `Warning: Zero region (LDR match)`
 - `What Is`
-
-### EDForm
-WF labels: **20** · AV labels: **7** · WF-only: **20** · AV-only: **7** · Common: **0** · Density verdict: **High** (WF 65 / AV 11)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `0000`
-- `Size:`
-- `その後`
-- `アドレス`
-- `ユニット`
-- `リストの拡張`
-- `先頭アドレス`
-- `内容`
-- `再取得`
-- `名前`
-- `指定`
-- `撤退`
-- `撤退指定 02`
-- `書き込み`
-- `条件:`
-- `登場ユニット`
-- `読込数`
-- `通り名`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Condition:`
-- `Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed`
-- `Ending Event Editor`
-- `Unknown (0x02):`
-- `Unknown (0x03):`
 - `Write`
+- `Write pointer value at the address (WriteTarget = ROM offset of target)`
+- `Write Target Offset`
 
-### EventMapChangeForm
-WF labels: **20** · AV labels: **2** · WF-only: **20** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 36 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `??`
-- `H:`
-- `size:`
-- `W:`
-- `X:`
-- `Y:`
-- `アドレス`
-- `サイズ`
-- `マップ名前`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `変化データ\r\nポインタ先へのインポート`
-- `変化データポインタ`
-- `座標`
-- `書き込み`
-- `番号`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Map Change Event Editor`
-
-### ImageBGForm
-WF labels: **20** · AV labels: **6** · WF-only: **20** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 26 / AV 7)
+### SkillConfigSkillSystemForm
+WF labels: **22** · AV labels: **27** · WF-only: **21** · AV-only: **26** · Common: **1** · Density verdict: **Medium** (WF 30 / AV 40)
 
 WF-only labels (candidates for missing fields in AV):
 
-- `Size:`
-- `アドレス`
-- `グラフィックツール`
-- `コメント`
-- `ソースファイルを開く`
-- `ソースフォルダーを開く`
-- `パレット`
-- `ヘッダ付きTSA`
-- `リストの拡張`
-- `先頭アドレス`
-- `再取得`
-- `参照箇所`
-- `名前`
-- `書き込み`
-- `減色ツール`
-- `画像`
-- `画像取出`
-- `画像読込`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Background Image Editor`
-- `Export PAL`
-- `Export PNG`
-- `Import PAL`
-- `Import PNG`
-
-### MapTileAnimation2Form
-WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 40 / AV 14)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `00`
-- `B`
-- `G`
-- `GBAカラー`
-- `R`
-- `Size:`
-- `アドレス`
-- `アニメーション間隔`
-- `データ個数`
-- `リストの拡張`
-- `一括インポート`
-- `一括エクスポート`
-- `先頭アドレス`
-- `再取得`
-- `名前`
-- `書き換えるパレットデータ`
-- `書き換え始めパレット番号`
-- `書き込み`
-- `読込数`
-- `選択アドレス:`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Animation Interval:`
-- `Data Count:`
-- `Map Tile Animation Type 2 (Palette)`
-- `Palette Data Pointer:`
-- `Start Palette Index:`
-- `Unknown (0x07):`
-- `Write`
-
-### SkillConfigFE8UCSkillSys09xForm
-WF labels: **20** · AV labels: **6** · WF-only: **20** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 29 / AV 9)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `Size:`
 - `アイコン`
 - `アドレス`
 - `アニメーション`
 - `アニメーション取出`
 - `アニメーション読込`
 - `エディタ`
-- `スキル名`
 - `フレーム`
+- `リストの拡張`
+- `一括インポート`
+- `一括エクスポート`
 - `先頭アドレス`
 - `再取得`
 - `名前`
@@ -4313,11 +4156,31 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Animation`
+- `Animation Export`
+- `Animation Import`
+- `Bulk Export`
+- `Bulk Import`
 - `Description:`
-- `Skill Configuration (CSkillSys 0.9.x)`
-- `Skill Name:`
-- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
+- `Display example`
+- `Editor`
+- `Filter Name`
+- `Frame`
+- `Icon`
+- `Image Export`
+- `Image Import`
+- `List Expand`
+- `Original size`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count:`
+- `Reload`
+- `Selected Address:`
+- `Skill Config (SkillSystem)`
+- `Skill system editors require the SkillSystems patch to be installed.\nUse the Patch Manager to install it first.`
+- `Start Address:`
 - `Write`
+- `Zoom`
+- `Zoomed`
 
 ### SongTableForm
 WF labels: **20** · AV labels: **8** · WF-only: **20** · AV-only: **8** · Common: **0** · Density verdict: **Medium** (WF 26 / AV 14)
@@ -4410,6 +4273,58 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Walks ROM for LZ77-compressed entries and re-compresses each with the current encoder. Any savings can be reclaimed via Rebuild later. Process takes several minutes for a full ROM scan.`
 - `Zero Clear This Region`
 
+### EDForm
+WF labels: **20** · AV labels: **25** · WF-only: **19** · AV-only: **24** · Common: **1** · Density verdict: **Low** (WF 65 / AV 66)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `0000`
+- `その後`
+- `アドレス`
+- `ユニット`
+- `リストの拡張`
+- `先頭アドレス`
+- `内容`
+- `再取得`
+- `名前`
+- `指定`
+- `撤退`
+- `撤退指定 02`
+- `書き込み`
+- `条件:`
+- `登場ユニット`
+- `読込数`
+- `通り名`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `1=Solo`
+- `2=Support`
+- `Address`
+- `Bytes +2..+3 are reserved (WF designer doesn't expose).`
+- `Condition: 00=Died, 01=Wounded/Left, 02=Wounded/Stayed`
+- `Designation`
+- `Eirika Route`
+- `Ephraim Route`
+- `Epilogue`
+- `Epilogue Text`
+- `Epithet`
+- `Epithet Text`
+- `Filter:`
+- `List Expand`
+- `Read Count`
+- `Reload`
+- `Retreat`
+- `Retreat Spec 02`
+- `Selected Address:`
+- `Story Flag`
+- `Top Address`
+- `Unknown (0x02):`
+- `Unknown (0x03):`
+- `Write`
+
 ### ErrorPaletteTransparentForm
 WF labels: **19** · AV labels: **2** · WF-only: **19** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 50 / AV 3)
 
@@ -4439,6 +4354,55 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Close`
 - `Palette Transparency Error`
+
+### ImageBGForm
+WF labels: **20** · AV labels: **22** · WF-only: **19** · AV-only: **21** · Common: **1** · Density verdict: **Medium** (WF 26 / AV 33)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `グラフィックツール`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `パレット`
+- `ヘッダ付きTSA`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `参照箇所`
+- `名前`
+- `書き込み`
+- `減色ツール`
+- `画像`
+- `画像取出`
+- `画像読込`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Background Image Editor`
+- `Color Reduce`
+- `Comment`
+- `Expand List (+1 slot)`
+- `Export Image`
+- `Export PAL`
+- `Graphics Tool`
+- `Header TSA`
+- `Image`
+- `Import Image`
+- `Import PAL`
+- `Open Source File`
+- `Open Source Folder`
+- `Palette`
+- `Read Count`
+- `Read Start Address`
+- `References`
+- `Reload`
+- `Selected Address:`
+- `Write`
 
 ### ImageCGFE7UForm
 WF labels: **20** · AV labels: **11** · WF-only: **19** · AV-only: **10** · Common: **1** · Density verdict: **Medium** (WF 31 / AV 17)
@@ -4541,12 +4505,12 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Animation Pointer (D0):`
 - `Comment:`
 - `Display example`
 - `Filter Name`
 - `Frame:`
-- `Hex Address`
 - `ID=00 is reserved as null data. Do not set any value other than 0x0.`
 - `List Expansion`
 - `Map Action Animation`
@@ -4641,6 +4605,159 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write`
 - `X Position:`
 - `Y Position:`
+
+### SkillAssignmentClassCSkillSysForm
+WF labels: **24** · AV labels: **28** · WF-only: **19** · AV-only: **23** · Common: **5** · Density verdict: **Medium** (WF 43 / AV 57)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `このテーブルは、複数のクラスで参照されています。`
+- `アドレス`
+- `クラススキル`
+- `スキル`
+- `リストの拡張`
+- `レベル`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `書き込み`
+- `習得レベル`
+- `習得レベルとスキルの詳細は、ここをクリックしてください。`
+- `習得レベルの内訳`
+- `読込数`
+- `選択アドレス:`
+- `選択クラスの分離独立`
+- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Acquired Level`
+- `Acquired Level Breakdown`
+- `Address:`
+- `Bulk Export`
+- `Bulk Import`
+- `Class Skill`
+- `Click here for acquired level and skill details`
+- `Detach Selected Class (make independent)`
+- `Expand List`
+- `Level:`
+- `Level is set to 255.\nWhen a class is reached via CC from a base class, this skill cannot be obtained.\nOnly when this class is LOADed can this skill be held.`
+- `Level-up Skill Table Address`
+- `Name`
+- `No level-up skill area is allocated for this class.\nPress the "Expand List" button to allocate one.`
+- `Read Count:`
+- `Reload`
+- `Selected:`
+- `Skill`
+- `Skill Assignment - Class (CSkillSys 3.00).\nThis editor requires the CSkillSys 3.00+ skill system patch to be installed.\nUse the Patch Manager to install the CSkillSys 3.00 patch first.`
+- `Skill Assignment - Class (CSkillSys)`
+- `Start Address:`
+- `This table is referenced by multiple classes.`
+- `Write`
+
+### SkillAssignmentClassSkillSystemForm
+WF labels: **24** · AV labels: **27** · WF-only: **19** · AV-only: **22** · Common: **5** · Density verdict: **Medium** (WF 43 / AV 57)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `このテーブルは、複数のクラスで参照されています。`
+- `アドレス`
+- `クラススキル`
+- `スキル`
+- `リストの拡張`
+- `レベル`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `書き込み`
+- `習得レベル`
+- `習得レベルとスキルの詳細は、ここをクリックしてください。`
+- `習得レベルの内訳`
+- `読込数`
+- `選択アドレス:`
+- `選択クラスの分離独立`
+- `領域が確保されていません。\r\n「リストの拡張ボタン」を押して領域を確保してください。`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Acquisition Level`
+- `Address:`
+- `Bulk Export`
+- `Bulk Import`
+- `Class Skill`
+- `Click here for level/skill details (opens wiki)`
+- `Filter Name`
+- `Level`
+- `Level Breakdown`
+- `Level-up Skill Top Address`
+- `List Expand`
+- `Make Selected Class Independent`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count:`
+- `Reload`
+- `Selected Address:`
+- `Skill`
+- `Skill Assignment (Class)`
+- `Skill system editors require the SkillSystems patch to be installed.\nUse the Patch Manager to install it first.`
+- `Start Address:`
+- `This level-up table is referenced by multiple classes.`
+- `Write`
+
+### SkillConfigFE8UCSkillSys09xForm
+WF labels: **20** · AV labels: **25** · WF-only: **19** · AV-only: **24** · Common: **1** · Density verdict: **Medium** (WF 29 / AV 40)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アイコン`
+- `アドレス`
+- `アニメーション`
+- `アニメーション取出`
+- `アニメーション読込`
+- `エディタ`
+- `スキル名`
+- `フレーム`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `画像取出`
+- `画像読込`
+- `表示例`
+- `詳細`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address:`
+- `Animation`
+- `Animation Export`
+- `Animation Import`
+- `Description:`
+- `Display example`
+- `Editor`
+- `Filter Name`
+- `Frame`
+- `Icon`
+- `Image Export`
+- `Image Import`
+- `Original size`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count:`
+- `Reload`
+- `Selected Address:`
+- `Skill Configuration (CSkillSys 0.9.x)`
+- `Skill Name:`
+- `Skill system editors require a compatible skill patch to be installed.\nUse the Patch Manager to install a skill system patch first.\n\nSupported skill systems: CSkillSys, FE8N Skill System`
+- `Start Address:`
+- `Write`
+- `Zoom`
+- `Zoomed`
 
 ### SongTrackImportMidiForm
 WF labels: **19** · AV labels: **8** · WF-only: **19** · AV-only: **8** · Common: **0** · Density verdict: **High** (WF 25 / AV 10)
@@ -4918,6 +5035,108 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Title Image Ptr:`
 - `Write`
 
+### ImageMagicCSACreatorForm
+WF labels: **25** · AV labels: **32** · WF-only: **18** · AV-only: **25** · Common: **7** · Density verdict: **Medium** (WF 37 / AV 50)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `インターネットから新しいリソースを探す`
+- `エディタ`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `フレーム`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+- `魔法アニメの書出し`
+- `魔法アニメの読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address`
+- `Bin info`
+- `Comment`
+- `CSA Magic Creator`
+- `Data Expansion`
+- `dim_pc`
+- `Editor`
+- `Export Magic Animation`
+- `Find new resources online`
+- `Frame`
+- `Import Magic Animation`
+- `Name`
+- `NULL (EMPTY)`
+- `Open Source File`
+- `Open Source Folder`
+- `Original size`
+- `Pending Core extraction - tracked by #500.`
+- `Preview`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Top Address`
+- `Write to ROM`
+- `Zoom`
+- `Zoom in`
+
+### ImageMagicFEditorForm
+WF labels: **25** · AV labels: **30** · WF-only: **18** · AV-only: **23** · Common: **7** · Density verdict: **Low** (WF 37 / AV 45)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `インターネットから新しいリソースを探す`
+- `エディタ`
+- `コメント`
+- `ソースファイルを開く`
+- `ソースフォルダーを開く`
+- `フレーム`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `拡大`
+- `書き込み`
+- `表示例`
+- `読込数`
+- `選択アドレス:`
+- `魔法アニメの書出し`
+- `魔法アニメの読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `(preview deferred - tracked by #500)`
+- `4`
+- `Address`
+- `Comment`
+- `Display Example`
+- `Editor`
+- `Expand List`
+- `Export Magic Animation`
+- `Frame`
+- `Import Magic Animation`
+- `Magic Effect Editor (FEditor)`
+- `Name`
+- `Open Source File`
+- `Open Source Folder`
+- `Pending Core extraction - tracked by #500.`
+- `Read Count`
+- `Reload`
+- `Sample`
+- `Search Internet for new resources`
+- `Selected Address:`
+- `Top Address`
+- `Write to ROM`
+- `Zoom`
+
 ### ItemStatBonusesForm
 WF labels: **19** · AV labels: **15** · WF-only: **18** · AV-only: **14** · Common: **1** · Density verdict: **Low** (WF 35 / AV 28)
 
@@ -4958,6 +5177,51 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown (byte 11):`
 - `Unknown (byte 9):`
 - `Write`
+
+### MapExitPointForm
+WF labels: **21** · AV labels: **21** · WF-only: **18** · AV-only: **18** · Common: **3** · Density verdict: **Low** (WF 32 / AV 35)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `00`
+- `これは敵のエスケープポイントです。\r\nNPC用は、左上のコンボボックスを切り替えてください。`
+- `アドレス`
+- `マップ名`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `新規領域の確保`
+- `書き込み`
+- `条件:`
+- `消滅方法`
+- `読込数`
+- `選択アドレス:`
+- `離脱ポインタ`
+- `離脱ポインタ書き込み`
+- `離脱ポイント再取得`
+- `離脱座標`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `00 (Flag)`
+- `Address`
+- `Address (decimal)`
+- `Alloc New Space`
+- `Cond:`
+- `Coordinates`
+- `Count`
+- `Data Expansion`
+- `Direction`
+- `Leave Pointer`
+- `Map Exit Point Editor`
+- `Map Name`
+- `Name`
+- `Reload`
+- `Reload Exit Points`
+- `Selected Address`
+- `Write`
+- `Write Off Pointer`
 
 ### PaletteChangeColorsForm
 WF labels: **21** · AV labels: **9** · WF-only: **18** · AV-only: **6** · Common: **3** · Density verdict: **High** (WF 25 / AV 12)
@@ -5062,6 +5326,57 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Support Attribute Editor`
 - `Unknown 7:`
 - `Write`
+
+### ToolTranslateROMForm
+WF labels: **22** · AV labels: **28** · WF-only: **18** · AV-only: **24** · Common: **4** · Density verdict: **Medium** (WF 35 / AV 47)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `すべてのテキストをテキストファイルに書きだします。`
+- `フォント取込`
+- `全テキストの書出し`
+- `全テキストの読込`
+- `利用フォント`
+- `変更`
+- `定型文ROM FROM`
+- `定型文ROM TO`
+- `定型文の翻訳(FROM ROMと TO ROMから、定型文を取得し、翻訳の参考にする)`
+- `改造されたテキストのみ取得する`
+- `日本語フォントの上書き`
+- `現行ROMに足りないフォントを、以下のROMにあるフォントからコピーする`
+- `簡易`
+- `翻訳データ`
+- `翻訳開始`
+- `詳細`
+- `足りないフォントの自動生成`
+- `追加フォント ROM`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Auto-Generate Missing Fonts`
+- `Change`
+- `Copies fonts that the current ROM is missing from the fonts in the ROM below.`
+- `Detail`
+- `Export All Text`
+- `Export All Texts`
+- `Extra Font ROM`
+- `Font`
+- `Import All Text`
+- `Import All Texts`
+- `Import Font`
+- `Only acquire modified text`
+- `Override JP Font`
+- `Pending Core extraction - tracked by #536`
+- `Rewrites all texts with the contents of the specified file. Requires the anti-Huffman and DrawMultibyte/DrawSingleByte patches. After it finishes, import any missing fonts separately.`
+- `Simple`
+- `Start Translation`
+- `Translate before Export`
+- `Translate static texts (extract from FROM ROM and TO ROM, use as translation reference)`
+- `Translates the ROM. Uses Japanese and English ROMs to convert unchanged text automatically. Simple mode is fully automatic - it imports missing fonts, adjusts menu lengths, and similar. All processing… (truncated; see designer file)`
+- `Translation Data`
+- `Use Font Name`
+- `Without a file, only static texts are translated.`
+- `Writes all texts to a text file.`
 
 ### EventBattleTalkForm
 WF labels: **17** · AV labels: **2** · WF-only: **17** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 30 / AV 3)
@@ -5572,13 +5887,13 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Block Size:`
 - `CC Item Editor`
 - `Count`
 - `Filter:`
 - `Function`
 - `Function pointers for item usability checks`
-- `Hex Address`
 - `IER patch detected — configure from Patch Manager.`
 - `Item ID Switch:`
 - `Item Usage Pointer Editor`
@@ -5939,6 +6254,51 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Effectiveness (Skill Systems Rework)`
 
+### MapTileAnimation2Form
+WF labels: **20** · AV labels: **26** · WF-only: **15** · AV-only: **21** · Common: **5** · Density verdict: **Medium** (WF 40 / AV 51)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `GBAカラー`
+- `アドレス`
+- `アニメーション間隔`
+- `データ個数`
+- `リストの拡張`
+- `一括インポート`
+- `一括エクスポート`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `書き換えるパレットデータ`
+- `書き換え始めパレット番号`
+- `書き込み`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `(reserved)`
+- `Address`
+- `Animation Interval:`
+- `Bulk Export`
+- `Bulk Import`
+- `Data Count:`
+- `Data Expansion`
+- `Filter`
+- `GBA Color`
+- `Map Tile Animation Type 2 (Palette)`
+- `Map Tile Animation Type 2 Palette Sub-Table`
+- `Name`
+- `Palette Data Pointer:`
+- `Pending Core extraction - tracked by #524`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Start Palette Index:`
+- `Top Address`
+- `Unknown (0x07):`
+- `Write to ROM`
+
 ### MonsterWMapProbabilityForm
 WF labels: **15** · AV labels: **4** · WF-only: **15** · AV-only: **4** · Common: **0** · Density verdict: **High** (WF 66 / AV 6)
 
@@ -6090,6 +6450,44 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Unknown 1:`
 - `Unknown 2:`
 - `Unknown 3:`
+- `Write`
+
+### EventMapChangeForm
+WF labels: **20** · AV labels: **21** · WF-only: **14** · AV-only: **15** · Common: **6** · Density verdict: **Low** (WF 36 / AV 43)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アドレス`
+- `サイズ`
+- `マップ名前`
+- `リストの拡張`
+- `先頭アドレス`
+- `再取得`
+- `名前`
+- `変化データ\r\nポインタ先へのインポート`
+- `変化データポインタ`
+- `座標`
+- `書き込み`
+- `番号`
+- `読込数`
+- `選択アドレス:`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `Address`
+- `Change Data Pointer`
+- `Comment`
+- `Coordinates:`
+- `Expand List (+1 slot)`
+- `Map Change Event Editor`
+- `Map Names`
+- `Names`
+- `Number:`
+- `Pointer Import`
+- `Read Count`
+- `Reload`
+- `Selected Address:`
+- `Top Address`
 - `Write`
 
 ### FontForm
@@ -7484,10 +7882,10 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Battle BG:`
 - `Condition:`
 - `Count`
-- `Hex Address`
 - `Install Patch`
 - `Jump to the floor of battle animation`
 - `Reload`
@@ -7515,9 +7913,9 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
+- `Address (decimal)`
 - `Condition:`
 - `Count`
-- `Hex Address`
 - `Install Patch`
 - `Jump to the background of battle animation`
 - `Reload`
@@ -8831,10 +9229,10 @@ WF-only labels (candidates for missing fields in AV):
 AV-only labels (usually fine — layout polish or rewording):
 
 - `Copy (No $ / GBA / Rad / BreakPoint)`
-- `Copy as Hex`
 - `Copy as Little Endian`
 - `Copy as Pointer`
 - `Copy to Clipboard`
+- `Open in Hex Editor`
 - `Value:`
 
 ### SongTrackChangeTrackForm
