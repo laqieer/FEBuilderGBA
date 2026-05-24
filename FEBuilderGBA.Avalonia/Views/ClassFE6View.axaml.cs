@@ -212,14 +212,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateWeaponRankLabels()
         {
-            B40RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B40Box.Value ?? 0));
-            B41RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B41Box.Value ?? 0));
-            B42RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B42Box.Value ?? 0));
-            B43RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B43Box.Value ?? 0));
-            B44RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B44Box.Value ?? 0));
-            B45RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B45Box.Value ?? 0));
-            B46RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B46Box.Value ?? 0));
-            B47RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B47Box.Value ?? 0));
+            // FE6 uses a different rank threshold table than FE7/8 — pass
+            // romVersion=6 explicitly so the displayed letter matches the
+            // WinForms ClassFE6Form behaviour even when the user is editing
+            // a non-FE6 ROM cast into this view (defensive default also = 6,
+            // since this view is FE6-specific) — Copilot bot review on PR #610.
+            int romVersion = (int)(CoreState.ROM?.RomInfo?.version ?? 6);
+            B40RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B40Box.Value ?? 0), romVersion);
+            B41RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B41Box.Value ?? 0), romVersion);
+            B42RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B42Box.Value ?? 0), romVersion);
+            B43RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B43Box.Value ?? 0), romVersion);
+            B44RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B44Box.Value ?? 0), romVersion);
+            B45RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B45Box.Value ?? 0), romVersion);
+            B46RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B46Box.Value ?? 0), romVersion);
+            B47RankText.Text = WeaponRankUtil.GetRankLetter((uint)(B47Box.Value ?? 0), romVersion);
         }
 
         // -- Hyperlink label click handlers --
@@ -241,7 +247,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!U.isSafetyOffset(baseAddr)) return;
                 uint dataSize = rom.RomInfo.portrait_datasize;
                 if (dataSize == 0) dataSize = 28;
-                uint addr = baseAddr + portraitId * dataSize;
+
+                // PortraitIdBox accepts u16 (0..65535). portraitId * dataSize
+                // can overflow u32 (e.g. 65535 * 28 = ~1.8M which is fine, but
+                // an arbitrarily large dataSize could wrap). Use checked
+                // arithmetic + bounds-test against ROM length to fail safely.
+                // Copilot bot review on PR #610.
+                uint addr;
+                try { addr = checked(baseAddr + portraitId * dataSize); }
+                catch (OverflowException) { return; }
+                if (!U.isSafetyOffset(addr)) return;
+                if (addr + dataSize > (uint)rom.Data.Length) return;
+
                 WindowManager.Instance.Navigate<PortraitViewerView>(addr);
             }
             catch (Exception ex)
