@@ -60,7 +60,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
                 ReadStartAddressBox.Text = _vm.LoadListBaseAddress();
-                ReadCountBox.Text = items.Count.ToString();
+                // The VM appends a trailing "Unit Palette Editor" sentinel row
+                // (addr=0) at the end; exclude it from the displayed count so
+                // the count matches the actual table-row scan (Copilot bot #585
+                // off-by-one ask).
+                int realCount = items.Count;
+                if (realCount > 0 && items[realCount - 1].addr == 0)
+                    realCount--;
+                ReadCountBox.Text = realCount.ToString();
             }
             catch (Exception ex)
             {
@@ -175,14 +182,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 g[i] = (uint)(_gBoxes[i]?.Value ?? 0);
                 b[i] = (uint)(_bBoxes[i]?.Value ?? 0);
             }
+            int paletteIndex = PaletteTypeCombo.SelectedIndex;
+            if (paletteIndex < 0) paletteIndex = 0;
+            bool isOverrideAll = PaletteOverrideAllCheck.IsChecked ?? false;
             _undoService.Begin("Write Unit Palette");
             try
             {
+                // `undo: null` — the ambient scope opened by `_undoService.Begin`
+                // takes care of all ROM writes. Passing the active UndoData
+                // through the explicit (addr, value, undo) overloads would
+                // double-record every entry (Copilot bot #585 caught this).
                 uint newP12 = UnitPaletteWriteCore.WritePalette(
                     CoreState.ROM,
                     _vm.CurrentAddr + 12,
                     r, g, b,
-                    _undoService.GetActiveUndoData());
+                    paletteIndex,
+                    isOverrideAll,
+                    undo: null);
                 if (newP12 == U.NOT_FOUND)
                 {
                     _undoService.Rollback();

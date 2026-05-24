@@ -26,7 +26,7 @@
                      Grid.Row="0" Grid.Column="4" Text="Write" VerticalAlignment="Center" />
         </Grid>
 
-        <TabControl Name="MainTabs">
+        <TabControl AutomationProperties.AutomationId="ImageUnitPalette_Main_TabControl" Name="MainTabs">
           <!-- ===== Edit tab ===== -->
           <TabItem Header="Edit" AutomationProperties.AutomationId="ImageUnitPalette_Edit_Tab">
             <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">

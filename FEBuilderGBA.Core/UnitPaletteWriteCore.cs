@@ -7,6 +7,16 @@
 // in-place-or-reallocate behavior with explicit P12 patching when the new
 // compressed bytes don't fit in the original buffer.
 //
+// Multi-slot semantics (WF parity, mirrors PaletteFormRef.MakePaletteUIToROM):
+//   - The decompressed P12 stream is a concatenation of one or more 32-byte
+//     palettes (16 colors x RGB555 each). Slot index 0 = Ally, 1 = Enemy,
+//     2 = NPC, 3 = Gray, 4 = Independent.
+//   - When paletteIndex is in [0, slotCount), only that single 32-byte slot
+//     is overwritten with the new colors; the other slots are preserved.
+//   - When isOverrideAll is true, every 32-byte slot in the decompressed
+//     buffer is overwritten with the new colors (matches WF's
+//     `PaletteFormRef.OVERRAIDE_ALL_PALETTE`).
+//
 // Cross-platform: depends only on Core LZ77 + ROM + U helpers. No WinForms,
 // no Avalonia, no System.Drawing dependencies.
 
@@ -39,10 +49,28 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Overwrite the LZ77-compressed palette referenced by the row's P12
-        /// pointer. If the new compressed bytes fit within the original buffer
-        /// the write is in-place (and the trailing bytes are zero-filled).
-        /// Otherwise the compressed bytes are appended at ROM end, the ROM is
-        /// resized, and the row's P12 slot is patched to the new GBA pointer.
+        /// pointer, preserving any other 32-byte palette slots stored in the
+        /// same LZ77 stream. If <paramref name="isOverrideAll"/> is true,
+        /// every slot in the decompressed buffer is replaced with the new
+        /// colors. Otherwise only the slot at <paramref name="paletteIndex"/>
+        /// (0 = Ally, 1 = Enemy, 2 = NPC, 3 = Gray, 4 = Independent) is
+        /// overwritten and the other slots survive untouched.
+        ///
+        /// If the new compressed bytes fit within the original buffer the
+        /// write is in-place (and the trailing bytes of the original stream
+        /// are zero-filled). Otherwise the compressed bytes are appended at
+        /// ROM end, the ROM is resized via <see cref="ROM.write_resize_data"/>
+        /// (which pads internally to a 4-byte boundary), and the row's P12
+        /// slot is patched to the new GBA pointer.
+        ///
+        /// Undo handling: the helper relies on the caller having opened an
+        /// ambient undo scope via <see cref="ROM.BeginUndoScope"/> (which the
+        /// Avalonia <c>UndoService</c> does inside <c>Begin/Commit</c>). All
+        /// <c>rom.write_*</c> calls record into that ambient slot
+        /// automatically. The <paramref name="undo"/> parameter is accepted
+        /// for API parity but UNUSED — passing the ambient `UndoData` through
+        /// the explicit (addr, value, undo) overloads would double-record
+        /// every write (Copilot bot review #585 caught this).
         /// </summary>
         /// <param name="rom">ROM to mutate. Must be non-null.</param>
         /// <param name="rowP12SlotOffset">
@@ -52,11 +80,24 @@ namespace FEBuilderGBA
         /// <param name="r">16 R channel values in 0-31 range.</param>
         /// <param name="g">16 G channel values in 0-31 range.</param>
         /// <param name="b">16 B channel values in 0-31 range.</param>
+        /// <param name="paletteIndex">
+        /// Zero-based slot index to overwrite (0 = Ally, 1 = Enemy, 2 = NPC,
+        /// 3 = Gray, 4 = Independent). Ignored when <paramref name="isOverrideAll"/>
+        /// is true. If the existing stream only has one slot, an out-of-range
+        /// index expands the buffer.
+        /// </param>
+        /// <param name="isOverrideAll">
+        /// When true, every 32-byte slot in the decompressed stream is replaced
+        /// with the new colors (matches WF `PaletteFormRef.OVERRAIDE_ALL_PALETTE`).
+        /// </param>
         /// <param name="undo">
-        /// Optional undo-data context. When non-null the helper records explicit
-        /// undo entries via the (addr, byte[], undodata) overloads so the
-        /// resulting undo group can revert the write + the P12 patch + the file
-        /// size delta. When null the helper falls back to the no-undo overloads.
+        /// Accepted for API parity but UNUSED. The helper relies on the
+        /// caller having opened an ambient undo scope via
+        /// <see cref="ROM.BeginUndoScope"/>. Pass null when there is no
+        /// ambient scope; this is logically equivalent because
+        /// <c>rom.write_*</c> only records into the ambient slot when it is
+        /// non-null. Avoiding the explicit undo overloads prevents
+        /// double-recording entries.
         /// </param>
         /// <returns>
         /// The GBA pointer (0x08xxxxxx) the P12 slot now holds, or
@@ -69,8 +110,13 @@ namespace FEBuilderGBA
             uint[] r,
             uint[] g,
             uint[] b,
+            int paletteIndex,
+            bool isOverrideAll,
             Undo.UndoData? undo)
         {
+            // `undo` is intentionally ignored — see XML doc.
+            _ = undo;
+
             // ----- Input validation -----
             if (rom == null) return U.NOT_FOUND;
             if (r == null || g == null || b == null) return U.NOT_FOUND;
@@ -81,6 +127,7 @@ namespace FEBuilderGBA
                 if (r[i] > 0x1F || g[i] > 0x1F || b[i] > 0x1F)
                     return U.NOT_FOUND;
             }
+            if (paletteIndex < 0) return U.NOT_FOUND;
 
             // ----- Read raw P12 pointer (preserve raw for round-trip) -----
             if (rowP12SlotOffset + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
@@ -90,64 +137,67 @@ namespace FEBuilderGBA
             uint srcOffset = U.toOffset(rawP12);
             if (!U.isSafetyOffset(srcOffset, rom)) return U.NOT_FOUND;
 
-            // ----- Measure existing compressed length -----
+            // ----- Measure existing compressed length + decompress -----
             uint oldCompressedLen = LZ77.getCompressedSize(rom.Data, srcOffset);
             if (oldCompressedLen == 0) return U.NOT_FOUND;
+            byte[] decompressed = LZ77.decompress(rom.Data, srcOffset);
+            if (decompressed == null || decompressed.Length < RAW_PALETTE_BYTES)
+                return U.NOT_FOUND;
 
-            // ----- Pack + compress the new palette -----
-            byte[] raw = PackRgb555(r, g, b);
-            byte[] compressed = LZ77.compress(raw);
+            // ----- Pack new colors + splice into decompressed buffer -----
+            byte[] newSlot = PackRgb555(r, g, b);
+
+            if (isOverrideAll)
+            {
+                // Walk every 32-byte slot and replace with the new colors.
+                int slotCount = decompressed.Length / RAW_PALETTE_BYTES;
+                if (slotCount < 1) return U.NOT_FOUND;
+                for (int s = 0; s < slotCount; s++)
+                {
+                    System.Buffer.BlockCopy(newSlot, 0, decompressed, s * RAW_PALETTE_BYTES, RAW_PALETTE_BYTES);
+                }
+            }
+            else
+            {
+                // Replace only the selected slot. If the index is past the end
+                // of the current buffer, grow it to fit (matches WF semantics).
+                int writeStart = paletteIndex * RAW_PALETTE_BYTES;
+                if (decompressed.Length < writeStart + RAW_PALETTE_BYTES)
+                {
+                    System.Array.Resize(ref decompressed, writeStart + RAW_PALETTE_BYTES);
+                }
+                System.Buffer.BlockCopy(newSlot, 0, decompressed, writeStart, RAW_PALETTE_BYTES);
+            }
+
+            // ----- Compress the spliced buffer -----
+            byte[] compressed = LZ77.compress(decompressed);
             uint newCompressedLen = (uint)compressed.Length;
 
-            // ----- In-place vs reallocate -----
+            // ----- In-place vs reallocate (writes go through the ambient undo scope) -----
             if (newCompressedLen <= oldCompressedLen)
             {
-                // In-place write: replace the compressed bytes, then zero-fill the trailing bytes
-                // that the old (longer) stream used.
-                if (undo != null)
+                rom.write_range(srcOffset, compressed);
+                uint trailing = oldCompressedLen - newCompressedLen;
+                if (trailing > 0)
                 {
-                    rom.write_range(srcOffset, compressed, undo);
-                    uint trailing = oldCompressedLen - newCompressedLen;
-                    if (trailing > 0)
-                    {
-                        rom.write_fill(srcOffset + newCompressedLen, trailing, 0x00, undo);
-                    }
-                }
-                else
-                {
-                    rom.write_range(srcOffset, compressed);
-                    uint trailing = oldCompressedLen - newCompressedLen;
-                    if (trailing > 0)
-                    {
-                        rom.write_fill(srcOffset + newCompressedLen, trailing, 0x00);
-                    }
+                    rom.write_fill(srcOffset + newCompressedLen, trailing, 0x00);
                 }
                 return rawP12;
             }
             else
             {
-                // Reallocation: append at ROM end + patch P12.
+                // Reallocation: append at ROM end + patch P12. Note that
+                // rom.write_resize_data pads internally via U.Padding4, so
+                // the final rom.Data.Length may be slightly larger than the
+                // value we request — that's the caller's expected behaviour.
                 uint appendOffset = (uint)rom.Data.Length;
                 uint newRomSize = appendOffset + newCompressedLen;
-                // Pad to 4-byte alignment to keep subsequent GBA pointers aligned.
-                // (rom.write_resize_data internally pads via U.Padding4 already, but we
-                // compute the resize value verbatim so the caller can predict the new size.)
                 if (!rom.write_resize_data(newRomSize)) return U.NOT_FOUND;
 
-                if (undo != null)
-                {
-                    rom.write_range(appendOffset, compressed, undo);
-                    uint newPointer = U.toPointer(appendOffset);
-                    rom.write_p32(rowP12SlotOffset, appendOffset, undo);
-                    return newPointer;
-                }
-                else
-                {
-                    rom.write_range(appendOffset, compressed);
-                    uint newPointer = U.toPointer(appendOffset);
-                    rom.write_p32(rowP12SlotOffset, appendOffset);
-                    return newPointer;
-                }
+                rom.write_range(appendOffset, compressed);
+                uint newPointer = U.toPointer(appendOffset);
+                rom.write_p32(rowP12SlotOffset, appendOffset);
+                return newPointer;
             }
         }
     }
