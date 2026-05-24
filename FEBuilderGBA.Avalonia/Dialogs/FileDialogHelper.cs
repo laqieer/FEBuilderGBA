@@ -128,6 +128,24 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
+        /// <summary>
+        /// Save any file with a custom filter + optional suggested name.
+        /// Used by the Map Action Animation Export button (#499) plus any
+        /// future caller that needs a generic single-format SaveFilePicker.
+        /// </summary>
+        public static async Task<string?> SaveFile(Window owner, string title, string filterName, string pattern, string? suggestedName = null)
+        {
+            var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = new[] { fileType, MakeAllFileType() },
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
         static FilePickerFileType MakeJascPalFileType() => new(R._("JASC-PAL (Aseprite/GIMP)"))
         {
             Patterns = PalPatterns,

@@ -395,5 +395,107 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ["Padding1"] = "u16@4",
             ["Padding2"] = "u16@6",
         };
+
+        // ----------------------------------------------------------------
+        // Export / Import / Source-file tracking (#499)
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Cache key used by <see cref="RememberSourcePath"/> /
+        /// <see cref="TryGetSourcePath"/> so the editor can remember the
+        /// last-imported .MapActionAnimation.txt path across reloads.
+        /// Mirrors WinForms `Program.ResourceCache.Update("MapActionAnimation_" + id, path)`.
+        /// </summary>
+        string MakeResourceCacheKey() => "MapActionAnimation_" + U.ToHexString(SelectedId);
+
+        /// <summary>
+        /// Export the currently selected animation to a
+        /// <c>.MapActionAnimation.txt</c> script + per-unique-frame PNG
+        /// companions.
+        /// </summary>
+        /// <param name="path">Output .MapActionAnimation.txt path.</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ExportScript(string path)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+            if (!IsAnimationValid) return R._("No valid animation selected to export.");
+            uint animeAddr = U.toOffset(AnimationPointer);
+            return MapActionAnimationExportImportCore.ExportScript(
+                rom, animeAddr, path, Comment ?? "");
+        }
+
+        /// <summary>
+        /// Export the currently selected animation as an animated GIF.
+        /// </summary>
+        /// <param name="path">Output .gif path.</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ExportGif(string path)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+            if (!IsAnimationValid) return R._("No valid animation selected to export.");
+            uint animeAddr = U.toOffset(AnimationPointer);
+            return MapActionAnimationExportImportCore.ExportGif(rom, animeAddr, path);
+        }
+
+        /// <summary>
+        /// Import a <c>.MapActionAnimation.txt</c> script over the currently
+        /// selected pointer slot. Caller is responsible for wrapping in an
+        /// <c>UndoService.Begin/Commit/Rollback</c> scope.
+        /// </summary>
+        /// <param name="path">Input .MapActionAnimation.txt path.</param>
+        /// <param name="imageLoader">Callback that turns a PNG path into
+        /// <c>(rgba, w, h)</c> or returns null if the file is missing.</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ImportScript(string path, Func<string, (byte[] rgba, int w, int h)?> imageLoader)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+            if (CurrentAddr == 0) return R._("No entry selected.");
+            if (IsEmptyEntry) return R._("ID 0 is reserved as null data.");
+            if (imageLoader == null) return R._("Image loader is null.");
+
+            // The pointer slot is the currently selected row address (frames
+            // table address lives there as a GBA pointer — `LoadEntry` reads
+            // it back as `AnimationPointer`).
+            return MapActionAnimationExportImportCore.ImportScript(
+                rom, CurrentAddr, path, imageLoader);
+        }
+
+        /// <summary>
+        /// Remember the file path the user just imported so the
+        /// <c>OpenSource</c> / <c>SelectSource</c> buttons can re-open it on
+        /// next selection. Uses <c>CoreState.ResourceCache</c> as the WF
+        /// editor does. Best effort — silently no-ops when the cache is
+        /// missing or the cast fails.
+        /// </summary>
+        public void RememberSourcePath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            if (CoreState.ResourceCache is EtcCacheResource cache)
+            {
+                try { cache.Update(MakeResourceCacheKey(), path); }
+                catch { /* non-fatal — cache is best effort */ }
+            }
+        }
+
+        /// <summary>
+        /// Try to look up the source path remembered by
+        /// <see cref="RememberSourcePath"/>. Returns true with the path when
+        /// available.
+        /// </summary>
+        public bool TryGetSourcePath(out string path)
+        {
+            path = "";
+            if (CoreState.ResourceCache is EtcCacheResource cache
+                && cache.TryGetValue(MakeResourceCacheKey(), out var p)
+                && !string.IsNullOrEmpty(p))
+            {
+                path = p;
+                return true;
+            }
+            return false;
+        }
     }
 }

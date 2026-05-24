@@ -1,7 +1,10 @@
 using System;
+using System.IO;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -148,6 +151,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 SetPreviewBitmap(null);
                 BinInfoBox.Text = "";
             }
+
+            // #499: re-evaluate Export/Import/Source-file button gating on
+            // every selection change.
+            RefreshExportImportButtonState();
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -272,5 +279,167 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
+
+        // ----------------------------------------------------------------
+        // #499 Export / Import / Source-file handlers
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Update IsEnabled/IsVisible state of the 4 #499 buttons after a
+        /// list selection change. Mirrors WF
+        /// `AddressList_SelectedIndexChanged` which hides Export when
+        /// `IsAnimationValid` is false and toggles OpenSource/SelectSource
+        /// based on `Program.ResourceCache` lookup.
+        /// </summary>
+        void RefreshExportImportButtonState()
+        {
+            AnimationExportButton.IsEnabled = _vm.IsAnimationValid;
+            AnimationImportButton.IsEnabled = _vm.IsLoaded && !_vm.IsEmptyEntry;
+            bool hasSource = _vm.TryGetSourcePath(out string srcPath)
+                && !string.IsNullOrEmpty(srcPath)
+                && File.Exists(srcPath);
+            OpenSourceButton.IsVisible = hasSource;
+            SelectSourceButton.IsVisible = hasSource;
+        }
+
+        async void AnimationExport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsAnimationValid)
+            {
+                CoreState.Services?.ShowError(R._("No valid animation selected to export."));
+                return;
+            }
+            string suggested = $"MapActionAnimation_{_vm.SelectedId:X02}.MapActionAnimation.txt";
+            string? path = await FileDialogHelper.SaveFile(this,
+                R._("Save Map Action Animation"),
+                "MapActionAnimation",
+                "*.MapActionAnimation.txt",
+                suggested);
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                string err;
+                if (path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                {
+                    err = _vm.ExportGif(path);
+                }
+                else
+                {
+                    err = _vm.ExportScript(path);
+                }
+                if (!string.IsNullOrEmpty(err))
+                {
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                CoreState.Services?.ShowInfo(R._("Exported to: {0}", path));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
+            }
+        }
+
+        async void AnimationImport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded || _vm.IsEmptyEntry)
+            {
+                CoreState.Services?.ShowError(R._("Select a non-empty entry first."));
+                return;
+            }
+            string? path = await FileDialogHelper.OpenFile(this,
+                R._("Open Map Action Animation Script"),
+                "*.MapActionAnimation.txt");
+            if (string.IsNullOrEmpty(path)) return;
+
+            _undoService.Begin("Import Map Action Animation");
+            try
+            {
+                string err = _vm.ImportScript(path, LoadRgbaFromFile);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                _undoService.Commit();
+                _vm.RememberSourcePath(path);
+                _vm.MarkClean();
+                LoadList();
+                RefreshExportImportButtonState();
+                CoreState.Services?.ShowInfo(R._("Imported: {0}", path));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+            }
+        }
+
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.TryGetSourcePath(out string path) || !File.Exists(path))
+                {
+                    CoreState.Services?.ShowError(R._("Source file not found."));
+                    return;
+                }
+                var psi = new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Open source failed: {0}", ex.Message));
+            }
+        }
+
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.TryGetSourcePath(out string path) || !File.Exists(path))
+                {
+                    CoreState.Services?.ShowError(R._("Source file not found."));
+                    return;
+                }
+                string? dir = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(dir)) return;
+                if (OperatingSystem.IsWindows())
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{path}\"");
+                }
+                else
+                {
+                    var psi = new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true };
+                    System.Diagnostics.Process.Start(psi);
+                }
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Open folder failed: {0}", ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Image-loader callback for the Import path. Returns RGBA pixels +
+        /// dimensions, or null if the file is unreadable. Used by
+        /// <see cref="MapActionAnimationExportImportCore.ImportScript"/>
+        /// when a frame line has no RAW-* hints.
+        /// </summary>
+        static (byte[] rgba, int w, int h)? LoadRgbaFromFile(string path)
+        {
+            if (!File.Exists(path) || CoreState.ImageService == null) return null;
+            try
+            {
+                using var img = CoreState.ImageService.LoadImage(path);
+                if (img == null) return null;
+                return (img.GetPixelData(), img.Width, img.Height);
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }

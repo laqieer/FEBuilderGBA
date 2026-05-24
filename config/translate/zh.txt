@@ -22711,3 +22711,21 @@ TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
 
 :Unknown u32 field at offset 68 (D68)
 未知 u32 字段 (D68)
+
+:Export Animation
+导出动画
+
+:Import Animation
+导入动画
+
+:Export this animation as .MapActionAnimation.txt + PNGs (or animated GIF).
+将该动画导出为 .MapActionAnimation.txt + PNG（或动画 GIF）。
+
+:Import .MapActionAnimation.txt into the selected entry.
+将 .MapActionAnimation.txt 导入到所选条目。
+
+:Open the last-imported source script file.
+打开上次导入的源脚本文件。
+
+:Reveal the last-imported source script file in the OS file manager.
+在操作系统的文件管理器中显示上次导入的源脚本文件。
