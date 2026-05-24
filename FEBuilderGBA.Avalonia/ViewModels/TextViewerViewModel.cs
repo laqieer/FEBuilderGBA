@@ -562,17 +562,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var tables = TextRefTableRegistry.BuildForRom(rom);
                 var referencedIds = TextReferenceFinder.CollectReferencedTextIds(rom, tables);
 
-                int loadedCount = LoadTextList().Count;
-                if (loadedCount <= 1) return result;
-
-                for (uint id = 1; id < (uint)loadedCount; id++)
+                // Single-pass scan: walk the text pointer table, terminating
+                // at the same condition `LoadTextList` uses (first invalid
+                // text pointer). This avoids the previous double-decode
+                // (LoadTextList counted + we decoded again per ID).
+                for (uint id = 1; id < 0x2000u; id++)
                 {
+                    uint entryAddr = textBase + id * 4u;
+                    if (entryAddr + 4 > (uint)rom.Data.Length) break;
+                    uint textPtr = rom.u32(entryAddr);
+                    if (!IsValidTextPointer(textPtr)) break;
+
                     if (IsSystemReserve(rom, id)) continue;
                     if (referencedIds.Contains(id)) continue;
 
-                    // Skip IDs whose decoded text is null/empty/whitespace.
-                    // Avoid false-positives from huge runs of "empty" slots
-                    // pointing at the same null string.
+                    // Decode once per surviving ID. Skip IDs whose decoded
+                    // text is null/empty/whitespace — avoid false positives
+                    // from huge runs of "empty" slots pointing at the same
+                    // null string.
                     string decoded;
                     try { decoded = FETextDecode.Direct(id) ?? ""; }
                     catch { continue; }
@@ -587,9 +594,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     }
                     catch { preview = ""; }
 
-                    uint addr = textBase + id * 4u;
                     string name = U.ToHexString(id) + " (free) " + preview;
-                    result.Add(new AddrResult(addr, name, id));
+                    result.Add(new AddrResult(entryAddr, name, id));
                 }
             }
             catch (Exception ex)

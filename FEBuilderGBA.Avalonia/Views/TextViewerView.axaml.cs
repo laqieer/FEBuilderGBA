@@ -69,7 +69,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             ReadStartAddressBox.Text = "0x" + baseAddr.ToString("X08");
-            ReadCountBox.Text = _vm.GetListCount().ToString();
+            // Use the already-populated list count (TextList.ItemCount) instead
+            // of calling `_vm.GetListCount()` which would re-decode every text
+            // entry (LoadList already ran moments before PopulateAddressBar is
+            // called from Opened / OnReloadClick).
+            ReadCountBox.Text = TextList.ItemCount.ToString();
             SizeValueBox.Text = "0x4";
             FilterValueBox.Text = "";
         }
@@ -99,11 +103,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // The addr is the pointer table entry address, but we need the text ID (index)
-                // The AddrResult.tag contains the index.
+                // `addr` is the pointer-table entry address that was selected
+                // in the AddressListControl. We back-compute the text ID from
+                // `(addr - baseAddr) / 4` to stay consistent with the way
+                // `LoadTextList` builds the entries (addr = baseAddr + id*4).
                 // Issue #404: use `_vm.ResolveTextTableBase()` so the recovery
                 // fallback (to `text_recover_address`) applies uniformly here
-                // and in `LoadTextList()` / `FindApproximatelyUnreferencedTexts()`.
+                // and in `LoadTextList` / `FindApproximatelyUnreferencedTexts`.
                 ROM rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
 
@@ -168,10 +174,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 else
                 {
-                    uint writePointer = textBase + _vm.CurrentId * 4u;
-                    if (writePointer + 4 <= (uint)rom.Data.Length && U.isSafetyOffset(writePointer, rom))
+                    // Read-only computation of the current row's pointer-table
+                    // entry address (not a write target; the VM's WriteText
+                    // path handles actual ROM writes).
+                    uint entryAddr = textBase + _vm.CurrentId * 4u;
+                    if (entryAddr + 4 <= (uint)rom.Data.Length && U.isSafetyOffset(entryAddr, rom))
                     {
-                        uint pointer = rom.u32(writePointer);
+                        uint pointer = rom.u32(entryAddr);
                         PointerValueBox.Text = "0x" + pointer.ToString("X08");
                     }
                     else
