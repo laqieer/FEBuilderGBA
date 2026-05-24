@@ -103,7 +103,7 @@
       <!-- Chipset thumbnail (CHIPLIST + PATHCHIPLIST_Paint) - KnownGap: ChipsetListRender -->
       <Border Grid.Row="2" BorderBrush="DarkGray" BorderThickness="1" Margin="0,4,0,0">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-          <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_ChipList_Preview"
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_ChipList_Image"
                                     Name="ChipListPreview" MinWidth="64" MinHeight="120" />
         </ScrollViewer>
       </Border>
@@ -115,7 +115,7 @@
       <!-- Battle canvas (TSA-rendered image) - KnownGap: BattleCanvasRender + TSAByteWrite -->
       <Border Grid.Row="0" BorderBrush="DarkGray" BorderThickness="1" Margin="0,0,0,4">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-          <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_Battle_Preview"
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_Battle_Image"
                                     Name="BattlePreview" MinWidth="256" MinHeight="160" />
         </ScrollViewer>
       </Border>
@@ -423,7 +423,7 @@
 
             <!-- Image preview area -->
             <Border BorderBrush="DarkGray" BorderThickness="1" MinHeight="128">
-              <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Preview"
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Image"
                                         Name="MainImagePreview" MinWidth="316" MinHeight="128" />
             </Border>
 

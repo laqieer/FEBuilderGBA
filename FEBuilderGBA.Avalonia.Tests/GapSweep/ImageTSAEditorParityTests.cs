@@ -99,14 +99,14 @@ public class ImageTSAEditorParityTests
         Assert.Contains("AutomationId=\"ImageTSAEditor_MainImage_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"ImageTSAEditor_MainImage_Import_Button\"", axaml);
         Assert.Contains("AutomationId=\"ImageTSAEditor_MainImage_Export_Button\"", axaml);
-        Assert.Contains("AutomationId=\"ImageTSAEditor_MainImage_Preview\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_MainImage_Image\"", axaml);
     }
 
     [Fact]
     public void View_HasBattleCanvas()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ImageTSAEditor_Battle_Preview\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_Battle_Image\"", axaml);
         Assert.Contains("AutomationId=\"ImageTSAEditor_TSAInfo_Input\"", axaml);
     }
 
@@ -114,7 +114,7 @@ public class ImageTSAEditorParityTests
     public void View_HasChipsetList()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ImageTSAEditor_ChipList_Preview\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_ChipList_Image\"", axaml);
     }
 
     [Fact]
