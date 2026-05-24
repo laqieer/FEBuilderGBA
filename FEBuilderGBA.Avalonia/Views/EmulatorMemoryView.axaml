@@ -1,24 +1,705 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.EmulatorMemoryView"
-        Title="Emulator Memory" Width="1696" Height="967"
+        Title="Emulator Memory" Width="1280" Height="900"
         WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="Manual">
+  <!--
+    EmulatorMemoryView - gap-sweep #385 parity rebuild.
+    Cross-platform Avalonia has no P/Invoke RAM reader, so this view is a
+    DECLARATIVE PARITY SURFACE: every live RAM-driven listbox, every
+    cheat ROM-write button, and every dynamic event-jump is KnownGap
+    (IsEnabled="False" + #385 tooltip). The 9 stateless cross-editor
+    open buttons (Event Script / Procs Script / Hex Editor / Text Viewer
+    / Song Table / BGM Mute / Map Change / RAM Rewrite Tool / RAM
+    Rewrite Tool MAP) ARE wired - they route through
+    WindowManager.Open<T>() so they work without a running emulator.
+  -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Emulator Memory" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button AutomationProperties.AutomationId="EmulatorMemory_Close_Button" Content="Close" Width="80" Click="Close_Click" />
-    </StackPanel>
-    <Border BorderBrush="Orange" BorderThickness="2" Padding="16" Background="{DynamicResource EmulatorWarningBackgroundBrush}">
-      <StackPanel Spacing="8">
-        <TextBlock Text="Platform Notice" FontWeight="Bold" FontSize="14" Foreground="DarkOrange" />
-        <TextBlock TextWrapping="Wrap"
-                   Text="Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version." />
-        <TextBlock TextWrapping="Wrap" Foreground="Gray"
-                   Text="This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality." />
+    <DockPanel Margin="12">
+
+      <!-- ====================================================== -->
+      <!-- Top bar: title + auto-update + connection status        -->
+      <!-- ====================================================== -->
+      <Border DockPanel.Dock="Top" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="0,0,0,8">
+        <Grid ColumnDefinitions="Auto,*,Auto,Auto" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Emulator Memory" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="Currently active unit" Margin="16,0,0,0" VerticalAlignment="Center" Foreground="Gray" FontStyle="Italic" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="ERROR" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="DarkRed" />
+          <CheckBox Grid.Row="0" Grid.Column="3" Content="Auto-update" Margin="16,0,0,0" VerticalAlignment="Center"
+                    AutomationProperties.AutomationId="EmulatorMemory_AutoUpdate_Check"
+                    IsChecked="False"
+                    IsEnabled="False"
+                    ToolTip.Tip="Live RAM polling not available in cross-platform Avalonia. Tracked by #385." />
+          <TextBlock Grid.Row="1" Grid.ColumnSpan="4" Text="Selected Address:" Margin="0,4,0,0" />
+        </Grid>
+      </Border>
+
+      <!-- ====================================================== -->
+      <!-- Bottom: Close button row                                -->
+      <!-- ====================================================== -->
+      <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+        <Button AutomationProperties.AutomationId="EmulatorMemory_Close_Button" Content="Close" Width="100" Click="Close_Click" />
       </StackPanel>
-    </Border>
-  </DockPanel>
+
+      <!-- ====================================================== -->
+      <!-- Platform notice (preserved from previous stub)          -->
+      <!-- ====================================================== -->
+      <Border DockPanel.Dock="Top" BorderBrush="Orange" BorderThickness="2" Padding="12" Margin="0,0,0,8"
+              Background="{DynamicResource EmulatorWarningBackgroundBrush}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Platform Notice" FontWeight="Bold" FontSize="14" Foreground="DarkOrange" />
+          <TextBlock TextWrapping="Wrap"
+                     Text="Emulator memory reading requires Windows P/Invoke and is not available in the cross-platform Avalonia version." />
+          <TextBlock TextWrapping="Wrap" Foreground="Gray"
+                     Text="This feature uses Windows-specific APIs to read the memory of a running GBA emulator process for live debugging. Please use the Windows (WinForms) version of FEBuilderGBA for this functionality." />
+          <!--
+            KnownGap inventory (per #385): all live-RAM features are deferred until a
+            cross-platform RAM reader lands. The parity view declares the WF surface so
+            users can browse the structure, but live updates / cheats / event jumps are
+            IsEnabled="False" with #385 tooltips.
+          -->
+        </StackPanel>
+      </Border>
+
+      <!-- ====================================================== -->
+      <!-- Main 6-tab TabControl                                   -->
+      <!-- ====================================================== -->
+      <TabControl AutomationProperties.AutomationId="EmulatorMemory_Main_TabControl" SelectedIndex="0">
+
+        <!-- ============================================ -->
+        <!-- TAB 1 - Event                                -->
+        <!-- ============================================ -->
+        <TabItem Header="Event" AutomationProperties.AutomationId="EmulatorMemory_Event_Tab">
+          <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*,Auto" Margin="6">
+            <!-- Left column: Running event + current text -->
+            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+              <TextBlock Text="Running Event" FontWeight="Bold" />
+              <TextBlock Text="Currently active unit" Foreground="Gray" FontStyle="Italic" />
+              <Button Content="Active Unit" Width="120" HorizontalAlignment="Left"
+                      AutomationProperties.AutomationId="EmulatorMemory_OpenActiveUnit_Button"
+                      IsEnabled="False"
+                      ToolTip.Tip="Live RAM unit address not available in Avalonia. Tracked by #385." />
+            </StackPanel>
+            <ListBox Grid.Row="1" Grid.Column="0" Margin="0,6,0,0" Height="220"
+                     AutomationProperties.AutomationId="EmulatorMemory_RunningEvent_List" />
+            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+              <TextBlock Text="Event" VerticalAlignment="Center" />
+              <TextBlock Text="Text" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <Button Content="Speech"
+                      AutomationProperties.AutomationId="EmulatorMemory_Speech_Button"
+                      IsEnabled="False"
+                      ToolTip.Tip="TTS / speech playback is not available in cross-platform Avalonia. Tracked by #385." />
+              <Button Content="Subtitle"
+                      AutomationProperties.AutomationId="EmulatorMemory_Subtile_Button"
+                      IsEnabled="False"
+                      ToolTip.Tip="Subtitle window is not available in cross-platform Avalonia. Tracked by #385." />
+            </StackPanel>
+
+            <!-- Right column: Flag list + memory slot -->
+            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="8,0,0,0">
+              <TextBlock Text="Flag" FontWeight="Bold" />
+              <TextBlock TextWrapping="Wrap" Foreground="Gray"
+                         Text="To change a non-clear flag, double-click the flag in the Event panel." />
+            </StackPanel>
+            <ListBox Grid.Row="1" Grid.Column="1" Margin="8,6,0,0" Height="220"
+                     AutomationProperties.AutomationId="EmulatorMemory_Flag_List" />
+            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4" Margin="8,6,0,0">
+              <TextBlock Text="Memory Slot" FontWeight="Bold" />
+              <ListBox Height="80"
+                       AutomationProperties.AutomationId="EmulatorMemory_MemorySlot_List" />
+            </StackPanel>
+          </Grid>
+        </TabItem>
+
+        <!-- ============================================ -->
+        <!-- TAB 2 - Event History                        -->
+        <!-- ============================================ -->
+        <TabItem Header="Event History" AutomationProperties.AutomationId="EmulatorMemory_EventHistory_Tab">
+          <DockPanel Margin="6">
+            <TextBlock DockPanel.Dock="Top" Text="Event History (newest first) - Time / Begin / Running / Event" Margin="0,0,0,6" />
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,4">
+              <TextBlock Text="↑ Newest" Foreground="Gray" />
+              <TextBlock Text="Older ↓" Foreground="Gray" />
+            </StackPanel>
+            <ListBox AutomationProperties.AutomationId="EmulatorMemory_EventHistory_List" />
+          </DockPanel>
+        </TabItem>
+
+        <!-- ============================================ -->
+        <!-- TAB 3 - Procs                                -->
+        <!-- ============================================ -->
+        <TabItem Header="Procs" AutomationProperties.AutomationId="EmulatorMemory_Procs_Tab">
+          <Grid ColumnDefinitions="*,360" Margin="6">
+            <ListBox Grid.Column="0"
+                     AutomationProperties.AutomationId="EmulatorMemory_Procs_List" />
+            <!-- Floating Proc control panel (struct field labels - WF mirror) -->
+            <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Padding="8" Margin="6,0,0,0">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Address" FontWeight="Bold" />
+                <TextBlock Text="Name" />
+                <TextBox AutomationProperties.AutomationId="EmulatorMemory_Procs_Name_Input" IsReadOnly="True" />
+                <TextBlock Text="Code cursor" />
+                <TextBlock Text="Start of code" Foreground="Gray" />
+                <TextBlock Text="Block Counter" Foreground="Gray" />
+                <TextBlock Text="Loop Routine" Foreground="Gray" />
+                <TextBlock Text="Destructor Routine" Foreground="Gray" />
+                <TextBlock Text="Sleep Timer" Foreground="Gray" />
+                <TextBlock Text="First Child Struct" Foreground="Gray" />
+                <TextBlock Text="Next Struct" Foreground="Gray" />
+                <TextBlock Text="Previous Struct" Foreground="Gray" />
+                <TextBlock Text="Parent Procs" Foreground="Gray" />
+                <TextBlock Text="Mark" Foreground="Gray" />
+                <TextBlock Text="Some kind of bitfield" Foreground="Gray" />
+                <TextBlock Text="UserSpace" Foreground="Gray" />
+                <TextBlock Text="UserSpace1" Foreground="Gray" />
+                <TextBlock Text="UserSpace2" Foreground="Gray" />
+                <TextBlock Text="UserSpace3" Foreground="Gray" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </TabItem>
+
+        <!-- ============================================ -->
+        <!-- TAB 4 - BGM                                  -->
+        <!-- ============================================ -->
+        <TabItem Header="BGM" AutomationProperties.AutomationId="EmulatorMemory_BGM_Tab">
+          <DockPanel Margin="6">
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+              <TextBlock Text="Currently Playing BGM" FontWeight="Bold" VerticalAlignment="Center" />
+              <TextBlock Text="BGM" Foreground="Gray" VerticalAlignment="Center" />
+              <Button Content="Jump to Song"
+                      AutomationProperties.AutomationId="EmulatorMemory_OpenSongTable_Button"
+                      Click="OpenSongTable_Click" />
+              <Button Content="BGM Mute Dialog"
+                      AutomationProperties.AutomationId="EmulatorMemory_OpenToolBGMMuteDialog_Button"
+                      Click="OpenToolBGMMuteDialog_Click" />
+            </StackPanel>
+            <ListBox AutomationProperties.AutomationId="EmulatorMemory_BGM_List" />
+          </DockPanel>
+        </TabItem>
+
+        <!-- ============================================ -->
+        <!-- TAB 5 - Etc (with 16 inner sub-tabs)         -->
+        <!-- ============================================ -->
+        <TabItem Header="Etc" AutomationProperties.AutomationId="EmulatorMemory_Etc_Tab">
+          <DockPanel Margin="4">
+            <!-- Etc top bar: Party combo + count + active unit jump -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+              <TextBlock Text="Party" VerticalAlignment="Center" />
+              <ComboBox Width="120"
+                        AutomationProperties.AutomationId="EmulatorMemory_Party_Combo" />
+              <TextBlock Text="PartyCount" VerticalAlignment="Center" Margin="8,0,0,0" />
+              <Label Content="Party Table ID" VerticalAlignment="Center" Margin="8,0,0,0" />
+            </StackPanel>
+
+            <TabControl AutomationProperties.AutomationId="EmulatorMemory_EtcSub_TabControl">
+
+              <!-- General (the big Party-unit dump) -->
+              <TabItem Header="General" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_General_Tab">
+                <ScrollViewer>
+                  <Grid ColumnDefinitions="240,*" RowDefinitions="*">
+                    <!-- Party listbox -->
+                    <ListBox Grid.Column="0"
+                             AutomationProperties.AutomationId="EmulatorMemory_PartyGeneral_List" Height="640" />
+                    <!-- Party struct field surface -->
+                    <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Padding="6" Margin="6,0,0,0">
+                      <ScrollViewer>
+                        <StackPanel Spacing="3">
+                          <TextBlock Text="Fields set by unit actions" FontWeight="Bold" />
+                          <TextBlock Text="Active Unit" Foreground="DarkBlue" />
+                          <TextBlock Text="ROM Unit" Foreground="Gray" />
+                          <TextBlock Text="ROM Class" Foreground="Gray" />
+                          <TextBlock Text="MapSprite" Foreground="Gray" />
+
+                          <TextBlock Text="X" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Y" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+
+                          <TextBlock Text="Lv" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Exp" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Current HP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Max HP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Str / Mag" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Skill" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Spd" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Def" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Res" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Lck" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Con+" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Mov+" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+
+                          <TextBlock Text="Sword EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Lance EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Axe EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Bow EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Staff EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Anima EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Light EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Dark EXP" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+
+                          <TextBlock Text="Status" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Status and Turn" Foreground="Gray" />
+                          <TextBlock Text="Recovery Mode" Foreground="Gray" />
+
+                          <TextBlock Text="Item ID 1" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item count 1" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item ID 2" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item count 2" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item ID 3" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item count 3" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item ID 4" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item count 4" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item ID 5" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+                          <TextBlock Text="Item count 5" />
+                          <NumericUpDown Value="0" IsReadOnly="True" />
+
+                          <TextBlock Text="Companion ID" />
+                          <TextBlock Text="Holy Water / Torch" />
+                          <TextBlock Text="Mark" />
+
+                          <TextBlock Text="Support 1" />
+                          <TextBlock Text="Support 2" />
+                          <TextBlock Text="Support 3" />
+                          <TextBlock Text="Support 4" />
+                          <TextBlock Text="Support 5" />
+                          <TextBlock Text="Support 6" />
+                          <TextBlock Text="Support 7" />
+                          <TextBlock Text="Support Flag" />
+
+                          <TextBlock Text="??? 1" Foreground="Gray" />
+                          <TextBlock Text="??? 2" Foreground="Gray" />
+                          <TextBlock Text="??? 3" Foreground="Gray" />
+                          <TextBlock Text="??? 8" Foreground="Gray" />
+                          <TextBlock Text="??? 9" Foreground="Gray" />
+
+                          <!-- Offset literal labels (struct positions; mirrored from WF) -->
+                          <TextBlock Text="41(0x29)" Foreground="Gray" />
+                          <TextBlock Text="44(0x2C)" Foreground="Gray" />
+                          <TextBlock Text="48(0x30)" Foreground="Gray" />
+                          <TextBlock Text="52(0x34)" Foreground="Gray" />
+                          <TextBlock Text="56(0x38)" Foreground="Gray" />
+                          <TextBlock Text="60(0x3C)" Foreground="Gray" />
+                          <TextBlock Text="64(0x40)" Foreground="Gray" />
+                          <TextBlock Text="68(0x44)" Foreground="Gray" />
+                          <TextBlock Text="72(0x48)" Foreground="Gray" />
+                          <TextBlock Text="76(0x4C)" Foreground="Gray" />
+                          <TextBlock Text="80(0x50)" Foreground="Gray" />
+                          <TextBlock Text="84(0x54)" Foreground="Gray" />
+                          <TextBlock Text="88(0x58)" Foreground="Gray" />
+                          <TextBlock Text="92(0x5C)" Foreground="Gray" />
+                          <TextBlock Text="96(0x60)" Foreground="Gray" />
+                          <TextBlock Text="100(0x64)" Foreground="Gray" />
+                          <TextBlock Text="104(0x68)" Foreground="Gray" />
+                        </StackPanel>
+                      </ScrollViewer>
+                    </Border>
+                  </Grid>
+                </ScrollViewer>
+              </TabItem>
+
+              <!-- Trap Data -->
+              <TabItem Header="Trap Data" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Trap_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_TrapList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- Palette -->
+              <TabItem Header="Palette" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Palette_Tab">
+                <DockPanel Margin="4">
+                  <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+                    <TextBlock Text="Address" VerticalAlignment="Center" />
+                    <Button Content="Search"
+                            AutomationProperties.AutomationId="EmulatorMemory_PaletteSearch_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live VRAM palette search not available in Avalonia. Tracked by #385." />
+                  </StackPanel>
+                  <Grid ColumnDefinitions="*,*" RowDefinitions="*">
+                    <ListBox Grid.Column="0" AutomationProperties.AutomationId="EmulatorMemory_PaletteList_List" />
+                    <Image Grid.Column="1" Margin="6,0,0,0"
+                           AutomationProperties.AutomationId="EmulatorMemory_PalettePreview_Image" />
+                  </Grid>
+                </DockPanel>
+              </TabItem>
+
+              <!-- Clear Turns -->
+              <TabItem Header="Clear Turns" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_ClearTurns_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_ClearTurnList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- BWL -->
+              <TabItem Header="BWL" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_BWL_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Battle History" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_BWLList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- ChapterData -->
+              <TabItem Header="ChapterData" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_ChapterData_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Chapter Data" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_ChapterDataList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- Supply -->
+              <TabItem Header="Supply" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Supply_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Supply contents" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_SupplyList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- ActionData -->
+              <TabItem Header="ActionData" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Action_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_ActionList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- Arena -->
+              <TabItem Header="Arena" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Arena_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Arena opponent selection data" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_ArenaList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- BattleActor -->
+              <TabItem Header="BattleActor" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_BattleActor_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Battle data gBattleActor" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_BattleActorList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- BattleTarget -->
+              <TabItem Header="BattleTarget" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_BattleTarget_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Battle data gBattleTarget" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_BattleTargetList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- AIData -->
+              <TabItem Header="AIData" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_AI_Tab">
+                <DockPanel Margin="4">
+                  <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,4">
+                    <TextBlock Text="AI1" />
+                    <TextBlock Text="AI1 Count" />
+                    <TextBlock Text="AI2" />
+                    <TextBlock Text="AI2 Count" />
+                    <TextBlock Text="AI3" />
+                    <TextBlock Text="AI4" />
+                  </StackPanel>
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_AIList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- BattleRound -->
+              <TabItem Header="BattleRound" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_BattleRound_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="BattleRounds" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_BattleRoundList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- BattleSome -->
+              <TabItem Header="BattleSome" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_BattleSome_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Battle-related data" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_BattleSomeList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- Worldmap -->
+              <TabItem Header="Worldmap" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Worldmap_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Worldmap FE8" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_WorldmapList_List" />
+                </DockPanel>
+              </TabItem>
+
+              <!-- Dungeon -->
+              <TabItem Header="Dungeon" AutomationProperties.AutomationId="EmulatorMemory_EtcSub_Dungeon_Tab">
+                <DockPanel Margin="4">
+                  <TextBlock DockPanel.Dock="Top" Text="Tower and Ruins data" Margin="0,0,0,2" />
+                  <TextBlock DockPanel.Dock="Top" Text="Address" Margin="0,0,0,4" />
+                  <ListBox AutomationProperties.AutomationId="EmulatorMemory_DungeonList_List" />
+                </DockPanel>
+              </TabItem>
+            </TabControl>
+          </DockPanel>
+        </TabItem>
+
+        <!-- ============================================ -->
+        <!-- TAB 6 - Cheat                                -->
+        <!-- ============================================ -->
+        <TabItem Header="Cheat" AutomationProperties.AutomationId="EmulatorMemory_Cheat_Tab">
+          <ScrollViewer>
+            <StackPanel Margin="8" Spacing="10">
+              <TextBlock Text="Debug cheat utilities" FontWeight="Bold" />
+              <TextBlock Text="Analyst tools" Foreground="Gray" FontStyle="Italic" />
+
+              <!-- Unit warp -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Change this unit's coordinates and warp it." FontWeight="Bold" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="X" VerticalAlignment="Center" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <TextBlock Text="Y" VerticalAlignment="Center" Margin="12,0,0,0" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <Button Content="Warp Unit"
+                            AutomationProperties.AutomationId="EmulatorMemory_CHEAT_UnitWarp_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Change Turn Count -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="Change Turn Count" VerticalAlignment="Center" />
+                  <TextBlock Text="Turn" VerticalAlignment="Center" Margin="12,0,0,0" />
+                  <NumericUpDown Value="1" IsReadOnly="True" Width="80" />
+                  <Button Content="Apply Turn"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Turn_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                </StackPanel>
+              </Border>
+
+              <!-- Warp to chapter -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Warp to this chapter" FontWeight="Bold" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Map ID" VerticalAlignment="Center" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <TextBlock Text="Warp chapter" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="Gray" />
+                    <TextBlock Text="Edition" VerticalAlignment="Center" Margin="6,0,0,0" />
+                    <TextBlock Text="Worldmap base" VerticalAlignment="Center" Margin="6,0,0,0" Foreground="Gray" />
+                    <Button Content="Warp Chapter"
+                            AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Warp_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Unit grow / stats -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <Button Content="Max out this unit's stats."
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_UnitGrow_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  <Button Content="Set this unit's HP to 1."
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_UnitHP1_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  <Button Content="Max out all player units. (Hotkey Ctrl + G)"
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_AllPlayerUnitGrow_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  <Button Content="Max out all units including enemies"
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_AllUnitGrow_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  <Button Content="Set all enemy unit AI to 'Do not move'."
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_AllEnemyDoNotMove_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  <Button Content="Set all enemy units' HP to 1."
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_AllEnemyHP1_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                </StackPanel>
+              </Border>
+
+              <!-- Money -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Set Money to the value below" FontWeight="Bold" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Money" VerticalAlignment="Center" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="100" />
+                    <Button Content="Apply Money"
+                            AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Money_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Weather -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Change Weather (applies next turn)." FontWeight="Bold" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Weather" VerticalAlignment="Center" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="60" />
+                    <ComboBox Width="120" AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Weather_Combo" />
+                    <Button Content="Apply Weather"
+                            AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Weather_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Fog -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Change Fog (applies next turn)." FontWeight="Bold" />
+                  <TextBlock Text="0 = no fog. 1 = max fog (vision 1 tile)." Foreground="Gray" FontStyle="Italic" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Fog Level" VerticalAlignment="Center" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="60" />
+                    <Button Content="Apply Fog"
+                            AutomationProperties.AutomationId="EmulatorMemory_CHEAT_Fog_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Give item -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Give this unit the following item" FontWeight="Bold" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Item to give" VerticalAlignment="Center" />
+                    <NumericUpDown Value="0" IsReadOnly="True" Width="80" />
+                    <TextBlock Text="Count" VerticalAlignment="Center" Margin="6,0,0,0" />
+                    <NumericUpDown Value="1" IsReadOnly="True" Width="60" />
+                    <Button Content="Give Item"
+                            AutomationProperties.AutomationId="EmulatorMemory_CHEAT_UnitHaveItem_Button"
+                            IsEnabled="False"
+                            ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <!-- Set Flag 03 -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Clear the current chapter. (Hotkey: Ctrl + U)" FontWeight="Bold" />
+                  <Button Content="Set Clear Flag 03"
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_CHEAT_SetFlag03_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live RAM cheat write not available in cross-platform Avalonia. Tracked by #385." />
+                </StackPanel>
+              </Border>
+
+              <!-- Memory dumps -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <Button Content="Dump memory to file at 0x02000000"
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_MemoryDump02_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live memory dump not available in cross-platform Avalonia. Tracked by #385." />
+                  <Button Content="Dump memory to file at 0x03000000"
+                          HorizontalAlignment="Left"
+                          AutomationProperties.AutomationId="EmulatorMemory_MemoryDump03_Button"
+                          IsEnabled="False"
+                          ToolTip.Tip="Live memory dump not available in cross-platform Avalonia. Tracked by #385." />
+                </StackPanel>
+              </Border>
+
+              <!-- Cross-editor open buttons (FUNCTIONAL — route through WindowManager.Open<T>()) -->
+              <Border BorderBrush="LightSeaGreen" BorderThickness="1" Padding="6">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Open related editors" FontWeight="Bold" Foreground="DarkCyan" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Content="Event Script"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenEventScript_Button"
+                            Click="OpenEventScript_Click" />
+                    <Button Content="Procs Script"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenProcsScript_Button"
+                            Click="OpenProcsScript_Click" />
+                    <Button Content="Hex Editor"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenHexEditor_Button"
+                            Click="OpenHexEditor_Click" />
+                    <Button Content="Text Viewer"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenTextViewer_Button"
+                            Click="OpenTextViewer_Click" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Content="Map Change"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenMapChange_Button"
+                            Click="OpenMapChange_Click" />
+                    <Button Content="RAM Rewrite Tool"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenRAMRewriteTool_Button"
+                            Click="OpenRAMRewriteTool_Click" />
+                    <Button Content="RAM Rewrite Tool MAP"
+                            AutomationProperties.AutomationId="EmulatorMemory_OpenRAMRewriteToolMAP_Button"
+                            Click="OpenRAMRewriteToolMAP_Click" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+      </TabControl>
+    </DockPanel>
   </ScrollViewer>
 </Window>
