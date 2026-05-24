@@ -22512,8 +22512,6 @@ WF 中的 N03 子标签包含 16 个无固定语义的通用字节 (B16..B31)。
 :Use the WinForms editor to assign 'other' bytes to a skill.
 要为技能分配"其他"字节，请使用 WinForms 编辑器。
 
-:Skill Configuration (FE8N)
-技能设置 (FE8N)
 :Skill Configuration (FE8N v3)
 技能配置 (FE8N v3)
 

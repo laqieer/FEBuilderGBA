@@ -8677,8 +8677,6 @@ WF の N03 サブタブには固定の意味を持たない汎用 16 バイト (
 :Use the WinForms editor to assign 'other' bytes to a skill.
 スキルに「その他」バイトを割り当てるには WinForms エディターを使用してください。
 
-:Skill Configuration (FE8N)
-スキル設定 (FE8N)
 :Skill Configuration (FE8N v3)
 スキル設定 (FE8N v3)
 
