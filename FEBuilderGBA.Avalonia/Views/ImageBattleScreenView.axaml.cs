@@ -199,12 +199,15 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             // Pull the ZIMAGE numerics back into the VM so they are part of
-            // the write batch.
-            _vm.Image1Pointer = (uint)((double)(Image1ZImage.Value ?? 0));
-            _vm.Image2Pointer = (uint)((double)(Image2ZImage.Value ?? 0));
-            _vm.Image3Pointer = (uint)((double)(Image3ZImage.Value ?? 0));
-            _vm.Image4Pointer = (uint)((double)(Image4ZImage.Value ?? 0));
-            _vm.Image5Pointer = (uint)((double)(Image5ZImage.Value ?? 0));
+            // the write batch. Per Copilot bot PR #594 round 6 thread #1:
+            // match the cast pattern from other Avalonia views
+            // (e.g. AIASMCALLTALKView.axaml.cs uses (uint)(Box.Value ?? 0))
+            // instead of the surprising double round-trip.
+            _vm.Image1Pointer = (uint)(Image1ZImage.Value ?? 0);
+            _vm.Image2Pointer = (uint)(Image2ZImage.Value ?? 0);
+            _vm.Image3Pointer = (uint)(Image3ZImage.Value ?? 0);
+            _vm.Image4Pointer = (uint)(Image4ZImage.Value ?? 0);
+            _vm.Image5Pointer = (uint)(Image5ZImage.Value ?? 0);
 
             _undoService.Begin("Edit Battle Screen");
             bool ok;
