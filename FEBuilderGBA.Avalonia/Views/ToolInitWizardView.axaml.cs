@@ -325,9 +325,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnSkipStep6_Click(object? sender, RoutedEventArgs e)
         {
+            // Per Copilot CLI #583 re-review: route Skip through StageStep6()
+            // so the IsCompletedThroughStep6 gate gets set (DoNotSelect mode
+            // is valid for completion). Without this, ApplyAll() would be a
+            // no-op and previously-staged Step1..5 settings would be lost.
             _vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DoNotSelect;
-            _vm.ApplyAll();
-            _vm.GoToPage(8);
+            if (_vm.StageStep6())
+            {
+                _vm.ApplyAll();
+                _vm.GoToPage(8);
+            }
         }
 
         // ===================================================================

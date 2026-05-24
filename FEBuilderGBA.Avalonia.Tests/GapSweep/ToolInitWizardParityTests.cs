@@ -648,6 +648,61 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
+    public void View_OnSkipStep6_RoutesThroughStageStep6_NotJustApplyAll()
+    {
+        // Per Copilot CLI #583 re-review (round 2): the SkipStep6 click
+        // handler in the code-behind MUST call StageStep6() before
+        // ApplyAll() so the IsCompletedThroughStep6 gate is set. Otherwise
+        // a user who validly skips Git would have ApplyAll() be a no-op and
+        // lose previously-staged Step1..5 settings.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        int handlerIdx = source.IndexOf("void OnSkipStep6_Click", StringComparison.Ordinal);
+        Assert.True(handlerIdx >= 0, "OnSkipStep6_Click handler missing.");
+        int handlerEnd = source.IndexOf("\n        }", handlerIdx, StringComparison.Ordinal);
+        Assert.True(handlerEnd > handlerIdx, "Could not delimit OnSkipStep6_Click scope.");
+        string handlerBody = source.Substring(handlerIdx, handlerEnd - handlerIdx);
+        // StageStep6 must be called BEFORE ApplyAll inside this handler.
+        int stageIdx = handlerBody.IndexOf("StageStep6", StringComparison.Ordinal);
+        int applyIdx = handlerBody.IndexOf("ApplyAll", StringComparison.Ordinal);
+        Assert.True(stageIdx >= 0,
+            "OnSkipStep6_Click must call StageStep6() to set the IsCompletedThroughStep6 gate.");
+        Assert.True(applyIdx >= 0,
+            "OnSkipStep6_Click must call ApplyAll() to persist staged settings.");
+        Assert.True(stageIdx < applyIdx,
+            "OnSkipStep6_Click must call StageStep6() BEFORE ApplyAll() so the gate is set first.");
+    }
+
+    [Fact]
+    public void ViewModel_SkipStep6Flow_PersistsPreviouslyStagedSettings()
+    {
+        // End-to-end VM test for the Skip-Git flow that Copilot CLI #583
+        // re-review (round 2) flagged. After the user stages Step1..5 and
+        // clicks Skip on Step6:
+        //   1. PendingStep6Mode = DoNotSelect
+        //   2. StageStep6() returns true (DoNotSelect is valid for completion)
+        //   3. IsCompletedThroughStep6 becomes true
+        //   4. ApplyAll() then persists all staged settings
+        using (new ConfigSnapshot())
+        using (var emu = new TempFile())
+        {
+            var vm = new ToolInitWizardViewModel();
+            vm.Initialize();
+            vm.PendingEmulatorPath = emu.Path;
+            vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.Path;
+
+            // Simulate Skip on Step6
+            vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DoNotSelect;
+            Assert.True(vm.StageStep6());
+            Assert.True(vm.IsCompletedThroughStep6);
+            vm.ApplyAll();
+
+            // Verify the Step 1 setting was persisted (not lost to a no-op
+            // ApplyAll).
+            Assert.Equal(emu.Path, CoreState.Config.at("emulator"));
+        }
+    }
+
+    [Fact]
     public void ViewModel_ApplyAll_WritesSettingStatus_OnGatedNoOp()
     {
         // A user-visible diagnostic for the no-op path. Helps the screenshot
