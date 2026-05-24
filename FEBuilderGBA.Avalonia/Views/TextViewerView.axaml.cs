@@ -41,8 +41,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 LoadList();
                 PopulateAddressBar();
-                // Export Limit (read-only descriptive caption — see WU1).
-                ExportLimitBox.Text = R._("Filter: All (out-of-scope)");
+                // Export Limit descriptor — describes the export filter that
+                // will be applied. WF `TextForm.textBox1` shows the same kind
+                // of read-only stub label. Both depend on `ToolTranslateROM`
+                // Core extraction (same blocker as `ExportFilterCombo`).
+                ExportLimitBox.Text = R._("All (out-of-scope)");
             };
         }
 
@@ -406,7 +409,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                FreeAreaStatusLabel.Text = $"Error: {ex.Message}";
+                FreeAreaStatusLabel.Text = R._("Error: {0}", ex.Message);
                 Log.Error("SearchFreeArea failed: {0}", ex.Message);
             }
         }
