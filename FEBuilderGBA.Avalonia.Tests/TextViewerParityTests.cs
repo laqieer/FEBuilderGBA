@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_PointerPrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_PointerValue_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_PointerValue_Input"));
         }
 
         [AvaloniaFact]
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_RefsPrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_RefsCount_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_RefsCount_Input"));
         }
 
         // ---- Search Tools tab ----
@@ -112,7 +112,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_FilterPrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_FilterValue_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_FilterValue_Input"));
         }
 
         [AvaloniaFact]
@@ -120,7 +120,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReadStartAddressPrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ReadStartAddress_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ReadStartAddress_Input"));
         }
 
         [AvaloniaFact]
@@ -128,7 +128,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReadCountPrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ReadCount_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ReadCount_Input"));
         }
 
         [AvaloniaFact]
@@ -136,7 +136,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_SizePrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_Size_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_Size_Input"));
         }
 
         [AvaloniaFact]
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ExportLimitPrefix_Label"));
-            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ExportLimit_TextBox"));
+            Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ExportLimit_Input"));
         }
 
         // ---- Translate tab ----
@@ -254,7 +254,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReferencesPrefix_Label"));
-            Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReferencesTabList"));
+            Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReferencesTab_List"));
         }
 
         [AvaloniaFact]

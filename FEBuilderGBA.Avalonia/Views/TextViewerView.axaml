@@ -33,11 +33,11 @@
             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
               <TextBlock AutomationProperties.AutomationId="TextViewer_PointerPrefix_Label"
                          Text="Pointer:" VerticalAlignment="Center" FontWeight="SemiBold" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_PointerValue_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_PointerValue_Input"
                        Name="PointerValueBox" IsReadOnly="True" Width="120" />
               <TextBlock AutomationProperties.AutomationId="TextViewer_RefsPrefix_Label"
                          Text="Refs:" VerticalAlignment="Center" FontWeight="SemiBold" Margin="12,0,0,0" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_RefsCount_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_RefsCount_Input"
                        Name="RefsCountBox" IsReadOnly="True" Width="60" />
             </StackPanel>
 
@@ -78,7 +78,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_FilterPrefix_Label"
                          Text="Filter:" VerticalAlignment="Center" Width="160" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_FilterValue_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_FilterValue_Input"
                        Name="FilterValueBox" IsReadOnly="True" Width="240" />
             </StackPanel>
 
@@ -86,7 +86,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_ReadStartAddressPrefix_Label"
                          Text="Read Start Address:" VerticalAlignment="Center" Width="160" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_ReadStartAddress_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_ReadStartAddress_Input"
                        Name="ReadStartAddressBox" IsReadOnly="True" Width="240" />
             </StackPanel>
 
@@ -94,7 +94,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_ReadCountPrefix_Label"
                          Text="Read Count:" VerticalAlignment="Center" Width="160" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_ReadCount_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_ReadCount_Input"
                        Name="ReadCountBox" IsReadOnly="True" Width="240" />
             </StackPanel>
 
@@ -102,7 +102,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_SizePrefix_Label"
                          Text="Size:" VerticalAlignment="Center" Width="160" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_Size_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_Size_Input"
                        Name="SizeValueBox" IsReadOnly="True" Width="240" />
             </StackPanel>
 
@@ -150,7 +150,7 @@
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_ExportLimitPrefix_Label"
                          Text="Export Limit:" VerticalAlignment="Center" Width="140" />
-              <TextBox AutomationProperties.AutomationId="TextViewer_ExportLimit_TextBox"
+              <TextBox AutomationProperties.AutomationId="TextViewer_ExportLimit_Input"
                        Name="ExportLimitBox" IsReadOnly="True" Width="240" />
             </StackPanel>
           </StackPanel>
@@ -192,7 +192,7 @@
           <TextBlock Grid.Row="0" AutomationProperties.AutomationId="TextViewer_ReferencesPrefix_Label"
                      Text="References:" FontSize="16" FontWeight="Bold" Margin="4,4,4,8" />
           <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Margin="4">
-            <ListBox AutomationProperties.AutomationId="TextViewer_ReferencesTabList"
+            <ListBox AutomationProperties.AutomationId="TextViewer_ReferencesTab_List"
                      Name="ReferencesTabList" />
           </Border>
           <Button Grid.Row="2" AutomationProperties.AutomationId="TextViewer_AddReference_Button"
