@@ -64,10 +64,12 @@
     </Border>
 
     <!-- Row 2 col 1: edit panel (TabControl with Main + 4 sub-list tabs) -->
-    <TabControl Grid.Row="2" Grid.Column="1" Margin="4" SelectedIndex="0">
+    <TabControl AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Main_TabControl"
+                Grid.Row="2" Grid.Column="1" Margin="4" SelectedIndex="0">
 
       <!-- Tab 1: Main skill row editor (functional) -->
-      <TabItem Header="Skill Detail">
+      <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_SkillDetail_Tab"
+               Header="Skill Detail">
         <ScrollViewer>
           <StackPanel Spacing="8" Margin="8">
             <Label Content="Skill Configuration (FE8N v2)" FontSize="18" FontWeight="Bold" />
@@ -273,7 +275,8 @@
       </TabItem>
 
       <!-- Tab 2: Unit sub-list placeholder (KnownGap: tracked by #374) -->
-      <TabItem Header="Unit Skill List">
+      <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSkillList_Tab"
+               Header="Unit Skill List">
         <StackPanel Margin="16" Spacing="8">
           <Label Content="Unit Skill Sub-list" FontSize="16" FontWeight="Bold" />
           <Border Background="{DynamicResource WarningBackgroundBrush}"
@@ -297,7 +300,8 @@
       </TabItem>
 
       <!-- Tab 3: Class sub-list placeholder (KnownGap: tracked by #374) -->
-      <TabItem Header="Class Skill List">
+      <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSkillList_Tab"
+               Header="Class Skill List">
         <StackPanel Margin="16" Spacing="8">
           <Label Content="Class Skill Sub-list" FontSize="16" FontWeight="Bold" />
           <Border Background="{DynamicResource WarningBackgroundBrush}"
@@ -321,7 +325,8 @@
       </TabItem>
 
       <!-- Tab 4: Item sub-list placeholder (KnownGap: tracked by #374) -->
-      <TabItem Header="Item Skill List">
+      <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemSkillList_Tab"
+               Header="Item Skill List">
         <StackPanel Margin="16" Spacing="8">
           <Label Content="Item Skill Sub-list" FontSize="16" FontWeight="Bold" />
           <Border Background="{DynamicResource WarningBackgroundBrush}"
@@ -345,7 +350,8 @@
       </TabItem>
 
       <!-- Tab 5: Item2 sub-list placeholder (KnownGap: tracked by #374) -->
-      <TabItem Header="Item2 Skill List" Name="Item2Tab" IsVisible="False">
+      <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2SkillList_Tab"
+               Header="Item2 Skill List" Name="Item2Tab" IsVisible="False">
         <StackPanel Margin="16" Spacing="8">
           <Label Content="Item2 Skill Sub-list (sizeof-20+ layout)" FontSize="16" FontWeight="Bold" />
           <Border Background="{DynamicResource WarningBackgroundBrush}"

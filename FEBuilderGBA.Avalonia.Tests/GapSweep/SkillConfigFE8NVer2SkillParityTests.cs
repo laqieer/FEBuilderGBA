@@ -281,6 +281,79 @@ public class SkillConfigFE8NVer2SkillParityTests
         }
     }
 
+    /// <summary>
+    /// Copilot CLI PR review (PR #598) finding 3: stride-20+ Item2 path must
+    /// be covered. Build a synthetic ROM with `ICON_LIST_SIZE = 20`, populate
+    /// the Item2 (P16) pointer for row 1, assert that:
+    ///   - `IconListSize` reports 20 and `HasItem2` is true.
+    ///   - `LoadEntry` reads the P16 pointer offset.
+    /// </summary>
+    [Fact]
+    public void ViewModel_LoadList_DetectsIconListSize20_EnablesItem2()
+    {
+        ROM rom = MakeStride20FE8NVer2Rom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            var vm = new SkillConfigFE8NVer2SkillViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+            Assert.Equal(20u, vm.IconListSize);
+            Assert.True(vm.HasItem2, "ICON_LIST_SIZE=20 must enable the Item2 row");
+
+            // Row 1 has Item2 pointer = 0x08F00300 -> offset 0x00F00300.
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+            Assert.Equal(0x00F00300u, vm.Item2SkillPointer);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
+    }
+
+    /// <summary>
+    /// Stride-20 Item2 pointer round-trips through Write. Mutate Item2 pointer,
+    /// call Write, assert raw u32 = offset | 0x08000000 AND p32(slot) = offset.
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_PersistsItem2Pointer_OnStride20()
+    {
+        ROM rom = MakeStride20FE8NVer2Rom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            var vm = new SkillConfigFE8NVer2SkillViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+            Assert.True(vm.HasItem2);
+
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+
+            uint newItem2Off = 0x00F00800u;
+            vm.Item2SkillPointer = newItem2Off;
+            vm.Write();
+
+            // Item2 slot is at addr + 16 in stride-20 layout. WF parity: raw
+            // u32 = offset | 0x08000000, p32 = offset.
+            Assert.Equal(newItem2Off | 0x08000000u, rom.u32(addr + 16));
+            Assert.Equal(newItem2Off, rom.p32(addr + 16));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
+    }
+
     [Fact]
     public void ViewModel_LoadEntry_PopulatesAllFields()
     {
@@ -674,6 +747,78 @@ public class SkillConfigFE8NVer2SkillParityTests
 
         var rom = new ROM();
         rom.LoadLow("synthetic-fe8nver2.gba", bytes, "BE8E01");
+        return rom;
+    }
+
+    /// <summary>
+    /// Variant of <see cref="MakeMinimalFE8NVer2Rom"/> that plants
+    /// `ICON_LIST_SIZE = 20` at <c>iconPointers + 4*11</c>. The skill-info
+    /// table at <c>0xE20000</c> uses a 20-byte stride: u16 textId @ +0,
+    /// u16 palette @ +2, u32 unit-pointer @ +4, u32 class-pointer @ +8,
+    /// u32 item-pointer @ +12, u32 item2-pointer @ +16. Row 1 plants a
+    /// valid Item2 pointer (0x08F00300 -> offset 0x00F00300) so the
+    /// stride-20 path can be exercised end-to-end.
+    /// </summary>
+    static ROM MakeStride20FE8NVer2Rom()
+    {
+        var bytes = new byte[0x1000000];
+
+        // 0. iconExPointer.
+        WriteU32(bytes, 0x8926C, 0x08001000u);
+
+        // 1. 0x70B96 = 0 (size-detect path runs).
+        WriteU16(bytes, 0x70B96, 0);
+
+        // 2. Icon-pointer array.
+        const uint iconPointersBase = 0xE0FFEC;
+        const uint skillTableBase = 0x00E20000;
+        const uint animeTableBase = 0x00E30000;
+        const uint stride = 20;
+
+        WriteU32(bytes, iconPointersBase + 4 * 0, 0x08E00000u);
+        WriteU32(bytes, iconPointersBase + 4 * 1, 0x08E00100u);
+        WriteU32(bytes, iconPointersBase + 4 * 2, 0x08E00200u);
+        WriteU32(bytes, iconPointersBase + 4 * 3, 0x08E00300u);
+        WriteU32(bytes, iconPointersBase + 4 * 4, skillTableBase | 0x08000000u);
+        WriteU32(bytes, iconPointersBase + 4 * 7, 0x08E00500u);
+        // slot[8] holds the anime base pointer (sizeof-20+ path).
+        WriteU32(bytes, iconPointersBase + 4 * 8, animeTableBase | 0x08000000u);
+        WriteU32(bytes, iconPointersBase + 4 * 9, 0x08E00700u);
+        WriteU32(bytes, iconPointersBase + 4 * 10, 0x08E00800u);
+        // slot[11] = ICON_LIST_SIZE = 20.
+        WriteU32(bytes, iconPointersBase + 4 * 11, 20);
+
+        // Plant the WF grep pattern.
+        byte[] iconPattern = new byte[] { 0x50, 0x93, 0x08, 0x08, 0x48, 0x93, 0x08, 0x08 };
+        Array.Copy(iconPattern, 0, bytes, (int)(iconPointersBase + 20), iconPattern.Length);
+
+        // 3. Skill-info table — stride 20 bytes.
+        WriteU16(bytes, skillTableBase + 0 * stride + 0, 0x0001);
+
+        WriteU16(bytes, skillTableBase + 1 * stride + 0, 0x00AB);
+        WriteU16(bytes, skillTableBase + 1 * stride + 2, 0x0001);
+        WriteU32(bytes, skillTableBase + 1 * stride + 4, 0x00F00000u | 0x08000000u);
+        WriteU32(bytes, skillTableBase + 1 * stride + 8, 0x00F00100u | 0x08000000u);
+        WriteU32(bytes, skillTableBase + 1 * stride + 12, 0x00F00200u | 0x08000000u);
+        WriteU32(bytes, skillTableBase + 1 * stride + 16, 0x00F00300u | 0x08000000u);
+
+        WriteU16(bytes, skillTableBase + 2 * stride + 0, 0x00CD);
+        WriteU16(bytes, skillTableBase + 3 * stride + 0, 0x00EF);
+        WriteU16(bytes, skillTableBase + 4 * stride + 0, 0x0101);
+
+        // Row 5 starts with 0xFF -> iteration terminates.
+        bytes[(int)skillTableBase + 5 * stride] = 0xFF;
+
+        // 4. Anime-pointer table.
+        WriteU32(bytes, animeTableBase + 0 * 4, 0);
+        WriteU32(bytes, animeTableBase + 1 * 4, 0x00100000u | 0x08000000u);
+        WriteU32(bytes, animeTableBase + 2 * 4, 0);
+        WriteU32(bytes, animeTableBase + 3 * 4, 0x00200000u | 0x08000000u);
+
+        bytes[0x6E0] = 0xFF;
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8nver2-stride20.gba", bytes, "BE8E01");
         return rom;
     }
 
