@@ -143,8 +143,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
         /// <summary>
-        /// Reset cached scan state so a subsequent LoadList re-runs the scan
-        /// (e.g. after a Patch install/uninstall mid-session).
+        /// Reset cached scan state AND per-row state so a subsequent LoadList
+        /// re-runs the scan from scratch (e.g. after a Patch install/uninstall
+        /// mid-session, or after a failed scan that left stale stride/base
+        /// fields populated). Addresses Copilot bot PR-review thread #2
+        /// (round 2): the prior reset left IconListSize / SkillBaseAddress /
+        /// AnimeBaseAddress / SkillPointerLocation intact, allowing
+        /// LoadEntry to use a stale stride for bounds/ID arithmetic.
         /// </summary>
         void ResetDerivedListState()
         {
@@ -166,6 +171,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsAnimationValid = false;
             SelectedFrame = 0;
             BinInfoText = "";
+
+            // Clear cached scan-derived state too so a subsequent LoadList
+            // call re-resolves the stride/base addresses from a clean slate.
+            SkillPointerLocation = U.NOT_FOUND;
+            SkillBaseAddress = 0;
+            AnimeBaseAddress = 0;
+            IconListSize = DEFAULT_SIZE;
         }
 
         public List<AddrResult> LoadList()
@@ -247,9 +259,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (textId == 0 || textId == 0xFFFF) return "";
                 string text = NameResolver.GetTextById(textId);
                 if (string.IsNullOrEmpty(text) || text == "???") return "";
-                int colon = text.IndexOf(':');
-                if (colon > 0) return text.Substring(0, colon).Trim();
-                return text;
+                // ParseTextToSkillName parity: extract substring between
+                // U+300E (『) and U+300F (』) - the FE skill-name delimiters.
+                // Addresses Copilot bot PR-review thread #1 (round 2): the
+                // prior colon-split heuristic produced different labels than WF.
+                const string Open = "『";   // 『
+                const string Close = "』";  // 』
+                int start = text.IndexOf(Open, StringComparison.Ordinal);
+                if (start < 0) return "";
+                start += Open.Length;
+                int end = text.IndexOf(Close, start, StringComparison.Ordinal);
+                if (end < 0) return "";
+                return text.Substring(start, end - start);
             }
             catch { return ""; }
         }
