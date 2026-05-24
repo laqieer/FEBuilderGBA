@@ -1,6 +1,6 @@
 ---
-generated: "2026-05-24T10:36:26Z"
-git-sha: 81ad8040b
+generated: "2026-05-24T11:55:02Z"
+git-sha: cedbf79ee
 sweep-type: labels
 ---
 
@@ -36,9 +36,9 @@ Regenerate with `FEBuilderGBA.Avalonia --gap-sweep-labels --out=<path>`.
 |---|---:|
 | Pairs scanned (both files exist) | 298 |
 | Pairs with ≥1 WF-only label | 293 |
-| Total WF-only labels | 4441 |
-| Total AV-only labels | 3400 |
-| Total common labels | 259 |
+| Total WF-only labels | 4393 |
+| Total AV-only labels | 3451 |
+| Total common labels | 307 |
 
 ## Top 20 Forms by WF-only Label Count
 
@@ -61,12 +61,12 @@ Cross-link to the [density sweep](2026-05-24-density-sweep.md) for quantitative 
 | 12 | `ItemForm` | `ItemEditorView` | 44 | 77 | 1 |
 | 13 | `ClassFE6Form` | `ClassFE6View` | 43 | 5 | 0 |
 | 14 | `ClassForm` | `ClassEditorView` | 43 | 107 | 15 |
-| 15 | `ImageBattleScreenForm` | `ImageBattleScreenView` | 42 | 2 | 0 |
-| 16 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
-| 17 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
-| 18 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
-| 19 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
-| 20 | `UnitFE7Form` | `UnitFE7View` | 35 | 76 | 4 |
+| 15 | `ItemFE6Form` | `ItemFE6View` | 42 | 68 | 2 |
+| 16 | `MonsterItemForm` | `MonsterItemViewerView` | 37 | 7 | 0 |
+| 17 | `SkillConfigFE8NVer3SkillForm` | `SkillConfigFE8NVer3SkillView` | 37 | 11 | 0 |
+| 18 | `ImageBattleAnimeForm` | `ImageBattleAnimeView` | 35 | 29 | 0 |
+| 19 | `UnitFE7Form` | `UnitFE7View` | 35 | 76 | 4 |
+| 20 | `EventUnitFE6Form` | `EventUnitFE6View` | 34 | 24 | 0 |
 
 ## Per-pair WF-only Labels (gaps)
 
@@ -1781,59 +1781,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Weapon Rank Levels (B44-B51)`
 - `Write`
 
-### ImageBattleScreenForm
-WF labels: **42** · AV labels: **2** · WF-only: **42** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 133 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `Import/Export`
-- `R`
-- `REDO`
-- `Tile1`
-- `Tile2`
-- `Tile3`
-- `Tile4`
-- `Tile5`
-- `UNDO`
-- `アイテム`
-- `クリップボード`
-- `パレット`
-- `パレットアドレス`
-- `パレット書き込み`
-- `パレット種類`
-- `メイン画像`
-- `右側`
-- `名前`
-- `左側`
-- `戦闘画面を一括でインポートします。\r\nTSAがあるので、共通タイルは1つにまとめられるという制約があります。`
-- `書き込み`
-- `画像`
-- `画像取出`
-- `画像読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `Battle Screen Layout`
-
 ### ItemFE6Form
 WF labels: **44** · AV labels: **70** · WF-only: **42** · AV-only: **68** · Common: **2** · Density verdict: **Low** (WF 121 / AV 97)
 
@@ -2958,47 +2905,6 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Write Anime Tuple`
 - `Write Glyph Entry`
 - `Write JP Name Pointer`
-
-### ImageTSAEditorForm
-WF labels: **30** · AV labels: **2** · WF-only: **30** · AV-only: **2** · Common: **0** · Density verdict: **High** (WF 100 / AV 3)
-
-WF-only labels (candidates for missing fields in AV):
-
-- `1`
-- `10`
-- `11`
-- `12`
-- `13`
-- `14`
-- `15`
-- `16`
-- `2`
-- `3`
-- `4`
-- `5`
-- `6`
-- `7`
-- `8`
-- `9`
-- `B`
-- `G`
-- `R`
-- `REDO`
-- `UNDO`
-- `クリップボード`
-- `パレット`
-- `パレットアドレス`
-- `パレット書き込み`
-- `メイン画像`
-- `書き込み`
-- `画像`
-- `画像取出`
-- `画像読込`
-
-AV-only labels (usually fine — layout polish or rewording):
-
-- `Address:`
-- `TSA Tile Editor`
 
 ### SummonsDemonKingForm
 WF labels: **30** · AV labels: **17** · WF-only: **30** · AV-only: **17** · Common: **0** · Density verdict: **Medium** (WF 60 / AV 32)
@@ -6216,6 +6122,67 @@ AV-only labels (usually fine — layout polish or rewording):
 - `Address:`
 - `Haiku (FE6)`
 
+### ImageBattleScreenForm
+WF labels: **42** · AV labels: **64** · WF-only: **15** · AV-only: **37** · Common: **27** · Density verdict: **Low** (WF 133 / AV 125)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `アイテム`
+- `クリップボード`
+- `パレット`
+- `パレットアドレス`
+- `パレット書き込み`
+- `パレット種類`
+- `メイン画像`
+- `右側`
+- `名前`
+- `左側`
+- `戦闘画面を一括でインポートします。\r\nTSAがあるので、共通タイルは1つにまとめられるという制約があります。`
+- `書き込み`
+- `画像`
+- `画像取出`
+- `画像読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0x00000000`
+- `Battle Preview (deferred KnownGap): rendering the 32x20 TSA grid with the live palette requires System.Drawing + ImageUtil.BitBlt. The numeric fields and palette/image pointer write paths in this edit… (truncated; see designer file)`
+- `Battle Screen`
+- `Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated.`
+- `Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells.`
+- `Clipboard`
+- `Image`
+- `Image Export`
+- `Image Import`
+- `Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393).`
+- `Image2 Preview (deferred)`
+- `Image3 Preview (deferred)`
+- `Image4 Preview (deferred)`
+- `Image5 Preview (deferred)`
+- `Item`
+- `KnownGap: battle-screen bitmap rendering is WinForms-coupled (#393).`
+- `KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393).`
+- `KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393).`
+- `KnownGap: chipset thumbnail rendering is WinForms-coupled (#393).`
+- `KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar.`
+- `KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393).`
+- `KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393).`
+- `KnownGap: per-image LZ77 Import is WinForms-coupled (#393).`
+- `KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393).`
+- `KnownGap: per-image PNG Export is WinForms-coupled (#393).`
+- `KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.`
+- `Left Side`
+- `Main Image`
+- `Name`
+- `Palette`
+- `Palette Address`
+- `Palette Type`
+- `Palette Write`
+- `Right Side`
+- `TSA1 Address`
+- `Write`
+- `Zoom`
+
 ### ImageTSAAnimeForm
 WF labels: **15** · AV labels: **6** · WF-only: **15** · AV-only: **6** · Common: **0** · Density verdict: **High** (WF 22 / AV 7)
 
@@ -8714,6 +8681,42 @@ AV-only labels (usually fine — layout polish or rewording):
 
 - `Address:`
 - `Event Template 4`
+
+### ImageTSAEditorForm
+WF labels: **30** · AV labels: **39** · WF-only: **9** · AV-only: **18** · Common: **21** · Density verdict: **Low** (WF 100 / AV 105)
+
+WF-only labels (candidates for missing fields in AV):
+
+- `クリップボード`
+- `パレット`
+- `パレットアドレス`
+- `パレット書き込み`
+- `メイン画像`
+- `書き込み`
+- `画像`
+- `画像取出`
+- `画像読込`
+
+AV-only labels (usually fine — layout polish or rewording):
+
+- `0`
+- `A`
+- `C`
+- `Chipset Preview`
+- `Clipboard`
+- `D`
+- `E`
+- `F`
+- `Image`
+- `Image Export`
+- `Image Import`
+- `Main Image`
+- `Palette`
+- `Palette Address:`
+- `Palette Index`
+- `Palette Write`
+- `Write`
+- `Zoom`
 
 ### ItemEffectPointerForm
 WF labels: **9** · AV labels: **5** · WF-only: **9** · AV-only: **5** · Common: **0** · Density verdict: **Medium** (WF 13 / AV 7)

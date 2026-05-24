@@ -1,6 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// ImageBattleScreenView -- Avalonia parity rebuild for #393. Mirrors the WF
+// `ImageBattleScreenForm` 5-tab battle-screen layout editor. Uses the
+// `ImageBattleScreenCore` helper (which delegates palette I/O to PaletteCore)
+// for the TSA + palette + image-pointer write paths under the ambient
+// UndoService scope.
 using System;
+using System.Globalization;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -9,15 +17,146 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class ImageBattleScreenView : TranslatedWindow, IEditorView
     {
         readonly ImageBattleScreenViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Battle Screen Layout";
         public bool IsLoaded => _vm.IsLoaded;
 
+        // Cached references to the 48 numeric cells + 16 swatch borders so
+        // we don't have to walk the visual tree on every reload.
+        readonly NumericUpDown[] _rBoxes = new NumericUpDown[16];
+        readonly NumericUpDown[] _gBoxes = new NumericUpDown[16];
+        readonly NumericUpDown[] _bBoxes = new NumericUpDown[16];
+        readonly Border[] _swatchBoxes = new Border[16];
+
+        bool _suppressSpinnerEvents;
+
         public ImageBattleScreenView()
         {
             InitializeComponent();
+
+            // Populate combos via R._() so they pick up ja/zh translations.
+            PaletteIndexCombo.Items.Add(R._("Palette 1"));
+            PaletteIndexCombo.Items.Add(R._("Palette 2"));
+            PaletteIndexCombo.Items.Add(R._("Palette 3"));
+            PaletteIndexCombo.Items.Add(R._("Palette 4"));
+            PaletteIndexCombo.SelectedIndex = 0;
+
+            ZoomCombo.Items.Add(R._("1x Zoom"));
+            ZoomCombo.Items.Add(R._("2x Zoom"));
+            ZoomCombo.Items.Add(R._("3x Zoom"));
+            ZoomCombo.Items.Add(R._("4x Zoom"));
+            ZoomCombo.SelectedIndex = 1;
+
+            CachePaletteCells();
+            InitializeSwatches();
+            WireSpinnerHandlers();
+
+            // Default TSA info text. Set via code-behind so the translation
+            // chain picks it up (see PR #589 ComboBoxItem.Content pattern
+            // -- ViewTranslationHelper does not touch dynamic Text values
+            // populated from code, so we feed it through R._() ourselves).
+            TSAInfoLabel.Text = R._("Selected: 00") + "   " + R._("Canvas:");
+
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+        }
+
+        void CachePaletteCells()
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                int n = i + 1;
+                _rBoxes[i] = this.FindControl<NumericUpDown>($"R{n}");
+                _gBoxes[i] = this.FindControl<NumericUpDown>($"G{n}");
+                _bBoxes[i] = this.FindControl<NumericUpDown>($"B{n}");
+                _swatchBoxes[i] = this.FindControl<Border>($"Swatch{n}");
+            }
+        }
+
+        void InitializeSwatches()
+        {
+            var defaultBrush = new SolidColorBrush(Color.FromRgb(0, 0, 0));
+            for (int i = 0; i < 16; i++)
+            {
+                if (_swatchBoxes[i] != null) _swatchBoxes[i].Background = defaultBrush;
+            }
+        }
+
+        void WireSpinnerHandlers()
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                int idx = i;
+                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (s, e) => OnRgbChanged(idx, 'R');
+                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (s, e) => OnRgbChanged(idx, 'G');
+                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (s, e) => OnRgbChanged(idx, 'B');
+            }
+        }
+
+        void OnRgbChanged(int index, char channel)
+        {
+            if (_suppressSpinnerEvents) return;
+            NumericUpDown box = channel == 'R' ? _rBoxes[index]
+                              : channel == 'G' ? _gBoxes[index]
+                              : _bBoxes[index];
+            if (box == null) return;
+            byte rawValue = (byte)((int)(box.Value ?? 0));
+            switch (channel)
+            {
+                case 'R': _vm.SetR(index, rawValue); break;
+                case 'G': _vm.SetG(index, rawValue); break;
+                case 'B': _vm.SetB(index, rawValue); break;
+            }
+            // Snap to 5-bit (multiples of 8); push snapped value back.
+            byte snappedValue = channel == 'R' ? _vm.GetR(index)
+                              : channel == 'G' ? _vm.GetG(index)
+                              : _vm.GetB(index);
+            if (rawValue != snappedValue)
+            {
+                _suppressSpinnerEvents = true;
+                try { box.Value = snappedValue; }
+                finally { _suppressSpinnerEvents = false; }
+            }
+            UpdateSwatch(index);
+        }
+
+        void UpdateSwatch(int index)
+        {
+            if (_swatchBoxes[index] == null) return;
+            byte r = _vm.GetR(index);
+            byte g = _vm.GetG(index);
+            byte b = _vm.GetB(index);
+            _swatchBoxes[index].Background = new SolidColorBrush(Color.FromRgb(r, g, b));
+        }
+
+        void PopulateUI()
+        {
+            _suppressSpinnerEvents = true;
+            try
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (_rBoxes[i] != null) _rBoxes[i].Value = _vm.GetR(i);
+                    if (_gBoxes[i] != null) _gBoxes[i].Value = _vm.GetG(i);
+                    if (_bBoxes[i] != null) _bBoxes[i].Value = _vm.GetB(i);
+                    UpdateSwatch(i);
+                }
+                PaletteAddressBox.Value = _vm.PaletteAddress;
+                // AddrLabel shows TSA1 address (under the "TSA1 Address" bar
+                // in AXAML). Per Copilot bot PR #594 inline review: the
+                // earlier wiring incorrectly showed the palette address here.
+                AddrLabel.Text = string.Format("0x{0:X08}", _vm.TSA1Address);
+                Image1ZImage.Value = _vm.Image1Pointer;
+                Image2ZImage.Value = _vm.Image2Pointer;
+                Image3ZImage.Value = _vm.Image3Pointer;
+                Image4ZImage.Value = _vm.Image4Pointer;
+                Image5ZImage.Value = _vm.Image5Pointer;
+            }
+            finally
+            {
+                _suppressSpinnerEvents = false;
+            }
         }
 
         void LoadList()
@@ -37,8 +176,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                _vm.LoadEntry(addr);
-                UpdateUI();
+                _vm.LoadEntry();
+                PopulateUI();
             }
             catch (Exception ex)
             {
@@ -46,9 +185,171 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void UpdateUI()
+        // -----------------------------------------------------------------
+        // Write paths - all wrap the VM call in _undoService.Begin/Commit/Rollback
+        // so the ambient ROM.BeginUndoScope captures every rom.write_* call
+        // inside the Core helper (Plan v2 Finding #2).
+        // -----------------------------------------------------------------
+        void WriteButton_Click(object sender, RoutedEventArgs e)
         {
-            AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Pull the ZIMAGE numerics back into the VM so they are part of
+            // the write batch.
+            _vm.Image1Pointer = (uint)((double)(Image1ZImage.Value ?? 0));
+            _vm.Image2Pointer = (uint)((double)(Image2ZImage.Value ?? 0));
+            _vm.Image3Pointer = (uint)((double)(Image3ZImage.Value ?? 0));
+            _vm.Image4Pointer = (uint)((double)(Image4ZImage.Value ?? 0));
+            _vm.Image5Pointer = (uint)((double)(Image5ZImage.Value ?? 0));
+
+            _undoService.Begin("Edit Battle Screen");
+            bool ok;
+            try
+            {
+                ok = _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.Write threw: {0}", ex.Message);
+                _undoService.Rollback();
+                return;
+            }
+
+            if (!ok)
+            {
+                _undoService.Rollback();
+                Log.Notify("WriteButton_Click: write failed; rollback applied.");
+                return;
+            }
+
+            _undoService.Commit();
+        }
+
+        void PaletteWrite_Click(object sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            _undoService.Begin("Edit Battle Screen Palette");
+            bool ok;
+            try
+            {
+                ok = _vm.WritePalette();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.WritePalette threw: {0}", ex.Message);
+                _undoService.Rollback();
+                return;
+            }
+
+            if (!ok)
+            {
+                _undoService.Rollback();
+                Log.Notify("PaletteWrite_Click: write failed; rollback applied.");
+                return;
+            }
+
+            _undoService.Commit();
+        }
+
+        void PaletteIndex_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                int newIndex = PaletteIndexCombo.SelectedIndex;
+                if (newIndex < 0 || newIndex == _vm.PaletteIndex) return;
+                _vm.PaletteIndex = newIndex;
+                // Re-read ONLY the palette block at the new index so pending
+                // image-pointer edits are preserved. Per Copilot CLI PR review
+                // round 1 finding #2: WF PaletteFormRef.MakePaletteROMToUI only
+                // reloads the palette UI on palette-index changes, not the
+                // image pointer fields.
+                _vm.LoadPalette();
+                PopulatePaletteUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.PaletteIndex_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Populate ONLY the palette R/G/B spinners + swatches from the VM.
+        /// Does NOT touch the image-pointer NumericUpDowns -- preserves any
+        /// in-flight edits when the user switches palette types (Copilot CLI
+        /// PR review round 1 finding #2).
+        /// </summary>
+        void PopulatePaletteUI()
+        {
+            _suppressSpinnerEvents = true;
+            try
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    if (_rBoxes[i] != null) _rBoxes[i].Value = _vm.GetR(i);
+                    if (_gBoxes[i] != null) _gBoxes[i].Value = _vm.GetG(i);
+                    if (_bBoxes[i] != null) _bBoxes[i].Value = _vm.GetB(i);
+                    UpdateSwatch(i);
+                }
+            }
+            finally
+            {
+                _suppressSpinnerEvents = false;
+            }
+        }
+
+        void PaletteClipboard_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Build "RRGGBB,RRGGBB,..." line of 16 colors and copy.
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < 16; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    sb.AppendFormat(CultureInfo.InvariantCulture, "{0:X2}{1:X2}{2:X2}",
+                        _vm.GetR(i), _vm.GetG(i), _vm.GetB(i));
+                }
+                if (TopLevel.GetTopLevel(this) is { Clipboard: { } clipboard })
+                {
+                    _ = clipboard.SetTextAsync(sb.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PaletteClipboard_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void PaletteUndo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                CoreState.Undo?.RunUndo();
+                // Reload so the spinners reflect the rolled-back palette.
+                _vm.LoadEntry();
+                PopulateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PaletteUndo_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void BulkUndo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                CoreState.Undo?.RunUndo();
+                _vm.LoadEntry();
+                PopulateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("BulkUndo_Click failed: {0}", ex.Message);
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
