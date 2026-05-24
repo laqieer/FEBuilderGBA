@@ -165,15 +165,23 @@ namespace FEBuilderGBA
         }
 
         // ===================== GBA ↔ RGB bit-shift math =====================
+        //
+        // These helpers are the SINGLE SOURCE OF TRUTH for BGR15 (a.k.a.
+        // BGR555) bit-pack/unpack across the codebase. They are `internal`
+        // so PaletteCore (and any future Core consumer) can call them
+        // directly without exposing a separate API to library callers
+        // outside FEBuilderGBA.Core. Plan review #3 on issue #400 flagged
+        // the risk of drift if PaletteCore copied this math; the fix is
+        // to share these instead of duplicating.
 
-        static void GbaToRgb(ushort gba, out byte r, out byte g, out byte b)
+        internal static void GbaToRgb(ushort gba, out byte r, out byte g, out byte b)
         {
             r = (byte)((gba & 0x1F) << 3);
             g = (byte)(((gba >> 5) & 0x1F) << 3);
             b = (byte)(((gba >> 10) & 0x1F) << 3);
         }
 
-        static ushort RgbToGba(byte r, byte g, byte b)
+        internal static ushort RgbToGba(byte r, byte g, byte b)
         {
             return (ushort)(
                 ((r >> 3) & 0x1F) |
