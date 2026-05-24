@@ -403,11 +403,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     }
 
     /// <summary>
-    /// Bridge to the existing class-name resolver. Kept as a thin shim so
-    /// the ViewModel does not take a hard reference on `ClassForm` (which
-    /// lives in WinForms-only code) or `NameResolver` (which lives in the
-    /// Avalonia service layer). Tests can stub this by overriding the
-    /// delegate.
+    /// Thin shim around <see cref="NameResolver.GetClassName"/> that
+    /// swallows any resolution exception and falls back to a hex display
+    /// string. Kept as a separate type so the ViewModel does not take a
+    /// hard reference on WinForms-only ClassForm helpers, and so the
+    /// fallback behaviour is auditable in one place.
     /// </summary>
     internal static class ClassFormBridge
     {

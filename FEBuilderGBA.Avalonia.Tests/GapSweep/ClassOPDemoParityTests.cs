@@ -107,8 +107,10 @@ public class ClassOPDemoParityTests
         Assert.Contains("AutomationId=\"ClassOPDemo_N1_BlockSize_Input\"", axaml);
         Assert.Contains("AutomationId=\"ClassOPDemo_N1_SelectedAddress_Input\"", axaml);
         Assert.Contains("AutomationId=\"ClassOPDemo_N1_Write_Button\"", axaml);
+        Assert.Contains("AutomationId=\"ClassOPDemo_N1_WritePtr_Button\"", axaml);
         Assert.Contains("AutomationId=\"ClassOPDemo_N1_ListExpand_Button\"", axaml);
         Assert.Contains("Click=\"N1_Write_Click\"", axaml);
+        Assert.Contains("Click=\"N1_WritePtr_Click\"", axaml);
         Assert.Contains("Click=\"N1_ListExpand_Click\"", axaml);
     }
 
@@ -127,7 +129,43 @@ public class ClassOPDemoParityTests
         Assert.Contains("AutomationId=\"ClassOPDemo_N2_BlockSize_Input\"", axaml);
         Assert.Contains("AutomationId=\"ClassOPDemo_N2_SelectedAddress_Input\"", axaml);
         Assert.Contains("AutomationId=\"ClassOPDemo_N2_Write_Button\"", axaml);
+        Assert.Contains("AutomationId=\"ClassOPDemo_N2_WritePtr_Button\"", axaml);
         Assert.Contains("Click=\"N2_Write_Click\"", axaml);
+        Assert.Contains("Click=\"N2_WritePtr_Click\"", axaml);
+    }
+
+    /// <summary>
+    /// Regression for Copilot CLI re-review on PR #577: every actionable
+    /// Button in the view must have either a Click handler OR be marked
+    /// IsEnabled="False"/IsVisible="False". Catches the dead-control
+    /// failure mode (`N1WritePtrButton` / `N2WritePtrButton` had no
+    /// handler in the initial commit and silently no-op'd).
+    /// </summary>
+    [Fact]
+    public void View_AllButtons_AreWiredOrExplicitlyInert()
+    {
+        string axaml = ReadAxaml();
+        // Pick every <Button ... /> declaration. The parsing is line-based
+        // to keep the test independent of attribute ordering — a Button
+        // tag may span multiple lines.
+        var buttonOpenRx = new Regex(@"<Button\b([\s\S]*?)/>|<Button\b([\s\S]*?)>",
+            RegexOptions.Compiled);
+        var matches = buttonOpenRx.Matches(axaml);
+        Assert.True(matches.Count >= 5,
+            $"Expected at least 5 Button tags in the AXAML; found {matches.Count}.");
+        foreach (Match m in matches)
+        {
+            string tag = m.Value;
+            // Skip Button definitions that are inside a ContextMenu (those
+            // come from the AddressListControl template — not our concern).
+            // The two patterns are distinguishable: our buttons have an
+            // AutomationId starting with "ClassOPDemo_".
+            if (!tag.Contains("ClassOPDemo_")) continue;
+            bool hasClick = tag.Contains("Click=\"");
+            bool inert = tag.Contains("IsEnabled=\"False\"") || tag.Contains("IsVisible=\"False\"");
+            Assert.True(hasClick || inert,
+                $"Button without Click handler nor IsEnabled/IsVisible=False: {tag}");
+        }
     }
 
     [Fact]
@@ -203,6 +241,37 @@ public class ClassOPDemoParityTests
     }
 
     [Fact]
+    public void View_N1WritePtrHandler_UsesUndoService()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+N1_WritePtr_Click[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+N1_WritePtr_Click[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+N1_WritePtr_Click[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_N2WritePtrHandler_UsesUndoService()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"void\s+N2_WritePtr_Click[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+N2_WritePtr_Click[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+N2_WritePtr_Click[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_OnAnimeSharedSelected_IsGatedByPopulationFlag()
+    {
+        // Copilot bot review thread PRRT_kwDOH0Mc1M6EWIzW: AnimeSharedList
+        // SetItems' SelectFirst auto-fires SelectedAddressChanged, which
+        // would otherwise jump the main list whenever we populate the
+        // sibling panel. The view must suppress that auto-jump.
+        string source = ReadCodeBehind();
+        Assert.Contains("_suppressAnimeSharedJump", source);
+        Assert.Matches(new Regex(@"void\s+LoadAnimeSharedFromOffset[\s\S]*?_suppressAnimeSharedJump\s*=\s*true", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+OnAnimeSharedSelected[\s\S]*?if\s*\(\s*_suppressAnimeSharedJump\s*\)\s*return", RegexOptions.Compiled), source);
+    }
+
+    [Fact]
     public void View_LoadN1Sublist_ResetsSelectedAddressOnEntryChange()
     {
         string source = ReadCodeBehind();
@@ -243,8 +312,14 @@ public class ClassOPDemoParityTests
 
     static int FindMatchingBrace(string src, int matchIdx)
     {
-        int braceOpen = src.IndexOf('{', matchIdx - 200);
+        // Look for an opening brace up to 200 chars before the write — but
+        // clamp at 0 so a write near the top of the file doesn't throw
+        // ArgumentOutOfRangeException (Copilot bot review thread
+        // `PRRT_kwDOH0Mc1M6EWIzd`).
+        int searchStart = Math.Max(0, matchIdx - 200);
+        int braceOpen = src.IndexOf('{', searchStart);
         if (braceOpen < 0 || braceOpen > matchIdx) braceOpen = src.IndexOf('{', matchIdx);
+        if (braceOpen < 0) return src.Length;
         int depth = 1;
         for (int i = braceOpen + 1; i < src.Length; i++)
         {
@@ -711,6 +786,46 @@ public class ClassOPDemoParityTests
             Assert.Equal(0x16u, vm.B22);
             Assert.Equal(0x17u, vm.B23);
             Assert.Equal(0x00502000u, vm.P24);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // ViewModel-level write-pointer behaviour (the view's WritePtr_Click
+    // handlers do rom.write_p32 directly, so the round-trip can be
+    // exercised in isolation against a synthetic ROM).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void RomWritePointer_WritesJpNamePointer_WithGbaHighBit()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint entryAddr = 0x00800400u;
+            uint newPtr = 0x00500000u;
+            rom.write_p32(entryAddr + 8, newPtr);
+            Assert.Equal(newPtr | 0x08000000u, rom.u32(entryAddr + 8));
+            Assert.Equal(newPtr, rom.p32(entryAddr + 8));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void RomWritePointer_WritesAnimePointer_WithGbaHighBit()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint entryAddr = 0x00800500u;
+            uint newPtr = 0x00600000u;
+            rom.write_p32(entryAddr + 24, newPtr);
+            Assert.Equal(newPtr | 0x08000000u, rom.u32(entryAddr + 24));
+            Assert.Equal(newPtr, rom.p32(entryAddr + 24));
         }
         finally { CoreState.ROM = prevRom; }
     }

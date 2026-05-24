@@ -204,7 +204,8 @@
             <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
               <Button Grid.Column="0"
                       AutomationProperties.AutomationId="ClassOPDemo_N1_WritePtr_Button"
-                      Name="N1WritePtrButton" Content="Write JP Name Pointer" />
+                      Name="N1WritePtrButton" Content="Write JP Name Pointer"
+                      Click="N1_WritePtr_Click" />
               <Label Grid.Column="1" Content="Address" Margin="8,0,2,0" VerticalAlignment="Center" />
               <NumericUpDown Grid.Column="2"
                              AutomationProperties.AutomationId="ClassOPDemo_N1_Addr_Input"
@@ -249,7 +250,8 @@
             <!-- N2 sub-bar: Write Pointer / Address / Size / Selected -->
             <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,4,0,4">
               <Button AutomationProperties.AutomationId="ClassOPDemo_N2_WritePtr_Button"
-                      Name="N2WritePtrButton" Content="Write Anime Spec Pointer" />
+                      Name="N2WritePtrButton" Content="Write Anime Spec Pointer"
+                      Click="N2_WritePtr_Click" />
               <Label Content="Address" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_N2_Addr_Input"
                              FormatString="0" Name="N2AddrBox" Width="140"

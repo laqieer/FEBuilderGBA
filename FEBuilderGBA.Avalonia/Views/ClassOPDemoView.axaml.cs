@@ -427,13 +427,23 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (p24Offset == 0 || _vm.CurrentAddr == 0)
+                // AddressListControl.SetItems calls SelectFirst() which fires
+                // SelectedAddressChanged → OnAnimeSharedSelected. We gate the
+                // jump on the population pass so the auto-select on row 0
+                // does NOT jump the main list back to the first sibling
+                // (Copilot bot review thread PRRT_kwDOH0Mc1M6EWIzW).
+                _suppressAnimeSharedJump = true;
+                try
                 {
-                    AnimeSharedList.SetItems(new List<AddrResult>());
-                    return;
+                    if (p24Offset == 0 || _vm.CurrentAddr == 0)
+                    {
+                        AnimeSharedList.SetItems(new List<AddrResult>());
+                        return;
+                    }
+                    var siblings = _vm.LoadAnimeSharedList(p24Offset, _vm.CurrentAddr);
+                    AnimeSharedList.SetItems(siblings);
                 }
-                var siblings = _vm.LoadAnimeSharedList(p24Offset, _vm.CurrentAddr);
-                AnimeSharedList.SetItems(siblings);
+                finally { _suppressAnimeSharedJump = false; }
             }
             catch (Exception ex)
             {
@@ -441,10 +451,17 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // True while LoadAnimeSharedFromOffset is populating the list — used
+        // to suppress the auto-jump triggered by SetItems' SelectFirst() call.
+        bool _suppressAnimeSharedJump;
+
         void OnAnimeSharedSelected(uint addr)
         {
             // Selecting an anime-shared sibling jumps the main list to
-            // that entry. Read-only mirror — no ROM write here.
+            // that entry. Read-only mirror — no ROM write here. Skip the
+            // jump when the selection came from SetItems' auto-select on
+            // population (gated by _suppressAnimeSharedJump).
+            if (_suppressAnimeSharedJump) return;
             if (addr == 0) return;
             EntryList.SelectAddress(addr);
         }
@@ -541,6 +558,86 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("ClassOPDemoView.N2_Write failed: {0}", ex.Message);
                 CoreState.Services?.ShowError(string.Format(R._("Failed to write anime spec tuple: {0}"), ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Write the currently-selected N1 row address back into the parent
+        /// entry's P8 (Japanese Name Pointer) slot. Mirrors the WF orphan
+        /// `N1_WriteButton` text "日本語名 / ポインタ書き込み" — the WF Write
+        /// Pointer button repoints the parent slot at the selected sub-row.
+        /// Wraps the ROM write in its own undo scope per Copilot bot review
+        /// thread `PRRT_kwDOH0Mc1M6EWIza` (button must be wired, not inert).
+        /// </summary>
+        void N1_WritePtr_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded || _n1SelectedAddr == 0)
+            {
+                CoreState.Services?.ShowError(R._("Select a JP name font row first."));
+                return;
+            }
+            _undoService.Begin("Edit Class OP Demo (JP Name Pointer)");
+            try
+            {
+                ROM rom = CoreState.ROM!;
+                rom.write_p32(_vm.CurrentAddr + 8, _n1SelectedAddr);
+                _undoService.Commit();
+
+                // Reload to reflect the new pointer in the main detail panel
+                // (the spinner and the N1 sub-list).
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadClassOPDemo(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+                finally { _vm.IsLoading = false; }
+                LoadN1Sublist();
+                CoreState.Services?.ShowInfo(R._("JP name pointer written."));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ClassOPDemoView.N1_WritePtr failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(string.Format(R._("Failed to write JP name pointer: {0}"), ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Write the current N2 tuple base address back into the parent
+        /// entry's P24 (Anime Spec Pointer) slot. Mirrors the WF orphan
+        /// `N2_WriteButton` text "アニメ指定 / ポインタ書き込み".
+        /// </summary>
+        void N2_WritePtr_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded || _n2BaseAddr == 0)
+            {
+                CoreState.Services?.ShowError(R._("Select an entry with a valid anime pointer first."));
+                return;
+            }
+            _undoService.Begin("Edit Class OP Demo (Anime Spec Pointer)");
+            try
+            {
+                ROM rom = CoreState.ROM!;
+                rom.write_p32(_vm.CurrentAddr + 24, _n2BaseAddr);
+                _undoService.Commit();
+
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadClassOPDemo(_vm.CurrentAddr);
+                    UpdateUI();
+                }
+                finally { _vm.IsLoading = false; }
+                LoadN2Tuple();
+                LoadAnimeSharedSync();
+                CoreState.Services?.ShowInfo(R._("Anime spec pointer written."));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ClassOPDemoView.N2_WritePtr failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(string.Format(R._("Failed to write anime spec pointer: {0}"), ex.Message));
             }
         }
 
