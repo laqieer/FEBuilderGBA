@@ -149,7 +149,7 @@
                              FormatString="0" Name="UnitSkillPointerBox"
                              Minimum="0" Maximum="4294967295" />
               <Label Grid.Column="2"
-                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitSkillPointer_Hint"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitSkillPointer_HintLabel"
                      Content="Per-skill unit sub-list (KnownGap: tracked by #374)"
                      VerticalAlignment="Center" Margin="8,0,0,0"
                      Foreground="Gray" />
@@ -165,7 +165,7 @@
                              FormatString="0" Name="ClassSkillPointerBox"
                              Minimum="0" Maximum="4294967295" />
               <Label Grid.Column="2"
-                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassSkillPointer_Hint"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassSkillPointer_HintLabel"
                      Content="Per-skill class sub-list (KnownGap: tracked by #374)"
                      VerticalAlignment="Center" Margin="8,0,0,0"
                      Foreground="Gray" />
@@ -181,7 +181,7 @@
                              FormatString="0" Name="ItemSkillPointerBox"
                              Minimum="0" Maximum="4294967295" />
               <Label Grid.Column="2"
-                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemSkillPointer_Hint"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemSkillPointer_HintLabel"
                      Content="When this item is held, the skill activates (KnownGap: tracked by #374)"
                      VerticalAlignment="Center" Margin="8,0,0,0"
                      Foreground="Gray" />
@@ -197,7 +197,7 @@
                              FormatString="0" Name="Item2SkillPointerBox"
                              Minimum="0" Maximum="4294967295" />
               <Label Grid.Column="2"
-                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2SkillPointer_Hint"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2SkillPointer_HintLabel"
                      Content="When this item is equipped as weapon, the skill activates (KnownGap: tracked by #374)"
                      VerticalAlignment="Center" Margin="8,0,0,0"
                      Foreground="Gray" />
@@ -213,7 +213,7 @@
                              FormatString="0" Name="CompositeSkillPointerBox"
                              Minimum="0" Maximum="4294967295" />
               <Label Grid.Column="2"
-                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeSkillPointer_Hint"
+                     AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeSkillPointer_HintLabel"
                      Content="Adds the effect of another skill (KnownGap: tracked by #374)"
                      VerticalAlignment="Center" Margin="8,0,0,0"
                      Foreground="Gray" />
@@ -307,13 +307,13 @@
                   BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitTab_Status_L1"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitTab_Status1_Label"
                          Text="Per-skill unit sub-list editing is not yet implemented in Avalonia." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitTab_Status_L2"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitTab_Status2_Label"
                          Text="Use the WinForms editor to assign units to a skill." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitTab_Status_L3"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_UnitTab_Status3_Label"
                          Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
             </StackPanel>
           </Border>
@@ -334,13 +334,13 @@
                   BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassTab_Status_L1"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassTab_Status1_Label"
                          Text="Per-skill class sub-list editing is not yet implemented in Avalonia." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassTab_Status_L2"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassTab_Status2_Label"
                          Text="Use the WinForms editor to assign classes to a skill." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassTab_Status_L3"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ClassTab_Status3_Label"
                          Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
             </StackPanel>
           </Border>
@@ -361,13 +361,13 @@
                   BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemTab_Status_L1"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemTab_Status1_Label"
                          Text="Per-skill item sub-list editing is not yet implemented in Avalonia." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemTab_Status_L2"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemTab_Status2_Label"
                          Text="Use the WinForms editor to assign held items to a skill." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemTab_Status_L3"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_ItemTab_Status3_Label"
                          Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
             </StackPanel>
           </Border>
@@ -388,13 +388,13 @@
                   BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2Tab_Status_L1"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2Tab_Status1_Label"
                          Text="Per-skill Item2 sub-list editing is not yet implemented in Avalonia." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2Tab_Status_L2"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2Tab_Status2_Label"
                          Text="Use the WinForms editor to assign weapon-equipped items to a skill." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2Tab_Status_L3"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_Item2Tab_Status3_Label"
                          Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
             </StackPanel>
           </Border>
@@ -415,13 +415,13 @@
                   BorderThickness="1" CornerRadius="4" Padding="12">
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeTab_Status_L1"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeTab_Status1_Label"
                          Text="Per-skill composite-skill sub-list editing is not yet implemented in Avalonia." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeTab_Status_L2"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeTab_Status2_Label"
                          Text="Use the WinForms editor to add other skills as composite effects." />
               <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeTab_Status_L3"
+                         AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_CompositeTab_Status3_Label"
                          Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
             </StackPanel>
           </Border>
