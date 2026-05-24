@@ -649,12 +649,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Slice <paramref name="items"/> using a WF-style read window:
-        ///   - If both `start` and `count` are 0, return the full list.
-        ///   - Otherwise return at most `count` entries starting at index `start`.
-        ///     `start` is clamped to [0, items.Count] (where `start == items.Count`
-        ///     deliberately yields an empty range, matching the WF reread-bar
-        ///     semantics — past-end is "show nothing", not an error); `count`
-        ///     is clamped to the remaining tail.
+        ///   - If BOTH `start` and `count` are 0, return the full list
+        ///     (the WF reread bar leaves both fields at 0 by default).
+        ///   - If either is non-zero, slice from `start` for up to `count`
+        ///     entries. `count == 0` (with `start > 0`) is interpreted as
+        ///     "read to end" — return the remaining tail starting at
+        ///     `start`.
+        ///   - `start` is clamped to [0, items.Count] (where
+        ///     `start == items.Count` deliberately yields an empty range,
+        ///     matching the WF reread-bar semantics — past-end is
+        ///     "show nothing", not an error); `count` is clamped to the
+        ///     remaining tail.
         /// Mirrors the WF panel1 Read Start Address + Read Count semantics.
         /// </summary>
         static System.Collections.Generic.List<AddrResult> ApplyReadWindow(

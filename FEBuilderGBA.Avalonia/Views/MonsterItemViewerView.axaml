@@ -31,9 +31,12 @@
             <TextBlock Text="Item Table" FontSize="18" FontWeight="Bold" />
 
             <!-- Reread bar — mirrors WF panel1 (Read Start Address / Read Count / Reload).
-                 Read Start + Count are wired into LoadItemList: when both > 0, the
-                 VM slices the loaded list to [start..start+count). Default 0/0 means
-                 "load the full table" (matches WF behavior when fields are unset). -->
+                 Read Start + Count are wired into LoadItemList via ApplyReadWindow:
+                   - BOTH 0 (default): full list, no slicing.
+                   - Either > 0: slice from Start for up to Count entries.
+                     Count==0 with Start>0 reads to the end of the list.
+                 See ApplyReadWindow in MonsterItemViewerView.axaml.cs for the
+                 full clamping semantics. -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
               <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
                 <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
