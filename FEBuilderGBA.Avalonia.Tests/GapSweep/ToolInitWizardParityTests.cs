@@ -797,9 +797,14 @@ public class ToolInitWizardParityTests
                 Path.GetTempPath(),
                 Guid.NewGuid().ToString("N"),
                 "does", "not", "exist", "config.xml");
-            // Reflection to set ConfigFilename since the setter is protected.
+            // Per Copilot bot review #583 round-5: ConfigFilename has a
+            // protected setter so PropertyInfo.SetValue alone wouldn't work.
+            // Use the non-public setter via GetSetMethod(true). This
+            // bypasses Load() which would try to parse a nonexistent file
+            // and fail before we even reach Save().
             var prop = typeof(Config).GetProperty("ConfigFilename");
-            prop?.SetValue(failingConfig, badPath);
+            var setter = prop?.GetSetMethod(nonPublic: true);
+            setter?.Invoke(failingConfig, new object[] { badPath });
 
             var prevConfig = CoreState.Config;
             try
@@ -837,8 +842,12 @@ public class ToolInitWizardParityTests
             // Use a real temp file we can write to.
             string tmpPath = Path.Combine(Path.GetTempPath(),
                 "ToolInitWizardTest_" + Guid.NewGuid().ToString("N") + ".xml");
+            // Per Copilot bot review #583 round-5: ConfigFilename has a
+            // protected setter — use GetSetMethod(true) for non-public
+            // invocation.
             var prop = typeof(Config).GetProperty("ConfigFilename");
-            prop?.SetValue(writableConfig, tmpPath);
+            var setter = prop?.GetSetMethod(nonPublic: true);
+            setter?.Invoke(writableConfig, new object[] { tmpPath });
 
             var prevConfig = CoreState.Config;
             try
@@ -1059,14 +1068,19 @@ public class ToolInitWizardParityTests
 
     static string FindRepoRoot()
     {
-        string dir = AppDomain.CurrentDomain.BaseDirectory;
-        while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+        // Per Copilot bot review #583 round-5: walk up to filesystem root
+        // but THROW if we never find FEBuilderGBA.sln (matches the pattern
+        // used by ItemFE6ParityTests). Returning a partial path would make
+        // failures confusing because tests would look for non-existent
+        // files at the wrong location.
+        string start = AppDomain.CurrentDomain.BaseDirectory;
+        for (var dir = new DirectoryInfo(start); dir != null; dir = dir.Parent)
         {
-            var parent = Directory.GetParent(dir);
-            if (parent == null) break;
-            dir = parent.FullName;
+            if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                return dir.FullName;
         }
-        return dir ?? throw new InvalidOperationException("Could not find repo root");
+        throw new InvalidOperationException(
+            $"Could not locate FEBuilderGBA.sln starting from {start}");
     }
 
     /// <summary>

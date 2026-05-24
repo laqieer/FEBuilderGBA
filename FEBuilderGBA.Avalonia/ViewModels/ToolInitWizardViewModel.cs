@@ -416,7 +416,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // path that DIDN'T complete Step 6 validation, ApplyAll is a
             // no-op. Set true only inside StageStep6() on a successful
             // ProbeGit (or DownloadGit / DoNotSelect mode). The defence is
-            // belt-and-braces with TabItem.IsHitTestVisible="False" in AXAML.
+            // belt-and-braces with the view's SelectionChanged revert
+            // (OnMainTabSelectionChanged + _lastValidPageIndex) that
+            // rejects direct tab-header clicks before they can drive the VM.
             if (!IsCompletedThroughStep6)
             {
                 SettingStatus = R._("Wizard not completed through Step 6 - nothing written.");
@@ -493,10 +495,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     string path = config.ConfigFilename;
                     System.DateTime preWriteTime = System.DateTime.MinValue;
+                    long preWriteLength = -1;
                     bool preExisted = System.IO.File.Exists(path);
                     if (preExisted)
                     {
-                        try { preWriteTime = System.IO.File.GetLastWriteTimeUtc(path); }
+                        try
+                        {
+                            preWriteTime = System.IO.File.GetLastWriteTimeUtc(path);
+                            preWriteLength = new System.IO.FileInfo(path).Length;
+                        }
                         catch { /* fall back to existence check */ }
                     }
 
@@ -515,7 +522,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     {
                         // Confirm the write actually landed. Either the file
                         // is new (didn't exist before) or its LastWriteTimeUtc
-                        // moved forward.
+                        // moved forward, OR the file length changed. Per
+                        // Copilot bot review #583 round-5: timestamps on
+                        // some filesystems have coarse resolution (e.g. FAT32
+                        // 2-second granularity) so a same-second save would
+                        // look like a no-op. Treat equal timestamps as
+                        // inconclusive and fall back to length comparison
+                        // before declaring failure.
                         bool postExists = System.IO.File.Exists(path);
                         if (!postExists)
                         {
@@ -526,8 +539,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                             try
                             {
                                 System.DateTime postWriteTime = System.IO.File.GetLastWriteTimeUtc(path);
-                                if (postWriteTime <= preWriteTime)
+                                long postWriteLength = new System.IO.FileInfo(path).Length;
+                                bool timestampAdvanced = postWriteTime > preWriteTime;
+                                bool lengthChanged = preWriteLength >= 0
+                                    && postWriteLength != preWriteLength;
+                                // Success if EITHER signal indicates a write.
+                                // Same timestamp + same length = inconclusive
+                                // (most likely an idempotent re-save of
+                                // already-correct content; treat as success
+                                // because the file exists and Save() did not
+                                // throw — failing here would surface a
+                                // false-negative on coarse-timestamp FS).
+                                if (!timestampAdvanced && !lengthChanged
+                                    && preWriteLength >= 0)
+                                {
+                                    // Inconclusive on both signals — accept.
+                                    saveOk = true;
+                                }
+                                else if (!timestampAdvanced && !lengthChanged)
+                                {
                                     saveOk = false;
+                                }
                             }
                             catch
                             {
