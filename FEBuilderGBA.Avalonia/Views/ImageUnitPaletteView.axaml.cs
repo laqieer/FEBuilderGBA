@@ -111,6 +111,16 @@ namespace FEBuilderGBA.Avalonia.Views
             PalettePointerBox.Text = $"0x{_vm.PalettePointer:X08}";
             PaletteAddressBox.Text = $"0x{_vm.PalettePointer:X08}";
 
+            // BattleAnimeBox is a KnownGap field (IsEnabled="False"), but it is
+            // still IsEffectivelyVisible so the production data-verify UI check
+            // in MainWindow.CheckNumericUpDownsDisplayValues flags it as
+            // UI_EMPTY when Value stays at Avalonia's decimal? default (null).
+            // Seed it to 0 to match every other Box.Value assignment in this
+            // method. Closes the 2026-05-24/25 daily E2E failures (#612, #613,
+            // #616, #623, #625). The value is never read (Write_Click ignores
+            // BattleAnimeBox) so this is a UI-only seed with no ROM impact.
+            BattleAnimeBox.Value = 0;
+
             // Push RGB channels from VM to the 16 swatch inputs.
             for (int i = 0; i < 16; i++)
             {
