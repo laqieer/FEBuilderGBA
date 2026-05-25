@@ -368,16 +368,74 @@ public class ImageMapActionAnimationParityTests
     }
 
     /// <summary>
-    /// Phase-6 invariant: the AXAML must NOT reintroduce the Export/Import
-    /// buttons until the Core export/import seam lands (#499). They are
-    /// explicitly out-of-scope for #433.
+    /// Issue #499 closes the four WF-only labels that were deferred in #433:
+    /// アニメーション取出 / アニメーション読込 / ソースファイルを開く /
+    /// ソースフォルダーを開く. The AXAML must now contain all four buttons.
     /// </summary>
     [Fact]
-    public void View_DoesNotRenderExportImportButtons()
+    public void View_ContainsExportImportSourceButtons()
     {
         string axaml = ReadAxaml();
-        Assert.DoesNotContain("ImageMapActionAnimation_Export_Button", axaml);
-        Assert.DoesNotContain("ImageMapActionAnimation_Import_Button", axaml);
+        Assert.Contains("ImageMapActionAnimation_Export_Button", axaml);
+        Assert.Contains("ImageMapActionAnimation_Import_Button", axaml);
+        Assert.Contains("ImageMapActionAnimation_OpenSource_Button", axaml);
+        Assert.Contains("ImageMapActionAnimation_SelectSource_Button", axaml);
+    }
+
+    /// <summary>
+    /// Export button must be disabled by default — only the
+    /// `RefreshExportImportButtonState()` helper flips it to enabled once
+    /// `IsAnimationValid` is true. Verified in AXAML default attribute.
+    /// </summary>
+    [Fact]
+    public void View_ExportImportButtons_DefaultDisabled()
+    {
+        string axaml = ReadAxaml();
+        // Both `Export` + `Import` buttons start IsEnabled="False" so the
+        // selection-bar gating doesn't have to fight a pre-clicked state.
+        // (The 4 buttons share the same StackPanel — search for the literal
+        // pair to keep the assertion specific.)
+        Assert.Contains("Name=\"AnimationExportButton\" Content=\"Export Animation\"",
+            axaml);
+        Assert.Contains("Name=\"AnimationImportButton\" Content=\"Import Animation\"",
+            axaml);
+        Assert.Contains("Name=\"OpenSourceButton\" Content=\"Open Source File\"",
+            axaml);
+        Assert.Contains("Name=\"SelectSourceButton\" Content=\"Open Source Folder\"",
+            axaml);
+    }
+
+    /// <summary>
+    /// Code-behind must call RefreshExportImportButtonState from UpdateUI
+    /// so selection changes re-evaluate Export/Import button gating.
+    /// </summary>
+    [Fact]
+    public void View_UpdateUI_CallsRefreshExportImportButtonState()
+    {
+        string repoRoot = FindRepoRoot();
+        string sourcePath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImageMapActionAnimationView.axaml.cs");
+        string source = File.ReadAllText(sourcePath);
+        Assert.Contains("RefreshExportImportButtonState()", source);
+    }
+
+    /// <summary>
+    /// Import handler must wrap the ROM mutation in UndoService scope —
+    /// rollback on error, commit on success.
+    /// </summary>
+    [Fact]
+    public void View_ImportHandler_WrapsInUndoScope()
+    {
+        string repoRoot = FindRepoRoot();
+        string sourcePath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImageMapActionAnimationView.axaml.cs");
+        string source = File.ReadAllText(sourcePath);
+
+        // Both AnimationImport_Click and the existing Write_Click must
+        // wrap their ROM mutations in undo scopes.
+        Assert.Contains("AnimationImport_Click", source);
+        // The Import handler must Rollback on error.
+        Assert.Contains("_undoService.Rollback()", source);
     }
 
     /// <summary>
@@ -401,6 +459,102 @@ public class ImageMapActionAnimationParityTests
         Assert.Contains("_undoService.Begin(", source);
         Assert.Contains("_undoService.Commit()", source);
         Assert.Contains("_undoService.Rollback()", source);
+    }
+
+    // -----------------------------------------------------------------
+    // #499 ViewModel API surface
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// The VM must expose the three export/import entry points + the two
+    /// source-path remember/lookup helpers.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExposesExportImportApi()
+    {
+        var t = typeof(ImageMapActionAnimationViewModel);
+        Assert.NotNull(t.GetMethod("ExportScript", new[] { typeof(string) }));
+        Assert.NotNull(t.GetMethod("ExportGif", new[] { typeof(string) }));
+        Assert.NotNull(t.GetMethod("ImportScript", new[]
+        {
+            typeof(string),
+            typeof(System.Func<string, System.ValueTuple<byte[], int, int>?>),
+        }));
+        Assert.NotNull(t.GetMethod("RememberSourcePath", new[] { typeof(string) }));
+        Assert.NotNull(t.GetMethod("TryGetSourcePath", new[] { typeof(string).MakeByRefType() }));
+    }
+
+    /// <summary>
+    /// RememberSourcePath + TryGetSourcePath must round-trip via the
+    /// CoreState.ResourceCache backing store (mirrors WF
+    /// `Program.ResourceCache.Update / At`). Backed by EtcCacheResource —
+    /// the same type the WF version uses.
+    ///
+    /// The EtcCacheResource ctor reads
+    /// `config/etc/{version}/resource_{ver}.txt` and NREs without a ROM,
+    /// so we plant a minimal FE8U ROM first; the resource file is allowed
+    /// to be missing (LoadTSVResourcePair2 returns an empty dict).
+    /// </summary>
+    [Fact]
+    public void ViewModel_SourcePathRememberAndRetrieveRoundTrip()
+    {
+        var prevRom = CoreState.ROM;
+        var prevCache = CoreState.ResourceCache;
+        try
+        {
+            CoreState.ROM = MakeMinimalFe8uRom();
+            CoreState.ResourceCache = new EtcCacheResource();
+            var vm = new ImageMapActionAnimationViewModel
+            {
+                SelectedId = 7u,
+            };
+            // No source remembered yet.
+            Assert.False(vm.TryGetSourcePath(out string before));
+            Assert.Equal("", before);
+
+            // Remember + read back.
+            vm.RememberSourcePath("/tmp/my-anim.MapActionAnimation.txt");
+            Assert.True(vm.TryGetSourcePath(out string after));
+            Assert.Equal("/tmp/my-anim.MapActionAnimation.txt", after);
+        }
+        finally
+        {
+            CoreState.ResourceCache = prevCache;
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    /// <summary>
+    /// ExportScript must early-return with a non-empty error when no animation
+    /// is loaded — protects against accidental click-when-empty.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExportScript_WithoutAnimation_ReturnsError()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            var vm = new ImageMapActionAnimationViewModel();
+            string err = vm.ExportScript("/tmp/never_written.txt");
+            Assert.False(string.IsNullOrEmpty(err));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    /// <summary>
+    /// ImportScript must early-return with a non-empty error when no entry
+    /// is loaded.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ImportScript_WithoutEntry_ReturnsError()
+    {
+        var vm = new ImageMapActionAnimationViewModel();
+        string err = vm.ImportScript("/tmp/never_read.txt", _ => null);
+        Assert.False(string.IsNullOrEmpty(err));
     }
 
     // -----------------------------------------------------------------

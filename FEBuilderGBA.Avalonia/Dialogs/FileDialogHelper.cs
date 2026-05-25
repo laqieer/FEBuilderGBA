@@ -128,6 +128,51 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
+        /// <summary>
+        /// Save any file with a custom filter + optional suggested name.
+        /// Used by the Map Action Animation Export button (#499) plus any
+        /// future caller that needs a generic single-format SaveFilePicker.
+        /// </summary>
+        public static async Task<string?> SaveFile(Window owner, string title, string filterName, string pattern, string? suggestedName = null)
+        {
+            var fileType = new FilePickerFileType(filterName) { Patterns = new[] { pattern } };
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = new[] { fileType, MakeAllFileType() },
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
+        /// <summary>
+        /// Save any file with multiple format choices (each a name + pattern pair).
+        /// The OS picker shows them as a single dropdown — the user can pick the
+        /// .txt or .gif variant directly without resorting to "All Files".
+        /// Used by the Map Action Animation Export button (#499 Copilot bot
+        /// inline review fix: single-pattern picker hid the .gif export path).
+        /// </summary>
+        public static async Task<string?> SaveFile(Window owner, string title,
+            (string Name, string Pattern)[] filters, string? suggestedName = null)
+        {
+            var choices = new System.Collections.Generic.List<FilePickerFileType>(filters.Length + 1);
+            foreach (var (name, pattern) in filters)
+            {
+                choices.Add(new FilePickerFileType(name) { Patterns = new[] { pattern } });
+            }
+            choices.Add(MakeAllFileType());
+
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = title,
+                SuggestedFileName = suggestedName,
+                FileTypeChoices = choices,
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
         static FilePickerFileType MakeJascPalFileType() => new(R._("JASC-PAL (Aseprite/GIMP)"))
         {
             Patterns = PalPatterns,

@@ -96,6 +96,28 @@
                  Foreground="DarkRed" FontWeight="SemiBold" IsVisible="False" />
         </Grid>
 
+        <!-- Animation export / import / source-file buttons (#499). -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button AutomationProperties.AutomationId="ImageMapActionAnimation_Export_Button"
+                    Name="AnimationExportButton" Content="Export Animation"
+                    Click="AnimationExport_Click" IsEnabled="False"
+                    ToolTip.Tip="Export this animation as .MapActionAnimation.txt + PNGs (or animated GIF)." />
+            <Button AutomationProperties.AutomationId="ImageMapActionAnimation_Import_Button"
+                    Name="AnimationImportButton" Content="Import Animation"
+                    Click="AnimationImport_Click" IsEnabled="False"
+                    ToolTip.Tip="Import .MapActionAnimation.txt into the selected entry." />
+            <Button AutomationProperties.AutomationId="ImageMapActionAnimation_OpenSource_Button"
+                    Name="OpenSourceButton" Content="Open Source File"
+                    Click="OpenSource_Click" IsVisible="False"
+                    ToolTip.Tip="Open the last-imported source script file." />
+            <Button AutomationProperties.AutomationId="ImageMapActionAnimation_SelectSource_Button"
+                    Name="SelectSourceButton" Content="Open Source Folder"
+                    Click="SelectSource_Click" IsVisible="False"
+                    ToolTip.Tip="Reveal the last-imported source script file in the OS file manager." />
+          </StackPanel>
+        </Border>
+
         <!-- Animation preview panel — visible only when D0 resolves safely -->
         <Border Name="AnimationPanel" BorderBrush="Gray" BorderThickness="1" Padding="8" IsVisible="False">
           <StackPanel Spacing="6">
