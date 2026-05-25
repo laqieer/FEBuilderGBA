@@ -8,6 +8,7 @@ class Program
 {
     [DllImport("user32.dll")] static extern bool PrintWindow(IntPtr hwnd, IntPtr hdc, uint flags);
     [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+    [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
     // Use the Unicode variants so titles with CJK / Hangul characters resolve.
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "FindWindowW")]
     static extern IntPtr FindWindow(string? cls, string title);
@@ -48,6 +49,15 @@ class Program
 
     static void Main(string[] args)
     {
+        // Become DPI-aware so GetWindowRect returns PHYSICAL pixel coords and
+        // our Bitmap matches the actual rendered window size. Without this,
+        // a 200%-scaled Avalonia window reports 1280x950 logical to a
+        // DPI-unaware caller and PrintWindow renders the full 2560x1900
+        // physical content into a 1280x950 Bitmap, cutting off ~half of the
+        // content. (#501 — discovered while capturing the action-anime
+        // editor on a 200% scaled monitor.)
+        SetProcessDPIAware();
+
         // Reject empty args[0] up-front so the user sees a clear error rather
         // than the FindByPartialTitle fallback silently matching a random
         // visible window (Copilot bot review #458).

@@ -463,4 +463,416 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
     }
+
+    // ────────────────────────────────────────────────
+    // ExpandTableTo — table expansion to a specific count (#501)
+    //
+    // Mirrors WinForms `InputFormRef.ExpandsArea(ExpandsFillOption.NO, ...)`
+    // semantics: copy current rows verbatim, zero-fill new rows, write a
+    // `0xFFFFFFFF` terminator one dword past the last row so pointer-first
+    // scan predicates (`!U.isSafetyPointerOrNull(D0)`) stop at exactly
+    // `newCount` rows even when the helper resizes the ROM into a zeroed
+    // region.
+    //
+    // Split out into its own [Collection("SharedState")] type because the
+    // RepointsCommentCache test mutates CoreState.CommentCache. Tests that
+    // do NOT touch CoreState are kept in the lighter-weight parallel class
+    // above (DataExpansionCoreTests).
+    // ────────────────────────────────────────────────
+    [Collection("SharedState")]
+    public class DataExpansionCoreExpandTableToTests : IDisposable
+    {
+        readonly ROM? _savedRom;
+        readonly IEtcCache? _savedComment;
+        readonly IEtcCache? _savedLint;
+
+        public DataExpansionCoreExpandTableToTests()
+        {
+            _savedRom = CoreState.ROM;
+            _savedComment = CoreState.CommentCache;
+            _savedLint = CoreState.LintCache;
+        }
+
+        public void Dispose()
+        {
+            CoreState.ROM = _savedRom;
+            CoreState.CommentCache = _savedComment;
+            CoreState.LintCache = _savedLint;
+        }
+
+        /// <summary>Helper: build a minimal ROM with LoadLow using ROMFE0 ("NAZO").</summary>
+        static ROM MakeRom(int size = 0x200000)
+        {
+            var rom = new ROM();
+            byte[] data = new byte[size];
+            rom.LoadLow("test.gba", data, "NAZO");
+            return rom;
+        }
+
+        static void WritePointer(ROM rom, uint addr, uint offset)
+        {
+            uint gbaPtr = offset + 0x08000000;
+            rom.Data[addr + 0] = (byte)(gbaPtr & 0xFF);
+            rom.Data[addr + 1] = (byte)((gbaPtr >> 8) & 0xFF);
+            rom.Data[addr + 2] = (byte)((gbaPtr >> 16) & 0xFF);
+            rom.Data[addr + 3] = (byte)((gbaPtr >> 24) & 0xFF);
+        }
+
+        // ──────── Edge / failure cases ────────
+
+        [Fact]
+        public void ExpandTableTo_NullRom_Fails()
+        {
+            var result = DataExpansionCore.ExpandTableTo(null, 0, 8, 1, 5);
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public void ExpandTableTo_ZeroEntrySize_Fails()
+        {
+            var rom = MakeRom(0x1000);
+            var result = DataExpansionCore.ExpandTableTo(rom, 0, 0, 1, 5);
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public void ExpandTableTo_NewCountSmaller_Fails()
+        {
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            WritePointer(rom, pointerAddr, tableBase);
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, 8, 10, 5);
+            Assert.False(result.Success);
+        }
+
+        [Fact]
+        public void ExpandTableTo_SameCount_NoOp()
+        {
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            WritePointer(rom, pointerAddr, tableBase);
+            rom.Data[tableBase + 0] = 0xAA;
+            uint oldPtr = rom.p32(pointerAddr);
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, 8, 5, 5);
+            Assert.True(result.Success);
+            // Pointer should not change for a no-op.
+            Assert.Equal(oldPtr, rom.p32(pointerAddr));
+            Assert.Equal(5u, result.NewCount);
+            Assert.Equal(0xAA, rom.Data[tableBase + 0]);
+        }
+
+        // ──────── Happy path: data movement ────────
+
+        [Fact]
+        public void ExpandTableTo_CopiesAllExistingEntries()
+        {
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 3;
+            uint newCount = 7;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            // Write 3 entries with recognizable patterns.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x10 + e);
+
+            // Plenty of free space.
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+
+            // Every old entry byte must survive at the new base.
+            uint nb = result.NewBaseAddress;
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal((byte)(0x10 + e), rom.Data[nb + e * entrySize + b]);
+        }
+
+        [Fact]
+        public void ExpandTableTo_NewEntriesZeroFilled()
+        {
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 3;
+            uint newCount = 7;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x10 + e);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+
+            // The (newCount - currentCount) new rows must be all 0x00.
+            uint nb = result.NewBaseAddress;
+            for (uint e = currentCount; e < newCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal(0x00, rom.Data[nb + e * entrySize + b]);
+        }
+
+        [Fact]
+        public void ExpandTableTo_UpdatesPointerToNewBase()
+        {
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            WritePointer(rom, pointerAddr, tableBase);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, 8, 2, 6);
+            Assert.True(result.Success, result.Error);
+
+            // Pointer must point to the new base.
+            Assert.NotEqual(tableBase, result.NewBaseAddress);
+            Assert.Equal(result.NewBaseAddress, rom.p32(pointerAddr));
+        }
+
+        [Fact]
+        public void ExpandTableTo_OldRegion_FilledWith0x00()
+        {
+            // v5 fix 3 / WF parity — InputFormRef.ExpandsArea wipes the old
+            // region with 0x00, not 0xFF. (The +1 helper `ExpandTable` uses
+            // 0xFF; the two helpers intentionally differ — see XML docs.)
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 3;
+            uint newCount = 6;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0xAA);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+
+            // Old region bytes must all be 0x00 (matching WinForms behavior).
+            for (uint b = 0; b < currentCount * entrySize; b++)
+                Assert.Equal(0x00, rom.Data[tableBase + b]);
+        }
+
+        [Fact]
+        public void ExpandTableTo_FirstRowAllZero_StillCopiesAllCurrentCountRows()
+        {
+            // v5 fix 1 — the action-anime table allows row-0 to be all zero
+            // (`isSafetyPointerOrNull(0) == true`). `EstimateEntryCount` would
+            // stop at row 0; the helper MUST trust the caller-provided
+            // `currentCount` and copy all `currentCount` rows verbatim.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 4;
+            uint newCount = 8;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            // Row 0 stays all 0x00 (reserved empty entry).
+            // Rows 1..3 get recognizable patterns.
+            for (uint e = 1; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x10 + e);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+            // Row 0 stays zero.
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[nb + b]);
+            // Rows 1..3 carry their patterns.
+            for (uint e = 1; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal((byte)(0x10 + e), rom.Data[nb + e * entrySize + b]);
+        }
+
+        // ──────── Stop-row terminator (v5 fix 1 — false-positive-proof) ────────
+
+        [Fact]
+        public void ExpandTableTo_WritesTerminator_EvenWhenAllocationIsInZeroedRegion()
+        {
+            // v5 strengthened test: force the ROM-resize path so the new
+            // allocation lands in a freshly-zeroed (0x00) region. If the
+            // helper forgets the explicit 0xFFFFFFFF terminator write, the
+            // dword at `newBase + newCount * entrySize` will be 0x00, not
+            // 0xFFFFFFFF, and the pointer-first scan would continue past
+            // newCount through valid-null rows.
+            //
+            // Setup: a small ROM with NO 0xFF free space at all. ExpandTableTo
+            // must resize the ROM, append at the tail, and write the
+            // terminator explicitly.
+            var rom = MakeRom(0x10000);   // 64 KB, all 0x00.
+            // The pointer-first scan predicate `isSafetyPointer` references
+            // CoreState.ROM.Data.Length, so we must wire CoreState.ROM up.
+            CoreState.ROM = rom;
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            // Seed the existing rows with VALID safe-pointer-or-null values
+            // so the pointer-first scan accepts them (otherwise the scan
+            // stops at row 0 on the 0xAA pattern, not at the terminator).
+            // Row 0 = null (0x00000000 -- isSafetyPointerOrNull == true).
+            // Row 1 = valid GBA pointer 0x08000300 (offset 0x300 inside ROM).
+            for (uint b = 0; b < entrySize; b++)
+                rom.Data[tableBase + 0 * entrySize + b] = 0x00;
+            // Row 1 D0 = 0x08000300 (little-endian).
+            rom.Data[tableBase + 1 * entrySize + 0] = 0x00;
+            rom.Data[tableBase + 1 * entrySize + 1] = 0x03;
+            rom.Data[tableBase + 1 * entrySize + 2] = 0x00;
+            rom.Data[tableBase + 1 * entrySize + 3] = 0x08;
+            // No 0xFF free space — helper MUST resize into a 0x00 region.
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+            uint termAddr = nb + newCount * entrySize;
+            // Terminator dword must be 0xFFFFFFFF (written explicitly).
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+
+            // Pointer-first scan must stop at exactly `newCount` rows.
+            uint scanned = 0;
+            uint cur = nb;
+            while (cur + 4 <= (uint)rom.Data.Length)
+            {
+                uint d = rom.u32(cur);
+                if (!U.isSafetyPointerOrNull(d)) break;
+                scanned++;
+                cur += entrySize;
+                // Safety bound — we should NEVER scan more than newCount
+                // rows before hitting the terminator.
+                if (scanned > newCount + 10) break;
+            }
+            Assert.Equal(newCount, scanned);
+        }
+
+        // ──────── Cache repoint (v5 fix 2 — forward-only) ────────
+
+        [Fact]
+        public void ExpandTableTo_RepointsCommentCache()
+        {
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 3;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                rom.Data[tableBase + e * entrySize] = (byte)(0x10 + e);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            // Install a headless comment cache with entries pointing at
+            // existing rows.
+            var cache = new HeadlessEtcCache();
+            CoreState.CommentCache = cache;
+            cache.Update(tableBase + 0 * entrySize, "row 0 comment");
+            cache.Update(tableBase + 1 * entrySize, "row 1 comment");
+            cache.Update(tableBase + 2 * entrySize, "row 2 comment");
+            // Out-of-table key — must NOT be relocated.
+            cache.Update(0x99999999, "unrelated");
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+            Assert.Equal("row 0 comment", cache.At(nb + 0 * entrySize));
+            Assert.Equal("row 1 comment", cache.At(nb + 1 * entrySize));
+            Assert.Equal("row 2 comment", cache.At(nb + 2 * entrySize));
+            // Out-of-table key stays put.
+            Assert.Equal("unrelated", cache.At(0x99999999));
+            // Old in-table addresses must no longer be in the cache.
+            Assert.Equal("", cache.At(tableBase + 0 * entrySize));
+        }
+
+        // ──────── Undo rollback (v5 fix 2 — ROM-only) ────────
+
+        [Fact]
+        public void ExpandTableTo_Rollback_RestoresROMBytes()
+        {
+            // The cache repoint is forward-only (matches WF semantics). The
+            // rollback only restores ROM byte ranges — the cache stays
+            // pointing at the new addresses after rollback. This is a
+            // documented WF parity gap.
+            var rom = MakeRom(0x200000);
+            CoreState.ROM = rom;
+
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 3;
+            uint newCount = 6;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x10 + e);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            byte[] snapshot = new byte[rom.Data.Length];
+            Array.Copy(rom.Data, snapshot, rom.Data.Length);
+
+            var ud = new Undo.UndoData
+            {
+                time = DateTime.Now,
+                name = "ExpandTableTo undo test",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(ud))
+            {
+                result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            }
+            Assert.True(result.Success, result.Error);
+
+            // Manually roll back the recorded undo positions (reverse order).
+            for (int i = ud.list.Count - 1; i >= 0; i--)
+            {
+                var up = ud.list[i];
+                Array.Copy(up.data, 0, rom.Data, up.addr, up.data.Length);
+            }
+
+            // Every byte must match the pre-expansion snapshot.
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                if (snapshot[i] != rom.Data[i])
+                    Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
+            }
+        }
+    }
 }

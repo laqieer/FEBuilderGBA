@@ -60,8 +60,9 @@
         <Button DockPanel.Dock="Bottom"
                 AutomationProperties.AutomationId="ImageMapActionAnimation_ListExpand_Button"
                 Name="ListExpandButton" Content="List Expansion"
-                Click="ListExpand_Click" IsEnabled="False"
-                ToolTip.Tip="Not yet implemented — see #501" Margin="0,4,0,0"
+                Click="ListExpand_Click"
+                ToolTip.Tip="Expand the map action animation list to a specified entry count (max 255)."
+                Margin="0,4,0,0"
                 HorizontalAlignment="Stretch" />
         <controls:AddressListControl
             AutomationProperties.AutomationId="ImageMapActionAnimation_Entry_List"

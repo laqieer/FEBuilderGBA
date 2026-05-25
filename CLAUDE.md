@@ -388,9 +388,31 @@ Multiple cache layers for performance:
 
 1. **InputFormRef Cache** - Data counts to avoid ROM scans
 2. **AsmMapFileAsmCache** - Background thread for ASM/MAP file parsing
-3. **EtcCache** - Resource tables, flags, text IDs
+3. **EtcCache** - Resource tables, flags, text IDs (`IEtcCache` interface in Core)
+   - Exposes `RepointEtcData(oldAddr, oldSize, newAddr)` so table-expansion
+     helpers can relocate per-row comment/lint keys when a table moves
+     (used by `DataExpansionCore.ExpandTableTo` for #501 action-anime list).
 
 Cache invalidation occurs on ROM modifications.
+
+### Table Expansion Helpers
+
+**File:** `FEBuilderGBA.Core/DataExpansionCore.cs`
+
+Cross-platform helpers for growing pointer-based ROM tables:
+- `ExpandTable(rom, ptr, entrySize, currentCount)` — adds **one** entry; uses
+  `0xFF` recycling for the old region.
+- `ExpandTableTo(rom, ptr, entrySize, currentCount, newCount)` — grows to a
+  specific row count; mirrors WinForms `InputFormRef.ExpandsArea(ExpandsFillOption.NO, ...)`:
+  copies existing rows verbatim, zero-fills new rows, writes a `0xFFFFFFFF`
+  terminator at `newBase + newCount * entrySize` (pointer-first scan stop),
+  wipes the old region with `0x00`, repoints `CoreState.CommentCache` +
+  `LintCache` entries via `IEtcCache.RepointEtcData`. Used by Avalonia
+  `ImageMapActionAnimationViewModel.ExpandList` (#501).
+
+Known WF parity gaps in both helpers (documented in XML doc, no follow-up
+issues filed): LDR-pointer rescan (`MoveToFreeSapceForm.SearchPointer`),
+forward-only cache repoint (rollback does NOT reverse it — matches WF).
 
 ## File Organization
 

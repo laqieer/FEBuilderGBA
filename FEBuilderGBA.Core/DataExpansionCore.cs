@@ -213,6 +213,201 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Expand a pointer-based ROM data table to a specific row count
+        /// <paramref name="newCount"/>. Mirrors WinForms
+        /// <c>InputFormRef.ExpandsArea(ExpandsFillOption.NO, ...)</c> byte-for-byte:
+        /// <list type="bullet">
+        ///   <item>Allocates <paramref name="newCount"/> * <paramref name="entrySize"/> bytes
+        ///         at fresh free space (or resizes the ROM).</item>
+        ///   <item>Copies the existing <paramref name="currentCount"/> rows verbatim — the
+        ///         caller is responsible for supplying the editor's row count
+        ///         (e.g. from <c>InputFormRef.DataCount</c> or the Avalonia
+        ///         <c>ViewModel.ReadCount</c>). The helper does NOT call
+        ///         <see cref="EstimateEntryCount"/> internally because the
+        ///         action-anime predicate <c>U.isSafetyPointerOrNull</c>
+        ///         counts row 0 as valid even when it is all zero.</item>
+        ///   <item>Zero-fills the new (<paramref name="newCount"/> -
+        ///         <paramref name="currentCount"/>) rows.</item>
+        ///   <item>Writes a <c>0xFFFFFFFF</c> terminator at
+        ///         <c>newBase + newCount * entrySize</c> so pointer-first
+        ///         scan predicates (<c>!U.isSafetyPointerOrNull(D0)</c>) stop
+        ///         at exactly <paramref name="newCount"/> rows even when the
+        ///         helper resizes the ROM into a freshly-zeroed region. The
+        ///         allocation request size is therefore <c>(newCount * entrySize) + 4</c>.</item>
+        ///   <item>Wipes the OLD region with <c>0x00</c> (matches WF
+        ///         <c>InputFormRef.ExpandsArea</c> at line 10787; intentionally
+        ///         differs from <see cref="ExpandTable"/> which uses
+        ///         <c>0xFF</c> recycling).</item>
+        ///   <item>Updates the GBA pointer at <paramref name="pointerAddr"/>
+        ///         to point at the new base.</item>
+        ///   <item>Repoints <c>CoreState.CommentCache</c> and
+        ///         <c>CoreState.LintCache</c> entries from
+        ///         <c>[oldBase, oldBase + currentCount * entrySize)</c> to the
+        ///         corresponding new addresses so per-row comments/lint
+        ///         metadata follow the moved table.</item>
+        /// </list>
+        ///
+        /// <para><b>Stop-row guarantee scope:</b> the <c>0xFFFFFFFF</c>
+        /// terminator stops <i>pointer-first row scans</i> — predicates that
+        /// reject <c>!U.isSafetyPointerOrNull</c> values (e.g.
+        /// <c>ImageMapActionAnimationViewModel.LoadList</c> and WF
+        /// <c>InputFormRef</c> row-validity callbacks). It does NOT change
+        /// <see cref="EstimateEntryCount"/> behavior (which stops at the first
+        /// all-zero row, not at <c>0xFFFFFFFF</c>). Callers that need a row
+        /// count from a freshly expanded table should use
+        /// <c><paramref name="newCount"/></c> directly or rescan with the
+        /// editor's own predicate, not call <see cref="EstimateEntryCount"/>.</para>
+        ///
+        /// <para><b>Cache repoint is forward-only:</b> ROM-level undo restores
+        /// byte ranges only; the cache-key repoint is NOT reversed on rollback.
+        /// This matches WF's <c>MoveToFreeSapceForm.RepointEtcData</c> behavior
+        /// (also forward-only). KnownGap — no follow-up issue filed.</para>
+        ///
+        /// <para><b>Out-of-scope KnownGaps</b> (no follow-up issues — see #501):
+        /// LDR-pointer rescan (WF <c>MoveToFreeSapceForm.SearchPointer</c>)
+        /// and freed-space reuse (WF <c>SearchFreeSpace</c> match-reuse
+        /// branch).</para>
+        /// </summary>
+        /// <param name="rom">ROM to modify.</param>
+        /// <param name="pointerAddr">Address of the GBA pointer that references the table base.</param>
+        /// <param name="entrySize">Fixed size of each table entry in bytes.</param>
+        /// <param name="currentCount">Number of rows currently in the table
+        /// (use the editor's row count — <i>not</i> <see cref="EstimateEntryCount"/>).</param>
+        /// <param name="newCount">Target row count. Must be &gt;= <paramref name="currentCount"/>.</param>
+        public static ExpandResult ExpandTableTo(ROM rom, uint pointerAddr, uint entrySize, uint currentCount, uint newCount)
+        {
+            if (rom == null || rom.Data == null)
+                return Fail("ROM is null.");
+            if (entrySize == 0)
+                return Fail("Entry size must be greater than zero.");
+            if (newCount < currentCount)
+                return Fail("newCount must be greater than or equal to currentCount.");
+            if (pointerAddr + 4 > (uint)rom.Data.Length)
+                return Fail("Pointer address is out of ROM bounds.");
+
+            uint oldBase = rom.p32(pointerAddr);
+            if (oldBase == 0 || oldBase >= (uint)rom.Data.Length)
+                return Fail("Table pointer is invalid (null or out of bounds).");
+
+            // Overflow guards for both `currentCount * entrySize` and
+            // `newCount * entrySize` — without these, a malicious / corrupt
+            // `currentCount` could wrap to a tiny value that passes the
+            // subsequent `oldBase + oldTableSize` ROM-bounds check, then the
+            // ROM-byte writes use the unwrapped (huge) size and corrupt the
+            // file. (Copilot bot review on PR #635 inline #1.)
+            if (entrySize != 0 && currentCount > uint.MaxValue / entrySize)
+                return Fail("currentCount * entrySize overflows 32-bit address space.");
+            uint oldTableSize = currentCount * entrySize;
+            // Overflow guard for newCount * entrySize (newCount >= currentCount,
+            // so currentCount can't bypass this on a single check). Reserve 4
+            // bytes for the trailing 0xFFFFFFFF terminator so the +4 below
+            // also can't wrap.
+            if (entrySize != 0 && newCount > (uint.MaxValue - 4) / entrySize)
+                return Fail("newCount * entrySize overflows 32-bit address space.");
+            uint newTableSize = newCount * entrySize;
+
+            // Verify old table fits in ROM.
+            if (oldBase + oldTableSize > (uint)rom.Data.Length)
+                return Fail("Current table extends beyond ROM bounds.");
+
+            // No-op fast path — newCount == currentCount.
+            if (newCount == currentCount)
+            {
+                return new ExpandResult
+                {
+                    Success = true,
+                    NewBaseAddress = oldBase,
+                    NewCount = currentCount,
+                };
+            }
+
+            // Allocate newCount * entrySize + 4 bytes (the +4 is the
+            // explicit 0xFFFFFFFF terminator dword).
+            uint allocSize = newTableSize + 4;
+            uint newBase = FindFreeSpace(rom, allocSize);
+            if (newBase == U.NOT_FOUND)
+            {
+                // Try expanding the ROM to make room.
+                // Overflow guard: `rom.Data.Length + allocSize` can wrap on a
+                // very large ROM + allocSize combo and silently bypass the
+                // 32 MB cap. Use a checked add. (Copilot bot review on PR #635
+                // inline #2.)
+                uint romLen = (uint)rom.Data.Length;
+                if (allocSize > uint.MaxValue - romLen)
+                    return Fail("ROM resize required size overflows 32-bit address space.");
+                uint requiredEndUnpadded = romLen + allocSize;
+                // Padding4 rounds up — guard the +3 overflow too.
+                if (requiredEndUnpadded > uint.MaxValue - 3)
+                    return Fail("ROM resize required size overflows 32-bit address space.");
+                uint requiredEnd = U.Padding4(requiredEndUnpadded);
+                if (requiredEnd > 0x02000000) // 32 MB max
+                    return Fail("Cannot find free space and ROM is at maximum size.");
+
+                bool resized = rom.write_resize_data(requiredEnd);
+                if (!resized)
+                    return Fail("Failed to resize ROM.");
+
+                // Place the table at the previous end (rounded down to 4-byte
+                // alignment) so the new region is fully inside the
+                // newly-resized area.
+                newBase = U.Padding4((uint)rom.Data.Length - allocSize);
+            }
+
+            // Copy old rows verbatim. Route through rom.write_range so the
+            // ambient-undo scope captures the pre-copy bytes at newBase.
+            if (oldTableSize > 0)
+            {
+                byte[] copyBytes = rom.getBinaryData(oldBase, oldTableSize);
+                rom.write_range(newBase, copyBytes);
+            }
+
+            // Zero-fill the new rows. Route through rom.write_fill so the
+            // ambient-undo scope captures the bytes that were there before.
+            uint newRowsStart = newBase + oldTableSize;
+            uint newRowsSize = newTableSize - oldTableSize;
+            if (newRowsSize > 0)
+            {
+                rom.write_fill(newRowsStart, newRowsSize, 0x00);
+            }
+
+            // Write the explicit 0xFFFFFFFF terminator at
+            // newBase + newCount * entrySize. Required so pointer-first row
+            // scans stop at exactly newCount even when surrounding bytes are
+            // 0x00 (e.g. after a ROM resize into a zeroed region).
+            uint termAddr = newBase + newTableSize;
+            rom.write_u32(termAddr, 0xFFFFFFFF);
+
+            // Wipe the OLD region with 0x00 — matches WF
+            // InputFormRef.ExpandsArea line 10787. NOTE: ExpandTable (the +1
+            // wrapper) uses 0xFF for recycling — intentional divergence,
+            // documented in both helpers' XML docs.
+            if (oldTableSize > 0)
+            {
+                rom.write_fill(oldBase, oldTableSize, 0x00);
+            }
+
+            // Update the pointer to point to the new location.
+            rom.write_p32(pointerAddr, newBase);
+
+            // Repoint comment/lint cache entries. Forward-only (matches WF
+            // MoveToFreeSapceForm.RepointEtcData behavior). KnownGap — ROM
+            // undo does NOT reverse this; the caches stay pointing at the
+            // new addresses after rollback.
+            if (oldTableSize > 0)
+            {
+                CoreState.CommentCache?.RepointEtcData(oldBase, oldTableSize, newBase);
+                CoreState.LintCache?.RepointEtcData(oldBase, oldTableSize, newBase);
+            }
+
+            return new ExpandResult
+            {
+                Success = true,
+                NewBaseAddress = newBase,
+                NewCount = newCount,
+            };
+        }
+
+        /// <summary>
         /// Estimate the number of entries in a table by scanning forward
         /// until an all-zero entry is found or the ROM ends.
         /// </summary>

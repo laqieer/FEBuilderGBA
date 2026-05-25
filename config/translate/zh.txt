@@ -23539,3 +23539,6 @@ DirectSound 固定频率反向
 
 :Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior.
 输入子字符串并按 Enter（或单击 Reload）以筛选乐器列表。镜像 WF SongInstrumentForm Filter 行为。
+
+:Expand the map action animation list to a specified entry count (max 255).
+将地图动作动画列表扩展到指定的条目数（最大 255）。

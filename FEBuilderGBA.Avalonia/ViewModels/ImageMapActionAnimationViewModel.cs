@@ -497,5 +497,51 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return false;
         }
+
+        // ----------------------------------------------------------------
+        // List expansion (#501) — delegates to DataExpansionCore.ExpandTableTo
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Grow the action-animation pointer table to <paramref name="newCount"/>
+        /// rows. Mirrors WinForms <c>InputFormRef.OnAddressListExpandsEventHandler</c>
+        /// + <c>InputFormRef.ExpandsArea(ExpandsFillOption.NO, ...)</c>, but
+        /// without the LDR-pointer rescan (KnownGap per #501).
+        ///
+        /// Uses the editor's <see cref="ReadCount"/> as the current row count
+        /// (the action-anime predicate <c>U.isSafetyPointerOrNull</c> accepts
+        /// row 0 as a reserved-null entry, so <c>EstimateEntryCount</c> would
+        /// undercount — see <see cref="DataExpansionCore.ExpandTableTo"/> XML
+        /// doc). Caller is responsible for wrapping in an
+        /// <c>UndoService.Begin/Commit/Rollback</c> scope.
+        /// </summary>
+        /// <param name="newCount">Target row count (must be &gt;= current).</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ExpandList(uint newCount)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+
+            uint animeP = FindAnimationPointer(rom);
+            if (animeP == U.NOT_FOUND)
+                return R._("Map action animation table not found in this ROM.");
+
+            // Use the editor's row count (ReadCount), not EstimateEntryCount.
+            // Row 0 is the reserved-null entry and ReadCount includes it.
+            if (newCount < ReadCount)
+                return R._("New count ({0}) must be greater than or equal to current count ({1}).",
+                    newCount, ReadCount);
+            if (newCount == ReadCount)
+                return ""; // no-op success
+
+            var result = DataExpansionCore.ExpandTableTo(rom, animeP, SIZE, ReadCount, newCount);
+            if (!result.Success)
+                return result.Error ?? R._("Table expansion failed.");
+
+            // Refresh the read-config from the new pointer base.
+            ReadStartAddress = result.NewBaseAddress;
+            ReadCount = result.NewCount;
+            return "";
+        }
     }
 }
