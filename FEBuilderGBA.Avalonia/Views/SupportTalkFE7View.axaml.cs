@@ -73,16 +73,13 @@ namespace FEBuilderGBA.Avalonia.Views
             TextCNud.Value = _vm.TextC;
             TextBNud.Value = _vm.TextB;
             TextANud.Value = _vm.TextA;
-            try { SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1); }
-            catch { /* leave prior text */ }
-            try { SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2); }
-            catch { /* leave prior text */ }
-            try { TextCNud.NameText = _vm.TextC != 0 ? NameResolver.GetTextById(_vm.TextC) : ""; }
-            catch { /* leave prior text */ }
-            try { TextBNud.NameText = _vm.TextB != 0 ? NameResolver.GetTextById(_vm.TextB) : ""; }
-            catch { /* leave prior text */ }
-            try { TextANud.NameText = _vm.TextA != 0 ? NameResolver.GetTextById(_vm.TextA) : ""; }
-            catch { /* leave prior text */ }
+            // ResolveUnitTableName / GetTextById return fallback strings on failure
+            // rather than throwing, so no try/catch needed (Copilot review #638).
+            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1);
+            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2);
+            TextCNud.NameText = _vm.TextC != 0 ? NameResolver.GetTextById(_vm.TextC) : "";
+            TextBNud.NameText = _vm.TextB != 0 ? NameResolver.GetTextById(_vm.TextB) : "";
+            TextANud.NameText = _vm.TextA != 0 ? NameResolver.GetTextById(_vm.TextA) : "";
             SongCNud.Value = _vm.SongC;
             SongBNud.Value = _vm.SongB;
             SongANud.Value = _vm.SongA;
@@ -189,8 +186,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SupportPartner1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
-            catch { /* leave prior text */ }
+            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
         }
 
         void SupportPartner2_Jump(object? sender, RoutedEventArgs e)
@@ -212,8 +208,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SupportPartner2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
-            catch { /* leave prior text */ }
+            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
         }
 
         void TextC_Jump(object? sender, RoutedEventArgs e)
@@ -224,8 +219,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void TextC_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { TextCNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
-            catch { /* leave prior text */ }
+            TextCNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : "";
         }
 
         void TextB_Jump(object? sender, RoutedEventArgs e)
@@ -236,8 +230,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void TextB_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { TextBNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
-            catch { /* leave prior text */ }
+            TextBNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : "";
         }
 
         void TextA_Jump(object? sender, RoutedEventArgs e)
@@ -248,8 +241,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void TextA_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { TextANud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
-            catch { /* leave prior text */ }
+            TextANud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : "";
         }
 
         public ViewModelBase? DataViewModel => _vm;

@@ -73,20 +73,14 @@ namespace FEBuilderGBA.Avalonia.Views
             TextIdCNud.Value = _vm.TextIdC;
             TextIdBNud.Value = _vm.TextIdB;
             TextIdANud.Value = _vm.TextIdA;
-            // Refresh name previews on selection change (the routed
-            // ValueChanged event fires on programmatic Value writes, but
-            // doing this explicitly keeps the previews stable across
-            // rapid selection changes).
-            try { SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1); }
-            catch { /* leave prior text */ }
-            try { SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2); }
-            catch { /* leave prior text */ }
-            try { TextIdCNud.NameText = _vm.TextIdC != 0 ? NameResolver.GetTextById(_vm.TextIdC) : ""; }
-            catch { /* leave prior text */ }
-            try { TextIdBNud.NameText = _vm.TextIdB != 0 ? NameResolver.GetTextById(_vm.TextIdB) : ""; }
-            catch { /* leave prior text */ }
-            try { TextIdANud.NameText = _vm.TextIdA != 0 ? NameResolver.GetTextById(_vm.TextIdA) : ""; }
-            catch { /* leave prior text */ }
+            // Refresh name previews on selection change. ResolveUnitTableName /
+            // GetTextById both return fallback strings on failure rather than
+            // throwing, so no try/catch is needed (Copilot review #638).
+            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1);
+            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2);
+            TextIdCNud.NameText = _vm.TextIdC != 0 ? NameResolver.GetTextById(_vm.TextIdC) : "";
+            TextIdBNud.NameText = _vm.TextIdB != 0 ? NameResolver.GetTextById(_vm.TextIdB) : "";
+            TextIdANud.NameText = _vm.TextIdA != 0 ? NameResolver.GetTextById(_vm.TextIdA) : "";
             SongCNud.Value = _vm.SongC;
             SongBNud.Value = _vm.SongB;
             SongANud.Value = _vm.SongA;
@@ -199,8 +193,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SupportPartner1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
-            catch { /* leave prior text */ }
+            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
         }
 
         void SupportPartner2_Jump(object? sender, RoutedEventArgs e)
@@ -222,8 +215,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SupportPartner2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
-            catch { /* leave prior text */ }
+            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
         }
 
         void TextIdC_Jump(object? sender, RoutedEventArgs e)
@@ -234,8 +226,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void TextIdC_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { TextIdCNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
-            catch { /* leave prior text */ }
+            TextIdCNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : "";
         }
 
         void TextIdB_Jump(object? sender, RoutedEventArgs e)
@@ -246,8 +237,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void TextIdB_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { TextIdBNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
-            catch { /* leave prior text */ }
+            TextIdBNud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : "";
         }
 
         void TextIdA_Jump(object? sender, RoutedEventArgs e)
@@ -258,8 +248,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void TextIdA_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { TextIdANud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
-            catch { /* leave prior text */ }
+            TextIdANud.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : "";
         }
 
         public ViewModelBase? DataViewModel => _vm;

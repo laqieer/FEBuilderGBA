@@ -171,8 +171,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             ItemIdBox.Value = _vm.ItemId;
-            try { ItemIdBox.NameText = NameResolver.GetItemName(_vm.ItemId); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            // NameResolver returns a fallback on failure (Copilot review #638).
+            ItemIdBox.NameText = NameResolver.GetItemName(_vm.ItemId);
             QuantityBox.Value = _vm.Quantity;
         }
 
@@ -367,8 +367,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ItemId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { ItemIdBox.NameText = NameResolver.GetItemName(e.NewValue); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            // NameResolver returns a fallback on failure (Copilot review #638).
+            ItemIdBox.NameText = NameResolver.GetItemName(e.NewValue);
         }
 
         // ===================================================================

@@ -76,8 +76,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             SongIdBox.Value = _vm.SongId;
-            try { SongIdBox.NameText = NameResolver.GetSongName(_vm.SongId); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            // NameResolver.GetSongName returns a fallback on failure; no try/catch needed (Copilot review #638).
+            SongIdBox.NameText = NameResolver.GetSongName(_vm.SongId);
             Raw4Box.Value = _vm.Raw4;
             Raw8Box.Value = _vm.Raw8;
             TextIdBox.Value = _vm.TextId;
@@ -156,8 +156,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SongId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { SongIdBox.NameText = NameResolver.GetSongName(e.NewValue); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            // NameResolver returns a fallback on failure (Copilot review #638).
+            SongIdBox.NameText = NameResolver.GetSongName(e.NewValue);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

@@ -56,8 +56,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             UnitIdBox.Value = _vm.UnitId;
-            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.UnitId); }
-            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
+            // ResolveUnitTableName handles missing ROM internally and returns
+            // a fallback string; no try/catch needed (Copilot review #638).
+            UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.UnitId);
             ConvText1Box.Value = _vm.ConversationText1;
             ConvText2Box.Value = _vm.ConversationText2;
             ConvText3Box.Value = _vm.ConversationText3;
@@ -128,8 +129,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
-            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
+            // ResolveUnitTableName returns a fallback on failure (Copilot review #638).
+            UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

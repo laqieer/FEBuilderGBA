@@ -137,8 +137,8 @@ namespace FEBuilderGBA.Avalonia.Views
             JpNamePtrBox.Value = _vm.JapaneseNamePointer;
             JpNameLenBox.Value = _vm.JapaneseNameLength;
             ClassIdBox.Value = _vm.ClassId;
-            try { ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            // NameResolver returns a fallback on failure (Copilot review #638).
+            ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId);
             AllyEnemyColorBox.Value = _vm.AllyEnemyColor;
             BattleAnimeBox.Value = _vm.BattleAnime;
             MagicEffectBox.Value = _vm.MagicEffect;
@@ -337,8 +337,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { ClassIdBox.NameText = NameResolver.GetClassName(e.NewValue); }
-            catch { /* NameResolver may fail without ROM — leave prior text */ }
+            // NameResolver returns a fallback on failure (Copilot review #638).
+            ClassIdBox.NameText = NameResolver.GetClassName(e.NewValue);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
