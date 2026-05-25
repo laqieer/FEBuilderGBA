@@ -580,6 +580,12 @@ namespace FEBuilderGBA
                 text = text.Replace("@001F", string.Empty);
             }
 
+            // Apply the WF text-escape conversion (e.g. FEditorAdv mode turns
+            // @0010@0XXX into [LoadFace][0xXXX] etc.) so the export file is
+            // round-trip compatible with the WinForms tool. Mirrors WF
+            // TextForm.ConvertEscapeText. (#536 round-3 review)
+            text = ConvertEscapeText(text);
+
             if (isOneLiner)
             {
                 writer.Write(text.Replace("\r\n", "\\r\\n"));
@@ -592,6 +598,68 @@ namespace FEBuilderGBA
             writer.Write("]\r\n");
             writer.Write(text);
             writer.Write("\r\n");
+        }
+
+        // ============================================================
+        // Escape conversion helpers - port from TextForm.cs (#536 round-3)
+        // ============================================================
+
+        /// <summary>
+        /// Convert engine escape codes (`@0010@0XXX`, `@XXXX`) into the
+        /// user-facing FEditorAdv representations (`[LoadFace][0xXXX]`,
+        /// `[0xXXXX]`). Mirrors WF `TextForm.ConvertEscapeText`/
+        /// `ConvertEscapeToFEditor` for the FEditorAdv (default) text-escape
+        /// mode. When text_escape is configured to `ProjectFEGBA`, returns
+        /// the text unchanged.
+        /// </summary>
+        public static string ConvertEscapeText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            if (CoreState.TextEscape == null) return text;
+
+            // text_escape mode resolution mirrors WF OptionForm.text_escape:
+            // default = FEditorAdv (1); ProjectFEGBA = 0.
+            uint mode = (CoreState.Config != null)
+                ? U.atoi(CoreState.Config.at("func_text_escape", "1"))
+                : 1u;
+            if (mode != 1) return text;
+
+            text = System.Text.RegularExpressions.Regex.Replace(text,
+                @"@0010@0([0-9A-F][0-9A-F][0-9A-F])", "[LoadFace][0x$1]");
+            text = CoreState.TextEscape.table_replace(text);
+            text = System.Text.RegularExpressions.Regex.Replace(text,
+                @"@([0-9A-F][0-9A-F][0-9A-F][0-9A-F])", "[0x$1]");
+            return text;
+        }
+
+        /// <summary>
+        /// Convert FEditorAdv user-facing escape representations
+        /// (`[LoadFace][0xXXX]`, `[0xXXXX]`, `[N]`, `[X]`) back into engine
+        /// escape codes (`@0010@0XXX`, `@XXXX`). Mirrors WF
+        /// `TextForm.ConvertFEditorToEscape`. Used on import so files
+        /// containing FEditorAdv tokens round-trip correctly.
+        /// </summary>
+        public static string ConvertFEditorToEscape(string str)
+        {
+            if (string.IsNullOrEmpty(str)) return str;
+            if (CoreState.TextEscape == null) return str;
+
+            str = System.Text.RegularExpressions.Regex.Replace(str,
+                @"\[LoadFace\]\[0x00([0-9A-F][0-9A-F][0-9A-F])\]", "@0010@0$1");
+            str = System.Text.RegularExpressions.Regex.Replace(str,
+                @"\[LoadFace\]\[0x([0-9A-F][0-9A-F][0-9A-F])\]", "@0010@0$1");
+            str = CoreState.TextEscape.table_replace_rev(str);
+            str = str.Replace("[N]", string.Empty);
+            str = str.Replace("[X]", string.Empty);
+            str = System.Text.RegularExpressions.Regex.Replace(str,
+                @"\[0x([0-9A-F])\]", "@000$1");
+            str = System.Text.RegularExpressions.Regex.Replace(str,
+                @"\[0x([0-9A-F][0-9A-F])\]", "@00$1");
+            str = System.Text.RegularExpressions.Regex.Replace(str,
+                @"\[0x([0-9A-F][0-9A-F][0-9A-F])\]", "@0$1");
+            str = System.Text.RegularExpressions.Regex.Replace(str,
+                @"\[0x([0-9A-F][0-9A-F][0-9A-F][0-9A-F])\]", "@$1");
+            return str;
         }
 
         // ============================================================
@@ -735,6 +803,11 @@ namespace FEBuilderGBA
 
             // Strip the trailing CRLF the WF reader appends to each entry.
             string writetext = U.substr(text, 0, text.Length - 2);
+
+            // Apply FEditorAdv -> engine-escape conversion so files containing
+            // `[0x....]`, `[LoadFace]...`, `[N]`, `[X]` round-trip correctly.
+            // Mirrors WF ToolTranslateROM.WriteText (#536 round-3 review).
+            writetext = ConvertFEditorToEscape(writetext);
 
             if (id < maxTextCount)
             {
@@ -1188,36 +1261,94 @@ namespace FEBuilderGBA
         /// <summary>
         /// Convert a one-character string to its priority-code-specific moji
         /// unit (the FE engine's internal numeric character code). Mirrors
-        /// the WF `U.ConvertMojiCharToUnit` static call.
-        ///
-        /// For SJIS: uses SystemTextEncoder to encode the char, returns the
-        /// resulting 1-2 byte sequence as a uint.
-        /// For UTF8: encodes as UTF-8 bytes, returns LE uint.
-        /// For LAT1: uses the first byte as the unit.
+        /// WF `U.ConvertMojiCharToUnit`:
+        /// 1. Apply `FETextEncode.ConvertSPMoji` to handle special characters.
+        /// 2. Encode via SystemTextEncoder (NOT UTF-8 directly).
+        /// 3. If first byte is '@', parse as `@XXXX` escape via
+        ///    `at_code_to_binary`.
+        /// 4. Otherwise: UTF8 priority -> ConvertUTF8ToUTF32; SJIS / LAT1 ->
+        ///    pack bytes via U.u32/u24/u16/u8 (little-endian byte read).
         /// </summary>
-        static uint ConvertMojiCharToUnit(string one, PRIORITY_CODE priority)
+        public static uint ConvertMojiCharToUnit(string one, PRIORITY_CODE priority)
         {
             if (string.IsNullOrEmpty(one)) return 0;
+            if (CoreState.SystemTextEncoder == null) return 0;
+
+            // Step 1: apply ConvertSPMoji (replaces special chars with @-codes).
+            one = FETextEncode.ConvertSPMoji(one);
+
+            // Step 2: encode via SystemTextEncoder.
+            byte[] moji = CoreState.SystemTextEncoder.Encode(one);
+            if (moji == null || moji.Length == 0) return 0;
+
+            // Step 3: @XXXX escape pass-through.
+            if (moji.Length >= 2 && moji[0] == '@')
+            {
+                return FETextEncode.at_code_to_binary(moji, 0, out _);
+            }
+
+            // Step 4a: UTF8 priority - decode UTF-8 bytes into UTF-32 codepoint.
             if (priority == PRIORITY_CODE.UTF8)
             {
-                byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(one);
-                uint r = 0;
-                for (int i = 0; i < utf8.Length && i < 4; i++)
-                {
-                    r |= ((uint)utf8[i]) << (i * 8);
-                }
-                return r;
+                return ConvertUTF8ToUTF32(moji);
             }
-            if (CoreState.SystemTextEncoder != null && priority == PRIORITY_CODE.SJIS)
+
+            // Step 4b: SJIS / LAT1 - read bytes as a little-endian uint.
+            if (moji.Length >= 4) return U.u32(moji, 0);
+            if (moji.Length >= 3) return U.u24(moji, 0);
+            if (moji.Length >= 2) return U.u16(moji, 0);
+            return U.u8(moji, 0);
+        }
+
+        /// <summary>
+        /// Decode UTF-8 bytes into a UTF-32 codepoint. Mirrors WF
+        /// `U.ConvertUTF8ToUTF32`. Returns 0 on empty input.
+        /// </summary>
+        static uint ConvertUTF8ToUTF32(byte[] moji)
+        {
+            if (moji == null || moji.Length <= 0) return 0;
+            if (moji[0] < 0x80) return moji[0];
+            if (moji[0] >= 0xFC && moji.Length >= 6)
             {
-                byte[] bytes = CoreState.SystemTextEncoder.Encode(one);
-                if (bytes == null || bytes.Length == 0) return 0;
-                if (bytes.Length == 1) return bytes[0];
-                return (uint)bytes[0] << 8 | bytes[1];
+                uint code = (((uint)moji[0]) & 0x01);
+                code = (code << 6) | (((uint)moji[1]) & 0x3F);
+                code = (code << 6) | (((uint)moji[2]) & 0x3F);
+                code = (code << 6) | (((uint)moji[3]) & 0x3F);
+                code = (code << 6) | (((uint)moji[4]) & 0x3F);
+                code = (code << 6) | (((uint)moji[5]) & 0x3F);
+                return code;
             }
-            // LAT1 default: first byte of UTF-8 representation.
-            byte[] lat1 = System.Text.Encoding.UTF8.GetBytes(one);
-            return lat1.Length > 0 ? (uint)lat1[0] : 0;
+            if (moji[0] >= 0xF8 && moji.Length >= 5)
+            {
+                uint code = (((uint)moji[0]) & 0x03);
+                code = (code << 6) | (((uint)moji[1]) & 0x3F);
+                code = (code << 6) | (((uint)moji[2]) & 0x3F);
+                code = (code << 6) | (((uint)moji[3]) & 0x3F);
+                code = (code << 6) | (((uint)moji[4]) & 0x3F);
+                return code;
+            }
+            if (moji[0] >= 0xF0 && moji.Length >= 4)
+            {
+                uint code = (((uint)moji[0]) & 0x07);
+                code = (code << 6) | (((uint)moji[1]) & 0x3F);
+                code = (code << 6) | (((uint)moji[2]) & 0x3F);
+                code = (code << 6) | (((uint)moji[3]) & 0x3F);
+                return code;
+            }
+            if (moji[0] >= 0xE0 && moji.Length >= 3)
+            {
+                uint code = (((uint)moji[0]) & 0x0F);
+                code = (code << 6) | (((uint)moji[1]) & 0x3F);
+                code = (code << 6) | (((uint)moji[2]) & 0x3F);
+                return code;
+            }
+            if (moji[0] >= 0xC0 && moji.Length >= 2)
+            {
+                uint code = (((uint)moji[0]) & 0x1F);
+                code = (code << 6) | (((uint)moji[1]) & 0x3F);
+                return code;
+            }
+            return moji[0];
         }
     }
 }

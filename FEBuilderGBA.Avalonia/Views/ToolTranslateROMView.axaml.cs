@@ -361,7 +361,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 var dlg = new Window
                 {
-                    Title = "Select Font Family",
+                    Title = R._("Select Font Family"),
                     Width = 360, Height = 480,
                     WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 };
@@ -369,7 +369,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 list.SelectedItem = _vm.UseFontName;
                 var ok = new Button
                 {
-                    Content = "OK",
+                    Content = R._("OK"),
                     HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right,
                     Margin = new global::Avalonia.Thickness(8),
                 };
@@ -410,7 +410,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 };
                 var ok = new Button
                 {
-                    Content = "OK",
+                    Content = R._("OK"),
                     HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Right,
                     Margin = new global::Avalonia.Thickness(8),
                 };
