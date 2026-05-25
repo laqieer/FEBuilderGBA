@@ -9453,3 +9453,33 @@ BattleRounds
 
 :BGM
 BGM
+
+:Save
+保存
+
+:Wait:
+ウェイト:
+
+:Open in Animation Creator
+アニメーション作成ツールで開く
+
+:Open the selected animation in the Animation Creator (frame editor).
+選択中のアニメーションをアニメーション作成ツール(フレームエディタ)で開きます。
+
+:Frames
+フレーム
+
+:Selected Frame
+選択フレーム
+
+:Animation preview (deferred — see #500 follow-up)
+アニメーションプレビュー(未対応 - #500の後続作業を参照)
+
+:Sound:
+音:
+
+:Context:
+コンテキスト:
+
+:Map Action Animation #{0:X2}
+マップアクションアニメ #{0:X2}

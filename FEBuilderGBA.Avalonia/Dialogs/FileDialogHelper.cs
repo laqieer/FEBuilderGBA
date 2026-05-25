@@ -114,6 +114,20 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return files.Count > 0 ? files[0].TryGetLocalPath() : null;
         }
 
+        /// <summary>Save an Animation Creator script file (.txt).</summary>
+        public static async Task<string?> SaveAnimationScriptFile(Window owner, string? suggestedName = null)
+        {
+            var fileType = new FilePickerFileType(R._("Animation Script (.txt)")) { Patterns = TxtPatterns };
+            var file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = R._("Save Animation Script"),
+                SuggestedFileName = suggestedName ?? "anim.txt",
+                FileTypeChoices = new[] { fileType, MakeAllFileType() },
+            });
+
+            return file?.TryGetLocalPath();
+        }
+
         /// <summary>Open any file with custom filter.</summary>
         public static async Task<string?> OpenFile(Window owner, string title, string pattern)
         {

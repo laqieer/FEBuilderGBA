@@ -43,6 +43,11 @@
                FontFamily="Consolas" />
         <Button AutomationProperties.AutomationId="ImageMapActionAnimation_Write_Button"
                 Name="WriteButton" Content="Write" Click="Write_Click" />
+        <!-- Map Action Animation entry point into the Animation Creator (#500). -->
+        <Button AutomationProperties.AutomationId="ImageMapActionAnimation_OpenInCreator_Button"
+                Name="OpenInCreatorButton" Content="Open in Animation Creator"
+                Click="OpenInCreator_Click"
+                ToolTip.Tip="Open the selected animation in the Animation Creator (frame editor)." />
       </StackPanel>
     </Border>
 

@@ -212,6 +212,45 @@ namespace FEBuilderGBA.Avalonia.Views
             Log.Debug("ImageMapActionAnimationView.ListExpand_Click invoked — disabled until #501 lands");
         }
 
+        /// <summary>
+        /// Open the currently-selected animation in the Animation Creator (#500).
+        /// Direct-from-ROM path — no temp file. The Creator view's
+        /// <c>InitFromRom</c> walks the frame table starting at
+        /// <c>_vm.AnimationPointer</c> and populates its own VM state.
+        /// </summary>
+        void OpenInCreator_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsAnimationValid)
+                {
+                    CoreState.Services.ShowInfo(R._("This entry has no valid animation pointer."));
+                    return;
+                }
+                uint animeOffset = U.toOffset(_vm.AnimationPointer);
+                if (!U.isSafetyOffset(animeOffset))
+                {
+                    CoreState.Services.ShowInfo(R._("Animation pointer 0x{0:X} is outside the ROM.",
+                        _vm.AnimationPointer));
+                    return;
+                }
+                // Hint is user-visible via `ToolAnimationCreatorView.FileHint`,
+                // so route it through `R._(...)` for translation. The id arg
+                // is `SelectedId` (the 0-based animation id) — NOT
+                // `CurrentAddr` — because the id is the natural identifier
+                // for de-dup / tab uniqueness in the Animation Creator
+                // (Copilot CLI inline review on PR #619).
+                string hint = R._("Map Action Animation #{0:X2}", _vm.SelectedId);
+                var view = WindowManager.Instance.Open<ToolAnimationCreatorView>();
+                view.InitFromRom(AnimationTypeEnum.MapActionAnimation,
+                    _vm.SelectedId, hint, animeOffset);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMapActionAnimationView.OpenInCreator_Click failed: {0}", ex.Message);
+            }
+        }
+
         void ShowFrameUpDown_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_suppressFrameChange) return;

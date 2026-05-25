@@ -576,7 +576,7 @@ Miscellaneous tools for ROM management, lint, diff, UPS, and more.
 | 328 | ToolFlagNameView | ToolFlagNameViewModel | Flag name editor |
 | 329 | ToolUseFlagView | ToolUseFlagViewModel | Flag usage viewer |
 | 330 | ToolUnitTalkGroupView | ToolUnitTalkGroupViewModel | Unit talk group editor |
-| 331 | ToolAnimationCreatorView | ToolAnimationCreatorViewModel | Animation creator tool |
+| 331 | ToolAnimationCreatorView | ToolAnimationCreatorViewViewModel | Animation creator (#500): `InitFromRom` / `InitFromFile` flows, frame list browser, per-frame editor |
 | 332 | ToolThreeMargeView | ToolThreeMargeViewModel | Three-way merge tool |
 | 333 | ToolThreeMargeCloseAlertView | ToolThreeMargeCloseAlertViewModel | Three-way merge close alert |
 | 334 | ToolExportEAEventView | ToolExportEAEventViewViewModel | Export events to EA format |
