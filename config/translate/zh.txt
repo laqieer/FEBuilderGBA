@@ -23524,3 +23524,6 @@ DirectSound 固定频率反向
 
 :Pending Core extraction (wave Import shell dialog is WinForms-only).
 等待 Core 抽离 (波形导入 shell 对话框为 WinForms 专用).
+
+:Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior.
+输入子字符串并按 Enter（或单击 Reload）以筛选乐器列表。镜像 WF SongInstrumentForm Filter 行为。

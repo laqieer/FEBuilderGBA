@@ -24,7 +24,9 @@
                 ToolTip.Tip="Pending Core extraction (list expansion is WinForms-only)." />
         <TextBlock Text="Filter" VerticalAlignment="Center" Width="50" />
         <TextBox AutomationProperties.AutomationId="SongInstrument_Filter_Input"
-                 Name="FilterBox" Width="150" VerticalAlignment="Center" />
+                 Name="FilterBox" Width="150" VerticalAlignment="Center"
+                 KeyDown="FilterBox_KeyDown"
+                 ToolTip.Tip="Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior." />
       </StackPanel>
     </Border>
 

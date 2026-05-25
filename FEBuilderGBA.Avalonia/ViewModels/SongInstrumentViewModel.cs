@@ -83,11 +83,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // DirectSound / WaveMemory
         public uint WavePtr { get => _wavePtr; set => SetField(ref _wavePtr, value); }
 
-        // SquareWave semantic aliases over the raw bytes (B1=Sweep,
-        // B2=DutyLen, B3=EnvStep).
-        public byte Sweep { get => _b1; set => B1 = value; }
-        public byte DutyLen { get => _b2; set => B2 = value; }
-        public byte EnvStep { get => _b3; set => B3 = value; }
+        // SquareWave semantic aliases over the raw bytes. The WF designer
+        // labels the SquareWave tab rows as:
+        //   B1 ("??"),  B2 ("00"),  B3 ("sweep"),  B4 ("squarepattern").
+        // The hardware-level "sweep envelope" byte therefore lives at B3,
+        // not B1 — corrected per Copilot review PR #626 round 2 finding #6.
+        // DutyLen / EnvStep are not labeled in WF; we keep semantic aliases
+        // pointing at the most plausible raw bytes (B4 = squarepattern,
+        // B1 = the unlabeled "??" envelope-step byte). Callers SHOULD prefer
+        // the raw B1..B11 accessors; the aliases exist only for legacy test
+        // ergonomics.
+        public byte Sweep { get => _b3; set => B3 = value; }
+        public byte DutyLen { get => _b4; set => B4 = value; }
+        public byte EnvStep { get => _b1; set => B1 = value; }
 
         // Noise semantic alias (B4 = noisepattern / Period).
         public byte Period { get => _b4; set => B4 = value; }
@@ -145,6 +153,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public static string GetInstrumentTypeName(byte type)
         {
+            // Names must match the AXAML tab Header strings so the
+            // MoreInfo text stays consistent with the active UNIONTAB
+            // header (Copilot review PR #626 round 2 finding #8 — the
+            // 0x09/0x0A/0x0B/0x0C variants previously returned
+            // "*(no pop)" while the tab headers showed SquareWave3 /
+            // SquareWave4 / Wave Memory2 / Noise2).
             switch (type)
             {
                 case 0x00: return "DirectSound";
@@ -153,14 +167,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case 0x03: return "Wave Memory";
                 case 0x04: return "Noise";
                 case 0x08: return "DirectSound Fixed Freq";
-                case 0x09: return "SquareWave (no pop)";
-                case 0x0A: return "SquareWave (no pop)";
-                case 0x0B: return "Wave Memory (no pop)";
-                case 0x0C: return "Noise (no pop)";
+                case 0x09: return "SquareWave3";
+                case 0x0A: return "SquareWave4";
+                case 0x0B: return "Wave Memory2";
+                case 0x0C: return "Noise2";
                 case 0x10: return "DirectSound Reverse";
                 case 0x18: return "DirectSound Fixed Freq Reverse";
                 case 0x40: return "Multi Sample";
-                case 0x80: return "Drum Part";
+                case 0x80: return "DrumPart";
                 default: return $"Unknown (0x{type:X02})";
             }
         }
@@ -341,8 +355,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     SubInstrPtr = rom.u32(addr + 4);
                     break;
 
-                // SquareWave / Noise: raw bytes already loaded above
-                // (B1=Sweep, B2=DutyLen, B3=EnvStep, B4=Period/squarepattern).
+                // SquareWave / Noise: raw bytes already loaded above.
+                // Per WF designer labels, SquareWave B3 = sweep, B4 =
+                // squarepattern; Noise B4 = noisepattern. Use the raw
+                // B1..B11 accessors for per-byte UI binding.
             }
 
             // Notify visibility changes
@@ -468,6 +484,122 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case 0x40: return "SongInstrument_UNIONTAB_N40_Tab";
                 case 0x80: return "SongInstrument_UNIONTAB_N80_Tab";
                 default: return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Compute the SongInstrument fingerprint MD5 hash for the loaded
+        /// entry (mirrors WF `SongInstrumentForm.FingerPrint`). DirectSound /
+        /// WaveMemory variants hash B1..B3 + B8..B11 + the wave data bytes;
+        /// SquareWave / Noise hash bytes 1..11 directly. Returns the empty
+        /// string when the address is out of range or the wave data cannot
+        /// be located. Used by the View to populate the FINGERPRINT footer
+        /// (Copilot review PR #626 round 2 finding #5).
+        /// </summary>
+        public string ComputeFingerprint()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return string.Empty;
+            if (!U.isSafetyOffset(CurrentAddr + BlockSize)) return string.Empty;
+
+            uint addr = CurrentAddr;
+            byte type = (byte)rom.u8(addr);
+
+            switch (type)
+            {
+                case 0x00:
+                case 0x08:
+                case 0x10:
+                case 0x18:
+                    return ComputeDirectSoundFingerprint(rom, addr);
+
+                case 0x03:
+                case 0x0B:
+                    return "WW" + ComputeWaveMemoryFingerprint(rom, addr);
+
+                case 0x01:
+                case 0x02:
+                case 0x09:
+                case 0x0A:
+                    return "SQ" + ComputeRawSliceFingerprint(rom, addr + 1, 11);
+
+                case 0x04:
+                case 0x0C:
+                    return "NZ" + ComputeRawSliceFingerprint(rom, addr + 1, 11);
+
+                // Drum / MultiSample do not produce a stable fingerprint in
+                // WF — nested instruments would loop forever. Return "".
+                default:
+                    return string.Empty;
+            }
+        }
+
+        static string ComputeDirectSoundFingerprint(ROM rom, uint vocaaddr)
+        {
+            var data = new List<byte>();
+            // Skip B0 (the header byte — used for type switching, not data).
+            data.Add((byte)rom.u8(vocaaddr + 1));
+            data.Add((byte)rom.u8(vocaaddr + 2));
+            data.Add((byte)rom.u8(vocaaddr + 3));
+            // B4..B7 = wave pointer (excluded from hash; the pointer target
+            // is hashed below).
+            data.Add((byte)rom.u8(vocaaddr + 8));
+            data.Add((byte)rom.u8(vocaaddr + 9));
+            data.Add((byte)rom.u8(vocaaddr + 10));
+            data.Add((byte)rom.u8(vocaaddr + 11));
+
+            uint songdataAddr = rom.p32(vocaaddr + 4);
+            if (!U.isSafetyOffset(songdataAddr)) return string.Empty;
+
+            // WF uses SongUtil.GetDirectSoundWaveDataLength here. We don't
+            // have a Core-side equivalent yet; hash a short fixed window
+            // (the 12-byte WF header) to keep the fingerprint stable
+            // across reloads of the same instrument. This produces a
+            // different fingerprint than WF (which hashes the full sample
+            // data), but it is internally consistent for the AV editor.
+            if (!U.isSafetyOffset(songdataAddr + 12)) return string.Empty;
+            byte[] header = rom.getBinaryData(songdataAddr, 12);
+            data.AddRange(header);
+
+            return ComputeMd5Hex(data.ToArray());
+        }
+
+        static string ComputeWaveMemoryFingerprint(ROM rom, uint vocaaddr)
+        {
+            var data = new List<byte>();
+            data.Add((byte)rom.u8(vocaaddr + 1));
+            data.Add((byte)rom.u8(vocaaddr + 2));
+            data.Add((byte)rom.u8(vocaaddr + 3));
+            data.Add((byte)rom.u8(vocaaddr + 8));
+            data.Add((byte)rom.u8(vocaaddr + 9));
+            data.Add((byte)rom.u8(vocaaddr + 10));
+            data.Add((byte)rom.u8(vocaaddr + 11));
+
+            uint songdataAddr = rom.p32(vocaaddr + 4);
+            if (!U.isSafetyOffset(songdataAddr)) return string.Empty;
+            if (!U.isSafetyOffset(songdataAddr + 12)) return string.Empty;
+
+            byte[] fixedData = rom.getBinaryData(songdataAddr, 12);
+            data.AddRange(fixedData);
+
+            return ComputeMd5Hex(data.ToArray());
+        }
+
+        static string ComputeRawSliceFingerprint(ROM rom, uint addr, uint length)
+        {
+            if (!U.isSafetyLength(addr, length)) return string.Empty;
+            byte[] data = rom.getBinaryData(addr, length);
+            return ComputeMd5Hex(data);
+        }
+
+        static string ComputeMd5Hex(byte[] data)
+        {
+            using (var md5 = System.Security.Cryptography.MD5.Create())
+            {
+                byte[] bs = md5.ComputeHash(data);
+                var sb = new System.Text.StringBuilder(bs.Length * 2);
+                foreach (var b in bs) sb.Append(b.ToString("x2"));
+                return sb.ToString();
             }
         }
 

@@ -9692,3 +9692,6 @@ Core 抽出待ち (wave エクスポートのシェルダイアログは WinForm
 
 :Pending Core extraction (wave Import shell dialog is WinForms-only).
 Core 抽出待ち (wave インポートのシェルダイアログは WinForms 専用).
+
+:Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior.
+部分文字列を入力して Enter（または Reload）を押すと、楽器リストを絞り込みます。WF SongInstrumentForm のフィルタ動作を再現します。

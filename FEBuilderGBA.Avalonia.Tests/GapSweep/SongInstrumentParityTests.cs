@@ -389,28 +389,44 @@ public class SongInstrumentParityTests
             vm.CurrentAddr = addr;
             vm.HeaderByte = headerByte;
             vm.Category = SongInstrumentViewModel.ClassifyType(headerByte);
-            vm.Sweep = 0x11;     // B1
-            vm.DutyLen = 0x22;   // B2
-            vm.EnvStep = 0x33;   // B3
-            vm.B4 = 0x44;        // B4 (squarepattern — concern v2 #2)
+            // SquareWave exposes B1..B11 raw — every byte must round-trip
+            // through Write -> reload. Use raw accessors directly (not the
+            // semantic Sweep/DutyLen/EnvStep aliases, which were corrected
+            // per PR #626 round 2 finding #6 — Sweep is now B3, not B1).
+            vm.B1 = 0x11;
+            vm.B2 = 0x22;
+            vm.B3 = 0x33; // sweep
+            vm.B4 = 0x44; // squarepattern
             vm.B5 = 0x55;
             vm.B6 = 0x66;
             vm.B7 = 0x77;
-            vm.Attack = 0x88; vm.Decay = 0x99;
-            vm.Sustain = 0xAA; vm.Release = 0xBB;
+            vm.B8 = 0x88;
+            vm.B9 = 0x99;
+            vm.B10 = 0xAA;
+            vm.B11 = 0xBB;
             vm.Write();
 
             var vm2 = new SongInstrumentViewModel();
             vm2.LoadEntry(addr);
 
             Assert.Equal(headerByte, vm2.HeaderByte);
-            Assert.Equal(0x11, vm2.Sweep);
-            Assert.Equal(0x22, vm2.DutyLen);
-            Assert.Equal(0x33, vm2.EnvStep);
+            Assert.Equal(0x11, vm2.B1);
+            Assert.Equal(0x22, vm2.B2);
+            Assert.Equal(0x33, vm2.B3);
             Assert.Equal(0x44, vm2.B4);
             Assert.Equal(0x55, vm2.B5);
             Assert.Equal(0x66, vm2.B6);
             Assert.Equal(0x77, vm2.B7);
+            Assert.Equal(0x88, vm2.B8);
+            Assert.Equal(0x99, vm2.B9);
+            Assert.Equal(0xAA, vm2.B10);
+            Assert.Equal(0xBB, vm2.B11);
+            // The semantic aliases should resolve to the correct raw bytes
+            // per the WF SquareWave field labels (Sweep=B3, DutyLen=B4,
+            // EnvStep=B1, ADSR=B8..B11).
+            Assert.Equal(0x33, vm2.Sweep);
+            Assert.Equal(0x44, vm2.DutyLen);
+            Assert.Equal(0x11, vm2.EnvStep);
             Assert.Equal(0x88, vm2.Attack);
             Assert.Equal(0x99, vm2.Decay);
             Assert.Equal(0xAA, vm2.Sustain);

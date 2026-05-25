@@ -65,9 +65,35 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
-                var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                // Honor the read-config bar inputs when present (mirrors WF
+                // panel1: First Address / Read Count). When ReadStartAddress
+                // is non-zero the user-edited base overrides the auto-
+                // resolved first-song voicegroup. When ReadCount is non-zero
+                // it caps the scan window. Both fall back to defaults when
+                // unset (Copilot review PR #626 round 2 finding #2).
+                uint userBase = (uint)(ReadStartAddressBox?.Value ?? 0);
+                if (userBase != 0)
+                {
+                    var explicitItems = _vm.LoadInstrumentList(userBase);
+                    EntryList.SetItems(explicitItems);
+                }
+                else
+                {
+                    var items = _vm.LoadList();
+                    EntryList.SetItems(items);
+                    // Surface auto-detected base back into the read-config bar
+                    // so subsequent Reload clicks have a non-zero starting
+                    // value the user can edit.
+                    if (_vm.BaseAddr != 0 && ReadStartAddressBox != null)
+                        ReadStartAddressBox.Value = _vm.BaseAddr;
+                }
                 BlockSizeBox.Text = "12";
+
+                // Apply the Filter textbox (a parallel WF-style filter that
+                // routes through AddressListControl.ApplySearchFilter).
+                string? filter = FilterBox?.Text;
+                if (!string.IsNullOrWhiteSpace(filter))
+                    EntryList.ApplySearchFilter(filter);
             }
             catch (Exception ex)
             {
@@ -128,6 +154,18 @@ namespace FEBuilderGBA.Avalonia.Views
             LoadList();
         }
 
+        void FilterBox_KeyDown(object? sender, global::Avalonia.Input.KeyEventArgs e)
+        {
+            // Enter key applies the filter (mirrors WF SearchBox UX). Other
+            // keys are no-ops so per-keystroke filter pressure doesn't
+            // hammer the master list.
+            if (e.Key == global::Avalonia.Input.Key.Enter)
+            {
+                EntryList.ApplySearchFilter(FilterBox?.Text);
+                e.Handled = true;
+            }
+        }
+
         void UpdateUI()
         {
             // Guard against re-entrant Combo SelectionChanged that would
@@ -140,6 +178,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 AddressBox.Value = _vm.CurrentAddr;
                 HeaderByteBox.Value = _vm.HeaderByte;
                 MoreInfoBox.Text = _vm.TypeName;
+
+                // Populate FINGERPRINT footer so it actually changes per
+                // selection (Copilot review PR #626 round 2 finding #5 — the
+                // footer was declared but never populated, always blank).
+                if (FingerprintBox != null)
+                    FingerprintBox.Text = _vm.ComputeFingerprint();
 
                 // Sync the Type combo with the loaded HeaderByte so it
                 // always shows the same instrument-type label as the active
@@ -424,8 +468,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         public void NavigateTo(uint address)
         {
-            if (address != 0) _vm.LoadEntry(address);
+            if (address == 0) return;
+            // SelectAddress fires SelectedAddressChanged -> OnSelected ->
+            // _vm.LoadEntry(address) which already populates the editor.
+            // Only fall back to a direct LoadEntry call when the address
+            // is NOT in the master list (e.g. cross-editor jump from
+            // outside the SongTrack instrument set) so SelectAddress is
+            // a no-op. Avoids the redundant double-load Copilot flagged
+            // in PR #626 round 2 finding #3.
+            uint beforeAddr = EntryList.SelectedItem?.addr ?? 0;
             EntryList.SelectAddress(address);
+            uint afterAddr = EntryList.SelectedItem?.addr ?? 0;
+            if (beforeAddr == afterAddr && afterAddr != address)
+            {
+                // Address wasn't in the master list — direct-load so the
+                // caller still ends up looking at the requested entry.
+                _vm.LoadEntry(address);
+                UpdateUI();
+            }
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
