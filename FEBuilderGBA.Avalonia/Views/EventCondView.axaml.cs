@@ -442,6 +442,32 @@ namespace FEBuilderGBA.Avalonia.Views
                     HatchingStartBox.Value = _vm.HatchingStart;
                     HatchingEndBox.Value = _vm.HatchingEnd;
                     VeinEffectIdBox.Value = _vm.TrapSubType;
+                    // Round 8 fix: hide TRAP aliases that aren't active for the
+                    // current trap type so the user can't edit a B4/B5 alias
+                    // whose value will be silently discarded by Compose.
+                    // Active per type:
+                    //   0x04 Damage Floor: DamageAmount + Durability
+                    //   0x05 Poison Gas:   GasDirection + Durability
+                    //   0x06 Dragon Vein:  VeinEffectId (B3 only) + Direction + Durability
+                    //   0x08 Fire:         Direction + Duration
+                    //   0x0C Gorgon Egg:   HatchingStart + HatchingEnd
+                    //   0x0B Mine:         ItemId (B3) + Direction + Durability
+                    //   other (Ballista):  BallistaType (B3) + Direction + Durability
+                    bool isDmg = _vm.CondType == 0x04;
+                    bool isGas = _vm.CondType == 0x05;
+                    bool isFire = _vm.CondType == 0x08;
+                    bool isEgg = _vm.CondType == 0x0C;
+                    bool isVein = _vm.CondType == 0x06;
+                    DamageAmountBox.IsVisible = isDmg;
+                    GasDirectionBox.IsVisible = isGas;
+                    DurationBox.IsVisible = isFire;
+                    HatchingStartBox.IsVisible = isEgg;
+                    HatchingEndBox.IsVisible = isEgg;
+                    // Direction + Durability remain visible for non-alias types.
+                    TrapDirectionBox.IsVisible = !isDmg && !isGas && !isEgg;
+                    TrapDurabilityBox.IsVisible = !isFire && !isEgg;
+                    BallistaTypeBox.IsVisible = !isVein;
+                    VeinEffectIdBox.IsVisible = isVein;
                     break;
                 case CondCategory.TUTORIAL:
                     // TUTORIAL records are a single 4-byte u32 (TUTORIAL_P0).

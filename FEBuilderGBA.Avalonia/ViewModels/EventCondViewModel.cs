@@ -887,19 +887,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case CondCategory.TRAP:
                     _subType = X1;
                     _flagId = Y1;
-                    _extraB8 = TrapDirection;
-                    _extraB9 = Durability;
-                    // B3 byte: Ballista type / Vein effect / Item id — round-
-                    // trip TrapSubType back into _eventPtr (which holds B3 for
-                    // 6-byte TRAP records). This is the fix for Copilot CLI
-                    // review round 3 #2: previously the BallistaType/VeinEffect
-                    // edits went to _subType which was then overwritten by X1.
+                    // B3 byte: Ballista type / Vein effect / Item id —
+                    // TrapSubType holds B3 for 6-byte TRAP records.
                     _eventPtr = TrapSubType;
-                    if (_condType == 0x04) _extraB8 = DamageAmount;
-                    else if (_condType == 0x05) _extraB8 = GasDirection;
-                    else if (_condType == 0x08) _extraB9 = Duration;
+                    // Round 8 fix: pick exactly ONE canonical source for B4/B5
+                    // per trap type so type-specific aliases (DamageAmount /
+                    // GasDirection / Duration / Hatching*) don't clobber edits
+                    // to generic Direction/Durability and vice-versa.
+                    // - 0x04 (Damage Floor): B4 = DamageAmount, B5 = (durability unused).
+                    // - 0x05 (Poison Gas):    B4 = GasDirection, B5 = (unused).
+                    // - 0x08 (Fire):          B4 = (unused),     B5 = Duration.
+                    // - 0x0C (Gorgon Egg):    B4 = HatchingStart, B5 = HatchingEnd.
+                    // - 0x0B (Mine):          B3 = ItemId (overrides TrapSubType).
+                    // - other (Ballista/etc): B4 = TrapDirection, B5 = Durability.
+                    if (_condType == 0x04) { _extraB8 = DamageAmount; _extraB9 = Durability; }
+                    else if (_condType == 0x05) { _extraB8 = GasDirection; _extraB9 = Durability; }
+                    else if (_condType == 0x08) { _extraB8 = TrapDirection; _extraB9 = Duration; }
                     else if (_condType == 0x0C) { _extraB8 = HatchingStart; _extraB9 = HatchingEnd; }
-                    else if (_condType == 0x0B) _eventPtr = ItemId; // Mine: item id in B3 (overrides TrapSubType)
+                    else if (_condType == 0x0B) { _eventPtr = ItemId; _extraB8 = TrapDirection; _extraB9 = Durability; }
+                    else { _extraB8 = TrapDirection; _extraB9 = Durability; }
                     break;
                 case CondCategory.TUTORIAL:
                     // TUTORIAL: single u32 (TUTORIAL_P0). The raw u32 is in

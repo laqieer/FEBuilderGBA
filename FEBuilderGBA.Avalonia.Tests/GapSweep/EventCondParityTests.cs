@@ -1275,6 +1275,67 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI round 8 review fix — TRAP B4/B5 alias conflict
+    // resolved by exactly-one-source-per-byte and visibility gating.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TrapCompose_PicksSingleSourcePerType()
+    {
+        // Round 8: Compose for TRAP must pick EXACTLY one canonical source
+        // per B4/B5 byte for the current trap type, so type-specific aliases
+        // (DamageAmount/GasDirection/Duration/Hatching*) don't clobber edits
+        // to generic Direction/Durability and vice-versa.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must NOT unconditionally write _extraB8 = TrapDirection
+        // before the type-specific dispatch — the dispatch handles every case.
+        // Verify the dispatch has both branches covered (e.g., 0x04 writes both
+        // _extraB8 and _extraB9 explicitly).
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x04[\s\S]*?_extraB8\s*=\s*DamageAmount[\s\S]*?_extraB9\s*=\s*Durability", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x08[\s\S]*?_extraB9\s*=\s*Duration", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x0C[\s\S]*?_extraB8\s*=\s*HatchingStart[\s\S]*?_extraB9\s*=\s*HatchingEnd", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_TrapPanel_HidesInactiveAliasesPerType()
+    {
+        // Round 8: View must hide inactive TRAP aliases for each trap type
+        // so the user can't edit a B4/B5 alias whose value would be silently
+        // discarded by Compose.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // Production must contain visibility toggles for the aliases.
+        Assert.Matches(
+            new Regex(@"DamageAmountBox\.IsVisible\s*=\s*isDmg", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"GasDirectionBox\.IsVisible\s*=\s*isGas", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"DurationBox\.IsVisible\s*=\s*isFire", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"HatchingStartBox\.IsVisible\s*=\s*isEgg", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"VeinEffectIdBox\.IsVisible\s*=\s*isVein", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
