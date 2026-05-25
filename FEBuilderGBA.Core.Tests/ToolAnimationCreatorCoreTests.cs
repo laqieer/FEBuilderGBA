@@ -172,6 +172,26 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ParseMapActionScript_HexWait_ParsesAsHex()
+        {
+            // WF importer accepts hex wait values via `U.atoi0x` (e.g. `0x04`).
+            // Copilot CLI inline review on PR #619.
+            string path = WriteTempScript(
+                "0x04\ta.png\n" +
+                "0x0A\tb.png\t0x12\n"
+            );
+            try
+            {
+                var frames = ToolAnimationCreatorCore.ParseMapActionScript(path, out _);
+                Assert.Equal(2, frames.Count);
+                Assert.Equal(0x04u, frames[0].Wait);
+                Assert.Equal(0x0Au, frames[1].Wait);
+                Assert.Equal(0x12u, frames[1].Sound);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Fact]
         public void ParseMapActionScript_LineWithBadFormat_IsSkipped()
         {
             // No image field → skip (cannot edit / save back meaningfully).

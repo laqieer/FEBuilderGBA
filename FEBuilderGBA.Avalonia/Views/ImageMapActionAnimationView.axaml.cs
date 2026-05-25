@@ -234,10 +234,16 @@ namespace FEBuilderGBA.Avalonia.Views
                         _vm.AnimationPointer));
                     return;
                 }
-                string hint = $"Map Action Animation #{_vm.CurrentAddr:X}";
+                // Hint is user-visible via `ToolAnimationCreatorView.FileHint`,
+                // so route it through `R._(...)` for translation. The id arg
+                // is `SelectedId` (the 0-based animation id) — NOT
+                // `CurrentAddr` — because the id is the natural identifier
+                // for de-dup / tab uniqueness in the Animation Creator
+                // (Copilot CLI inline review on PR #619).
+                string hint = R._("Map Action Animation #{0:X2}", _vm.SelectedId);
                 var view = WindowManager.Instance.Open<ToolAnimationCreatorView>();
                 view.InitFromRom(AnimationTypeEnum.MapActionAnimation,
-                    _vm.CurrentAddr, hint, animeOffset);
+                    _vm.SelectedId, hint, animeOffset);
             }
             catch (Exception ex)
             {

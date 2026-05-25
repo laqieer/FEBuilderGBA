@@ -9480,3 +9480,6 @@ BGM
 
 :Context:
 コンテキスト:
+
+:Map Action Animation #{0:X2}
+マップアクションアニメ #{0:X2}

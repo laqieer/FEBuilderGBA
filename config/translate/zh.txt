@@ -23312,3 +23312,6 @@ BGM
 
 :Context:
 上下文:
+
+:Map Action Animation #{0:X2}
+地图动作动画 #{0:X2}

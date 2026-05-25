@@ -92,6 +92,26 @@ namespace FEBuilderGBA
             return (((uint)type) << 24) | (id & 0x00FFFFFFu);
         }
 
+        /// <summary>
+        /// Parse a decimal or <c>0x</c>-prefixed hex integer — matches
+        /// WF <c>U.atoi0x</c> semantics. Used for both wait and sound fields
+        /// in the .txt script parser so existing user scripts with
+        /// <c>0x04</c>-style waits round-trip cleanly (Copilot CLI inline
+        /// review on PR #619).
+        /// </summary>
+        static bool TryParseWaitOrSound(string field, out uint value)
+        {
+            value = 0;
+            if (string.IsNullOrEmpty(field)) return false;
+            if (field.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                return uint.TryParse(field.Substring(2),
+                    NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+            }
+            return uint.TryParse(field, NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out value);
+        }
+
         // ================================================================
         // File-based I/O — parity with WF ImageUtilMapActionAnimation.Export
         // ================================================================
@@ -147,8 +167,10 @@ namespace FEBuilderGBA
                     new[] { '\t', ' ' },
                     StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length < 2) continue;
-                if (!uint.TryParse(parts[0], NumberStyles.Integer,
-                        CultureInfo.InvariantCulture, out uint wait))
+                // Accept both decimal (`4`) and `0x`-prefixed hex (`0x04`)
+                // wait values — matches WF `ImageUtilMapActionAnimation.Import`
+                // which uses `U.atoi0x` (Copilot CLI inline review on PR #619).
+                if (!TryParseWaitOrSound(parts[0], out uint wait))
                 {
                     continue;
                 }
@@ -156,23 +178,12 @@ namespace FEBuilderGBA
                 uint sound = 0;
                 if (parts.Length >= 3)
                 {
-                    string soundField = parts[2];
-                    if (soundField.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    // Use the same shared helper so sound parsing also
+                    // accepts decimal or `0x`-prefixed hex (Copilot CLI
+                    // inline review on PR #619).
+                    if (!TryParseWaitOrSound(parts[2], out sound))
                     {
-                        if (!uint.TryParse(soundField.Substring(2),
-                                NumberStyles.HexNumber,
-                                CultureInfo.InvariantCulture, out sound))
-                        {
-                            sound = 0;
-                        }
-                    }
-                    else
-                    {
-                        if (!uint.TryParse(soundField, NumberStyles.Integer,
-                                CultureInfo.InvariantCulture, out sound))
-                        {
-                            sound = 0;
-                        }
+                        sound = 0;
                     }
                 }
                 frames.Add(new MapActionFrame(
