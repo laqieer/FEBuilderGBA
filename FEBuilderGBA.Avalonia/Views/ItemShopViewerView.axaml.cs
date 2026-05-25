@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -125,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     AddrLabel.Text = "(empty shop — append a slot first)";
                     ItemIdBox.Value = 0;
                     QuantityBox.Value = 0;
-                    ItemNameLabel.Text = "";
+                    ItemIdBox.NameText = "";
                 }
 
                 _vm.IsLoading = false;
@@ -169,8 +171,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             ItemIdBox.Value = _vm.ItemId;
+            try { ItemIdBox.NameText = NameResolver.GetItemName(_vm.ItemId); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
             QuantityBox.Value = _vm.Quantity;
-            ItemNameLabel.Text = NameResolver.GetItemName(_vm.ItemId);
         }
 
         // ===================================================================
@@ -187,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 StatusLabel.Text = "Select a slot first (or use Append Slot to add one).";
                 return;
             }
-            _vm.ItemId = (uint)(ItemIdBox.Value ?? 0);
+            _vm.ItemId = ItemIdBox.Value;
             _vm.Quantity = (uint)(QuantityBox.Value ?? 0);
 
             _undoService.Begin("Edit Item Shop Slot");
@@ -314,25 +317,58 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // ===================================================================
-        // Item-ID hyperlink — opens the Item Editor for the current item
+        // IdFieldControl handlers (#360 final)
         // ===================================================================
 
-        void OnItemIdLinkClick(object? sender, PointerPressedEventArgs e)
+        static uint ItemAddrFor(uint itemId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint itemPtr = rom.RomInfo.item_pointer;
+            if (itemPtr == 0) return 0;
+            uint baseAddr = rom.p32(itemPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + itemId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void ItemId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint itemId = (uint)(ItemIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.item_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + itemId * rom.RomInfo.item_datasize;
-                if (rom.RomInfo.version == 6)
+                uint addr = ItemAddrFor(ItemIdBox.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
                     WindowManager.Instance.Navigate<ItemFE6View>(addr);
                 else
                     WindowManager.Instance.Navigate<ItemEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnItemIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("ItemShopViewerView.ItemId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ItemId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ItemAddrFor(ItemIdBox.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
+                if (result != null) ItemIdBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("ItemShopViewerView.ItemId_Pick failed: {0}", ex.Message); }
+        }
+
+        void ItemId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { ItemIdBox.NameText = NameResolver.GetItemName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
         }
 
         // ===================================================================

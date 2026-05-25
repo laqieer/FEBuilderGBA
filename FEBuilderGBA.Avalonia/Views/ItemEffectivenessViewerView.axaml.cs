@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -120,8 +121,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateRightPanel()
         {
-            ClassIdInput.Value = _vm.ClassId;
-            ClassNameLabel.Text = _vm.ClassName;
+            ClassIdBox.Value = _vm.ClassId;
+            try { ClassIdBox.NameText = _vm.ClassName ?? NameResolver.GetClassName(_vm.ClassId); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
             ClassIconImage.Source = LoadClassIcon(_vm.ClassId);
         }
 
@@ -147,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                _vm.ClassId = (uint)(ClassIdInput.Value ?? 0);
+                _vm.ClassId = ClassIdBox.Value;
                 _vm.ClassName = NameResolver.GetClassName(_vm.ClassId);
                 _vm.WriteCurrentClassByte();
                 _vm.MarkClean();
@@ -197,22 +199,62 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnClassIdLinkClick(object? sender, PointerPressedEventArgs e)
+        // -- IdFieldControl handlers (#360 final) ---------------------------
+
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void ClassId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint classId = (uint)(ClassIdInput.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.class_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + classId * rom.RomInfo.class_datasize;
-                if (rom.RomInfo.version == 6)
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
                     WindowManager.Instance.Navigate<ClassFE6View>(addr);
                 else
                     WindowManager.Instance.Navigate<ClassEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnClassIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("ItemEffectivenessViewerView.ClassId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ClassId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(ClassIdBox.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null) ClassIdBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("ItemEffectivenessViewerView.ClassId_Pick failed: {0}", ex.Message); }
+        }
+
+        void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try
+            {
+                ClassIdBox.NameText = NameResolver.GetClassName(e.NewValue);
+                // Also refresh the icon when the user types a new class id.
+                ClassIconImage.Source = LoadClassIcon(e.NewValue);
+            }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
         }
 
         /// <summary>

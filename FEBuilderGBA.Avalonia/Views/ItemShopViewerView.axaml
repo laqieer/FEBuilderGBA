@@ -42,18 +42,17 @@
           <TextBlock AutomationProperties.AutomationId="ItemShopViewer_Addr_Label"
                      Grid.Row="1" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Item ID:" VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="ItemShopViewer_ItemId_Link"
-                     Classes="Hyperlink" Name="ItemId_Link" PointerPressed="OnItemIdLinkClick"
-                     ToolTip.Tip="Click to open Item Editor" />
-          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="6"
-                      VerticalAlignment="Center">
-            <NumericUpDown AutomationProperties.AutomationId="ItemShopViewer_ItemId_Input"
-                           FormatString="0" Name="ItemIdBox" Minimum="0" Maximum="255" Width="100"
-                           VerticalAlignment="Center" />
-            <TextBlock AutomationProperties.AutomationId="ItemShopViewer_ItemName_Label"
-                       Name="ItemNameLabel" VerticalAlignment="Center" />
-          </StackPanel>
+          <!-- #360 final: hyperlink TextBlock + NumericUpDown + name label → IdFieldControl.
+               The standalone ItemNameLabel is removed; IdFieldControl provides
+               its inline name preview (NameText). -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="ItemShopViewer_ItemId_Input"
+                                   Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ItemIdBox"
+                                   Label="Item ID:"
+                                   Maximum="255"
+                                   JumpRequested="ItemId_Jump"
+                                   PickRequested="ItemId_Pick"
+                                   ValueChanged="ItemId_ValueChanged" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Quantity/Uses:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="ItemShopViewer_Quantity_Input"

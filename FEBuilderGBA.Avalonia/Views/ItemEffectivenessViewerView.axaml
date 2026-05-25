@@ -74,23 +74,23 @@
         <!-- Right edit panel (per-class fields + shared-pointer panel) -->
         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
         <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-          <!-- Class edit row (mirrors WinForms panel7) -->
+          <!-- Class edit row.
+               #360 final: hyperlink TextBlock + NumericUpDown + separate Name
+               label → single IdFieldControl which bundles the affordances and
+               provides its own inline name preview. The class icon stays in
+               column 1 (right of the IdFieldControl) for visual continuity. -->
           <Grid Grid.Row="0" Margin="0,0,0,8"
-                ColumnDefinitions="100,120,80,*,40"
+                ColumnDefinitions="*,40"
                 RowDefinitions="Auto">
-            <TextBlock Grid.Column="0" Text="Class:" VerticalAlignment="Center"
-                       AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Link"
-                       Classes="Hyperlink" Name="ClassId_Link"
-                       PointerPressed="OnClassIdLinkClick"
-                       ToolTip.Tip="Click to open Class Editor" />
-            <NumericUpDown Grid.Column="1" Name="ClassIdInput"
-                           AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Input"
-                           FormatString="0" Minimum="0" Maximum="255" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="2" Text="Name:" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="3" Name="ClassNameLabel"
-                       AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassName_Label"
-                       VerticalAlignment="Center" />
-            <Image Grid.Column="4" Name="ClassIconImage"
+            <controls:IdFieldControl Grid.Column="0"
+                                     AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassId_Input"
+                                     Name="ClassIdBox"
+                                     Label="Class:"
+                                     Maximum="255"
+                                     JumpRequested="ClassId_Jump"
+                                     PickRequested="ClassId_Pick"
+                                     ValueChanged="ClassId_ValueChanged" />
+            <Image Grid.Column="1" Name="ClassIconImage"
                    AutomationProperties.AutomationId="ItemEffectivenessViewer_ClassIcon_Image"
                    Width="32" Height="32" Stretch="Fill" />
           </Grid>
