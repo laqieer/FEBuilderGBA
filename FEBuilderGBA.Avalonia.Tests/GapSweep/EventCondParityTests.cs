@@ -1336,6 +1336,61 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI round 9 review fix — TALK panel subtype-aware
+    // visibility so each TALK subtype only shows fields that exist
+    // in its WF byte layout.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_TalkPanel_HidesFieldsNotInSubtypeLayout()
+    {
+        // Round 9: TALK subtypes have different layouts:
+        //   N03 (0x03): Unit 1/2 + AdditionalDecision + DecisionFlag
+        //   N04 (0x04): Unit 1/2 + ASM pointer (no Decision fields)
+        //   N0D (0x0D, FE6): ASM pointer only (no Unit, no Decision)
+        // View must hide fields not in the current subtype's layout.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // Unit1Box hidden for N0D.
+        Assert.Matches(
+            new Regex(@"Unit1Box\.IsVisible\s*=\s*!isTalkN0D", RegexOptions.Singleline),
+            source);
+        // AdditionalDecisionBox visible only for N03.
+        Assert.Matches(
+            new Regex(@"AdditionalDecisionBox\.IsVisible\s*=\s*isTalkN03", RegexOptions.Singleline),
+            source);
+        // TalkAsmFuncBox visible for N04 or N0D.
+        Assert.Matches(
+            new Regex(@"TalkAsmFuncBox\.IsVisible\s*=\s*isTalkN04\s*\|\|\s*isTalkN0D", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_TalkWriteback_OnlyCopiesVisibleControls()
+    {
+        // Round 9: UpdateVmCategoryProperties must only copy back values
+        // from VISIBLE TALK controls so hidden controls don't leak stale
+        // state into bytes the Compose path doesn't touch.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        Assert.Matches(
+            new Regex(@"if\s*\(Unit1Box\.IsVisible\)\s*_vm\.Unit1", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"if\s*\(AdditionalDecisionBox\.IsVisible\)[\s\S]*?_vm\.AdditionalDecision", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"if\s*\(TalkAsmFuncBox\.IsVisible\)[\s\S]*?_vm\.AsmFunc", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

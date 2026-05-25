@@ -384,6 +384,24 @@ namespace FEBuilderGBA.Avalonia.Views
                     AdditionalDecisionBox.Value = _vm.AdditionalDecision;
                     DecisionFlagBox.Value = _vm.DecisionFlag;
                     TalkAsmFuncBox.Value = _vm.AsmFunc;
+                    // Round 9 fix: subtype-aware visibility. TALK subtypes
+                    // have different layouts:
+                    //   N03 (0x03): Unit 1/2 + AdditionalDecision (W12) + DecisionFlag (W14)
+                    //   N04 (0x04): Unit 1/2 + ASM pointer (P12)
+                    //   N0D (0x0D, FE6): ASM pointer (P8) — NO Unit fields
+                    bool isTalkN0D = _vm.CondType == 0x0D;
+                    bool isTalkN04 = _vm.CondType == 0x04;
+                    bool isTalkN03 = _vm.CondType == 0x03;
+                    // Unit 1/2 hidden for N0D (FE6 ASM Talk has no Unit fields).
+                    Unit1Box.IsVisible = !isTalkN0D;
+                    Unit2Box.IsVisible = !isTalkN0D;
+                    Unit1NameLabel.IsVisible = !isTalkN0D;
+                    Unit2NameLabel.IsVisible = !isTalkN0D;
+                    // AdditionalDecision/DecisionFlag only for N03.
+                    AdditionalDecisionBox.IsVisible = isTalkN03;
+                    DecisionFlagBox.IsVisible = isTalkN03;
+                    // ASM Function only for N04/N0D (the ASM-talk subtypes).
+                    TalkAsmFuncBox.IsVisible = isTalkN04 || isTalkN0D;
                     break;
                 case CondCategory.OBJECT:
                     ObjectPanel.IsVisible = true;
@@ -701,11 +719,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.Phase = PhaseCombo.SelectedIndex switch { 1 => 0x40, 2 => 0x80, 3 => 0xC0, _ => 0u };
                     break;
                 case CondCategory.TALK:
-                    _vm.Unit1 = (uint)(Unit1Box.Value ?? 0);
-                    _vm.Unit2 = (uint)(Unit2Box.Value ?? 0);
-                    _vm.AdditionalDecision = (uint)(AdditionalDecisionBox.Value ?? 0);
-                    _vm.DecisionFlag = (uint)(DecisionFlagBox.Value ?? 0);
-                    _vm.AsmFunc = (uint)(TalkAsmFuncBox.Value ?? 0);
+                    // Round 9 fix: only copy back values for VISIBLE controls.
+                    // Hidden controls are not part of the current TALK subtype's
+                    // layout, and copying them would leak stale state into bytes
+                    // the Compose path doesn't touch.
+                    if (Unit1Box.IsVisible) _vm.Unit1 = (uint)(Unit1Box.Value ?? 0);
+                    if (Unit2Box.IsVisible) _vm.Unit2 = (uint)(Unit2Box.Value ?? 0);
+                    if (AdditionalDecisionBox.IsVisible)
+                        _vm.AdditionalDecision = (uint)(AdditionalDecisionBox.Value ?? 0);
+                    if (DecisionFlagBox.IsVisible)
+                        _vm.DecisionFlag = (uint)(DecisionFlagBox.Value ?? 0);
+                    if (TalkAsmFuncBox.IsVisible)
+                        _vm.AsmFunc = (uint)(TalkAsmFuncBox.Value ?? 0);
                     break;
                 case CondCategory.OBJECT:
                     _vm.X1 = (uint)(ObjectXBox.Value ?? 0);
