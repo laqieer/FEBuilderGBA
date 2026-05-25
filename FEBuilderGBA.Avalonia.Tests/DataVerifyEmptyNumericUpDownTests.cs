@@ -188,4 +188,28 @@ public class DataVerifyEmptyNumericUpDownTests
                 $"MonsterItemViewerView (FE8U) has empty NUDs: {string.Join(", ", empty)}");
         });
     }
+
+    // -----------------------------------------------------------------
+    // Root cause #3 — KnownGap NumericUpDown left at Avalonia's
+    // decimal? default null because nothing in UpdateUI() seeds a value.
+    // ImageUnitPaletteView's BattleAnimeBox is IsEnabled="False" /
+    // ToolTip.Tip="KnownGap" but still IsEffectivelyVisible, so the
+    // production data-verify UI check flags it as UI_EMPTY.
+    // Surfaced in 2026-05-24/25 scheduled E2E failures
+    // (#612/#613/#616/#623/#625), introduced when ImageUnitPaletteView
+    // was added by PR #585 (closes #397) after PR #545 had cleared the
+    // hex-FormatString and IdFieldControl traps.
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void ImageUnitPaletteView_NoEmptyNumericUpDowns_FE8U()
+    {
+        if (!RomAvailable("FE8U")) return;
+        RomTestHelper.WithRom("FE8U", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<ImageUnitPaletteView>();
+            Assert.True(empty.Count == 0,
+                $"ImageUnitPaletteView (FE8U) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
 }
