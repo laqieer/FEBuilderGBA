@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Cross-platform helpers for the MapTileAnimation2 editor (#426).
+// Cross-platform helpers for the MapTileAnimation2 editor (#426, #524).
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 
 namespace FEBuilderGBA
 {
@@ -223,6 +226,331 @@ namespace FEBuilderGBA
                 result.Add(new PaletteRow((int)i, gba, r, g, b));
             }
             return result;
+        }
+
+        // ====================================================================
+        // BulkExport / BulkImport / ExpandEntryList / ExpandPaletteRowList
+        // (#524) - Core extraction of the WinForms ImportAll / ExportAll /
+        // InputFormRef.AppendBinaryData repoint plumbing so the Avalonia view
+        // can drive bulk flows headlessly. The WF form keeps its existing
+        // path (uses InputFormRef + the explicit-undo RecycleAddress
+        // overloads); these helpers use the ambient-undo RecycleAddress
+        // overloads (#524 WU1) so callers wrap them in ROM.BeginUndoScope
+        // and every write records exactly once.
+        // ====================================================================
+
+        /// <summary>
+        /// Export the 8-byte main animation entries rooted at
+        /// <paramref name="baseAddr"/> to a tab-separated text file. Mirrors
+        /// the WF <c>MapTileAnimation2Form.ExportAll</c> output format:
+        /// header line plus one row per entry as
+        /// <c>wait{TAB}startindex{TAB}R,G,B{TAB}R,G,B...</c>. Returns the
+        /// empty string on success, or an error message describing the
+        /// failure (e.g. unsafe base, unsafe palette pointer, IO error).
+        /// </summary>
+        public static string BulkExport(ROM rom, string filename, uint baseAddr, uint dataCount)
+        {
+            if (rom == null) return "ROM is null.";
+            if (!U.isSafetyOffset(baseAddr, rom)) return "baseAddr is not a safe ROM offset.";
+            if (string.IsNullOrEmpty(filename)) return "filename is empty.";
+
+            try
+            {
+                var lines = new List<string>();
+                // Header line - matches WF format byte-for-byte.
+                lines.Add("//wait\tstartindex\tR,G,B Colors...");
+
+                uint addr = baseAddr;
+                for (uint i = 0; i < dataCount; i++, addr += 8)
+                {
+                    if (addr + 8 > (uint)rom.Data.Length) break;
+                    uint p0 = rom.p32(addr + 0);
+                    uint wait = rom.u8(addr + 4);
+                    uint count = rom.u8(addr + 5);
+                    uint startindex = rom.u8(addr + 6);
+                    if (!U.isSafetyOffset(p0, rom)) continue;
+
+                    var sb = new StringBuilder();
+                    sb.Append(wait);
+                    sb.Append('\t');
+                    sb.Append(startindex);
+                    uint paladdr = p0;
+                    for (uint n = 0; n < count; n++, paladdr += 2)
+                    {
+                        if (paladdr + 2 > (uint)rom.Data.Length) break;
+                        ushort pal = (ushort)rom.u16(paladdr);
+                        var (r, g, b) = GbaToRgb(pal);
+                        sb.Append('\t');
+                        sb.Append(r);
+                        sb.Append(',');
+                        sb.Append(g);
+                        sb.Append(',');
+                        sb.Append(b);
+                    }
+                    lines.Add(sb.ToString());
+                }
+
+                File.WriteAllLines(filename, lines);
+                return "";
+            }
+            catch (Exception ex)
+            {
+                return "BulkExport failed: " + ex.Message;
+            }
+        }
+
+        /// <summary>
+        /// Import a tab-separated text file (produced by
+        /// <see cref="BulkExport"/>) into the main animation entry table.
+        /// The caller MUST open an ambient undo scope via
+        /// <see cref="ROM.BeginUndoScope"/> before calling this method; the
+        /// helper uses the ambient-undo <see cref="RecycleAddress"/> overloads
+        /// so every ROM write records exactly once into the active UndoData.
+        ///
+        /// Mirrors WF <c>MapTileAnimation2Form.ImportAll</c> step-for-step
+        /// including the malformed-line semantics: lines with fewer than 2
+        /// tab-separated fields are silently skipped (WF parity, V3
+        /// plan-review #4).
+        ///
+        /// <para>Parameters:</para>
+        /// <para><c>rom</c> — target ROM. The method temporarily swaps
+        /// <c>CoreState.ROM</c> for the duration so the <c>RecycleAddress</c>
+        /// helpers (which read CoreState.ROM directly) mutate the supplied
+        /// instance.</para>
+        /// <para><c>filename</c> — TSV path produced by <see cref="BulkExport"/>.</para>
+        /// <para><c>pointer</c> — the 4-byte slot that holds the entry-table
+        /// pointer; the helper repoints it to the freshly-written table.</para>
+        /// <para><c>baseAddr</c> — the entry-table base address before
+        /// import. Used to enumerate existing entries for the recycle pool
+        /// so the WF "free old palette blocks" behavior matches.</para>
+        /// <para><c>dataCount</c> — number of existing entries at
+        /// <paramref name="baseAddr"/>; the helper feeds them into the
+        /// RecycleAddress pool exactly as WF does.</para>
+        ///
+        /// Returns empty string on success, an error message on failure.
+        /// </summary>
+        public static string BulkImport(ROM rom, string filename, uint pointer, uint baseAddr, uint dataCount)
+        {
+            if (rom == null) return "ROM is null.";
+            if (!U.isSafetyOffset(pointer, rom)) return "pointer is not a safe ROM offset.";
+            if (string.IsNullOrEmpty(filename)) return "filename is empty.";
+            if (!File.Exists(filename)) return "filename does not exist: " + filename;
+
+            // Save & swap CoreState.ROM so RecycleAddress (which reads
+            // CoreState.ROM internally) mutates the passed ROM.
+            var prevRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                return BulkImportInner(rom, filename, pointer, baseAddr, dataCount);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        static string BulkImportInner(ROM rom, string filename, uint pointer, uint baseAddr, uint dataCount)
+        {
+            // Build the recycle pool from existing entries (each row's
+            // palette block becomes a reusable region). Matches WF
+            // MapTileAnimation2Form.ImportAll:474-503.
+            var recycle = new List<Address>();
+            if (U.isSafetyOffset(baseAddr, rom))
+            {
+                for (uint i = 0; i < dataCount; i++)
+                {
+                    uint addr = baseAddr + i * 8;
+                    if (addr + 8 > (uint)rom.Data.Length) break;
+                    uint p0 = rom.p32(addr + 0);
+                    uint count = rom.u8(addr + 5);
+                    if (!U.isSafetyOffset(p0, rom)) continue;
+                    Address.AddPointer(recycle, addr + 0, count * 2, "", Address.DataTypeEnum.BIN);
+                }
+                // Also recycle the existing entry table itself.
+                Address.AddAddress(recycle, baseAddr, dataCount * 8 + 8, 0,
+                    "MapTileAnimation2.entryTable", Address.DataTypeEnum.BIN);
+            }
+
+            var ra = new RecycleAddress(recycle);
+
+            // Parse lines and build entries.
+            string[] lines;
+            try { lines = File.ReadAllLines(filename); }
+            catch (Exception ex) { return "BulkImport: failed to read file: " + ex.Message; }
+
+            var writedata = new List<byte>();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (U.IsComment(line) || U.OtherLangLine(line)) continue;
+                line = U.ClipComment(line);
+                if (line == "") continue;
+                string[] sp = line.Split('\t');
+                if (sp.Length < 2) continue; // WF parity (V3 plan-review #4) - skip malformed.
+
+                uint wait = U.atoi(sp[0]);
+                uint startindex = U.atoi(sp[1]);
+                uint count = 0;
+
+                var palByte = new List<byte>();
+                for (int n = 2; n < sp.Length; n++, count++)
+                {
+                    string pal = sp[n];
+                    string[] rgbarray = pal.Split(',');
+                    int r = (int)U.atoi0x(U.at(rgbarray, 0));
+                    int g = (int)U.atoi0x(U.at(rgbarray, 1));
+                    int b = (int)U.atoi0x(U.at(rgbarray, 2));
+                    ushort gba = RgbToGba((byte)r, (byte)g, (byte)b);
+                    U.append_u16(palByte, gba);
+                }
+
+                uint newaddr = ra.WriteAmbient(palByte.ToArray());
+                if (newaddr == U.NOT_FOUND)
+                {
+                    return string.Format(
+                        "BulkImport: failed to write palette data at line {0} (file: {1}).",
+                        i, filename);
+                }
+
+                U.append_u32(writedata, U.toPointer(newaddr));
+                U.append_u8(writedata, wait);
+                U.append_u8(writedata, count);
+                U.append_u8(writedata, startindex);
+                U.append_u8(writedata, 0);
+            }
+
+            // Terminator row.
+            U.append_u32(writedata, 0);
+            U.append_u8(writedata, 0);
+            U.append_u8(writedata, 0);
+            U.append_u8(writedata, 0);
+            U.append_u8(writedata, 0);
+
+            uint newpointer = ra.WriteAndWritePointerAmbient(pointer, writedata.ToArray());
+            if (newpointer == U.NOT_FOUND)
+            {
+                return string.Format(
+                    "BulkImport: failed to repoint entry table (file: {0}).", filename);
+            }
+            ra.BlackOutAmbient();
+            return "";
+        }
+
+        /// <summary>
+        /// Grow the main 8-byte entry table from <paramref name="oldCount"/>
+        /// to <paramref name="newCount"/> rows. Allocates a fresh region in
+        /// free space, copies the existing rows, fills the new rows with
+        /// row-0 template clones (WF parity, V1 plan-review #2), and
+        /// repoints <paramref name="pointerSlot"/> to the new base.
+        ///
+        /// The caller MUST open an ambient undo scope via
+        /// <see cref="ROM.BeginUndoScope"/> so the ambient scope captures
+        /// every write exactly once.
+        ///
+        /// Returns the new base ROM offset (not a GBA pointer), or
+        /// <see cref="U.NOT_FOUND"/> on failure.
+        /// </summary>
+        public static uint ExpandEntryList(ROM rom, uint pointerSlot, uint oldBase, uint oldCount, uint newCount)
+        {
+            return ExpandTableCore(rom, pointerSlot, oldBase, oldCount, newCount, blockSize: 8);
+        }
+
+        /// <summary>
+        /// Compatibility overload that opens an ambient undo scope around
+        /// the supplied <paramref name="undo"/> (or reuses the active one
+        /// if it already matches), then dispatches to the parameterless
+        /// variant. Matches the two-overload pattern used by
+        /// <see cref="ImageBattleBGCore.ExpandList(ROM, uint, uint, Undo.UndoData)"/>.
+        /// </summary>
+        public static uint ExpandEntryList(ROM rom, uint pointerSlot, uint oldBase, uint oldCount, uint newCount, Undo.UndoData undo)
+        {
+            if (undo == null) return U.NOT_FOUND;
+            if (ROM.GetAmbientUndoData() == undo)
+            {
+                return ExpandEntryList(rom, pointerSlot, oldBase, oldCount, newCount);
+            }
+            using (ROM.BeginUndoScope(undo))
+            {
+                return ExpandEntryList(rom, pointerSlot, oldBase, oldCount, newCount);
+            }
+        }
+
+        /// <summary>
+        /// Grow the 2-byte palette sub-table from <paramref name="oldCount"/>
+        /// colors to <paramref name="newCount"/> colors. Allocates a fresh
+        /// region in free space, copies the existing colors, fills the new
+        /// slots with row-0 template clones (the first color of the existing
+        /// palette block), and repoints
+        /// <paramref name="paletteDataPointerSlot"/> to the new base.
+        ///
+        /// The caller MUST open an ambient undo scope.
+        /// </summary>
+        public static uint ExpandPaletteRowList(ROM rom, uint paletteDataPointerSlot, uint oldBase, uint oldCount, uint newCount)
+        {
+            return ExpandTableCore(rom, paletteDataPointerSlot, oldBase, oldCount, newCount, blockSize: 2);
+        }
+
+        /// <summary>Explicit-undo overload (mirrors <see cref="ExpandEntryList(ROM, uint, uint, uint, uint, Undo.UndoData)"/>).</summary>
+        public static uint ExpandPaletteRowList(ROM rom, uint paletteDataPointerSlot, uint oldBase, uint oldCount, uint newCount, Undo.UndoData undo)
+        {
+            if (undo == null) return U.NOT_FOUND;
+            if (ROM.GetAmbientUndoData() == undo)
+            {
+                return ExpandPaletteRowList(rom, paletteDataPointerSlot, oldBase, oldCount, newCount);
+            }
+            using (ROM.BeginUndoScope(undo))
+            {
+                return ExpandPaletteRowList(rom, paletteDataPointerSlot, oldBase, oldCount, newCount);
+            }
+        }
+
+        /// <summary>
+        /// Internal shared implementation for both ExpandEntryList (8 bytes)
+        /// and ExpandPaletteRowList (2 bytes). Uses row-0 template copy
+        /// semantics per V1 plan-review #2.
+        /// </summary>
+        static uint ExpandTableCore(ROM rom, uint pointerSlot, uint oldBase, uint oldCount, uint newCount, uint blockSize)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (oldCount == 0) return U.NOT_FOUND;
+            if (newCount <= oldCount) return U.NOT_FOUND;
+            if (blockSize == 0) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(pointerSlot, rom)) return U.NOT_FOUND;
+            if (pointerSlot + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
+            if (!U.isSafetyOffset(oldBase, rom)) return U.NOT_FOUND;
+            if (oldBase + oldCount * blockSize > (uint)rom.Data.Length) return U.NOT_FOUND;
+
+            // Allocate (newCount + 1) * blockSize so the terminator row
+            // (all zeros) lives past the user-visible rows. Matches the WF
+            // pattern used by MapEventUnitCore.ExpandUnitList.
+            uint needSize = (newCount + 1) * blockSize;
+            uint searchStart = (uint)(rom.Data.Length / 2);
+            uint newBase = rom.FindFreeSpace(searchStart, needSize);
+            if (newBase == U.NOT_FOUND)
+            {
+                newBase = rom.FindFreeSpace(0x100u, needSize);
+            }
+            if (newBase == U.NOT_FOUND) return U.NOT_FOUND;
+
+            // 1. Copy existing rows.
+            byte[] oldRows = rom.getBinaryData(oldBase, oldCount * blockSize);
+            rom.write_range(newBase, oldRows);
+
+            // 2. Row-0 template clones for new rows.
+            byte[] row0 = rom.getBinaryData(oldBase, blockSize);
+            for (uint i = oldCount; i < newCount; i++)
+            {
+                rom.write_range(newBase + i * blockSize, row0);
+            }
+
+            // 3. Zero terminator row past newCount.
+            byte[] terminator = new byte[blockSize];
+            rom.write_range(newBase + newCount * blockSize, terminator);
+
+            // 4. Repoint the slot.
+            rom.write_p32(pointerSlot, newBase);
+            return newBase;
         }
     }
 }
