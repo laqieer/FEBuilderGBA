@@ -13,29 +13,59 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SupportTalkFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Support Partner 1:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE7_SupportPartner1Nud_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="SupportPartner1Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <!-- #360 final: SupportPartner1/2 (Unit ID) — IdFieldControl. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="SupportTalkFE7_SupportPartner1Nud_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="SupportPartner1Nud"
+                                   Label="Support Partner 1:"
+                                   Maximum="255"
+                                   JumpRequested="SupportPartner1_Jump"
+                                   PickRequested="SupportPartner1_Pick"
+                                   ValueChanged="SupportPartner1_ValueChanged" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Support Partner 2:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE7_SupportPartner2Nud_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="SupportPartner2Nud" Minimum="0" Maximum="255" Margin="0,2" />
+          <controls:IdFieldControl AutomationProperties.AutomationId="SupportTalkFE7_SupportPartner2Nud_Input"
+                                   Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="SupportPartner2Nud"
+                                   Label="Support Partner 2:"
+                                   Maximum="255"
+                                   JumpRequested="SupportPartner2_Jump"
+                                   PickRequested="SupportPartner2_Pick"
+                                   ValueChanged="SupportPartner2_ValueChanged" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="C Support Text:" VerticalAlignment="Center" />
-          <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE7_TextCNud_Input" FormatString="0" Name="TextCNud" Minimum="0" Maximum="4294967295" Margin="0,2" Width="140" />
-            <Button AutomationProperties.AutomationId="SupportTalkFE7_JumpToTextC_Button" Content="Jump" Click="JumpToTextC_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
-          </StackPanel>
+          <!-- #360 final: TextId C/B/A — IdFieldControl ShowPick=False.
+               IdFieldControl.Maximum is int so we cap at 2147483647 (int.MaxValue)
+               instead of u32 max. WF practical text-id range is much smaller. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="SupportTalkFE7_TextCNud_Input"
+                                   Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="TextCNud"
+                                   Label="C Support Text:"
+                                   Maximum="2147483647"
+                                   ShowPick="False"
+                                   JumpRequested="TextC_Jump"
+                                   ValueChanged="TextC_ValueChanged" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="B Support Text:" VerticalAlignment="Center" />
-          <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE7_TextBNud_Input" FormatString="0" Name="TextBNud" Minimum="0" Maximum="4294967295" Margin="0,2" Width="140" />
-            <Button AutomationProperties.AutomationId="SupportTalkFE7_JumpToTextB_Button" Content="Jump" Click="JumpToTextB_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
-          </StackPanel>
+          <controls:IdFieldControl AutomationProperties.AutomationId="SupportTalkFE7_TextBNud_Input"
+                                   Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="TextBNud"
+                                   Label="B Support Text:"
+                                   Maximum="2147483647"
+                                   ShowPick="False"
+                                   JumpRequested="TextB_Jump"
+                                   ValueChanged="TextB_ValueChanged" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="A Support Text:" VerticalAlignment="Center" />
-          <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE7_TextANud_Input" FormatString="0" Name="TextANud" Minimum="0" Maximum="4294967295" Margin="0,2" Width="140" />
-            <Button AutomationProperties.AutomationId="SupportTalkFE7_JumpToTextA_Button" Content="Jump" Click="JumpToTextA_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
-          </StackPanel>
+          <controls:IdFieldControl AutomationProperties.AutomationId="SupportTalkFE7_TextANud_Input"
+                                   Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="TextANud"
+                                   Label="A Support Text:"
+                                   Maximum="2147483647"
+                                   ShowPick="False"
+                                   JumpRequested="TextA_Jump"
+                                   ValueChanged="TextA_ValueChanged" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="C Support Song:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="SupportTalkFE7_SongCNud_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="SongCNud" Minimum="0" Maximum="255" Margin="0,2" />
