@@ -430,10 +430,13 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
-        /// Internal: apply the SearchBox.Text as the filter. Public callers
-        /// should use the string-arg overload above.
+        /// Internal: apply the SearchBox.Text as the filter. External
+        /// callers should use the string-arg overload above; this overload
+        /// is kept `internal` so xUnit-style external tests don't need
+        /// reflection but the API surface stays small (Copilot PR #626
+        /// round 2 finding — keep the parameterless helper non-public).
         /// </summary>
-        public void ApplySearchFilter()
+        internal void ApplySearchFilter()
         {
             string? filter = SearchBox.Text;
             if (string.IsNullOrWhiteSpace(filter))

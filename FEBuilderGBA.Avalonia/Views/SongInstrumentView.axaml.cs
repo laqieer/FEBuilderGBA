@@ -50,12 +50,17 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Populate the Type combo with the 14 WF instrument-type labels
             // in canonical tab order. Selection drives HeaderByte +
-            // UNIONTAB selection through TypeCombo_SelectionChanged.
+            // UNIONTAB selection through TypeCombo_SelectionChanged. The
+            // type-name strings are wrapped with R._() so the ja/zh
+            // translations in config/translate/* localize the combo at
+            // runtime (Copilot review PR #626 round 2 finding — combo
+            // items aren't reached by ViewTranslationHelper).
             TypeCombo.ItemsSource = null;
             var items = new System.Collections.Generic.List<string>(TypeComboHeaderBytes.Length);
             foreach (var b in TypeComboHeaderBytes)
             {
-                items.Add($"0x{b:X02} {SongInstrumentViewModel.GetInstrumentTypeName(b)}");
+                string typeName = SongInstrumentViewModel.GetInstrumentTypeName(b);
+                items.Add($"0x{b:X02} {R._(typeName)}");
             }
             TypeCombo.ItemsSource = items;
         }

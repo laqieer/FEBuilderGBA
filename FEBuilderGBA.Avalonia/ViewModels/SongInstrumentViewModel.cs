@@ -320,7 +320,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
-            if (addr + BlockSize > (uint)rom.Data.Length) return;
+            // Shared 12-byte range guard (PR #626 round 4 blocker #1).
+            // Reject addr==0 (sentinel for "no selection") and validate the
+            // full base..base+BlockSize range, not just the end offset.
+            if (!IsValidEntryRange(rom, addr)) return;
 
             CurrentAddr = addr;
 
@@ -389,8 +392,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public void Write()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return;
-            if (!U.isSafetyOffset(CurrentAddr + BlockSize)) return;
+            if (rom == null) return;
+            // Shared 12-byte range guard (PR #626 round 4 blocker #1).
+            // The previous `U.isSafetyOffset(CurrentAddr + BlockSize)` was
+            // off-by-one (rejected the last valid block where
+            // CurrentAddr+12 == ROM length) and didn't validate the base.
+            if (!IsValidEntryRange(rom, CurrentAddr)) return;
 
             uint addr = CurrentAddr;
             rom.write_u8(addr, HeaderByte);
@@ -507,8 +514,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string ComputeFingerprint()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return string.Empty;
-            if (!U.isSafetyOffset(CurrentAddr + BlockSize)) return string.Empty;
+            if (rom == null) return string.Empty;
+            // Shared 12-byte range guard (PR #626 round 4 blocker #1).
+            if (!IsValidEntryRange(rom, CurrentAddr)) return string.Empty;
 
             uint addr = CurrentAddr;
             byte type = (byte)rom.u8(addr);
@@ -531,15 +539,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case 0x0A:
                     return "SQ" + ComputeRawSliceFingerprint(rom, addr + 1, 11);
 
+                // WF SongInstrumentForm.FingerPrint only fingerprints 0x04
+                // (Noise); 0x0C (Noise2) falls through to empty per
+                // WinForms behavior (PR #626 round 4 blocker #2 — was
+                // incorrectly returning "NZ..." for 0x0C).
                 case 0x04:
-                case 0x0C:
                     return "NZ" + ComputeRawSliceFingerprint(rom, addr + 1, 11);
 
-                // Drum / MultiSample do not produce a stable fingerprint in
-                // WF — nested instruments would loop forever. Return "".
+                // Drum / MultiSample / 0x0C do not produce a stable
+                // fingerprint in WF — nested instruments would loop
+                // forever and Noise2 is intentionally excluded. Empty.
                 default:
                     return string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Shared 12-byte range validity guard used by LoadEntry, Write, and
+        /// ComputeFingerprint. Validates that:
+        ///   * addr is non-zero (rejects the sentinel "no selection" value)
+        ///   * addr is at the normal ROM safety floor
+        ///   * addr + BlockSize fits within the ROM (no off-by-one — the
+        ///     last block where addr + 12 == rom.Data.Length is accepted).
+        /// PR #626 Copilot round 4 blocker #1.
+        /// </summary>
+        static bool IsValidEntryRange(ROM rom, uint addr)
+        {
+            if (addr == 0) return false;
+            if (!U.isSafetyOffset(addr)) return false;
+            uint length = (uint)rom.Data.Length;
+            return addr + BlockSize <= length;
         }
 
         static string ComputeDirectSoundFingerprint(ROM rom, uint vocaaddr)
@@ -558,18 +587,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             uint songdataAddr = rom.p32(vocaaddr + 4);
             if (!U.isSafetyOffset(songdataAddr)) return string.Empty;
+            if (!U.isSafetyOffset(songdataAddr + 16)) return string.Empty;
 
-            // WF uses SongUtil.GetDirectSoundWaveDataLength here. We don't
-            // have a Core-side equivalent yet; hash a short fixed window
-            // (the 12-byte WF header) to keep the fingerprint stable
-            // across reloads of the same instrument. This produces a
-            // different fingerprint than WF (which hashes the full sample
-            // data), but it is internally consistent for the AV editor.
-            if (!U.isSafetyOffset(songdataAddr + 12)) return string.Empty;
-            byte[] header = rom.getBinaryData(songdataAddr, 12);
-            data.AddRange(header);
+            // Match WF SongInstrumentForm.DirectoSoundFingerPrint: hash the
+            // sample data slice starting at songdata+12, length derived from
+            // the songdata header (DPCM-compressed instruments use a
+            // different length formula). PR #626 round 4 blocker #2.
+            uint sampleLength = GetDirectSoundWaveDataLength(rom, songdataAddr);
+            if (sampleLength == 0) return string.Empty;
+            if (!U.isSafetyLength(songdataAddr + 12 + 4, sampleLength)) return string.Empty;
+
+            byte[] waveData = rom.getBinaryData(songdataAddr + 12, sampleLength);
+            data.AddRange(waveData);
 
             return ComputeMd5Hex(data.ToArray());
+        }
+
+        /// <summary>
+        /// Compute the GBA DirectSound wave-data length given the songdata
+        /// pointer. Mirrors WF `SongUtil.GetDirectSoundWaveDataLength` for
+        /// both uncompressed and DPCM-compressed samples. The compressed
+        /// formula is `33 * ceil(uncompressed_length / 64)`.
+        /// </summary>
+        static uint GetDirectSoundWaveDataLength(ROM rom, uint songdataAddr)
+        {
+            uint sampleLength = rom.u32(songdataAddr + 12);
+            // DPCM compression flag lives in the songdata header's first
+            // byte: 0x01 == DPCM, 0x00 == uncompressed PCM.
+            byte head1 = (byte)rom.u8(songdataAddr + 0);
+            bool isDpcm = head1 == 0x01;
+            if (!isDpcm) return sampleLength;
+
+            uint div64 = sampleLength / 64;
+            if (sampleLength % 64 != 0) div64++;
+            return 33 * div64;
         }
 
         static string ComputeWaveMemoryFingerprint(ROM rom, uint vocaaddr)
