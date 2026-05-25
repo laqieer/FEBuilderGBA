@@ -277,7 +277,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 ExtraB10Box.Value = _vm.ExtraB10;
                 ExtraB11Box.Value = _vm.ExtraB11;
 
-                if (_vm.CondRecordSize <= 6)
+                if (_vm.CondRecordSize == 4)
+                {
+                    // TUTORIAL records: 4 bytes — single u32 (TUTORIAL_P0). Only
+                    // the Event Pointer field is meaningful; everything else is
+                    // hidden so the user can't accidentally edit type/sub-type
+                    // bytes (Copilot CLI review round 2 #2).
+                    FlagIdBox.Maximum = 65535;
+                    EventPtrBox.Maximum = 4294967295;
+                    EventPtrBox.FormatString = "X8";
+                    SetFieldVisibility(false, false, false, true, false, false, false, false);
+                }
+                else if (_vm.CondRecordSize <= 6)
                 {
                     // TRAP: 6-byte records — show type, X(B1), Y(B2/FlagId), subtype(B3/EventPtr), B4, B5
                     FlagIdBox.Maximum = 255;
@@ -405,10 +416,25 @@ namespace FEBuilderGBA.Avalonia.Views
                     VeinEffectIdBox.Value = _vm.SubType; // Vein effect typically in sub-type byte
                     break;
                 case CondCategory.TUTORIAL:
+                    // TUTORIAL records are a single 4-byte u32 (TUTORIAL_P0).
+                    // The TutorialPanel sub-fields (InitialTimer / RepeatTimer
+                    // / TextId) are visual hints only — they do NOT round-trip
+                    // because the WF record has no separate timer fields. We
+                    // surface the raw u32 as InitialTimer when value==1, and
+                    // as the pointer offset when isPointer (purely decorative).
                     TutorialPanel.IsVisible = true;
-                    InitialTimerBox.Value = _vm.InitialTimer;
-                    RepeatTimerBox.Value = _vm.RepeatTimer;
-                    TextIdBox.Value = _vm.FlagId;
+                    if (_vm.EventPtr == 1)
+                    {
+                        InitialTimerBox.Value = 1; // canonical "blank" marker
+                        RepeatTimerBox.Value = 0;
+                        TextIdBox.Value = 0;
+                    }
+                    else
+                    {
+                        InitialTimerBox.Value = 0;
+                        RepeatTimerBox.Value = 0;
+                        TextIdBox.Value = 0;
+                    }
                     break;
             }
         }
@@ -654,9 +680,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.HatchingEnd = (uint)(HatchingEndBox.Value ?? 0);
                     break;
                 case CondCategory.TUTORIAL:
-                    _vm.InitialTimer = (uint)(InitialTimerBox.Value ?? 0);
-                    _vm.RepeatTimer = (uint)(RepeatTimerBox.Value ?? 0);
-                    _vm.FlagId = (uint)(TextIdBox.Value ?? 0);
+                    // TUTORIAL is a 4-byte u32 record. Only EventPtr is
+                    // meaningful (already pulled from EventPtrBox above).
+                    // The tutorial sub-panel InitialTimer/RepeatTimer/TextId
+                    // boxes are visual hints only — they do NOT round-trip
+                    // to the ROM record because the WF TUTORIAL_P0 is a
+                    // single u32, not byte fields.
                     break;
             }
         }

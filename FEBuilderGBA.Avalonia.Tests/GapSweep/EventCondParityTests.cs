@@ -715,6 +715,125 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI PR #621 review fixes (round 2) — TUTORIAL stop-condition
+    // ordering, View TUTORIAL UI handling, FE7 variable-length TURN write.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_LoadConditionRecords_TutorialStopCondition_HandlesPointerWithLowByteZero()
+    {
+        // Copilot CLI review round 2 #1: TUTORIAL records have recordSize == 4,
+        // which previously took the byte-only `rom.u8(addr) == 0` path. A
+        // valid tutorial pointer like 0x08000100 has low byte 0x00 and would
+        // falsely terminate the list. The fix re-orders the stop-condition
+        // check so TUTORIAL's u32-based check runs first.
+        //
+        // We verify the fix by asserting the production source places the
+        // TUTORIAL category check BEFORE the byte-only branch.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // The first stop-condition branch in the LoadConditionRecords loop
+        // must be the TUTORIAL one. We assert the TUTORIAL block comes
+        // before the `recordSize <= 6` byte-only branch.
+        int tutorialIdx = source.IndexOf("CondCategory.TUTORIAL)\r\n                {");
+        if (tutorialIdx < 0)
+            tutorialIdx = source.IndexOf("CondCategory.TUTORIAL)\n                {");
+        Assert.True(tutorialIdx >= 0, "TUTORIAL stop-condition branch not found");
+
+        int byteOnlyIdx = source.IndexOf("recordSize <= 6", tutorialIdx);
+        Assert.True(byteOnlyIdx >= 0, "byte-only branch not found after TUTORIAL");
+        Assert.True(byteOnlyIdx > tutorialIdx,
+            "TUTORIAL stop-condition check must come BEFORE the byte-only `recordSize <= 6` branch");
+    }
+
+    [Fact]
+    public void View_UpdateEditorUI_HandlesTutorialSizeFourSeparately()
+    {
+        // Copilot CLI review round 2 #2: View must handle CondRecordSize == 4
+        // (TUTORIAL) as a separate UI case from `<= 6` (TRAP). Previously
+        // size==4 took the TRAP branch, which caps EventPtrBox.Maximum to
+        // 255 and shows misleading byte-field labels.
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        // Production must have `if (_vm.CondRecordSize == 4)` before
+        // `else if (_vm.CondRecordSize <= 6)` in UpdateEditorUI.
+        Assert.Matches(
+            new Regex(@"if\s*\(_vm\.CondRecordSize\s*==\s*4\)[\s\S]*?else\s+if\s*\(_vm\.CondRecordSize\s*<=\s*6\)", RegexOptions.Singleline),
+            source);
+
+        // Production must set EventPtrBox.Maximum to 4294967295 for size==4
+        // (not 255).
+        Assert.Matches(
+            new Regex(@"if\s*\(_vm\.CondRecordSize\s*==\s*4\)[\s\S]*?EventPtrBox\.Maximum\s*=\s*4294967295", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_WriteCondRecord_Fe7TurnType1_DoesNotWriteB12B15()
+    {
+        // Copilot CLI review round 2 #3: FE7 variable-length TURN records
+        // have type==1 advance 12 bytes (FE6/8-shape), other types advance
+        // 16. Writing B12-B15 for a type==1 row would clobber the next
+        // record's first 4 bytes.
+        //
+        // We test the rule directly. Without a full FE7 ROM context we can
+        // only verify the source contains the correct conditional guard.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must check isFe7TurnType1 (CondType==1 + TURN category +
+        // recordSize==16) and SKIP writing B12-B15 in that case.
+        Assert.Matches(
+            new Regex(@"isFe7TurnType1[\s\S]*?CondType\s*==\s*1", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"CondRecordSize\s*>=\s*16\s*&&\s*!isFe7TurnType1", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_GetRecordStrideAt_HandlesFe7TurnType1()
+    {
+        // The per-record stride helper must return 12 for FE7 TURN type==1
+        // rows (mirroring WF EventCondInnerControl) and recordSize otherwise.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must contain the GetRecordStrideAt helper.
+        Assert.Matches(
+            new Regex(@"GetRecordStrideAt[\s\S]*?recordSize\s*==\s*16\s*&&\s*type\s*==\s*1[\s\S]*?return\s*12", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_GetRawRomReport_HandlesTutorialAsU32()
+    {
+        // The raw-ROM report must NOT read bytes 0-5 for TUTORIAL (4-byte)
+        // records — that would read past the record. Production reports
+        // the u32@0 instead.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must have `CondRecordSize == 4` branch reporting u32@0
+        // before the `<= 6` branch (which reads up to byte 5).
+        Assert.Matches(
+            new Regex(@"GetRawRomReport[\s\S]*?CondRecordSize\s*==\s*4[\s\S]*?u32@0[\s\S]*?else\s+if\s*\(CondRecordSize\s*<=\s*6\)", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

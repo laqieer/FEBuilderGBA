@@ -343,67 +343,102 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr))
                 return result;
 
-            // Enumerate records until terminator (first byte == 0)
+            // Enumerate records. For FE7 TURN records the stride is variable:
+            // type==1 advances 12 bytes (FE6/8-shape), other types advance
+            // eventcond_tern_size (which is 16 on FE7). Mirror the WinForms
+            // rule by computing per-record stride. For other categories the
+            // recordSize is uniform.
+            uint addrCursor = baseAddr;
             for (uint i = 0; i < 256; i++)
             {
-                uint addr = baseAddr + i * recordSize;
-                if (addr + recordSize > (uint)rom.Data.Length)
+                if (addrCursor + recordSize > (uint)rom.Data.Length)
                     break;
 
-                // Terminator check: first byte == 0 for most types, u32 == 0 for standard
-                if (recordSize <= 6)
+                // Terminator check (must come FIRST so we don't read past list).
+                // Order: TUTORIAL u32-based stop > standard u32 stop > byte-only.
+                if (slotDef.Category == CondCategory.TUTORIAL)
                 {
-                    if (rom.u8(addr) == 0) break;
-                }
-                else if (slotDef.Category == CondCategory.TUTORIAL)
-                {
-                    uint v = rom.u32(addr);
+                    // TUTORIAL: 4-byte u32. Stop on u32 != 1 AND NOT isPointer
+                    // (per WF InitTutorial). MUST check this BEFORE the
+                    // byte-only branch — a valid pointer like 0x08000100 has
+                    // low byte 0x00 which would falsely terminate a byte scan.
+                    uint v = rom.u32(addrCursor);
                     if (v != 1 && !U.isPointer(v)) break;
+                }
+                else if (recordSize <= 6)
+                {
+                    // TRAP-style 6-byte records: stop on first-byte == 0.
+                    if (rom.u8(addrCursor) == 0) break;
                 }
                 else
                 {
-                    if (rom.u32(addr) == 0) break;
+                    // Standard records: stop on u32 == 0 (covers 12-byte +
+                    // 16-byte FE7 records uniformly because the first u32 is
+                    // type/sub/flag composite).
+                    if (rom.u32(addrCursor) == 0) break;
                 }
 
                 // Build a display name
-                byte type = (byte)rom.u8(addr);
+                byte type = (byte)rom.u8(addrCursor);
                 string typeName = GetCondTypeName(type);
                 string name = $"{i:D2}: [{type:X02}] {typeName}";
 
                 // Add extra info based on category
                 if (slotDef.Category == CondCategory.TURN)
                 {
-                    uint turnStart = rom.u8(addr + 8);
-                    uint turnEnd = rom.u8(addr + 9);
-                    uint phase = rom.u8(addr + 10);
+                    uint turnStart = rom.u8(addrCursor + 8);
+                    uint turnEnd = rom.u8(addrCursor + 9);
+                    uint phase = rom.u8(addrCursor + 10);
                     string phaseName = phase == 0 ? "Player" : phase == 0x40 ? "Ally" : phase == 0x80 ? "Enemy" : $"0x{phase:X02}";
                     name += $" Turn {turnStart}-{turnEnd} ({phaseName})";
                 }
                 else if (slotDef.Category == CondCategory.TALK)
                 {
-                    uint unit1 = rom.u8(addr + 8);
-                    uint unit2 = rom.u8(addr + 9);
+                    uint unit1 = rom.u8(addrCursor + 8);
+                    uint unit2 = rom.u8(addrCursor + 9);
                     string u1Name = NameResolver.GetUnitName(unit1);
                     string u2Name = NameResolver.GetUnitName(unit2);
                     name += $" {u1Name} <-> {u2Name}";
                 }
                 else if (slotDef.Category == CondCategory.OBJECT)
                 {
-                    uint x = rom.u8(addr + 8);
-                    uint y = rom.u8(addr + 9);
+                    uint x = rom.u8(addrCursor + 8);
+                    uint y = rom.u8(addrCursor + 9);
                     name += $" ({x},{y})";
                 }
                 else if (slotDef.Category == CondCategory.TRAP)
                 {
-                    uint x = rom.u8(addr + 1);
-                    uint y = rom.u8(addr + 2);
+                    uint x = rom.u8(addrCursor + 1);
+                    uint y = rom.u8(addrCursor + 2);
                     name += $" ({x},{y})";
                 }
 
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(addrCursor, name, i));
+
+                // Advance cursor by per-record stride (handles FE7 variable-
+                // length TURN records: type==1 -> 12 bytes; else recordSize).
+                uint stride = GetRecordStrideAt(slotDef.Category, recordSize, type);
+                addrCursor += stride;
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Per-record stride for variable-length record types. For FE7 TURN
+        /// records, type==1 advances 12 bytes (FE6/8-shape) while other
+        /// types advance the full recordSize (16). For other categories,
+        /// stride equals recordSize uniformly.
+        /// </summary>
+        static uint GetRecordStrideAt(CondCategory cat, uint recordSize, byte type)
+        {
+            // FE7-extended TURN records: when recordSize is 16 and the type
+            // byte is 1, the row is the smaller 12-byte shape (mirrors WF
+            // EventCondInnerControl per-type stride). All other rows in an
+            // FE7 TURN list use the full 16-byte stride.
+            if (cat == CondCategory.TURN && recordSize == 16 && type == 1)
+                return 12;
+            return recordSize;
         }
 
         /// <summary>
@@ -719,7 +754,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u8(CondRecordAddr + 11, (byte)ExtraB11);
                 }
 
-                if (CondRecordSize >= 16)
+                // FE7 variable-length TURN records: type==1 advances 12 bytes,
+                // other types advance the full 16. Writing B12-B15 for a
+                // type==1 row would clobber the next record's first 4 bytes
+                // (Copilot CLI review round 2 #3).
+                bool isFe7TurnType1 = (CondRecordSize == 16) &&
+                                       _selectedSlotIndex >= 0 &&
+                                       _selectedSlotIndex < _slotDefs.Count &&
+                                       _slotDefs[_selectedSlotIndex].Category == CondCategory.TURN &&
+                                       CondType == 1;
+
+                if (CondRecordSize >= 16 && !isFe7TurnType1)
                 {
                     rom.write_u8(CondRecordAddr + 12, (byte)ExtraB12);
                     rom.write_u8(CondRecordAddr + 13, (byte)ExtraB13);
@@ -1011,6 +1056,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (IsPointerSlot)
             {
+                report["u32@0"] = $"0x{rom.u32(a):X08}";
+            }
+            else if (CondRecordSize == 4)
+            {
+                // TUTORIAL: 4-byte u32 record (single TUTORIAL_P0 field).
+                // Reporting bytes 0-5 would read past the record (Copilot CLI
+                // review round 2 #2).
                 report["u32@0"] = $"0x{rom.u32(a):X08}";
             }
             else if (CondRecordSize <= 6)
