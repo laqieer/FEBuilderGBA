@@ -55,10 +55,23 @@ namespace FEBuilderGBA
         /// </summary>
         public void RepointEtcData(uint oldAddr, uint oldSize, uint newAddr)
         {
+            // Detect 32-bit wrap on `oldAddr + oldSize` so a maliciously / very
+            // large `oldSize` (e.g. `0x80000000` + `0x80000000`) can't relocate
+            // unrelated keys outside the intended `[oldAddr, oldAddr + oldSize)`
+            // window. When the window wraps, treat it as an unbounded upper
+            // edge — every key at `>= oldAddr` is in scope (matches the WF
+            // EtcCache.RepointEtcData behavior which uses the same comparison).
+            // Copilot bot review on PR #635 inline #3.
+            bool windowWraps = oldSize != 0 && oldAddr > uint.MaxValue - oldSize;
+            uint oldEnd = windowWraps ? uint.MaxValue : (oldAddr + oldSize);
+
             var newStore = new Dictionary<uint, string>();
             foreach (var pair in _store)
             {
-                if (pair.Key >= oldAddr && pair.Key < oldAddr + oldSize)
+                bool inWindow = windowWraps
+                    ? pair.Key >= oldAddr
+                    : pair.Key >= oldAddr && pair.Key < oldEnd;
+                if (inWindow)
                 {
                     uint relocated = (pair.Key - oldAddr) + newAddr;
                     newStore[relocated] = pair.Value;
@@ -68,7 +81,10 @@ namespace FEBuilderGBA
                     newStore[pair.Key] = pair.Value;
                 }
             }
-            // Replace the backing store atomically.
+            // Swap the backing store contents. (Avoid the word "atomically" —
+            // this method is not thread-safe; the clear-then-repopulate window
+            // is observable to other threads. Copilot bot review on PR #635
+            // inline #3.)
             _store.Clear();
             foreach (var p in newStore) _store[p.Key] = p.Value;
         }

@@ -289,8 +289,19 @@ namespace FEBuilderGBA
             if (oldBase == 0 || oldBase >= (uint)rom.Data.Length)
                 return Fail("Table pointer is invalid (null or out of bounds).");
 
+            // Overflow guards for both `currentCount * entrySize` and
+            // `newCount * entrySize` — without these, a malicious / corrupt
+            // `currentCount` could wrap to a tiny value that passes the
+            // subsequent `oldBase + oldTableSize` ROM-bounds check, then the
+            // ROM-byte writes use the unwrapped (huge) size and corrupt the
+            // file. (Copilot bot review on PR #635 inline #1.)
+            if (entrySize != 0 && currentCount > uint.MaxValue / entrySize)
+                return Fail("currentCount * entrySize overflows 32-bit address space.");
             uint oldTableSize = currentCount * entrySize;
-            // Overflow guard for newCount * entrySize on 32-bit math.
+            // Overflow guard for newCount * entrySize (newCount >= currentCount,
+            // so currentCount can't bypass this on a single check). Reserve 4
+            // bytes for the trailing 0xFFFFFFFF terminator so the +4 below
+            // also can't wrap.
             if (entrySize != 0 && newCount > (uint.MaxValue - 4) / entrySize)
                 return Fail("newCount * entrySize overflows 32-bit address space.");
             uint newTableSize = newCount * entrySize;
@@ -317,7 +328,18 @@ namespace FEBuilderGBA
             if (newBase == U.NOT_FOUND)
             {
                 // Try expanding the ROM to make room.
-                uint requiredEnd = U.Padding4((uint)rom.Data.Length + allocSize);
+                // Overflow guard: `rom.Data.Length + allocSize` can wrap on a
+                // very large ROM + allocSize combo and silently bypass the
+                // 32 MB cap. Use a checked add. (Copilot bot review on PR #635
+                // inline #2.)
+                uint romLen = (uint)rom.Data.Length;
+                if (allocSize > uint.MaxValue - romLen)
+                    return Fail("ROM resize required size overflows 32-bit address space.");
+                uint requiredEndUnpadded = romLen + allocSize;
+                // Padding4 rounds up — guard the +3 overflow too.
+                if (requiredEndUnpadded > uint.MaxValue - 3)
+                    return Fail("ROM resize required size overflows 32-bit address space.");
+                uint requiredEnd = U.Padding4(requiredEndUnpadded);
                 if (requiredEnd > 0x02000000) // 32 MB max
                     return Fail("Cannot find free space and ROM is at maximum size.");
 
