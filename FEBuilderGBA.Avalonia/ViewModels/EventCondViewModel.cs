@@ -383,10 +383,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (rom.u32(addrCursor) == 0) break;
                 }
 
-                // Build a display name
+                // Build a display name. For TUTORIAL the row has no meaningful
+                // type byte — it's a single u32 (either 1 or an event pointer),
+                // so GetCondTypeName(type) would mislabel rows (Copilot bot
+                // review on round-3). Show the u32 value directly instead.
                 byte type = (byte)rom.u8(addrCursor);
-                string typeName = GetCondTypeName(type);
-                string name = $"{i:D2}: [{type:X02}] {typeName}";
+                string name;
+                if (slotDef.Category == CondCategory.TUTORIAL)
+                {
+                    uint v = rom.u32(addrCursor);
+                    string vDesc = v == 1 ? "(blank)" : $"-> 0x{U.toOffset(v):X06}";
+                    name = $"{i:D2}: TUTORIAL u32=0x{v:X08} {vDesc}";
+                }
+                else
+                {
+                    string typeName = GetCondTypeName(type);
+                    name = $"{i:D2}: [{type:X02}] {typeName}";
+                }
 
                 // Add extra info based on category
                 if (slotDef.Category == CondCategory.TURN)
@@ -467,6 +480,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
                 CondTypeName = "Event Pointer";
                 CanWrite = true;
+
+                // Reset composite fields + load comment so the pointer-only
+                // path doesn't show stale data from a previously-selected
+                // record (Copilot bot review on round-3).
+                ClearCompositeFields();
+                Comment = CoreState.CommentCache?.At(addr) ?? "";
+                TopAddress = EventDataAddr;
+                ReadCount = (uint)_slotDefs.Count;
                 return;
             }
 
@@ -518,7 +539,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ExtraB8 = ExtraB9 = ExtraB10 = ExtraB11 = 0;
                 }
 
-                if (CondRecordSize >= 16)
+                // FE7 variable-length TURN: type==1 rows are 12 bytes, not 16,
+                // so B12-B15 belong to the NEXT record. Reading them would
+                // display bytes from the neighbor and tempt the user to edit
+                // values that are silently discarded by the write guard.
+                // Skip the B12-B15 read when in this case (Copilot bot review
+                // on round-3). Note: we only have access to the per-record
+                // type byte here (CondType which was just set), and the
+                // selected slot category — sufficient to detect the FE7
+                // type-1 case.
+                bool isFe7TurnType1 = (CondRecordSize == 16) &&
+                                      _selectedSlotIndex >= 0 &&
+                                      _selectedSlotIndex < _slotDefs.Count &&
+                                      _slotDefs[_selectedSlotIndex].Category == CondCategory.TURN &&
+                                      CondType == 1;
+
+                if (CondRecordSize >= 16 && !isFe7TurnType1)
                 {
                     ExtraB12 = rom.u8(addr + 12);
                     ExtraB13 = rom.u8(addr + 13);
@@ -528,6 +564,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 else
                 {
                     ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
+                }
+
+                // For FE7 TURN type==1, the row is effectively a 12-byte
+                // record — surface this via IsFE7Extended=false so the View
+                // hides B12-B15 controls (treat it as a 12-byte record
+                // end-to-end, not just on write).
+                if (isFe7TurnType1)
+                {
+                    IsFE7Extended = false;
                 }
             }
 
@@ -550,6 +595,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// views (TurnStart, Unit1, X/Y, etc.) so the per-category sub-panels
         /// can bind directly.
         /// </summary>
+        /// <summary>
+        /// Zero all composite category-specific fields. Called from the
+        /// pointer-only LoadCondRecord path so the previous record's TURN/
+        /// TALK/OBJECT/etc values don't leak into the UI when switching to
+        /// a pointer-only slot (Copilot bot review on round-3).
+        /// </summary>
+        void ClearCompositeFields()
+        {
+            TurnStart = TurnEnd = Phase = 0;
+            Unit1 = Unit2 = 0;
+            X1 = Y1 = X2 = Y2 = 0;
+            AsmFunc = 0;
+            ItemId = Gold = Durability = 0;
+            TrapSubType = 0;
+            TrapDirection = 0;
+            InitialTimer = RepeatTimer = 0;
+            ShopType = 0;
+            EventType = 0;
+            DamageAmount = 0;
+            GasDirection = 0;
+            Duration = 0;
+            HatchingStart = HatchingEnd = 0;
+            AdditionalDecision = 0;
+            DecisionFlag = 0;
+        }
+
         void DecomposeCategoryFields()
         {
             if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count)
@@ -566,11 +637,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case CondCategory.TALK:
                     Unit1 = _extraB8;
                     Unit2 = _extraB9;
+                    // For TALK N04 (ASM Talk, CondType==0x04), AsmFunc maps to
+                    // _eventPtr regardless of FE6/FE7/FE8 record size (Copilot
+                    // bot review on round-3 fixes). Otherwise zero so we don't
+                    // show stale values from a previously selected record.
+                    AsmFunc = (_condType == 0x04) ? _eventPtr : 0;
                     if (_isFE7Extended)
                     {
                         AdditionalDecision = _extraB12;
                         DecisionFlag = _extraB13;
-                        AsmFunc = _eventPtr; // for N04 ASM talk
+                    }
+                    else
+                    {
+                        AdditionalDecision = 0;
+                        DecisionFlag = 0;
                     }
                     break;
                 case CondCategory.OBJECT:
@@ -946,10 +1026,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     "EventCondViewModel.AllocateNewEvent requires an active undo scope.");
             }
 
-            // Allocate a minimal stub event: 4 bytes of END (0x00 terminator on FE6/8,
-            // 0x0A 0x00 0x00 0x00 = NOP+END for FE7). Just 4 zero bytes work as a
-            // safe default — same shape WF uses for "blank event allocation".
-            byte[] stub = new byte[4];
+            // Allocate a minimal stub event using the per-game default event
+            // script toplevel code (mirrors WF allocation behavior). FE6: 06...
+            // FE7: 0A 00 00 00... FE8: 28 02 07 00 20 01 00 00. Writing zeros
+            // would create an invalid event block on some versions (Copilot
+            // bot review on round-3).
+            byte[] stub = rom.RomInfo?.Default_event_script_toplevel_code
+                           ?? new byte[] { 0 };
             uint newAddr = AppendBinaryDataHeadless(rom, stub);
             if (newAddr == U.NOT_FOUND) return 0;
 

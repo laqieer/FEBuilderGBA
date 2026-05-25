@@ -934,6 +934,125 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot bot review fixes (round 4) — TALK N04 AsmFunc loaded for
+    // any size, TUTORIAL row label, AllocateNewEvent uses default stub,
+    // pointer-slot Comment reset, FE7 TURN type-1 B12-B15 read guard,
+    // generic+category field sync.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TalkN04AsmFunc_LoadedRegardlessOfFE7Extended()
+    {
+        // Round 4 fix #1: TALK N04 (CondType==0x04) AsmFunc must be populated
+        // from _eventPtr regardless of IsFE7Extended (FE6 talk records are
+        // 12 bytes but still have an ASM function pointer).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production: AsmFunc = (_condType == 0x04) ? _eventPtr : 0; (outside
+        // the IsFE7Extended block).
+        Assert.Matches(
+            new Regex(@"AsmFunc\s*=\s*\(_condType\s*==\s*0x04\)\s*\?\s*_eventPtr\s*:\s*0", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_TutorialRowLabel_BuildsFromU32_NotGetCondTypeName()
+    {
+        // Round 4 fix #2: TUTORIAL records have no meaningful type byte (just
+        // a u32: 1 or pointer). Display name must be derived from the u32 value,
+        // not GetCondTypeName(type) which would mislabel rows.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must build the TUTORIAL display name as "TUTORIAL u32=...".
+        Assert.Matches(
+            new Regex(@"CondCategory\.TUTORIAL[\s\S]*?TUTORIAL u32=", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_AllocateNewEvent_UsesDefaultEventScriptToplevelCode()
+    {
+        // Round 4 fix #3: AllocateNewEvent must use
+        // rom.RomInfo.Default_event_script_toplevel_code for the stub instead
+        // of writing 4 zero bytes (which may be an invalid event block on
+        // some game versions).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must reference Default_event_script_toplevel_code in
+        // AllocateNewEvent.
+        Assert.Matches(
+            new Regex(@"AllocateNewEvent[\s\S]*?Default_event_script_toplevel_code", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_PointerSlot_ResetsCompositeFieldsAndComment()
+    {
+        // Round 4 fix #4: pointer-only LoadCondRecord must reset composite
+        // fields and reload the Comment so stale data from previously
+        // selected records doesn't leak into the UI.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must call ClearCompositeFields() in the IsPointerSlot
+        // branch of LoadCondRecord (before the early return).
+        Assert.Matches(
+            new Regex(@"if\s*\(IsPointerSlot\)[\s\S]*?ClearCompositeFields\(\)[\s\S]*?return", RegexOptions.Singleline),
+            source);
+        // And reload Comment from cache in that branch.
+        Assert.Matches(
+            new Regex(@"if\s*\(IsPointerSlot\)[\s\S]*?Comment\s*=\s*CoreState\.CommentCache", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_LoadCondRecord_Fe7TurnType1_SkipsB12B15Read()
+    {
+        // Round 4 fix #5: LoadCondRecord must NOT read B12-B15 for FE7 TURN
+        // type==1 rows (they're 12-byte records, B12-B15 belong to the next
+        // record).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must contain `isFe7TurnType1` check in LoadCondRecord
+        // and guard the B12-B15 read with `!isFe7TurnType1`.
+        Assert.Matches(
+            new Regex(@"isFe7TurnType1[\s\S]*?CondType\s*==\s*1[\s\S]*?CondRecordSize\s*>=\s*16\s*&&\s*!isFe7TurnType1[\s\S]*?ExtraB12\s*=\s*rom\.u8", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_HidesGenericExtraFieldsWhenCategoryPanelVisible()
+    {
+        // Round 4 fix #6: when a category sub-panel is visible (TURN/TALK/
+        // OBJECT/ALWAYS/TRAP), the generic ExtraB8-B11 controls must be
+        // hidden so the user can't edit the same bytes in two places.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // Production must set ExtraB8Box.IsVisible = false when category panel
+        // is visible.
+        Assert.Matches(
+            new Regex(@"hideGenericExtras[\s\S]*?ExtraB8Box\.IsVisible\s*=\s*false", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

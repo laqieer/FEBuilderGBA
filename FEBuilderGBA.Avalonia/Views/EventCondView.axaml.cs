@@ -342,6 +342,25 @@ namespace FEBuilderGBA.Avalonia.Views
             if (slotIdx < 0 || slotIdx >= EventCondViewModel.SlotDefs.Count) return;
 
             var cat = EventCondViewModel.SlotDefs[slotIdx].Category;
+
+            // When a category sub-panel is visible, hide the corresponding
+            // generic ExtraB8-B11 controls so the user can't edit the same
+            // bytes in two places (Copilot bot review on round-3 fixes #6).
+            // The category panel is the canonical edit surface for the
+            // category-specific bytes.
+            bool hideGenericExtras = cat == CondCategory.TURN
+                || cat == CondCategory.TALK
+                || cat == CondCategory.OBJECT
+                || cat == CondCategory.ALWAYS
+                || cat == CondCategory.TRAP;
+            if (hideGenericExtras)
+            {
+                ExtraB8Box.IsVisible = false;  LblB8.IsVisible = false;
+                ExtraB9Box.IsVisible = false;  LblB9.IsVisible = false;
+                ExtraB10Box.IsVisible = false; LblB10.IsVisible = false;
+                ExtraB11Box.IsVisible = false; LblB11.IsVisible = false;
+            }
+
             switch (cat)
             {
                 case CondCategory.TURN:
