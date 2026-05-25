@@ -348,13 +348,116 @@ public class ImageMapActionAnimationParityTests
     }
 
     [Fact]
-    public void View_HasListExpandButton_DisabledUntilFollowupLands()
+    public void View_HasListExpandButton_EnabledNow_501Landed()
     {
-        // The button must exist (so the gap-sweep label "リストの拡張"
-        // matches) but be disabled until #501 lands.
+        // #501 (closed) — the button now has a real ListExpand_Click handler
+        // backed by DataExpansionCore.ExpandTableTo, so it must NOT be disabled
+        // in AXAML. The button's IsEnabled gating now lives entirely in the
+        // click handler (which checks `_vm.IsLoaded` / `_vm.ReadCount > 0`).
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"ImageMapActionAnimation_ListExpand_Button\"", axaml);
-        Assert.Contains("IsEnabled=\"False\"", axaml);
+        // Tooltip no longer says "Not yet implemented" / references #501.
+        Assert.DoesNotContain("Not yet implemented", axaml);
+        Assert.DoesNotContain("see #501", axaml);
+        // Specifically the ListExpand button block must not carry IsEnabled="False".
+        int idx = axaml.IndexOf("ListExpand_Button");
+        Assert.True(idx >= 0);
+        int blockEnd = axaml.IndexOf("/>", idx);
+        string buttonBlock = axaml.Substring(idx, blockEnd - idx);
+        Assert.DoesNotContain("IsEnabled=\"False\"", buttonBlock);
+    }
+
+    [Fact]
+    public void View_ListExpand_Tooltip_DescribesExpansion()
+    {
+        // #501 — the new tooltip must describe what the button does
+        // (entry-count expansion) rather than the old "not yet implemented"
+        // placeholder. The exact tooltip wording is asserted so future
+        // refactors don't silently revert to the placeholder.
+        string axaml = ReadAxaml();
+        Assert.Contains("Expand the map action animation list to a specified entry count (max 255).",
+            axaml);
+    }
+
+    [Fact]
+    public void ViewModel_ExpandList_RejectsSmallerCount()
+    {
+        // VM smoke test — ExpandList(newCount) must reject a count smaller
+        // than the current ReadCount with a non-empty error string.
+        ROM prevRom = CoreState.ROM;
+        var rom = MakeMinimalFe8uRom();
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            var vm = new ImageMapActionAnimationViewModel();
+            // Force ReadCount to a known non-zero value.
+            vm.ReadCount = 10;
+            string err = vm.ExpandList(5);
+            Assert.False(string.IsNullOrEmpty(err));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_ExpandList_NoROM_ReturnsError()
+    {
+        // VM smoke test — without a ROM loaded, ExpandList must return a
+        // non-empty error string instead of throwing.
+        ROM prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            var vm = new ImageMapActionAnimationViewModel();
+            string err = vm.ExpandList(10);
+            Assert.False(string.IsNullOrEmpty(err));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_ExpandList_HappyPath()
+    {
+        // VM smoke test — synthetic FE8U ROM, run LoadList to populate
+        // ReadStartAddress/ReadCount, then ExpandList(ReadCount + 2). After
+        // success, ReadCount must reflect the new size and ReadStartAddress
+        // must point at the new table base.
+        ROM prevRom = CoreState.ROM;
+        ISystemTextEncoder prevEnc = CoreState.SystemTextEncoder;
+        IEtcCache prevCache = CoreState.CommentCache;
+        var rom = MakeMinimalFe8uRom();
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            CoreState.CommentCache = new HeadlessEtcCache();
+
+            var vm = new ImageMapActionAnimationViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+
+            uint oldBase = vm.ReadStartAddress;
+            uint oldCount = vm.ReadCount;
+            uint newCount = oldCount + 2;
+
+            string err = vm.ExpandList(newCount);
+            Assert.True(string.IsNullOrEmpty(err), err);
+            Assert.Equal(newCount, vm.ReadCount);
+            // New table must live at a different base.
+            Assert.NotEqual(oldBase, vm.ReadStartAddress);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.SystemTextEncoder = prevEnc;
+            CoreState.CommentCache = prevCache;
+        }
     }
 
     [Fact]

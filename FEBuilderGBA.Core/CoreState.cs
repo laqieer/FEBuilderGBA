@@ -17,6 +17,18 @@ namespace FEBuilderGBA
         bool TryGetValue(uint num, out string out_data);
         void Update(uint addr, string comment);
         void Remove(uint addr);
+
+        /// <summary>
+        /// Relocate every cache key in <c>[oldAddr, oldAddr + oldSize)</c> by
+        /// <c>(newAddr - oldAddr)</c>. Used by table-expansion helpers (e.g.
+        /// <see cref="DataExpansionCore.ExpandTableTo"/>) so per-row comments
+        /// and lint metadata follow the moved table to its new ROM offset.
+        /// Mirrors WinForms <c>EtcCache.RepointEtcData</c>.
+        ///
+        /// Default body is a no-op so external <see cref="IEtcCache"/> implementors
+        /// continue to compile without breaking.
+        /// </summary>
+        void RepointEtcData(uint oldAddr, uint oldSize, uint newAddr) { }
     }
 
     /// <summary>

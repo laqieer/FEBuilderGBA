@@ -198,18 +198,75 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// List-expansion handler — currently disabled (the button has
-        /// <c>IsEnabled=false</c> in AXAML) because there is no Core helper
-        /// for expanding the map-action-animation pointer table yet. The
-        /// handler stays wired so the AutomationId is enumerable from
-        /// headless tests; the real expansion is tracked by #501.
+        /// List-expansion handler (#501). Prompts the user for a new row
+        /// count, delegates to <see cref="ImageMapActionAnimationViewModel.ExpandList"/>
+        /// inside an <see cref="UndoService"/> scope, then reloads the list.
+        /// Mirrors WinForms <c>InputFormRef.OnAddressListExpandsEventHandler</c>
+        /// flow (prompt -> expand -> repoint -> reload), minus the LDR rescan
+        /// (KnownGap documented in <c>DataExpansionCore.ExpandTableTo</c>).
         /// </summary>
-        void ListExpand_Click(object? sender, RoutedEventArgs e)
+        async void ListExpand_Click(object? sender, RoutedEventArgs e)
         {
-            // Intentionally no-op until the table-expansion helper lands —
-            // see issue #501. The button is disabled in AXAML; this handler
-            // exists only so the binding/AutomationId surface is complete.
-            Log.Debug("ImageMapActionAnimationView.ListExpand_Click invoked — disabled until #501 lands");
+            try
+            {
+                if (!_vm.IsLoaded)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (_vm.ReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
+                    return;
+                }
+
+                // Default = current count + 1, max = 255 (mirrors WF
+                // AddressListExpandsButton_255 suffix convention).
+                uint defaultCount = _vm.ReadCount + 1;
+                if (defaultCount > 255) defaultCount = 255;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the map action animation list (current: {0}, max: 255).",
+                        _vm.ReadCount),
+                    R._("List Expansion"),
+                    defaultCount,
+                    _vm.ReadCount,
+                    255);
+                if (chosen == null) return; // user cancelled
+                uint newCount = chosen.Value;
+                if (newCount == _vm.ReadCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                _undoService.Begin("Expand Map Action Animation List");
+                try
+                {
+                    string err = _vm.ExpandList(newCount);
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded map action animation list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("ImageMapActionAnimationView.ListExpand_Click inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMapActionAnimationView.ListExpand_Click failed: {0}", ex.Message);
+            }
         }
 
         /// <summary>

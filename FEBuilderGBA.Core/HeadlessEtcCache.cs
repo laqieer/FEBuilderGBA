@@ -45,5 +45,32 @@ namespace FEBuilderGBA
 
         public void Remove(uint addr) =>
             _store.Remove(addr);
+
+        /// <summary>
+        /// Relocate every key in <c>[oldAddr, oldAddr + oldSize)</c> by the
+        /// delta <c>(newAddr - oldAddr)</c>. Mirrors WinForms
+        /// <see cref="EtcCache.RepointEtcData"/>. Used by
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> so per-row comments
+        /// follow the moved table.
+        /// </summary>
+        public void RepointEtcData(uint oldAddr, uint oldSize, uint newAddr)
+        {
+            var newStore = new Dictionary<uint, string>();
+            foreach (var pair in _store)
+            {
+                if (pair.Key >= oldAddr && pair.Key < oldAddr + oldSize)
+                {
+                    uint relocated = (pair.Key - oldAddr) + newAddr;
+                    newStore[relocated] = pair.Value;
+                }
+                else
+                {
+                    newStore[pair.Key] = pair.Value;
+                }
+            }
+            // Replace the backing store atomically.
+            _store.Clear();
+            foreach (var p in newStore) _store[p.Key] = p.Value;
+        }
     }
 }
