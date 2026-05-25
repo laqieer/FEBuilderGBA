@@ -91,9 +91,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     // Apply the count cap to the auto-resolved list as well,
                     // so the read-config bar's ReadCount works whether the
                     // user supplied an explicit base or not. Cap > items
-                    // count is a no-op.
-                    if (userCount > 0 && items.Count > userCount)
-                        items = items.GetRange(0, (int)userCount);
+                    // count is a no-op. Clamp userCount to int.MaxValue
+                    // so the int-vs-uint comparison stays sign-safe even
+                    // for pathological inputs.
+                    int userCountInt = userCount > int.MaxValue ? int.MaxValue : (int)userCount;
+                    if (userCountInt > 0 && items.Count > userCountInt)
+                        items = items.GetRange(0, userCountInt);
                     EntryList.SetItems(items);
                     // Surface auto-detected base back into the read-config bar
                     // so subsequent Reload clicks have a non-zero starting

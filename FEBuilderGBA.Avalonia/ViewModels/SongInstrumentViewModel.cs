@@ -565,9 +565,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         static bool IsValidEntryRange(ROM rom, uint addr)
         {
+            if (rom == null) return false;
             if (addr == 0) return false;
-            if (!U.isSafetyOffset(addr)) return false;
+            // Inline the safety-floor check against the provided rom (not
+            // CoreState.ROM) so this helper stays correct even when callers
+            // pass a non-global ROM instance — PR #626 round 5 finding.
+            // Mirrors U.isSafetyOffset's logic: addr in [0x200, rom.Length).
             uint length = (uint)rom.Data.Length;
+            if (addr < 0x00000200) return false;
+            if (addr >= 0x02000000) return false;
+            if (addr >= length) return false;
             return addr + BlockSize <= length;
         }
 
