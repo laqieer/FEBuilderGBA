@@ -155,11 +155,17 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Find an unmodified ROM matching the given language. Searches in
-        /// (1) currentDir, (2) romBaseDirectory, (3) directory of lastROMFilename,
-        /// (4) currentDir recursively. Returns empty string when none found.
+        /// (1) currentDir top-level, (2) romBaseDirectory top-level,
+        /// (3) directory of lastROMFilename top-level, (4) emulatorDirectory
+        /// recursive. Returns empty string when none found.
+        /// Mirrors WF MainFormUtil.FindOrignalROMByLang search order: the
+        /// last-resort recursive scan is restricted to the configured emulator
+        /// directory (Program.Config.at("emulator")), NOT to currentDir, to
+        /// avoid expensive sub-tree scans of arbitrary work directories.
         /// </summary>
         public static string FindOrignalROMByLang(string currentDir, string lang,
-            int currentVersion, string romBaseDirectory, string lastROMFilename)
+            int currentVersion, string romBaseDirectory, string lastROMFilename,
+            string emulatorDirectory = "")
         {
             var searched = new List<string>();
             string result;
@@ -189,8 +195,15 @@ namespace FEBuilderGBA
                 }
             }
 
-            // Pass 4: currentDir recursive.
-            return FindOrignalROMLowByLang(currentDir, lang, currentVersion, SearchOption.AllDirectories);
+            // Pass 4: emulator directory recursive (matches WF
+            // MainFormUtil.FindOrignalROMByLang last-resort search).
+            if (!string.IsNullOrEmpty(emulatorDirectory) && !searched.Contains(emulatorDirectory))
+            {
+                result = FindOrignalROMLowByLang(emulatorDirectory, lang, currentVersion, SearchOption.AllDirectories);
+                if (!string.IsNullOrEmpty(result)) return result;
+            }
+
+            return string.Empty;
         }
 
         static string FindOrignalROMLowByCrc(string dir, uint searchCrc, SearchOption searchOption)
@@ -240,9 +253,13 @@ namespace FEBuilderGBA
             return string.Empty;
         }
 
-        /// <summary>Find an unmodified ROM matching the given CRC32.</summary>
+        /// <summary>
+        /// Find an unmodified ROM matching the given CRC32. Last-resort
+        /// recursive scan targets the emulator directory (matching WF).
+        /// </summary>
         public static string FindOrignalROMByCRC32(string currentDir, uint searchCrc,
-            string romBaseDirectory, string lastROMFilename)
+            string romBaseDirectory, string lastROMFilename,
+            string emulatorDirectory = "")
         {
             var searched = new List<string>();
             string result;
@@ -269,7 +286,13 @@ namespace FEBuilderGBA
                 }
             }
 
-            return FindOrignalROMLowByCrc(currentDir, searchCrc, SearchOption.AllDirectories);
+            if (!string.IsNullOrEmpty(emulatorDirectory) && !searched.Contains(emulatorDirectory))
+            {
+                result = FindOrignalROMLowByCrc(emulatorDirectory, searchCrc, SearchOption.AllDirectories);
+                if (!string.IsNullOrEmpty(result)) return result;
+            }
+
+            return string.Empty;
         }
 
         // ============================================================
