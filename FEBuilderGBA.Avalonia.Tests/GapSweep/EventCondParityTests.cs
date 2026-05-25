@@ -890,9 +890,11 @@ public class EventCondParityTests
         Assert.Matches(
             new Regex(@"VeinEffectIdBox\.Value\s*=\s*_vm\.TrapSubType", RegexOptions.Singleline),
             source);
-        // And UpdateVmCategoryProperties writes BallistaTypeBox -> TrapSubType.
+        // Round 6 update: UpdateVmCategoryProperties picks BallistaTypeBox or
+        // VeinEffectIdBox based on CondType (0x06 = DragonVein uses
+        // VeinEffectIdBox). Verify the conditional writeback is present.
         Assert.Matches(
-            new Regex(@"_vm\.TrapSubType\s*=\s*\(uint\)\(BallistaTypeBox\.Value", RegexOptions.Singleline),
+            new Regex(@"_vm\.TrapSubType\s*=\s*_vm\.CondType\s*==\s*0x06[\s\S]*?VeinEffectIdBox\.Value[\s\S]*?BallistaTypeBox\.Value", RegexOptions.Singleline),
             source);
     }
 
@@ -1146,6 +1148,49 @@ public class EventCondParityTests
 
         Assert.Matches(
             new Regex(@"buffer\[newSlotOffset \+ 0\]\s*=\s*\(byte\)GetDefaultEventType\(slotDef\.Category", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot CLI round 6 review fixes — NumericUpDown format strings
+    // stay decimal post-selection, VeinEffectId vs BallistaType source
+    // selection per CondType.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_UpdateEditorUI_DoesNotAssignHexFormatStrings()
+    {
+        // Round 6 #1: Avalonia NumericUpDown throws on hex format specifiers
+        // ("X2"/"X4"/"X8") with decimal? values. The View must keep decimal
+        // format strings ("0") even when re-applied during selection.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // Production must NOT contain any FormatString = "X8" / "X4" / "X2".
+        Assert.DoesNotMatch(
+            new Regex(@"FormatString\s*=\s*""X[248]""", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_TrapVeinEffect_RoundTripsForCondType06()
+    {
+        // Round 6 #2: For TRAP type 0x06 (Dragon Vein), VeinEffectIdBox is
+        // the user's source for B3 (TrapSubType). BallistaTypeBox is for
+        // other TRAP types (Ballista, etc.). UpdateVmCategoryProperties must
+        // select the source control based on CondType so edits to the visible
+        // control round-trip.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // Production must select VeinEffectIdBox vs BallistaTypeBox by
+        // _vm.CondType == 0x06.
+        Assert.Matches(
+            new Regex(@"_vm\.TrapSubType\s*=\s*_vm\.CondType\s*==\s*0x06[\s\S]*?VeinEffectIdBox\.Value[\s\S]*?BallistaTypeBox\.Value", RegexOptions.Singleline),
             source);
     }
 

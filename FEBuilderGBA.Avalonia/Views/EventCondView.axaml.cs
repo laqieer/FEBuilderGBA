@@ -285,7 +285,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     // bytes (Copilot CLI review round 2 #2).
                     FlagIdBox.Maximum = 65535;
                     EventPtrBox.Maximum = 4294967295;
-                    EventPtrBox.FormatString = "X8";
+                    // Round 6 fix: keep decimal format strings (Avalonia
+                    // NumericUpDown throws on hex specifiers with decimal? values).
+                    EventPtrBox.FormatString = "0";
                     SetFieldVisibility(false, false, false, true, false, false, false, false);
                 }
                 else if (_vm.CondRecordSize <= 6)
@@ -293,16 +295,18 @@ namespace FEBuilderGBA.Avalonia.Views
                     // TRAP: 6-byte records — show type, X(B1), Y(B2/FlagId), subtype(B3/EventPtr), B4, B5
                     FlagIdBox.Maximum = 255;
                     EventPtrBox.Maximum = 255;
-                    FlagIdBox.FormatString = "X2";
-                    EventPtrBox.FormatString = "X2";
+                    // Round 6 fix: decimal format strings (no hex specifiers).
+                    FlagIdBox.FormatString = "0";
+                    EventPtrBox.FormatString = "0";
                     SetFieldVisibility(true, true, true, true, true, true, false, false);
                 }
                 else
                 {
                     FlagIdBox.Maximum = 65535;
                     EventPtrBox.Maximum = 4294967295;
-                    FlagIdBox.FormatString = "X4";
-                    EventPtrBox.FormatString = "X8";
+                    // Round 6 fix: decimal format strings (no hex specifiers).
+                    FlagIdBox.FormatString = "0";
+                    EventPtrBox.FormatString = "0";
                     bool show12 = _vm.CondRecordSize >= 12;
                     SetFieldVisibility(true, true, true, true, show12, show12, show12, show12);
                 }
@@ -702,11 +706,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 case CondCategory.TRAP:
                     _vm.X1 = (uint)(TrapXBox.Value ?? 0);
                     _vm.Y1 = (uint)(TrapYBox.Value ?? 0);
-                    // BallistaType / VeinEffect bind to TrapSubType (B3 byte),
-                    // NOT to _vm.SubType (which holds B1 = X for TRAP and would
-                    // be overwritten by X1 in ComposeCategoryFields).
-                    // Copilot CLI review round 3 #2.
-                    _vm.TrapSubType = (uint)(BallistaTypeBox.Value ?? 0);
+                    // BallistaType / VeinEffect both bind to TrapSubType (B3 byte),
+                    // but only one is active at a time depending on TRAP type:
+                    //   0x06 (DragonVein) — VeinEffectId is the user's source.
+                    //   0x01 (Ballista) and others — BallistaType is the source.
+                    // Round 6 fix: select source by CondType so edits to the
+                    // visible control round-trip to B3 instead of being silently
+                    // overwritten by the other (stale) control's value.
+                    _vm.TrapSubType = _vm.CondType == 0x06
+                        ? (uint)(VeinEffectIdBox.Value ?? 0)
+                        : (uint)(BallistaTypeBox.Value ?? 0);
                     _vm.TrapDirection = (uint)(TrapDirectionBox.Value ?? 0);
                     _vm.Durability = (uint)(TrapDurabilityBox.Value ?? 0);
                     _vm.DamageAmount = (uint)(DamageAmountBox.Value ?? 0);
