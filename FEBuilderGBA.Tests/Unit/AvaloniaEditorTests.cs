@@ -478,13 +478,15 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         // Issue #368 — the rewritten view must expose the WinForms control set.
+        // #360 final: ClassIdInput + ClassNameLabel merged into a single
+        // IdFieldControl ClassIdBox (which provides hyperlink label + value +
+        // inline name preview + Jump + Pick). The icon stays separate.
         [Fact]
         public void ItemEffectivenessView_HasItemDrivenLayout()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemEffectivenessViewerView.axaml"));
             Assert.Contains("InnerList", src);
-            Assert.Contains("ClassIdInput", src);
-            Assert.Contains("ClassNameLabel", src);
+            Assert.Contains("ClassIdBox", src); // was ClassIdInput before #360 final
             Assert.Contains("ClassIconImage", src);
             Assert.Contains("IndependenceButton", src);
             Assert.Contains("ListExpandsButton", src);
@@ -513,13 +515,15 @@ namespace FEBuilderGBA.Tests.Unit
 
         // Issue #368 — the rewritten view must expose the WinForms control set
         // plus the X_IER_Patch warning label.
+        // #360 final: ClassIdInput + ClassNameLabel merged into a single
+        // IdFieldControl ClassIdBox (which provides hyperlink label + value +
+        // inline name preview + Jump + Pick). The icon stays separate.
         [Fact]
         public void ItemPromotionView_HasItemDrivenLayout()
         {
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemPromotionViewerView.axaml"));
             Assert.Contains("InnerList", src);
-            Assert.Contains("ClassIdInput", src);
-            Assert.Contains("ClassNameLabel", src);
+            Assert.Contains("ClassIdBox", src); // was ClassIdInput before #360 final
             Assert.Contains("ClassIconImage", src);
             Assert.Contains("ListExpandsButton", src);
             Assert.Contains("ReloadListButton", src);
