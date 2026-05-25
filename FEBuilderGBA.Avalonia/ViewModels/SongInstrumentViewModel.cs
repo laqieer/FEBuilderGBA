@@ -741,15 +741,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
+                // All 12 raw bytes — LoadEntry reads each one and the View
+                // exposes them per-tab (the WF designer surfaces every byte
+                // from B1..B11 across tabs). The full raw report keeps the
+                // AvaloniaFieldCompletenessTests coverage check satisfied
+                // (PR #626 CI run after round-4: SongInstrumentViewModel
+                // had 16 ROM reads but only 9 raw entries == 56%, below the
+                // 80% floor).
                 ["u8@0x00_Header"] = $"0x{rom.u8(a):X02}",
-                ["u8@0x01_Sweep"] = $"0x{rom.u8(a + 1):X02}",
-                ["u8@0x02_DutyLen"] = $"0x{rom.u8(a + 2):X02}",
-                ["u8@0x03_EnvStep"] = $"0x{rom.u8(a + 3):X02}",
-                ["u32@0x04_Ptr"] = $"0x{rom.u32(a + 4):X08}",
-                ["u8@0x08_Attack"] = $"0x{rom.u8(a + 8):X02}",
-                ["u8@0x09_Decay"] = $"0x{rom.u8(a + 9):X02}",
-                ["u8@0x0A_Sustain"] = $"0x{rom.u8(a + 10):X02}",
-                ["u8@0x0B_Release"] = $"0x{rom.u8(a + 11):X02}",
+                ["u8@0x01_B1"] = $"0x{rom.u8(a + 1):X02}",
+                ["u8@0x02_B2"] = $"0x{rom.u8(a + 2):X02}",
+                ["u8@0x03_B3"] = $"0x{rom.u8(a + 3):X02}",
+                // Offset 4 is u32 in DirectSound / WaveMemory / MultiSample
+                // / Drum (pointer), but B4 raw byte in SquareWave / Noise
+                // tabs. Surface both interpretations.
+                ["u8@0x04_B4"] = $"0x{rom.u8(a + 4):X02}",
+                ["u32@0x04_P4"] = $"0x{rom.u32(a + 4):X08}",
+                ["u8@0x05_B5"] = $"0x{rom.u8(a + 5):X02}",
+                ["u8@0x06_B6"] = $"0x{rom.u8(a + 6):X02}",
+                ["u8@0x07_B7"] = $"0x{rom.u8(a + 7):X02}",
+                ["u8@0x08_B8"] = $"0x{rom.u8(a + 8):X02}",
+                ["u32@0x08_P8"] = $"0x{rom.u32(a + 8):X08}",
+                ["u8@0x09_B9"] = $"0x{rom.u8(a + 9):X02}",
+                ["u8@0x0A_B10"] = $"0x{rom.u8(a + 10):X02}",
+                ["u8@0x0B_B11"] = $"0x{rom.u8(a + 11):X02}",
             };
         }
     }
