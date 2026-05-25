@@ -9609,3 +9609,86 @@ VeinEffectID:
 
 :Open MapPointerNewPLIST popup (commit-back state-machine deferred per #386)
 MapPointerNewPLIST ポップアップを開きます (コミットバック状態機械は #386 で延期)
+:DirectSound
+DirectSound
+
+:DirectSound Reverse
+DirectSound Reverse
+
+:DirectSound Fixed Freq
+DirectSound Fixed Freq
+
+:DirectSound Fixed Freq Reverse
+DirectSound Fixed Freq Reverse
+
+:SquareWave1
+SquareWave1
+
+:SquareWave2
+SquareWave2
+
+:SquareWave3
+SquareWave3
+
+:SquareWave4
+SquareWave4
+
+:Wave Memory
+Wave Memory
+
+:Wave Memory2
+Wave Memory2
+
+:Noise
+Noise
+
+:Noise2
+Noise2
+
+:Multi Sample
+Multi Sample
+
+:DrumPart
+DrumPart
+
+:sweep
+sweep
+
+:sweeptime
+sweeptime
+
+:sweepshift
+sweepshift
+
+:squarepattern
+squarepattern
+
+:noisepattern
+noisepattern
+
+:Export Instrument
+楽器データ 書出
+
+:Import Instrument
+楽器データ 読込
+
+:More Info:
+詳細:
+
+:SongData FingerPrint
+SongData FingerPrint
+
+:Pending Core extraction (list expansion is WinForms-only).
+Core 抽出待ち (リスト拡張は WinForms 専用).
+
+:Pending Core extraction (instrument-set shell file dialog is WinForms-only).
+Core 抽出待ち (楽器セットのシェルファイルダイアログは WinForms 専用).
+
+:Pending Core extraction (Sappy emulator preview is WinForms-only).
+Core 抽出待ち (Sappy エミュレータのプレビューは WinForms 専用).
+
+:Pending Core extraction (wave Export shell dialog is WinForms-only).
+Core 抽出待ち (wave エクスポートのシェルダイアログは WinForms 専用).
+
+:Pending Core extraction (wave Import shell dialog is WinForms-only).
+Core 抽出待ち (wave インポートのシェルダイアログは WinForms 専用).

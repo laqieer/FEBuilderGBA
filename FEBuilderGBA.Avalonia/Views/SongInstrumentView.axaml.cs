@@ -1,3 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SongInstrumentView — Avalonia parity rebuild for #387. Mirrors
+// `SongInstrumentForm` layout (panel1 read-config + AddressPanel master-write
+// + panel2 common-header + 14 instrument tabs + panel4 fingerprint footer).
+// The single WF cross-editor jump callsite
+// (`SongInstrumentImportWaveForm`) stays deferred and explicitly absent from
+// both the manifest and the click-handler wiring — see
+// `SongInstrumentViewModel.NavigationTargets.cs`.
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -28,6 +36,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                BlockSizeBox.Text = "12";
             }
             catch (Exception ex)
             {
@@ -83,59 +92,95 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
+        }
+
         void UpdateUI()
         {
-            AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            SelectedAddressLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+            AddressBox.Value = _vm.CurrentAddr;
             HeaderByteBox.Value = _vm.HeaderByte;
-            TypeNameLabel.Text = _vm.TypeName;
+            MoreInfoBox.Text = _vm.TypeName;
 
-            // Show/hide type-specific panels
-            DirectSoundPanel.IsVisible = _vm.IsDirectSound || _vm.IsWaveMemory;
-            SquareWavePanel.IsVisible = _vm.IsSquareWave;
-            NoisePanel.IsVisible = _vm.IsNoise;
-            MultiSamplePanel.IsVisible = _vm.IsMultiSample;
-            DrumPanel.IsVisible = _vm.IsDrum;
-            UnknownPanel.IsVisible = _vm.Category == InstrumentCategory.Unknown;
+            // Select the exact tab by header byte (#387 plan review v2 concern #1).
+            string expectedTabId = SongInstrumentViewModel.GetExpectedTabId(_vm.HeaderByte);
+            SelectTabByAutomationId(expectedTabId);
 
-            // Populate type-specific fields
-            switch (_vm.Category)
+            // Populate per-tab raw byte fields. Each tab has its own set of
+            // Nxx_Bn / Nxx_Pn controls; we update all 14 tabs from the same
+            // VM raw fields so switching tabs (user changes Type combo) does
+            // not show stale data.
+            string[] tabNames = { "N00", "N01", "N02", "N03", "N04", "N08", "N09",
+                                  "N0A", "N0B", "N0C", "N10", "N18", "N40", "N80" };
+            foreach (var tab in tabNames)
+                PopulateTabFields(tab);
+        }
+
+        void SelectTabByAutomationId(string targetTabId)
+        {
+            if (string.IsNullOrEmpty(targetTabId)) return;
+            foreach (var item in UnionTab.Items)
             {
-                case InstrumentCategory.DirectSound:
-                case InstrumentCategory.WaveMemory:
-                    WavePtrBox.Value = _vm.WavePtr;
-                    DS_AttackBox.Value = _vm.Attack;
-                    DS_DecayBox.Value = _vm.Decay;
-                    DS_SustainBox.Value = _vm.Sustain;
-                    DS_ReleaseBox.Value = _vm.Release;
-                    break;
+                if (item is TabItem ti)
+                {
+                    var aid = global::Avalonia.Automation.AutomationProperties.GetAutomationId(ti);
+                    if (aid == targetTabId)
+                    {
+                        UnionTab.SelectedItem = ti;
+                        return;
+                    }
+                }
+            }
+        }
 
-                case InstrumentCategory.SquareWave:
-                    SweepBox.Value = _vm.Sweep;
-                    DutyLenBox.Value = _vm.DutyLen;
-                    EnvStepBox.Value = _vm.EnvStep;
-                    SQ_AttackBox.Value = _vm.Attack;
-                    SQ_DecayBox.Value = _vm.Decay;
-                    SQ_SustainBox.Value = _vm.Sustain;
-                    SQ_ReleaseBox.Value = _vm.Release;
-                    break;
+        void PopulateTabFields(string tabPrefix)
+        {
+            // Find and set per-byte numeric inputs for this tab.
+            // B1..B11 raw values come straight from _vm.B1..B11.
+            SetNumericByName($"{tabPrefix}_B1_Box", _vm.B1);
+            SetNumericByName($"{tabPrefix}_B2_Box", _vm.B2);
+            SetNumericByName($"{tabPrefix}_B3_Box", _vm.B3);
+            SetNumericByName($"{tabPrefix}_B4_Box", _vm.B4);
+            SetNumericByName($"{tabPrefix}_B5_Box", _vm.B5);
+            SetNumericByName($"{tabPrefix}_B6_Box", _vm.B6);
+            SetNumericByName($"{tabPrefix}_B7_Box", _vm.B7);
+            SetNumericByName($"{tabPrefix}_B8_Box", _vm.B8);
+            SetNumericByName($"{tabPrefix}_B9_Box", _vm.B9);
+            SetNumericByName($"{tabPrefix}_B10_Box", _vm.B10);
+            SetNumericByName($"{tabPrefix}_B11_Box", _vm.B11);
 
-                case InstrumentCategory.Noise:
-                    PeriodBox.Value = _vm.Period;
-                    NS_AttackBox.Value = _vm.Attack;
-                    NS_DecayBox.Value = _vm.Decay;
-                    NS_SustainBox.Value = _vm.Sustain;
-                    NS_ReleaseBox.Value = _vm.Release;
+            // P4 / P8 — instrument-type-specific u32 pointers.
+            switch (tabPrefix)
+            {
+                case "N00": case "N08": case "N10": case "N18":
+                case "N03": case "N0B":
+                    SetNumericByName($"{tabPrefix}_P4_Box", _vm.WavePtr);
                     break;
-
-                case InstrumentCategory.MultiSample:
-                    KeyMapPtrBox.Value = _vm.KeyMapPtr;
-                    MS_SubInstrPtrBox.Value = _vm.SubInstrPtr;
+                case "N04": case "N0C":
+                    SetNumericByName($"{tabPrefix}_P4_Box", _vm.Period);
                     break;
-
-                case InstrumentCategory.Drum:
-                    DR_SubInstrPtrBox.Value = _vm.SubInstrPtr;
+                case "N40":
+                    SetNumericByName($"{tabPrefix}_P4_Box", _vm.KeyMapPtr);
+                    SetNumericByName($"{tabPrefix}_P8_Box", _vm.SubInstrPtr);
+                    break;
+                case "N80":
+                    SetNumericByName($"{tabPrefix}_P4_Box", _vm.SubInstrPtr);
                     break;
             }
+        }
+
+        void SetNumericByName(string name, decimal value)
+        {
+            var ctrl = this.FindControl<NumericUpDown>(name);
+            if (ctrl != null) ctrl.Value = value;
+        }
+
+        decimal? GetNumericByName(string name)
+        {
+            var ctrl = this.FindControl<NumericUpDown>(name);
+            return ctrl?.Value;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -147,49 +192,15 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.HeaderByte = (byte)(HeaderByteBox.Value ?? 0);
 
-                // Re-classify in case the user changed the header byte
+                // Re-classify in case the user changed the header byte.
                 var newCat = SongInstrumentViewModel.ClassifyType(_vm.HeaderByte);
                 _vm.Category = newCat;
                 _vm.TypeName = SongInstrumentViewModel.GetInstrumentTypeName(_vm.HeaderByte);
 
-                switch (newCat)
-                {
-                    case InstrumentCategory.DirectSound:
-                    case InstrumentCategory.WaveMemory:
-                        _vm.WavePtr = (uint)(WavePtrBox.Value ?? 0);
-                        _vm.Attack = (byte)(DS_AttackBox.Value ?? 0);
-                        _vm.Decay = (byte)(DS_DecayBox.Value ?? 0);
-                        _vm.Sustain = (byte)(DS_SustainBox.Value ?? 0);
-                        _vm.Release = (byte)(DS_ReleaseBox.Value ?? 0);
-                        break;
-
-                    case InstrumentCategory.SquareWave:
-                        _vm.Sweep = (byte)(SweepBox.Value ?? 0);
-                        _vm.DutyLen = (byte)(DutyLenBox.Value ?? 0);
-                        _vm.EnvStep = (byte)(EnvStepBox.Value ?? 0);
-                        _vm.Attack = (byte)(SQ_AttackBox.Value ?? 0);
-                        _vm.Decay = (byte)(SQ_DecayBox.Value ?? 0);
-                        _vm.Sustain = (byte)(SQ_SustainBox.Value ?? 0);
-                        _vm.Release = (byte)(SQ_ReleaseBox.Value ?? 0);
-                        break;
-
-                    case InstrumentCategory.Noise:
-                        _vm.Period = (byte)(PeriodBox.Value ?? 0);
-                        _vm.Attack = (byte)(NS_AttackBox.Value ?? 0);
-                        _vm.Decay = (byte)(NS_DecayBox.Value ?? 0);
-                        _vm.Sustain = (byte)(NS_SustainBox.Value ?? 0);
-                        _vm.Release = (byte)(NS_ReleaseBox.Value ?? 0);
-                        break;
-
-                    case InstrumentCategory.MultiSample:
-                        _vm.KeyMapPtr = (uint)(KeyMapPtrBox.Value ?? 0);
-                        _vm.SubInstrPtr = (uint)(MS_SubInstrPtrBox.Value ?? 0);
-                        break;
-
-                    case InstrumentCategory.Drum:
-                        _vm.SubInstrPtr = (uint)(DR_SubInstrPtrBox.Value ?? 0);
-                        break;
-                }
+                // Pull values from the active tab's per-byte controls.
+                string tabPrefix = GetActiveTabPrefix(_vm.HeaderByte);
+                if (!string.IsNullOrEmpty(tabPrefix))
+                    ReadTabFields(tabPrefix);
 
                 _vm.Write();
                 _undoService.Commit();
@@ -203,7 +214,66 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        static string GetActiveTabPrefix(byte headerByte)
+        {
+            switch (headerByte)
+            {
+                case 0x00: return "N00";
+                case 0x01: return "N01";
+                case 0x02: return "N02";
+                case 0x03: return "N03";
+                case 0x04: return "N04";
+                case 0x08: return "N08";
+                case 0x09: return "N09";
+                case 0x0A: return "N0A";
+                case 0x0B: return "N0B";
+                case 0x0C: return "N0C";
+                case 0x10: return "N10";
+                case 0x18: return "N18";
+                case 0x40: return "N40";
+                case 0x80: return "N80";
+                default: return string.Empty;
+            }
+        }
+
+        void ReadTabFields(string tabPrefix)
+        {
+            _vm.B1 = (byte)(GetNumericByName($"{tabPrefix}_B1_Box") ?? 0);
+            _vm.B2 = (byte)(GetNumericByName($"{tabPrefix}_B2_Box") ?? 0);
+            _vm.B3 = (byte)(GetNumericByName($"{tabPrefix}_B3_Box") ?? 0);
+            _vm.B4 = (byte)(GetNumericByName($"{tabPrefix}_B4_Box") ?? 0);
+            _vm.B5 = (byte)(GetNumericByName($"{tabPrefix}_B5_Box") ?? 0);
+            _vm.B6 = (byte)(GetNumericByName($"{tabPrefix}_B6_Box") ?? 0);
+            _vm.B7 = (byte)(GetNumericByName($"{tabPrefix}_B7_Box") ?? 0);
+            _vm.B8 = (byte)(GetNumericByName($"{tabPrefix}_B8_Box") ?? 0);
+            _vm.B9 = (byte)(GetNumericByName($"{tabPrefix}_B9_Box") ?? 0);
+            _vm.B10 = (byte)(GetNumericByName($"{tabPrefix}_B10_Box") ?? 0);
+            _vm.B11 = (byte)(GetNumericByName($"{tabPrefix}_B11_Box") ?? 0);
+
+            switch (tabPrefix)
+            {
+                case "N00": case "N08": case "N10": case "N18":
+                case "N03": case "N0B":
+                    _vm.WavePtr = (uint)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    break;
+                case "N04": case "N0C":
+                    _vm.Period = (byte)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    break;
+                case "N40":
+                    _vm.KeyMapPtr = (uint)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    _vm.SubInstrPtr = (uint)(GetNumericByName($"{tabPrefix}_P8_Box") ?? 0);
+                    break;
+                case "N80":
+                    _vm.SubInstrPtr = (uint)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    break;
+            }
+        }
+
+        public void NavigateTo(uint address)
+        {
+            if (address != 0) _vm.LoadEntry(address);
+            EntryList.SelectAddress(address);
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }

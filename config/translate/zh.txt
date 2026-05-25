@@ -23441,3 +23441,86 @@ VeinEffectID:
 
 :Open MapPointerNewPLIST popup (commit-back state-machine deferred per #386)
 打开 MapPointerNewPLIST 弹出窗口（提交回写状态机已根据 #386 推迟）
+:DirectSound
+DirectSound
+
+:DirectSound Reverse
+DirectSound 反向
+
+:DirectSound Fixed Freq
+DirectSound 固定频率
+
+:DirectSound Fixed Freq Reverse
+DirectSound 固定频率反向
+
+:SquareWave1
+方波1
+
+:SquareWave2
+方波2
+
+:SquareWave3
+方波3
+
+:SquareWave4
+方波4
+
+:Wave Memory
+波形存储
+
+:Wave Memory2
+波形存储2
+
+:Noise
+噪声
+
+:Noise2
+噪声2
+
+:Multi Sample
+多重采样
+
+:DrumPart
+鼓声部
+
+:sweep
+扫频
+
+:sweeptime
+扫频时间
+
+:sweepshift
+扫频位移
+
+:squarepattern
+方波模式
+
+:noisepattern
+噪声模式
+
+:Export Instrument
+导出乐器数据
+
+:Import Instrument
+导入乐器数据
+
+:More Info:
+详细信息:
+
+:SongData FingerPrint
+歌曲数据指纹
+
+:Pending Core extraction (list expansion is WinForms-only).
+等待 Core 抽离 (列表扩展为 WinForms 专用).
+
+:Pending Core extraction (instrument-set shell file dialog is WinForms-only).
+等待 Core 抽离 (乐器集 shell 文件对话框为 WinForms 专用).
+
+:Pending Core extraction (Sappy emulator preview is WinForms-only).
+等待 Core 抽离 (Sappy 模拟器预览为 WinForms 专用).
+
+:Pending Core extraction (wave Export shell dialog is WinForms-only).
+等待 Core 抽离 (波形导出 shell 对话框为 WinForms 专用).
+
+:Pending Core extraction (wave Import shell dialog is WinForms-only).
+等待 Core 抽离 (波形导入 shell 对话框为 WinForms 专用).

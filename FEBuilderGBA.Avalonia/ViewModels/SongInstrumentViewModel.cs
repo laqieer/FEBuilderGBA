@@ -21,8 +21,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// <summary>
     /// Unified ViewModel for all 6 GBA instrument types.
     /// Each instrument is a 12-byte block; up to 128 per instrument set.
+    ///
+    /// Marked `partial` so the navigation manifest sibling file
+    /// `SongInstrumentViewModel.NavigationTargets.cs` can declare the
+    /// `INavigationTargetSource` implementation in lockstep (#387 plan
+    /// review v2 concern #3).
     /// </summary>
-    public class SongInstrumentViewModel : ViewModelBase, IDataVerifiable
+    public partial class SongInstrumentViewModel : ViewModelBase, IDataVerifiable
     {
         const int BlockSize = 12;
         const int MaxInstruments = 128;
@@ -36,28 +41,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         InstrumentCategory _category;
         string _typeName = "";
 
+        // Raw per-byte access — every byte the WF designer exposes is
+        // user-editable (#387 plan review v2 concern #2). LoadEntry/Write
+        // route through these raw fields so we never drop bytes the user
+        // explicitly set (regression guard: Drum N80 B8..B11, SquareWave B4).
+        byte _b1, _b2, _b3, _b4, _b5, _b6, _b7;
+        byte _b8, _b9, _b10, _b11;
+
         // DirectSound / WaveMemory: u32 at offset 4 = wave pointer
         uint _wavePtr;
-
-        // SquareWave: bytes 1-3
-        byte _sweep;
-        byte _dutyLen;
-        byte _envStep;
-
-        // Noise: byte 4
-        byte _period;
 
         // MultiSample: u32 at offset 4 = key map ptr, u32 at offset 8 = sub-instr ptr
         uint _keyMapPtr;
         uint _subInstrPtr;
 
         // Drum: u32 at offset 4 = sub-instr ptr (reuses _subInstrPtr)
-
-        // ADSR: bytes 8-11 (DirectSound, SquareWave, WaveMemory, Noise)
-        byte _attack;
-        byte _decay;
-        byte _sustain;
-        byte _release;
 
         public uint BaseAddr { get => _baseAddr; set => SetField(ref _baseAddr, value); }
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
@@ -67,16 +65,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public InstrumentCategory Category { get => _category; set => SetField(ref _category, value); }
         public string TypeName { get => _typeName; set => SetField(ref _typeName, value); }
 
+        // Raw per-byte access (B1..B11) — see field declarations above.
+        // Each property setter routes through SetField so PropertyChanged
+        // events fire for UI binding.
+        public byte B1 { get => _b1; set => SetField(ref _b1, value); }
+        public byte B2 { get => _b2; set => SetField(ref _b2, value); }
+        public byte B3 { get => _b3; set => SetField(ref _b3, value); }
+        public byte B4 { get => _b4; set => SetField(ref _b4, value); }
+        public byte B5 { get => _b5; set => SetField(ref _b5, value); }
+        public byte B6 { get => _b6; set => SetField(ref _b6, value); }
+        public byte B7 { get => _b7; set => SetField(ref _b7, value); }
+        public byte B8 { get => _b8; set => SetField(ref _b8, value); }
+        public byte B9 { get => _b9; set => SetField(ref _b9, value); }
+        public byte B10 { get => _b10; set => SetField(ref _b10, value); }
+        public byte B11 { get => _b11; set => SetField(ref _b11, value); }
+
         // DirectSound / WaveMemory
         public uint WavePtr { get => _wavePtr; set => SetField(ref _wavePtr, value); }
 
-        // SquareWave
-        public byte Sweep { get => _sweep; set => SetField(ref _sweep, value); }
-        public byte DutyLen { get => _dutyLen; set => SetField(ref _dutyLen, value); }
-        public byte EnvStep { get => _envStep; set => SetField(ref _envStep, value); }
+        // SquareWave semantic aliases over the raw bytes (B1=Sweep,
+        // B2=DutyLen, B3=EnvStep).
+        public byte Sweep { get => _b1; set => B1 = value; }
+        public byte DutyLen { get => _b2; set => B2 = value; }
+        public byte EnvStep { get => _b3; set => B3 = value; }
 
-        // Noise
-        public byte Period { get => _period; set => SetField(ref _period, value); }
+        // Noise semantic alias (B4 = noisepattern / Period).
+        public byte Period { get => _b4; set => B4 = value; }
 
         // MultiSample
         public uint KeyMapPtr { get => _keyMapPtr; set => SetField(ref _keyMapPtr, value); }
@@ -84,11 +98,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // MultiSample / Drum
         public uint SubInstrPtr { get => _subInstrPtr; set => SetField(ref _subInstrPtr, value); }
 
-        // ADSR
-        public byte Attack { get => _attack; set => SetField(ref _attack, value); }
-        public byte Decay { get => _decay; set => SetField(ref _decay, value); }
-        public byte Sustain { get => _sustain; set => SetField(ref _sustain, value); }
-        public byte Release { get => _release; set => SetField(ref _release, value); }
+        // ADSR semantic aliases over the raw bytes (B8=Attack, B9=Decay,
+        // B10=Sustain, B11=Release).
+        public byte Attack { get => _b8; set => B8 = value; }
+        public byte Decay { get => _b9; set => B9 = value; }
+        public byte Sustain { get => _b10; set => B10 = value; }
+        public byte Release { get => _b11; set => B11 = value; }
 
         // Visibility helpers for the view
         public bool IsDirectSound => _category == InstrumentCategory.DirectSound;
@@ -291,61 +306,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Category = ClassifyType(HeaderByte);
             TypeName = GetInstrumentTypeName(HeaderByte);
 
-            // Reset all fields
-            WavePtr = 0; Sweep = 0; DutyLen = 0; EnvStep = 0;
-            Period = 0; KeyMapPtr = 0; SubInstrPtr = 0;
-            Attack = 0; Decay = 0; Sustain = 0; Release = 0;
+            // Reset pointer fields (raw bytes are repopulated below).
+            WavePtr = 0; KeyMapPtr = 0; SubInstrPtr = 0;
+            // Always load raw bytes so the per-tab UI surfaces every byte
+            // the WF designer exposes (#387 plan review v2 concern #2).
+            B1 = (byte)rom.u8(addr + 1);
+            B2 = (byte)rom.u8(addr + 2);
+            B3 = (byte)rom.u8(addr + 3);
+            B4 = (byte)rom.u8(addr + 4);
+            B5 = (byte)rom.u8(addr + 5);
+            B6 = (byte)rom.u8(addr + 6);
+            B7 = (byte)rom.u8(addr + 7);
+            B8 = (byte)rom.u8(addr + 8);
+            B9 = (byte)rom.u8(addr + 9);
+            B10 = (byte)rom.u8(addr + 10);
+            B11 = (byte)rom.u8(addr + 11);
 
             switch (Category)
             {
                 case InstrumentCategory.DirectSound:
-                    // B0=type, B1-B3=pad, P4=WavePtr(u32), B8=atk, B9=dec, B10=sus, B11=rel
-                    WavePtr = rom.u32(addr + 4);
-                    Attack = (byte)rom.u8(addr + 8);
-                    Decay = (byte)rom.u8(addr + 9);
-                    Sustain = (byte)rom.u8(addr + 10);
-                    Release = (byte)rom.u8(addr + 11);
-                    break;
-
-                case InstrumentCategory.SquareWave:
-                    // B0=type, B1=sweep, B2=dutyLen, B3=envStep, B4-B7=pad, B8-B11=ADSR
-                    Sweep = (byte)rom.u8(addr + 1);
-                    DutyLen = (byte)rom.u8(addr + 2);
-                    EnvStep = (byte)rom.u8(addr + 3);
-                    Attack = (byte)rom.u8(addr + 8);
-                    Decay = (byte)rom.u8(addr + 9);
-                    Sustain = (byte)rom.u8(addr + 10);
-                    Release = (byte)rom.u8(addr + 11);
-                    break;
-
                 case InstrumentCategory.WaveMemory:
-                    // B0=type, B1-B3=pad, P4=WavePtr(u32), B8-B11=ADSR
+                    // P4=WavePtr(u32)
                     WavePtr = rom.u32(addr + 4);
-                    Attack = (byte)rom.u8(addr + 8);
-                    Decay = (byte)rom.u8(addr + 9);
-                    Sustain = (byte)rom.u8(addr + 10);
-                    Release = (byte)rom.u8(addr + 11);
-                    break;
-
-                case InstrumentCategory.Noise:
-                    // B0=type, B1-B3=pad, B4=period, B5-B7=pad, B8-B11=ADSR
-                    Period = (byte)rom.u8(addr + 4);
-                    Attack = (byte)rom.u8(addr + 8);
-                    Decay = (byte)rom.u8(addr + 9);
-                    Sustain = (byte)rom.u8(addr + 10);
-                    Release = (byte)rom.u8(addr + 11);
                     break;
 
                 case InstrumentCategory.MultiSample:
-                    // B0=type, B1-B3=pad, P4=KeyMapPtr(u32), P8=SubInstrPtr(u32)
+                    // P4=KeyMapPtr(u32), P8=SubInstrPtr(u32)
                     KeyMapPtr = rom.u32(addr + 4);
                     SubInstrPtr = rom.u32(addr + 8);
                     break;
 
                 case InstrumentCategory.Drum:
-                    // B0=type, B1-B3=pad, P4=SubInstrPtr(u32), B8-B11=pad
+                    // P4=SubInstrPtr(u32)
                     SubInstrPtr = rom.u32(addr + 4);
                     break;
+
+                // SquareWave / Noise: raw bytes already loaded above
+                // (B1=Sweep, B2=DutyLen, B3=EnvStep, B4=Period/squarepattern).
             }
 
             // Notify visibility changes
@@ -373,71 +370,104 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             uint addr = CurrentAddr;
             rom.write_u8(addr, HeaderByte);
+            // Always write B1..B3 (#387 concern v2 #2 — preserve user edits).
+            rom.write_u8(addr + 1, B1);
+            rom.write_u8(addr + 2, B2);
+            rom.write_u8(addr + 3, B3);
 
             switch (Category)
             {
                 case InstrumentCategory.DirectSound:
-                    rom.write_u8(addr + 1, 0);
-                    rom.write_u8(addr + 2, 0);
-                    rom.write_u8(addr + 3, 0);
+                case InstrumentCategory.WaveMemory:
+                    // P4 = WavePtr (u32) overwrites raw B4..B7.
                     rom.write_u32(addr + 4, WavePtr);
-                    rom.write_u8(addr + 8, Attack);
-                    rom.write_u8(addr + 9, Decay);
-                    rom.write_u8(addr + 10, Sustain);
-                    rom.write_u8(addr + 11, Release);
+                    rom.write_u8(addr + 8, B8);
+                    rom.write_u8(addr + 9, B9);
+                    rom.write_u8(addr + 10, B10);
+                    rom.write_u8(addr + 11, B11);
                     break;
 
                 case InstrumentCategory.SquareWave:
-                    rom.write_u8(addr + 1, Sweep);
-                    rom.write_u8(addr + 2, DutyLen);
-                    rom.write_u8(addr + 3, EnvStep);
-                    rom.write_u32(addr + 4, 0);
-                    rom.write_u8(addr + 8, Attack);
-                    rom.write_u8(addr + 9, Decay);
-                    rom.write_u8(addr + 10, Sustain);
-                    rom.write_u8(addr + 11, Release);
-                    break;
-
-                case InstrumentCategory.WaveMemory:
-                    rom.write_u8(addr + 1, 0);
-                    rom.write_u8(addr + 2, 0);
-                    rom.write_u8(addr + 3, 0);
-                    rom.write_u32(addr + 4, WavePtr);
-                    rom.write_u8(addr + 8, Attack);
-                    rom.write_u8(addr + 9, Decay);
-                    rom.write_u8(addr + 10, Sustain);
-                    rom.write_u8(addr + 11, Release);
+                    // SquareWave exposes B4..B7 as raw bytes (squarepattern at B4).
+                    rom.write_u8(addr + 4, B4);
+                    rom.write_u8(addr + 5, B5);
+                    rom.write_u8(addr + 6, B6);
+                    rom.write_u8(addr + 7, B7);
+                    rom.write_u8(addr + 8, B8);
+                    rom.write_u8(addr + 9, B9);
+                    rom.write_u8(addr + 10, B10);
+                    rom.write_u8(addr + 11, B11);
                     break;
 
                 case InstrumentCategory.Noise:
-                    rom.write_u8(addr + 1, 0);
-                    rom.write_u8(addr + 2, 0);
-                    rom.write_u8(addr + 3, 0);
-                    rom.write_u8(addr + 4, Period);
-                    rom.write_u8(addr + 5, 0);
-                    rom.write_u8(addr + 6, 0);
-                    rom.write_u8(addr + 7, 0);
-                    rom.write_u8(addr + 8, Attack);
-                    rom.write_u8(addr + 9, Decay);
-                    rom.write_u8(addr + 10, Sustain);
-                    rom.write_u8(addr + 11, Release);
+                    // Noise: B4 = noisepattern, B5..B7 still raw.
+                    rom.write_u8(addr + 4, B4);
+                    rom.write_u8(addr + 5, B5);
+                    rom.write_u8(addr + 6, B6);
+                    rom.write_u8(addr + 7, B7);
+                    rom.write_u8(addr + 8, B8);
+                    rom.write_u8(addr + 9, B9);
+                    rom.write_u8(addr + 10, B10);
+                    rom.write_u8(addr + 11, B11);
                     break;
 
                 case InstrumentCategory.MultiSample:
-                    rom.write_u8(addr + 1, 0);
-                    rom.write_u8(addr + 2, 0);
-                    rom.write_u8(addr + 3, 0);
+                    // P4=KeyMapPtr(u32), P8=SubInstrPtr(u32). No B8..B11 user
+                    // fields per WF designer (N40 has no B8-B11 controls).
                     rom.write_u32(addr + 4, KeyMapPtr);
                     rom.write_u32(addr + 8, SubInstrPtr);
                     break;
 
                 case InstrumentCategory.Drum:
-                    rom.write_u8(addr + 1, 0);
-                    rom.write_u8(addr + 2, 0);
-                    rom.write_u8(addr + 3, 0);
+                    // P4=SubInstrPtr(u32). N80 EXPOSES B8..B11 (regression
+                    // guard for #387 plan review v2 concern #2 — the prior
+                    // VM wrote zeros to addr+8..11 and dropped user edits).
                     rom.write_u32(addr + 4, SubInstrPtr);
-                    rom.write_u32(addr + 8, 0);
+                    rom.write_u8(addr + 8, B8);
+                    rom.write_u8(addr + 9, B9);
+                    rom.write_u8(addr + 10, B10);
+                    rom.write_u8(addr + 11, B11);
                     break;
+
+                default:
+                    // Unknown: write all raw bytes verbatim so user edits
+                    // survive even when the category cannot be classified.
+                    rom.write_u8(addr + 4, B4);
+                    rom.write_u8(addr + 5, B5);
+                    rom.write_u8(addr + 6, B6);
+                    rom.write_u8(addr + 7, B7);
+                    rom.write_u8(addr + 8, B8);
+                    rom.write_u8(addr + 9, B9);
+                    rom.write_u8(addr + 10, B10);
+                    rom.write_u8(addr + 11, B11);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Map a header byte to the corresponding tab AutomationId
+        /// (#387 plan review v2 concern #1). Returns the empty string for
+        /// header bytes that do not map to a UNIONTAB_Nxx tab.
+        /// </summary>
+        public static string GetExpectedTabId(byte headerByte)
+        {
+            switch (headerByte)
+            {
+                case 0x00: return "SongInstrument_UNIONTAB_N00_Tab";
+                case 0x01: return "SongInstrument_UNIONTAB_N01_Tab";
+                case 0x02: return "SongInstrument_UNIONTAB_N02_Tab";
+                case 0x03: return "SongInstrument_UNIONTAB_N03_Tab";
+                case 0x04: return "SongInstrument_UNIONTAB_N04_Tab";
+                case 0x08: return "SongInstrument_UNIONTAB_N08_Tab";
+                case 0x09: return "SongInstrument_UNIONTAB_N09_Tab";
+                case 0x0A: return "SongInstrument_UNIONTAB_N0A_Tab";
+                case 0x0B: return "SongInstrument_UNIONTAB_N0B_Tab";
+                case 0x0C: return "SongInstrument_UNIONTAB_N0C_Tab";
+                case 0x10: return "SongInstrument_UNIONTAB_N10_Tab";
+                case 0x18: return "SongInstrument_UNIONTAB_N18_Tab";
+                case 0x40: return "SongInstrument_UNIONTAB_N40_Tab";
+                case 0x80: return "SongInstrument_UNIONTAB_N80_Tab";
+                default: return string.Empty;
             }
         }
 

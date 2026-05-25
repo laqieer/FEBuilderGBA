@@ -181,16 +181,20 @@ namespace FEBuilderGBA.Avalonia.Tests
         // SongInstrumentView: specific named controls verified
         // ===================================================================
 
+        // After PR #387 parity rebuild, the view exposes per-tab numeric
+        // inputs (Nxx_Bn_Box / Nxx_Pn_Box) instead of the old per-category
+        // named controls. Verify a representative selection from each
+        // tab — they all share the FormatString="0" requirement.
         [AvaloniaTheory]
         [InlineData("HeaderByteBox")]
-        [InlineData("WavePtrBox")]
-        [InlineData("SweepBox")]
-        [InlineData("DutyLenBox")]
-        [InlineData("EnvStepBox")]
-        [InlineData("PeriodBox")]
-        [InlineData("KeyMapPtrBox")]
-        [InlineData("MS_SubInstrPtrBox")]
-        [InlineData("DR_SubInstrPtrBox")]
+        [InlineData("N00_P4_Box")]   // DirectSound wave pointer (was WavePtrBox)
+        [InlineData("N01_B3_Box")]   // SquareWave1 sweep raw byte (was SweepBox)
+        [InlineData("N01_B2_Box")]   // SquareWave1 duty/len raw byte (was DutyLenBox)
+        [InlineData("N01_B1_Box")]   // SquareWave1 envelope step raw byte (was EnvStepBox)
+        [InlineData("N04_P4_Box")]   // Noise period field (was PeriodBox)
+        [InlineData("N40_P4_Box")]   // MultiSample key-map pointer (was KeyMapPtrBox)
+        [InlineData("N40_P8_Box")]   // MultiSample sub-instrument pointer
+        [InlineData("N80_P4_Box")]   // Drum sub-instrument pointer (was DR_SubInstrPtrBox)
         public void SongInstrumentView_NamedControl_HasDecimalFormat(string controlName)
         {
             var view = new SongInstrumentView();
