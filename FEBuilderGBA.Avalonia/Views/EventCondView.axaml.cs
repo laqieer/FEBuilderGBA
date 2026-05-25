@@ -41,6 +41,43 @@ namespace FEBuilderGBA.Avalonia.Views
             ExtraB13Box.Value ??= 0;
             ExtraB14Box.Value ??= 0;
             ExtraB15Box.Value ??= 0;
+
+            // Category-specific NUDs: initialise to 0 to satisfy UIVERIFY when
+            // their parent panels are hidden.
+            TurnStartBox.Value ??= 0;
+            TurnEndBox.Value ??= 0;
+            Unit1Box.Value ??= 0;
+            Unit2Box.Value ??= 0;
+            AdditionalDecisionBox.Value ??= 0;
+            DecisionFlagBox.Value ??= 0;
+            TalkAsmFuncBox.Value ??= 0;
+            ObjectXBox.Value ??= 0;
+            ObjectYBox.Value ??= 0;
+            EventTypeBox.Value ??= 0;
+            ChestItemBox.Value ??= 0;
+            GoldBox.Value ??= 0;
+            DurabilityBox.Value ??= 0;
+            ShopTypeBox.Value ??= 0;
+            ItemListBox.Value ??= 0;
+            RangeStartXBox.Value ??= 0;
+            RangeStartYBox.Value ??= 0;
+            RangeEndXBox.Value ??= 0;
+            RangeEndYBox.Value ??= 0;
+            AsmFuncBox.Value ??= 0;
+            TrapXBox.Value ??= 0;
+            TrapYBox.Value ??= 0;
+            BallistaTypeBox.Value ??= 0;
+            TrapDirectionBox.Value ??= 0;
+            TrapDurabilityBox.Value ??= 0;
+            DamageAmountBox.Value ??= 0;
+            GasDirectionBox.Value ??= 0;
+            DurationBox.Value ??= 0;
+            HatchingStartBox.Value ??= 0;
+            HatchingEndBox.Value ??= 0;
+            VeinEffectIdBox.Value ??= 0;
+            InitialTimerBox.Value ??= 0;
+            RepeatTimerBox.Value ??= 0;
+            TextIdBox.Value ??= 0;
         }
 
         void LoadAll()
@@ -87,6 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (ok)
                 {
                     ReloadRecordList();
+                    UpdateTopBar();
                 }
                 else
                 {
@@ -104,6 +142,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = false;
                 _vm.MarkClean();
             }
+        }
+
+        void UpdateTopBar()
+        {
+            TopAddrBox.Text = $"0x{_vm.EventDataAddr:X08}";
+            ReadCountBox.Value = EventCondViewModel.SlotDefs.Count;
         }
 
         void OnSlotChanged(object? sender, SelectionChangedEventArgs e)
@@ -190,8 +234,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateEditorUI()
         {
             AddrLabel.Text = $"0x{_vm.CondRecordAddr:X08}";
-            RecordSizeLabel.Text = $"{_vm.CondRecordSize} bytes";
+            // Display the EFFECTIVE per-record stride so FE7 TURN type-1 rows
+            // show "12 bytes" not "16 bytes" (Copilot round 7 #2).
+            RecordSizeLabel.Text = $"{_vm.EffectiveRecordSize} bytes";
             CondTypeNameLabel.Text = _vm.CondTypeName;
+            BlockSizeBox.Text = $"0x{_vm.EffectiveRecordSize:X02}";
+            SelectedAddrBox.Text = $"0x{_vm.CondRecordAddr:X08}";
+            CommentBox.Text = _vm.Comment ?? "";
 
             // Update field labels
             var labels = _vm.GetFieldLabels();
@@ -230,21 +279,36 @@ namespace FEBuilderGBA.Avalonia.Views
                 ExtraB10Box.Value = _vm.ExtraB10;
                 ExtraB11Box.Value = _vm.ExtraB11;
 
-                if (_vm.CondRecordSize <= 6)
+                if (_vm.CondRecordSize == 4)
+                {
+                    // TUTORIAL records: 4 bytes — single u32 (TUTORIAL_P0). Only
+                    // the Event Pointer field is meaningful; everything else is
+                    // hidden so the user can't accidentally edit type/sub-type
+                    // bytes (Copilot CLI review round 2 #2).
+                    FlagIdBox.Maximum = 65535;
+                    EventPtrBox.Maximum = 4294967295;
+                    // Round 6 fix: keep decimal format strings (Avalonia
+                    // NumericUpDown throws on hex specifiers with decimal? values).
+                    EventPtrBox.FormatString = "0";
+                    SetFieldVisibility(false, false, false, true, false, false, false, false);
+                }
+                else if (_vm.CondRecordSize <= 6)
                 {
                     // TRAP: 6-byte records — show type, X(B1), Y(B2/FlagId), subtype(B3/EventPtr), B4, B5
                     FlagIdBox.Maximum = 255;
                     EventPtrBox.Maximum = 255;
-                    FlagIdBox.FormatString = "X2";
-                    EventPtrBox.FormatString = "X2";
+                    // Round 6 fix: decimal format strings (no hex specifiers).
+                    FlagIdBox.FormatString = "0";
+                    EventPtrBox.FormatString = "0";
                     SetFieldVisibility(true, true, true, true, true, true, false, false);
                 }
                 else
                 {
                     FlagIdBox.Maximum = 65535;
                     EventPtrBox.Maximum = 4294967295;
-                    FlagIdBox.FormatString = "X4";
-                    EventPtrBox.FormatString = "X8";
+                    // Round 6 fix: decimal format strings (no hex specifiers).
+                    FlagIdBox.FormatString = "0";
+                    EventPtrBox.FormatString = "0";
                     bool show12 = _vm.CondRecordSize >= 12;
                     SetFieldVisibility(true, true, true, true, show12, show12, show12, show12);
                 }
@@ -260,11 +324,191 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
 
+            // Update category-specific sub-panels
+            UpdateCategoryPanels();
+
             // Name hints
             UpdateNameHints();
 
             // Raw hex dump
             UpdateRawHex();
+        }
+
+        void UpdateCategoryPanels()
+        {
+            // Hide all sub-panels first.
+            TurnPanel.IsVisible = false;
+            TalkPanel.IsVisible = false;
+            ObjectPanel.IsVisible = false;
+            AlwaysPanel.IsVisible = false;
+            TrapPanel.IsVisible = false;
+            TutorialPanel.IsVisible = false;
+
+            int slotIdx = _vm.SelectedSlotIndex;
+            if (slotIdx < 0 || slotIdx >= EventCondViewModel.SlotDefs.Count) return;
+
+            var cat = EventCondViewModel.SlotDefs[slotIdx].Category;
+
+            // When a category sub-panel is visible, hide the corresponding
+            // generic ExtraB8-B11 controls so the user can't edit the same
+            // bytes in two places (Copilot bot review on round-3 fixes #6).
+            // The category panel is the canonical edit surface for the
+            // category-specific bytes.
+            bool hideGenericExtras = cat == CondCategory.TURN
+                || cat == CondCategory.TALK
+                || cat == CondCategory.OBJECT
+                || cat == CondCategory.ALWAYS
+                || cat == CondCategory.TRAP;
+            if (hideGenericExtras)
+            {
+                ExtraB8Box.IsVisible = false;  LblB8.IsVisible = false;
+                ExtraB9Box.IsVisible = false;  LblB9.IsVisible = false;
+                ExtraB10Box.IsVisible = false; LblB10.IsVisible = false;
+                ExtraB11Box.IsVisible = false; LblB11.IsVisible = false;
+            }
+
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    TurnPanel.IsVisible = true;
+                    TurnStartBox.Value = _vm.TurnStart;
+                    TurnEndBox.Value = _vm.TurnEnd;
+                    PhaseCombo.SelectedIndex = _vm.Phase switch { 0x40 => 1, 0x80 => 2, 0xC0 => 3, _ => 0 };
+                    break;
+                case CondCategory.TALK:
+                    TalkPanel.IsVisible = true;
+                    Unit1Box.Value = _vm.Unit1;
+                    Unit2Box.Value = _vm.Unit2;
+                    Unit1NameLabel.Text = NameResolver.GetUnitName(_vm.Unit1);
+                    Unit2NameLabel.Text = NameResolver.GetUnitName(_vm.Unit2);
+                    AdditionalDecisionBox.Value = _vm.AdditionalDecision;
+                    DecisionFlagBox.Value = _vm.DecisionFlag;
+                    TalkAsmFuncBox.Value = _vm.AsmFunc;
+                    // Round 9 fix: subtype-aware visibility. TALK subtypes
+                    // have different layouts:
+                    //   N03 (0x03): Unit 1/2 + AdditionalDecision (W12) + DecisionFlag (W14)
+                    //   N04 (0x04): Unit 1/2 + ASM pointer (P12)
+                    //   N0D (0x0D, FE6): ASM pointer (P8) — NO Unit fields
+                    bool isTalkN0D = _vm.CondType == 0x0D;
+                    bool isTalkN04 = _vm.CondType == 0x04;
+                    bool isTalkN03 = _vm.CondType == 0x03;
+                    // Unit 1/2 hidden for N0D (FE6 ASM Talk has no Unit fields).
+                    Unit1Box.IsVisible = !isTalkN0D;
+                    Unit2Box.IsVisible = !isTalkN0D;
+                    Unit1NameLabel.IsVisible = !isTalkN0D;
+                    Unit2NameLabel.IsVisible = !isTalkN0D;
+                    // AdditionalDecision/DecisionFlag only for N03.
+                    AdditionalDecisionBox.IsVisible = isTalkN03;
+                    DecisionFlagBox.IsVisible = isTalkN03;
+                    // ASM Function only for N04/N0D (the ASM-talk subtypes).
+                    TalkAsmFuncBox.IsVisible = isTalkN04 || isTalkN0D;
+                    break;
+                case CondCategory.OBJECT:
+                    ObjectPanel.IsVisible = true;
+                    ObjectSubHeaderLabel.Text = _vm.CondType switch
+                    {
+                        0x05 => "Seize Point / House (制圧ポイントと民家)",
+                        0x06 => "Visit Village (訪問村)",
+                        0x07 => "Chest (宝箱)",
+                        0x08 => "Door (扉)",
+                        0x0A => "Shop (店)",
+                        _ => $"Unknown OBJECT type (0x{_vm.CondType:X02})",
+                    };
+                    ObjectXBox.Value = _vm.X1;
+                    ObjectYBox.Value = _vm.Y1;
+                    EventTypeBox.Value = _vm.EventType;
+                    ChestItemBox.Value = _vm.ItemId;
+                    ChestItemNameLabel.Text = NameResolver.GetItemName(_vm.ItemId);
+                    GoldBox.Value = _vm.Gold;
+                    DurabilityBox.Value = _vm.Durability;
+                    ShopTypeBox.Value = _vm.ShopType;
+                    ItemListBox.Value = _vm.EventPtr;
+                    break;
+                case CondCategory.ALWAYS:
+                    AlwaysPanel.IsVisible = true;
+                    RangeStartXBox.Value = _vm.X1;
+                    RangeStartYBox.Value = _vm.Y1;
+                    RangeEndXBox.Value = _vm.X2;
+                    RangeEndYBox.Value = _vm.Y2;
+                    AsmFuncBox.Value = _vm.AsmFunc;
+                    break;
+                case CondCategory.TRAP:
+                    TrapPanel.IsVisible = true;
+                    TrapSubHeaderLabel.Text = _vm.CondType switch
+                    {
+                        0x01 => "Ballista Placement (アーチ配置)",
+                        0x04 => "Damage Floor (トラップ床)",
+                        0x05 => "Poison Gas (毒ガス)",
+                        0x06 => "Dragon Vein",
+                        0x07 => "Arrow of God (神の矢)",
+                        0x08 => "Fire (炎)",
+                        0x0B => "Mine (地雷)",
+                        0x0C => "Gorgon Egg (ゴーゴンの卵)",
+                        _ => $"Unknown TRAP type (0x{_vm.CondType:X02})",
+                    };
+                    TrapXBox.Value = _vm.X1;
+                    TrapYBox.Value = _vm.Y1;
+                    // BallistaType / VeinEffect are the B3 sub-type byte
+                    // (TrapSubType, not _vm.SubType which holds B1 = X for
+                    // 6-byte TRAP records). Copilot CLI review round 3 #2.
+                    BallistaTypeBox.Value = _vm.TrapSubType;
+                    TrapDirectionBox.Value = _vm.TrapDirection;
+                    TrapDurabilityBox.Value = _vm.Durability;
+                    DamageAmountBox.Value = _vm.DamageAmount;
+                    GasDirectionBox.Value = _vm.GasDirection;
+                    DurationBox.Value = _vm.Duration;
+                    HatchingStartBox.Value = _vm.HatchingStart;
+                    HatchingEndBox.Value = _vm.HatchingEnd;
+                    VeinEffectIdBox.Value = _vm.TrapSubType;
+                    // Round 8 fix: hide TRAP aliases that aren't active for the
+                    // current trap type so the user can't edit a B4/B5 alias
+                    // whose value will be silently discarded by Compose.
+                    // Active per type:
+                    //   0x04 Damage Floor: DamageAmount + Durability
+                    //   0x05 Poison Gas:   GasDirection + Durability
+                    //   0x06 Dragon Vein:  VeinEffectId (B3 only) + Direction + Durability
+                    //   0x08 Fire:         Direction + Duration
+                    //   0x0C Gorgon Egg:   HatchingStart + HatchingEnd
+                    //   0x0B Mine:         ItemId (B3) + Direction + Durability
+                    //   other (Ballista):  BallistaType (B3) + Direction + Durability
+                    bool isDmg = _vm.CondType == 0x04;
+                    bool isGas = _vm.CondType == 0x05;
+                    bool isFire = _vm.CondType == 0x08;
+                    bool isEgg = _vm.CondType == 0x0C;
+                    bool isVein = _vm.CondType == 0x06;
+                    DamageAmountBox.IsVisible = isDmg;
+                    GasDirectionBox.IsVisible = isGas;
+                    DurationBox.IsVisible = isFire;
+                    HatchingStartBox.IsVisible = isEgg;
+                    HatchingEndBox.IsVisible = isEgg;
+                    // Direction + Durability remain visible for non-alias types.
+                    TrapDirectionBox.IsVisible = !isDmg && !isGas && !isEgg;
+                    TrapDurabilityBox.IsVisible = !isFire && !isEgg;
+                    BallistaTypeBox.IsVisible = !isVein;
+                    VeinEffectIdBox.IsVisible = isVein;
+                    break;
+                case CondCategory.TUTORIAL:
+                    // TUTORIAL records are a single 4-byte u32 (TUTORIAL_P0).
+                    // The TutorialPanel sub-fields (InitialTimer / RepeatTimer
+                    // / TextId) are visual hints only — they do NOT round-trip
+                    // because the WF record has no separate timer fields. We
+                    // surface the raw u32 as InitialTimer when value==1, and
+                    // as the pointer offset when isPointer (purely decorative).
+                    TutorialPanel.IsVisible = true;
+                    if (_vm.EventPtr == 1)
+                    {
+                        InitialTimerBox.Value = 1; // canonical "blank" marker
+                        RepeatTimerBox.Value = 0;
+                        TextIdBox.Value = 0;
+                    }
+                    else
+                    {
+                        InitialTimerBox.Value = 0;
+                        RepeatTimerBox.Value = 0;
+                        TextIdBox.Value = 0;
+                    }
+                    break;
+            }
         }
 
         void SetFieldVisibility(bool b0, bool b1, bool b2b3, bool b4b7, bool b8, bool b9, bool b10, bool b11)
@@ -363,7 +607,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             uint addr = _vm.CondRecordAddr;
-            uint size = _vm.IsPointerSlot ? 4 : _vm.CondRecordSize;
+            // Use EffectiveRecordSize so FE7 TURN type-1 rows display only
+            // their actual 12-byte stride, not 16 (Copilot round 7 #2).
+            uint size = _vm.IsPointerSlot ? 4 : _vm.EffectiveRecordSize;
             if (addr + size > (uint)rom.Data.Length)
             {
                 RawHexLabel.Text = "(out of range)";
@@ -387,6 +633,15 @@ namespace FEBuilderGBA.Avalonia.Views
             CondTypeNameLabel.Text = "";
             NameHintLabel.Text = "";
             RawHexLabel.Text = "";
+            BlockSizeBox.Text = "";
+            SelectedAddrBox.Text = "";
+            CommentBox.Text = "";
+            TurnPanel.IsVisible = false;
+            TalkPanel.IsVisible = false;
+            ObjectPanel.IsVisible = false;
+            AlwaysPanel.IsVisible = false;
+            TrapPanel.IsVisible = false;
+            TutorialPanel.IsVisible = false;
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -418,7 +673,14 @@ namespace FEBuilderGBA.Avalonia.Views
                         _vm.ExtraB14 = (uint)(ExtraB14Box.Value ?? 0);
                         _vm.ExtraB15 = (uint)(ExtraB15Box.Value ?? 0);
                     }
+
+                    // Also flush category-specific composite values into the VM
+                    // properties so ComposeCategoryFields() picks them up.
+                    UpdateVmCategoryProperties();
                 }
+
+                // Comment round-trip (also requires undo scope).
+                _vm.UpdateComment(CommentBox.Text ?? "");
 
                 _vm.WriteCondRecord();
                 _undoService.Commit();
@@ -435,6 +697,219 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("EventCondView.Write_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Pull category-specific values from the visible sub-panel NUDs into the
+        /// VM properties. Called before WriteCondRecord so ComposeCategoryFields
+        /// has the latest user edits.
+        /// </summary>
+        void UpdateVmCategoryProperties()
+        {
+            int slotIdx = _vm.SelectedSlotIndex;
+            if (slotIdx < 0 || slotIdx >= EventCondViewModel.SlotDefs.Count) return;
+
+            var cat = EventCondViewModel.SlotDefs[slotIdx].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    _vm.TurnStart = (uint)(TurnStartBox.Value ?? 0);
+                    _vm.TurnEnd = (uint)(TurnEndBox.Value ?? 0);
+                    _vm.Phase = PhaseCombo.SelectedIndex switch { 1 => 0x40, 2 => 0x80, 3 => 0xC0, _ => 0u };
+                    break;
+                case CondCategory.TALK:
+                    // Round 9 fix: only copy back values for VISIBLE controls.
+                    // Hidden controls are not part of the current TALK subtype's
+                    // layout, and copying them would leak stale state into bytes
+                    // the Compose path doesn't touch.
+                    if (Unit1Box.IsVisible) _vm.Unit1 = (uint)(Unit1Box.Value ?? 0);
+                    if (Unit2Box.IsVisible) _vm.Unit2 = (uint)(Unit2Box.Value ?? 0);
+                    if (AdditionalDecisionBox.IsVisible)
+                        _vm.AdditionalDecision = (uint)(AdditionalDecisionBox.Value ?? 0);
+                    if (DecisionFlagBox.IsVisible)
+                        _vm.DecisionFlag = (uint)(DecisionFlagBox.Value ?? 0);
+                    if (TalkAsmFuncBox.IsVisible)
+                        _vm.AsmFunc = (uint)(TalkAsmFuncBox.Value ?? 0);
+                    break;
+                case CondCategory.OBJECT:
+                    _vm.X1 = (uint)(ObjectXBox.Value ?? 0);
+                    _vm.Y1 = (uint)(ObjectYBox.Value ?? 0);
+                    _vm.EventType = (uint)(EventTypeBox.Value ?? 0);
+                    _vm.ItemId = (uint)(ChestItemBox.Value ?? 0);
+                    _vm.Gold = (uint)(GoldBox.Value ?? 0);
+                    _vm.Durability = (uint)(DurabilityBox.Value ?? 0);
+                    _vm.ShopType = (uint)(ShopTypeBox.Value ?? 0);
+                    // OBJECT N0A Shop: ItemList u32 maps to _vm.EventPtr (B4-B7
+                    // of the record). Round-trip the displayed ItemList value
+                    // back so shop edits are persisted (Copilot CLI review
+                    // round 3 #3). Only relevant when CondType == 0x0A; for
+                    // other OBJECT types the generic EventPtrBox handles the
+                    // pointer/chest packing.
+                    if (_vm.CondType == 0x0A)
+                    {
+                        _vm.EventPtr = (uint)(ItemListBox.Value ?? 0);
+                    }
+                    break;
+                case CondCategory.ALWAYS:
+                    _vm.X1 = (uint)(RangeStartXBox.Value ?? 0);
+                    _vm.Y1 = (uint)(RangeStartYBox.Value ?? 0);
+                    _vm.X2 = (uint)(RangeEndXBox.Value ?? 0);
+                    _vm.Y2 = (uint)(RangeEndYBox.Value ?? 0);
+                    _vm.AsmFunc = (uint)(AsmFuncBox.Value ?? 0);
+                    break;
+                case CondCategory.TRAP:
+                    _vm.X1 = (uint)(TrapXBox.Value ?? 0);
+                    _vm.Y1 = (uint)(TrapYBox.Value ?? 0);
+                    // BallistaType / VeinEffect both bind to TrapSubType (B3 byte),
+                    // but only one is active at a time depending on TRAP type:
+                    //   0x06 (DragonVein) — VeinEffectId is the user's source.
+                    //   0x01 (Ballista) and others — BallistaType is the source.
+                    // Round 6 fix: select source by CondType so edits to the
+                    // visible control round-trip to B3 instead of being silently
+                    // overwritten by the other (stale) control's value.
+                    _vm.TrapSubType = _vm.CondType == 0x06
+                        ? (uint)(VeinEffectIdBox.Value ?? 0)
+                        : (uint)(BallistaTypeBox.Value ?? 0);
+                    _vm.TrapDirection = (uint)(TrapDirectionBox.Value ?? 0);
+                    _vm.Durability = (uint)(TrapDurabilityBox.Value ?? 0);
+                    _vm.DamageAmount = (uint)(DamageAmountBox.Value ?? 0);
+                    _vm.GasDirection = (uint)(GasDirectionBox.Value ?? 0);
+                    _vm.Duration = (uint)(DurationBox.Value ?? 0);
+                    _vm.HatchingStart = (uint)(HatchingStartBox.Value ?? 0);
+                    _vm.HatchingEnd = (uint)(HatchingEndBox.Value ?? 0);
+                    break;
+                case CondCategory.TUTORIAL:
+                    // TUTORIAL is a 4-byte u32 record. Only EventPtr is
+                    // meaningful (already pulled from EventPtrBox above).
+                    // The tutorial sub-panel InitialTimer/RepeatTimer/TextId
+                    // boxes are visual hints only — they do NOT round-trip
+                    // to the ROM record because the WF TUTORIAL_P0 is a
+                    // single u32, not byte fields.
+                    break;
+            }
+        }
+
+        void ExpandList_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("Expand Event Condition List");
+            try
+            {
+                uint newPtr = _vm.ExpandRecordList();
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                if (newPtr != 0)
+                {
+                    ReloadRecordList();
+                    CoreState.Services.ShowInfo($"Record list expanded. New base pointer: 0x{newPtr:X08}");
+                }
+                else
+                {
+                    CoreState.Services.ShowInfo("Cannot expand this slot type (pointer-only or no allocator wired).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.ExpandList_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("Allocate New Event");
+            try
+            {
+                uint newPtr = _vm.AllocateNewEvent();
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                if (newPtr != 0)
+                {
+                    EventPtrBox.Value = newPtr;
+                    _vm.EventPtr = newPtr;
+                    CoreState.Services.ShowInfo($"New event allocated at: 0x{newPtr:X08}");
+                }
+                else
+                {
+                    CoreState.Services.ShowInfo("Cannot allocate new event (no allocator wired).");
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.NewAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void PreciseAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            // Opens the MapPointerNewPLISTPopupView. The commit-back state-machine
+            // (writing the selected PLIST back to the current map's event PLIST)
+            // is documented as KnownGap in #386 — the popup opens so users see
+            // the new-allocation UI, but the WF-equivalent state restoration is
+            // deferred. The undo scope still wraps the open in case the popup
+            // itself decides to mutate anything before close.
+            _undoService.Begin("Open PLIST Allocation Popup");
+            try
+            {
+                WindowManager.Instance.Navigate<MapPointerNewPLISTPopupView>(0);
+                _undoService.Commit();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("EventCondView.PreciseAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void JumpEvent_Click(object? sender, RoutedEventArgs e)
+        {
+            // WF EventCondForm.cs line 2215: open EventScriptForm at the event pointer.
+            uint ptr = (uint)(EventPtrBox.Value ?? 0);
+            if (!U.isPointer(ptr))
+            {
+                CoreState.Services.ShowInfo("Event pointer is not a valid ROM address.");
+                return;
+            }
+            uint addr = U.toOffset(ptr);
+            WindowManager.Instance.Navigate<EventScriptView>(addr);
+        }
+
+        void JumpEventUnit_Click(object? sender, RoutedEventArgs e)
+        {
+            // WF EventCondForm.cs lines 2219-2237: dispatch per ROM version.
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            uint ptr = (uint)(EventPtrBox.Value ?? 0);
+            if (!U.isPointer(ptr))
+            {
+                CoreState.Services.ShowInfo("Event pointer is not a valid ROM address.");
+                return;
+            }
+            uint addr = U.toOffset(ptr);
+
+            int ver = rom.RomInfo.version;
+            if (ver >= 8)
+                WindowManager.Instance.Navigate<EventUnitView>(addr);
+            else if (ver >= 7)
+                WindowManager.Instance.Navigate<EventUnitFE7View>(addr);
+            else
+                WindowManager.Instance.Navigate<EventUnitFE6View>(addr);
+        }
+
+        void Reload_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ReloadRecordList();
+                UpdateTopBar();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventCondView.Reload_Click failed: {0}", ex.Message);
             }
         }
 

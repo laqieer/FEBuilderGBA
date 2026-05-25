@@ -23315,3 +23315,129 @@ BGM
 
 :Map Action Animation #{0:X2}
 地图动作动画 #{0:X2}
+
+:Turn Condition
+回合条件
+
+:Turn Start:
+开始回合:
+
+:Turn End:
+结束回合:
+
+:Phase:
+阶段:
+
+:Pre-turn Specification
+回合前指定
+
+:Talk Condition
+对话条件
+
+:Unit 1 (Source):
+单位1 (对话源):
+
+:Unit 2 (Target):
+单位2 (对话目标):
+
+:Additional Decision:
+追加判定:
+
+:Decision Flag:
+判定标志:
+
+:ASM Function:
+判定ASM函数:
+
+:Map Object
+地图对象
+
+:Coordinates:
+坐标:
+
+:Event Type:
+事件类型:
+
+:Chest Item:
+宝箱内容:
+
+:Gold:
+金币:
+
+:Durability:
+耐久:
+
+:Shop Type:
+商店类型:
+
+:Item List:
+商店商品:
+
+:Always / Range / ASM Condition
+常时/范围/ASM条件
+
+:Range Start:
+范围开始:
+
+:Range End:
+范围结束:
+
+:Trap
+陷阱
+
+:Placement:
+放置:
+
+:Ballista Type:
+弩车类型:
+
+:Direction:
+方向:
+
+:Damage Amount:
+伤害量:
+
+:Gas Direction:
+毒气方向:
+
+:Duration:
+持续时间:
+
+:Hatching Start:
+孵化开始:
+
+:Hatching End:
+孵化结束:
+
+:Vein Effect ID:
+VeinEffectID:
+
+:Tutorial
+教程
+
+:Initial Timer:
+初始计时器:
+
+:Repeat Timer:
+重复计时器:
+
+:Open in Event Editor
+在事件编辑器中打开
+
+:Open in Unit Placement Editor
+在单位放置编辑器中打开
+
+:Cross-Editor Jumps
+跨编辑器跳转
+
+:Open the selected start/end event in the Event Editor
+在事件编辑器中打开所选的开始/结束事件
+
+:Open the selected placement in the Unit Placement Editor
+在单位放置编辑器中打开所选的放置信息
+
+:Allocate a new event block and assign it to the current slot
+分配一个新事件块并将其分配给当前槽
+
+:Open MapPointerNewPLIST popup (commit-back state-machine deferred per #386)
+打开 MapPointerNewPLIST 弹出窗口（提交回写状态机已根据 #386 推迟）

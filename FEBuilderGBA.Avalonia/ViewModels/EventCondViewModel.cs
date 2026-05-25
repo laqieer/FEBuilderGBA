@@ -25,7 +25,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string Name { get; set; } = "";
     }
 
-    public class EventCondViewModel : ViewModelBase, IDataVerifiable
+    public partial class EventCondViewModel : ViewModelBase, IDataVerifiable
     {
         uint _mapSettingAddr;
         uint _eventDataAddr;     // base of the event data block (array of pointers)
@@ -42,6 +42,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _extraB8, _extraB9, _extraB10, _extraB11;
         // FE7 extended (bytes 12-15)
         uint _extraB12, _extraB13, _extraB14, _extraB15;
+
+        // Top read-config bar
+        uint _topAddress;
+        uint _readCount;
+
+        // Comment (round-trip via CoreState.CommentCache)
+        string _comment = "";
+
+        // Category-specific composite views (derived from B8/B9/B10/B11 etc.,
+        // exposed as named properties for direct binding in category panels).
+        // These are computed on demand from the generic ExtraB* properties via
+        // GetCategoryFields() / SetCategoryFields(), so storing them as
+        // independent properties keeps the binding layer clean and matches
+        // the EventUnitFE7 pattern for sub-field decomposition.
+        uint _turnStart, _turnEnd, _phase;
+        uint _unit1, _unit2;
+        uint _x1, _y1, _x2, _y2;
+        uint _asmFunc;
+        uint _itemId, _gold, _durability;
+        uint _trapDirection;
+        uint _initialTimer, _repeatTimer;
+        uint _shopType;
+        uint _eventType;
+        uint _damageAmount;
+        uint _gasDirection;
+        uint _duration;
+        uint _hatchingStart, _hatchingEnd;
+        uint _additionalDecision;
+        uint _decisionFlag;
+        // TRAP B3 subtype (Ballista type / Vein effect / Item id) — mapped
+        // to the byte at offset +3 in the 6-byte TRAP record. Distinct from
+        // _subType which holds the B1 (X coordinate) byte for TRAP.
+        uint _trapSubType;
 
         string _condTypeName = "";
         string _slotInfo = "";
@@ -75,6 +108,62 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string SlotInfo { get => _slotInfo; set => SetField(ref _slotInfo, value); }
         public bool IsFE7Extended { get => _isFE7Extended; set => SetField(ref _isFE7Extended, value); }
         public bool IsPointerSlot { get => _isPointerSlot; set => SetField(ref _isPointerSlot, value); }
+
+        /// <summary>
+        /// Effective byte stride of the currently-loaded record. For FE7 TURN
+        /// type==1 rows this is 12 (vs CondRecordSize=16 for the slot); for
+        /// everything else it equals CondRecordSize. Used by the View's raw
+        /// hex dump and by GetRawRomReport so they don't read past the
+        /// record into the next one (Copilot round 7 #2).
+        /// </summary>
+        public uint EffectiveRecordSize
+        {
+            get
+            {
+                if (_selectedSlotIndex >= 0 && _selectedSlotIndex < _slotDefs.Count)
+                {
+                    var cat = _slotDefs[_selectedSlotIndex].Category;
+                    if (cat == CondCategory.TURN && _condRecordSize == 16 && _condType == 1)
+                        return 12;
+                }
+                return _condRecordSize;
+            }
+        }
+
+        // Top read-config bar properties
+        public uint TopAddress { get => _topAddress; set => SetField(ref _topAddress, value); }
+        public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
+
+        // Comment property (round-trip via CommentCache)
+        public string Comment { get => _comment; set => SetField(ref _comment, value); }
+
+        // Category-specific properties (derived/composite views of the record bytes)
+        public uint TurnStart { get => _turnStart; set => SetField(ref _turnStart, value); }
+        public uint TurnEnd { get => _turnEnd; set => SetField(ref _turnEnd, value); }
+        public uint Phase { get => _phase; set => SetField(ref _phase, value); }
+        public uint Unit1 { get => _unit1; set => SetField(ref _unit1, value); }
+        public uint Unit2 { get => _unit2; set => SetField(ref _unit2, value); }
+        public uint X1 { get => _x1; set => SetField(ref _x1, value); }
+        public uint Y1 { get => _y1; set => SetField(ref _y1, value); }
+        public uint X2 { get => _x2; set => SetField(ref _x2, value); }
+        public uint Y2 { get => _y2; set => SetField(ref _y2, value); }
+        public uint AsmFunc { get => _asmFunc; set => SetField(ref _asmFunc, value); }
+        public uint ItemId { get => _itemId; set => SetField(ref _itemId, value); }
+        public uint Gold { get => _gold; set => SetField(ref _gold, value); }
+        public uint Durability { get => _durability; set => SetField(ref _durability, value); }
+        public uint TrapDirection { get => _trapDirection; set => SetField(ref _trapDirection, value); }
+        public uint InitialTimer { get => _initialTimer; set => SetField(ref _initialTimer, value); }
+        public uint RepeatTimer { get => _repeatTimer; set => SetField(ref _repeatTimer, value); }
+        public uint ShopType { get => _shopType; set => SetField(ref _shopType, value); }
+        public uint EventType { get => _eventType; set => SetField(ref _eventType, value); }
+        public uint DamageAmount { get => _damageAmount; set => SetField(ref _damageAmount, value); }
+        public uint GasDirection { get => _gasDirection; set => SetField(ref _gasDirection, value); }
+        public uint Duration { get => _duration; set => SetField(ref _duration, value); }
+        public uint HatchingStart { get => _hatchingStart; set => SetField(ref _hatchingStart, value); }
+        public uint HatchingEnd { get => _hatchingEnd; set => SetField(ref _hatchingEnd, value); }
+        public uint AdditionalDecision { get => _additionalDecision; set => SetField(ref _additionalDecision, value); }
+        public uint DecisionFlag { get => _decisionFlag; set => SetField(ref _decisionFlag, value); }
+        public uint TrapSubType { get => _trapSubType; set => SetField(ref _trapSubType, value); }
 
         public static IReadOnlyList<CondSlotDef> SlotDefs => _slotDefs;
 
@@ -280,67 +369,136 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(baseAddr))
                 return result;
 
-            // Enumerate records until terminator (first byte == 0)
+            // Enumerate records. For FE7 TURN records the stride is variable:
+            // type==1 advances 12 bytes (FE6/8-shape), other types advance
+            // eventcond_tern_size (which is 16 on FE7). Mirror the WinForms
+            // rule by computing per-record stride. For other categories the
+            // recordSize is uniform.
+            uint addrCursor = baseAddr;
             for (uint i = 0; i < 256; i++)
             {
-                uint addr = baseAddr + i * recordSize;
-                if (addr + recordSize > (uint)rom.Data.Length)
+                if (addrCursor + recordSize > (uint)rom.Data.Length)
                     break;
 
-                // Terminator check: first byte == 0 for most types, u32 == 0 for standard
-                if (recordSize <= 6)
+                // Terminator check (must come FIRST so we don't read past list).
+                // Order: TUTORIAL u32-based stop > standard u32 stop > byte-only.
+                if (slotDef.Category == CondCategory.TUTORIAL)
                 {
-                    if (rom.u8(addr) == 0) break;
-                }
-                else if (slotDef.Category == CondCategory.TUTORIAL)
-                {
-                    uint v = rom.u32(addr);
+                    // TUTORIAL: 4-byte u32. Stop on u32 != 1 AND NOT isPointer
+                    // (per WF InitTutorial). MUST check this BEFORE the
+                    // byte-only branch — a valid pointer like 0x08000100 has
+                    // low byte 0x00 which would falsely terminate a byte scan.
+                    uint v = rom.u32(addrCursor);
                     if (v != 1 && !U.isPointer(v)) break;
+                }
+                else if (recordSize <= 6)
+                {
+                    // TRAP-style 6-byte records: stop on first-byte == 0.
+                    if (rom.u8(addrCursor) == 0) break;
                 }
                 else
                 {
-                    if (rom.u32(addr) == 0) break;
+                    // Standard records: stop on u32 == 0 (covers 12-byte +
+                    // 16-byte FE7 records uniformly because the first u32 is
+                    // type/sub/flag composite).
+                    if (rom.u32(addrCursor) == 0) break;
                 }
 
-                // Build a display name
-                byte type = (byte)rom.u8(addr);
-                string typeName = GetCondTypeName(type);
-                string name = $"{i:D2}: [{type:X02}] {typeName}";
+                // Build a display name. For TUTORIAL the row has no meaningful
+                // type byte — it's a single u32 (either 1 or an event pointer),
+                // so GetCondTypeName(type) would mislabel rows (Copilot bot
+                // review on round-3). Show the u32 value directly instead.
+                byte type = (byte)rom.u8(addrCursor);
+                string name;
+                if (slotDef.Category == CondCategory.TUTORIAL)
+                {
+                    uint v = rom.u32(addrCursor);
+                    string vDesc = v == 1 ? "(blank)" : $"-> 0x{U.toOffset(v):X06}";
+                    name = $"{i:D2}: TUTORIAL u32=0x{v:X08} {vDesc}";
+                }
+                else
+                {
+                    string typeName = GetCondTypeName(type);
+                    name = $"{i:D2}: [{type:X02}] {typeName}";
+                }
 
                 // Add extra info based on category
                 if (slotDef.Category == CondCategory.TURN)
                 {
-                    uint turnStart = rom.u8(addr + 8);
-                    uint turnEnd = rom.u8(addr + 9);
-                    uint phase = rom.u8(addr + 10);
+                    uint turnStart = rom.u8(addrCursor + 8);
+                    uint turnEnd = rom.u8(addrCursor + 9);
+                    uint phase = rom.u8(addrCursor + 10);
                     string phaseName = phase == 0 ? "Player" : phase == 0x40 ? "Ally" : phase == 0x80 ? "Enemy" : $"0x{phase:X02}";
                     name += $" Turn {turnStart}-{turnEnd} ({phaseName})";
                 }
                 else if (slotDef.Category == CondCategory.TALK)
                 {
-                    uint unit1 = rom.u8(addr + 8);
-                    uint unit2 = rom.u8(addr + 9);
+                    uint unit1 = rom.u8(addrCursor + 8);
+                    uint unit2 = rom.u8(addrCursor + 9);
                     string u1Name = NameResolver.GetUnitName(unit1);
                     string u2Name = NameResolver.GetUnitName(unit2);
                     name += $" {u1Name} <-> {u2Name}";
                 }
                 else if (slotDef.Category == CondCategory.OBJECT)
                 {
-                    uint x = rom.u8(addr + 8);
-                    uint y = rom.u8(addr + 9);
+                    uint x = rom.u8(addrCursor + 8);
+                    uint y = rom.u8(addrCursor + 9);
                     name += $" ({x},{y})";
                 }
                 else if (slotDef.Category == CondCategory.TRAP)
                 {
-                    uint x = rom.u8(addr + 1);
-                    uint y = rom.u8(addr + 2);
+                    uint x = rom.u8(addrCursor + 1);
+                    uint y = rom.u8(addrCursor + 2);
                     name += $" ({x},{y})";
                 }
 
-                result.Add(new AddrResult(addr, name, i));
+                result.Add(new AddrResult(addrCursor, name, i));
+
+                // Advance cursor by per-record stride (handles FE7 variable-
+                // length TURN records: type==1 -> 12 bytes; else recordSize).
+                uint stride = GetRecordStrideAt(slotDef.Category, recordSize, type);
+                addrCursor += stride;
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// WF GetDefaultEventType: the type byte to initialize a freshly
+        /// allocated record with so it's visible (non-terminator) and
+        /// semantically valid. Mirrors WF EventCondForm.GetDefaultEventType().
+        /// TURN=2, TALK=3 (FE6=4), OBJECT=5, ALWAYS=1, TRAP=1.
+        /// (Copilot round 5 review #3.)
+        /// </summary>
+        static uint GetDefaultEventType(CondCategory cat, ROM rom)
+        {
+            switch (cat)
+            {
+                case CondCategory.TURN: return 2;
+                case CondCategory.TALK:
+                    return (rom?.RomInfo?.version == 6) ? 4u : 3u;
+                case CondCategory.OBJECT: return 5;
+                case CondCategory.ALWAYS: return 1;
+                case CondCategory.TRAP: return 1;
+                default: return 1;
+            }
+        }
+
+        /// <summary>
+        /// Per-record stride for variable-length record types. For FE7 TURN
+        /// records, type==1 advances 12 bytes (FE6/8-shape) while other
+        /// types advance the full recordSize (16). For other categories,
+        /// stride equals recordSize uniformly.
+        /// </summary>
+        static uint GetRecordStrideAt(CondCategory cat, uint recordSize, byte type)
+        {
+            // FE7-extended TURN records: when recordSize is 16 and the type
+            // byte is 1, the row is the smaller 12-byte shape (mirrors WF
+            // EventCondInnerControl per-type stride). All other rows in an
+            // FE7 TURN list use the full 16-byte stride.
+            if (cat == CondCategory.TURN && recordSize == 16 && type == 1)
+                return 12;
+            return recordSize;
         }
 
         /// <summary>
@@ -364,13 +522,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
                 CondTypeName = "Event Pointer";
                 CanWrite = true;
+
+                // Reset composite fields + load comment so the pointer-only
+                // path doesn't show stale data from a previously-selected
+                // record (Copilot bot review on round-3).
+                ClearCompositeFields();
+                Comment = CoreState.CommentCache?.At(addr) ?? "";
+                TopAddress = EventDataAddr;
+                ReadCount = (uint)_slotDefs.Count;
                 return;
             }
 
             if (addr + CondRecordSize > (uint)rom.Data.Length)
                 return;
 
-            if (CondRecordSize <= 6)
+            if (CondRecordSize == 4)
+            {
+                // TUTORIAL records: 4 bytes — single u32. WinForms reads this
+                // as `rom.u32(addr + 0)` (TUTORIAL_P0). Stop condition is u32 != 1
+                // and NOT isPointer. We surface the u32 as EventPtr so the user
+                // can edit either the special-value 1 or a pointer.
+                CondType = 0;
+                SubType = 0;
+                FlagId = 0;
+                EventPtr = rom.u32(addr + 0);
+                ExtraB8 = ExtraB9 = ExtraB10 = ExtraB11 = 0;
+                ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
+            }
+            else if (CondRecordSize <= 6)
             {
                 // TRAP records: 6 bytes — B0=type, B1=X, B2=Y, B3=subtype, B4-B5=extra
                 CondType = rom.u8(addr + 0);
@@ -402,7 +581,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ExtraB8 = ExtraB9 = ExtraB10 = ExtraB11 = 0;
                 }
 
-                if (CondRecordSize >= 16)
+                // FE7 variable-length TURN: type==1 rows are 12 bytes, not 16,
+                // so B12-B15 belong to the NEXT record. Reading them would
+                // display bytes from the neighbor and tempt the user to edit
+                // values that are silently discarded by the write guard.
+                // Skip the B12-B15 read when in this case (Copilot bot review
+                // on round-3). Note: we only have access to the per-record
+                // type byte here (CondType which was just set), and the
+                // selected slot category — sufficient to detect the FE7
+                // type-1 case.
+                bool isFe7TurnType1 = (CondRecordSize == 16) &&
+                                      _selectedSlotIndex >= 0 &&
+                                      _selectedSlotIndex < _slotDefs.Count &&
+                                      _slotDefs[_selectedSlotIndex].Category == CondCategory.TURN &&
+                                      CondType == 1;
+
+                if (CondRecordSize >= 16 && !isFe7TurnType1)
                 {
                     ExtraB12 = rom.u8(addr + 12);
                     ExtraB13 = rom.u8(addr + 13);
@@ -413,19 +607,335 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
                 }
+
+                // Recompute IsFE7Extended per selected record so it doesn't
+                // stick after a FE7 TURN type-1 row is selected (Copilot
+                // round 7 #1). The View uses this flag to show B12-B15 and
+                // the Write_Click handler only copies those controls back
+                // when true — so a stale `false` from a previous type-1
+                // selection would hide valid B12-B15 fields for a later
+                // 16-byte FE7 TURN row.
+                IsFE7Extended = (CondRecordSize >= 16) && !isFe7TurnType1;
             }
 
             CondTypeName = GetCondTypeName((byte)CondType);
             CanWrite = true;
+
+            // Decompose category-specific composite views from the generic bytes.
+            DecomposeCategoryFields();
+
+            // Top read-config bar reflects the current event-data context.
+            TopAddress = EventDataAddr;
+            ReadCount = (uint)_slotDefs.Count;
+
+            // Pull the comment from the cache (round-trip via HeadlessEtcCache).
+            Comment = CoreState.CommentCache?.At(addr) ?? "";
         }
 
         /// <summary>
-        /// Write the current condition record back to ROM.
+        /// Decompose the generic ExtraB* bytes into category-specific composite
+        /// views (TurnStart, Unit1, X/Y, etc.) so the per-category sub-panels
+        /// can bind directly.
+        /// </summary>
+        /// <summary>
+        /// Zero all composite category-specific fields. Called from the
+        /// pointer-only LoadCondRecord path so the previous record's TURN/
+        /// TALK/OBJECT/etc values don't leak into the UI when switching to
+        /// a pointer-only slot (Copilot bot review on round-3).
+        /// </summary>
+        void ClearCompositeFields()
+        {
+            TurnStart = TurnEnd = Phase = 0;
+            Unit1 = Unit2 = 0;
+            X1 = Y1 = X2 = Y2 = 0;
+            AsmFunc = 0;
+            ItemId = Gold = Durability = 0;
+            TrapSubType = 0;
+            TrapDirection = 0;
+            InitialTimer = RepeatTimer = 0;
+            ShopType = 0;
+            EventType = 0;
+            DamageAmount = 0;
+            GasDirection = 0;
+            Duration = 0;
+            HatchingStart = HatchingEnd = 0;
+            AdditionalDecision = 0;
+            DecisionFlag = 0;
+        }
+
+        void DecomposeCategoryFields()
+        {
+            if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count)
+                return;
+
+            var cat = _slotDefs[_selectedSlotIndex].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    TurnStart = _extraB8;
+                    TurnEnd = _extraB9;
+                    Phase = _extraB10;
+                    break;
+                case CondCategory.TALK:
+                    Unit1 = _extraB8;
+                    Unit2 = _extraB9;
+                    // WF byte layout per InputFormRef control naming
+                    // (W = u16, P = u32) — corrected from Copilot round 5:
+                    //  - TALK_N03_W12 (u16 @ +12) = AdditionalDecision
+                    //  - TALK_N03_W14 (u16 @ +14) = DecisionFlag
+                    //  - TALK_N04_P12 (u32 @ +12) = ASM pointer (FE7/8, size 16)
+                    //  - TALKFE6_N0D_P8 (u32 @ +8) = ASM pointer (FE6, size 12)
+                    // In our generic byte storage:
+                    //  - W12 (u16) = _extraB12 | (_extraB13 << 8)
+                    //  - W14 (u16) = _extraB14 | (_extraB15 << 8)
+                    //  - P12 (u32) = _extraB12 | (_extraB13 << 8) | (_extraB14 << 16) | (_extraB15 << 24)
+                    //  - P8  (u32) = _extraB8  | (_extraB9 << 8)  | (_extraB10 << 16) | (_extraB11 << 24)
+                    if (_condType == 0x04 && _isFE7Extended)
+                    {
+                        // FE7/8 TALK N04 ASM Talk: ASM pointer at +12 (u32).
+                        AsmFunc = _extraB12 | (_extraB13 << 8) | (_extraB14 << 16) | (_extraB15 << 24);
+                        AdditionalDecision = 0;
+                        DecisionFlag = 0;
+                    }
+                    else if (_condType == 0x0D)
+                    {
+                        // FE6 TALK N0D ASM Talk (size 12): ASM pointer at +8 (u32).
+                        AsmFunc = _extraB8 | (_extraB9 << 8) | (_extraB10 << 16) | (_extraB11 << 24);
+                        AdditionalDecision = 0;
+                        DecisionFlag = 0;
+                    }
+                    else if (_isFE7Extended)
+                    {
+                        // FE7/8 TALK N03: W12 (u16) = AdditionalDecision, W14 (u16) = DecisionFlag.
+                        AdditionalDecision = _extraB12 | (_extraB13 << 8);
+                        DecisionFlag = _extraB14 | (_extraB15 << 8);
+                        AsmFunc = 0;
+                    }
+                    else
+                    {
+                        AdditionalDecision = 0;
+                        DecisionFlag = 0;
+                        AsmFunc = 0;
+                    }
+                    break;
+                case CondCategory.OBJECT:
+                    X1 = _extraB8;
+                    Y1 = _extraB9;
+                    EventType = _extraB10;
+                    // For N07 (chest): WinForms layout is B4=item, B5=durability,
+                    // W6=gold (u16). The full u32 at offset +4 (which we
+                    // store as _eventPtr) packs them as:
+                    //   item    (B4) = _eventPtr & 0xFF
+                    //   durability (B5) = (_eventPtr >> 8) & 0xFF
+                    //   gold    (W6) = (_eventPtr >> 16) & 0xFFFF
+                    ItemId = _condType == 0x07 ? _eventPtr & 0xFF : 0;
+                    Durability = _condType == 0x07 ? (_eventPtr >> 8) & 0xFF : 0;
+                    Gold = _condType == 0x07 ? (_eventPtr >> 16) & 0xFFFF : 0;
+                    ShopType = _condType == 0x0A ? _extraB10 : 0;
+                    break;
+                case CondCategory.ALWAYS:
+                    // WF ALWAYS layout: P4 = event pointer (at +4, _eventPtr),
+                    // P8 = ASM pointer (at +8, u32 from B8-B11). For range
+                    // conditions (CondType 0x0B), B8-B11 hold X1/Y1/X2/Y2.
+                    // Round 5 fix: distinguish ASM (0x0D/0x0E) from range (0x0B).
+                    if (_condType == 0x0D || _condType == 0x0E)
+                    {
+                        // ASM condition: B8-B11 = u32 ASM pointer (P8).
+                        AsmFunc = _extraB8 | (_extraB9 << 8) | (_extraB10 << 16) | (_extraB11 << 24);
+                        X1 = Y1 = X2 = Y2 = 0;
+                    }
+                    else
+                    {
+                        // Range condition (0x0B) or always (0x01): B8-B11 = X1/Y1/X2/Y2.
+                        X1 = _extraB8;
+                        Y1 = _extraB9;
+                        X2 = _extraB10;
+                        Y2 = _extraB11;
+                        AsmFunc = 0;
+                    }
+                    break;
+                case CondCategory.TRAP:
+                    // TRAP records: 6 bytes — B0=type, B1=X, B2=Y, B3=sub, B4-5=extra.
+                    // Per LoadCondRecord: _subType=B1, _flagId=B2, _eventPtr=B3,
+                    // _extraB8=B4, _extraB9=B5.
+                    X1 = _subType;
+                    Y1 = _flagId;
+                    TrapSubType = _eventPtr;    // B3 = Ballista type / Vein effect / Item id
+                    TrapDirection = _extraB8;
+                    Durability = _extraB9;
+                    // Trap-type-specific: damage/gas/duration/hatching share the
+                    // B4-B5 bytes; mapped per-category for binding clarity.
+                    DamageAmount = _condType == 0x04 ? _extraB8 : 0;
+                    GasDirection = _condType == 0x05 ? _extraB8 : 0;
+                    Duration = _condType == 0x08 ? _extraB9 : 0;
+                    HatchingStart = _condType == 0x0C ? _extraB8 : 0;
+                    HatchingEnd = _condType == 0x0C ? _extraB9 : 0;
+                    ItemId = (_condType == 0x0B) ? _eventPtr & 0xFF : 0;
+                    break;
+                case CondCategory.TUTORIAL:
+                    // TUTORIAL: single u32 (TUTORIAL_P0) = either 1 or an event pointer.
+                    // No InitialTimer / RepeatTimer fields — these are WF
+                    // EventCondInnerControl artifacts that don't exist in the
+                    // 4-byte record. We expose the raw u32 via EventPtr; the
+                    // tutorial sub-panel labels InitialTimer/RepeatTimer are
+                    // out-of-scope visual hints (mirroring the WF tab title
+                    // structure, not the byte layout).
+                    InitialTimer = 0;
+                    RepeatTimer = 0;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Compose category-specific values back into generic bytes before write.
+        /// </summary>
+        void ComposeCategoryFields()
+        {
+            if (_selectedSlotIndex < 0 || _selectedSlotIndex >= _slotDefs.Count)
+                return;
+
+            var cat = _slotDefs[_selectedSlotIndex].Category;
+            switch (cat)
+            {
+                case CondCategory.TURN:
+                    _extraB8 = TurnStart;
+                    _extraB9 = TurnEnd;
+                    _extraB10 = Phase;
+                    break;
+                case CondCategory.TALK:
+                    _extraB8 = Unit1;
+                    _extraB9 = Unit2;
+                    // Round 5 fix: WF byte layout per control naming —
+                    //   TALK_N04_P12 (u32 @ +12, FE7/8 size 16) = ASM pointer
+                    //   TALKFE6_N0D_P8 (u32 @ +8, FE6 size 12) = ASM pointer
+                    //   TALK_N03_W12 (u16 @ +12) = AdditionalDecision
+                    //   TALK_N03_W14 (u16 @ +14) = DecisionFlag
+                    if (_condType == 0x04 && _isFE7Extended)
+                    {
+                        // FE7/8 TALK N04 ASM Talk: write ASM pointer to B12-B15 (P12).
+                        _extraB12 = AsmFunc & 0xFF;
+                        _extraB13 = (AsmFunc >> 8) & 0xFF;
+                        _extraB14 = (AsmFunc >> 16) & 0xFF;
+                        _extraB15 = (AsmFunc >> 24) & 0xFF;
+                    }
+                    else if (_condType == 0x0D)
+                    {
+                        // FE6 TALK N0D ASM Talk: write ASM pointer to B8-B11 (P8).
+                        // Unit1/Unit2 above already overwrote B8/B9 — that's
+                        // wrong for N0D. Re-write the full u32.
+                        _extraB8 = AsmFunc & 0xFF;
+                        _extraB9 = (AsmFunc >> 8) & 0xFF;
+                        _extraB10 = (AsmFunc >> 16) & 0xFF;
+                        _extraB11 = (AsmFunc >> 24) & 0xFF;
+                    }
+                    else if (_isFE7Extended)
+                    {
+                        // FE7/8 TALK N03 (or other type): W12/W14 split.
+                        _extraB12 = AdditionalDecision & 0xFF;
+                        _extraB13 = (AdditionalDecision >> 8) & 0xFF;
+                        _extraB14 = DecisionFlag & 0xFF;
+                        _extraB15 = (DecisionFlag >> 8) & 0xFF;
+                    }
+                    break;
+                case CondCategory.OBJECT:
+                    _extraB8 = X1;
+                    _extraB9 = Y1;
+                    _extraB10 = EventType;
+                    if (_condType == 0x07)
+                    {
+                        // Chest: B4=item, B5=durability, W6=gold (u16).
+                        _eventPtr = (ItemId & 0xFF) | ((Durability & 0xFF) << 8) | ((Gold & 0xFFFF) << 16);
+                    }
+                    else if (_condType == 0x0A)
+                    {
+                        // OBJECT N0A (Shop): B10 = shop type, _eventPtr = item
+                        // list pointer (u32 at offset +4). Round-trip the
+                        // displayed ItemList value (mirrored to EventPtr in
+                        // the View) back into _eventPtr (Copilot CLI review
+                        // round 3 #3). The View binds ItemListBox to
+                        // _vm.EventPtr directly, so this branch sets
+                        // _eventPtr explicitly to make the round-trip
+                        // unambiguous even if the View later wires
+                        // ItemListBox to a dedicated field.
+                        _extraB10 = ShopType;
+                        // _eventPtr already mirrors ItemListBox via the
+                        // generic EventPtr path; nothing more needed here.
+                    }
+                    break;
+                case CondCategory.ALWAYS:
+                    // Round 5 fix: P4 is event pointer (stays in _eventPtr),
+                    // P8 is ASM pointer (B8-B11 u32) for N0D/N0E. For range
+                    // (N0B = 0x0B) or always (N01 = 0x01), B8-B11 = X1/Y1/X2/Y2.
+                    if (_condType == 0x0D || _condType == 0x0E)
+                    {
+                        // ASM condition: B8-B11 = u32 ASM pointer (P8).
+                        // DO NOT overwrite _eventPtr (P4 = event pointer stays).
+                        _extraB8 = AsmFunc & 0xFF;
+                        _extraB9 = (AsmFunc >> 8) & 0xFF;
+                        _extraB10 = (AsmFunc >> 16) & 0xFF;
+                        _extraB11 = (AsmFunc >> 24) & 0xFF;
+                    }
+                    else
+                    {
+                        // Range / always condition: B8-B11 = X1/Y1/X2/Y2.
+                        _extraB8 = X1;
+                        _extraB9 = Y1;
+                        _extraB10 = X2;
+                        _extraB11 = Y2;
+                    }
+                    break;
+                case CondCategory.TRAP:
+                    _subType = X1;
+                    _flagId = Y1;
+                    // B3 byte: Ballista type / Vein effect / Item id —
+                    // TrapSubType holds B3 for 6-byte TRAP records.
+                    _eventPtr = TrapSubType;
+                    // Round 8 fix: pick exactly ONE canonical source for B4/B5
+                    // per trap type so type-specific aliases (DamageAmount /
+                    // GasDirection / Duration / Hatching*) don't clobber edits
+                    // to generic Direction/Durability and vice-versa.
+                    // - 0x04 (Damage Floor): B4 = DamageAmount, B5 = (durability unused).
+                    // - 0x05 (Poison Gas):    B4 = GasDirection, B5 = (unused).
+                    // - 0x08 (Fire):          B4 = (unused),     B5 = Duration.
+                    // - 0x0C (Gorgon Egg):    B4 = HatchingStart, B5 = HatchingEnd.
+                    // - 0x0B (Mine):          B3 = ItemId (overrides TrapSubType).
+                    // - other (Ballista/etc): B4 = TrapDirection, B5 = Durability.
+                    if (_condType == 0x04) { _extraB8 = DamageAmount; _extraB9 = Durability; }
+                    else if (_condType == 0x05) { _extraB8 = GasDirection; _extraB9 = Durability; }
+                    else if (_condType == 0x08) { _extraB8 = TrapDirection; _extraB9 = Duration; }
+                    else if (_condType == 0x0C) { _extraB8 = HatchingStart; _extraB9 = HatchingEnd; }
+                    else if (_condType == 0x0B) { _eventPtr = ItemId; _extraB8 = TrapDirection; _extraB9 = Durability; }
+                    else { _extraB8 = TrapDirection; _extraB9 = Durability; }
+                    break;
+                case CondCategory.TUTORIAL:
+                    // TUTORIAL: single u32 (TUTORIAL_P0). The raw u32 is in
+                    // _eventPtr; nothing else to compose (CondType/SubType
+                    // are not stored for TUTORIAL records).
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Write the current condition record back to ROM. Requires an active
+        /// undo scope (via UndoService.Begin or ROM.BeginUndoScope); throws
+        /// InvalidOperationException otherwise. The fail-fast enforcement
+        /// guarantees no ROM mutation slips through without undo tracking.
         /// </summary>
         public void WriteCondRecord()
         {
             ROM rom = CoreState.ROM;
             if (rom == null || CondRecordAddr == 0) return;
+
+            // Undo enforcement: throw if no ambient scope is active.
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.WriteCondRecord requires an active undo scope " +
+                    "(call UndoService.Begin or ROM.BeginUndoScope before invoking).");
+            }
+
+            // Compose category-specific composite views back into generic bytes.
+            ComposeCategoryFields();
 
             if (IsPointerSlot)
             {
@@ -435,7 +945,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (CondRecordAddr + CondRecordSize > (uint)rom.Data.Length) return;
 
-            if (CondRecordSize <= 6)
+            if (CondRecordSize == 4)
+            {
+                // TUTORIAL records: 4 bytes — single u32 (TUTORIAL_P0). Mirrors
+                // WinForms `rom.write_u32(addr, value)` where value is either
+                // the special-value 1 or an event pointer. Must NOT write bytes
+                // 4-5 because that would corrupt the next record.
+                rom.write_u32(CondRecordAddr + 0, EventPtr);
+            }
+            else if (CondRecordSize <= 6)
             {
                 // TRAP layout: B0=type, B1=X, B2=Y, B3=subtype, B4-B5=extra
                 rom.write_u8(CondRecordAddr + 0, (byte)CondType);
@@ -461,7 +979,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u8(CondRecordAddr + 11, (byte)ExtraB11);
                 }
 
-                if (CondRecordSize >= 16)
+                // FE7 variable-length TURN records: type==1 advances 12 bytes,
+                // other types advance the full 16. Writing B12-B15 for a
+                // type==1 row would clobber the next record's first 4 bytes
+                // (Copilot CLI review round 2 #3).
+                bool isFe7TurnType1 = (CondRecordSize == 16) &&
+                                       _selectedSlotIndex >= 0 &&
+                                       _selectedSlotIndex < _slotDefs.Count &&
+                                       _slotDefs[_selectedSlotIndex].Category == CondCategory.TURN &&
+                                       CondType == 1;
+
+                if (CondRecordSize >= 16 && !isFe7TurnType1)
                 {
                     rom.write_u8(CondRecordAddr + 12, (byte)ExtraB12);
                     rom.write_u8(CondRecordAddr + 13, (byte)ExtraB13);
@@ -469,6 +997,204 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u8(CondRecordAddr + 15, (byte)ExtraB15);
                 }
             }
+        }
+
+        /// <summary>
+        /// Expand the record list for the currently-selected slot. Returns
+        /// the new base pointer of the expanded list (in GBA-pointer form).
+        /// Requires an active undo scope; throws otherwise.
+        /// </summary>
+        public uint ExpandRecordList()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || _eventDataAddr == 0 || _selectedSlotIndex < 0 ||
+                _selectedSlotIndex >= _slotDefs.Count) return 0;
+
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.ExpandRecordList requires an active undo scope.");
+            }
+
+            var slotDef = _slotDefs[_selectedSlotIndex];
+            uint recordSize = GetRecordSize(slotDef.Category);
+
+            // Pointer-only slots can't be expanded — they're a single pointer.
+            if (IsCategoryPointerOnly(slotDef.Category))
+                return 0;
+
+            // Read the current list pointer.
+            uint slotPointerAddr = _eventDataAddr + (uint)(_selectedSlotIndex * 4);
+            uint rawPtr = rom.u32(slotPointerAddr);
+            if (!U.isPointer(rawPtr)) return 0;
+
+            uint baseAddr = U.toOffset(rawPtr);
+
+            // Walk the existing list using the SAME cursor/stride logic as
+            // LoadConditionRecords so FE7 TURN type-1 (12-byte) records are
+            // handled correctly. Collect (sourceAddr, stride) tuples so we
+            // can copy bytes faithfully when building the new buffer
+            // (Copilot CLI review round 3 #1).
+            var records = new List<(uint srcAddr, uint stride)>();
+            uint addrCursor = baseAddr;
+            for (uint i = 0; i < 256; i++)
+            {
+                // Must check terminator BEFORE indexing or reading type byte.
+                // Use stride==recordSize as the minimum bounds-check size; if
+                // FE7 type-1 sets stride=12 we still bounds-checked at least
+                // that much.
+                if (addrCursor + recordSize > (uint)rom.Data.Length) break;
+
+                if (slotDef.Category == CondCategory.TUTORIAL)
+                {
+                    uint v = rom.u32(addrCursor);
+                    if (v != 1 && !U.isPointer(v)) break;
+                }
+                else if (recordSize <= 6)
+                {
+                    if (rom.u8(addrCursor) == 0) break;
+                }
+                else
+                {
+                    if (rom.u32(addrCursor) == 0) break;
+                }
+
+                byte type = (byte)rom.u8(addrCursor);
+                uint stride = GetRecordStrideAt(slotDef.Category, recordSize, type);
+                records.Add((addrCursor, stride));
+                addrCursor += stride;
+            }
+
+            // Sum the strides to get the total byte length of existing records.
+            uint existingBytes = 0;
+            foreach (var r in records) existingBytes += r.stride;
+
+            // The new slot uses the full recordSize (16 for FE7 TURN — we
+            // don't insert a type-1 row by default; user can change the type
+            // after expansion).
+            uint newSlotSize = recordSize;
+            // Terminator at the end uses recordSize as well.
+            uint terminatorSize = recordSize;
+            uint totalSize = existingBytes + newSlotSize + terminatorSize;
+            byte[] buffer = new byte[totalSize];
+
+            // Copy existing records using per-record stride.
+            uint dstOffset = 0;
+            foreach (var r in records)
+            {
+                for (uint j = 0; j < r.stride; j++)
+                {
+                    if (r.srcAddr + j < (uint)rom.Data.Length)
+                        buffer[dstOffset + j] = (byte)rom.u8(r.srcAddr + j);
+                }
+                dstOffset += r.stride;
+            }
+
+            // Initialize the NEW slot with WF-equivalent default type byte
+            // (Copilot round 5 #3). WF GetDefaultEventType: TURN=2, TALK=3
+            // (FE6=4), OBJECT=5, ALWAYS=1, TRAP=1. TUTORIAL = u32 1.
+            uint newSlotOffset = dstOffset;
+            if (slotDef.Category == CondCategory.TUTORIAL)
+            {
+                // u32 = 1 (canonical "blank" marker per WF
+                // AddressListExpandsEventTutorial).
+                buffer[newSlotOffset + 0] = 1;
+                buffer[newSlotOffset + 1] = 0;
+                buffer[newSlotOffset + 2] = 0;
+                buffer[newSlotOffset + 3] = 0;
+            }
+            else
+            {
+                buffer[newSlotOffset + 0] = (byte)GetDefaultEventType(slotDef.Category, rom);
+            }
+
+            // Terminator stays zeroed at offset = newSlotOffset + newSlotSize.
+
+            // Append the buffer to ROM end (mirrors WF InputFormRef.AppendBinaryData).
+            uint newAddr = AppendBinaryDataHeadless(rom, buffer);
+            if (newAddr == U.NOT_FOUND) return 0;
+
+            // Update the slot pointer to point at the new list.
+            rom.write_u32(slotPointerAddr, U.toPointer(newAddr));
+
+            return U.toPointer(newAddr);
+        }
+
+        /// <summary>
+        /// Allocate a new event block (stub: just an END byte at the freshly
+        /// appended address). Returns the new event pointer (in GBA-pointer
+        /// form) so the caller can write it into the relevant slot.
+        /// Requires an active undo scope; throws otherwise.
+        /// </summary>
+        public uint AllocateNewEvent()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return 0;
+
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.AllocateNewEvent requires an active undo scope.");
+            }
+
+            // Allocate a minimal stub event using the per-game default event
+            // script toplevel code (mirrors WF allocation behavior). FE6: 06...
+            // FE7: 0A 00 00 00... FE8: 28 02 07 00 20 01 00 00. Writing zeros
+            // would create an invalid event block on some versions (Copilot
+            // bot review on round-3).
+            byte[] stub = rom.RomInfo?.Default_event_script_toplevel_code
+                           ?? new byte[] { 0 };
+            uint newAddr = AppendBinaryDataHeadless(rom, stub);
+            if (newAddr == U.NOT_FOUND) return 0;
+
+            return U.toPointer(newAddr);
+        }
+
+        /// <summary>
+        /// Update the comment for the currently-selected record via
+        /// CoreState.CommentCache. Requires an active undo scope so any
+        /// downstream ROM commit (e.g. comment cache persistence side-effects)
+        /// is tracked. The comment cache itself is in-memory and persisted
+        /// separately, but we enforce the scope to keep all VM mutations
+        /// fail-fast against the same undo discipline.
+        /// </summary>
+        public void UpdateComment(string value)
+        {
+            if (!ROM.IsAmbientUndoScopeActive)
+            {
+                throw new InvalidOperationException(
+                    "EventCondViewModel.UpdateComment requires an active undo scope.");
+            }
+
+            Comment = value ?? "";
+            if (CondRecordAddr == 0) return;
+
+            CoreState.CommentCache?.Update(CondRecordAddr, Comment);
+        }
+
+        /// <summary>
+        /// Headless equivalent of InputFormRef.AppendBinaryData. Routes through
+        /// the registered CoreState.AppendBinaryData delegate when available
+        /// (WinForms registers it via InputFormRef); returns U.NOT_FOUND when
+        /// no allocator is wired (e.g. in headless tests).
+        /// </summary>
+        static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer)
+        {
+            // WinForms wires the real allocator via CoreState.AppendBinaryData;
+            // the Avalonia editor relies on the same delegate (resolved through
+            // ROM-end appending or freespace search depending on what's
+            // registered). When the delegate isn't wired (headless tests),
+            // return U.NOT_FOUND so callers handle the gracefully.
+            var allocator = CoreState.AppendBinaryData;
+            if (allocator == null) return U.NOT_FOUND;
+
+            // We need an UndoData to satisfy the signature; we recover the
+            // ambient one (the caller is required to be in an undo scope per
+            // the throw-if-not-active enforcement).
+            var ambient = ROM.GetAmbientUndoData();
+            if (ambient == null) return U.NOT_FOUND;
+
+            return allocator(buffer, ambient);
         }
 
         /// <summary>
@@ -559,7 +1285,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CondRecordAddr == 0) return new Dictionary<string, string>();
 
             uint a = CondRecordAddr;
-            uint size = IsPointerSlot ? 4 : CondRecordSize;
+            uint size = IsPointerSlot ? 4 : EffectiveRecordSize;
             if (a + size > (uint)rom.Data.Length)
                 return new Dictionary<string, string>();
 
@@ -570,6 +1296,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (IsPointerSlot)
             {
+                report["u32@0"] = $"0x{rom.u32(a):X08}";
+            }
+            else if (CondRecordSize == 4)
+            {
+                // TUTORIAL: 4-byte u32 record (single TUTORIAL_P0 field).
+                // Reporting bytes 0-5 would read past the record (Copilot CLI
+                // review round 2 #2).
                 report["u32@0"] = $"0x{rom.u32(a):X08}";
             }
             else if (CondRecordSize <= 6)
@@ -583,18 +1316,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
+                // Use EffectiveRecordSize so FE7 TURN type-1 rows (stride 12)
+                // don't report B12-B15 from the next record (Copilot round 7 #2).
+                uint effSize = EffectiveRecordSize;
                 report["u8@0"] = $"0x{rom.u8(a + 0):X02}";
                 report["u8@1"] = $"0x{rom.u8(a + 1):X02}";
                 report["u16@2"] = $"0x{rom.u16(a + 2):X04}";
                 report["u32@4"] = $"0x{rom.u32(a + 4):X08}";
-                if (CondRecordSize >= 12)
+                if (effSize >= 12)
                 {
                     report["u8@8"] = $"0x{rom.u8(a + 8):X02}";
                     report["u8@9"] = $"0x{rom.u8(a + 9):X02}";
                     report["u8@10"] = $"0x{rom.u8(a + 10):X02}";
                     report["u8@11"] = $"0x{rom.u8(a + 11):X02}";
                 }
-                if (CondRecordSize >= 16)
+                if (effSize >= 16)
                 {
                     report["u8@12"] = $"0x{rom.u8(a + 12):X02}";
                     report["u8@13"] = $"0x{rom.u8(a + 13):X02}";
