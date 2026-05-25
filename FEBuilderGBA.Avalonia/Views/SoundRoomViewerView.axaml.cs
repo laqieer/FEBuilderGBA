@@ -118,8 +118,17 @@ namespace FEBuilderGBA.Avalonia.Views
             if (ptr == 0) return 0;
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return 0;
-            uint entryAddr = baseAddr + songId * 8;
+            // Compute the offset in ulong to detect wrap-around; the AXAML
+            // Maximum allows up to int.MaxValue which means songId * 8 in
+            // uint arithmetic could wrap past 4 GiB and still satisfy
+            // isSafetyOffset on a 32 MB ROM (Copilot review #638).
+            ulong entryAddr64 = (ulong)baseAddr + (ulong)songId * 8UL;
+            if (entryAddr64 > uint.MaxValue) return 0;
+            uint entryAddr = (uint)entryAddr64;
             if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            // Validate the full 8-byte entry range so an id near the ROM
+            // boundary doesn't half-fall outside.
+            if (!U.isSafetyOffset(entryAddr + 7, rom)) return 0;
             return entryAddr;
         }
 

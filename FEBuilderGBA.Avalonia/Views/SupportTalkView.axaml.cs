@@ -168,8 +168,15 @@ namespace FEBuilderGBA.Avalonia.Views
             if (ptr == 0) return 0;
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return 0;
-            uint addr = baseAddr + textId * 4;
+            // Compute in ulong to detect wrap-around; AXAML Maximum allows
+            // 65535 here but the helper is defensively bounds-safe for any
+            // 32-bit value to align with Copilot review #638 (SoundRoom /
+            // SupportTalkFE7).
+            ulong addr64 = (ulong)baseAddr + (ulong)textId * 4UL;
+            if (addr64 > uint.MaxValue) return 0;
+            uint addr = (uint)addr64;
             if (!U.isSafetyOffset(addr, rom)) return 0;
+            if (!U.isSafetyOffset(addr + 3, rom)) return 0;
             return addr;
         }
 
