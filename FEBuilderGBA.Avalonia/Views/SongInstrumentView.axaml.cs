@@ -69,17 +69,26 @@ namespace FEBuilderGBA.Avalonia.Views
                 // panel1: First Address / Read Count). When ReadStartAddress
                 // is non-zero the user-edited base overrides the auto-
                 // resolved first-song voicegroup. When ReadCount is non-zero
-                // it caps the scan window. Both fall back to defaults when
-                // unset (Copilot review PR #626 round 2 finding #2).
+                // it caps the scan window (LoadInstrumentList stops at the
+                // smaller of the cap and the first invalid instrument).
+                // Both fall back to defaults when unset (Copilot review
+                // PR #626 round 2 finding #2 + round 3 finding (b)).
                 uint userBase = (uint)(ReadStartAddressBox?.Value ?? 0);
+                uint userCount = (uint)(ReadCountBox?.Value ?? 0);
                 if (userBase != 0)
                 {
-                    var explicitItems = _vm.LoadInstrumentList(userBase);
+                    var explicitItems = _vm.LoadInstrumentList(userBase, userCount);
                     EntryList.SetItems(explicitItems);
                 }
                 else
                 {
                     var items = _vm.LoadList();
+                    // Apply the count cap to the auto-resolved list as well,
+                    // so the read-config bar's ReadCount works whether the
+                    // user supplied an explicit base or not. Cap > items
+                    // count is a no-op.
+                    if (userCount > 0 && items.Count > userCount)
+                        items = items.GetRange(0, (int)userCount);
                     EntryList.SetItems(items);
                     // Surface auto-detected base back into the read-config bar
                     // so subsequent Reload clicks have a non-zero starting

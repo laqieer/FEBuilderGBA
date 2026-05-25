@@ -664,6 +664,79 @@ public class SongInstrumentParityTests
     }
 
     // -----------------------------------------------------------------
+    // Read-config bar - ReadCount caps the master list (PR #626 round 3).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// `LoadInstrumentList` MUST honor the maxCount parameter so the
+    /// ReadCount input in the read-config bar actually limits the
+    /// displayed list size. PR #626 Copilot round 3 blocker: the
+    /// previous fix wired ReadCount into the call site but not into
+    /// the underlying VM loader, so the input had no effect.
+    /// </summary>
+    [Fact]
+    public void ViewModel_LoadInstrumentList_HonorsMaxCount()
+    {
+        var rom = MakeRomWith20ValidInstruments(out uint baseAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new SongInstrumentViewModel();
+
+            // Default cap (maxCount=0) returns the full list up to 128.
+            var unbounded = vm.LoadInstrumentList(baseAddr);
+            Assert.True(unbounded.Count >= 20,
+                $"Default scan should walk past 20 valid entries; got {unbounded.Count}.");
+
+            // Cap = 5 must return exactly 5 entries.
+            var capped5 = vm.LoadInstrumentList(baseAddr, 5);
+            Assert.Equal(5, capped5.Count);
+
+            // Cap = 10 must return exactly 10 entries.
+            var capped10 = vm.LoadInstrumentList(baseAddr, 10);
+            Assert.Equal(10, capped10.Count);
+
+            // Cap larger than item count is bounded by validity / ROM length,
+            // not by the user-supplied cap.
+            var bigCap = vm.LoadInstrumentList(baseAddr, 1000);
+            Assert.True(bigCap.Count >= 20 && bigCap.Count <= 128,
+                $"Cap > MaxInstruments should clamp to MaxInstruments; got {bigCap.Count}.");
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>Build a synthetic ROM with 20 valid DirectSound instruments.</summary>
+    static ROM MakeRomWith20ValidInstruments(out uint baseAddr)
+    {
+        var rom = new ROM();
+        // FE8U detection in ROM.LoadLow requires data.Length >= 0x1000000.
+        // Use 16 MB so RomInfo is set; LoadInstrumentList early-returns on
+        // a null RomInfo so the synthetic 8 MB ROM other tests use here is
+        // not enough.
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+        baseAddr = 0x100000;
+        uint wavePtr = 0x08200000u;
+        for (uint i = 0; i < 20; i++)
+        {
+            uint a = baseAddr + i * 12u;
+            rom.Data[a + 0] = 0x00; // DirectSound
+            // B1..B3 left zero
+            // P4 = wave pointer (must be safety-valid for LoadInstrumentList)
+            rom.Data[a + 4] = (byte)(wavePtr & 0xFF);
+            rom.Data[a + 5] = (byte)((wavePtr >> 8) & 0xFF);
+            rom.Data[a + 6] = (byte)((wavePtr >> 16) & 0xFF);
+            rom.Data[a + 7] = (byte)((wavePtr >> 24) & 0xFF);
+            // B8..B11 = ADSR
+            rom.Data[a + 8] = 0xFF;
+            rom.Data[a + 9] = 0x00;
+            rom.Data[a + 10] = 0xFF;
+            rom.Data[a + 11] = 0x00;
+        }
+        return rom;
+    }
+
+    // -----------------------------------------------------------------
     // Navigation manifest (Phase 4) - empty (concern v1 #3).
     // -----------------------------------------------------------------
 

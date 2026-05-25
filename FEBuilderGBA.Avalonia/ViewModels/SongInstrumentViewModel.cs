@@ -181,9 +181,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Build the instrument list for the AddressListControl.
-        /// Enumerates up to 128 instruments from baseAddr.
+        /// Enumerates up to <paramref name="maxCount"/> instruments from
+        /// baseAddr (or 128 when 0 is passed). The scan still stops on the
+        /// first invalid instrument byte, so passing a large cap mirrors
+        /// the previous "scan until invalid" behavior; passing a small cap
+        /// surfaces the read-config bar's WinForms-parity Read Count input
+        /// (Copilot review PR #626 round 3).
         /// </summary>
-        public List<AddrResult> LoadInstrumentList(uint baseAddr)
+        public List<AddrResult> LoadInstrumentList(uint baseAddr, uint maxCount = 0)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
@@ -191,7 +196,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             BaseAddr = baseAddr;
             var result = new List<AddrResult>();
 
-            for (int i = 0; i < MaxInstruments; i++)
+            uint capUInt = maxCount == 0 ? MaxInstruments : maxCount;
+            int cap = capUInt > MaxInstruments ? MaxInstruments : (int)capUInt;
+
+            for (int i = 0; i < cap; i++)
             {
                 uint addr = baseAddr + (uint)(i * BlockSize);
                 if (addr + BlockSize > (uint)rom.Data.Length) break;
