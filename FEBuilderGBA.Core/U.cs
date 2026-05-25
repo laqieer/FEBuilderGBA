@@ -1048,6 +1048,92 @@ namespace FEBuilderGBA
             if (start + count > str.Length) count = str.Length - start;
             return str.Substring(start, count);
         }
+        // 2-arg overload to match WF U.substr (#536).
+        public static string substr(string str, int start)
+        {
+            if (str == null) return "";
+            if (start >= str.Length) return "";
+            return str.Substring(start);
+        }
+
+        /// <summary>
+        /// Split <paramref name="text"/> on <paramref name="split"/> and return
+        /// the element at <paramref name="getCount"/>. Returns "" when out of
+        /// range. Mirrors WF `U.InnerSplit`.
+        /// </summary>
+        public static string InnerSplit(string text, string split, int getCount)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            string[] sp = text.Split(new string[] { split }, StringSplitOptions.None);
+            if (getCount >= sp.Length || getCount < 0) return "";
+            return sp[getCount];
+        }
+
+        /// <summary>
+        /// Enumerate matching files in <paramref name="path"/> with safe
+        /// recursive handling. Mirrors WF `U.Directory_GetFiles_Safe`.
+        /// </summary>
+        public static string[] Directory_GetFiles_Safe(string path, string filter,
+            SearchOption op = SearchOption.TopDirectoryOnly)
+        {
+            if (op == SearchOption.TopDirectoryOnly)
+            {
+                return Directory.GetFiles(path, filter);
+            }
+            var files = new List<string>();
+            Directory_GetFiles_AllFile_Safe_Low(files, path, filter);
+            return files.ToArray();
+        }
+
+        static void Directory_GetFiles_AllFile_Safe_Low(List<string> files, string path, string filter)
+        {
+            try
+            {
+                foreach (string s in Directory.GetFiles(path, filter)) files.Add(s);
+                foreach (string s in Directory.GetDirectories(path))
+                {
+                    Directory_GetFiles_AllFile_Safe_Low(files, s, filter);
+                }
+            }
+            catch (Exception)
+            {
+                // Skip directories we can't read.
+            }
+        }
+
+        /// <summary>
+        /// CRC32 implementation matching WF `U.CRC32`. Used by Core helpers
+        /// that need to identify base ROMs by checksum (#536).
+        /// </summary>
+        public class CRC32
+        {
+            readonly uint[] _table;
+
+            public CRC32()
+            {
+                _table = new uint[256];
+                for (uint i = 0; i < 256; i++)
+                {
+                    uint x = i;
+                    for (int j = 0; j < 8; j++)
+                    {
+                        x = (uint)((x & 1) == 0 ? x >> 1 : -306674912 ^ x >> 1);
+                    }
+                    _table[i] = x;
+                }
+            }
+
+            public uint Calc(byte[] buf)
+            {
+                uint num = uint.MaxValue;
+                for (int i = 0; i < buf.Length; i++)
+                {
+                    num = _table[(num ^ buf[i]) & 0xff] ^ num >> 8;
+                }
+                return (uint)(num ^ -1);
+            }
+        }
+
         public static string escape_shell_args(string str)
         {
             if (str.Length > 0 && str[str.Length - 1] == '\\') str = str + "\\ ";
