@@ -126,40 +126,46 @@ public class MapTileAnimation2ParityTests
     }
 
     // -----------------------------------------------------------------
-    // Phase 5 (Copilot CLI #3) - deferred affordances must be visibly
-    // disabled and reference the follow-up Core extraction issue.
+    // Phase 2 (#524) inversion - the four deferred affordances
+    // (Bulk Import / Bulk Export / List Expand main + palette sub-list)
+    // are now wired against the Core helpers in MapTileAnimation2Core
+    // (BulkImport / BulkExport / ExpandEntryList / ExpandPaletteRowList).
+    // The buttons MUST be rendered enabled (no explicit IsEnabled="False")
+    // and the placeholder tooltip referencing the follow-up issue MUST be
+    // gone (#524 should no longer appear in the button element). The
+    // active tooltips describe the actual behavior.
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// Each deferred affordance (Bulk Import / Bulk Export / List Expand
-    /// main + palette sub-list) must be rendered with <c>IsEnabled="False"</c>
-    /// and a tooltip referencing the follow-up Core-extraction issue (#524)
-    /// so density parity does not count enabled no-op controls (Copilot CLI
-    /// plan-review #3). The XAML is searched as text (mirrors how the
-    /// surrounding tests assert AutomationIds + Click handlers).
+    /// Each of the four affordances is now enabled (no IsEnabled="False"
+    /// attribute on the button element) and does NOT contain the #524
+    /// follow-up reference (the tooltip describes the live behavior
+    /// instead).
     /// </summary>
     [Theory]
     [InlineData("MapTileAnimation2_BulkImport_Button")]
     [InlineData("MapTileAnimation2_BulkExport_Button")]
     [InlineData("MapTileAnimation2_ListExpand_Button")]
     [InlineData("MapTileAnimation2_NListExpand_Button")]
-    public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string automationId)
+    public void View_BulkAndExpandButton_IsEnabledAndNoFollowupTooltip(string automationId)
     {
         string axaml = ReadAxaml();
-        // Locate the Button element by its AutomationId.
         int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
         Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
 
         // Walk backwards to the previous '<' to find element start.
         int elementStart = axaml.LastIndexOf('<', idx);
         Assert.True(elementStart >= 0, "Could not find element start");
-        // Walk forward to the next '/>' or '>'.
+        // Walk forward to the closing '>' so we capture the full element.
         int elementEnd = axaml.IndexOfAny(new[] { '>' }, idx);
         Assert.True(elementEnd > elementStart, "Could not find element end");
         string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
 
-        Assert.Contains("IsEnabled=\"False\"", element);
-        Assert.Contains("#524", element);
+        // The button must NOT carry the deferred-state attribute or the
+        // follow-up issue reference. (Buttons default to enabled in AXAML
+        // when no explicit IsEnabled attribute is set.)
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("#524", element);
     }
 
     // -----------------------------------------------------------------
@@ -482,6 +488,192 @@ public class MapTileAnimation2ParityTests
             Assert.Equal(120u, vm.PaletteR);
             Assert.Equal(184u, vm.PaletteG);
             Assert.Equal(48u, vm.PaletteB);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Phase 2 (#524) - ViewModel BulkExport / BulkImport / Expand
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_BulkExport_WritesFile()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        string tmp = Path.GetTempFileName();
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            // BuildList walks the entry table from entryAddr.
+            vm.BuildList(entryAddr);
+            string err = vm.BulkExport(tmp);
+            Assert.Equal("", err);
+            string[] lines = File.ReadAllLines(tmp);
+            Assert.True(lines.Length >= 2, "Export must produce header + at least one row");
+            Assert.StartsWith("//wait", lines[0]);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (File.Exists(tmp)) File.Delete(tmp);
+        }
+    }
+
+    [Fact]
+    public void ViewModel_BulkImport_RoundTrips()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        string tmp = Path.GetTempFileName();
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.BuildList(entryAddr);
+
+            // Export and re-import via the VM (round-trip parity).
+            Assert.Equal("", vm.BulkExport(tmp));
+
+            // PointerSlot = PLIST table slot for plist=1 (planted at
+            // 0x900000 + 1*4 by MakeMinimalFE8URomWithEntry).
+            uint plistTableBase = rom.p32(rom.RomInfo.map_tileanime2_pointer);
+            uint pointerSlot = plistTableBase + 1 * 4;
+
+            // Open ambient undo so the import path can record into it.
+            var undo = new Undo.UndoData();
+            undo.list = new System.Collections.Generic.List<Undo.UndoPostion>();
+            undo.filesize = (uint)rom.Data.Length;
+            using (ROM.BeginUndoScope(undo))
+            {
+                string err = vm.BulkImport(tmp, pointerSlot);
+                Assert.Equal("", err);
+            }
+
+            // The pointer now resolves to a fresh table; that table's row 0
+            // must have the same WAIT/COUNT/STARTINDEX as the original
+            // (wait=0x13, count=4, startindex=0x3C).
+            uint newBase = rom.p32(pointerSlot);
+            Assert.NotEqual(0u, newBase);
+            Assert.Equal(0x13u, rom.u8(newBase + 4));
+            Assert.Equal(0x04u, rom.u8(newBase + 5));
+            Assert.Equal(0x3Cu, rom.u8(newBase + 6));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (File.Exists(tmp)) File.Delete(tmp);
+        }
+    }
+
+    [Fact]
+    public void ViewModel_ExpandEntryList_GrowsTable()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.BuildList(entryAddr);
+            uint oldCount = vm.ReadCount;
+            Assert.True(oldCount > 0);
+
+            // PLIST table slot for plist=1.
+            uint plistTableBase = rom.p32(rom.RomInfo.map_tileanime2_pointer);
+            uint pointerSlot = plistTableBase + 1 * 4;
+
+            uint newBase;
+            var undo = new Undo.UndoData();
+            undo.list = new System.Collections.Generic.List<Undo.UndoPostion>();
+            undo.filesize = (uint)rom.Data.Length;
+            using (ROM.BeginUndoScope(undo))
+            {
+                newBase = vm.ExpandEntryListByOne(pointerSlot);
+            }
+            Assert.NotEqual(U.NOT_FOUND, newBase);
+            // ScanEntries returns oldCount + 1 (row-0 template clone of the
+            // first entry preserves isPointer(P0)).
+            var entries = MapTileAnimation2Core.ScanEntries(rom, newBase, maxRows: 16);
+            Assert.Equal((int)(oldCount + 1), entries.Count);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_ExpandPaletteRowList_GrowsBlock()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.LoadEntry(entryAddr);
+            uint oldCount = vm.DataCount;
+            Assert.True(oldCount > 0);
+
+            uint newBase;
+            var undo = new Undo.UndoData();
+            undo.list = new System.Collections.Generic.List<Undo.UndoPostion>();
+            undo.filesize = (uint)rom.Data.Length;
+            using (ROM.BeginUndoScope(undo))
+            {
+                newBase = vm.ExpandPaletteRowListByOne();
+            }
+            Assert.NotEqual(U.NOT_FOUND, newBase);
+            // The first oldCount colors are copied; the new row(s) are row-0
+            // template clones (per V1 plan-review #2 - WF parity, NOT zero).
+            ushort row0 = (ushort)rom.u16(newBase + 0);
+            ushort newRow = (ushort)rom.u16(newBase + (uint)(oldCount * 2));
+            Assert.Equal(row0, newRow);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Regression test for the Copilot CLI review on PR #634 (blocking
+    /// issue): `ExpandPaletteRowListByOne` must also write the entry's
+    /// DataCount (B5) and update the VM's DataCount so a subsequent
+    /// LoadEntry sees the new row count. Without this fix, the palette
+    /// sub-list reload would still show oldCount rows even though the new
+    /// allocation has oldCount+1 entries (WF parity with
+    /// `N_AddressListExpandsEvent`).
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExpandPaletteRowList_UpdatesDataCountAndReloadShowsNewRow()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.LoadEntry(entryAddr);
+            uint oldCount = vm.DataCount;
+            Assert.True(oldCount > 0);
+
+            var undo = new Undo.UndoData();
+            undo.list = new System.Collections.Generic.List<Undo.UndoPostion>();
+            undo.filesize = (uint)rom.Data.Length;
+            using (ROM.BeginUndoScope(undo))
+            {
+                uint newBase = vm.ExpandPaletteRowListByOne();
+                Assert.NotEqual(U.NOT_FOUND, newBase);
+            }
+
+            // ROM byte at entryAddr+5 must reflect the new count (WF parity).
+            Assert.Equal(oldCount + 1, rom.u8(entryAddr + 5));
+            // VM must reflect the bumped count immediately (no second read).
+            Assert.Equal(oldCount + 1, vm.DataCount);
+
+            // After a fresh LoadEntry (simulating the view's reload path),
+            // DataCount and PaletteRows.Count must reflect the new row.
+            var vm2 = new MapTileAnimation2ViewModel();
+            vm2.LoadEntry(entryAddr);
+            Assert.Equal(oldCount + 1, vm2.DataCount);
+            Assert.Equal((int)(oldCount + 1), vm2.PaletteRows.Count);
         }
         finally { CoreState.ROM = prevRom; }
     }

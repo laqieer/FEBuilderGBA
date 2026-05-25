@@ -20868,6 +20868,18 @@ GBA颜色
 :Pending Core extraction - tracked by #524
 Core 抽取待中 - 追踪于 #524
 
+:Grow the entry table by one row
+将条目表扩展一行
+
+:Grow the palette sub-table by one row
+将调色板子表扩展一行
+
+:Import a .mapanime2.txt file into the current PLIST
+将 .mapanime2.txt 文件导入当前 PLIST
+
+:Export the current PLIST's entries to a .mapanime2.txt file
+将当前 PLIST 的条目导出为 .mapanime2.txt 文件
+
 :Map Tile Animation Type 2 Palette Sub-Table
 地图图块动画类型2 调色板子表
 

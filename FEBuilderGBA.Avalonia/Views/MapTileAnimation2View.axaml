@@ -59,8 +59,7 @@
         <Button DockPanel.Dock="Bottom"
                 AutomationProperties.AutomationId="MapTileAnimation2_ListExpand_Button"
                 Name="ListExpandButton" Content="Data Expansion"
-                IsEnabled="False"
-                ToolTip.Tip="Pending Core extraction - tracked by #524"
+                ToolTip.Tip="Grow the entry table by one row"
                 HorizontalAlignment="Stretch" Margin="2"
                 Click="ListExpand_Click" />
         <controls:AddressListControl AutomationProperties.AutomationId="MapTileAnimation2_Entry_List"
@@ -182,8 +181,7 @@
 
             <Button AutomationProperties.AutomationId="MapTileAnimation2_NListExpand_Button"
                     Name="NListExpandButton" Content="Data Expansion"
-                    IsEnabled="False"
-                    ToolTip.Tip="Pending Core extraction - tracked by #524"
+                    ToolTip.Tip="Grow the palette sub-table by one row"
                     HorizontalAlignment="Left" Margin="0,4,0,0"
                     Click="NListExpand_Click" />
           </StackPanel>
@@ -193,13 +191,11 @@
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
           <Button AutomationProperties.AutomationId="MapTileAnimation2_BulkImport_Button"
                   Name="BulkImportButton" Content="Bulk Import"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #524"
+                  ToolTip.Tip="Import a .mapanime2.txt file into the current PLIST"
                   Click="BulkImport_Click" />
           <Button AutomationProperties.AutomationId="MapTileAnimation2_BulkExport_Button"
                   Name="BulkExportButton" Content="Bulk Export"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #524"
+                  ToolTip.Tip="Export the current PLIST's entries to a .mapanime2.txt file"
                   Click="BulkExport_Click" />
         </StackPanel>
       </StackPanel>
