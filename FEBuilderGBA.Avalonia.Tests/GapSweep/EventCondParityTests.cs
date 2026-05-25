@@ -896,24 +896,10 @@ public class EventCondParityTests
             source);
     }
 
-    [Fact]
-    public void ViewModel_TalkN04_AsmFunc_RoundTripsThroughEventPtr()
-    {
-        // Copilot CLI review round 3 #3a: TALK N04 (ASM Talk, CondType==0x04)
-        // stores the ASM function pointer at offset +4 (u32 = _eventPtr).
-        // ComposeCategoryFields must write AsmFunc into _eventPtr when
-        // CondType == 0x04.
-        string repoRoot = FindRepoRoot();
-        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
-            "EventCondViewModel.cs");
-        string source = File.ReadAllText(vmPath);
-
-        // Production must contain `_eventPtr = AsmFunc` inside the TALK case
-        // guarded by `_condType == 0x04`.
-        Assert.Matches(
-            new Regex(@"CondCategory\.TALK[\s\S]*?_condType\s*==\s*0x04[\s\S]*?_eventPtr\s*=\s*AsmFunc", RegexOptions.Singleline),
-            source);
-    }
+    // Note: round-3 test ViewModel_TalkN04_AsmFunc_RoundTripsThroughEventPtr
+    // was OBSOLETED by round-5 review. The correct layout is TALK_N04_P12
+    // (offset +12), not +4. New tests above (ViewModel_TalkN04_AsmAt12_Fe78,
+    // ViewModel_TalkN0D_AsmAt8_Fe6) cover the corrected layout.
 
     [Fact]
     public void ViewModel_ObjectN0A_ItemList_RoundTripsThroughEventPtr()
@@ -940,23 +926,11 @@ public class EventCondParityTests
     // generic+category field sync.
     // -----------------------------------------------------------------
 
-    [Fact]
-    public void ViewModel_TalkN04AsmFunc_LoadedRegardlessOfFE7Extended()
-    {
-        // Round 4 fix #1: TALK N04 (CondType==0x04) AsmFunc must be populated
-        // from _eventPtr regardless of IsFE7Extended (FE6 talk records are
-        // 12 bytes but still have an ASM function pointer).
-        string repoRoot = FindRepoRoot();
-        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
-            "EventCondViewModel.cs");
-        string source = File.ReadAllText(vmPath);
-
-        // Production: AsmFunc = (_condType == 0x04) ? _eventPtr : 0; (outside
-        // the IsFE7Extended block).
-        Assert.Matches(
-            new Regex(@"AsmFunc\s*=\s*\(_condType\s*==\s*0x04\)\s*\?\s*_eventPtr\s*:\s*0", RegexOptions.Singleline),
-            source);
-    }
+    // Note: round-4 test ViewModel_TalkN04AsmFunc_LoadedRegardlessOfFE7Extended
+    // was OBSOLETED by round-5 review. The correct WF layout uses
+    // TALK_N04_P12 (offset +12) for FE7/8 and TALKFE6_N0D_P8 (offset +8) for
+    // FE6, not _eventPtr (offset +4). New tests above cover the corrected
+    // per-version layout.
 
     [Fact]
     public void ViewModel_TutorialRowLabel_BuildsFromU32_NotGetCondTypeName()
@@ -1049,6 +1023,129 @@ public class EventCondParityTests
         // is visible.
         Assert.Matches(
             new Regex(@"hideGenericExtras[\s\S]*?ExtraB8Box\.IsVisible\s*=\s*false", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
+    // Copilot CLI round 5 review fixes — TALK N03 W12/W14 u16 layout,
+    // TALK N04 P12 ASM at +12, TALKFE6 N0D P8 ASM at +8, ALWAYS N0D/N0E
+    // P8 ASM at +8, ExpandRecordList default types match WF
+    // GetDefaultEventType.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_TalkN03_W12W14_ReadAsU16NotU8()
+    {
+        // Round 5 #1: TALK_N03_W12 and TALK_N03_W14 are 16-bit fields, not
+        // single bytes. The decompose must read them as u16 (LE).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production: AdditionalDecision = _extraB12 | (_extraB13 << 8)
+        Assert.Matches(
+            new Regex(@"AdditionalDecision\s*=\s*_extraB12\s*\|\s*\(_extraB13\s*<<\s*8\)", RegexOptions.Singleline),
+            source);
+        // Production: DecisionFlag = _extraB14 | (_extraB15 << 8)
+        Assert.Matches(
+            new Regex(@"DecisionFlag\s*=\s*_extraB14\s*\|\s*\(_extraB15\s*<<\s*8\)", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_TalkN04_AsmAt12_Fe78()
+    {
+        // Round 5 #1 (cont): TALK_N04_P12 is the ASM function pointer at
+        // offset +12 (u32) for FE7/8 records (size 16), NOT at offset +4.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production decomposes ASM from B12-B15 (u32) for TALK N04 + FE7Extended.
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x04\s*&&\s*_isFE7Extended[\s\S]*?AsmFunc\s*=\s*_extraB12\s*\|\s*\(_extraB13\s*<<\s*8\)\s*\|\s*\(_extraB14\s*<<\s*16\)\s*\|\s*\(_extraB15\s*<<\s*24\)", RegexOptions.Singleline),
+            source);
+        // Production composes ASM into B12-B15 for TALK N04 + FE7Extended.
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x04\s*&&\s*_isFE7Extended[\s\S]*?_extraB12\s*=\s*AsmFunc\s*&\s*0xFF", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_TalkN0D_AsmAt8_Fe6()
+    {
+        // Round 5 #1 (cont): TALKFE6_N0D_P8 is the ASM function pointer at
+        // offset +8 (u32) for FE6 records (size 12).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production decomposes ASM from B8-B11 for TALK N0D (FE6).
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x0D[\s\S]*?AsmFunc\s*=\s*_extraB8\s*\|\s*\(_extraB9\s*<<\s*8\)\s*\|\s*\(_extraB10\s*<<\s*16\)\s*\|\s*\(_extraB11\s*<<\s*24\)", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_AlwaysN0DN0E_AsmAt8_NotAt4()
+    {
+        // Round 5 #2: ALWAYS_N0D_P8 / ALWAYS_N0E_P8 is the ASM pointer at
+        // offset +8 (u32, B8-B11), NOT _eventPtr (P4). P4 stays as the event
+        // pointer.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production decomposes ASM from B8-B11 for ALWAYS N0D/N0E (NOT _eventPtr).
+        Assert.Matches(
+            new Regex(@"_condType\s*==\s*0x0D\s*\|\|\s*_condType\s*==\s*0x0E[\s\S]*?AsmFunc\s*=\s*_extraB8\s*\|\s*\(_extraB9\s*<<\s*8\)\s*\|\s*\(_extraB10\s*<<\s*16\)\s*\|\s*\(_extraB11\s*<<\s*24\)", RegexOptions.Singleline),
+            source);
+        // Production composes ASM into B8-B11 (does NOT overwrite _eventPtr).
+        Assert.Matches(
+            new Regex(@"ASM condition: B8-B11 = u32 ASM pointer[\s\S]*?_extraB8\s*=\s*AsmFunc\s*&\s*0xFF", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_GetDefaultEventType_MatchesWFGetDefaultEventType()
+    {
+        // Round 5 #3: ExpandRecordList must initialize new rows with WF
+        // GetDefaultEventType: TURN=2, TALK=3 (FE6=4), OBJECT=5, ALWAYS=1,
+        // TRAP=1.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must contain the GetDefaultEventType helper with the
+        // correct defaults.
+        Assert.Matches(
+            new Regex(@"GetDefaultEventType[\s\S]*?CondCategory\.TURN.*return\s*2", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"GetDefaultEventType[\s\S]*?CondCategory\.OBJECT.*return\s*5", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"GetDefaultEventType[\s\S]*?version\s*==\s*6.*\?\s*4u\s*:\s*3u", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_ExpandRecordList_UsesGetDefaultEventType()
+    {
+        // Round 5 #3 (cont): ExpandRecordList must call GetDefaultEventType
+        // when initializing the new slot's type byte (non-TUTORIAL path).
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        Assert.Matches(
+            new Regex(@"buffer\[newSlotOffset \+ 0\]\s*=\s*\(byte\)GetDefaultEventType\(slotDef\.Category", RegexOptions.Singleline),
             source);
     }
 

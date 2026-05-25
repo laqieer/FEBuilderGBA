@@ -443,6 +443,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// WF GetDefaultEventType: the type byte to initialize a freshly
+        /// allocated record with so it's visible (non-terminator) and
+        /// semantically valid. Mirrors WF EventCondForm.GetDefaultEventType().
+        /// TURN=2, TALK=3 (FE6=4), OBJECT=5, ALWAYS=1, TRAP=1.
+        /// (Copilot round 5 review #3.)
+        /// </summary>
+        static uint GetDefaultEventType(CondCategory cat, ROM rom)
+        {
+            switch (cat)
+            {
+                case CondCategory.TURN: return 2;
+                case CondCategory.TALK:
+                    return (rom?.RomInfo?.version == 6) ? 4u : 3u;
+                case CondCategory.OBJECT: return 5;
+                case CondCategory.ALWAYS: return 1;
+                case CondCategory.TRAP: return 1;
+                default: return 1;
+            }
+        }
+
+        /// <summary>
         /// Per-record stride for variable-length record types. For FE7 TURN
         /// records, type==1 advances 12 bytes (FE6/8-shape) while other
         /// types advance the full recordSize (16). For other categories,
@@ -637,20 +658,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case CondCategory.TALK:
                     Unit1 = _extraB8;
                     Unit2 = _extraB9;
-                    // For TALK N04 (ASM Talk, CondType==0x04), AsmFunc maps to
-                    // _eventPtr regardless of FE6/FE7/FE8 record size (Copilot
-                    // bot review on round-3 fixes). Otherwise zero so we don't
-                    // show stale values from a previously selected record.
-                    AsmFunc = (_condType == 0x04) ? _eventPtr : 0;
-                    if (_isFE7Extended)
+                    // WF byte layout per InputFormRef control naming
+                    // (W = u16, P = u32) — corrected from Copilot round 5:
+                    //  - TALK_N03_W12 (u16 @ +12) = AdditionalDecision
+                    //  - TALK_N03_W14 (u16 @ +14) = DecisionFlag
+                    //  - TALK_N04_P12 (u32 @ +12) = ASM pointer (FE7/8, size 16)
+                    //  - TALKFE6_N0D_P8 (u32 @ +8) = ASM pointer (FE6, size 12)
+                    // In our generic byte storage:
+                    //  - W12 (u16) = _extraB12 | (_extraB13 << 8)
+                    //  - W14 (u16) = _extraB14 | (_extraB15 << 8)
+                    //  - P12 (u32) = _extraB12 | (_extraB13 << 8) | (_extraB14 << 16) | (_extraB15 << 24)
+                    //  - P8  (u32) = _extraB8  | (_extraB9 << 8)  | (_extraB10 << 16) | (_extraB11 << 24)
+                    if (_condType == 0x04 && _isFE7Extended)
                     {
-                        AdditionalDecision = _extraB12;
-                        DecisionFlag = _extraB13;
+                        // FE7/8 TALK N04 ASM Talk: ASM pointer at +12 (u32).
+                        AsmFunc = _extraB12 | (_extraB13 << 8) | (_extraB14 << 16) | (_extraB15 << 24);
+                        AdditionalDecision = 0;
+                        DecisionFlag = 0;
+                    }
+                    else if (_condType == 0x0D)
+                    {
+                        // FE6 TALK N0D ASM Talk (size 12): ASM pointer at +8 (u32).
+                        AsmFunc = _extraB8 | (_extraB9 << 8) | (_extraB10 << 16) | (_extraB11 << 24);
+                        AdditionalDecision = 0;
+                        DecisionFlag = 0;
+                    }
+                    else if (_isFE7Extended)
+                    {
+                        // FE7/8 TALK N03: W12 (u16) = AdditionalDecision, W14 (u16) = DecisionFlag.
+                        AdditionalDecision = _extraB12 | (_extraB13 << 8);
+                        DecisionFlag = _extraB14 | (_extraB15 << 8);
+                        AsmFunc = 0;
                     }
                     else
                     {
                         AdditionalDecision = 0;
                         DecisionFlag = 0;
+                        AsmFunc = 0;
                     }
                     break;
                 case CondCategory.OBJECT:
@@ -669,13 +713,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ShopType = _condType == 0x0A ? _extraB10 : 0;
                     break;
                 case CondCategory.ALWAYS:
-                    X1 = _extraB8;
-                    Y1 = _extraB9;
-                    X2 = _extraB10;
-                    Y2 = _extraB11;
+                    // WF ALWAYS layout: P4 = event pointer (at +4, _eventPtr),
+                    // P8 = ASM pointer (at +8, u32 from B8-B11). For range
+                    // conditions (CondType 0x0B), B8-B11 hold X1/Y1/X2/Y2.
+                    // Round 5 fix: distinguish ASM (0x0D/0x0E) from range (0x0B).
                     if (_condType == 0x0D || _condType == 0x0E)
                     {
-                        AsmFunc = _eventPtr;
+                        // ASM condition: B8-B11 = u32 ASM pointer (P8).
+                        AsmFunc = _extraB8 | (_extraB9 << 8) | (_extraB10 << 16) | (_extraB11 << 24);
+                        X1 = Y1 = X2 = Y2 = 0;
+                    }
+                    else
+                    {
+                        // Range condition (0x0B) or always (0x01): B8-B11 = X1/Y1/X2/Y2.
+                        X1 = _extraB8;
+                        Y1 = _extraB9;
+                        X2 = _extraB10;
+                        Y2 = _extraB11;
+                        AsmFunc = 0;
                     }
                     break;
                 case CondCategory.TRAP:
@@ -729,18 +784,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case CondCategory.TALK:
                     _extraB8 = Unit1;
                     _extraB9 = Unit2;
-                    if (_condType == 0x04)
+                    // Round 5 fix: WF byte layout per control naming —
+                    //   TALK_N04_P12 (u32 @ +12, FE7/8 size 16) = ASM pointer
+                    //   TALKFE6_N0D_P8 (u32 @ +8, FE6 size 12) = ASM pointer
+                    //   TALK_N03_W12 (u16 @ +12) = AdditionalDecision
+                    //   TALK_N03_W14 (u16 @ +14) = DecisionFlag
+                    if (_condType == 0x04 && _isFE7Extended)
                     {
-                        // TALK N04 (ASM Talk): WF TALK_N04_P12 is the ASM
-                        // function pointer at offset +4 (u32). Round-trip
-                        // AsmFunc back into _eventPtr (Copilot CLI review
-                        // round 3 #3).
-                        _eventPtr = AsmFunc;
+                        // FE7/8 TALK N04 ASM Talk: write ASM pointer to B12-B15 (P12).
+                        _extraB12 = AsmFunc & 0xFF;
+                        _extraB13 = (AsmFunc >> 8) & 0xFF;
+                        _extraB14 = (AsmFunc >> 16) & 0xFF;
+                        _extraB15 = (AsmFunc >> 24) & 0xFF;
                     }
-                    if (_isFE7Extended)
+                    else if (_condType == 0x0D)
                     {
-                        _extraB12 = AdditionalDecision;
-                        _extraB13 = DecisionFlag;
+                        // FE6 TALK N0D ASM Talk: write ASM pointer to B8-B11 (P8).
+                        // Unit1/Unit2 above already overwrote B8/B9 — that's
+                        // wrong for N0D. Re-write the full u32.
+                        _extraB8 = AsmFunc & 0xFF;
+                        _extraB9 = (AsmFunc >> 8) & 0xFF;
+                        _extraB10 = (AsmFunc >> 16) & 0xFF;
+                        _extraB11 = (AsmFunc >> 24) & 0xFF;
+                    }
+                    else if (_isFE7Extended)
+                    {
+                        // FE7/8 TALK N03 (or other type): W12/W14 split.
+                        _extraB12 = AdditionalDecision & 0xFF;
+                        _extraB13 = (AdditionalDecision >> 8) & 0xFF;
+                        _extraB14 = DecisionFlag & 0xFF;
+                        _extraB15 = (DecisionFlag >> 8) & 0xFF;
                     }
                     break;
                 case CondCategory.OBJECT:
@@ -769,13 +842,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     }
                     break;
                 case CondCategory.ALWAYS:
-                    _extraB8 = X1;
-                    _extraB9 = Y1;
-                    _extraB10 = X2;
-                    _extraB11 = Y2;
+                    // Round 5 fix: P4 is event pointer (stays in _eventPtr),
+                    // P8 is ASM pointer (B8-B11 u32) for N0D/N0E. For range
+                    // (N0B = 0x0B) or always (N01 = 0x01), B8-B11 = X1/Y1/X2/Y2.
                     if (_condType == 0x0D || _condType == 0x0E)
                     {
-                        _eventPtr = AsmFunc;
+                        // ASM condition: B8-B11 = u32 ASM pointer (P8).
+                        // DO NOT overwrite _eventPtr (P4 = event pointer stays).
+                        _extraB8 = AsmFunc & 0xFF;
+                        _extraB9 = (AsmFunc >> 8) & 0xFF;
+                        _extraB10 = (AsmFunc >> 16) & 0xFF;
+                        _extraB11 = (AsmFunc >> 24) & 0xFF;
+                    }
+                    else
+                    {
+                        // Range / always condition: B8-B11 = X1/Y1/X2/Y2.
+                        _extraB8 = X1;
+                        _extraB9 = Y1;
+                        _extraB10 = X2;
+                        _extraB11 = Y2;
                     }
                     break;
                 case CondCategory.TRAP:
@@ -978,15 +1063,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 dstOffset += r.stride;
             }
 
-            // Initialize the NEW slot with category-appropriate non-terminator
-            // data so the scanner sees it as a real row.
-            // - TUTORIAL: u32 = 1 (canonical "blank" marker per WF
-            //   AddressListExpandsEventTutorial).
-            // - Other categories: byte 0 = 1 placeholder type so the scanner
-            //   doesn't treat byte 0 as terminator.
+            // Initialize the NEW slot with WF-equivalent default type byte
+            // (Copilot round 5 #3). WF GetDefaultEventType: TURN=2, TALK=3
+            // (FE6=4), OBJECT=5, ALWAYS=1, TRAP=1. TUTORIAL = u32 1.
             uint newSlotOffset = dstOffset;
             if (slotDef.Category == CondCategory.TUTORIAL)
             {
+                // u32 = 1 (canonical "blank" marker per WF
+                // AddressListExpandsEventTutorial).
                 buffer[newSlotOffset + 0] = 1;
                 buffer[newSlotOffset + 1] = 0;
                 buffer[newSlotOffset + 2] = 0;
@@ -994,7 +1078,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
-                buffer[newSlotOffset + 0] = 1;
+                buffer[newSlotOffset + 0] = (byte)GetDefaultEventType(slotDef.Category, rom);
             }
 
             // Terminator stays zeroed at offset = newSlotOffset + newSlotSize.
