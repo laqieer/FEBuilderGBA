@@ -75,13 +75,16 @@
                            FormatString="0" Grid.Row="4" Grid.Column="1" Name="JpNameLenBox"
                            Minimum="0" Maximum="255" />
 
-            <TextBlock Grid.Row="5" Grid.Column="0" Text="Class ID:" VerticalAlignment="Center" Margin="0,2"
-                       AutomationProperties.AutomationId="OPClassDemoFE7U_ClassId_Link"
-                       Classes="Hyperlink" Name="ClassId_Link" PointerPressed="OnClassIdLinkClick"
-                       ToolTip.Tip="Click to open Class Editor" />
-            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7U_ClassId_Input"
-                           FormatString="0" Grid.Row="5" Grid.Column="1" Name="ClassIdBox"
-                           Minimum="0" Maximum="255" />
+            <!-- #360 final: hyperlink TextBlock + NumericUpDown → IdFieldControl -->
+            <controls:IdFieldControl AutomationProperties.AutomationId="OPClassDemoFE7U_ClassId_Input"
+                                     Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                                     Margin="0,2"
+                                     Name="ClassIdBox"
+                                     Label="Class ID:"
+                                     Maximum="255"
+                                     JumpRequested="ClassId_Jump"
+                                     PickRequested="ClassId_Pick"
+                                     ValueChanged="ClassId_ValueChanged" />
 
             <TextBlock Grid.Row="6" Grid.Column="0" Text="Ally/Enemy Color:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7U_AllyEnemyColor_Input"

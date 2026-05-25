@@ -15,14 +15,18 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SoundRoomViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Song ID:" VerticalAlignment="Center"
-                     AutomationProperties.AutomationId="SoundRoomViewer_SongId_Link"
-                     Classes="Hyperlink" Name="SongId_Link" PointerPressed="OnSongIdLinkClick"
-                     ToolTip.Tip="Click to open Song Table" />
-          <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="4">
-            <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_SongId_Input" FormatString="0" Name="SongIdBox" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" Width="180" />
-            <Button AutomationProperties.AutomationId="SoundRoomViewer_JumpToSong_Button" Content="Jump" Click="JumpToSong_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center" />
-          </StackPanel>
+          <!-- #360 final: hyperlink TextBlock + NumericUpDown + Jump button → IdFieldControl.
+               Original AutomationId SoundRoomViewer_SongId_Input is preserved and
+               forwarded by IdFieldControl.PropagateInnerAutomationIds. Pick targets
+               SongTableView which IS IPickableEditor. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="SoundRoomViewer_SongId_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="SongIdBox"
+                                   Label="Song ID:"
+                                   Maximum="2147483647"
+                                   JumpRequested="SongId_Jump"
+                                   PickRequested="SongId_Pick"
+                                   ValueChanged="SongId_ValueChanged" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Song Length:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="SoundRoomViewer_Raw4_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="Raw4Box" Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />

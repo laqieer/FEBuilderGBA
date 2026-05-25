@@ -1,7 +1,9 @@
 using System;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -54,6 +56,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             UnitIdBox.Value = _vm.UnitId;
+            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.UnitId); }
+            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
             ConvText1Box.Value = _vm.ConversationText1;
             ConvText2Box.Value = _vm.ConversationText2;
             ConvText3Box.Value = _vm.ConversationText3;
@@ -62,7 +66,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
-            _vm.UnitId = (uint)(UnitIdBox.Value ?? 0);
+            _vm.UnitId = UnitIdBox.Value;
             _vm.ConversationText1 = (uint)(ConvText1Box.Value ?? 0);
             _vm.ConversationText2 = (uint)(ConvText2Box.Value ?? 0);
             _vm.ConversationText3 = (uint)(ConvText3Box.Value ?? 0);
@@ -81,21 +85,51 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnUnitIdLinkClick(object? sender, PointerPressedEventArgs e)
+        // -- IdFieldControl handlers (#360 final) ---------------------------
+
+        static uint UnitAddrFor(uint unitId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint unitPtr = rom.RomInfo.unit_pointer;
+            if (unitPtr == 0) return 0;
+            uint baseAddr = rom.p32(unitPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.unit_datasize;
+            if (dataSize == 0) return 0;
+            if (rom.RomInfo.version == 6) baseAddr += dataSize;
+            uint entryAddr = baseAddr + unitId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void UnitId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint unitId = (uint)(UnitIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint dataSize = rom.RomInfo.unit_datasize;
-                if (rom.RomInfo.version == 6) baseAddr += dataSize;
-                uint addr = baseAddr + unitId * dataSize;
+                uint addr = UnitAddrFor(UnitIdBox.Value);
+                if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
-            catch (Exception ex) { Log.Error("OnUnitIdLinkClick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error("EDSensekiCommentView.UnitId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void UnitId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = UnitAddrFor(UnitIdBox.Value);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                if (result != null) UnitIdBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("EDSensekiCommentView.UnitId_Pick failed: {0}", ex.Message); }
+        }
+
+        void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

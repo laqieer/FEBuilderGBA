@@ -1,7 +1,9 @@
 using System;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -74,6 +76,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             SongIdBox.Value = _vm.SongId;
+            try { SongIdBox.NameText = NameResolver.GetSongName(_vm.SongId); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
             Raw4Box.Value = _vm.Raw4;
             Raw8Box.Value = _vm.Raw8;
             TextIdBox.Value = _vm.TextId;
@@ -88,7 +92,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Sound Room");
             try
             {
-                _vm.SongId = (uint)(SongIdBox.Value ?? 0);
+                _vm.SongId = SongIdBox.Value;
                 _vm.Raw4 = (uint)(Raw4Box.Value ?? 0);
                 _vm.Raw8 = (uint)(Raw8Box.Value ?? 0);
                 _vm.TextId = (uint)(TextIdBox.Value ?? 0);
@@ -104,29 +108,47 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnSongIdLinkClick(object? sender, PointerPressedEventArgs e)
+        // -- IdFieldControl handlers (#360 final) ---------------------------
+
+        static uint SongAddrFor(uint songId)
         {
-            JumpToSong_Click(sender, new RoutedEventArgs());
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint ptr = rom.RomInfo.sound_table_pointer;
+            if (ptr == 0) return 0;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint entryAddr = baseAddr + songId * 8;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            return entryAddr;
         }
 
-        void JumpToSong_Click(object? sender, RoutedEventArgs e)
+        void SongId_Jump(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint songId = (uint)(SongIdBox.Value ?? 0);
-                uint ptr = rom.RomInfo.sound_table_pointer;
-                if (ptr == 0) return;
-                uint baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint addr = baseAddr + songId * 8;
+                uint addr = SongAddrFor(SongIdBox.Value);
+                if (addr == 0) return;
                 WindowManager.Instance.Navigate<SongTableView>(addr);
             }
-            catch (Exception ex)
+            catch (Exception ex) { Log.Error("SoundRoomViewerView.SongId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void SongId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
             {
-                Log.Error("JumpToSong failed: {0}", ex.Message);
+                uint addr = SongAddrFor(SongIdBox.Value);
+                var result = await WindowManager.Instance.PickFromEditor<SongTableView>(addr, this);
+                if (result != null) SongIdBox.Value = (uint)result.Index;
             }
+            catch (Exception ex) { Log.Error("SoundRoomViewerView.SongId_Pick failed: {0}", ex.Message); }
+        }
+
+        void SongId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { SongIdBox.NameText = NameResolver.GetSongName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM — leave prior text */ }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
