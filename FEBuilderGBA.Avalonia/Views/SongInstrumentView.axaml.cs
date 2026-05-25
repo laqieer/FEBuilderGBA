@@ -22,11 +22,42 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Instrument Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
+        // Header bytes that map to the 14 WF UNIONTAB_Nxx pages, in tab order.
+        // Used to populate TypeCombo and to map combo selection -> HeaderByte.
+        static readonly byte[] TypeComboHeaderBytes = {
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x08, 0x09,
+            0x0A, 0x0B, 0x0C, 0x10, 0x18, 0x40, 0x80,
+        };
+
+        bool _isUpdatingUi;
+        // True once the constructor finishes wiring TypeCombo / HeaderByteBox.
+        // Avalonia raises SelectionChanged for both UnionTab and TypeCombo
+        // during XAML EndInit() — before our event-wired controls are
+        // resolved — and that fires NREs in the handlers. Gate both handlers
+        // on this flag so we only respond to real user actions.
+        bool _viewReady;
+
         public SongInstrumentView()
         {
             InitializeComponent();
+            PopulateTypeCombo();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+            _viewReady = true;
+        }
+
+        void PopulateTypeCombo()
+        {
+            // Populate the Type combo with the 14 WF instrument-type labels
+            // in canonical tab order. Selection drives HeaderByte +
+            // UNIONTAB selection through TypeCombo_SelectionChanged.
+            TypeCombo.ItemsSource = null;
+            var items = new System.Collections.Generic.List<string>(TypeComboHeaderBytes.Length);
+            foreach (var b in TypeComboHeaderBytes)
+            {
+                items.Add($"0x{b:X02} {SongInstrumentViewModel.GetInstrumentTypeName(b)}");
+            }
+            TypeCombo.ItemsSource = items;
         }
 
         void LoadList()
@@ -99,23 +130,128 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            SelectedAddressLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            AddressBox.Value = _vm.CurrentAddr;
-            HeaderByteBox.Value = _vm.HeaderByte;
-            MoreInfoBox.Text = _vm.TypeName;
+            // Guard against re-entrant Combo SelectionChanged that would
+            // otherwise overwrite the VM with the stale combo value while
+            // we are still propagating the VM update down into the UI.
+            _isUpdatingUi = true;
+            try
+            {
+                SelectedAddressLabel.Text = $"0x{_vm.CurrentAddr:X08}";
+                AddressBox.Value = _vm.CurrentAddr;
+                HeaderByteBox.Value = _vm.HeaderByte;
+                MoreInfoBox.Text = _vm.TypeName;
 
-            // Select the exact tab by header byte (#387 plan review v2 concern #1).
-            string expectedTabId = SongInstrumentViewModel.GetExpectedTabId(_vm.HeaderByte);
-            SelectTabByAutomationId(expectedTabId);
+                // Sync the Type combo with the loaded HeaderByte so it
+                // always shows the same instrument-type label as the active
+                // tab and the More Info text. -1 = unknown (off-list byte).
+                int comboIndex = -1;
+                for (int i = 0; i < TypeComboHeaderBytes.Length; i++)
+                {
+                    if (TypeComboHeaderBytes[i] == _vm.HeaderByte)
+                    {
+                        comboIndex = i;
+                        break;
+                    }
+                }
+                TypeCombo.SelectedIndex = comboIndex;
 
-            // Populate per-tab raw byte fields. Each tab has its own set of
-            // Nxx_Bn / Nxx_Pn controls; we update all 14 tabs from the same
-            // VM raw fields so switching tabs (user changes Type combo) does
-            // not show stale data.
-            string[] tabNames = { "N00", "N01", "N02", "N03", "N04", "N08", "N09",
-                                  "N0A", "N0B", "N0C", "N10", "N18", "N40", "N80" };
-            foreach (var tab in tabNames)
-                PopulateTabFields(tab);
+                // Select the exact tab by header byte (#387 plan review v2 concern #1).
+                string expectedTabId = SongInstrumentViewModel.GetExpectedTabId(_vm.HeaderByte);
+                SelectTabByAutomationId(expectedTabId);
+
+                // Populate per-tab raw byte fields. Each tab has its own set of
+                // Nxx_Bn / Nxx_Pn controls; we update all 14 tabs from the same
+                // VM raw fields so switching tabs (user changes Type combo) does
+                // not show stale data.
+                string[] tabNames = { "N00", "N01", "N02", "N03", "N04", "N08", "N09",
+                                      "N0A", "N0B", "N0C", "N10", "N18", "N40", "N80" };
+                foreach (var tab in tabNames)
+                    PopulateTabFields(tab);
+            }
+            finally
+            {
+                _isUpdatingUi = false;
+            }
+        }
+
+        void TypeCombo_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (!_viewReady || _isUpdatingUi) return;
+            int idx = TypeCombo.SelectedIndex;
+            if (idx < 0 || idx >= TypeComboHeaderBytes.Length) return;
+
+            // User picked an instrument type from the combo. Mirror WinForms
+            // behavior: update HeaderByte, re-classify, refresh TypeName /
+            // More Info, and switch the visible UNIONTAB. Per-byte values are
+            // left as-is so the user can still type B1..B11 raw bytes before
+            // pressing Write.
+            byte newHeader = TypeComboHeaderBytes[idx];
+            if (_vm.HeaderByte == newHeader) return;
+
+            _isUpdatingUi = true;
+            try
+            {
+                _vm.HeaderByte = newHeader;
+                _vm.Category = SongInstrumentViewModel.ClassifyType(newHeader);
+                _vm.TypeName = SongInstrumentViewModel.GetInstrumentTypeName(newHeader);
+
+                HeaderByteBox.Value = newHeader;
+                MoreInfoBox.Text = _vm.TypeName;
+
+                string expectedTabId = SongInstrumentViewModel.GetExpectedTabId(newHeader);
+                SelectTabByAutomationId(expectedTabId);
+            }
+            finally
+            {
+                _isUpdatingUi = false;
+            }
+        }
+
+        void UnionTab_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (!_viewReady || _isUpdatingUi) return;
+            // User clicked a different tab directly. Mirror the type-combo
+            // path so HeaderByte / TypeName / TypeCombo stay in lockstep.
+            if (UnionTab.SelectedItem is not TabItem ti) return;
+            var aid = global::Avalonia.Automation.AutomationProperties.GetAutomationId(ti);
+            if (string.IsNullOrEmpty(aid)) return;
+
+            // Resolve "SongInstrument_UNIONTAB_Nxx_Tab" -> byte 0xNN.
+            byte? newHeader = null;
+            for (int i = 0; i < TypeComboHeaderBytes.Length; i++)
+            {
+                string expected = SongInstrumentViewModel.GetExpectedTabId(TypeComboHeaderBytes[i]);
+                if (aid == expected) { newHeader = TypeComboHeaderBytes[i]; break; }
+            }
+            if (newHeader == null || _vm.HeaderByte == newHeader.Value) return;
+
+            _isUpdatingUi = true;
+            try
+            {
+                _vm.HeaderByte = newHeader.Value;
+                _vm.Category = SongInstrumentViewModel.ClassifyType(newHeader.Value);
+                _vm.TypeName = SongInstrumentViewModel.GetInstrumentTypeName(newHeader.Value);
+
+                HeaderByteBox.Value = newHeader.Value;
+                MoreInfoBox.Text = _vm.TypeName;
+
+                // Sync the TypeCombo to match the new tab so the two views
+                // never diverge.
+                int comboIndex = -1;
+                for (int i = 0; i < TypeComboHeaderBytes.Length; i++)
+                {
+                    if (TypeComboHeaderBytes[i] == newHeader.Value)
+                    {
+                        comboIndex = i;
+                        break;
+                    }
+                }
+                TypeCombo.SelectedIndex = comboIndex;
+            }
+            finally
+            {
+                _isUpdatingUi = false;
+            }
         }
 
         void SelectTabByAutomationId(string targetTabId)

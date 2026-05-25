@@ -59,7 +59,8 @@
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="Type:" VerticalAlignment="Center" Width="60" />
                 <ComboBox AutomationProperties.AutomationId="SongInstrument_TypeCombo_Input"
-                          Name="TypeCombo" Width="280" VerticalAlignment="Center" />
+                          Name="TypeCombo" Width="280" VerticalAlignment="Center"
+                          SelectionChanged="TypeCombo_SelectionChanged" />
                 <TextBlock AutomationProperties.AutomationId="SongInstrument_Info_Label"
                            Name="InfoLabel" Text="Info" Foreground="Blue" TextDecorations="Underline"
                            Cursor="Hand" VerticalAlignment="Center" />
@@ -87,8 +88,9 @@
           <!-- Tab control with all 14 instrument tabs (UNIONTAB_N00..N80).
                Static AXAML tabs (NOT behind DataTemplate / ItemsControl) so
                ControlDensityScanner counts them — #387 plan review v1 #1. -->
-          <TabControl AutomationProperties.AutomationId="SongInstrument_UnionTab"
-                      Name="UnionTab" Padding="4">
+          <TabControl AutomationProperties.AutomationId="SongInstrument_UnionTab_TabControl"
+                      Name="UnionTab" Padding="4"
+                      SelectionChanged="UnionTab_SelectionChanged">
 
             <!-- ============================================================
                  N00 DirectSound — B1,B2,B3 + P4 (WavePtr) + B8..B11 (ADSR)

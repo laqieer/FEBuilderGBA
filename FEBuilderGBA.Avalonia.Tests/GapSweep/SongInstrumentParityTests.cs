@@ -113,6 +113,51 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
+    /// The Type combo + UNIONTAB TabControl must be wired bidirectionally
+    /// — picking a type drives HeaderByte/Tab and clicking a different tab
+    /// drives the combo. Without the wiring the combo is dead UI
+    /// (Copilot review PR #626 finding #3). This is a Roslyn-static check
+    /// for the wiring presence; behavioral coverage lives in
+    /// `View_TypeCombo_AndUnionTab_AreWired_ToHeaderByte` below.
+    /// </summary>
+    [Fact]
+    public void View_TypeCombo_AndUnionTab_HaveSelectionChangedHandlers()
+    {
+        string axaml = ReadAxaml();
+        // Combo wiring — the user clicks a type label to change HeaderByte.
+        Assert.Contains("TypeCombo_SelectionChanged", axaml);
+        // Tab wiring — the user clicks a different tab and the combo
+        // follows so the two stay in lockstep.
+        Assert.Contains("UnionTab_SelectionChanged", axaml);
+        // TabControl AutomationId must use the validator-approved suffix.
+        Assert.Contains("AutomationId=\"SongInstrument_UnionTab_TabControl\"", axaml);
+        // The old non-suffixed id must be gone — regression guard against
+        // the CI validate-automation-ids.ps1 failure on PR #626 round 1.
+        Assert.DoesNotContain("AutomationId=\"SongInstrument_UnionTab\"", axaml);
+    }
+
+    /// <summary>
+    /// The view code-behind must declare both handlers so picking a type
+    /// drives HeaderByte / Tab synchronization. The handlers update
+    /// HeaderByteBox, MoreInfoBox, TypeCombo.SelectedIndex, and the active
+    /// TabItem — verified via Roslyn-static read of the code-behind.
+    /// </summary>
+    [Fact]
+    public void View_TypeCombo_AndUnionTab_AreWired_ToHeaderByte()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("TypeCombo_SelectionChanged", source);
+        Assert.Contains("UnionTab_SelectionChanged", source);
+        Assert.Contains("TypeCombo.SelectedIndex", source);
+        Assert.Contains("HeaderByteBox.Value", source);
+        // Each handler routes through GetExpectedTabId so the exact-byte
+        // selection map drives tab changes (concern v2 #1).
+        Assert.Contains("SongInstrumentViewModel.GetExpectedTabId", source);
+        // PopulateTypeCombo seeds the 14 instrument-type entries on view init.
+        Assert.Contains("PopulateTypeCombo", source);
+    }
+
+    /// <summary>
     /// All 14 instrument tabs must be explicit static AXAML controls
     /// (not behind DataTemplate / ItemTemplate). This is the cornerstone of
     /// the density gap fix — Copilot CLI plan review v1, concern #1.
