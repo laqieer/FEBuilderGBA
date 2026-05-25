@@ -71,6 +71,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _hatchingStart, _hatchingEnd;
         uint _additionalDecision;
         uint _decisionFlag;
+        // TRAP B3 subtype (Ballista type / Vein effect / Item id) — mapped
+        // to the byte at offset +3 in the 6-byte TRAP record. Distinct from
+        // _subType which holds the B1 (X coordinate) byte for TRAP.
+        uint _trapSubType;
 
         string _condTypeName = "";
         string _slotInfo = "";
@@ -138,6 +142,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint HatchingEnd { get => _hatchingEnd; set => SetField(ref _hatchingEnd, value); }
         public uint AdditionalDecision { get => _additionalDecision; set => SetField(ref _additionalDecision, value); }
         public uint DecisionFlag { get => _decisionFlag; set => SetField(ref _decisionFlag, value); }
+        public uint TrapSubType { get => _trapSubType; set => SetField(ref _trapSubType, value); }
 
         public static IReadOnlyList<CondSlotDef> SlotDefs => _slotDefs;
 
@@ -594,9 +599,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     }
                     break;
                 case CondCategory.TRAP:
-                    // TRAP records: 6 bytes — B0=type, B1=X, B2=Y, B3=sub, B4-5=extra
+                    // TRAP records: 6 bytes — B0=type, B1=X, B2=Y, B3=sub, B4-5=extra.
+                    // Per LoadCondRecord: _subType=B1, _flagId=B2, _eventPtr=B3,
+                    // _extraB8=B4, _extraB9=B5.
                     X1 = _subType;
                     Y1 = _flagId;
+                    TrapSubType = _eventPtr;    // B3 = Ballista type / Vein effect / Item id
                     TrapDirection = _extraB8;
                     Durability = _extraB9;
                     // Trap-type-specific: damage/gas/duration/hatching share the
@@ -641,6 +649,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 case CondCategory.TALK:
                     _extraB8 = Unit1;
                     _extraB9 = Unit2;
+                    if (_condType == 0x04)
+                    {
+                        // TALK N04 (ASM Talk): WF TALK_N04_P12 is the ASM
+                        // function pointer at offset +4 (u32). Round-trip
+                        // AsmFunc back into _eventPtr (Copilot CLI review
+                        // round 3 #3).
+                        _eventPtr = AsmFunc;
+                    }
                     if (_isFE7Extended)
                     {
                         _extraB12 = AdditionalDecision;
@@ -658,7 +674,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     }
                     else if (_condType == 0x0A)
                     {
+                        // OBJECT N0A (Shop): B10 = shop type, _eventPtr = item
+                        // list pointer (u32 at offset +4). Round-trip the
+                        // displayed ItemList value (mirrored to EventPtr in
+                        // the View) back into _eventPtr (Copilot CLI review
+                        // round 3 #3). The View binds ItemListBox to
+                        // _vm.EventPtr directly, so this branch sets
+                        // _eventPtr explicitly to make the round-trip
+                        // unambiguous even if the View later wires
+                        // ItemListBox to a dedicated field.
                         _extraB10 = ShopType;
+                        // _eventPtr already mirrors ItemListBox via the
+                        // generic EventPtr path; nothing more needed here.
                     }
                     break;
                 case CondCategory.ALWAYS:
@@ -676,11 +703,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     _flagId = Y1;
                     _extraB8 = TrapDirection;
                     _extraB9 = Durability;
+                    // B3 byte: Ballista type / Vein effect / Item id — round-
+                    // trip TrapSubType back into _eventPtr (which holds B3 for
+                    // 6-byte TRAP records). This is the fix for Copilot CLI
+                    // review round 3 #2: previously the BallistaType/VeinEffect
+                    // edits went to _subType which was then overwritten by X1.
+                    _eventPtr = TrapSubType;
                     if (_condType == 0x04) _extraB8 = DamageAmount;
                     else if (_condType == 0x05) _extraB8 = GasDirection;
                     else if (_condType == 0x08) _extraB9 = Duration;
                     else if (_condType == 0x0C) { _extraB8 = HatchingStart; _extraB9 = HatchingEnd; }
-                    else if (_condType == 0x0B) _eventPtr = ItemId;
+                    else if (_condType == 0x0B) _eventPtr = ItemId; // Mine: item id in B3 (overrides TrapSubType)
                     break;
                 case CondCategory.TUTORIAL:
                     // TUTORIAL: single u32 (TUTORIAL_P0). The raw u32 is in
@@ -805,61 +838,75 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             uint baseAddr = U.toOffset(rawPtr);
 
-            // Count current records (terminator detection — must match
-            // LoadConditionRecords stop conditions exactly so Expand creates
-            // a buffer the same scanner will iterate).
-            uint count = 0;
+            // Walk the existing list using the SAME cursor/stride logic as
+            // LoadConditionRecords so FE7 TURN type-1 (12-byte) records are
+            // handled correctly. Collect (sourceAddr, stride) tuples so we
+            // can copy bytes faithfully when building the new buffer
+            // (Copilot CLI review round 3 #1).
+            var records = new List<(uint srcAddr, uint stride)>();
+            uint addrCursor = baseAddr;
             for (uint i = 0; i < 256; i++)
             {
-                uint addr = baseAddr + i * recordSize;
-                if (addr + recordSize > (uint)rom.Data.Length) break;
+                // Must check terminator BEFORE indexing or reading type byte.
+                // Use stride==recordSize as the minimum bounds-check size; if
+                // FE7 type-1 sets stride=12 we still bounds-checked at least
+                // that much.
+                if (addrCursor + recordSize > (uint)rom.Data.Length) break;
 
                 if (slotDef.Category == CondCategory.TUTORIAL)
                 {
-                    // TUTORIAL stop: u32 != 1 and NOT isPointer (per WF InitTutorial).
-                    uint v = rom.u32(addr);
+                    uint v = rom.u32(addrCursor);
                     if (v != 1 && !U.isPointer(v)) break;
                 }
                 else if (recordSize <= 6)
                 {
-                    if (rom.u8(addr) == 0) break;
+                    if (rom.u8(addrCursor) == 0) break;
                 }
                 else
                 {
-                    if (rom.u32(addr) == 0) break;
+                    if (rom.u32(addrCursor) == 0) break;
                 }
-                count++;
+
+                byte type = (byte)rom.u8(addrCursor);
+                uint stride = GetRecordStrideAt(slotDef.Category, recordSize, type);
+                records.Add((addrCursor, stride));
+                addrCursor += stride;
             }
 
-            // Build a new buffer with one extra slot + terminator.
-            uint newCount = count + 1;
-            uint totalSize = (newCount + 1) * recordSize; // +1 for terminator
+            // Sum the strides to get the total byte length of existing records.
+            uint existingBytes = 0;
+            foreach (var r in records) existingBytes += r.stride;
+
+            // The new slot uses the full recordSize (16 for FE7 TURN — we
+            // don't insert a type-1 row by default; user can change the type
+            // after expansion).
+            uint newSlotSize = recordSize;
+            // Terminator at the end uses recordSize as well.
+            uint terminatorSize = recordSize;
+            uint totalSize = existingBytes + newSlotSize + terminatorSize;
             byte[] buffer = new byte[totalSize];
 
-            // Copy existing records.
-            for (uint i = 0; i < count; i++)
+            // Copy existing records using per-record stride.
+            uint dstOffset = 0;
+            foreach (var r in records)
             {
-                uint srcAddr = baseAddr + i * recordSize;
-                for (uint j = 0; j < recordSize; j++)
+                for (uint j = 0; j < r.stride; j++)
                 {
-                    if (srcAddr + j < (uint)rom.Data.Length)
-                        buffer[i * recordSize + j] = (byte)rom.u8(srcAddr + j);
+                    if (r.srcAddr + j < (uint)rom.Data.Length)
+                        buffer[dstOffset + j] = (byte)rom.u8(r.srcAddr + j);
                 }
+                dstOffset += r.stride;
             }
 
             // Initialize the NEW slot with category-appropriate non-terminator
-            // data so the scanner sees it as a real row (Copilot CLI review #3).
-            // - TUTORIAL: write u32 = 1 (the special "blank" value per WF
-            //   AddressListExpandsEventTutorial; isPointer would also work but
-            //   1 is the canonical "no event yet" marker).
-            // - Other categories: write a placeholder type byte = 1 so the
-            //   scanner doesn't see byte 0 as terminator (TURN/TALK/OBJECT/etc.
-            //   all stop on first-byte == 0 OR u32 == 0). The user can change
-            //   the type after the row is visible.
-            uint newSlotOffset = count * recordSize;
+            // data so the scanner sees it as a real row.
+            // - TUTORIAL: u32 = 1 (canonical "blank" marker per WF
+            //   AddressListExpandsEventTutorial).
+            // - Other categories: byte 0 = 1 placeholder type so the scanner
+            //   doesn't treat byte 0 as terminator.
+            uint newSlotOffset = dstOffset;
             if (slotDef.Category == CondCategory.TUTORIAL)
             {
-                // u32 = 1 in little-endian.
                 buffer[newSlotOffset + 0] = 1;
                 buffer[newSlotOffset + 1] = 0;
                 buffer[newSlotOffset + 2] = 0;
@@ -867,11 +914,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
-                // Placeholder type byte at offset 0 so the row is non-terminator.
                 buffer[newSlotOffset + 0] = 1;
             }
 
-            // Terminator stays zeroed at offset = newCount * recordSize.
+            // Terminator stays zeroed at offset = newSlotOffset + newSlotSize.
 
             // Append the buffer to ROM end (mirrors WF InputFormRef.AppendBinaryData).
             uint newAddr = AppendBinaryDataHeadless(rom, buffer);

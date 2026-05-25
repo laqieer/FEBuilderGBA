@@ -405,7 +405,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     };
                     TrapXBox.Value = _vm.X1;
                     TrapYBox.Value = _vm.Y1;
-                    BallistaTypeBox.Value = _vm.SubType;
+                    // BallistaType / VeinEffect are the B3 sub-type byte
+                    // (TrapSubType, not _vm.SubType which holds B1 = X for
+                    // 6-byte TRAP records). Copilot CLI review round 3 #2.
+                    BallistaTypeBox.Value = _vm.TrapSubType;
                     TrapDirectionBox.Value = _vm.TrapDirection;
                     TrapDurabilityBox.Value = _vm.Durability;
                     DamageAmountBox.Value = _vm.DamageAmount;
@@ -413,7 +416,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     DurationBox.Value = _vm.Duration;
                     HatchingStartBox.Value = _vm.HatchingStart;
                     HatchingEndBox.Value = _vm.HatchingEnd;
-                    VeinEffectIdBox.Value = _vm.SubType; // Vein effect typically in sub-type byte
+                    VeinEffectIdBox.Value = _vm.TrapSubType;
                     break;
                 case CondCategory.TUTORIAL:
                     // TUTORIAL records are a single 4-byte u32 (TUTORIAL_P0).
@@ -659,6 +662,16 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.Gold = (uint)(GoldBox.Value ?? 0);
                     _vm.Durability = (uint)(DurabilityBox.Value ?? 0);
                     _vm.ShopType = (uint)(ShopTypeBox.Value ?? 0);
+                    // OBJECT N0A Shop: ItemList u32 maps to _vm.EventPtr (B4-B7
+                    // of the record). Round-trip the displayed ItemList value
+                    // back so shop edits are persisted (Copilot CLI review
+                    // round 3 #3). Only relevant when CondType == 0x0A; for
+                    // other OBJECT types the generic EventPtrBox handles the
+                    // pointer/chest packing.
+                    if (_vm.CondType == 0x0A)
+                    {
+                        _vm.EventPtr = (uint)(ItemListBox.Value ?? 0);
+                    }
                     break;
                 case CondCategory.ALWAYS:
                     _vm.X1 = (uint)(RangeStartXBox.Value ?? 0);
@@ -670,7 +683,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 case CondCategory.TRAP:
                     _vm.X1 = (uint)(TrapXBox.Value ?? 0);
                     _vm.Y1 = (uint)(TrapYBox.Value ?? 0);
-                    _vm.SubType = (uint)(BallistaTypeBox.Value ?? 0);
+                    // BallistaType / VeinEffect bind to TrapSubType (B3 byte),
+                    // NOT to _vm.SubType (which holds B1 = X for TRAP and would
+                    // be overwritten by X1 in ComposeCategoryFields).
+                    // Copilot CLI review round 3 #2.
+                    _vm.TrapSubType = (uint)(BallistaTypeBox.Value ?? 0);
                     _vm.TrapDirection = (uint)(TrapDirectionBox.Value ?? 0);
                     _vm.Durability = (uint)(TrapDurabilityBox.Value ?? 0);
                     _vm.DamageAmount = (uint)(DamageAmountBox.Value ?? 0);

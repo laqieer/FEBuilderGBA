@@ -834,6 +834,106 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI PR #621 review fixes (round 3) — ExpandRecordList
+    // variable-stride, TRAP B3 round-trip, TALK N04 ASM round-trip,
+    // OBJECT N0A ItemList round-trip.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_ExpandRecordList_UsesVariableStride()
+    {
+        // Copilot CLI review round 3 #1: ExpandRecordList must use the same
+        // cursor/stride logic as LoadConditionRecords (via GetRecordStrideAt)
+        // so FE7 TURN type-1 (12-byte) records inside a 16-byte list don't
+        // misalign the copy pass.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must use GetRecordStrideAt inside ExpandRecordList to
+        // compute the per-record stride.
+        Assert.Matches(
+            new Regex(@"ExpandRecordList[\s\S]*?GetRecordStrideAt\(slotDef\.Category", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_TrapSubType_RoundTripsThroughB3()
+    {
+        // Copilot CLI review round 3 #2: TRAP records have B3 = sub-type
+        // (Ballista type / Vein effect / Item id). Previously the UI bound
+        // to _vm.SubType (which is B1 = X for TRAP), and ComposeCategoryFields
+        // overwrote _subType from X1, so Ballista/Vein edits were lost.
+        // The fix adds a TrapSubType property that maps to _eventPtr (B3 for
+        // 6-byte TRAP records).
+        var vm = new EventCondViewModel();
+
+        // Verify TrapSubType exists as a public property.
+        var prop = vm.GetType().GetProperty("TrapSubType");
+        Assert.NotNull(prop);
+        Assert.Equal(typeof(uint), prop!.PropertyType);
+
+        // Round-trip: set TrapSubType, read it back.
+        prop.SetValue(vm, 0x42u);
+        Assert.Equal(0x42u, (uint)prop.GetValue(vm)!);
+
+        // Verify View source binds BallistaTypeBox / VeinEffectIdBox to
+        // _vm.TrapSubType (not _vm.SubType).
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+        Assert.Matches(
+            new Regex(@"BallistaTypeBox\.Value\s*=\s*_vm\.TrapSubType", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"VeinEffectIdBox\.Value\s*=\s*_vm\.TrapSubType", RegexOptions.Singleline),
+            source);
+        // And UpdateVmCategoryProperties writes BallistaTypeBox -> TrapSubType.
+        Assert.Matches(
+            new Regex(@"_vm\.TrapSubType\s*=\s*\(uint\)\(BallistaTypeBox\.Value", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_TalkN04_AsmFunc_RoundTripsThroughEventPtr()
+    {
+        // Copilot CLI review round 3 #3a: TALK N04 (ASM Talk, CondType==0x04)
+        // stores the ASM function pointer at offset +4 (u32 = _eventPtr).
+        // ComposeCategoryFields must write AsmFunc into _eventPtr when
+        // CondType == 0x04.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must contain `_eventPtr = AsmFunc` inside the TALK case
+        // guarded by `_condType == 0x04`.
+        Assert.Matches(
+            new Regex(@"CondCategory\.TALK[\s\S]*?_condType\s*==\s*0x04[\s\S]*?_eventPtr\s*=\s*AsmFunc", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_ObjectN0A_ItemList_RoundTripsThroughEventPtr()
+    {
+        // Copilot CLI review round 3 #3b: OBJECT N0A (Shop, CondType==0x0A)
+        // stores the item-list pointer at offset +4 (u32 = _eventPtr).
+        // UpdateVmCategoryProperties must round-trip ItemListBox -> _vm.EventPtr.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // Production must contain `_vm.EventPtr = (uint)(ItemListBox.Value ?? 0)`
+        // inside the OBJECT case guarded by `_vm.CondType == 0x0A`.
+        Assert.Matches(
+            new Regex(@"CondCategory\.OBJECT[\s\S]*?_vm\.CondType\s*==\s*0x0A[\s\S]*?_vm\.EventPtr\s*=\s*\(uint\)\(ItemListBox", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
