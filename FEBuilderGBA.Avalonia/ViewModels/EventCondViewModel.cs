@@ -109,6 +109,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsFE7Extended { get => _isFE7Extended; set => SetField(ref _isFE7Extended, value); }
         public bool IsPointerSlot { get => _isPointerSlot; set => SetField(ref _isPointerSlot, value); }
 
+        /// <summary>
+        /// Effective byte stride of the currently-loaded record. For FE7 TURN
+        /// type==1 rows this is 12 (vs CondRecordSize=16 for the slot); for
+        /// everything else it equals CondRecordSize. Used by the View's raw
+        /// hex dump and by GetRawRomReport so they don't read past the
+        /// record into the next one (Copilot round 7 #2).
+        /// </summary>
+        public uint EffectiveRecordSize
+        {
+            get
+            {
+                if (_selectedSlotIndex >= 0 && _selectedSlotIndex < _slotDefs.Count)
+                {
+                    var cat = _slotDefs[_selectedSlotIndex].Category;
+                    if (cat == CondCategory.TURN && _condRecordSize == 16 && _condType == 1)
+                        return 12;
+                }
+                return _condRecordSize;
+            }
+        }
+
         // Top read-config bar properties
         public uint TopAddress { get => _topAddress; set => SetField(ref _topAddress, value); }
         public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
@@ -587,14 +608,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     ExtraB12 = ExtraB13 = ExtraB14 = ExtraB15 = 0;
                 }
 
-                // For FE7 TURN type==1, the row is effectively a 12-byte
-                // record — surface this via IsFE7Extended=false so the View
-                // hides B12-B15 controls (treat it as a 12-byte record
-                // end-to-end, not just on write).
-                if (isFe7TurnType1)
-                {
-                    IsFE7Extended = false;
-                }
+                // Recompute IsFE7Extended per selected record so it doesn't
+                // stick after a FE7 TURN type-1 row is selected (Copilot
+                // round 7 #1). The View uses this flag to show B12-B15 and
+                // the Write_Click handler only copies those controls back
+                // when true — so a stale `false` from a previous type-1
+                // selection would hide valid B12-B15 fields for a later
+                // 16-byte FE7 TURN row.
+                IsFE7Extended = (CondRecordSize >= 16) && !isFe7TurnType1;
             }
 
             CondTypeName = GetCondTypeName((byte)CondType);
@@ -1258,7 +1279,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CondRecordAddr == 0) return new Dictionary<string, string>();
 
             uint a = CondRecordAddr;
-            uint size = IsPointerSlot ? 4 : CondRecordSize;
+            uint size = IsPointerSlot ? 4 : EffectiveRecordSize;
             if (a + size > (uint)rom.Data.Length)
                 return new Dictionary<string, string>();
 
@@ -1289,18 +1310,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
+                // Use EffectiveRecordSize so FE7 TURN type-1 rows (stride 12)
+                // don't report B12-B15 from the next record (Copilot round 7 #2).
+                uint effSize = EffectiveRecordSize;
                 report["u8@0"] = $"0x{rom.u8(a + 0):X02}";
                 report["u8@1"] = $"0x{rom.u8(a + 1):X02}";
                 report["u16@2"] = $"0x{rom.u16(a + 2):X04}";
                 report["u32@4"] = $"0x{rom.u32(a + 4):X08}";
-                if (CondRecordSize >= 12)
+                if (effSize >= 12)
                 {
                     report["u8@8"] = $"0x{rom.u8(a + 8):X02}";
                     report["u8@9"] = $"0x{rom.u8(a + 9):X02}";
                     report["u8@10"] = $"0x{rom.u8(a + 10):X02}";
                     report["u8@11"] = $"0x{rom.u8(a + 11):X02}";
                 }
-                if (CondRecordSize >= 16)
+                if (effSize >= 16)
                 {
                     report["u8@12"] = $"0x{rom.u8(a + 12):X02}";
                     report["u8@13"] = $"0x{rom.u8(a + 13):X02}";

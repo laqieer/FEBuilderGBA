@@ -1195,6 +1195,86 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // Copilot CLI round 7 review fixes — IsFE7Extended recomputed per
+    // record (not sticky after type-1), per-record stride used for
+    // raw display / report.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_IsFE7Extended_RecomputedPerRecord_NotSticky()
+    {
+        // Round 7 #1: LoadCondRecord must recompute IsFE7Extended per record
+        // selection so it doesn't stick after a FE7 TURN type-1 row.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        // Production must contain `IsFE7Extended = (CondRecordSize >= 16) && !isFe7TurnType1;`
+        // (assignment, not just conditional set-when-true).
+        Assert.Matches(
+            new Regex(@"IsFE7Extended\s*=\s*\(CondRecordSize\s*>=\s*16\)\s*&&\s*!isFe7TurnType1", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_EffectiveRecordSize_HandlesFe7TurnType1()
+    {
+        // Round 7 #2: EffectiveRecordSize must return 12 for FE7 TURN type-1
+        // rows (vs CondRecordSize=16), and equal CondRecordSize otherwise.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        Assert.Matches(
+            new Regex(@"public uint EffectiveRecordSize[\s\S]*?CondCategory\.TURN[\s\S]*?_condRecordSize\s*==\s*16[\s\S]*?_condType\s*==\s*1[\s\S]*?return 12", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_UsesEffectiveRecordSizeForRawHexAndSizeLabel()
+    {
+        // Round 7 #2: View's UpdateRawHex must read EffectiveRecordSize bytes,
+        // and RecordSizeLabel/BlockSizeBox must display EffectiveRecordSize.
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // RawHexLabel uses EffectiveRecordSize.
+        Assert.Matches(
+            new Regex(@"_vm\.IsPointerSlot\s*\?\s*4\s*:\s*_vm\.EffectiveRecordSize", RegexOptions.Singleline),
+            source);
+        // RecordSizeLabel uses EffectiveRecordSize.
+        Assert.Matches(
+            new Regex(@"RecordSizeLabel\.Text\s*=\s*\$""\{_vm\.EffectiveRecordSize\}", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void ViewModel_GetRawRomReport_UsesEffectiveRecordSize()
+    {
+        // Round 7 #2: GetRawRomReport must read only EffectiveRecordSize
+        // bytes so FE7 TURN type-1 rows don't report B12-B15 from the next
+        // record.
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "EventCondViewModel.cs");
+        string source = File.ReadAllText(vmPath);
+
+        Assert.Matches(
+            new Regex(@"GetRawRomReport[\s\S]*?IsPointerSlot\s*\?\s*4\s*:\s*EffectiveRecordSize", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"effSize\s*>=\s*12", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"effSize\s*>=\s*16", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

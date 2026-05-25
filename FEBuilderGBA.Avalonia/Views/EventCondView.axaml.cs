@@ -234,9 +234,11 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateEditorUI()
         {
             AddrLabel.Text = $"0x{_vm.CondRecordAddr:X08}";
-            RecordSizeLabel.Text = $"{_vm.CondRecordSize} bytes";
+            // Display the EFFECTIVE per-record stride so FE7 TURN type-1 rows
+            // show "12 bytes" not "16 bytes" (Copilot round 7 #2).
+            RecordSizeLabel.Text = $"{_vm.EffectiveRecordSize} bytes";
             CondTypeNameLabel.Text = _vm.CondTypeName;
-            BlockSizeBox.Text = $"0x{_vm.CondRecordSize:X02}";
+            BlockSizeBox.Text = $"0x{_vm.EffectiveRecordSize:X02}";
             SelectedAddrBox.Text = $"0x{_vm.CondRecordAddr:X08}";
             CommentBox.Text = _vm.Comment ?? "";
 
@@ -561,7 +563,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             uint addr = _vm.CondRecordAddr;
-            uint size = _vm.IsPointerSlot ? 4 : _vm.CondRecordSize;
+            // Use EffectiveRecordSize so FE7 TURN type-1 rows display only
+            // their actual 12-byte stride, not 16 (Copilot round 7 #2).
+            uint size = _vm.IsPointerSlot ? 4 : _vm.EffectiveRecordSize;
             if (addr + size > (uint)rom.Data.Length)
             {
                 RawHexLabel.Text = "(out of range)";
