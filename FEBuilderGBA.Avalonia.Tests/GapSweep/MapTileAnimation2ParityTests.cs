@@ -632,6 +632,52 @@ public class MapTileAnimation2ParityTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    /// <summary>
+    /// Regression test for the Copilot CLI review on PR #634 (blocking
+    /// issue): `ExpandPaletteRowListByOne` must also write the entry's
+    /// DataCount (B5) and update the VM's DataCount so a subsequent
+    /// LoadEntry sees the new row count. Without this fix, the palette
+    /// sub-list reload would still show oldCount rows even though the new
+    /// allocation has oldCount+1 entries (WF parity with
+    /// `N_AddressListExpandsEvent`).
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExpandPaletteRowList_UpdatesDataCountAndReloadShowsNewRow()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation2ViewModel();
+            vm.LoadEntry(entryAddr);
+            uint oldCount = vm.DataCount;
+            Assert.True(oldCount > 0);
+
+            var undo = new Undo.UndoData();
+            undo.list = new System.Collections.Generic.List<Undo.UndoPostion>();
+            undo.filesize = (uint)rom.Data.Length;
+            using (ROM.BeginUndoScope(undo))
+            {
+                uint newBase = vm.ExpandPaletteRowListByOne();
+                Assert.NotEqual(U.NOT_FOUND, newBase);
+            }
+
+            // ROM byte at entryAddr+5 must reflect the new count (WF parity).
+            Assert.Equal(oldCount + 1, rom.u8(entryAddr + 5));
+            // VM must reflect the bumped count immediately (no second read).
+            Assert.Equal(oldCount + 1, vm.DataCount);
+
+            // After a fresh LoadEntry (simulating the view's reload path),
+            // DataCount and PaletteRows.Count must reflect the new row.
+            var vm2 = new MapTileAnimation2ViewModel();
+            vm2.LoadEntry(entryAddr);
+            Assert.Equal(oldCount + 1, vm2.DataCount);
+            Assert.Equal((int)(oldCount + 1), vm2.PaletteRows.Count);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------

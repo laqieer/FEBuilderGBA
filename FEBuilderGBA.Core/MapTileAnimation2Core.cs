@@ -329,6 +329,14 @@ namespace FEBuilderGBA
         ///
         /// Returns empty string on success, an error message on failure.
         /// </summary>
+        // Serialise the CoreState.ROM swap below so two concurrent BulkImport
+        // calls cannot interleave their save/restore (Copilot bot review on
+        // PR #634). CoreState.ROM is a static global, not thread-local, so
+        // the swap inside BulkImport is not thread-safe on its own. The lock
+        // narrows the race to a per-call serialisation - acceptable because
+        // ROM editing is itself inherently single-writer.
+        static readonly object _coreStateRomSwapLock = new object();
+
         public static string BulkImport(ROM rom, string filename, uint pointer, uint baseAddr, uint dataCount)
         {
             if (rom == null) return "ROM is null.";
@@ -337,16 +345,21 @@ namespace FEBuilderGBA
             if (!File.Exists(filename)) return "filename does not exist: " + filename;
 
             // Save & swap CoreState.ROM so RecycleAddress (which reads
-            // CoreState.ROM internally) mutates the passed ROM.
-            var prevRom = CoreState.ROM;
-            try
+            // CoreState.ROM internally) mutates the passed ROM. The lock
+            // prevents two concurrent BulkImport calls from racing on the
+            // global (Copilot bot review on PR #634).
+            lock (_coreStateRomSwapLock)
             {
-                CoreState.ROM = rom;
-                return BulkImportInner(rom, filename, pointer, baseAddr, dataCount);
-            }
-            finally
-            {
-                CoreState.ROM = prevRom;
+                var prevRom = CoreState.ROM;
+                try
+                {
+                    CoreState.ROM = rom;
+                    return BulkImportInner(rom, filename, pointer, baseAddr, dataCount);
+                }
+                finally
+                {
+                    CoreState.ROM = prevRom;
+                }
             }
         }
 

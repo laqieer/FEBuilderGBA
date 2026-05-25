@@ -380,6 +380,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Grow the palette sub-table by one row. The pointer slot is the
         /// +0 byte of the current entry row (the palette data pointer field).
+        /// Mirrors the WF `EventUnitForm.AddressListExpandsEvent` behavior of
+        /// also updating the entry's DataCount (B5 at <c>CurrentAddr+5</c>) so
+        /// the editor sees the new row on the next reload (Copilot bot
+        /// review on PR #634). The DataCount write happens within the same
+        /// ambient undo scope as the table allocation + repoint, so a rollback
+        /// reverts both.
         /// </summary>
         public uint ExpandPaletteRowListByOne()
         {
@@ -390,8 +396,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint paletteSlot = CurrentAddr + 0; // P0 field
             uint oldBase = U.toOffset(PaletteDataPointer);
             uint newCount = DataCount + 1;
-            return MapTileAnimation2Core.ExpandPaletteRowList(rom, paletteSlot,
-                oldBase, DataCount, newCount);
+            // The Core helper caps DataCount at 255 since B5 is one byte.
+            if (newCount > 0xFF) return U.NOT_FOUND;
+            uint newBase = MapTileAnimation2Core.ExpandPaletteRowList(rom,
+                paletteSlot, oldBase, DataCount, newCount);
+            if (newBase == U.NOT_FOUND) return U.NOT_FOUND;
+            // Also bump the entry's B5 (DataCount) so a reload picks up the
+            // new row. The ambient undo scope captures this write too.
+            rom.write_u8(CurrentAddr + 5, newCount);
+            // Update the VM's in-memory state so the view's reload picks up
+            // the new count without a fresh u8 read.
+            IsLoading = true;
+            try { DataCount = newCount; }
+            finally { IsLoading = false; }
+            return newBase;
         }
     }
 }

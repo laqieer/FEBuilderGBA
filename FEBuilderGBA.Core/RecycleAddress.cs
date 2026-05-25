@@ -280,11 +280,15 @@ namespace FEBuilderGBA
                 }
             }
 
-            // Recycle pool didn't satisfy the request. Try the
-            // CoreState.AppendBinaryData hook first (so consumers wired by
-            // WinForms / Avalonia keep their hooks active), then fall back
-            // to a direct rom.FindFreeSpace + write_range so #524 BulkImport
-            // works even when AppendBinaryData is not wired.
+            // Recycle pool didn't satisfy the request. We deliberately do NOT
+            // call CoreState.AppendBinaryData here - that seam is WinForms-
+            // specific (its signature takes an explicit undodata which would
+            // double-record against the ambient scope, the very condition
+            // these Ambient-suffix methods exist to avoid). Fall back to
+            // rom.FindFreeSpace + no-undo write_range so #524 BulkImport works
+            // headlessly. The tail-resize special case below mirrors
+            // Write(_, undodata) for the case where the last recycle range
+            // reaches ROM.Data.Length.
             if (this.Recycle.Count <= 0)
             {
                 return AllocFreeSpace(write_data);
@@ -295,7 +299,14 @@ namespace FEBuilderGBA
             if (lastP.Addr + lastP.Length >= CoreState.ROM.Data.Length)
             {
                 // Tail-resize special case (matches Write(_,undodata)).
-                CoreState.ROM.write_resize_data(U.Padding4(lastP.Addr + (uint)write_data.Length));
+                // Bail out on a failed resize (e.g., >32MB) so the caller
+                // gets U.NOT_FOUND instead of a crashing write_range
+                // (Copilot bot review on PR #634).
+                uint newRomSize = U.Padding4(lastP.Addr + (uint)write_data.Length);
+                if (!CoreState.ROM.write_resize_data(newRomSize))
+                {
+                    return U.NOT_FOUND;
+                }
                 CoreState.ROM.write_range(lastP.Addr, write_data);
                 this.Recycle.RemoveAt(lastI);
                 return lastP.Addr;
