@@ -144,25 +144,44 @@ namespace FEBuilderGBA.Avalonia.Views
                 ToolTranslateROMViewModel.ToLanguageItemsRaw[
                     Math.Clamp(_vm.ToLanguageIndex, 0, ToolTranslateROMViewModel.ToLanguageItemsRaw.Length - 1)]);
 
+            // Parse FROM / TO languages (TO already parsed above).
+            string fromLang = ToolTranslateROMCore.ParseLanguageKey(
+                ToolTranslateROMViewModel.FromLanguageItemsRaw[
+                    Math.Clamp(_vm.FromLanguageIndex, 0, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length - 1)]);
+
             _vm.UndoService.Begin("Translate ROM");
             try
             {
-                // Apply the translate-patch (main menu width + status-screen skill).
-                ToolTranslateROMCore.ApplyTranslatePatch(rom, toLang,
-                    _vm.UndoService.GetActiveUndoData());
-
-                // Optional translate-data file import.
-                if (File.Exists(_vm.TranslateDataPath))
+                int total = 0;
+                // Heavy I/O + decode work runs on a background thread so the
+                // UI thread stays responsive (mirrors WF AutoPleaseWait /
+                // DoEvents which yields control during the loop).
+                await Task.Run(() =>
                 {
+                    var opts = new ToolTranslateROMCore.SimpleFireOptions
+                    {
+                        FromRomPath = _vm.FromRomPath,
+                        ToRomPath = _vm.ToRomPath,
+                        ExtraFontRomPath = _vm.ExtraFontRomPath,
+                        TranslateDataFilename = _vm.TranslateDataPath,
+                        FromLanguage = fromLang,
+                        ToLanguage = toLang,
+                        OverrideJpFont = _vm.SimpleOverrideJpFont,
+                    };
                     var recycle = new RecycleAddress();
-                    ToolTranslateROMCore.ImportTextsFromFile(rom, _vm.TranslateDataPath,
-                        recycle, _vm.UndoService.GetActiveUndoData(), null);
-                }
+                    total = ToolTranslateROMCore.SimpleFireTranslate(rom, opts, recycle,
+                        _vm.UndoService.GetActiveUndoData(), null);
+                });
 
                 _vm.UndoService.Commit();
-                await ShowInfo("Translation patch applied.\n\n" +
-                    "Note: Avalonia ImportFont auto-generation requires System.Drawing " +
-                    "and stays WinForms-only; use the WinForms tool for full font auto-gen.");
+                string msg = $"Translation complete. {total} text entries written.";
+                if (_vm.SimpleOverrideJpFont)
+                {
+                    msg += "\n\nNote: Override JP Font is checked, but the WipeJP* flow needs " +
+                        "WinForms HowDoYouLikePatchForm popups and stays WinForms-only (#536 " +
+                        "KnownGap). Use the WinForms tool for full JP-font wiping.";
+                }
+                await ShowInfo(msg);
             }
             catch (Exception ex)
             {
@@ -186,11 +205,32 @@ namespace FEBuilderGBA.Avalonia.Views
                 suggestedName: "translation.txt");
             if (string.IsNullOrEmpty(outPath)) return;
 
-            // Export is read-only - no UndoService.Begin/Commit.
+            // Parse Detail-tab translate-from / translate-to (when
+            // UseAutoTranslate is checked). Empty otherwise -> no dictionary
+            // applied, just plain text export.
+            string fromLang = _vm.UseAutoTranslate
+                ? ToolTranslateROMCore.ParseLanguageKey(
+                    ToolTranslateROMViewModel.FromLanguageItemsRaw[
+                        Math.Clamp(_vm.FromLanguageIndex, 0, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length - 1)])
+                : string.Empty;
+            string toLang = _vm.UseAutoTranslate
+                ? ToolTranslateROMCore.ParseLanguageKey(
+                    ToolTranslateROMViewModel.ToLanguageItemsRaw[
+                        Math.Clamp(_vm.ToLanguageIndex, 0, ToolTranslateROMViewModel.ToLanguageItemsRaw.Length - 1)])
+                : string.Empty;
+            string fromPath = _vm.UseAutoTranslate ? _vm.FromRomPath : string.Empty;
+            string toPath = _vm.UseAutoTranslate ? _vm.ToRomPath : string.Empty;
+
+            // Export is read-only - no UndoService.Begin/Commit. Run on a
+            // background thread so the UI stays responsive while we iterate
+            // tens of thousands of text entries.
             try
             {
-                int n = ToolTranslateROMCore.ExportTextsToFile(rom, outPath,
-                    _vm.OneLinerCheck, progressCallback: null);
+                int n = await Task.Run(() =>
+                    ToolTranslateROMCore.ExportTextsToFile(rom, outPath,
+                        _vm.OneLinerCheck, _vm.ModifiedTextOnly,
+                        fromLang, toLang, fromPath, toPath,
+                        progressCallback: null));
                 await ShowInfo($"Exported {n} text entries to:\n{outPath}");
             }
             catch (Exception ex)
@@ -220,14 +260,20 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.UndoService.Begin("Import Translation");
             try
             {
-                // Apply the translate-patch first so the menu width / status-screen
-                // cell match the destination language (matches WF flow).
-                ToolTranslateROMCore.ApplyTranslatePatch(rom, toLang,
-                    _vm.UndoService.GetActiveUndoData());
+                // Heavy decode/write loop runs on a background thread so the
+                // UI stays responsive (mirrors WF AutoPleaseWait/DoEvents).
+                int n = await Task.Run(() =>
+                {
+                    // Apply the translate-patch first so the menu width /
+                    // status-screen cell match the destination language
+                    // (matches WF flow).
+                    ToolTranslateROMCore.ApplyTranslatePatch(rom, toLang,
+                        _vm.UndoService.GetActiveUndoData());
 
-                var recycle = new RecycleAddress();
-                int n = ToolTranslateROMCore.ImportTextsFromFile(rom, inPath,
-                    recycle, _vm.UndoService.GetActiveUndoData(), null);
+                    var recycle = new RecycleAddress();
+                    return ToolTranslateROMCore.ImportTextsFromFile(rom, inPath,
+                        recycle, _vm.UndoService.GetActiveUndoData(), null);
+                });
 
                 _vm.UndoService.Commit();
                 await ShowInfo($"Imported {n} text entries.");
@@ -242,18 +288,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportFont_Click(object? sender, RoutedEventArgs e)
         {
-            // ImportFont in Avalonia currently performs path validation only.
-            // The bitmap auto-generation path requires System.Drawing.Bitmap
-            // (`ImageUtil.AutoGenerateFont`) which stays in the WinForms
-            // assembly. The font-copy-from-ROM path itself depends on the
-            // WinForms `FontForm` static helpers we DID port to Core
-            // (FontCore.GetFontPointer / FindFontData / MakeNewFontData /
-            // TransportFontStruct), but the full glyph-iteration drive is a
-            // larger migration (#536 KnownGap).
-            //
-            // We still go through the UndoService scope so the parity spy
-            // tests can confirm Begin/Commit run in the right order even
-            // when the body is a path-validation + status report.
+            // Avalonia ImportFont calls the Core ImportFontFromROMs orchestration
+            // which uses FontCore (in Core) + TextSourceListCore (in Core) to
+            // port missing glyphs from a source Font ROM (+ optional Extra Font
+            // ROM) into the current ROM. The bitmap auto-generation branch
+            // (System.Drawing.Bitmap) is NOT exercised - that stays WinForms-only
+            // (see #536 Known Limitations / FontAutoGenerate-checked banner below).
 
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null)
@@ -262,32 +302,38 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            _vm.UndoService.Begin("Import Font (path check)");
+            bool fontRomExists = !string.IsNullOrEmpty(_vm.FontRomPath) &&
+                File.Exists(_vm.FontRomPath);
+            bool extraFontExists = !string.IsNullOrEmpty(_vm.ExtraFontRomPath) &&
+                File.Exists(_vm.ExtraFontRomPath);
+
+            if (!fontRomExists && !extraFontExists)
+            {
+                await ShowInfo("No font source ROM specified. Set Font ROM (or Extra Font ROM) " +
+                    "and try again.");
+                return;
+            }
+
+            _vm.UndoService.Begin("Import Font");
             try
             {
-                bool fontRomExists = !string.IsNullOrEmpty(_vm.FontRomPath) &&
-                    File.Exists(_vm.FontRomPath);
-                bool extraFontExists = !string.IsNullOrEmpty(_vm.ExtraFontRomPath) &&
-                    File.Exists(_vm.ExtraFontRomPath);
-
+                int ported = 0;
+                await Task.Run(() =>
+                {
+                    var recycle = new RecycleAddress();
+                    ported = ToolTranslateROMCore.ImportFontFromROMs(rom,
+                        _vm.FontRomPath, _vm.ExtraFontRomPath,
+                        recycle, _vm.UndoService.GetActiveUndoData(), null);
+                });
                 _vm.UndoService.Commit();
 
-                string msg;
-                if (!fontRomExists && !extraFontExists)
+                string msg = $"Imported {ported} font glyph(s) from source ROM(s).";
+                if (_vm.FontAutoGenerate)
                 {
-                    msg = "No font source ROM specified. Set Font ROM (or Extra Font ROM) " +
-                        "and try again, or use the WinForms ROM Translation Tool for the " +
-                        "full font-import flow.";
-                }
-                else
-                {
-                    msg = "Font path(s) validated:\n";
-                    if (fontRomExists) msg += $"- Font ROM: {_vm.FontRomPath}\n";
-                    if (extraFontExists) msg += $"- Extra Font ROM: {_vm.ExtraFontRomPath}\n";
-                    msg += "\nNote: Avalonia ImportFont currently supports path validation only.\n" +
-                        "Full font auto-generation requires System.Drawing.Bitmap and stays " +
-                        "WinForms-only (#536 KnownGap). Use the WinForms ROM Translation Tool " +
-                        "to perform the actual font import.";
+                    msg += "\n\nNote: Font auto-generation is enabled but requires " +
+                        "System.Drawing.Bitmap (WinForms-only, #536 KnownGap). " +
+                        "Missing fonts that aren't in any source ROM remain unimported. " +
+                        "Use the WinForms tool to auto-generate them from a TrueType font.";
                 }
                 await ShowInfo(msg);
             }

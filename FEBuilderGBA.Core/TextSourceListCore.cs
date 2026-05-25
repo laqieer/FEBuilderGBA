@@ -11,8 +11,10 @@
 // The WinForms forms keep their existing static MakeList methods. They will
 // continue calling their own InputFormRef-based iteration so we don't risk a
 // behaviour regression on the WinForms side. The Core helpers here are used
-// by `ToolTranslateROMCore.ExportTextsToFile` / `ImportFont` so the Avalonia
-// view can drive the same iteration without depending on WinForms.
+// by `ToolTranslateROMCore.ExportTextsToFile` so the Avalonia view can drive
+// the menu / terrain / sound-room / other-text iteration without depending
+// on WinForms. (Font import orchestration is a follow-up; FontCore +
+// PRIORITY_CODE are already in Core to enable that work.)
 using System;
 using System.Collections.Generic;
 using System.IO;

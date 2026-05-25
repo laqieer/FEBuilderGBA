@@ -125,18 +125,16 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void FindOrignalROMByLang_MatchingCrc_ReturnsPath()
+        public void FindOrignalROMByLang_HeaderMatchButCrcMismatch_ReturnsEmpty()
         {
             // FE8U: header "BE8E01" at 0xAC..0xB2, size 0x1000000, crc 0xa47246ae.
-            // Build a file matching size + header (CRC32 won't match without real
-            // contents, but for an in-memory test we synthesize the bytes such
-            // that the CRC matches a single known sequence).
-            // Strategy: skip the strict CRC by using a "synthetic-FE8U.gba" file
-            // whose CRC32 we precompute and search for. But that defeats the
-            // purpose of testing real-CRC lookup. Instead, we test the more
-            // important short-circuit paths (no file / wrong size / wrong header)
-            // and trust the explicit CRC math (covered by U.CRC32 tests).
-            string tempDir = Path.Combine(Path.GetTempPath(), "FEB_ToolTranslateROMCore_Match_" + Guid.NewGuid());
+            // We build a file matching size + header but with a non-matching CRC
+            // (random body). The search MUST short-circuit on CRC failure and
+            // return empty - this validates the CRC32-gate even when size +
+            // header pass. Validates the negative-CRC-match path (positive-match
+            // would require seeding 16 MB of bytes that hash to a specific value;
+            // that's covered indirectly by the U.CRC32 unit-of-work tests).
+            string tempDir = Path.Combine(Path.GetTempPath(), "FEB_ToolTranslateROMCore_CrcMismatch_" + Guid.NewGuid());
             Directory.CreateDirectory(tempDir);
             try
             {

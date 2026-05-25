@@ -22,8 +22,6 @@
 //    /other-text pointer entries) to a `[XXXX]\ntext\n\n` formatted file.
 //  - ImportTextsFromFile - reads `[XXXX]\ntext\n\n` and writes back via
 //    Huffman/UnHuffman/CString depending on the entry kind.
-//  - ApplyAITrTranslateMenu / ApplyAITrTranslateStatus - the inner pieces
-//    matching `ToolTranslateROM.ApplyTranslatePatch`.
 //
 // What's intentionally NOT here (KnownGap, documented in PR Known Limitations):
 //  - Bitmap font auto-generation (`ImageUtil.AutoGenerateFont` is
@@ -399,8 +397,42 @@ namespace FEBuilderGBA
         public static int ExportTextsToFile(ROM rom, string outputPath, bool isOneLiner,
             Action<string> progressCallback)
         {
+            return ExportTextsToFile(rom, outputPath, isOneLiner,
+                isModifiedTextOnly: false, translateFrom: string.Empty, translateTo: string.Empty,
+                fromRomPath: string.Empty, toRomPath: string.Empty, progressCallback);
+        }
+
+        /// <summary>
+        /// Full WF `ExportallText` overload that supports the Detail-tab
+        /// translation controls: `isModifiedTextOnly` filters out lines that
+        /// haven't been touched (compared against the FROM ROM), and the
+        /// translate-from / translate-to language pair drives a fixed
+        /// translation dictionary lookup (FROM ROM text -> TO ROM text).
+        /// When all translation params are empty, the function degrades to
+        /// the simple text-only export (text IDs + multibyte pointer
+        /// entries) - matching the no-options-set WF path.
+        /// </summary>
+        public static int ExportTextsToFile(ROM rom, string outputPath, bool isOneLiner,
+            bool isModifiedTextOnly, string translateFrom, string translateTo,
+            string fromRomPath, string toRomPath, Action<string> progressCallback)
+        {
             if (rom?.RomInfo == null) return 0;
             if (string.IsNullOrEmpty(outputPath)) return 0;
+
+            // Build the FROM-text -> TO-text fixed translation dictionary by
+            // loading the FROM and TO ROMs side-by-side and pairing entries at
+            // identical text IDs. Mirrors WF `TranslateTextUtil.MakeFixedDic`,
+            // minus the Google-Translate path (which is opt-in and stays
+            // WinForms-only - see #536 Known Limitations).
+            Dictionary<string, string> fixedDic = BuildFixedTranslationDictionary(
+                translateFrom, translateTo, fromRomPath, toRomPath);
+
+            // Cache FROM-text per ID so isModifiedTextOnly can compare.
+            Dictionary<uint, string> fromRomTexts = null;
+            if (isModifiedTextOnly && !string.IsNullOrEmpty(fromRomPath) && File.Exists(fromRomPath))
+            {
+                fromRomTexts = LoadRomTextsById(fromRomPath);
+            }
 
             int count = 0;
             using (var writer = new StreamWriter(outputPath, false, new UTF8Encoding(false)))
@@ -415,6 +447,23 @@ namespace FEBuilderGBA
                     string text;
                     try { text = decoder.Decode(id) ?? string.Empty; }
                     catch { text = string.Empty; }
+
+                    // Modified-text-only filter: skip when this ID is identical
+                    // to the same ID in the FROM ROM (i.e. untouched).
+                    if (isModifiedTextOnly && fromRomTexts != null
+                        && fromRomTexts.TryGetValue(id, out string fromText)
+                        && fromText == text)
+                    {
+                        continue;
+                    }
+
+                    // Apply fixed-dictionary translation (FROM-text -> TO-text)
+                    // when available. Mirrors WF `TranslateTextUtil.TranslateText`
+                    // dictionary lookup.
+                    if (fixedDic.TryGetValue(text, out string translated))
+                    {
+                        text = translated;
+                    }
 
                     progressCallback?.Invoke($"Text:{U.To0xHexString(id)}");
                     WriteExportEntry(writer, U.ToHexString(id), text, isOneLiner, rom.RomInfo.is_multibyte);
@@ -712,6 +761,377 @@ namespace FEBuilderGBA
             if (undo != null) rom.write_p32(U.toOffset(pointer), newAddr, undo);
             else rom.write_p32(U.toOffset(pointer), newAddr);
             return true;
+        }
+
+        // ============================================================
+        // Translation-dictionary helpers (#536)
+        // ============================================================
+
+        /// <summary>
+        /// Build a FROM-text -> TO-text dictionary by loading the two reference
+        /// ROMs and pairing entries at identical text IDs. Used by
+        /// ExportTextsToFile to apply auto-translation when the Detail-tab
+        /// translation controls are populated. Mirrors the offline portion of
+        /// WF `TranslateTextUtil.MakeFixedDic` (the Google-Translate online
+        /// path stays WinForms-only - see #536 Known Limitations).
+        /// </summary>
+        public static Dictionary<string, string> BuildFixedTranslationDictionary(
+            string translateFrom, string translateTo,
+            string fromRomPath, string toRomPath)
+        {
+            var dic = new Dictionary<string, string>();
+            if (string.IsNullOrEmpty(translateFrom) || string.IsNullOrEmpty(translateTo)) return dic;
+            if (translateFrom == translateTo) return dic;
+            if (!File.Exists(fromRomPath) || !File.Exists(toRomPath)) return dic;
+
+            Dictionary<uint, string> fromTexts = LoadRomTextsById(fromRomPath);
+            Dictionary<uint, string> toTexts = LoadRomTextsById(toRomPath);
+
+            foreach (var pair in fromTexts)
+            {
+                if (string.IsNullOrEmpty(pair.Value)) continue;
+                if (toTexts.TryGetValue(pair.Key, out string toText) && !string.IsNullOrEmpty(toText))
+                {
+                    // First occurrence wins (matches WF dictionary build order).
+                    if (!dic.ContainsKey(pair.Value))
+                    {
+                        dic[pair.Value] = toText;
+                    }
+                }
+            }
+            return dic;
+        }
+
+        /// <summary>
+        /// Load a ROM file from disk and return a textId -> decoded-text map.
+        /// Used by BuildFixedTranslationDictionary and the
+        /// isModifiedTextOnly filter. Returns an empty dictionary when the
+        /// file can't be loaded or parsed.
+        /// </summary>
+        public static Dictionary<uint, string> LoadRomTextsById(string romPath)
+        {
+            var result = new Dictionary<uint, string>();
+            if (string.IsNullOrEmpty(romPath) || !File.Exists(romPath)) return result;
+
+            try
+            {
+                var rom = new ROM();
+                string version;
+                if (!rom.Load(romPath, out version)) return result;
+                if (rom.RomInfo == null) return result;
+
+                uint textCount = TranslateCore.GetTextCount(rom);
+                if (textCount > 0xFFFF) textCount = 0xFFFF;
+
+                var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
+                for (uint id = 0; id < textCount; id++)
+                {
+                    try
+                    {
+                        string text = decoder.Decode(id) ?? string.Empty;
+                        result[id] = text;
+                    }
+                    catch
+                    {
+                        // Swallow per-entry decode errors so we don't lose the
+                        // whole batch.
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Best-effort - return whatever we got.
+            }
+            return result;
+        }
+
+        // ============================================================
+        // SimpleFireTranslate orchestration (#536)
+        // ============================================================
+
+        /// <summary>
+        /// Options for SimpleFireTranslate - mirrors the inputs WF
+        /// SimpleFireButton_Click reads from the dialog.
+        /// </summary>
+        public class SimpleFireOptions
+        {
+            public string FromRomPath { get; set; } = string.Empty;
+            public string ToRomPath { get; set; } = string.Empty;
+            public string ExtraFontRomPath { get; set; } = string.Empty;
+            public string TranslateDataFilename { get; set; } = string.Empty;
+            public string FromLanguage { get; set; } = string.Empty;
+            public string ToLanguage { get; set; } = string.Empty;
+            public bool OverrideJpFont { get; set; }
+        }
+
+        /// <summary>
+        /// Orchestrates the full WF SimpleFireButton_Click flow against the
+        /// Core helpers:
+        ///   1. ApplyTranslatePatch (main menu width + status-screen skill)
+        ///   2. If TranslateDataFilename is supplied, ImportTextsFromFile from
+        ///      that file
+        ///   3. Export current ROM texts to a temp file with the
+        ///      FROM/TO ROM fixed dictionary applied, then import the temp
+        ///      file back into the ROM (auto-translates static texts)
+        ///   4. ImportFont from TO ROM (font-copy path; auto-gen stays
+        ///      WinForms-only)
+        ///   5. BlackOut + Push undo are caller's responsibility
+        /// Skips OverrideJpFont (WipeJP*) which depend on WF popups - see
+        /// #536 Known Limitations.
+        /// Returns the number of text entries imported in the auto-translate
+        /// pass; 0 on failure.
+        /// </summary>
+        public static int SimpleFireTranslate(ROM rom, SimpleFireOptions opts,
+            RecycleAddress recycle, Undo.UndoData undo, Action<string> progressCallback)
+        {
+            if (rom?.RomInfo == null || opts == null) return 0;
+            if (opts.FromLanguage == opts.ToLanguage) return 0;
+            if (recycle == null) return 0;
+
+            // Step 1: Apply translate patch.
+            ApplyTranslatePatch(rom, opts.ToLanguage, undo);
+
+            // Step 2: Optional translate-data file import.
+            int total = 0;
+            if (!string.IsNullOrEmpty(opts.TranslateDataFilename) &&
+                File.Exists(opts.TranslateDataFilename))
+            {
+                progressCallback?.Invoke("Importing translate data file...");
+                total += ImportTextsFromFile(rom, opts.TranslateDataFilename,
+                    recycle, undo, progressCallback);
+            }
+
+            // Step 3: Export-then-reimport with FROM/TO dictionary applied.
+            if (File.Exists(opts.FromRomPath) && File.Exists(opts.ToRomPath))
+            {
+                string tempFile = Path.GetTempFileName();
+                try
+                {
+                    progressCallback?.Invoke("Exporting auto-translated texts...");
+                    ExportTextsToFile(rom, tempFile,
+                        isOneLiner: false,
+                        isModifiedTextOnly: false,
+                        translateFrom: opts.FromLanguage,
+                        translateTo: opts.ToLanguage,
+                        fromRomPath: opts.FromRomPath,
+                        toRomPath: opts.ToRomPath,
+                        progressCallback);
+
+                    progressCallback?.Invoke("Re-importing auto-translated texts...");
+                    total += ImportTextsFromFile(rom, tempFile, recycle, undo, progressCallback);
+                }
+                finally
+                {
+                    try { if (File.Exists(tempFile)) File.Delete(tempFile); }
+                    catch { /* best-effort cleanup */ }
+                }
+            }
+
+            // Step 4: Font copy from TO ROM (auto-gen stays WinForms-only).
+            if (File.Exists(opts.ToRomPath))
+            {
+                progressCallback?.Invoke("Copying missing fonts from TO ROM...");
+                ImportFontFromROMs(rom, opts.ToRomPath, opts.ExtraFontRomPath,
+                    recycle, undo, progressCallback);
+            }
+
+            return total;
+        }
+
+        // ============================================================
+        // ImportFontFromROMs - copy missing fonts from a source ROM (#536)
+        // ============================================================
+
+        /// <summary>
+        /// Copy fonts that the current ROM is missing from the fonts in the
+        /// source ROM (and optionally an extra-font ROM). Iterates every text
+        /// glyph present in the current ROM (TextForm + multibyte menu /
+        /// terrain / sound-room / other-text), and for each missing glyph,
+        /// looks it up in the source ROM and appends the bitmap data via
+        /// RecycleAddress.Write.
+        ///
+        /// This is the System.Drawing-free portion of WF
+        /// ToolTranslateROMFont.ImportFont. The bitmap auto-generation path
+        /// (`ImageUtil.AutoGenerateFont`) is NOT exercised here - that stays
+        /// WinForms-only (see #536 Known Limitations).
+        ///
+        /// Returns the number of font glyphs successfully ported. Returns 0
+        /// when no source ROM is available.
+        /// </summary>
+        public static int ImportFontFromROMs(ROM rom, string fontRomPath,
+            string extraFontRomPath, RecycleAddress recycle, Undo.UndoData undo,
+            Action<string> progressCallback)
+        {
+            if (rom?.RomInfo == null) return 0;
+
+            ROM fontRom = null;
+            ROM extraFontRom = null;
+            try
+            {
+                if (!string.IsNullOrEmpty(fontRomPath) && File.Exists(fontRomPath))
+                {
+                    fontRom = new ROM();
+                    string version;
+                    if (!fontRom.Load(fontRomPath, out version)) fontRom = null;
+                }
+                if (!string.IsNullOrEmpty(extraFontRomPath) && File.Exists(extraFontRomPath))
+                {
+                    extraFontRom = new ROM();
+                    string version;
+                    if (!extraFontRom.Load(extraFontRomPath, out version)) extraFontRom = null;
+                }
+
+                if (fontRom == null && extraFontRom == null) return 0;
+
+                PRIORITY_CODE myPriority = PriorityCodeUtil.SearchPriorityCode(rom);
+                PRIORITY_CODE fontRomPriority = fontRom != null
+                    ? PriorityCodeUtil.SearchPriorityCode(fontRom) : myPriority;
+                PRIORITY_CODE extraFontRomPriority = extraFontRom != null
+                    ? PriorityCodeUtil.SearchPriorityCode(extraFontRom) : myPriority;
+
+                var processed = new HashSet<string>();
+                int ported = 0;
+
+                // Scan every text source for glyphs.
+                var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
+                uint textCount = TranslateCore.GetTextCount(rom);
+                if (textCount > 0xFFFF) textCount = 0xFFFF;
+                for (uint id = 0; id < textCount; id++)
+                {
+                    string text;
+                    try { text = decoder.Decode(id) ?? string.Empty; }
+                    catch { continue; }
+
+                    progressCallback?.Invoke($"FontScan:{U.To0xHexString(id)}");
+                    ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
+                        text, processed, myPriority, fontRomPriority, extraFontRomPriority,
+                        recycle, undo);
+                }
+
+                return ported;
+            }
+            finally
+            {
+                // ROM doesn't implement IDisposable; nothing to clean up here.
+            }
+        }
+
+        static int PortMissingGlyphs(ROM rom, ROM fontRom, ROM extraFontRom,
+            string text, HashSet<string> processed,
+            PRIORITY_CODE myPriority, PRIORITY_CODE fontRomPriority, PRIORITY_CODE extraFontRomPriority,
+            RecycleAddress recycle, Undo.UndoData undo)
+        {
+            int ported = 0;
+            for (int n = 0; n < text.Length; n++)
+            {
+                if (text[n] == '@') { n += 4; continue; }     // @XXXX escape
+                if (text[n] == '\r') { n += 1; continue; }
+                if (text[n] == '\n') { continue; }
+
+                string one = text.Substring(n, 1);
+                if (processed.Contains(one)) continue;
+                processed.Add(one);
+
+                // Try both isItemFont = false (text font) and true (item font).
+                for (int kind = 0; kind < 2; kind++)
+                {
+                    bool isItemFont = (kind == 1);
+                    if (TryPortOneGlyph(rom, fontRom, extraFontRom, one, isItemFont,
+                        myPriority, fontRomPriority, extraFontRomPriority,
+                        recycle, undo))
+                    {
+                        ported++;
+                    }
+                }
+            }
+            return ported;
+        }
+
+        static bool TryPortOneGlyph(ROM rom, ROM fontRom, ROM extraFontRom,
+            string one, bool isItemFont,
+            PRIORITY_CODE myPriority, PRIORITY_CODE fontRomPriority, PRIORITY_CODE extraFontRomPriority,
+            RecycleAddress recycle, Undo.UndoData undo)
+        {
+            uint myMoji = ConvertMojiCharToUnit(one, myPriority);
+            if (myMoji < 0x20 || myMoji == 0x80) return false;
+
+            uint topaddress = FontCore.GetFontPointer(isItemFont, rom);
+            uint myFontAddr = FontCore.FindFontData(topaddress, myMoji, out uint myPrevAddr,
+                rom, myPriority);
+            if (myFontAddr != U.NOT_FOUND) return false; // Already present.
+            if (myPrevAddr == U.NOT_FOUND) return false; // No slot to append.
+
+            // Try fontRom first, then extraFontRom.
+            byte[] glyphData = TryReadGlyphFromROM(fontRom, fontRomPriority, isItemFont, myMoji);
+            if (glyphData == null)
+            {
+                glyphData = TryReadGlyphFromROM(extraFontRom, extraFontRomPriority, isItemFont, myMoji);
+                if (glyphData != null)
+                {
+                    FontCore.TransportFontStruct(glyphData, myMoji, myPriority, extraFontRomPriority);
+                }
+            }
+            else
+            {
+                FontCore.TransportFontStruct(glyphData, myMoji, myPriority, fontRomPriority);
+            }
+
+            if (glyphData == null) return false;
+
+            // Zero the next-pointer (list tail).
+            U.write_u32(glyphData, 0, 0);
+
+            uint newAddr = recycle.Write(glyphData, undo);
+            if (newAddr == U.NOT_FOUND) return false;
+
+            if (undo != null) rom.write_u32(myPrevAddr, U.toPointer(newAddr), undo);
+            else rom.write_u32(myPrevAddr, U.toPointer(newAddr));
+            return true;
+        }
+
+        static byte[] TryReadGlyphFromROM(ROM sourceRom, PRIORITY_CODE sourcePriority,
+            bool isItemFont, uint moji)
+        {
+            if (sourceRom == null) return null;
+            uint sourceTop = FontCore.GetFontPointer(isItemFont, sourceRom);
+            uint sourceAddr = FontCore.FindFontData(sourceTop, moji, out _, sourceRom, sourcePriority);
+            if (sourceAddr == U.NOT_FOUND) return null;
+            return sourceRom.getBinaryData(sourceAddr, 8 * 64 / 8 + 8);
+        }
+
+        /// <summary>
+        /// Convert a one-character string to its priority-code-specific moji
+        /// unit (the FE engine's internal numeric character code). Mirrors
+        /// the WF `U.ConvertMojiCharToUnit` static call.
+        ///
+        /// For SJIS: uses SystemTextEncoder to encode the char, returns the
+        /// resulting 1-2 byte sequence as a uint.
+        /// For UTF8: encodes as UTF-8 bytes, returns LE uint.
+        /// For LAT1: uses the first byte as the unit.
+        /// </summary>
+        static uint ConvertMojiCharToUnit(string one, PRIORITY_CODE priority)
+        {
+            if (string.IsNullOrEmpty(one)) return 0;
+            if (priority == PRIORITY_CODE.UTF8)
+            {
+                byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(one);
+                uint r = 0;
+                for (int i = 0; i < utf8.Length && i < 4; i++)
+                {
+                    r |= ((uint)utf8[i]) << (i * 8);
+                }
+                return r;
+            }
+            if (CoreState.SystemTextEncoder != null && priority == PRIORITY_CODE.SJIS)
+            {
+                byte[] bytes = CoreState.SystemTextEncoder.Encode(one);
+                if (bytes == null || bytes.Length == 0) return 0;
+                if (bytes.Length == 1) return bytes[0];
+                return (uint)bytes[0] << 8 | bytes[1];
+            }
+            // LAT1 default: first byte of UTF-8 representation.
+            byte[] lat1 = System.Text.Encoding.UTF8.GetBytes(one);
+            return lat1.Length > 0 ? (uint)lat1[0] : 0;
         }
     }
 }
