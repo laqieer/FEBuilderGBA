@@ -2,128 +2,1042 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SongInstrumentView"
-        Title="Instrument Editor" Width="1151" Height="757"
+        Title="Instrument Editor" Width="1200" Height="780"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="280,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="SongInstrument_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid RowDefinitions="Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Instrument Editor" FontSize="18" FontWeight="Bold" />
-
-        <!-- Common header -->
-        <Grid ColumnDefinitions="160,200,*" RowDefinitions="Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SongInstrument_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Header Byte:" VerticalAlignment="Center" Margin="0,2" />
-          <NumericUpDown AutomationProperties.AutomationId="SongInstrument_HeaderByte_Input" Grid.Row="1" Grid.Column="1" Name="HeaderByteBox" Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" VerticalAlignment="Center" Margin="0,2" />
-          <TextBlock AutomationProperties.AutomationId="SongInstrument_TypeName_Label" Grid.Row="2" Grid.Column="1" Name="TypeNameLabel" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,2" />
-        </Grid>
-
-        <Separator Margin="0,4" />
-
-        <!-- DirectSound / WaveMemory: WavePtr + ADSR -->
-        <StackPanel Name="DirectSoundPanel" Spacing="4">
-          <TextBlock Text="Wave Pointer + ADSR" FontWeight="SemiBold" Margin="0,4,0,0" />
-          <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Wave Pointer:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_WavePtr_Input" Grid.Row="0" Grid.Column="1" Name="WavePtrBox" Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Attack_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Decay_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Sustain_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="DS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DS_Release_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="DS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-          </Grid>
-        </StackPanel>
-
-        <!-- SquareWave: Sweep, DutyLen, EnvStep + ADSR -->
-        <StackPanel Name="SquareWavePanel" Spacing="4">
-          <TextBlock Text="Square Wave Parameters + ADSR" FontWeight="SemiBold" Margin="0,4,0,0" />
-          <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Sweep:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_Sweep_Input" Grid.Row="0" Grid.Column="1" Name="SweepBox" Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Duty / Length:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DutyLen_Input" Grid.Row="1" Grid.Column="1" Name="DutyLenBox" Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Envelope Step:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_EnvStep_Input" Grid.Row="2" Grid.Column="1" Name="EnvStepBox" Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Attack_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="SQ_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Decay_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="SQ_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="5" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Sustain_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="SQ_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="6" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_SQ_Release_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="SQ_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-          </Grid>
-        </StackPanel>
-
-        <!-- Noise: Period + ADSR -->
-        <StackPanel Name="NoisePanel" Spacing="4">
-          <TextBlock Text="Noise Parameters + ADSR" FontWeight="SemiBold" Margin="0,4,0,0" />
-          <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Period:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_Period_Input" Grid.Row="0" Grid.Column="1" Name="PeriodBox" Minimum="0" Maximum="255" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Attack:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Attack_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="NS_AttackBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="2" Grid.Column="0" Text="Decay:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Decay_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NS_DecayBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="3" Grid.Column="0" Text="Sustain:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Sustain_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="NS_SustainBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="Release:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_NS_Release_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="NS_ReleaseBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Margin="0,2" />
-          </Grid>
-        </StackPanel>
-
-        <!-- MultiSample: KeyMapPtr + SubInstrPtr -->
-        <StackPanel Name="MultiSamplePanel" Spacing="4">
-          <TextBlock Text="Multi Sample Pointers" FontWeight="SemiBold" Margin="0,4,0,0" />
-          <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Key Map Pointer:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_KeyMapPtr_Input" Grid.Row="0" Grid.Column="1" Name="KeyMapPtrBox" Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Sub-Instrument Ptr:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_MS_SubInstrPtr_Input" Grid.Row="1" Grid.Column="1" Name="MS_SubInstrPtrBox" Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-          </Grid>
-        </StackPanel>
-
-        <!-- Drum: SubInstrPtr -->
-        <StackPanel Name="DrumPanel" Spacing="4">
-          <TextBlock Text="Drum Part Pointer" FontWeight="SemiBold" Margin="0,4,0,0" />
-          <Grid ColumnDefinitions="160,200" RowDefinitions="Auto">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Sub-Instrument Ptr:" VerticalAlignment="Center" Margin="0,2" />
-            <NumericUpDown AutomationProperties.AutomationId="SongInstrument_DR_SubInstrPtr_Input" Grid.Row="0" Grid.Column="1" Name="DR_SubInstrPtrBox" Minimum="0" Maximum="4294967295" FormatString="0" VerticalAlignment="Center" Margin="0,2" />
-          </Grid>
-        </StackPanel>
-
-        <!-- Unknown type placeholder -->
-        <StackPanel Name="UnknownPanel" Spacing="4">
-          <TextBlock Text="Unknown instrument type. Raw 12-byte data is shown in the header byte field." Foreground="Gray" />
-        </StackPanel>
-
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">
-          <Button AutomationProperties.AutomationId="SongInstrument_Write_Button" Content="Write" Click="Write_Click" />
-        </StackPanel>
+    <!-- Top read-config bar mirrors WF panel1 (ReadStartAddress + ReadCount + Reload) -->
+    <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="First Address" VerticalAlignment="Center" Width="100" />
+        <NumericUpDown AutomationProperties.AutomationId="SongInstrument_ReadStartAddress_Input"
+                       Name="ReadStartAddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                       FormatString="0" VerticalAlignment="Center" />
+        <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
+        <NumericUpDown AutomationProperties.AutomationId="SongInstrument_ReadCount_Input"
+                       Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
+                       FormatString="0" VerticalAlignment="Center" />
+        <Button AutomationProperties.AutomationId="SongInstrument_ReloadList_Button"
+                Name="ReloadListButton" Content="Reload" Width="80" Click="ReloadList_Click" />
+        <Button AutomationProperties.AutomationId="SongInstrument_ListExpand_Button"
+                Name="ListExpandButton" Content="Expand List" Width="100" IsEnabled="False"
+                ToolTip.Tip="Pending Core extraction (list expansion is WinForms-only)." />
+        <TextBlock Text="Filter" VerticalAlignment="Center" Width="50" />
+        <TextBox AutomationProperties.AutomationId="SongInstrument_Filter_Input"
+                 Name="FilterBox" Width="150" VerticalAlignment="Center"
+                 KeyDown="FilterBox_KeyDown"
+                 ToolTip.Tip="Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior." />
       </StackPanel>
-    </ScrollViewer>
+    </Border>
+
+    <Grid Grid.Row="1" ColumnDefinitions="280,*">
+      <controls:AddressListControl AutomationProperties.AutomationId="SongInstrument_Entry_List"
+                                   Grid.Column="0" Name="EntryList" Margin="4" />
+
+      <ScrollViewer Grid.Column="1" Margin="4">
+        <StackPanel Spacing="8" Margin="8">
+
+          <!-- Master address-write bar mirrors WF AddressPanel -->
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Address" VerticalAlignment="Center" Width="70" />
+              <NumericUpDown AutomationProperties.AutomationId="SongInstrument_Address_Input"
+                             Name="AddressBox" Width="120" Minimum="0" Maximum="4294967295"
+                             FormatString="0" VerticalAlignment="Center" IsReadOnly="True" />
+              <TextBlock Text="Size:" VerticalAlignment="Center" Width="40" />
+              <TextBox AutomationProperties.AutomationId="SongInstrument_BlockSize_Input"
+                       Name="BlockSizeBox" Width="60" IsReadOnly="True" VerticalAlignment="Center" />
+              <TextBlock Text="Selected Address:" VerticalAlignment="Center" Width="120" />
+              <TextBlock AutomationProperties.AutomationId="SongInstrument_SelectedAddress_Label"
+                         Name="SelectedAddressLabel" Width="120" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="SongInstrument_Write_Button"
+                      Name="WriteButton" Content="Write" Width="160" Click="Write_Click" />
+            </StackPanel>
+          </Border>
+
+          <!-- Common header bar mirrors WF panel2 -->
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Type:" VerticalAlignment="Center" Width="60" />
+                <ComboBox AutomationProperties.AutomationId="SongInstrument_TypeCombo_Input"
+                          Name="TypeCombo" Width="280" VerticalAlignment="Center"
+                          SelectionChanged="TypeCombo_SelectionChanged" />
+                <TextBlock AutomationProperties.AutomationId="SongInstrument_Info_Label"
+                           Name="InfoLabel" Text="Info" Foreground="Blue" TextDecorations="Underline"
+                           Cursor="Hand" VerticalAlignment="Center" />
+                <Button AutomationProperties.AutomationId="SongInstrument_InstExport_Button"
+                        Name="InstExportButton" Content="Export Instrument" Width="160"
+                        IsEnabled="False"
+                        ToolTip.Tip="Pending Core extraction (instrument-set shell file dialog is WinForms-only)." />
+                <Button AutomationProperties.AutomationId="SongInstrument_InstImport_Button"
+                        Name="InstImportButton" Content="Import Instrument" Width="160"
+                        IsEnabled="False"
+                        ToolTip.Tip="Pending Core extraction (instrument-set shell file dialog is WinForms-only)." />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="Header Byte:" VerticalAlignment="Center" Width="100" />
+                <NumericUpDown AutomationProperties.AutomationId="SongInstrument_HeaderByte_Input"
+                               Name="HeaderByteBox" Minimum="0" Maximum="255" FormatString="0"
+                               Width="80" VerticalAlignment="Center" />
+                <TextBlock Text="More Info:" VerticalAlignment="Center" Width="80" />
+                <TextBox AutomationProperties.AutomationId="SongInstrument_MoreInfo_Input"
+                         Name="MoreInfoBox" Width="320" IsReadOnly="True" VerticalAlignment="Center" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Tab control with all 14 instrument tabs (UNIONTAB_N00..N80).
+               Static AXAML tabs (NOT behind DataTemplate / ItemsControl) so
+               ControlDensityScanner counts them — #387 plan review v1 #1. -->
+          <TabControl AutomationProperties.AutomationId="SongInstrument_UnionTab_TabControl"
+                      Name="UnionTab" Padding="4"
+                      SelectionChanged="UnionTab_SelectionChanged">
+
+            <!-- ============================================================
+                 N00 DirectSound — B1,B2,B3 + P4 (WavePtr) + B8..B11 (ADSR)
+                 + per-byte labels and supporting fields (panpot / keymap).
+                 ============================================================ -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N00_Tab"
+                     Name="UnionTab_N00" Header="DirectSound">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_1_Label"
+                             Name="N00_J_1_Label" Text="基準ノート値" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B1_Input"
+                                 Name="N00_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N00_KeyMap_Combo"
+                            Name="N00_KeyMapCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_2_Label"
+                             Name="N00_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B2_Input"
+                                 Name="N00_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_3_Label"
+                             Name="N00_J_3_Label" Text="PAN強制" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B3_Input"
+                                 Name="N00_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <TextBlock Text="パンポット" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N00_Pan_Combo"
+                            Name="N00_PanCombo" Width="100" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_PanPot_Input"
+                                 Name="N00_PanPotBox" Width="60" Minimum="0" Maximum="127" FormatString="0" />
+                  <TextBlock Text="= c_v - 64" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_4_Label"
+                             Name="N00_J_4_Label" Text="音データ" Width="120" Foreground="Blue"
+                             TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_P4_Input"
+                                 Name="N00_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Preview_Button"
+                          Name="N00_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Export_Button"
+                          Name="N00_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Import_Button"
+                          Name="N00_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_8_Label"
+                             Name="N00_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B8_Input"
+                                 Name="N00_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_9_Label"
+                             Name="N00_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B9_Input"
+                                 Name="N00_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_10_Label"
+                             Name="N00_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B10_Input"
+                                 Name="N00_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_11_Label"
+                             Name="N00_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_B11_Input"
+                                 Name="N00_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- ============================================================
+                 N01 SquareWave1 — B1..B11 raw (B4 = squarepattern)
+                 ============================================================ -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N01_Tab"
+                     Name="UnionTab_N01" Header="SquareWave1">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_1_Label"
+                             Name="N01_J_1_Label" Text="??" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B1_Input"
+                                 Name="N01_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_2_Label"
+                             Name="N01_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B2_Input"
+                                 Name="N01_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_3_Label"
+                             Name="N01_J_3_Label" Text="sweep" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B3_Input"
+                                 Name="N01_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <TextBlock Text="sweeptime" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N01_SweepTime_Combo"
+                            Name="N01_SweepTimeCombo" Width="100" />
+                  <TextBlock Text="sweepshift" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N01_SweepShift_Combo"
+                            Name="N01_SweepShiftCombo" Width="100" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_4_Label"
+                             Name="N01_J_4_Label" Text="squarepattern" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B4_Input"
+                                 Name="N01_B4_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N01_SquarePattern_Combo"
+                            Name="N01_SquarePatternCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_5_Label"
+                             Name="N01_J_5_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B5_Input"
+                                 Name="N01_B5_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_6_Label"
+                             Name="N01_J_6_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B6_Input"
+                                 Name="N01_B6_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_7_Label"
+                             Name="N01_J_7_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B7_Input"
+                                 Name="N01_B7_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_8_Label"
+                             Name="N01_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B8_Input"
+                                 Name="N01_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_9_Label"
+                             Name="N01_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B9_Input"
+                                 Name="N01_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_10_Label"
+                             Name="N01_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B10_Input"
+                                 Name="N01_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N01_J_11_Label"
+                             Name="N01_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N01_B11_Input"
+                                 Name="N01_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- ============================================================
+                 N02 SquareWave2 — same shape as N01 minus sweep
+                 ============================================================ -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N02_Tab"
+                     Name="UnionTab_N02" Header="SquareWave2">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_1_Label"
+                             Name="N02_J_1_Label" Text="??" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B1_Input"
+                                 Name="N02_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_2_Label"
+                             Name="N02_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B2_Input"
+                                 Name="N02_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_3_Label"
+                             Name="N02_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B3_Input"
+                                 Name="N02_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_4_Label"
+                             Name="N02_J_4_Label" Text="squarepattern" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B4_Input"
+                                 Name="N02_B4_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N02_SquarePattern_Combo"
+                            Name="N02_SquarePatternCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_5_Label"
+                             Name="N02_J_5_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B5_Input"
+                                 Name="N02_B5_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_6_Label"
+                             Name="N02_J_6_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B6_Input"
+                                 Name="N02_B6_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_7_Label"
+                             Name="N02_J_7_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B7_Input"
+                                 Name="N02_B7_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_8_Label"
+                             Name="N02_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B8_Input"
+                                 Name="N02_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_9_Label"
+                             Name="N02_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B9_Input"
+                                 Name="N02_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_10_Label"
+                             Name="N02_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B10_Input"
+                                 Name="N02_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N02_J_11_Label"
+                             Name="N02_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N02_B11_Input"
+                                 Name="N02_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- ============================================================
+                 N03 Wave Memory — B1,B2,B3 + P4 (WavePtr) + B8..B11 (ADSR)
+                 ============================================================ -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N03_Tab"
+                     Name="UnionTab_N03" Header="Wave Memory">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_1_Label"
+                             Name="N03_J_1_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B1_Input"
+                                 Name="N03_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_2_Label"
+                             Name="N03_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B2_Input"
+                                 Name="N03_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_3_Label"
+                             Name="N03_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B3_Input"
+                                 Name="N03_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_4_Label"
+                             Name="N03_J_4_Label" Text="波形データ" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_P4_Input"
+                                 Name="N03_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_8_Label"
+                             Name="N03_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B8_Input"
+                                 Name="N03_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_9_Label"
+                             Name="N03_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B9_Input"
+                                 Name="N03_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_10_Label"
+                             Name="N03_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B10_Input"
+                                 Name="N03_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N03_J_11_Label"
+                             Name="N03_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N03_B11_Input"
+                                 Name="N03_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- ============================================================
+                 N04 Noise — B1,B2,B3 + P4 (noisepattern) + B8..B11 (ADSR)
+                 ============================================================ -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N04_Tab"
+                     Name="UnionTab_N04" Header="Noise">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_1_Label"
+                             Name="N04_J_1_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B1_Input"
+                                 Name="N04_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_2_Label"
+                             Name="N04_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B2_Input"
+                                 Name="N04_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_3_Label"
+                             Name="N04_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B3_Input"
+                                 Name="N04_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_4_Label"
+                             Name="N04_J_4_Label" Text="noisepattern" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_P4_Input"
+                                 Name="N04_P4_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N04_NoisePattern_Combo"
+                            Name="N04_NoisePatternCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_8_Label"
+                             Name="N04_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B8_Input"
+                                 Name="N04_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_9_Label"
+                             Name="N04_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B9_Input"
+                                 Name="N04_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_10_Label"
+                             Name="N04_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B10_Input"
+                                 Name="N04_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N04_J_11_Label"
+                             Name="N04_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N04_B11_Input"
+                                 Name="N04_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N08 DirectSound Fixed Freq -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N08_Tab"
+                     Name="UnionTab_N08" Header="DirectSound Fixed Freq">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_1_Label"
+                             Name="N08_J_1_Label" Text="基準ノート値" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B1_Input"
+                                 Name="N08_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N08_KeyMap_Combo"
+                            Name="N08_KeyMapCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_2_Label"
+                             Name="N08_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B2_Input"
+                                 Name="N08_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_3_Label"
+                             Name="N08_J_3_Label" Text="PAN強制" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B3_Input"
+                                 Name="N08_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <TextBlock Text="パンポット" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N08_Pan_Combo"
+                            Name="N08_PanCombo" Width="100" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_PanPot_Input"
+                                 Name="N08_PanPotBox" Width="60" Minimum="0" Maximum="127" FormatString="0" />
+                  <TextBlock Text="= c_v - 64" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_4_Label"
+                             Name="N08_J_4_Label" Text="音データ" Width="120" Foreground="Blue"
+                             TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_P4_Input"
+                                 Name="N08_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N08_Preview_Button"
+                          Name="N08_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N08_Export_Button"
+                          Name="N08_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N08_Import_Button"
+                          Name="N08_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_8_Label"
+                             Name="N08_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B8_Input"
+                                 Name="N08_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_9_Label"
+                             Name="N08_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B9_Input"
+                                 Name="N08_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_10_Label"
+                             Name="N08_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B10_Input"
+                                 Name="N08_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_11_Label"
+                             Name="N08_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_B11_Input"
+                                 Name="N08_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N09 SquareWave3 — same as N01 -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N09_Tab"
+                     Name="UnionTab_N09" Header="SquareWave3">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_1_Label"
+                             Name="N09_J_1_Label" Text="??" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B1_Input"
+                                 Name="N09_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_2_Label"
+                             Name="N09_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B2_Input"
+                                 Name="N09_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_3_Label"
+                             Name="N09_J_3_Label" Text="sweep" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B3_Input"
+                                 Name="N09_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <TextBlock Text="sweeptime" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N09_SweepTime_Combo"
+                            Name="N09_SweepTimeCombo" Width="100" />
+                  <TextBlock Text="sweepshift" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N09_SweepShift_Combo"
+                            Name="N09_SweepShiftCombo" Width="100" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_4_Label"
+                             Name="N09_J_4_Label" Text="squarepattern" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B4_Input"
+                                 Name="N09_B4_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N09_SquarePattern_Combo"
+                            Name="N09_SquarePatternCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_5_Label"
+                             Name="N09_J_5_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B5_Input"
+                                 Name="N09_B5_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_6_Label"
+                             Name="N09_J_6_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B6_Input"
+                                 Name="N09_B6_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_7_Label"
+                             Name="N09_J_7_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B7_Input"
+                                 Name="N09_B7_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_8_Label"
+                             Name="N09_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B8_Input"
+                                 Name="N09_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_9_Label"
+                             Name="N09_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B9_Input"
+                                 Name="N09_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_10_Label"
+                             Name="N09_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B10_Input"
+                                 Name="N09_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N09_J_11_Label"
+                             Name="N09_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N09_B11_Input"
+                                 Name="N09_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N0A SquareWave4 — same as N02 -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N0A_Tab"
+                     Name="UnionTab_N0A" Header="SquareWave4">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_1_Label"
+                             Name="N0A_J_1_Label" Text="??" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B1_Input"
+                                 Name="N0A_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_2_Label"
+                             Name="N0A_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B2_Input"
+                                 Name="N0A_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_3_Label"
+                             Name="N0A_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B3_Input"
+                                 Name="N0A_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_4_Label"
+                             Name="N0A_J_4_Label" Text="squarepattern" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B4_Input"
+                                 Name="N0A_B4_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N0A_SquarePattern_Combo"
+                            Name="N0A_SquarePatternCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_5_Label"
+                             Name="N0A_J_5_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B5_Input"
+                                 Name="N0A_B5_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_6_Label"
+                             Name="N0A_J_6_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B6_Input"
+                                 Name="N0A_B6_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_7_Label"
+                             Name="N0A_J_7_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B7_Input"
+                                 Name="N0A_B7_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_8_Label"
+                             Name="N0A_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B8_Input"
+                                 Name="N0A_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_9_Label"
+                             Name="N0A_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B9_Input"
+                                 Name="N0A_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_10_Label"
+                             Name="N0A_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B10_Input"
+                                 Name="N0A_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0A_J_11_Label"
+                             Name="N0A_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0A_B11_Input"
+                                 Name="N0A_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N0B Wave Memory2 — same as N03 -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N0B_Tab"
+                     Name="UnionTab_N0B" Header="Wave Memory2">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_1_Label"
+                             Name="N0B_J_1_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B1_Input"
+                                 Name="N0B_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_2_Label"
+                             Name="N0B_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B2_Input"
+                                 Name="N0B_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_3_Label"
+                             Name="N0B_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B3_Input"
+                                 Name="N0B_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_4_Label"
+                             Name="N0B_J_4_Label" Text="波形データ" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_P4_Input"
+                                 Name="N0B_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_8_Label"
+                             Name="N0B_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B8_Input"
+                                 Name="N0B_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_9_Label"
+                             Name="N0B_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B9_Input"
+                                 Name="N0B_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_10_Label"
+                             Name="N0B_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B10_Input"
+                                 Name="N0B_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0B_J_11_Label"
+                             Name="N0B_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0B_B11_Input"
+                                 Name="N0B_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N0C Noise2 — same as N04 -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N0C_Tab"
+                     Name="UnionTab_N0C" Header="Noise2">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_1_Label"
+                             Name="N0C_J_1_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B1_Input"
+                                 Name="N0C_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_2_Label"
+                             Name="N0C_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B2_Input"
+                                 Name="N0C_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_3_Label"
+                             Name="N0C_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B3_Input"
+                                 Name="N0C_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_4_Label"
+                             Name="N0C_J_4_Label" Text="noisepattern" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_P4_Input"
+                                 Name="N0C_P4_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N0C_NoisePattern_Combo"
+                            Name="N0C_NoisePatternCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_8_Label"
+                             Name="N0C_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B8_Input"
+                                 Name="N0C_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_9_Label"
+                             Name="N0C_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B9_Input"
+                                 Name="N0C_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_10_Label"
+                             Name="N0C_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B10_Input"
+                                 Name="N0C_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N0C_J_11_Label"
+                             Name="N0C_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N0C_B11_Input"
+                                 Name="N0C_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N10 DirectSound Reverse — same as N00 -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N10_Tab"
+                     Name="UnionTab_N10" Header="DirectSound Reverse">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_1_Label"
+                             Name="N10_J_1_Label" Text="基準ノート値" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B1_Input"
+                                 Name="N10_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N10_KeyMap_Combo"
+                            Name="N10_KeyMapCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_2_Label"
+                             Name="N10_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B2_Input"
+                                 Name="N10_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_3_Label"
+                             Name="N10_J_3_Label" Text="PAN強制" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B3_Input"
+                                 Name="N10_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <TextBlock Text="パンポット" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N10_Pan_Combo"
+                            Name="N10_PanCombo" Width="100" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_PanPot_Input"
+                                 Name="N10_PanPotBox" Width="60" Minimum="0" Maximum="127" FormatString="0" />
+                  <TextBlock Text="= c_v - 64" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_4_Label"
+                             Name="N10_J_4_Label" Text="音データ" Width="120" Foreground="Blue"
+                             TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_P4_Input"
+                                 Name="N10_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N10_Preview_Button"
+                          Name="N10_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N10_Export_Button"
+                          Name="N10_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N10_Import_Button"
+                          Name="N10_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_8_Label"
+                             Name="N10_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B8_Input"
+                                 Name="N10_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_9_Label"
+                             Name="N10_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B9_Input"
+                                 Name="N10_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_10_Label"
+                             Name="N10_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B10_Input"
+                                 Name="N10_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_11_Label"
+                             Name="N10_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_B11_Input"
+                                 Name="N10_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N18 DirectSound Fixed Freq Reverse — same as N00 -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N18_Tab"
+                     Name="UnionTab_N18" Header="DirectSound Fixed Freq Reverse">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_1_Label"
+                             Name="N18_J_1_Label" Text="基準ノート値" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B1_Input"
+                                 Name="N18_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N18_KeyMap_Combo"
+                            Name="N18_KeyMapCombo" Width="160" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_2_Label"
+                             Name="N18_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B2_Input"
+                                 Name="N18_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_3_Label"
+                             Name="N18_J_3_Label" Text="PAN強制" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B3_Input"
+                                 Name="N18_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                  <TextBlock Text="パンポット" VerticalAlignment="Center" />
+                  <ComboBox AutomationProperties.AutomationId="SongInstrument_N18_Pan_Combo"
+                            Name="N18_PanCombo" Width="100" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_PanPot_Input"
+                                 Name="N18_PanPotBox" Width="60" Minimum="0" Maximum="127" FormatString="0" />
+                  <TextBlock Text="= c_v - 64" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_4_Label"
+                             Name="N18_J_4_Label" Text="音データ" Width="120" Foreground="Blue"
+                             TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_P4_Input"
+                                 Name="N18_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N18_Preview_Button"
+                          Name="N18_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N18_Export_Button"
+                          Name="N18_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N18_Import_Button"
+                          Name="N18_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
+                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_8_Label"
+                             Name="N18_J_8_Label" Text="atk" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B8_Input"
+                                 Name="N18_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_9_Label"
+                             Name="N18_J_9_Label" Text="dec" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B9_Input"
+                                 Name="N18_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_10_Label"
+                             Name="N18_J_10_Label" Text="sus" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B10_Input"
+                                 Name="N18_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_11_Label"
+                             Name="N18_J_11_Label" Text="rel" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_B11_Input"
+                                 Name="N18_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N40 Multi Sample — B1,B2,B3 + P4 (KeyMapPtr) + P8 (SubInstrPtr) -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N40_Tab"
+                     Name="UnionTab_N40" Header="Multi Sample">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N40_J_1_Label"
+                             Name="N40_J_1_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N40_B1_Input"
+                                 Name="N40_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N40_J_2_Label"
+                             Name="N40_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N40_B2_Input"
+                                 Name="N40_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N40_J_3_Label"
+                             Name="N40_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N40_B3_Input"
+                                 Name="N40_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N40_J_4_Label"
+                             Name="N40_J_4_Label" Text="楽器セット" Width="120" Foreground="Blue"
+                             TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N40_P4_Input"
+                                 Name="N40_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="キー割り当て" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N40_P8_Input"
+                                 Name="N40_P8_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+
+            <!-- N80 DrumPart — B1,B2,B3 + P4 (DrumSetPtr) + B8..B11 (raw — concern v2 #2) -->
+            <TabItem AutomationProperties.AutomationId="SongInstrument_UNIONTAB_N80_Tab"
+                     Name="UnionTab_N80" Header="DrumPart">
+              <StackPanel Spacing="4" Margin="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_1_Label"
+                             Name="N80_J_1_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B1_Input"
+                                 Name="N80_B1_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_2_Label"
+                             Name="N80_J_2_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B2_Input"
+                                 Name="N80_B2_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_3_Label"
+                             Name="N80_J_3_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B3_Input"
+                                 Name="N80_B3_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_4_Label"
+                             Name="N80_J_4_Label" Text="ドラムセット" Width="120" Foreground="Blue"
+                             TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_P4_Input"
+                                 Name="N80_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_8_Label"
+                             Name="N80_J_8_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B8_Input"
+                                 Name="N80_B8_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_9_Label"
+                             Name="N80_J_9_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B9_Input"
+                                 Name="N80_B9_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_10_Label"
+                             Name="N80_J_10_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B10_Input"
+                                 Name="N80_B10_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock AutomationProperties.AutomationId="SongInstrument_N80_J_11_Label"
+                             Name="N80_J_11_Label" Text="00" Width="120" VerticalAlignment="Center" />
+                  <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N80_B11_Input"
+                                 Name="N80_B11_Box" Width="80" Minimum="0" Maximum="255" FormatString="0" />
+                </StackPanel>
+              </StackPanel>
+            </TabItem>
+          </TabControl>
+
+          <!-- FINGERPRINT footer mirrors WF panel4 -->
+          <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="SongData FingerPrint" VerticalAlignment="Center" Width="160" />
+              <TextBox AutomationProperties.AutomationId="SongInstrument_Fingerprint_Input"
+                       Name="FingerprintBox" Width="320" IsReadOnly="True" VerticalAlignment="Center" />
+            </StackPanel>
+          </Border>
+
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
   </Grid>
 </Window>

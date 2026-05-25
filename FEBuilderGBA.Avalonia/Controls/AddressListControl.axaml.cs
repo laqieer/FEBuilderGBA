@@ -179,6 +179,19 @@ namespace FEBuilderGBA.Avalonia.Controls
             SearchBox.Focus();
         }
 
+        /// <summary>
+        /// Programmatically set the search filter text and immediately apply
+        /// it. Used by host editors that surface a parallel "Filter" textbox
+        /// in their own toolbar (e.g. SongInstrumentView mirrors WF
+        /// `SongInstrumentForm.panel1.Filter`) to drive the underlying search
+        /// without coupling the host to the SearchBox child control.
+        /// </summary>
+        public void ApplySearchFilter(string? filter)
+        {
+            SearchBox.Text = filter ?? string.Empty;
+            ApplySearchFilter();
+        }
+
         /// <summary>Select an item by address.</summary>
         public void SelectAddress(uint address)
         {
@@ -416,7 +429,14 @@ namespace FEBuilderGBA.Avalonia.Controls
             ApplySearchFilter();
         }
 
-        void ApplySearchFilter()
+        /// <summary>
+        /// Internal: apply the SearchBox.Text as the filter. External
+        /// callers should use the string-arg overload above; this overload
+        /// is kept `internal` so xUnit-style external tests don't need
+        /// reflection but the API surface stays small (Copilot PR #626
+        /// round 2 finding — keep the parameterless helper non-public).
+        /// </summary>
+        internal void ApplySearchFilter()
         {
             string? filter = SearchBox.Text;
             if (string.IsNullOrWhiteSpace(filter))
