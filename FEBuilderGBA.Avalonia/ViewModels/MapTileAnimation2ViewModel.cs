@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -303,5 +304,94 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ["StartPaletteIndex"] = "StartPaletteIndex@0x06",
             ["Unknown7"] = "Unknown7@0x07",
         };
+
+        // ----------------------------------------------------------------
+        // Bulk Import / Bulk Export / Data Expansion (#524).
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Resolve the PLIST table slot address for the currently-selected
+        /// PLIST so the BulkImport / ExpandEntryList helpers can repoint it.
+        /// Returns 0 when no PLIST is selected or the table is unreachable.
+        /// Mirrors the WF <c>MapPointerForm.PlistToOffsetAddrFast(...)</c>
+        /// "out pointer" path: slot = plistTableBase + plist*4.
+        /// </summary>
+        public uint GetPlistTableSlot()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            if (!SelectedPlist.HasValue || SelectedPlist.Value == 0) return 0;
+            uint plistTablePtr = rom.RomInfo.map_tileanime2_pointer;
+            if (plistTablePtr == 0) return 0;
+            uint plistTableBase = rom.p32(plistTablePtr);
+            if (!U.isSafetyOffset(plistTableBase, rom)) return 0;
+            uint slot = plistTableBase + SelectedPlist.Value * 4u;
+            if (!U.isSafetyOffset(slot, rom)) return 0;
+            return slot;
+        }
+
+
+        /// <summary>
+        /// Export the currently-selected PLIST's entry table to a
+        /// .mapanime2.txt file via <see cref="MapTileAnimation2Core.BulkExport"/>.
+        /// Returns the empty string on success, an error message otherwise.
+        /// </summary>
+        public string BulkExport(string filename)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return "ROM is null.";
+            if (ReadStartAddress == 0) return "No PLIST selected.";
+            return MapTileAnimation2Core.BulkExport(rom, filename, ReadStartAddress, ReadCount);
+        }
+
+        /// <summary>
+        /// Import a .mapanime2.txt file into the currently-selected PLIST.
+        /// The caller is expected to have opened an undo scope via
+        /// <c>_undoService.Begin</c> in the view layer; the Core helper
+        /// records each ROM write into the ambient UndoData.
+        ///
+        /// Returns the empty string on success, an error message otherwise.
+        /// </summary>
+        public string BulkImport(string filename, uint pointerSlot)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return "ROM is null.";
+            if (ReadStartAddress == 0) return "No PLIST selected.";
+            return MapTileAnimation2Core.BulkImport(rom, filename, pointerSlot,
+                ReadStartAddress, ReadCount);
+        }
+
+        /// <summary>
+        /// Grow the entry table by one row (oldCount + 1 = newCount).
+        /// The caller opens an undo scope; the Core helper records writes
+        /// into the ambient scope. Returns the new base offset (ROM offset)
+        /// or <see cref="U.NOT_FOUND"/> on failure.
+        /// </summary>
+        public uint ExpandEntryListByOne(uint pointerSlot)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return U.NOT_FOUND;
+            if (ReadStartAddress == 0) return U.NOT_FOUND;
+            uint newCount = ReadCount + 1;
+            return MapTileAnimation2Core.ExpandEntryList(rom, pointerSlot,
+                ReadStartAddress, ReadCount, newCount);
+        }
+
+        /// <summary>
+        /// Grow the palette sub-table by one row. The pointer slot is the
+        /// +0 byte of the current entry row (the palette data pointer field).
+        /// </summary>
+        public uint ExpandPaletteRowListByOne()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return U.NOT_FOUND;
+            if (CurrentAddr == 0) return U.NOT_FOUND;
+            if (PaletteDataPointer == 0) return U.NOT_FOUND;
+            uint paletteSlot = CurrentAddr + 0; // P0 field
+            uint oldBase = U.toOffset(PaletteDataPointer);
+            uint newCount = DataCount + 1;
+            return MapTileAnimation2Core.ExpandPaletteRowList(rom, paletteSlot,
+                oldBase, DataCount, newCount);
+        }
     }
 }

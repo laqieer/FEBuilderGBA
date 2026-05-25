@@ -6933,6 +6933,18 @@ GBAカラー
 :Pending Core extraction - tracked by #524
 Core 抽出待ち - #524 で追跡中
 
+:Grow the entry table by one row
+エントリ表を1行拡張する
+
+:Grow the palette sub-table by one row
+パレットサブ表を1行拡張する
+
+:Import a .mapanime2.txt file into the current PLIST
+.mapanime2.txt ファイルを現在の PLIST にインポート
+
+:Export the current PLIST's entries to a .mapanime2.txt file
+現在の PLIST のエントリを .mapanime2.txt ファイルにエクスポート
+
 :Map Tile Animation Type 2 Palette Sub-Table
 マップ タイルアニメ タイプ 2 パレット サブテーブル
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -328,25 +329,168 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { _undoService.Rollback(); Log.Error("MapTileAnimation2View.NWrite: {0}", ex.Message); }
         }
 
-        // Deferred affordances - logged no-ops until follow-up #524 lands.
+        // -----------------------------------------------------------------
+        // #524 Core-extracted affordances: BulkImport / BulkExport /
+        // ExpandEntryList / ExpandPaletteRowList. Each handler wraps in
+        // _undoService.Begin/Commit/Rollback so ROM mutations record into
+        // the ambient undo scope (Core helpers use the no-undo
+        // RecycleAddress ambient overloads to avoid double-recording).
+        // -----------------------------------------------------------------
+
         void ListExpand_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("MapTileAnimation2View.ListExpand_Click invoked - disabled until #524 lands");
+            if (!_vm.IsLoaded || _vm.ReadStartAddress == 0) return;
+            uint slot = _vm.GetPlistTableSlot();
+            if (slot == 0)
+            {
+                CoreState.Services?.ShowError("Cannot resolve PLIST table slot.");
+                return;
+            }
+            _undoService.Begin("Expand Tile Animation Type 2 Entry List");
+            try
+            {
+                uint newBase = _vm.ExpandEntryListByOne(slot);
+                if (newBase == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("Failed to expand entry list.");
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+                // Reload to surface the new row.
+                LoadList();
+                CoreState.Services?.ShowInfo($"Entry list expanded. New base: 0x{newBase:X08}");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MapTileAnimation2View.ListExpand_Click: {0}", ex.Message);
+            }
         }
 
         void NListExpand_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("MapTileAnimation2View.NListExpand_Click invoked - disabled until #524 lands");
+            if (!_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+            if (_vm.PaletteDataPointer == 0)
+            {
+                CoreState.Services?.ShowError("No palette data pointer set on this entry.");
+                return;
+            }
+            uint reloadAddr = _vm.CurrentAddr;
+            _undoService.Begin("Expand Tile Animation Type 2 Palette Sub-List");
+            try
+            {
+                uint newBase = _vm.ExpandPaletteRowListByOne();
+                if (newBase == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError("Failed to expand palette sub-list.");
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+                // Reload the entry so the palette sub-list reflects the new
+                // base pointer + grown row count.
+                _vm.IsLoading = true;
+                try
+                {
+                    _vm.LoadEntry(reloadAddr);
+                    UpdateUI();
+                }
+                finally { _vm.IsLoading = false; _vm.MarkClean(); }
+                CoreState.Services?.ShowInfo($"Palette sub-list expanded. New base: 0x{newBase:X08}");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MapTileAnimation2View.NListExpand_Click: {0}", ex.Message);
+            }
         }
 
-        void BulkImport_Click(object? sender, RoutedEventArgs e)
+        async void BulkImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("MapTileAnimation2View.BulkImport_Click invoked - disabled until #524 lands");
+            if (!_vm.IsLoaded || _vm.ReadStartAddress == 0) return;
+            uint slot = _vm.GetPlistTableSlot();
+            if (slot == 0)
+            {
+                CoreState.Services?.ShowError("Cannot resolve PLIST table slot.");
+                return;
+            }
+            try
+            {
+                var txtType = new FilePickerFileType("Map Tile Animation 2 Files")
+                { Patterns = new[] { "*.mapanime2.txt", "*.txt" } };
+                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Import Map Tile Animation Type 2",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[] { txtType, allType },
+                });
+                if (files.Count == 0) return;
+                string? path = files[0].TryGetLocalPath();
+                if (string.IsNullOrEmpty(path)) return;
+
+                _undoService.Begin("Bulk Import Tile Animation Type 2");
+                try
+                {
+                    string err = _vm.BulkImport(path, slot);
+                    if (err != "")
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    // Reload so the filter combo / entry list / palette sub-
+                    // list reflect the newly-imported data.
+                    LoadList();
+                    CoreState.Services?.ShowInfo($"Imported from {path}.");
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("MapTileAnimation2View.BulkImport: {0}", inner.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapTileAnimation2View.BulkImport_Click: {0}", ex.Message);
+            }
         }
 
-        void BulkExport_Click(object? sender, RoutedEventArgs e)
+        async void BulkExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("MapTileAnimation2View.BulkExport_Click invoked - disabled until #524 lands");
+            if (!_vm.IsLoaded || _vm.ReadStartAddress == 0) return;
+            try
+            {
+                var txtType = new FilePickerFileType("Map Tile Animation 2 Files")
+                { Patterns = new[] { "*.mapanime2.txt", "*.txt" } };
+                var allType = new FilePickerFileType("All Files") { Patterns = new[] { "*" } };
+                var file = await this.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Export Map Tile Animation Type 2",
+                    SuggestedFileName =
+                        $"maptileanim2_plist{_vm.SelectedPlist:X2}.mapanime2.txt",
+                    FileTypeChoices = new[] { txtType, allType },
+                });
+                string? path = file?.TryGetLocalPath();
+                if (string.IsNullOrEmpty(path)) return;
+
+                string err = _vm.BulkExport(path);
+                if (err != "")
+                {
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                CoreState.Services?.ShowInfo($"Exported to {path}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapTileAnimation2View.BulkExport_Click: {0}", ex.Message);
+            }
         }
 
         static uint ParseHexText(string? text)
