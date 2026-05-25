@@ -830,6 +830,16 @@ namespace FEBuilderGBA
         }
         public static bool OtherLangLine(string line, ROM rom)
         {
+            // Safe-fallback when no ROM is available (e.g. headless tests
+            // without CoreState.ROM): treat as non-multibyte. The caller
+            // already handles the IsComment / ClipComment fast-paths, so a
+            // false negative here just means a `{U}` or `{J}` tagged line
+            // is processed instead of skipped - the downstream
+            // [XXXX]-format parser ignores unknown lines anyway.
+            if (rom?.RomInfo == null)
+            {
+                return false;
+            }
             if (rom.RomInfo.is_multibyte)
             {
                 if (line.IndexOf("\t{U}") >= 0) return true;

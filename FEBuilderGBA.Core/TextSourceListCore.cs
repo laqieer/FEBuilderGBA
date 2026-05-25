@@ -161,7 +161,17 @@ namespace FEBuilderGBA
             var result = new List<AddrResult>();
             if (rom?.RomInfo == null) return result;
 
-            string configFile = U.ConfigDataFilename("other_text_", rom);
+            string configFile;
+            try
+            {
+                configFile = U.ConfigDataFilename("other_text_", rom);
+            }
+            catch (Exception)
+            {
+                // ConfigDataFilename throws when the config directory is not
+                // available (e.g. tests running without the full config tree).
+                return result;
+            }
             if (string.IsNullOrEmpty(configFile) || !File.Exists(configFile)) return result;
 
             string[] lines;
@@ -177,7 +187,11 @@ namespace FEBuilderGBA
             foreach (string raw in lines)
             {
                 if (raw == null) continue;
-                if (U.IsComment(raw) || U.OtherLangLine(raw)) continue;
+                if (U.IsComment(raw)) continue;
+                // Pass `rom` explicitly so OtherLangLine doesn't NRE when
+                // CoreState.ROM is null (e.g. in headless tests that load a
+                // synthetic ROM but don't assign it to CoreState).
+                if (U.OtherLangLine(raw, rom)) continue;
                 string trimmed = U.ClipComment(raw);
                 if (string.IsNullOrEmpty(trimmed)) continue;
 

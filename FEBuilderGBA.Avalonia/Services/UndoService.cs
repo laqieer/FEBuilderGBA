@@ -13,7 +13,8 @@ namespace FEBuilderGBA.Avalonia.Services
         IDisposable? _scope;
 
         /// <summary>Begin a new undo group. All ROM writes until Commit/Rollback are tracked.</summary>
-        public void Begin(string name)
+        // virtual: allow test-double spies (UndoServiceSpy) to record Begin/Commit/Rollback ordering. (#536)
+        public virtual void Begin(string name)
         {
             var undo = CoreState.Undo;
             if (undo == null) return;
@@ -23,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>Commit the undo group to the undo buffer.</summary>
-        public void Commit()
+        public virtual void Commit()
         {
             _scope?.Dispose();
             _scope = null;
@@ -40,7 +41,7 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>Rollback the current undo group (discard changes).</summary>
-        public void Rollback()
+        public virtual void Rollback()
         {
             _scope?.Dispose();
             _scope = null;
