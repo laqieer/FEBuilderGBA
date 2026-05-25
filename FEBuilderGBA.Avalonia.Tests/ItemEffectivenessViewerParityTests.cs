@@ -83,8 +83,10 @@ public class ItemEffectivenessViewerParityTests : IClassFixture<RomFixture>
         view.Show();
         try
         {
-            Assert.NotNull(view.FindControl<NumericUpDown>("ClassIdInput"));
-            Assert.NotNull(view.FindControl<TextBlock>("ClassNameLabel"));
+            // #360 final: ClassIdInput merged into ClassIdBox IdFieldControl
+            // which also provides the inline class-name preview (ClassNameLabel
+            // is removed). The ClassIconImage stays in the layout.
+            Assert.NotNull(view.FindControl<FEBuilderGBA.Avalonia.Controls.IdFieldControl>("ClassIdBox"));
             Assert.NotNull(view.FindControl<Image>("ClassIconImage"));
             Assert.NotNull(view.FindControl<TextBlock>("AddressLabel"));
             Assert.NotNull(view.FindControl<TextBlock>("BlockSizeLabel"));

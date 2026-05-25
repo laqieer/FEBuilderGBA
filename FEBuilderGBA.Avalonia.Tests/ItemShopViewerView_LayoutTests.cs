@@ -57,7 +57,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void ItemShopViewerView_HasItemIdAndQuantityInputs()
         {
             var view = new ItemShopViewerView();
-            Assert.NotNull(view.FindControl<NumericUpDown>("ItemIdBox"));
+            // #360 final: ItemIdBox migrated from NumericUpDown to IdFieldControl
+            // (which bundles NumericUpDown + Jump + Pick + name preview). The
+            // QuantityBox stays a NumericUpDown.
+            Assert.NotNull(view.FindControl<IdFieldControl>("ItemIdBox"));
             Assert.NotNull(view.FindControl<NumericUpDown>("QuantityBox"));
         }
 

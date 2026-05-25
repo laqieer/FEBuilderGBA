@@ -55,6 +55,17 @@ namespace FEBuilderGBA.Avalonia.Controls
         public static readonly StyledProperty<int> MaximumProperty =
             AvaloniaProperty.Register<IdFieldControl, int>(nameof(Maximum), defaultValue: 255);
 
+        /// <summary>
+        /// Controls visibility of the Pick button. Some id fields target an editor
+        /// that does not implement <c>IPickableEditor</c> (e.g. TextViewerView for
+        /// text-id fields in SupportTalk), so this property lets the host hide
+        /// the Pick button while keeping Jump + hyperlink label + name preview.
+        /// Default <c>true</c> preserves the previous behavior for existing hosts.
+        /// #360 final closure.
+        /// </summary>
+        public static readonly StyledProperty<bool> ShowPickProperty =
+            AvaloniaProperty.Register<IdFieldControl, bool>(nameof(ShowPick), defaultValue: true);
+
         /// <summary>The current id. Setting clamps to <see cref="Maximum"/> so the
         /// public API stays consistent with what the inner NumericUpDown displays.</summary>
         public uint Value
@@ -89,6 +100,14 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             get => GetValue(MaximumProperty);
             set => SetValue(MaximumProperty, value);
+        }
+
+        /// <summary>Whether to show the Pick button (default true). Hosts with no
+        /// pickable target should set this to false; Jump and label-click remain.</summary>
+        public bool ShowPick
+        {
+            get => GetValue(ShowPickProperty);
+            set => SetValue(ShowPickProperty, value);
         }
 
         // ---- Routed events ----
@@ -148,6 +167,11 @@ namespace FEBuilderGBA.Avalonia.Controls
             // still resolve when typing values. We derive suffixed ids for the
             // remaining inner controls so each is independently addressable.
             AttachedToVisualTree += (_, _) => PropagateInnerAutomationIds();
+            // Initial sync for ShowPick — the styled-property default is true so
+            // the visibility starts visible, but if AXAML overrides it to false
+            // before the visual tree attaches, OnPropertyChanged below will fire
+            // first and PickButton may be null. Repeat the sync here as a guard.
+            if (PickButton != null) PickButton.IsVisible = ShowPick;
         }
 
         /// <summary>
@@ -220,6 +244,10 @@ namespace FEBuilderGBA.Avalonia.Controls
             else if (change.Property == MaximumProperty)
             {
                 if (ValueBox != null) ValueBox.Maximum = Maximum;
+            }
+            else if (change.Property == ShowPickProperty)
+            {
+                if (PickButton != null) PickButton.IsVisible = ShowPick;
             }
         }
 

@@ -285,6 +285,627 @@ public class UnifiedIdFieldMigrationTests
         finally { view.Close(); }
     }
 
+    // ====================================================================
+    // #360 final closure — 22 additional fields across 10 editors.
+    // Each field gets 3 named tests: IsIdFieldControl, HasExpectedLabel,
+    // AutomationIdResolvesToNumericUpDownUniquely. Text-id fields also
+    // assert ShowPick == false inside HasExpectedLabel.
+    // ====================================================================
+
+    // ---- WU1 (#360 final): OPClassDemoFE7View.ClassId ----------------
+
+    [AvaloniaFact]
+    public void OPClassDemoFE7_ClassIdBox_IsIdFieldControl()
+    {
+        var view = new OPClassDemoFE7View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("ClassIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void OPClassDemoFE7_ClassIdBox_HasExpectedLabel()
+    {
+        var view = new OPClassDemoFE7View();
+        var ctrl = view.FindControl<IdFieldControl>("ClassIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Class ID:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void OPClassDemoFE7_ClassId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new OPClassDemoFE7View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "OPClassDemoFE7_ClassId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- WU1 (#360 final): OPClassDemoFE7UView.ClassId ---------------
+
+    [AvaloniaFact]
+    public void OPClassDemoFE7U_ClassIdBox_IsIdFieldControl()
+    {
+        var view = new OPClassDemoFE7UView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("ClassIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void OPClassDemoFE7U_ClassIdBox_HasExpectedLabel()
+    {
+        var view = new OPClassDemoFE7UView();
+        var ctrl = view.FindControl<IdFieldControl>("ClassIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Class ID:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void OPClassDemoFE7U_ClassId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new OPClassDemoFE7UView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "OPClassDemoFE7U_ClassId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- WU1 (#360 final): SoundRoomViewerView.SongId ----------------
+
+    [AvaloniaFact]
+    public void SoundRoomViewer_SongIdBox_IsIdFieldControl()
+    {
+        var view = new SoundRoomViewerView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SongIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void SoundRoomViewer_SongIdBox_HasExpectedLabel()
+    {
+        var view = new SoundRoomViewerView();
+        var ctrl = view.FindControl<IdFieldControl>("SongIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Song ID:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void SoundRoomViewer_SongId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SoundRoomViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SoundRoomViewer_SongId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- WU1 (#360 final): EDSensekiCommentView.UnitId ---------------
+
+    [AvaloniaFact]
+    public void EDSensekiComment_UnitIdBox_IsIdFieldControl()
+    {
+        var view = new EDSensekiCommentView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("UnitIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void EDSensekiComment_UnitIdBox_HasExpectedLabel()
+    {
+        var view = new EDSensekiCommentView();
+        var ctrl = view.FindControl<IdFieldControl>("UnitIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Unit ID:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void EDSensekiComment_UnitId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new EDSensekiCommentView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "EDSensekiComment_UnitId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- WU1 (#360 final): ItemShopViewerView.ItemId -----------------
+
+    [AvaloniaFact]
+    public void ItemShopViewer_ItemIdBox_IsIdFieldControl()
+    {
+        var view = new ItemShopViewerView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("ItemIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void ItemShopViewer_ItemIdBox_HasExpectedLabel()
+    {
+        var view = new ItemShopViewerView();
+        var ctrl = view.FindControl<IdFieldControl>("ItemIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Item ID:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void ItemShopViewer_ItemId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new ItemShopViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "ItemShopViewer_ItemId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- WU1 (#360 final): ItemEffectivenessViewerView.ClassId -------
+
+    [AvaloniaFact]
+    public void ItemEffectivenessViewer_ClassIdBox_IsIdFieldControl()
+    {
+        var view = new ItemEffectivenessViewerView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("ClassIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void ItemEffectivenessViewer_ClassIdBox_HasExpectedLabel()
+    {
+        var view = new ItemEffectivenessViewerView();
+        var ctrl = view.FindControl<IdFieldControl>("ClassIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Class:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void ItemEffectivenessViewer_ClassId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new ItemEffectivenessViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "ItemEffectivenessViewer_ClassId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- WU1 (#360 final): ItemPromotionViewerView.ClassId -----------
+
+    [AvaloniaFact]
+    public void ItemPromotionViewer_ClassIdBox_IsIdFieldControl()
+    {
+        var view = new ItemPromotionViewerView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("ClassIdBox"));
+    }
+
+    [AvaloniaFact]
+    public void ItemPromotionViewer_ClassIdBox_HasExpectedLabel()
+    {
+        var view = new ItemPromotionViewerView();
+        var ctrl = view.FindControl<IdFieldControl>("ClassIdBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Class:", ctrl!.Label);
+    }
+
+    [AvaloniaFact]
+    public void ItemPromotionViewer_ClassId_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new ItemPromotionViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "ItemPromotionViewer_ClassId_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ====================================================================
+    // WU2-unit (#360 final): SupportPartner1/2 (6 unit fields).
+    // ====================================================================
+
+    [AvaloniaFact]
+    public void SupportTalk_SupportPartner1Nud_IsIdFieldControl()
+    {
+        var view = new SupportTalkView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SupportPartner1Nud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_SupportPartner1Nud_HasExpectedLabel()
+    {
+        var view = new SupportTalkView();
+        var ctrl = view.FindControl<IdFieldControl>("SupportPartner1Nud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Support Partner 1:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick); // unit fields keep Pick visible
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_SupportPartner1_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalk_SupportPartner1Nud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_SupportPartner2Nud_IsIdFieldControl()
+    {
+        var view = new SupportTalkView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SupportPartner2Nud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_SupportPartner2Nud_HasExpectedLabel()
+    {
+        var view = new SupportTalkView();
+        var ctrl = view.FindControl<IdFieldControl>("SupportPartner2Nud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Support Partner 2:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_SupportPartner2_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalk_SupportPartner2Nud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_SupportPartner1Nud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE6View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SupportPartner1Nud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_SupportPartner1Nud_HasExpectedLabel()
+    {
+        var view = new SupportTalkFE6View();
+        var ctrl = view.FindControl<IdFieldControl>("SupportPartner1Nud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Support Partner 1:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_SupportPartner1_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE6View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE6_SupportPartner1Nud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_SupportPartner2Nud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE6View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SupportPartner2Nud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_SupportPartner2Nud_HasExpectedLabel()
+    {
+        var view = new SupportTalkFE6View();
+        var ctrl = view.FindControl<IdFieldControl>("SupportPartner2Nud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Support Partner 2:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_SupportPartner2_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE6View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE6_SupportPartner2Nud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_SupportPartner1Nud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE7View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SupportPartner1Nud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_SupportPartner1Nud_HasExpectedLabel()
+    {
+        var view = new SupportTalkFE7View();
+        var ctrl = view.FindControl<IdFieldControl>("SupportPartner1Nud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Support Partner 1:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_SupportPartner1_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE7View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE7_SupportPartner1Nud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_SupportPartner2Nud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE7View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("SupportPartner2Nud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_SupportPartner2Nud_HasExpectedLabel()
+    {
+        var view = new SupportTalkFE7View();
+        var ctrl = view.FindControl<IdFieldControl>("SupportPartner2Nud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Support Partner 2:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_SupportPartner2_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE7View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE7_SupportPartner2Nud_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ====================================================================
+    // WU2-text (#360 final): SupportTalk TextId C/B/A (9 text fields).
+    // ShowPick must be false because TextViewerView is not IPickableEditor.
+    // ====================================================================
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdCNud_IsIdFieldControl()
+    {
+        var view = new SupportTalkView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextIdCNud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdCNud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkView();
+        var ctrl = view.FindControl<IdFieldControl>("TextIdCNud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("C Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick); // text-id fields hide Pick
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdC_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalk_TextIdCNud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdBNud_IsIdFieldControl()
+    {
+        var view = new SupportTalkView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextIdBNud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdBNud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkView();
+        var ctrl = view.FindControl<IdFieldControl>("TextIdBNud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("B Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdB_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalk_TextIdBNud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdANud_IsIdFieldControl()
+    {
+        var view = new SupportTalkView();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextIdANud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdANud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkView();
+        var ctrl = view.FindControl<IdFieldControl>("TextIdANud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("A Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalk_TextIdA_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalk_TextIdANud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextCNud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE6View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextCNud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextCNud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkFE6View();
+        var ctrl = view.FindControl<IdFieldControl>("TextCNud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("C Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextC_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE6View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE6_TextCNud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextBNud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE6View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextBNud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextBNud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkFE6View();
+        var ctrl = view.FindControl<IdFieldControl>("TextBNud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("B Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextB_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE6View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE6_TextBNud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextANud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE6View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextANud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextANud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkFE6View();
+        var ctrl = view.FindControl<IdFieldControl>("TextANud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("A Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE6_TextA_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE6View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE6_TextANud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextCNud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE7View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextCNud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextCNud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkFE7View();
+        var ctrl = view.FindControl<IdFieldControl>("TextCNud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("C Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextC_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE7View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE7_TextCNud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextBNud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE7View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextBNud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextBNud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkFE7View();
+        var ctrl = view.FindControl<IdFieldControl>("TextBNud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("B Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextB_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE7View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE7_TextBNud_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextANud_IsIdFieldControl()
+    {
+        var view = new SupportTalkFE7View();
+        Assert.NotNull(view.FindControl<IdFieldControl>("TextANud"));
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextANud_HasExpectedLabelAndShowPickFalse()
+    {
+        var view = new SupportTalkFE7View();
+        var ctrl = view.FindControl<IdFieldControl>("TextANud");
+        Assert.NotNull(ctrl);
+        Assert.Equal("A Support Text:", ctrl!.Label);
+        Assert.False(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SupportTalkFE7_TextA_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SupportTalkFE7View();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SupportTalkFE7_TextANud_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ====================================================================
+    // Generic ShowPick sanity test — verify the new IdFieldControl
+    // property actually toggles PickButton.IsVisible (covers the
+    // OnPropertyChanged path used by AXAML ShowPick="False" bindings).
+    // ====================================================================
+
+    [AvaloniaFact]
+    public void IdFieldControl_ShowPick_DefaultsTrue_PickButtonVisible()
+    {
+        var ctrl = new IdFieldControl();
+        Assert.True(ctrl.ShowPick); // default value
+        var pickButton = ctrl.FindControl<Button>("PickButton");
+        Assert.NotNull(pickButton);
+        Assert.True(pickButton!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void IdFieldControl_ShowPick_FalseHidesPickButton()
+    {
+        var ctrl = new IdFieldControl();
+        ctrl.ShowPick = false;
+        var pickButton = ctrl.FindControl<Button>("PickButton");
+        Assert.NotNull(pickButton);
+        Assert.False(pickButton!.IsVisible);
+    }
+
     // ---- Helpers ------------------------------------------------------
 
     static void AssertAutomationIdResolvesToNumericUpDown(Window view, string automationId)

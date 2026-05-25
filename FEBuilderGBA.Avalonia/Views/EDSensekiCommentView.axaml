@@ -15,11 +15,16 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="EDSensekiComment_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Unit ID:" VerticalAlignment="Center" Margin="0,2"
-                     AutomationProperties.AutomationId="EDSensekiComment_UnitId_Link"
-                     Classes="Hyperlink" Name="UnitId_Link" PointerPressed="OnUnitIdLinkClick"
-                     ToolTip.Tip="Click to open Unit Editor" />
-          <NumericUpDown AutomationProperties.AutomationId="EDSensekiComment_UnitId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="UnitIdBox" Minimum="0" Maximum="4294967295" />
+          <!-- #360 final: hyperlink TextBlock + NumericUpDown → IdFieldControl -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="EDSensekiComment_UnitId_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="UnitIdBox"
+                                   Label="Unit ID:"
+                                   Maximum="255"
+                                   JumpRequested="UnitId_Jump"
+                                   PickRequested="UnitId_Pick"
+                                   ValueChanged="UnitId_ValueChanged" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Conversation Text 1:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="EDSensekiComment_ConvText1_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ConvText1Box" Minimum="0" Maximum="4294967295" />
