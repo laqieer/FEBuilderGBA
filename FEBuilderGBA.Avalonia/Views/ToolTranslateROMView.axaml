@@ -257,7 +257,7 @@
               <Button AutomationProperties.AutomationId="ToolTranslateROM_ImportFont_Button"
                       Content="Import Font"
                       Click="ImportFont_Click"
-                      ToolTip.Tip="Path validation only - bitmap auto-gen stays WinForms-only (#536 KnownGap)"
+                      ToolTip.Tip="Copies missing glyphs from Font ROM - bitmap auto-gen stays WinForms-only (#536 KnownGap)"
                       HorizontalAlignment="Stretch" Height="36"
                       Margin="0,4,0,0" />
             </StackPanel>

@@ -1015,7 +1015,7 @@ namespace FEBuilderGBA
                 var processed = new HashSet<string>();
                 int ported = 0;
 
-                // Scan every text source for glyphs.
+                // Pass 1: text-ID glyphs (Huffman / UnHuffman dictionary).
                 var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
                 uint textCount = TranslateCore.GetTextCount(rom);
                 if (textCount > 0xFFFF) textCount = 0xFFFF;
@@ -1029,6 +1029,69 @@ namespace FEBuilderGBA
                     ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
                         text, processed, myPriority, fontRomPriority, extraFontRomPriority,
                         recycle, undo);
+                }
+
+                // Pass 2: multibyte menu / terrain / sound-room / other-text
+                // pointer-backed entries (matches WF ToolTranslateROMFont).
+                if (rom.RomInfo.is_multibyte)
+                {
+                    foreach (var menuDef in TextSourceListCore.MakeMenuDefinitionList(rom))
+                    {
+                        if (!U.isSafetyOffset(menuDef.addr + 8, rom)) continue;
+                        uint p = menuDef.addr + 8;
+                        if (!U.isSafetyOffset(rom.p32(p), rom)) continue;
+                        foreach (var cmd in TextSourceListCore.MakeMenuCommandList(rom, p))
+                        {
+                            if (!U.isSafetyOffset(cmd.addr, rom)) continue;
+                            uint textid = rom.u32(cmd.addr + 0);
+                            string str = FETextDecode.Direct(textid);
+                            if (string.IsNullOrEmpty(str)) continue;
+                            progressCallback?.Invoke($"MenuFontScan:{U.To0xHexString(textid)}");
+                            ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
+                                str, processed, myPriority, fontRomPriority,
+                                extraFontRomPriority, recycle, undo);
+                        }
+                    }
+
+                    foreach (var terrain in TextSourceListCore.MakeMapTerrainNameList(rom))
+                    {
+                        if (!U.isSafetyOffset(terrain.addr, rom)) continue;
+                        uint textid = rom.u32(terrain.addr);
+                        string str = FETextDecode.Direct(textid);
+                        if (string.IsNullOrEmpty(str)) continue;
+                        progressCallback?.Invoke($"TerrainFontScan:{U.To0xHexString(textid)}");
+                        ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
+                            str, processed, myPriority, fontRomPriority,
+                            extraFontRomPriority, recycle, undo);
+                    }
+
+                    if (rom.RomInfo.version == 7)
+                    {
+                        foreach (var sr in TextSourceListCore.MakeSoundRoomList(rom))
+                        {
+                            if (!U.isSafetyOffset(sr.addr, rom)) continue;
+                            uint textid = rom.u32(sr.addr + 12);
+                            string str = FETextDecode.Direct(textid);
+                            if (string.IsNullOrEmpty(str)) continue;
+                            progressCallback?.Invoke($"SoundRoomFontScan:{U.To0xHexString(textid)}");
+                            ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
+                                str, processed, myPriority, fontRomPriority,
+                                extraFontRomPriority, recycle, undo);
+                        }
+                    }
+                }
+
+                // Other-text entries (all ROMs).
+                foreach (var o in TextSourceListCore.MakeOtherTextList(rom))
+                {
+                    if (!U.isSafetyOffset(o.addr, rom)) continue;
+                    uint pStr = rom.p32(o.addr);
+                    string str = U.isSafetyOffset(pStr, rom) ? rom.getString(pStr) : string.Empty;
+                    if (string.IsNullOrEmpty(str)) continue;
+                    progressCallback?.Invoke($"OtherFontScan:{U.To0xHexString(pStr)}");
+                    ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
+                        str, processed, myPriority, fontRomPriority,
+                        extraFontRomPriority, recycle, undo);
                 }
 
                 return ported;

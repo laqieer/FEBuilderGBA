@@ -121,10 +121,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             string path = ToolTranslateROMCore.FindOrignalROMByLang(
                 dir, fromLang, rom.RomInfo.version,
                 CoreState.BaseDirectory ?? string.Empty,
-                lastROMFilename: rom.Filename ?? string.Empty);
+                lastROMFilename: rom.Filename ?? string.Empty,
+                emulatorDirectory: GetEmulatorDirectory());
             if (!string.IsNullOrEmpty(path))
             {
                 FromRomPath = path;
+            }
+        }
+
+        /// <summary>
+        /// Resolve the configured emulator directory for the
+        /// FindOrignalROMByLang last-resort recursive scan. Mirrors WF
+        /// `Path.GetDirectoryName(Program.Config.at("emulator"))`. Returns
+        /// empty when the emulator setting isn't configured - the Core
+        /// helper then skips the recursive scan entirely.
+        /// </summary>
+        static string GetEmulatorDirectory()
+        {
+            var cfg = CoreState.Config;
+            if (cfg == null) return string.Empty;
+            string emulator = cfg.at("emulator", string.Empty);
+            if (string.IsNullOrEmpty(emulator)) return string.Empty;
+            try
+            {
+                return Path.GetDirectoryName(emulator) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 
@@ -144,7 +168,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             string path = ToolTranslateROMCore.FindOrignalROMByLang(
                 dir, toLang, rom.RomInfo.version,
                 CoreState.BaseDirectory ?? string.Empty,
-                lastROMFilename: rom.Filename ?? string.Empty);
+                lastROMFilename: rom.Filename ?? string.Empty,
+                emulatorDirectory: GetEmulatorDirectory());
             if (!string.IsNullOrEmpty(path))
             {
                 ToRomPath = path;

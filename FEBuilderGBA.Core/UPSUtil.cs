@@ -11,35 +11,14 @@ namespace FEBuilderGBA
     public static class UPSUtilCore
     {
         /// <summary>
-        /// CRC32 calculator (same algorithm as U.CRC32 in WinForms).
+        /// CRC32 calculator. Re-uses the canonical implementation from
+        /// `U.CRC32` to avoid divergent maintenance of two copies (PR #631
+        /// Copilot bot review #4 thread, addressing #536).
         /// </summary>
         public class CRC32
         {
-            private readonly uint[] crcTable;
-
-            public CRC32()
-            {
-                crcTable = new uint[256];
-                for (uint i = 0; i < 256; i++)
-                {
-                    var x = i;
-                    for (var j = 0; j < 8; j++)
-                    {
-                        x = (uint)((x & 1) == 0 ? x >> 1 : -306674912 ^ x >> 1);
-                    }
-                    crcTable[i] = x;
-                }
-            }
-
-            public uint Calc(byte[] buf)
-            {
-                uint num = uint.MaxValue;
-                for (var i = 0; i < buf.Length; i++)
-                {
-                    num = crcTable[(num ^ buf[i]) & 255] ^ num >> 8;
-                }
-                return (uint)(num ^ -1);
-            }
+            readonly U.CRC32 _impl = new U.CRC32();
+            public uint Calc(byte[] buf) => _impl.Calc(buf);
         }
 
         /// <summary>
