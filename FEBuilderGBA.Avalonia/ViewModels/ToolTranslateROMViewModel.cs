@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -73,8 +75,107 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _fromLanguageIndex;
         int _toLanguageIndex;
 
-        public int FromLanguageIndex { get => _fromLanguageIndex; set => SetField(ref _fromLanguageIndex, value); }
-        public int ToLanguageIndex { get => _toLanguageIndex; set => SetField(ref _toLanguageIndex, value); }
+        public int FromLanguageIndex
+        {
+            get => _fromLanguageIndex;
+            set
+            {
+                if (SetField(ref _fromLanguageIndex, value))
+                {
+                    AutoPopulateRomPathForFromLanguage();
+                }
+            }
+        }
+        public int ToLanguageIndex
+        {
+            get => _toLanguageIndex;
+            set
+            {
+                if (SetField(ref _toLanguageIndex, value))
+                {
+                    AutoPopulateRomPathForToLanguage();
+                }
+            }
+        }
+
+        /// <summary>
+        /// UndoService that handlers wrap their ROM mutations in. Exposed
+        /// (and `virtual` Begin/Commit/Rollback) so tests can install a spy
+        /// implementation and assert Begin/Commit/Rollback ordering (#536).
+        /// </summary>
+        public UndoService UndoService { get; set; } = new UndoService();
+
+        /// <summary>
+        /// Re-populate `FromRomPath` from the Core FindOrignalROMByLang
+        /// helper when the FROM-language combo changes. Mirrors WF
+        /// `Translate_from_SelectedIndexChanged`. No-op when no ROM is loaded.
+        /// </summary>
+        void AutoPopulateRomPathForFromLanguage()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null || string.IsNullOrEmpty(rom.Filename)) return;
+            if (FromLanguageIndex < 0 || FromLanguageIndex >= FromLanguageItemsRaw.Length) return;
+
+            string fromLang = ToolTranslateROMCore.ParseLanguageKey(FromLanguageItemsRaw[FromLanguageIndex]);
+            string dir = Path.GetDirectoryName(rom.Filename) ?? string.Empty;
+            string path = ToolTranslateROMCore.FindOrignalROMByLang(
+                dir, fromLang, rom.RomInfo.version,
+                CoreState.BaseDirectory ?? string.Empty,
+                lastROMFilename: rom.Filename ?? string.Empty,
+                emulatorDirectory: GetEmulatorDirectory());
+            if (!string.IsNullOrEmpty(path))
+            {
+                FromRomPath = path;
+            }
+        }
+
+        /// <summary>
+        /// Resolve the configured emulator directory for the
+        /// FindOrignalROMByLang last-resort recursive scan. Mirrors WF
+        /// `Path.GetDirectoryName(Program.Config.at("emulator"))`. Returns
+        /// empty when the emulator setting isn't configured - the Core
+        /// helper then skips the recursive scan entirely.
+        /// </summary>
+        static string GetEmulatorDirectory()
+        {
+            var cfg = CoreState.Config;
+            if (cfg == null) return string.Empty;
+            string emulator = cfg.at("emulator", string.Empty);
+            if (string.IsNullOrEmpty(emulator)) return string.Empty;
+            try
+            {
+                return Path.GetDirectoryName(emulator) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Re-populate `ToRomPath` (and `FontRomPath`) from the Core
+        /// FindOrignalROMByLang helper when the TO-language combo changes.
+        /// Mirrors WF `Translate_to_SelectedIndexChanged`.
+        /// </summary>
+        void AutoPopulateRomPathForToLanguage()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null || string.IsNullOrEmpty(rom.Filename)) return;
+            if (ToLanguageIndex < 0 || ToLanguageIndex >= ToLanguageItemsRaw.Length) return;
+
+            string toLang = ToolTranslateROMCore.ParseLanguageKey(ToLanguageItemsRaw[ToLanguageIndex]);
+            string dir = Path.GetDirectoryName(rom.Filename) ?? string.Empty;
+            string path = ToolTranslateROMCore.FindOrignalROMByLang(
+                dir, toLang, rom.RomInfo.version,
+                CoreState.BaseDirectory ?? string.Empty,
+                lastROMFilename: rom.Filename ?? string.Empty,
+                emulatorDirectory: GetEmulatorDirectory());
+            if (!string.IsNullOrEmpty(path))
+            {
+                ToRomPath = path;
+                FontRomPath = path;
+            }
+        }
 
         /// <summary>
         /// FROM-language combo items, mirrors WF Designer's Translate_from items
@@ -194,42 +295,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return;
             }
 
-            // --- MakeROMName (WF) ---
+            // --- MakeROMName (now Core-delegated) ---
             int version = rom.RomInfo.version;
             bool isMultibyte = rom.RomInfo.is_multibyte;
-            if (version == 8)
-            {
-                if (isMultibyte)
-                {
-                    FromRomLabel = "無改造 FE8J";
-                    ToRomLabel = "無改造 FE8U";
-                }
-                else
-                {
-                    FromRomLabel = "無改造 FE8U";
-                    ToRomLabel = "無改造 FE8J";
-                }
-            }
-            else if (version == 7)
-            {
-                if (isMultibyte)
-                {
-                    FromRomLabel = "無改造 FE7U";
-                    ToRomLabel = "無改造 FE7J";
-                }
-                else
-                {
-                    FromRomLabel = "無改造 FE7J";
-                    ToRomLabel = "無改造 FE7U";
-                }
-            }
-            else
-            {
-                // FE6 (version 6) - WF doesn't set MakeROMName labels in this branch;
-                // keep the labels empty so the WF behavior is preserved.
-                FromRomLabel = string.Empty;
-                ToRomLabel = string.Empty;
-            }
+            var (fromLabel, toLabel) = ToolTranslateROMCore.MakeROMName(version, isMultibyte);
+            FromRomLabel = fromLabel;
+            ToRomLabel = toLabel;
 
             // --- TranslateLanguageAutoSelect (WF TranslateTextUtil) ---
             var (from, to) = CalcDefaultLanguageIndexes(

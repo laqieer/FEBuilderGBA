@@ -78,12 +78,10 @@
                     IsVisible="{Binding ShowJpFontOverride}"
                     Margin="200,4,0,4" />
 
-          <!-- Action button (disabled until #536) -->
+          <!-- Action button - #536 wired to ToolTranslateROMCore -->
           <Button AutomationProperties.AutomationId="ToolTranslateROM_SimpleFire_Button"
                   Content="Start Translation"
                   Click="SimpleFire_Click"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #536"
                   HorizontalAlignment="Stretch" Height="50"
                   Margin="0,8" />
 
@@ -190,8 +188,6 @@
               <Button AutomationProperties.AutomationId="ToolTranslateROM_ExportAllText_Button"
                       Content="Export All Texts"
                       Click="ExportAllText_Click"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #536"
                       HorizontalAlignment="Stretch" Height="36"
                       Margin="0,4,0,0" />
             </StackPanel>
@@ -214,8 +210,6 @@
               <Button AutomationProperties.AutomationId="ToolTranslateROM_ImportAllText_Button"
                       Content="Import All Texts"
                       Click="ImportAllText_Click"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #536"
                       HorizontalAlignment="Stretch" Height="36" />
             </StackPanel>
           </Expander>
@@ -257,16 +251,13 @@
                          IsReadOnly="True" />
                 <Button AutomationProperties.AutomationId="ToolTranslateROM_UseFontName_Button"
                         Grid.Column="2" Content="Change" Width="80"
-                        Click="UseFontName_Click"
-                        IsEnabled="False"
-                        ToolTip.Tip="Pending Core extraction - tracked by #536" />
+                        Click="UseFontName_Click" />
               </Grid>
 
               <Button AutomationProperties.AutomationId="ToolTranslateROM_ImportFont_Button"
                       Content="Import Font"
                       Click="ImportFont_Click"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #536"
+                      ToolTip.Tip="Copies missing glyphs from Font ROM - bitmap auto-gen stays WinForms-only (#536 KnownGap)"
                       HorizontalAlignment="Stretch" Height="36"
                       Margin="0,4,0,0" />
             </StackPanel>

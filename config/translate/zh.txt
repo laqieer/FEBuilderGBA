@@ -23542,3 +23542,9 @@ DirectSound 固定频率反向
 
 :Expand the map action animation list to a specified entry count (max 255).
 将地图动作动画列表扩展到指定的条目数（最大 255）。
+
+:Copies missing glyphs from Font ROM - bitmap auto-gen stays WinForms-only (#536 KnownGap)
+从 Font ROM 复制缺失字形 - 位图自动生成保留为 WinForms 专用 (#536 KnownGap)
+
+:Select Font Family
+选择字体系列

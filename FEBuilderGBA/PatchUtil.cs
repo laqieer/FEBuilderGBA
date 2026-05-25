@@ -411,57 +411,31 @@ namespace FEBuilderGBA
             return draw_font_enum.NO;
         }
 
+        // PRIORITY_CODE values (LAT1 / SJIS / UTF8) - layout matches the
+        // namespace-level FEBuilderGBA.PRIORITY_CODE enum in Core (#536). We
+        // keep the nested enum here for back-compat with 60+ WinForms call
+        // sites that already use `PatchUtil.PRIORITY_CODE.SJIS` syntax; the
+        // actual logic lives in Core `PriorityCodeUtil` and we convert at the
+        // boundary via the integer cast (values intentionally aligned).
         public enum PRIORITY_CODE
         {
-            LAT1,
-            SJIS,
-            UTF8,
+            LAT1 = 0,
+            SJIS = 1,
+            UTF8 = 2,
         };
         //文字コードエンコードがパディングしてしまったときの優先変換方法.
         public static PRIORITY_CODE SearchPriorityCode()
         {
-            if (Program.ROM.RomInfo.is_multibyte)
-            {
-                return PRIORITY_CODE.SJIS;
-            }
-
-            draw_font_enum dfe = SearchDrawFontPatch();
-            if (dfe == draw_font_enum.DrawMultiByte)
-            {
-                return PRIORITY_CODE.SJIS;
-            }
-            if (dfe == draw_font_enum.DrawUTF8)
-            {
-                return PRIORITY_CODE.UTF8;
-            }
-            return PRIORITY_CODE.LAT1;
+            return ToWinForms(PriorityCodeUtil.SearchPriorityCode(Program.ROM));
         }
 
         public static PRIORITY_CODE SearchPriorityCode(ROM rom)
         {
-            if (rom == null)
-            {
-                return PRIORITY_CODE.SJIS;
-            }
-
-            if (rom.RomInfo.is_multibyte)
-            {
-                return PRIORITY_CODE.SJIS;
-            }
-            else
-            {
-                draw_font_enum dfe = SearchDrawFontPatch(rom);
-                if (dfe == draw_font_enum.DrawMultiByte)
-                {
-                    return PRIORITY_CODE.SJIS;
-                }
-                if (dfe == draw_font_enum.DrawUTF8)
-                {
-                    return PRIORITY_CODE.UTF8;
-                }
-                return PRIORITY_CODE.LAT1;
-            }
+            return ToWinForms(PriorityCodeUtil.SearchPriorityCode(rom));
         }
+
+        static PRIORITY_CODE ToWinForms(FEBuilderGBA.PRIORITY_CODE core) => (PRIORITY_CODE)(int)core;
+        public static FEBuilderGBA.PRIORITY_CODE ToCore(PRIORITY_CODE wf) => (FEBuilderGBA.PRIORITY_CODE)(int)wf;
 
         //C01Hack(マント)
         public static bool SearchC01HackPatch()
