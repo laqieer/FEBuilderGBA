@@ -534,6 +534,78 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
+    /// View Write_Click round-trip for Noise (N04/N0C) — verifies the view's
+    /// `ReadTabFields` path does NOT zero ROM bytes that the tab UI does
+    /// not expose as controls. PR #626 Copilot review round 2 blocker:
+    /// the Noise tabs surface B1..B3, P4 (noisepattern), B8..B11 but NOT
+    /// B5..B7. If `ReadTabFields` unconditionally read every byte slot and
+    /// coalesced missing controls to 0, pressing Write on a Noise
+    /// instrument would silently zero bytes 5..7 even when the user never
+    /// edited them, diverging from WinForms and corrupting data.
+    ///
+    /// This test instantiates the real view, loads a synthetic ROM with
+    /// non-zero B5..B7 bytes at the entry address, classifies the entry
+    /// as Noise, drives Write_Click, and asserts B5..B7 SURVIVE the write
+    /// (i.e. ReadTabFields skips missing controls).
+    /// </summary>
+    [global::Avalonia.Headless.XUnit.AvaloniaTheory]
+    [InlineData((byte)0x04)]
+    [InlineData((byte)0x0C)]
+    public void View_Write_Noise_PreservesB5B7_WhenControlsAbsent(byte headerByte)
+    {
+        var rom = MakeMinimalRom(out uint addr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            // Seed B5..B7 with non-zero values that the Noise tab UI does
+            // not expose. Write_Click MUST NOT clobber these.
+            rom.Data[addr + 0] = headerByte;
+            rom.Data[addr + 1] = 0x10;
+            rom.Data[addr + 2] = 0x20;
+            rom.Data[addr + 3] = 0x30;
+            rom.Data[addr + 4] = 0x40; // P4 = noisepattern/period
+            rom.Data[addr + 5] = 0xAA;
+            rom.Data[addr + 6] = 0xBB;
+            rom.Data[addr + 7] = 0xCC;
+            rom.Data[addr + 8] = 0x80;
+            rom.Data[addr + 9] = 0x90;
+            rom.Data[addr + 10] = 0xA0;
+            rom.Data[addr + 11] = 0xB0;
+
+            var view = new SongInstrumentView();
+            // Drive the SAME path the user takes when clicking an entry in
+            // the master list: OnSelected -> LoadEntry -> UpdateUI. UpdateUI
+            // populates HeaderByteBox / TypeCombo / per-tab NumericUpDowns
+            // from the VM. Without this, Write_Click would re-read
+            // HeaderByteBox.Value as 0 and re-classify the entry as
+            // DirectSound — masking the Noise-specific bug.
+            var onSelected = view.GetType().GetMethod("OnSelected",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            onSelected?.Invoke(view, new object?[] { addr });
+
+            // Sanity-check the View loaded the synthetic entry as a Noise
+            // instrument before we exercise Write.
+            var vm = (SongInstrumentViewModel)view.DataViewModel!;
+            Assert.True(vm.IsLoaded);
+            Assert.Equal(headerByte, vm.HeaderByte);
+            Assert.Equal(InstrumentCategory.Noise, vm.Category);
+
+            // Mirror the View's UpdateUI -> Write_Click flow.
+            var writeMethod = view.GetType().GetMethod("Write_Click",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            writeMethod?.Invoke(view, new object?[] { null, new global::Avalonia.Interactivity.RoutedEventArgs() });
+
+            // The crucial assertion: B5..B7 must survive Write even though
+            // the Noise tab UI does not expose those bytes.
+            Assert.Equal((uint)0xAA, rom.u8(addr + 5));
+            Assert.Equal((uint)0xBB, rom.u8(addr + 6));
+            Assert.Equal((uint)0xCC, rom.u8(addr + 7));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
     /// Drum tab (N80): WF exposes B0..B3, P4 (u32, SubInstrPtr),
     /// AND B8..B11 as raw user-editable bytes. This is the regression
     /// guard for Copilot CLI plan review v2 concern #2 — the prior VM

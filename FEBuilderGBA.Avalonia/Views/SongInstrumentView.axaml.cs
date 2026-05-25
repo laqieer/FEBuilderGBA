@@ -374,33 +374,50 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ReadTabFields(string tabPrefix)
         {
-            _vm.B1 = (byte)(GetNumericByName($"{tabPrefix}_B1_Box") ?? 0);
-            _vm.B2 = (byte)(GetNumericByName($"{tabPrefix}_B2_Box") ?? 0);
-            _vm.B3 = (byte)(GetNumericByName($"{tabPrefix}_B3_Box") ?? 0);
-            _vm.B4 = (byte)(GetNumericByName($"{tabPrefix}_B4_Box") ?? 0);
-            _vm.B5 = (byte)(GetNumericByName($"{tabPrefix}_B5_Box") ?? 0);
-            _vm.B6 = (byte)(GetNumericByName($"{tabPrefix}_B6_Box") ?? 0);
-            _vm.B7 = (byte)(GetNumericByName($"{tabPrefix}_B7_Box") ?? 0);
-            _vm.B8 = (byte)(GetNumericByName($"{tabPrefix}_B8_Box") ?? 0);
-            _vm.B9 = (byte)(GetNumericByName($"{tabPrefix}_B9_Box") ?? 0);
-            _vm.B10 = (byte)(GetNumericByName($"{tabPrefix}_B10_Box") ?? 0);
-            _vm.B11 = (byte)(GetNumericByName($"{tabPrefix}_B11_Box") ?? 0);
+            // Only update VM byte fields when the corresponding NumericUpDown
+            // EXISTS on the active tab. Tabs intentionally omit some byte
+            // controls (e.g. Noise N04/N0C does not surface B5..B7); without
+            // this guard, missing controls would coalesce to 0 and Write()
+            // would zero those bytes in ROM even when the user never edited
+            // them. PR #626 Copilot review round 2 blocker.
+            void TryReadByte(string name, System.Action<byte> assign)
+            {
+                decimal? v = GetNumericByName(name);
+                if (v.HasValue) assign((byte)v.Value);
+            }
+            void TryReadU32(string name, System.Action<uint> assign)
+            {
+                decimal? v = GetNumericByName(name);
+                if (v.HasValue) assign((uint)v.Value);
+            }
+
+            TryReadByte($"{tabPrefix}_B1_Box", v => _vm.B1 = v);
+            TryReadByte($"{tabPrefix}_B2_Box", v => _vm.B2 = v);
+            TryReadByte($"{tabPrefix}_B3_Box", v => _vm.B3 = v);
+            TryReadByte($"{tabPrefix}_B4_Box", v => _vm.B4 = v);
+            TryReadByte($"{tabPrefix}_B5_Box", v => _vm.B5 = v);
+            TryReadByte($"{tabPrefix}_B6_Box", v => _vm.B6 = v);
+            TryReadByte($"{tabPrefix}_B7_Box", v => _vm.B7 = v);
+            TryReadByte($"{tabPrefix}_B8_Box", v => _vm.B8 = v);
+            TryReadByte($"{tabPrefix}_B9_Box", v => _vm.B9 = v);
+            TryReadByte($"{tabPrefix}_B10_Box", v => _vm.B10 = v);
+            TryReadByte($"{tabPrefix}_B11_Box", v => _vm.B11 = v);
 
             switch (tabPrefix)
             {
                 case "N00": case "N08": case "N10": case "N18":
                 case "N03": case "N0B":
-                    _vm.WavePtr = (uint)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    TryReadU32($"{tabPrefix}_P4_Box", v => _vm.WavePtr = v);
                     break;
                 case "N04": case "N0C":
-                    _vm.Period = (byte)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    TryReadByte($"{tabPrefix}_P4_Box", v => _vm.Period = v);
                     break;
                 case "N40":
-                    _vm.KeyMapPtr = (uint)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
-                    _vm.SubInstrPtr = (uint)(GetNumericByName($"{tabPrefix}_P8_Box") ?? 0);
+                    TryReadU32($"{tabPrefix}_P4_Box", v => _vm.KeyMapPtr = v);
+                    TryReadU32($"{tabPrefix}_P8_Box", v => _vm.SubInstrPtr = v);
                     break;
                 case "N80":
-                    _vm.SubInstrPtr = (uint)(GetNumericByName($"{tabPrefix}_P4_Box") ?? 0);
+                    TryReadU32($"{tabPrefix}_P4_Box", v => _vm.SubInstrPtr = v);
                     break;
             }
         }
