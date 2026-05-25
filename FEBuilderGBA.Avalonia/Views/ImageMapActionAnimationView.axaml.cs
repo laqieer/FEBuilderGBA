@@ -446,6 +446,22 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 using var img = CoreState.ImageService.LoadImage(path);
                 if (img == null) return null;
+
+                // Copilot bot review on PR #620 round 2: `IImage.GetPixelData()`
+                // returns ONE BYTE PER PIXEL (palette indices) when
+                // `img.IsIndexed == true` — feeding that into
+                // `MapActionAnimationExportImportCore.ImportScript`'s quantize
+                // path would corrupt the tile data (expects 4-bytes-per-pixel RGBA).
+                // Expand indexed -> RGBA via the palette so downstream code
+                // always sees a uniform 4 bytes/pixel buffer.
+                if (img.IsIndexed)
+                {
+                    byte[] indexed = img.GetPixelData();
+                    byte[] paletteRgba = img.GetPaletteRGBA();
+                    byte[] rgba = GifEncoderCore.IndexedToRgba(
+                        indexed, paletteRgba, img.Width, img.Height);
+                    return (rgba, img.Width, img.Height);
+                }
                 return (img.GetPixelData(), img.Width, img.Height);
             }
             catch

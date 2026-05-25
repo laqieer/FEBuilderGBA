@@ -146,7 +146,12 @@ namespace FEBuilderGBA
                     if (tiles == null || tiles.Length == 0)
                         return $"Failed to decompress LZ77 image at 0x{imgPtr:X08}";
 
-                    byte[] palette = ImageUtilCore.GetPalette(palPtr, 16);
+                    // Copilot bot review on PR #620 round 2: read from the
+                    // ROM passed by the caller, not CoreState.ROM (which
+                    // ImageUtilCore.GetPalette uses internally). Keeps the
+                    // export self-consistent across headless tooling, tests,
+                    // and multi-ROM flows.
+                    byte[] palette = ReadPaletteFromRom(rom, palPtr, 16);
                     if (palette == null)
                         return $"Failed to read palette at 0x{palPtr:X08}";
                     palette = PadGBAPaletteTo16(palette);
@@ -234,7 +239,9 @@ namespace FEBuilderGBA
 
                 byte[] tiles = LZ77.decompress(rom.Data, imgPtr);
                 if (tiles == null || tiles.Length == 0) continue;
-                byte[] palette = ImageUtilCore.GetPalette(palPtr, 16);
+                // Read palette from the rom parameter, not CoreState.ROM —
+                // Copilot bot review on PR #620 round 2.
+                byte[] palette = ReadPaletteFromRom(rom, palPtr, 16);
                 if (palette == null) continue;
                 palette = PadGBAPaletteTo16(palette);
 
@@ -502,6 +509,24 @@ namespace FEBuilderGBA
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Read a 16-color GBA palette (or any color count) from a SPECIFIC
+        /// ROM, not <c>CoreState.ROM</c>. Mirrors
+        /// <c>ImageUtilCore.GetPalette</c> but parameterizes the ROM so the
+        /// export/import path stays self-consistent across headless tooling,
+        /// multi-ROM flows, and tests that don't touch
+        /// <c>CoreState.ROM</c> — Copilot bot review on PR #620 round 2.
+        /// </summary>
+        public static byte[] ReadPaletteFromRom(ROM rom, uint offset, int colorCount)
+        {
+            if (rom == null || rom.Data == null) return null;
+            int byteLen = colorCount * 2;
+            if (offset + (uint)byteLen > (uint)rom.Data.Length) return null;
+            byte[] palette = new byte[byteLen];
+            Array.Copy(rom.Data, offset, palette, 0, byteLen);
+            return palette;
         }
 
         /// <summary>

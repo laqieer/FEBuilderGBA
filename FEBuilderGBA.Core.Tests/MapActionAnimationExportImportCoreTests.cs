@@ -498,6 +498,62 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ----------------------------------------------------------------
+        // ReadPaletteFromRom — Copilot bot review on PR #620 round 2
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Copilot bot review on PR #620 round 2: palette reads MUST honor
+        /// the rom parameter, not CoreState.ROM. Demonstrates that two
+        /// different ROMs produce two different palette reads from the
+        /// same offset.
+        /// </summary>
+        [Fact]
+        public void ReadPaletteFromRom_HonorsExplicitRom_NotCoreStateRom()
+        {
+            byte[] aData = new byte[0x2000];
+            for (int i = 0; i < 32; i++) aData[0x1000 + i] = 0xAA;
+            byte[] bData = new byte[0x2000];
+            for (int i = 0; i < 32; i++) bData[0x1000 + i] = 0xBB;
+
+            var aRom = new ROM();
+            aRom.SwapNewROMDataDirect(aData);
+            var bRom = new ROM();
+            bRom.SwapNewROMDataDirect(bData);
+
+            var origRom = CoreState.ROM;
+            try
+            {
+                // Park CoreState.ROM at aRom; explicitly read from bRom.
+                CoreState.ROM = aRom;
+                byte[] result = MapActionAnimationExportImportCore.ReadPaletteFromRom(bRom, 0x1000, 16);
+                Assert.NotNull(result);
+                Assert.Equal(32, result.Length);
+                Assert.All(result, b => Assert.Equal((byte)0xBB, b));
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void ReadPaletteFromRom_OffsetPastEnd_ReturnsNull()
+        {
+            byte[] data = new byte[0x100];
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            byte[] result = MapActionAnimationExportImportCore.ReadPaletteFromRom(rom, 0xFF, 16);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void ReadPaletteFromRom_NullRom_ReturnsNull()
+        {
+            byte[] result = MapActionAnimationExportImportCore.ReadPaletteFromRom(null, 0x100, 16);
+            Assert.Null(result);
+        }
+
+        // ----------------------------------------------------------------
         // PadGBAPaletteTo16 — direct unit test
         // ----------------------------------------------------------------
 
