@@ -62,7 +62,9 @@ namespace FEBuilderGBA
         /// <c>UnitForm.GetUnitName(uid)</c>:
         /// <list type="bullet">
         ///   <item><c>uid == 0</c> returns <c>""</c> (no unit).</item>
-        ///   <item>Otherwise resolves <c>GetUnitName(uid - 1)</c>.</item>
+        ///   <item>Otherwise resolves the unit at 0-based table row <c>uid - 1</c>,
+        ///     using FE6-aware indexing so the dummy entry at index 0 is skipped
+        ///     (matches <c>UnitFE6Form.Init</c>'s <c>ReInit</c> branch).</item>
         /// </list>
         /// Fixes the off-by-one in Avalonia editor lists (issues #652 #653) where
         /// ROM-byte uids were being passed straight to the 0-based <see cref="GetUnitName(uint)"/>.
@@ -70,7 +72,14 @@ namespace FEBuilderGBA
         public static string GetUnitNameByOneBasedId(uint uid)
         {
             if (uid == 0) return "";
-            return GetUnitName(uid - 1);
+            // Route through SupportUnitNavigation.ResolveUnitTableName which honors
+            // the FE6 dummy-entry skip — same FE6-aware path used by the
+            // SupportUnitEditor's row labels. Returns "???" / "#<idx>" fallbacks
+            // when the ROM is missing / the textId is 0, consistent with the
+            // existing GetUnitName behavior.
+            var rom = CoreState.ROM;
+            if (rom == null) return "???";
+            return SupportUnitNavigation.ResolveUnitTableName(rom, uid - 1);
         }
 
         /// <summary>Get the name of a class by index.</summary>

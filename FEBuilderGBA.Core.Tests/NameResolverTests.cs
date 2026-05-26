@@ -59,28 +59,23 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void GetUnitNameByOneBasedId_DelegatesToZeroBasedMinusOne()
+        public void GetUnitNameByOneBasedId_NullRom_DistinctFromZeroBasedFallback()
         {
-            // Contract: GetUnitNameByOneBasedId(uid) for uid > 0 must equal
-            // GetUnitName(uid - 1). This is the core off-by-one fix — passing a
-            // ROM-stored 1-based unit ID directly to GetUnitName mis-indexes the
-            // unit table by 1 (issues #652, #653). The new helper subtracts
-            // internally so the names align with the displayed hex prefix.
+            // GetUnitNameByOneBasedId has an explicit null-ROM short-circuit that
+            // returns "???" without delegating into SupportUnitNavigation, so the
+            // null-ROM contract differs from the raw helper's catch-block path
+            // (which also happens to return "???"). The point of this test is
+            // that the 1-based helper never throws on null ROM, and that the
+            // uid=1 path on a null ROM produces "???" rather than rebinding into
+            // the 0-based table.
             var saved = CoreState.ROM;
             try
             {
                 CoreState.ROM = null!;
                 NameResolver.ClearCache();
-                // Both helpers should produce the same fallback string when ROM
-                // is null (??? from the catch). The point is they take the
-                // SAME path through ResolveUnitName(0). Compare across multiple
-                // values to pin the subtract-1 contract.
-                for (uint uid = 1; uid <= 5; uid++)
-                {
-                    string viaOneBased = NameResolver.GetUnitNameByOneBasedId(uid);
-                    string viaZeroBased = NameResolver.GetUnitName(uid - 1);
-                    Assert.Equal(viaZeroBased, viaOneBased);
-                }
+                Assert.Equal("???", NameResolver.GetUnitNameByOneBasedId(1));
+                Assert.Equal("???", NameResolver.GetUnitNameByOneBasedId(5));
+                Assert.Equal("", NameResolver.GetUnitNameByOneBasedId(0));
             }
             finally
             {
@@ -104,6 +99,76 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = saved;
                 NameResolver.ClearCache();
             }
+        }
+
+        /// <summary>
+        /// FE6 has a dummy entry at unit-table index 0; the real first unit
+        /// (Roy) sits at <c>p32(unit_pointer) + unit_datasize</c>. WinForms
+        /// <c>UnitForm.GetUnitName(1)</c> on FE6 returns Roy's name (via
+        /// <c>UnitFE6Form.Init</c>'s <c>ReInit</c> branch that shifts the
+        /// table base). <c>GetUnitNameByOneBasedId(1)</c> must mirror that —
+        /// otherwise FE6 Support Talk / Event lists would surface the
+        /// dummy entry's empty/junk name (issue #652/#653 FE6 regression).
+        /// </summary>
+        [Fact]
+        public void GetUnitNameByOneBasedId_FE6_SkipsDummyEntry()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = MakeFE6Rom();
+                CoreState.ROM = rom;
+
+                uint rawBase = 0x200000;
+                uint dataSize = rom.RomInfo.unit_datasize;
+                uint unitPtr = rom.RomInfo.unit_pointer;
+                WriteU32(rom.Data, unitPtr, rawBase | 0x08000000);
+                // Dummy at raw index 0: textId = 0 → "#0" via raw helper.
+                WriteU16(rom.Data, rawBase, 0);
+                // Real index 0 at raw index 1: textId = 1 → "???" without decoder.
+                WriteU16(rom.Data, rawBase + dataSize, 1);
+
+                NameResolver.ClearCache();
+
+                // 1-based: uid=1 must resolve to the REAL row (raw index 1),
+                // NOT the dummy row (raw index 0). The two paths must disagree.
+                string oneBased = NameResolver.GetUnitNameByOneBasedId(1);
+                string rawZeroBased = NameResolver.GetUnitName(0);
+                Assert.NotEqual(rawZeroBased, oneBased);
+                Assert.Equal("#0", rawZeroBased);          // raw reads dummy → "#0"
+                Assert.NotEqual("#0", oneBased);            // FE6-aware skips dummy
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
+        }
+
+        // ---- helpers for FE6-specific tests ----
+        static void WriteU16(byte[] data, uint addr, ushort value)
+        {
+            int i = checked((int)addr);
+            data[i + 0] = (byte)(value & 0xFF);
+            data[i + 1] = (byte)((value >> 8) & 0xFF);
+        }
+
+        static void WriteU32(byte[] data, uint addr, uint value)
+        {
+            int i = checked((int)addr);
+            data[i + 0] = (byte)(value & 0xFF);
+            data[i + 1] = (byte)((value >> 8) & 0xFF);
+            data[i + 2] = (byte)((value >> 16) & 0xFF);
+            data[i + 3] = (byte)((value >> 24) & 0xFF);
+        }
+
+        static ROM MakeFE6Rom()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "AFEJ01");
+            Assert.NotNull(rom.RomInfo);
+            Assert.Equal(6, rom.RomInfo.version);
+            return rom;
         }
 
         [Fact]
