@@ -59,7 +59,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                // #648: Use ViewHelpers.ParseHexText so the "0x" prefix in the
+                // displayed pointer string is parsed correctly. The legacy
+                // U.atoh helper truncates at the 'x' and returns 0, which made
+                // this button silently do nothing.
+                uint supportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
                 if (supportPtr == 0) return;
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
@@ -433,8 +437,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Ability3 = Ability3Flags.Value;
             _vm.Ability4 = Ability4Flags.Value;
 
-            // Support pointer (parse hex)
-            _vm.SupportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+            // Support pointer (parse hex) - #648: ViewHelpers.ParseHexText
+            // handles the displayed "0x..." form; U.atoh truncates at the 'x'
+            // and would zero-out the pointer on every Write.
+            _vm.SupportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
 
             // FE7/8 only
             if (!_vm.IsFE6)
@@ -609,11 +615,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void CalculateGrowth_Click(object? sender, RoutedEventArgs e)
-        {
-            ReadFromUI();
-            RecalcGrowth();
-        }
+        // #648: CalculateGrowth_Click removed - the simulator already
+        // auto-recalculates via WireGrowthAutoRecalc() when any growth-relevant
+        // input (stat NUDs, growth NUDs, level, sim-level, class) changes.
 
         void Undo_Click(object? sender, RoutedEventArgs e)
         {
