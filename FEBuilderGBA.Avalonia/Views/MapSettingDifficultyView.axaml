@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapSettingDifficultyView"
-        Title="Difficulty Settings" Width="1773" Height="1038"
+        Title="Difficulty Settings" Width="1100" Height="600"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="MapSettingDifficulty_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
@@ -15,6 +15,44 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="MapSettingDifficulty_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <!-- Difficulty adjustment group (parity with MapSettingDifficultyDialogView) -->
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Difficulty Settings" FontWeight="Bold" FontSize="14" />
+
+            <Grid ColumnDefinitions="220,120" RowDefinitions="Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Text="Hard Boost" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficulty_HardBoost_Input" FormatString="0"
+                             Grid.Row="0" Grid.Column="1" Name="HardBoostInput"
+                             Minimum="0" Maximum="15" Value="0" />
+
+              <TextBlock Grid.Row="1" Grid.Column="0" Text="Normal Mode Penalty" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficulty_NormalPenalty_Input" FormatString="0"
+                             Grid.Row="1" Grid.Column="1" Name="NormalPenaltyInput"
+                             Minimum="0" Maximum="15" Value="0" />
+
+              <TextBlock Grid.Row="2" Grid.Column="0" Text="Easy Mode Penalty" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficulty_EasyPenalty_Input" FormatString="0"
+                             Grid.Row="2" Grid.Column="1" Name="EasyPenaltyInput"
+                             Minimum="0" Maximum="15" Value="0" />
+
+              <TextBlock Grid.Row="3" Grid.Column="0" Text="Difficulty Value" VerticalAlignment="Center" />
+              <NumericUpDown AutomationProperties.AutomationId="MapSettingDifficulty_DifficultyValue_Input" FormatString="0"
+                             Grid.Row="3" Grid.Column="1" Name="DifficultyValueDisplay"
+                             Minimum="0" Maximum="65535" Value="0" IsEnabled="False" />
+            </Grid>
+
+            <TextBlock AutomationProperties.AutomationId="MapSettingDifficulty_Formatted_Label"
+                       Name="FormattedLabel" Foreground="Blue" Margin="0,4,0,0" />
+          </StackPanel>
+        </Border>
+
+        <SelectableTextBlock AutomationProperties.AutomationId="MapSettingDifficulty_Help_Text" TextWrapping="Wrap"
+                             Text="Set the difficulty adjustment value.&#x0a;Hard Boost increases enemy stats in Hard mode.&#x0a;Penalties reduce enemy stats in Normal and Easy modes.&#x0a;&#x0a;Reference: feuniverse.us difficulty stat changes" />
+
+        <Button AutomationProperties.AutomationId="MapSettingDifficulty_Write_Button"
+                Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,8" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
