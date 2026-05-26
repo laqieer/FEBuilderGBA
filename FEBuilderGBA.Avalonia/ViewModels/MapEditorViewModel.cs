@@ -33,8 +33,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         byte[] _cachedPaletteData;
         byte[] _cachedConfigData;
 
-        /// <summary>Test-only read-only accessor for the in-memory cache. Returns null if no map loaded.</summary>
-        public byte[] GetMapDataSnapshot() => _cachedMapData == null ? null : (byte[])_cachedMapData.Clone();
+        /// <summary>
+        /// Test-only read-only accessor for the in-memory cache. Returns null if no map loaded.
+        /// Marked <c>internal</c> because <c>FEBuilderGBA.Avalonia</c> exposes its internals
+        /// to <c>FEBuilderGBA.Avalonia.Tests</c> via <c>InternalsVisibleTo</c>.
+        /// </summary>
+        internal byte[] GetMapDataSnapshot() => _cachedMapData == null ? null : (byte[])_cachedMapData.Clone();
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -227,6 +231,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _cachedObjData = objData;
             _cachedPaletteData = paletteData;
             _cachedConfigData = configData;
+
+            // SelectedChipsetIndex is deliberately preserved across map loads so the
+            // user can paint the same chipset across maps. But the derived
+            // ChipsetInfo string (which includes terrain data) depends on the NEW
+            // map's configUZ — refresh it so the UI doesn't show stale terrain info
+            // from the previous map.
+            if (_selectedChipsetIndex >= 0)
+                SetSelectedChipsetIndex(_selectedChipsetIndex);
 
             // Map data format: first 2 bytes = width, height (in 16x16 tiles)
             int mapW = mapData[0];

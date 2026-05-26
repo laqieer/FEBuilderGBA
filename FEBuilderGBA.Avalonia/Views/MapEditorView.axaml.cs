@@ -30,12 +30,11 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshMapBtn.Click += OnRefreshMap;
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
-            // Hit-test BOTH the outer Border (Background=Transparent) and the Image
-            // so clicks on any chipset cell — including ones with transparent palette
-            // pixels — fire the handler. The handler converts pointer coords to
-            // image-pixel coords using e.GetPosition(TilePaletteImage).
+            // Hit-test the outer Border (Background=Transparent) only — clicks on the
+            // inner Image bubble up here via Avalonia's routed PointerPressed event.
+            // Wiring both would double-fire the handler. The handler converts pointer
+            // coords to image-pixel coords via e.GetPosition(TilePaletteImage).
             TilePaletteHitArea.PointerPressed += OnTilePaletteClick;
-            TilePaletteImage.PointerPressed += OnTilePaletteClick;
         }
 
         void LoadList()
