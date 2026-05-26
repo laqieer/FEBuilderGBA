@@ -87,7 +87,7 @@
             <NumericUpDown AutomationProperties.AutomationId="ItemFE6_DescId_Input" FormatString="0" Name="DescIdBox" Minimum="0" Maximum="65535" Width="100" />
             <TextBlock AutomationProperties.AutomationId="ItemFE6_DescText_Label" Name="DescTextLabel" VerticalAlignment="Center" Foreground="Gray"
                        MaxWidth="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                       ToolTip.Tip="Decoded description text" />
+                       ToolTip.Tip="{Binding #DescTextLabel.Text}" />
             <Button AutomationProperties.AutomationId="ItemFE6_JumpToDesc_Button" Content="Desc" Click="JumpToDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open text viewer for this description" />
           </StackPanel>
@@ -99,7 +99,7 @@
             <NumericUpDown AutomationProperties.AutomationId="ItemFE6_UseDescId_Input" FormatString="0" Name="UseDescIdBox" Minimum="0" Maximum="65535" Width="100" />
             <TextBlock AutomationProperties.AutomationId="ItemFE6_UseDescText_Label" Name="UseDescTextLabel" VerticalAlignment="Center" Foreground="Gray"
                        MaxWidth="160" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                       ToolTip.Tip="Decoded usage description text" />
+                       ToolTip.Tip="{Binding #UseDescTextLabel.Text}" />
             <Button AutomationProperties.AutomationId="ItemFE6_JumpToUseDesc_Button" Content="Desc" Click="JumpToUseDesc_Click" FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open text viewer for this usage description" />
           </StackPanel>

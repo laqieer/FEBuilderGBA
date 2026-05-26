@@ -22,13 +22,15 @@
           <NumericUpDown AutomationProperties.AutomationId="MenuCommand_NameTextId_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="NameTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="MenuCommand_NameTextId_Label" Grid.Row="2" Grid.Column="2" Name="NameTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
-                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
+                     TextTrimming="CharacterEllipsis" MaxWidth="200"
+                     ToolTip.Tip="{Binding #NameTextPreview.Text}" />
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Help Text ID:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MenuCommand_HelpTextId_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="HelpTextIdBox" Minimum="0" Maximum="65535" Width="200" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="MenuCommand_HelpTextId_Label" Grid.Row="3" Grid.Column="2" Name="HelpTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
-                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
+                     TextTrimming="CharacterEllipsis" MaxWidth="200"
+                     ToolTip.Tip="{Binding #HelpTextPreview.Text}" />
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Color/ID (u32@8):" VerticalAlignment="Center" />
           <TextBox AutomationProperties.AutomationId="MenuCommand_ColorId_Input" Grid.Row="4" Grid.Column="1" Name="ColorIdBox" Width="200" Margin="0,2" />

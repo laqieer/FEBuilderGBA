@@ -22,7 +22,8 @@
           <DataTemplate DataType="vm:PatchEntry">
             <Grid ColumnDefinitions="*,Auto" Margin="2">
               <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis"
-                         VerticalAlignment="Center" />
+                         VerticalAlignment="Center"
+                         ToolTip.Tip="{Binding Name}" />
               <Border Grid.Column="1" Padding="6,2" CornerRadius="4" Margin="4,0,0,0"
                       VerticalAlignment="Center">
                 <TextBlock Text="{Binding StatusText}" FontSize="11" />

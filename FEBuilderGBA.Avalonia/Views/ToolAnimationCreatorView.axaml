@@ -61,7 +61,8 @@
                 <Grid ColumnDefinitions="Auto,4,40,Auto,*,Auto,4,80">
                   <TextBlock Grid.Column="0" Text="Wait:" />
                   <TextBlock Grid.Column="2" Text="{Binding Wait}" />
-                  <TextBlock Grid.Column="4" Text="{Binding ImageName}" TextTrimming="CharacterEllipsis" Margin="8,0,0,0" />
+                  <TextBlock Grid.Column="4" Text="{Binding ImageName}" TextTrimming="CharacterEllipsis" Margin="8,0,0,0"
+                             ToolTip.Tip="{Binding ImageName}" />
                   <TextBlock Grid.Column="5" Text="Sound:" />
                   <TextBlock Grid.Column="7" Text="{Binding Sound, StringFormat='0x{0:X}'}" />
                 </Grid>

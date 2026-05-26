@@ -31,7 +31,7 @@
                MinWidth="80"
                MaxWidth="200"
                TextTrimming="CharacterEllipsis"
-               ToolTip.Tip="Resolved name for the current id" />
+               ToolTip.Tip="{Binding #NameLabel.Text}" />
     <Button Name="JumpButton"
             Content="Jump"
             FontSize="11"

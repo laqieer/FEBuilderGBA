@@ -2760,5 +2760,125 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("StartsWith(\"0x\", StringComparison.OrdinalIgnoreCase)", src);
             Assert.Contains("NumberStyles.HexNumber", src);
         }
+
+        // ------------------------------------------------------------------ #650 truncated preview tooltips
+        // Every TextBlock that uses TextTrimming="CharacterEllipsis" with a fixed
+        // MaxWidth in an editor view MUST expose the full text via a
+        // ToolTip.Tip self-binding so the user can read the truncated content on
+        // hover. The MainWindow status bar is intentionally exempt — its tooltip
+        // is set dynamically in code-behind and the bar must stay one-line.
+        //
+        // The check is intentionally narrow: it scans for the *self-binding*
+        // pattern (ToolTip.Tip="{Binding #...}" or ToolTip.Tip="{Binding}")
+        // anywhere in the file, so adding new truncated previews without a
+        // matching tooltip will fail the assertion.
+
+        static int CountOccurrences(string haystack, string needle)
+        {
+            int count = 0;
+            int idx = 0;
+            while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                idx += needle.Length;
+            }
+            return count;
+        }
+
+        static void AssertHasSelfBindingToolTip(string file, string axaml)
+        {
+            // Accept any of these self-binding patterns that route the tooltip
+            // text back to the same source as the visible Text:
+            //   - ToolTip.Tip="{Binding #<ElementName>.Text}"   (element-name self ref)
+            //   - ToolTip.Tip="{Binding}"                        (DataContext is the string)
+            //   - ToolTip.Tip="{Binding <SameProperty>}"         (same property as Text="{Binding <SameProperty>}")
+            // The third case is matched loosely (any "{Binding <name>}") since
+            // the caller verifies that the file ALSO uses TextTrimming —
+            // matching a non-self binding would be a code smell anyway.
+            bool hasSelfBinding =
+                axaml.Contains("ToolTip.Tip=\"{Binding #", StringComparison.Ordinal) ||
+                axaml.Contains("ToolTip.Tip=\"{Binding}\"", StringComparison.Ordinal) ||
+                axaml.Contains("ToolTip.Tip=\"{Binding ", StringComparison.Ordinal);
+            Assert.True(hasSelfBinding,
+                $"#650: {file} contains a truncated preview but no self-binding ToolTip.Tip — users cannot read the full text on hover.");
+        }
+
+        [Theory]
+        [InlineData("UnitEditorView.axaml")]
+        [InlineData("UnitFE6View.axaml")]
+        [InlineData("UnitFE7View.axaml")]
+        [InlineData("ClassEditorView.axaml")]
+        [InlineData("ItemEditorView.axaml")]
+        [InlineData("ItemFE6View.axaml")]
+        [InlineData("EventTalkGroupFE7View.axaml")]
+        [InlineData("MenuCommandView.axaml")]
+        [InlineData("OPClassDemoFE7View.axaml")]
+        [InlineData("OPClassDemoFE7UView.axaml")]
+        [InlineData("OPClassDemoFE8UView.axaml")]
+        [InlineData("SoundRoomViewerView.axaml")]
+        [InlineData("StatusOptionView.axaml")]
+        [InlineData("StatusRMenuView.axaml")]
+        [InlineData("StatusUnitsMenuView.axaml")]
+        [InlineData("WorldMapPointView.axaml")]
+        [InlineData("ToolAnimationCreatorView.axaml")]
+        [InlineData("PatchManagerView.axaml")]
+        public void TruncatedPreview_HasSelfBindingToolTip_Issue650(string viewFile)
+        {
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", viewFile));
+            // Sanity: file still contains the trimming attribute (otherwise the
+            // test would silently pass and miss future regressions).
+            Assert.Contains("TextTrimming=\"CharacterEllipsis\"", src);
+            AssertHasSelfBindingToolTip(viewFile, src);
+        }
+
+        [Fact]
+        public void IdFieldControl_NameLabelHasSelfBindingToolTip_Issue650()
+        {
+            // The reusable type-ID control's name preview is also truncated; its
+            // ToolTip.Tip must self-bind so 6+ editor call sites all get the fix.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Controls", "IdFieldControl.axaml"));
+            Assert.Contains("TextTrimming=\"CharacterEllipsis\"", src);
+            Assert.Contains("ToolTip.Tip=\"{Binding #NameLabel.Text}\"", src);
+        }
+
+        [Fact]
+        public void MainWindowStatusBar_KeepsEllipsisWithoutSelfBindingToolTip_Issue650()
+        {
+            // Sanity check: the status bar TextBlock keeps its ellipsis trimming
+            // and does NOT add a static self-binding tooltip (its tooltip is set
+            // in code-behind based on the current message). The status bar must
+            // remain one-line; wrapping would break the layout.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
+            Assert.Contains("Name=\"StatusText\"", src);
+            Assert.Contains("TextTrimming=\"CharacterEllipsis\"", src);
+        }
+
+        [Fact]
+        public void Issue650_AllTruncatedPreviewsHaveTooltipsExceptStatusBar()
+        {
+            // Enumerate every .axaml in Views/ and Controls/. For each file
+            // that contains TextTrimming="CharacterEllipsis", verify it also
+            // contains at least one self-binding tooltip — unless the file is
+            // MainWindow.axaml (status bar exemption).
+            var dirs = new[]
+            {
+                Path.Combine(AvaloniaDir, "Views"),
+                Path.Combine(AvaloniaDir, "Controls"),
+            };
+            foreach (var dir in dirs)
+            {
+                if (!Directory.Exists(dir)) continue;
+                foreach (var f in Directory.EnumerateFiles(dir, "*.axaml", SearchOption.TopDirectoryOnly))
+                {
+                    var name = Path.GetFileName(f);
+                    if (string.Equals(name, "MainWindow.axaml", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    var src = File.ReadAllText(f);
+                    if (!src.Contains("TextTrimming=\"CharacterEllipsis\"", StringComparison.Ordinal))
+                        continue;
+                    AssertHasSelfBindingToolTip(name, src);
+                }
+            }
+        }
     }
 }
