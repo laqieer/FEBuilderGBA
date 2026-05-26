@@ -41,10 +41,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Load a mini portrait (32x32) for the given portrait ID.
         /// Returns null on failure.
         /// </summary>
+        /// <remarks>
+        /// #654: removed <c>portraitId == 0</c> short-circuit so callers that
+        /// list portrait 0 (e.g. ImagePortraitView's first row) can render its
+        /// icon. WinForms <c>ImagePortraitForm.DrawPortraitAuto(0)</c> attempts
+        /// the read and returns <c>ImageUtil.BlankDummy()</c> on bad data — we
+        /// return null on failure but at least give portrait 0 a chance.
+        /// </remarks>
         public static IImage LoadPortraitMini(uint portraitId)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || portraitId == 0) return null;
+            if (rom?.RomInfo == null) return null;
 
             try
             {
@@ -402,10 +409,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Load a class wait icon by class ID. Resolves class ID -> wait icon index (offset +6) -> loads icon.
         /// </summary>
+        /// <remarks>
+        /// #654: removed <c>classId == 0</c> early return so class 0 (the
+        /// first row in every class-prefixed list) gets a lookup. The class
+        /// struct at offset 0 may legitimately have <c>waitIconIndex == 0</c>
+        /// (no map sprite), in which case we still bail — but for any other
+        /// class-0 row the icon now renders.
+        /// </remarks>
         public static IImage LoadClassWaitIconByClassId(uint classId)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || classId == 0) return null;
+            if (rom?.RomInfo == null) return null;
             try
             {
                 uint classPtr = rom.RomInfo.class_pointer;
@@ -425,10 +439,18 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Load an item icon by item ID. Resolves item ID -> icon index (offset +29) -> loads icon.
         /// </summary>
+        /// <remarks>
+        /// #654: removed <c>itemId == 0</c> early return. Item 0 (the first
+        /// row in every item-prefixed list) is a real ROM entry on every
+        /// supported version — for FE8U it is the "null item" placeholder
+        /// whose icon at offset +29 is 0 (we still bail when that happens),
+        /// but on FE6 / FE7 item 0 has a real icon and was incorrectly
+        /// hidden. Aligns with WinForms which never short-circuits on item ID.
+        /// </remarks>
         public static IImage LoadItemIconByItemId(uint itemId)
         {
             ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || itemId == 0) return null;
+            if (rom?.RomInfo == null) return null;
             try
             {
                 uint itemPtr = rom.RomInfo.item_pointer;

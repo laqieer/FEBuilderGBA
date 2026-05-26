@@ -312,6 +312,35 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal((uint)0x200, items[0].addr);
         }
 
+        /// <summary>
+        /// #654 regression: the per-slot row text MUST be prefixed with the
+        /// actual item ID (so the Avalonia ListIconLoaders.ItemIconLoader
+        /// can recover it via U.atoh), NOT the slot index. Mirrors WinForms
+        /// <c>ItemShopForm.Init</c> which formats rows as
+        /// <c>U.ToHexString(item_id) + " " + ItemForm.GetItemName(item_id)</c>.
+        /// </summary>
+        [Fact]
+        public void ReadShopItems_RowNamePrefixIsItemId_NotSlotIndex()
+        {
+            var rom = MakeFE8UWithHenseiShop();
+            // Hensei shop at 0x200 has one slot with item ID 0x01.
+            // Append a second item with id 0x07 so slot index 1 has item id 7
+            // (distinguishable from its slot index).
+            ItemShopCore.TryAppendShopItem(rom, 0x200, 0x07, 0x05, out _);
+
+            var items = ItemShopCore.ReadShopItems(rom, 0x200);
+            Assert.Equal(2, items.Count);
+
+            // Row 0 -> item id 0x01 (NOT slot index 0). atoh on the prefix
+            // must yield the item ID, not zero.
+            Assert.StartsWith("01 ", items[0].name);
+            Assert.Equal((uint)0x01, U.atoh(items[0].name));
+
+            // Row 1 -> item id 0x07 (NOT slot index 1).
+            Assert.StartsWith("07 ", items[1].name);
+            Assert.Equal((uint)0x07, U.atoh(items[1].name));
+        }
+
         // ===================================================================
         // TryAppendShopItem
         // ===================================================================
