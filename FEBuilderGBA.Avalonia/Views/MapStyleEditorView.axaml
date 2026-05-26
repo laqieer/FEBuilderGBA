@@ -151,91 +151,108 @@
             <!-- 16 RGB rows — each row: Color {i} label + R/G/B inputs.
                  The single-char labels "1".."16", "R", "G", "B" come from
                  the per-row headers (covers labels-sweep entries). -->
-            <Grid ColumnDefinitions="48,32,72,32,72,32,72" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="48,32,72,32,72,32,72,56" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="No" FontWeight="Bold" HorizontalAlignment="Center" />
               <TextBlock Grid.Row="0" Grid.Column="1" Text="R" FontWeight="Bold" HorizontalAlignment="Center" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="G" FontWeight="Bold" HorizontalAlignment="Center" />
               <TextBlock Grid.Row="0" Grid.Column="5" Text="B" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="7" Text="Color" FontWeight="Bold" HorizontalAlignment="Center" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="1" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="1" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color1_R_Input" Name="Color1_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="1" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color1_G_Input" Name="Color1_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="1" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color1_B_Input" Name="Color1_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="1" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color1_R_Input" Name="Color1_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="1" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color1_G_Input" Name="Color1_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="1" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color1_B_Input" Name="Color1_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="1" Grid.Column="7" Name="Color1_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color1_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="2" Grid.Column="0" Text="2" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="2" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color2_R_Input" Name="Color2_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="2" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color2_G_Input" Name="Color2_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="2" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color2_B_Input" Name="Color2_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="2" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color2_R_Input" Name="Color2_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="2" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color2_G_Input" Name="Color2_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="2" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color2_B_Input" Name="Color2_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="2" Grid.Column="7" Name="Color2_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color2_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="3" Grid.Column="0" Text="3" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color3_R_Input" Name="Color3_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="3" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color3_G_Input" Name="Color3_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="3" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color3_B_Input" Name="Color3_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="3" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color3_R_Input" Name="Color3_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="3" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color3_G_Input" Name="Color3_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="3" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color3_B_Input" Name="Color3_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="3" Grid.Column="7" Name="Color3_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color3_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="4" Grid.Column="0" Text="4" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="4" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color4_R_Input" Name="Color4_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="4" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color4_G_Input" Name="Color4_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="4" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color4_B_Input" Name="Color4_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="4" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color4_R_Input" Name="Color4_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="4" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color4_G_Input" Name="Color4_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="4" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color4_B_Input" Name="Color4_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="4" Grid.Column="7" Name="Color4_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color4_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="5" Grid.Column="0" Text="5" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="5" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color5_R_Input" Name="Color5_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="5" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color5_G_Input" Name="Color5_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="5" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color5_B_Input" Name="Color5_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="5" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color5_R_Input" Name="Color5_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="5" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color5_G_Input" Name="Color5_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="5" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color5_B_Input" Name="Color5_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="5" Grid.Column="7" Name="Color5_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color5_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="6" Grid.Column="0" Text="6" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color6_R_Input" Name="Color6_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="6" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color6_G_Input" Name="Color6_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="6" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color6_B_Input" Name="Color6_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="6" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color6_R_Input" Name="Color6_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="6" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color6_G_Input" Name="Color6_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="6" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color6_B_Input" Name="Color6_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="6" Grid.Column="7" Name="Color6_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color6_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="7" Grid.Column="0" Text="7" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="7" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color7_R_Input" Name="Color7_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="7" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color7_G_Input" Name="Color7_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="7" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color7_B_Input" Name="Color7_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="7" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color7_R_Input" Name="Color7_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="7" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color7_G_Input" Name="Color7_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="7" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color7_B_Input" Name="Color7_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="7" Grid.Column="7" Name="Color7_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color7_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="8" Grid.Column="0" Text="8" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="8" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color8_R_Input" Name="Color8_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="8" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color8_G_Input" Name="Color8_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="8" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color8_B_Input" Name="Color8_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="8" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color8_R_Input" Name="Color8_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="8" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color8_G_Input" Name="Color8_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="8" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color8_B_Input" Name="Color8_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="8" Grid.Column="7" Name="Color8_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color8_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="9" Grid.Column="0" Text="9" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="9" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color9_R_Input" Name="Color9_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="9" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color9_G_Input" Name="Color9_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="9" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color9_B_Input" Name="Color9_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="9" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color9_R_Input" Name="Color9_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="9" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color9_G_Input" Name="Color9_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="9" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color9_B_Input" Name="Color9_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="9" Grid.Column="7" Name="Color9_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color9_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="10" Grid.Column="0" Text="10" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="10" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color10_R_Input" Name="Color10_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="10" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color10_G_Input" Name="Color10_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="10" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color10_B_Input" Name="Color10_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="10" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color10_R_Input" Name="Color10_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="10" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color10_G_Input" Name="Color10_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="10" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color10_B_Input" Name="Color10_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="10" Grid.Column="7" Name="Color10_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color10_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="11" Grid.Column="0" Text="11" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="11" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color11_R_Input" Name="Color11_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="11" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color11_G_Input" Name="Color11_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="11" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color11_B_Input" Name="Color11_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="11" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color11_R_Input" Name="Color11_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="11" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color11_G_Input" Name="Color11_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="11" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color11_B_Input" Name="Color11_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="11" Grid.Column="7" Name="Color11_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color11_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="12" Grid.Column="0" Text="12" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="12" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color12_R_Input" Name="Color12_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="12" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color12_G_Input" Name="Color12_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="12" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color12_B_Input" Name="Color12_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="12" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color12_R_Input" Name="Color12_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="12" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color12_G_Input" Name="Color12_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="12" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color12_B_Input" Name="Color12_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="12" Grid.Column="7" Name="Color12_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color12_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="13" Grid.Column="0" Text="13" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="13" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color13_R_Input" Name="Color13_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="13" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color13_G_Input" Name="Color13_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="13" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color13_B_Input" Name="Color13_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="13" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color13_R_Input" Name="Color13_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="13" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color13_G_Input" Name="Color13_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="13" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color13_B_Input" Name="Color13_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="13" Grid.Column="7" Name="Color13_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color13_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="14" Grid.Column="0" Text="14" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="14" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color14_R_Input" Name="Color14_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="14" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color14_G_Input" Name="Color14_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="14" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color14_B_Input" Name="Color14_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="14" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color14_R_Input" Name="Color14_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="14" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color14_G_Input" Name="Color14_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="14" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color14_B_Input" Name="Color14_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="14" Grid.Column="7" Name="Color14_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color14_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="15" Grid.Column="0" Text="15" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="15" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color15_R_Input" Name="Color15_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="15" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color15_G_Input" Name="Color15_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="15" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color15_B_Input" Name="Color15_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="15" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color15_R_Input" Name="Color15_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="15" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color15_G_Input" Name="Color15_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="15" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color15_B_Input" Name="Color15_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="15" Grid.Column="7" Name="Color15_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color15_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
 
               <TextBlock Grid.Row="16" Grid.Column="0" Text="16" HorizontalAlignment="Center" />
-              <NumericUpDown Grid.Row="16" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color16_R_Input" Name="Color16_RBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="16" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color16_G_Input" Name="Color16_GBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
-              <NumericUpDown Grid.Row="16" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color16_B_Input" Name="Color16_BBox" IsEnabled="False" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="16" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color16_R_Input" Name="Color16_RBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="16" Grid.Column="4" AutomationProperties.AutomationId="MapStyleEditor_Color16_G_Input" Name="Color16_GBox" Minimum="0" Maximum="31" Width="68" />
+              <NumericUpDown Grid.Row="16" Grid.Column="6" AutomationProperties.AutomationId="MapStyleEditor_Color16_B_Input" Name="Color16_BBox" Minimum="0" Maximum="31" Width="68" />
+              <Rectangle Grid.Row="16" Grid.Column="7" Name="Color16_Swatch" AutomationProperties.AutomationId="MapStyleEditor_Color16_Swatch_Image" Width="40" Height="20" Stroke="Gray" StrokeThickness="1" />
             </Grid>
 
             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
@@ -253,8 +270,7 @@
                       ToolTip.Tip="Pending Core extraction - tracked by #374." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteWrite_Button"
                       Content="Palette Write"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction (palette PLIST allocation) - tracked by #374." />
+                       Click="PaletteWrite_Click" Name="PaletteWriteButton" />
             </StackPanel>
           </StackPanel>
         </ScrollViewer>

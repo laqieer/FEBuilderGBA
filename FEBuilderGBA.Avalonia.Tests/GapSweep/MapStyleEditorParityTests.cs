@@ -199,7 +199,9 @@ public class MapStyleEditorParityTests
         "MapStyleEditor_PaletteExport_Button",
         "MapStyleEditor_PaletteImport_Button",
         "MapStyleEditor_PaletteClipboard_Button",
-        "MapStyleEditor_PaletteWrite_Button",
+        // PaletteWrite is now functional (#660 first slice -- WritePalette
+        // in-place rewrite of the resolved 32-byte slice). Tracked
+        // positively by View_FunctionalPaletteWriteButton_IsEnabled.
         "MapStyleEditor_CopyTile_Button",
         "MapStyleEditor_CopyType_Button",
         "MapStyleEditor_Paste_Button",
@@ -284,6 +286,312 @@ public class MapStyleEditorParityTests
         Assert.Matches(new Regex(
             @"void Write_Click[\s\S]*?_undoService\.Begin\([^)]*\)[\s\S]*?_vm\.Write\(\)[\s\S]*?_undoService\.(Commit|Rollback)\(\)",
             RegexOptions.Singleline), code);
+    }
+
+    /// <summary>
+    /// Palette Write button became functional in the #660 first slice.
+    /// Mirror View_FunctionalWriteButton_IsEnabled: the button MUST NOT
+    /// carry `IsEnabled="False"`. Catches regressions that would re-disable
+    /// the control without updating KnownGapButtonIds.
+    /// </summary>
+    [Fact]
+    public void View_FunctionalPaletteWriteButton_IsEnabled()
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""MapStyleEditor_PaletteWrite_Button""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, "MapStyleEditor_PaletteWrite_Button must exist");
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// Palette Write handler must wrap the VM call in
+    /// `_undoService.Begin -> _vm.WritePalette() -> Commit / Rollback`
+    /// so the 32-byte palette mutation is atomically undoable.
+    /// Mirrors View_Write_Click_UsesUndoService (#660 review item 3).
+    ///
+    /// The shape check requires BOTH a Commit AND a Rollback path
+    /// somewhere in the method body (Copilot inline review v1: the
+    /// previous "Commit|Rollback" regex would pass even if Commit
+    /// were deleted as long as Rollback survived). We verify Begin
+    /// precedes WritePalette, and that Commit AND Rollback both
+    /// appear after the call site.
+    /// </summary>
+    [Fact]
+    public void View_PaletteWrite_Click_UsesUndoService()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // Extract the PaletteWrite_Click method body so we don't
+        // accidentally match Commit/Rollback from a neighbouring method.
+        var bodyMatch = Regex.Match(code,
+            @"void PaletteWrite_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|/// ))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "PaletteWrite_Click method not found");
+        string body = bodyMatch.Value;
+
+        Assert.Matches(new Regex(
+            @"_undoService\.Begin\([^)]*\)[\s\S]*?_vm\.WritePalette\(\)",
+            RegexOptions.Singleline), body);
+        Assert.Contains("_undoService.Commit()", body);
+        Assert.Contains("_undoService.Rollback()", body);
+    }
+
+    /// <summary>
+    /// The 48 palette RGB NumericUpDown controls must no longer carry
+    /// `IsEnabled="False"` (they were disabled placeholders before the
+    /// #660 first slice). Catches accidental re-disabling.
+    /// </summary>
+    [Fact]
+    public void View_PaletteNUDs_AreEnabled()
+    {
+        string axaml = ReadAxaml();
+        for (int i = 1; i <= 16; i++)
+        {
+            foreach (char ch in new[] { 'R', 'G', 'B' })
+            {
+                var pattern = new Regex(
+                    $"<NumericUpDown[^>]*MapStyleEditor_Color{i}_{ch}_Input[^>]*",
+                    RegexOptions.None);
+                Match m = pattern.Match(axaml);
+                Assert.True(m.Success, $"NUD MapStyleEditor_Color{i}_{ch}_Input must exist");
+                Assert.False(m.Value.Contains("IsEnabled=\"False\""),
+                    $"NUD MapStyleEditor_Color{i}_{ch}_Input must not be disabled");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The palette tab must include a swatch column showing the current
+    /// color for each of the 16 rows (#660 first slice: visual feedback
+    /// for color editing).
+    /// </summary>
+    [Fact]
+    public void View_HasPaletteSwatches()
+    {
+        string axaml = ReadAxaml();
+        for (int i = 1; i <= 16; i++)
+        {
+            Assert.Contains(
+                $"AutomationProperties.AutomationId=\"MapStyleEditor_Color{i}_Swatch_Image\"",
+                axaml);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // ViewModel - palette WRITE semantics (#660 first slice).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// Round-trip: load a palette, mutate every channel, write, re-read,
+    /// expect the written bytes to exactly match the in-memory state.
+    /// </summary>
+    [Fact]
+    public void ViewModel_WritePalette_RoundTrips()
+    {
+        var (rom, paletteBase) = MakeSyntheticPaletteRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            Assert.True(vm.LoadPalette(paletteBase, paletteIndex: 1, isFog: false));
+
+            // Mutate every row with a distinct pattern.
+            for (int i = 1; i <= 16; i++)
+            {
+                vm.SetColorR(i, (ushort)((31 - i) & 0x1F));
+                vm.SetColorG(i, (ushort)((i + 7) & 0x1F));
+                vm.SetColorB(i, (ushort)((i * 2) & 0x1F));
+            }
+
+            Assert.True(vm.WritePalette());
+
+            // Re-read the bytes and check they match.
+            uint addr = paletteBase + 1 * 0x20;
+            for (int i = 0; i < 16; i++)
+            {
+                ushort packed = (ushort)rom.u16(addr + (uint)(i * 2));
+                int row = i + 1;
+                int r = packed & 0x1F;
+                int g = (packed >> 5) & 0x1F;
+                int b = (packed >> 10) & 0x1F;
+                Assert.Equal((31 - row) & 0x1F, r);
+                Assert.Equal((row + 7) & 0x1F, g);
+                Assert.Equal((row * 2) & 0x1F, b);
+            }
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// 5-bit clamping: passing values > 0x1F into Set* must be masked to
+    /// 5 bits before packing. Confirms the WritePalette path does not
+    /// emit garbage halfwords for over-range inputs.
+    /// </summary>
+    [Fact]
+    public void ViewModel_WritePalette_ClampsTo5Bits()
+    {
+        var (rom, paletteBase) = MakeSyntheticPaletteRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            Assert.True(vm.LoadPalette(paletteBase, paletteIndex: 1, isFog: false));
+
+            // Inject over-range values (Set*R masks to 0x1F internally).
+            vm.SetColorR(1, 0x3F); // expect 0x1F packed
+            vm.SetColorG(1, 0x20); // expect 0x00 packed (low 5 bits)
+            vm.SetColorB(1, 0x21); // expect 0x01 packed
+            Assert.True(vm.WritePalette());
+
+            uint addr = paletteBase + 1 * 0x20;
+            ushort packed = (ushort)rom.u16(addr);
+            Assert.Equal(0x1F, packed & 0x1F);
+            Assert.Equal(0x00, (packed >> 5) & 0x1F);
+            Assert.Equal(0x01, (packed >> 10) & 0x1F);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Safety: WritePalette must refuse to write when PaletteAddress
+    /// is zero (no entry loaded) and must NOT touch ROM bytes.
+    /// </summary>
+    [Fact]
+    public void ViewModel_WritePalette_RejectsZeroAddress()
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+        // Seed a non-zero sentinel at offset 0x200000 so we can detect
+        // any accidental write.
+        rom.Data[0x200000] = 0xAB;
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            // PaletteAddress is 0 (never loaded).
+            Assert.False(vm.WritePalette());
+            // Sentinel must be untouched.
+            Assert.Equal(0xAB, rom.Data[0x200000]);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Safety: WritePalette must refuse to write when the resolved
+    /// palette slice would extend past the ROM end. Mirrors LoadPalette
+    /// bounds check.
+    /// </summary>
+    [Fact]
+    public void ViewModel_WritePalette_RejectsOutOfBounds()
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            // Force an unsafe PaletteAddress (last 10 bytes of ROM).
+            vm.PaletteAddress = (uint)rom.Data.Length - 10;
+            Assert.False(vm.WritePalette());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Stale-state regression (#660 Copilot PR v2 review item 3): after
+    /// a failed reload (out-of-bounds slice), the VM must clear its
+    /// write target so a subsequent <see cref="MapStyleEditorViewModel.WritePalette"/>
+    /// is refused -- otherwise it would write the new RGB values to the
+    /// previous (valid) slice address, corrupting that slice.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ClearPaletteState_RefusesSubsequentWrite()
+    {
+        var (rom, paletteBase) = MakeSyntheticPaletteRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            // Load a valid palette first.
+            Assert.True(vm.LoadPalette(paletteBase, paletteIndex: 1, isFog: false));
+            uint validAddr = vm.PaletteAddress;
+            Assert.NotEqual((uint)0, validAddr);
+
+            // Mutate the in-memory channels (simulating user edits).
+            vm.SetColorR(1, 31);
+            vm.SetColorG(1, 31);
+            vm.SetColorB(1, 31);
+
+            // Snapshot the original halfword at the valid slice so we can
+            // verify it isn't overwritten by the stale path.
+            uint originalHalfword = rom.u16(validAddr);
+
+            // Simulate a failed reload: clear the VM's write target.
+            // (The view calls this when LoadPalette returns false.)
+            vm.ClearPaletteState();
+
+            // WritePalette must refuse.
+            Assert.False(vm.WritePalette());
+
+            // The valid slice must be untouched.
+            Assert.Equal(originalHalfword, rom.u16(validAddr));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Undo regression (#660 Copilot v1 review item 4): write a palette
+    /// inside an ambient undo scope, then run undo and assert the original
+    /// halfword is restored.
+    /// </summary>
+    [Fact]
+    public void ViewModel_WritePalette_UndoableRestoresOriginal()
+    {
+        var (rom, paletteBase) = MakeSyntheticPaletteRom();
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            Assert.True(vm.LoadPalette(paletteBase, paletteIndex: 1, isFog: false));
+
+            // Capture the original halfword for row 5 (offset paletteBase + 0x20 + 8).
+            uint addr5 = paletteBase + 1 * 0x20 + 4 * 2;
+            ushort originalRow5 = (ushort)rom.u16(addr5);
+
+            // Mutate row 5 to all zero.
+            vm.SetColorR(5, 0);
+            vm.SetColorG(5, 0);
+            vm.SetColorB(5, 0);
+
+            var undoData = CoreState.Undo.NewUndoData("test palette write");
+            using (ROM.BeginUndoScope(undoData))
+            {
+                Assert.True(vm.WritePalette());
+            }
+            CoreState.Undo.Push(undoData);
+
+            // Confirm mutation hit ROM.
+            Assert.Equal((uint)0, rom.u16(addr5));
+
+            // Run undo and verify the original halfword is restored.
+            CoreState.Undo.RunUndo();
+            Assert.Equal(originalRow5, (ushort)rom.u16(addr5));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
     }
 
     // -----------------------------------------------------------------
@@ -566,3 +874,4 @@ public class MapStyleEditorParityTests
         }
     }
 }
+

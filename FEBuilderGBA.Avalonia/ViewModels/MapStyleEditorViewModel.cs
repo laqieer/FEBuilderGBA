@@ -339,6 +339,54 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u32(CurrentAddr, ObjPointer);
         }
 
+        /// <summary>
+        /// Clear the in-memory palette slice state. Called when a reload
+        /// fails (out-of-bounds or invalid base) so a subsequent
+        /// <see cref="WritePalette"/> cannot accidentally write the
+        /// previous palette's RGB values to the previous slice address.
+        /// (Copilot CLI v2 PR review — stale-state regression.)
+        /// </summary>
+        public void ClearPaletteState()
+        {
+            PaletteAddress = 0;
+            Array.Clear(_r, 0, 16);
+            Array.Clear(_g, 0, 16);
+            Array.Clear(_b, 0, 16);
+        }
+
+        /// <summary>
+        /// Write the in-memory 16-color palette block back to the resolved
+        /// <see cref="PaletteAddress"/> slice using 5-5-5 little-endian
+        /// halfwords (matches the on-disk format read by <see cref="LoadPalette"/>).
+        /// Returns true when the write succeeded; false when no ROM is loaded,
+        /// PaletteAddress is unresolved/zero, or the target region would go
+        /// past the ROM end. The write is a pure overwrite of the existing
+        /// 32-byte slice — no allocation, no PLIST relocation. Caller is
+        /// responsible for opening an undo scope before calling this so the
+        /// ambient <c>rom.write_u16</c> calls are tracked.
+        /// </summary>
+        public bool WritePalette()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return false;
+            if (PaletteAddress == 0) return false;
+
+            // Bounds-check the full 32-byte block before any write so a
+            // partial-overwrite cannot leave the palette slice corrupted.
+            ulong end = (ulong)PaletteAddress + 0x20UL;
+            if (end > (ulong)rom.Data.Length) return false;
+
+            for (int i = 0; i < 16; i++)
+            {
+                ushort packed = (ushort)(
+                    (_r[i] & 0x1F)
+                    | ((_g[i] & 0x1F) << 5)
+                    | ((_b[i] & 0x1F) << 10));
+                rom.write_u16(PaletteAddress + (uint)(i * 2), packed);
+            }
+            return true;
+        }
+
         public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
