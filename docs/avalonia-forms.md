@@ -155,7 +155,7 @@ Editors for map settings, tiles, terrain, and map style.
 | 61 | MapTileAnimationView | MapTileAnimationViewModel | Map tile animation editor |
 | 62 | MapTileAnimation1View | MapTileAnimation1ViewModel | Tile animation type 1 |
 | 63 | MapTileAnimation2View | MapTileAnimation2ViewModel | Tile animation type 2 |
-| 64 | MapEditorView | MapEditorViewModel | Visual map tile editor |
+| 64 | MapEditorView | MapEditorViewModel | Visual map tile editor (chipset palette + click-to-paint, see #658) |
 | 65 | MapEditorAddMapChangeDialogView | MapEditorAddMapChangeDialogViewModel | Add map change dialog |
 | 66 | MapEditorAddMapChangeView | MapEditorAddMapChangeViewModel | Map change addition form |
 | 67 | MapEditorMarSizeDialogView | MapEditorMarSizeDialogViewModel | Map margin size dialog |

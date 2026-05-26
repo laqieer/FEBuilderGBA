@@ -19037,6 +19037,18 @@ This view allows selecting the instrument set (voicegroup) used when importing M
 :Tile Editor (click on map to select)
 图块编辑器(点击地图选择)
 
+:Tile Palette
+图块调色板
+
+:Paint Mode
+绘制模式
+
+:No chipset selected
+未选择图块
+
+:(click palette to pick a chipset, then click map to paint)
+(在调色板选择图块，然后点击地图绘制)
+
 :Tile ID (hex):
 图块ID(十六进制):
 
