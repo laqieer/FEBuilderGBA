@@ -66,7 +66,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 string name;
                 if (typeId <= 1)
-                    name = $"0x{id:X2} {NameResolver.GetUnitName(id)}";
+                    // 1-based ROM-stored unit ID (WinForms VennouWeaponLockForm uses
+                    // UnitForm.GetUnitName(id) which treats id as 1-based).
+                    name = $"0x{id:X2} {NameResolver.GetUnitNameByOneBasedId(id)}";
                 else
                     name = $"0x{id:X2} {NameResolver.GetClassName(id)}";
                 result.Add(new AddrResult(addr, name, id));
@@ -114,7 +116,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (_typeId <= 1)
                 {
                     FieldLabel = "Unit";
-                    LinkedName = NameResolver.GetUnitName(LockTypeOrId);
+                    // 1-based ROM-stored unit ID.
+                    LinkedName = NameResolver.GetUnitNameByOneBasedId(LockTypeOrId);
                     Explanation = $"Unit ID 0x{LockTypeOrId:X2} in a {TypeIDToString(_typeId)} list.";
                 }
                 else

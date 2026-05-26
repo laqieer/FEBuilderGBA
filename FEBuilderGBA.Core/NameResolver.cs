@@ -43,10 +43,34 @@ namespace FEBuilderGBA
             }
         }
 
-        /// <summary>Get the name of a unit by index.</summary>
+        /// <summary>Get the name of a unit by 0-based table index.</summary>
+        /// <remarks>
+        /// Reads at <c>unitBase + id * dataSize</c>. Use this when iterating
+        /// the unit table directly (e.g., <c>for i=0..N: GetUnitName(i)</c>).
+        /// For ROM-stored unit IDs (which are 1-based per WinForms convention),
+        /// use <see cref="GetUnitNameByOneBasedId(uint)"/> instead — passing a
+        /// ROM byte directly to this method causes an off-by-one bug.
+        /// </remarks>
         public static string GetUnitName(uint id)
         {
             return _cache.GetOrAdd(("unit", id), _ => ResolveUnitName(id));
+        }
+
+        /// <summary>
+        /// Get the name of a unit by 1-based unit ID (the value stored in
+        /// ROM bytes / event data / support partner fields). Mirrors WinForms
+        /// <c>UnitForm.GetUnitName(uid)</c>:
+        /// <list type="bullet">
+        ///   <item><c>uid == 0</c> returns <c>""</c> (no unit).</item>
+        ///   <item>Otherwise resolves <c>GetUnitName(uid - 1)</c>.</item>
+        /// </list>
+        /// Fixes the off-by-one in Avalonia editor lists (issues #652 #653) where
+        /// ROM-byte uids were being passed straight to the 0-based <see cref="GetUnitName(uint)"/>.
+        /// </summary>
+        public static string GetUnitNameByOneBasedId(uint uid)
+        {
+            if (uid == 0) return "";
+            return GetUnitName(uid - 1);
         }
 
         /// <summary>Get the name of a class by index.</summary>

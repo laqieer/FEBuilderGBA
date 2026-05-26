@@ -910,8 +910,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
                 uint uid1 = rom.u8(addr + 0);
                 uint uid2 = rom.u8(addr + 2);
-                string n1 = NameResolver.GetUnitName(uid1);
-                string n2 = NameResolver.GetUnitName(uid2);
+                // 1-based ROM-stored unit IDs. (#653)
+                string n1 = NameResolver.GetUnitNameByOneBasedId(uid1);
+                string n2 = NameResolver.GetUnitNameByOneBasedId(uid2);
                 string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -1053,9 +1054,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u16(addr) == 0xFFFF) break;
                 if (i > 10 && rom.IsEmpty(addr, blockSize * 10)) break;
 
-                uint unitId = rom.u32(addr);
+                uint unitId = rom.u8(addr);
                 uint songId = rom.u32(addr + 4);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID (matches SoundBossBGMViewerViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 string name = $"{U.ToHexString(unitId)} {unitName} Song:0x{songId:X08}";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -1228,8 +1230,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
                 uint attacker = rom.u16(addr);
                 uint defender = rom.u16(addr + 2);
-                string atkName = NameResolver.GetUnitName(attacker);
-                string defName = NameResolver.GetUnitName(defender);
+                // 1-based ROM-stored unit IDs (matches EventBattleTalkViewModel).
+                string atkName = NameResolver.GetUnitNameByOneBasedId(attacker);
+                string defName = NameResolver.GetUnitNameByOneBasedId(defender);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;
@@ -1252,7 +1255,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u16(addr) == 0xFFFF) break;
 
                 uint unitId = rom.u8(addr);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID (matches EventHaikuViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;
@@ -1275,7 +1279,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u16(addr) == 0xFFFF) break;
 
                 uint unitId = rom.u16(addr);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID (matches EventForceSortieViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;
@@ -1302,7 +1307,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u32(addr) == 0x00) break;
 
                 uint uid = rom.u8(addr);
-                string unitName = NameResolver.GetUnitName(uid);
+                // 1-based ROM-stored unit ID.
+                string unitName = NameResolver.GetUnitNameByOneBasedId(uid);
                 string name = $"{U.ToHexString(i)} {unitName}";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -1546,7 +1552,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u8(addr) == 0x00) break;
 
                 uint unitId = rom.u8(addr);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID.
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 string name = $"{U.ToHexString(unitId)} {unitName}";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -1600,7 +1607,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u8(addr) == 0x00) break;
 
                 uint unitId = rom.u8(addr);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID.
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 string name = $"{U.ToHexString(unitId)} {unitName}";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -1642,7 +1650,8 @@ namespace FEBuilderGBA.Avalonia.Services
                     try
                     {
                         uint classId = rom.u8(addr + 1);
-                        string unitName = NameResolver.GetUnitName(unitId);
+                        // 1-based ROM-stored unit ID; classId is 0-based.
+                        string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                         string className = NameResolver.GetClassName(classId);
                         name = $"{U.ToHexString(i)} {unitName} ({className})";
                     }
@@ -2103,7 +2112,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint addr = baseAddr + i * blockSize;
                 if (addr + blockSize > (uint)rom.Data.Length) break;
 
-                string unitName = NameResolver.GetUnitName(i + 1);
+                // Mirror UnitPaletteViewModel: 1-based unit ID with the WinForms convention.
+                string unitName = NameResolver.GetUnitNameByOneBasedId(i + 1);
                 // Match Avalonia VM format: "0x{id:X2} {name}"
                 result.Add(new AddrResult(addr, $"0x{(i + 1):X2} {unitName}", i + 1));
             }
@@ -2135,7 +2145,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (U.isSafetyOffset(unitsAddr))
                     unitId = rom.u8(unitsAddr);
 
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID (matches ExtraUnitFE8UViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 // Match Avalonia VM format: "{hexUnitId} {unitName} (Flag:0x{flagId:X})"
                 string name = $"{U.ToHexString(unitId)} {unitName} (Flag:0x{flagId:X})";
                 result.Add(new AddrResult(addr, name, i));
@@ -2364,8 +2375,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint unit = rom.u16(addr);
                 if (unit == 0 || unit == 0xFFFF) break;
 
-                string atkName = NameResolver.GetUnitName(rom.u8(addr));
-                string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
+                // 1-based ROM-stored unit IDs (matches EventBattleTalkFE6ViewModel).
+                string atkName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr));
+                string defName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr + 1));
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;
@@ -2388,8 +2400,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint unit = rom.u16(addr);
                 if (unit == 0 || unit == 0xFFFF) break;
 
-                string atkName = NameResolver.GetUnitName(rom.u8(addr));
-                string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
+                // 1-based ROM-stored unit IDs (matches EventBattleTalkFE7ViewModel).
+                string atkName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr));
+                string defName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr + 1));
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;
@@ -2412,7 +2425,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u8(addr) == 0x00) break;
 
                 uint unitId = rom.u8(addr);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID (matches EventHaikuFE6ViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;
@@ -2553,7 +2567,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 else nullCount = 0;
 
                 string name = $"0x{i:X2}";
-                try { string uname = NameResolver.GetUnitName((uint)i); if (uname != "???" && uname != $"#{i}") name += $" {uname}"; }
+                // #656 — resolve the portrait OWNER's name (matches ImagePortraitViewModel.LoadList
+                // and WinForms ImagePortraitForm.GetPortraitNameFast). Previously this used
+                // NameResolver.GetUnitName((uint)i) which mis-interpreted the portrait index
+                // as a 0-based unit-table row.
+                try
+                {
+                    string pname = NameResolver.GetPortraitName((uint)i);
+                    if (!string.IsNullOrEmpty(pname)) name += $" {pname}";
+                }
                 catch { /* skip name resolution errors */ }
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
@@ -3319,11 +3341,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
                 emptyCount = 0;
 
-                // FE6 VM reads u8(addr+0) and u8(addr+1) and shows "(0x{id:X02})" format
+                // FE6 VM reads u8(addr+0) and u8(addr+1) and shows "(0x{id:X02})" format.
+                // uid1/uid2 are 1-based ROM-stored unit IDs (matches WinForms convention).
                 uint uid1 = rom.u8(addr + 0);
                 uint uid2 = rom.u8(addr + 1);
-                string n1 = NameResolver.GetUnitName(uid1);
-                string n2 = NameResolver.GetUnitName(uid2);
+                string n1 = NameResolver.GetUnitNameByOneBasedId(uid1);
+                string n2 = NameResolver.GetUnitNameByOneBasedId(uid2);
                 string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -3356,11 +3379,12 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
                 emptyCount = 0;
 
-                // FE7 VM reads u8(addr+0) and u8(addr+1) and shows "(0x{id:X02})" format
+                // FE7 VM reads u8(addr+0) and u8(addr+1) and shows "(0x{id:X02})" format.
+                // uid1/uid2 are 1-based ROM-stored unit IDs (matches WinForms convention).
                 uint uid1 = rom.u8(addr + 0);
                 uint uid2 = rom.u8(addr + 1);
-                string n1 = NameResolver.GetUnitName(uid1);
-                string n2 = NameResolver.GetUnitName(uid2);
+                string n1 = NameResolver.GetUnitNameByOneBasedId(uid1);
+                string n2 = NameResolver.GetUnitNameByOneBasedId(uid2);
                 string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }
@@ -3539,7 +3563,8 @@ namespace FEBuilderGBA.Avalonia.Services
                     uint flagId = rom.u8(flagAddr);
                     uint unitsAddr = rom.p32(addr);
                     uint unitId = U.isSafetyOffset(unitsAddr) ? rom.u8(unitsAddr) : 0;
-                    string unitName = NameResolver.GetUnitName(unitId);
+                    // 1-based ROM-stored unit ID.
+                    string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                     return $"{U.ToHexString((uint)i)} Flag=0x{flagId:X02} {unitName}";
                 });
         }

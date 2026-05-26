@@ -120,7 +120,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 switch (type)
                 {
                     case EventScript.ArgType.UNIT:
-                        return NameResolver.GetUnitName(value);
+                        // 1-based ROM-stored unit ID (matches WinForms EventScriptForm).
+                        return NameResolver.GetUnitNameByOneBasedId(value);
                     case EventScript.ArgType.CLASS:
                         return NameResolver.GetClassName(value);
                     case EventScript.ArgType.ITEM:
@@ -139,7 +140,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         return decoded ?? "";
                     case EventScript.ArgType.PORTRAIT:
                     case EventScript.ArgType.REVPORTRAIT:
-                        return NameResolver.GetUnitName(value); // portraits often map to unit IDs
+                        // Portrait values are portrait IDs (0-based) — resolve the owner's
+                        // name via the portrait reverse-lookup (#656).
+                        return NameResolver.GetPortraitName(value);
                     default:
                         return "";
                 }

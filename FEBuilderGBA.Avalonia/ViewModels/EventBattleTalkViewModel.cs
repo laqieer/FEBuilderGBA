@@ -52,8 +52,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint attacker = rom.u16(addr);
                 uint defender = rom.u16(addr + 2);
-                string atkName = NameResolver.GetUnitName(attacker);
-                string defName = NameResolver.GetUnitName(defender);
+                // 1-based ROM-stored unit IDs (WinForms UnitForm.GetUnitNameAndANY convention).
+                string atkName = NameResolver.GetUnitNameByOneBasedId(attacker);
+                string defName = NameResolver.GetUnitNameByOneBasedId(defender);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;

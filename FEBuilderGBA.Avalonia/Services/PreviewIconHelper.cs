@@ -228,9 +228,15 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Resolve the portrait ID for a unit by unit ID (not address).
+        /// Resolve the portrait ID for a unit by 0-based table index.
         /// Looks up the unit struct from the unit table, then calls ResolveUnitPortraitId.
         /// </summary>
+        /// <remarks>
+        /// For ROM-stored unit IDs (1-based per WinForms convention) or for the
+        /// 1-based hex prefix extracted from a Unit-list label, use
+        /// <see cref="ResolveUnitPortraitIdByOneBasedId(uint)"/> instead — passing
+        /// a 1-based value here causes the wrong portrait to be loaded (issues #652, #653).
+        /// </remarks>
         public static uint ResolveUnitPortraitIdByUnitId(uint unitId)
         {
             ROM rom = CoreState.ROM;
@@ -247,6 +253,49 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint unitSize = rom.RomInfo.unit_datasize;
                 // unitId is 0-based (matches InputFormRef.IDToAddr: base + id * size)
                 uint unitAddr = unitBase + unitId * unitSize;
+                if (unitAddr + unitSize > (uint)rom.Data.Length) return 0;
+
+                return ResolveUnitPortraitId(unitAddr);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Resolve the portrait ID for a unit by 1-based unit ID (matching the
+        /// WinForms convention used by <c>UnitForm.DrawUnitMapFacePicture(uid)</c>
+        /// and the hex prefix on every Avalonia list label). Subtracts 1 internally
+        /// before indexing, and on FE6 also skips the dummy entry at table index 0
+        /// (via <see cref="SupportUnitNavigation.GetUnitTableBase"/>).
+        /// </summary>
+        /// <param name="oneBasedUnitId">
+        /// The 1-based unit ID stored in ROM bytes / event data / list-label hex prefixes.
+        /// <c>0</c> returns <c>0</c> (no portrait — matches WinForms blank-dummy behavior).
+        /// </param>
+        /// <remarks>
+        /// Fixes the off-by-one portrait rendering bug in Support Unit Editor (#652) and
+        /// Support Talk Editor (#653) where every row showed the previous unit's portrait.
+        /// </remarks>
+        public static uint ResolveUnitPortraitIdByOneBasedId(uint oneBasedUnitId)
+        {
+            if (oneBasedUnitId == 0) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            try
+            {
+                // SupportUnitNavigation.GetUnitTableBase handles the FE6 dummy-entry
+                // skip (FE6's table starts at p32(unit_pointer) + unit_datasize).
+                uint unitBase = SupportUnitNavigation.GetUnitTableBase(rom);
+                if (unitBase == 0) return 0;
+
+                uint unitSize = rom.RomInfo.unit_datasize;
+                if (unitSize == 0) return 0;
+
+                uint zeroBasedIndex = oneBasedUnitId - 1;
+                uint unitAddr = unitBase + zeroBasedIndex * unitSize;
                 if (unitAddr + unitSize > (uint)rom.Data.Length) return 0;
 
                 return ResolveUnitPortraitId(unitAddr);

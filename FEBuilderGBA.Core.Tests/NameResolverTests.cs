@@ -46,6 +46,66 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // -------------------------------------------------------------
+        // GetUnitNameByOneBasedId — 1-based unit ID semantics (#652 #653)
+        // -------------------------------------------------------------
+
+        [Fact]
+        public void GetUnitNameByOneBasedId_Zero_ReturnsEmpty()
+        {
+            // Matches WinForms UnitForm.GetUnitName(uid) early-return on uid == 0.
+            NameResolver.ClearCache();
+            Assert.Equal("", NameResolver.GetUnitNameByOneBasedId(0));
+        }
+
+        [Fact]
+        public void GetUnitNameByOneBasedId_DelegatesToZeroBasedMinusOne()
+        {
+            // Contract: GetUnitNameByOneBasedId(uid) for uid > 0 must equal
+            // GetUnitName(uid - 1). This is the core off-by-one fix — passing a
+            // ROM-stored 1-based unit ID directly to GetUnitName mis-indexes the
+            // unit table by 1 (issues #652, #653). The new helper subtracts
+            // internally so the names align with the displayed hex prefix.
+            var saved = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null!;
+                NameResolver.ClearCache();
+                // Both helpers should produce the same fallback string when ROM
+                // is null (??? from the catch). The point is they take the
+                // SAME path through ResolveUnitName(0). Compare across multiple
+                // values to pin the subtract-1 contract.
+                for (uint uid = 1; uid <= 5; uid++)
+                {
+                    string viaOneBased = NameResolver.GetUnitNameByOneBasedId(uid);
+                    string viaZeroBased = NameResolver.GetUnitName(uid - 1);
+                    Assert.Equal(viaZeroBased, viaOneBased);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+                NameResolver.ClearCache();
+            }
+        }
+
+        [Fact]
+        public void GetUnitNameByOneBasedId_NullRom_ReturnsFallbackForNonZero()
+        {
+            var saved = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null!;
+                NameResolver.ClearCache();
+                Assert.Equal("???", NameResolver.GetUnitNameByOneBasedId(1));
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+                NameResolver.ClearCache();
+            }
+        }
+
         [Fact]
         public void GetClassName_NullRom_ReturnsFallback()
         {

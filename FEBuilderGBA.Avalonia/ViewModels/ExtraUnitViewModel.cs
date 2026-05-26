@@ -43,7 +43,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     uint flagId = rom.u8(flagAddr);
                     uint unitsAddr = rom.p32(addr);
                     uint unitId = rom.u8(unitsAddr);
-                    string unitName = NameResolver.GetUnitName(unitId);
+                    // 1-based ROM-stored unit ID.
+                    string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                     return $"{U.ToHexString(unitId)} {unitName} (Flag:0x{flagId:X})";
                 });
         }

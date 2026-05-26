@@ -52,7 +52,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 uint addr = baseAddr + (uint)(i * 2);
                 if (addr + 2 > (uint)rom.Data.Length) break;
-                string unitName = NameResolver.GetUnitName((uint)i);
+                // WinForms UnitsShortTextForm uses U.ToHexString(i) + " " + GetUnitName(i)
+                // where GetUnitName treats i as 1-based (i=0 returns ""). Mirror that.
+                string unitName = NameResolver.GetUnitNameByOneBasedId((uint)i);
                 string display = $"0x{i:X2} {unitName}";
                 result.Add(new AddrResult(addr, display, (uint)i));
             }
@@ -73,7 +75,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (_baseAddr > 0 && addr >= _baseAddr)
                 EntryIndex = (int)((addr - _baseAddr) / 2);
 
-            UnitName = NameResolver.GetUnitName((uint)EntryIndex);
+            // EntryIndex matches the WinForms 1-based unit indexing in UnitsShortText.
+            UnitName = NameResolver.GetUnitNameByOneBasedId((uint)EntryIndex);
             TextPreview = TextId > 0 ? NameResolver.GetTextById(TextId) : "(empty)";
 
             CanWrite = true;

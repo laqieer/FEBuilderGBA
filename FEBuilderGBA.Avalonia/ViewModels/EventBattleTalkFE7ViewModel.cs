@@ -55,8 +55,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint unit = rom.u16(addr);
                 if (unit == 0 || unit == 0xFFFF) break;
 
-                string atkName = NameResolver.GetUnitName(rom.u8(addr));
-                string defName = NameResolver.GetUnitName(rom.u8(addr + 1));
+                // 1-based ROM-stored unit IDs (WinForms UnitForm.GetUnitName convention).
+                string atkName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr));
+                string defName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr + 1));
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;

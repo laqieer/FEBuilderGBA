@@ -435,8 +435,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     uint unit1 = rom.u8(addrCursor + 8);
                     uint unit2 = rom.u8(addrCursor + 9);
-                    string u1Name = NameResolver.GetUnitName(unit1);
-                    string u2Name = NameResolver.GetUnitName(unit2);
+                    // 1-based ROM-stored unit IDs.
+                    string u1Name = NameResolver.GetUnitNameByOneBasedId(unit1);
+                    string u2Name = NameResolver.GetUnitNameByOneBasedId(unit2);
                     name += $" {u1Name} <-> {u2Name}";
                 }
                 else if (slotDef.Category == CondCategory.OBJECT)
