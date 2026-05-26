@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -27,6 +28,14 @@ namespace FEBuilderGBA.Avalonia.Views
             MapImageControl.PointerPressed += OnMapImageClick;
             WriteTileBtn.Click += OnWriteTile;
             RefreshMapBtn.Click += OnRefreshMap;
+            // Paint Mode defaults to OFF (no regression to existing select behaviour).
+            PaintModeCheck.IsChecked = false;
+            // Hit-test BOTH the outer Border (Background=Transparent) and the Image
+            // so clicks on any chipset cell — including ones with transparent palette
+            // pixels — fire the handler. The handler converts pointer coords to
+            // image-pixel coords using e.GetPosition(TilePaletteImage).
+            TilePaletteHitArea.PointerPressed += OnTilePaletteClick;
+            TilePaletteImage.PointerPressed += OnTilePaletteClick;
         }
 
         void LoadList()
@@ -62,6 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _lastRgba = rgba;
                 UpdateUI(rgba);
                 UpdateTileUI();
+                UpdateTilePalette();
             }
             catch (Exception ex)
             {
@@ -88,6 +98,39 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>Re-render the chipset palette for the currently-loaded map.</summary>
+        void UpdateTilePalette()
+        {
+            try
+            {
+                byte[] paletteRgba = _vm.RenderChipsetPalette(out int pw, out int ph);
+                if (paletteRgba == null || pw <= 0 || ph <= 0)
+                {
+                    TilePaletteImage.Source = null;
+                    TilePaletteImage.Width = double.NaN;
+                    TilePaletteImage.Height = double.NaN;
+                    return;
+                }
+                var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph);
+                if (bmp == null)
+                {
+                    TilePaletteImage.Source = null;
+                    return;
+                }
+                TilePaletteImage.Source = bmp;
+                TilePaletteImage.Width = pw;
+                TilePaletteImage.Height = ph;
+                if (_vm.HasChipsetSelected)
+                    ChipsetInfoLabel.Text = _vm.ChipsetInfo;
+                else
+                    ChipsetInfoLabel.Text = "No chipset selected";
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.UpdateTilePalette failed: {0}", ex.Message);
+            }
+        }
+
         void OnZoomIn(object? sender, RoutedEventArgs e)
         {
             if (_zoom < 4) _zoom++;
@@ -102,28 +145,134 @@ namespace FEBuilderGBA.Avalonia.Views
             ZoomLabel.Text = _zoom + "x";
         }
 
+        /// <summary>
+        /// Convert a pointer position on the map image control into tile (x, y) coordinates.
+        /// </summary>
+        bool MapPointerToTile(PointerPressedEventArgs e, out int tileX, out int tileY)
+        {
+            tileX = 0;
+            tileY = 0;
+            if (_vm.MapWidth <= 0 || _vm.MapHeight <= 0) return false;
+            var pos = e.GetPosition(MapImageControl);
+            tileX = (int)(pos.X / (16 * _zoom));
+            tileY = (int)(pos.Y / (16 * _zoom));
+            if (tileX < 0 || tileY < 0 || tileX >= _vm.MapWidth || tileY >= _vm.MapHeight) return false;
+            return true;
+        }
+
         void OnMapImageClick(object? sender, PointerPressedEventArgs e)
         {
             try
             {
-                if (_vm.MapWidth <= 0 || _vm.MapHeight <= 0) return;
+                if (!MapPointerToTile(e, out int tileX, out int tileY)) return;
 
-                // Get click position relative to the image control
-                var pos = e.GetPosition(MapImageControl);
-
-                // Convert pixel position to tile coordinates (16x16 tiles, accounting for zoom)
-                int tileX = (int)(pos.X / (16 * _zoom));
-                int tileY = (int)(pos.Y / (16 * _zoom));
-
-                if (_vm.SelectTile(tileX, tileY))
+                bool paintMode = PaintModeCheck.IsChecked == true;
+                if (paintMode)
                 {
-                    TileIdTextBox.Text = _vm.SelectedTileId.ToString("X4");
+                    if (_vm.HasChipsetSelected)
+                    {
+                        // Wrap the paint commit in an undo scope so ROM writes are reversible.
+                        _undo.Begin("MapEditor.PaintTile");
+                        bool ok;
+                        try
+                        {
+                            ok = _vm.PaintTileAt(tileX, tileY);
+                        }
+                        catch (Exception)
+                        {
+                            _undo.Rollback();
+                            throw;
+                        }
+                        if (ok)
+                        {
+                            _undo.Commit();
+                            // Patch the affected 16x16 region in the cached RGBA buffer so the
+                            // map preview reflects the paint without a full re-decompress.
+                            PatchPaintedTileIntoCache(tileX, tileY);
+                            // Only update the tile-id textbox when a paint succeeded —
+                            // PaintTileAt updated SelectedTileId to the newly-painted MAR.
+                            TileIdTextBox.Text = _vm.SelectedTileId.ToString("X4");
+                        }
+                        else
+                        {
+                            _undo.Rollback();
+                        }
+                        UpdateTileUI();
+                    }
+                    else
+                    {
+                        // Eyedropper: in paint mode without a selected chipset, picking
+                        // a tile sets the chipset from its MAR so the next click paints.
+                        if (_vm.SelectTile(tileX, tileY))
+                            TileIdTextBox.Text = _vm.SelectedTileId.ToString("X4");
+                        _vm.EyedropperAt(tileX, tileY);
+                        if (_vm.HasChipsetSelected)
+                            ChipsetInfoLabel.Text = _vm.ChipsetInfo;
+                        UpdateTileUI();
+                    }
                 }
-                UpdateTileUI();
+                else
+                {
+                    // Existing select-only behaviour (Paint Mode OFF).
+                    if (_vm.SelectTile(tileX, tileY))
+                        TileIdTextBox.Text = _vm.SelectedTileId.ToString("X4");
+                    UpdateTileUI();
+                }
             }
             catch (Exception ex)
             {
                 Log.Error("MapEditorView.OnMapImageClick failed: {0}", ex.Message);
+            }
+        }
+
+        void OnTilePaletteClick(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                // Pointer position is taken against the Image control (Stretch=None,
+                // explicit Width/Height set to bitmap pixel size, so the position is
+                // 1:1 source-pixel coordinates).
+                var pos = e.GetPosition(TilePaletteImage);
+                int px = (int)pos.X;
+                int py = (int)pos.Y;
+                if (_vm.SelectChipsetFromPaletteClick(px, py))
+                {
+                    ChipsetInfoLabel.Text = _vm.ChipsetInfo;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.OnTilePaletteClick failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// After a successful paint, re-render the affected 16x16 region into
+        /// <see cref="_lastRgba"/> and push back to the map image control. This
+        /// avoids a full LZ77 decompress + re-render for every paint click.
+        /// </summary>
+        void PatchPaintedTileIntoCache(int tileX, int tileY)
+        {
+            try
+            {
+                if (_lastRgba == null) return;
+                int pixelW = _vm.MapWidth * 16;
+                int pixelH = _vm.MapHeight * 16;
+                if (_lastRgba.Length < pixelW * pixelH * 4) return;
+
+                // Re-render full map via the VM is too expensive for every click;
+                // instead we delegate to the VM to render JUST the affected tile.
+                if (!_vm.RenderTileInto(_lastRgba, pixelW, tileX, tileY))
+                {
+                    // Fallback: full refresh
+                    OnRefreshMap(this, new RoutedEventArgs());
+                    return;
+                }
+                MapImageControl.SetRgbaData(_lastRgba, pixelW, pixelH);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.PatchPaintedTileIntoCache failed: {0}", ex.Message);
             }
         }
 
@@ -177,6 +326,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 byte[] rgba = _vm.LoadMapImage(_vm.CurrentAddr, _vm.MapId);
                 _lastRgba = rgba;
                 UpdateUI(rgba);
+                UpdateTilePalette();
             }
             catch (Exception ex)
             {

@@ -19,9 +19,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _tileInfo = "";
         bool _hasTileSelected;
 
+        // Chipset palette state (first slice of #658)
+        int _selectedChipsetIndex = -1;
+        string _chipsetInfo = "";
+
         // Cached decompressed map data for the current map
         byte[] _cachedMapData;
         uint _cachedMapPointerEntryAddr; // address of the pointer table entry for this map's data
+
+        // Cached tileset data so the chipset palette can render without re-decompressing.
+        // These three buffers are populated by LoadMapImage and reused by RenderChipsetPalette.
+        byte[] _cachedObjData;
+        byte[] _cachedPaletteData;
+        byte[] _cachedConfigData;
+
+        /// <summary>Test-only read-only accessor for the in-memory cache. Returns null if no map loaded.</summary>
+        public byte[] GetMapDataSnapshot() => _cachedMapData == null ? null : (byte[])_cachedMapData.Clone();
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -35,6 +48,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int SelectedTileId { get => _selectedTileId; set => SetField(ref _selectedTileId, value); }
         public string TileInfo { get => _tileInfo; set => SetField(ref _tileInfo, value); }
         public bool HasTileSelected { get => _hasTileSelected; set => SetField(ref _hasTileSelected, value); }
+
+        /// <summary>
+        /// Currently-selected chipset palette index (0..1023), or -1 if none selected.
+        /// When set, the paint flow uses this chipset's MAR value
+        /// (<c>chipsetIndex &lt;&lt; 2</c>) for click-to-paint.
+        /// </summary>
+        public int SelectedChipsetIndex { get => _selectedChipsetIndex; set => SetField(ref _selectedChipsetIndex, value); }
+
+        /// <summary>Human-readable info about the selected chipset (index + terrain).</summary>
+        public string ChipsetInfo { get => _chipsetInfo; set => SetField(ref _chipsetInfo, value); }
+
+        /// <summary>Whether a chipset is currently selected in the palette.</summary>
+        public bool HasChipsetSelected => _selectedChipsetIndex >= 0;
 
         public List<AddrResult> LoadList()
         {
@@ -81,13 +107,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             MapId = mapId;
 
-            // Clear previous tile selection
+            // Clear previous tile selection (chipset palette selection is preserved
+            // intentionally so the user can paint across maps with the same picked chipset)
             SelectedTileX = -1;
             SelectedTileY = -1;
             SelectedTileId = 0;
             TileInfo = "";
             HasTileSelected = false;
             _cachedMapData = null;
+            _cachedObjData = null;
+            _cachedPaletteData = null;
+            _cachedConfigData = null;
 
             // Read PLIST values from map setting data
             // Map setting layout: offset +4 = obj_plist (u16), +6 = palette_plist (u8),
@@ -190,8 +220,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return null;
             }
 
-            // Cache the decompressed map data for tile selection/editing
+            // Cache the decompressed map data for tile selection/editing,
+            // and cache the OBJ/PAL/CONFIG buffers so the chipset palette
+            // can render without re-decompressing each load (first slice of #658).
             _cachedMapData = (byte[])mapData.Clone();
+            _cachedObjData = objData;
+            _cachedPaletteData = paletteData;
+            _cachedConfigData = configData;
 
             // Map data format: first 2 bytes = width, height (in 16x16 tiles)
             int mapW = mapData[0];
@@ -318,50 +353,239 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Write the current SelectedTileId back to ROM at the selected tile position.
-        /// Modifies the cached decompressed map data, recompresses with LZ77,
-        /// writes to ROM free space, and updates the pointer.
+        /// Eyedropper: read the MAR value at the given tile and set
+        /// <see cref="SelectedChipsetIndex"/> to the matching palette index. Returns
+        /// true if the tile was in range and the chipset was set.
+        /// </summary>
+        public bool EyedropperAt(int tileX, int tileY)
+        {
+            if (!MapEditorTilesetCore.TryReadMar(_cachedMapData, MapWidth, MapHeight, tileX, tileY, out ushort mar))
+                return false;
+            return SetSelectedChipsetIndex(MapEditorTilesetCore.MarToChipsetIndex(mar));
+        }
+
+        /// <summary>
+        /// Write the current <see cref="SelectedTileId"/> back to ROM at the selected
+        /// tile position. Defers to <see cref="ApplyMapEdit"/> which guarantees the
+        /// in-memory cache is only updated when the ROM write succeeds.
         /// Returns true on success.
         /// </summary>
         public bool WriteTile()
         {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null || _cachedMapData == null || !HasTileSelected)
-                return false;
-
-            if (SelectedTileX < 0 || SelectedTileY < 0 ||
-                SelectedTileX >= MapWidth || SelectedTileY >= MapHeight)
-                return false;
-
-            // Update the tile in the cached map data
-            int offset = 2 + (SelectedTileY * MapWidth + SelectedTileX) * 2;
-            if (offset + 1 >= _cachedMapData.Length)
-                return false;
-
+            if (!HasTileSelected) return false;
             ushort newTileId = (ushort)(SelectedTileId & 0xFFFF);
-            _cachedMapData[offset] = (byte)(newTileId & 0xFF);
-            _cachedMapData[offset + 1] = (byte)((newTileId >> 8) & 0xFF);
+            bool ok = ApplyMapEdit(SelectedTileX, SelectedTileY, newTileId, out string error, out uint writeAddr);
+            if (!ok)
+            {
+                // ApplyMapEdit returns false in three cases: real error (sets error),
+                // no-op same value, or out-of-range. Provide user feedback in each case.
+                if (!string.IsNullOrEmpty(error))
+                    TileInfo = "ERROR: " + error;
+                else
+                    TileInfo = $"No change at ({SelectedTileX}, {SelectedTileY}) — tile already 0x{newTileId:X04}";
+                return false;
+            }
+            TileInfo = $"Tile at ({SelectedTileX}, {SelectedTileY}) set to 0x{newTileId:X04} — written to ROM at 0x{writeAddr:X08}";
+            return true;
+        }
 
-            // Recompress the map data
-            byte[] compressed = LZ77.compress(_cachedMapData);
+        /// <summary>
+        /// Paint the currently-selected palette chipset onto the map at
+        /// (tileX, tileY) and commit it to ROM. Returns true if the operation
+        /// produced an actual change (and was written), false on no-op
+        /// (same MAR value, out-of-range coords) or failure. <see cref="TileInfo"/>
+        /// is updated with a status string in both cases.
+        ///
+        /// <para>The cache rollback discipline (#658 v4): a successful return is the
+        /// ONLY path that mutates <c>_cachedMapData</c>. Failures, exceptions, and
+        /// no-ops never advance the cache.</para>
+        /// </summary>
+        public bool PaintTileAt(int tileX, int tileY)
+        {
+            if (!HasChipsetSelected)
+            {
+                TileInfo = "No chipset selected — pick one from the palette first";
+                return false;
+            }
+
+            // Quick OOR pre-check so we can distinguish "out of range" from
+            // "value unchanged" — TryStageMarEdit (inside ApplyMapEdit) returns
+            // false for both, indistinguishably from the caller.
+            if (tileX < 0 || tileY < 0 || tileX >= MapWidth || tileY >= MapHeight)
+            {
+                TileInfo = $"Click ({tileX}, {tileY}) is outside the map bounds";
+                return false;
+            }
+
+            ushort newMar = MapEditorTilesetCore.ChipsetIndexToMar(SelectedChipsetIndex);
+            bool ok = ApplyMapEdit(tileX, tileY, newMar, out string error, out uint writeAddr);
+            if (!ok)
+            {
+                if (!string.IsNullOrEmpty(error))
+                    TileInfo = $"Paint failed at ({tileX}, {tileY}): {error}";
+                else
+                    TileInfo = $"No change at ({tileX}, {tileY}) — tile already chipset #{SelectedChipsetIndex}";
+                return false;
+            }
+
+            // Update selection so the manual editor reflects the painted tile
+            SelectedTileX = tileX;
+            SelectedTileY = tileY;
+            SelectedTileId = newMar;
+            HasTileSelected = true;
+            TileInfo = $"Painted chipset #{SelectedChipsetIndex} (MAR 0x{newMar:X04}) at ({tileX}, {tileY}) — written at 0x{writeAddr:X08}";
+            return true;
+        }
+
+        /// <summary>
+        /// Set the currently-selected chipset from a click in the palette grid.
+        /// Returns true if a valid chipset was selected.
+        /// </summary>
+        public bool SelectChipsetFromPaletteClick(int pixelX, int pixelY)
+        {
+            int idx = MapEditorTilesetCore.PixelToChipsetIndex(pixelX, pixelY);
+            if (idx < 0)
+            {
+                // Outside the grid — leave selection unchanged
+                return false;
+            }
+            return SetSelectedChipsetIndex(idx);
+        }
+
+        /// <summary>
+        /// Directly set the selected chipset by index (also used by the eyedropper).
+        /// </summary>
+        public bool SetSelectedChipsetIndex(int idx)
+        {
+            if (idx < 0 || idx >= MapEditorTilesetCore.CHIPSET_COUNT) return false;
+            SelectedChipsetIndex = idx;
+            uint terrain = MapEditorTilesetCore.GetTerrainDataFromChipset(idx, _cachedConfigData);
+            ushort mar = MapEditorTilesetCore.ChipsetIndexToMar(idx);
+            string terrainStr = terrain == U.NOT_FOUND ? "?" : "0x" + terrain.ToString("X02");
+            ChipsetInfo = $"Chipset #{idx} (MAR 0x{mar:X04}, terrain {terrainStr})";
+            return true;
+        }
+
+        /// <summary>
+        /// Re-render a single 16x16 map tile into <paramref name="rgba"/> at the
+        /// pixel position corresponding to (tileX, tileY). Used by the click-to-paint
+        /// flow to avoid a full LZ77 decompress + render after every paint.
+        /// Returns false if the cached tileset is unavailable or coordinates are OOR.
+        /// </summary>
+        public bool RenderTileInto(byte[] rgba, int imageWidth, int tileX, int tileY)
+        {
+            if (rgba == null || _cachedMapData == null
+                || _cachedObjData == null || _cachedConfigData == null || _cachedPaletteData == null)
+                return false;
+            if (!MapEditorTilesetCore.TryReadMar(_cachedMapData, MapWidth, MapHeight, tileX, tileY, out ushort mar))
+                return false;
+
+            int destX = tileX * 16;
+            int destY = tileY * 16;
+            MapEditorTilesetCore.RenderChipsetIntoBuffer(
+                mar, _cachedConfigData, _cachedObjData, _cachedPaletteData,
+                rgba, imageWidth, destX, destY);
+            return true;
+        }
+
+        /// <summary>
+        /// Render the chipset palette grid for the currently-loaded map.
+        /// Returns null and zeroes out the dimensions if no map is loaded.
+        /// </summary>
+        public byte[] RenderChipsetPalette(out int paletteWidth, out int paletteHeight)
+        {
+            paletteWidth = 0;
+            paletteHeight = 0;
+            if (_cachedObjData == null || _cachedPaletteData == null || _cachedConfigData == null)
+                return null;
+            return MapEditorTilesetCore.RenderChipsetPalette(
+                _cachedObjData, _cachedConfigData, _cachedPaletteData,
+                out paletteWidth, out paletteHeight);
+        }
+
+        /// <summary>
+        /// Single-source-of-truth ROM write path for both the manual editor and the
+        /// paint flow. Stages a CLONED map-data buffer with the new MAR value,
+        /// compresses it, writes it to ROM free space, and updates the pointer.
+        ///
+        /// <para>Order of operations is deliberate: the cache <c>_cachedMapData</c>
+        /// only becomes the staged buffer AFTER the compressed write + pointer
+        /// update have both succeeded. Any failure or exception leaves the
+        /// previous cache and ROM in sync (no half-applied state).</para>
+        /// </summary>
+        /// <param name="error">Human-readable failure reason, or null on success/no-op.</param>
+        /// <param name="writeAddr">ROM address of the newly-written compressed data, on success.</param>
+        public bool ApplyMapEdit(int tileX, int tileY, ushort newMar, out string error, out uint writeAddr)
+        {
+            error = null;
+            writeAddr = 0;
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                error = "No ROM loaded";
+                return false;
+            }
+            if (_cachedMapData == null)
+            {
+                error = "No map loaded";
+                return false;
+            }
+
+            // Stage on a CLONE — original cache untouched if anything below fails.
+            if (!MapEditorTilesetCore.TryStageMarEdit(
+                _cachedMapData, MapWidth, MapHeight, tileX, tileY, newMar,
+                out byte[] staged, out ushort oldMar))
+            {
+                // No-op (same value or out-of-range): NOT an error, but no commit.
+                return false;
+            }
+
+            byte[] compressed;
+            try
+            {
+                compressed = LZ77.compress(staged);
+            }
+            catch (Exception ex)
+            {
+                error = "LZ77 compression threw: " + ex.Message;
+                return false;
+            }
             if (compressed == null || compressed.Length == 0)
             {
-                TileInfo = "ERROR: LZ77 compression failed";
+                error = "LZ77 compression returned empty";
                 return false;
             }
 
-            // Write compressed data to ROM free space and update the pointer
-            uint writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+            try
+            {
+                writeAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+            }
+            catch (Exception ex)
+            {
+                error = "ROM write threw: " + ex.Message;
+                return false;
+            }
             if (writeAddr == U.NOT_FOUND)
             {
-                TileInfo = "ERROR: No free space in ROM for map data";
+                error = "No free space in ROM for compressed map data";
                 return false;
             }
 
-            // Update the pointer table entry to point to the new compressed data
-            rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
+            try
+            {
+                rom.write_p32(_cachedMapPointerEntryAddr, writeAddr);
+            }
+            catch (Exception ex)
+            {
+                error = "Pointer write threw: " + ex.Message;
+                return false;
+            }
 
-            TileInfo = $"Tile at ({SelectedTileX}, {SelectedTileY}) set to 0x{newTileId:X04} — written to ROM at 0x{writeAddr:X08}";
+            // SUCCESS — swap the cache in only now.
+            _cachedMapData = staged;
+            _ = oldMar; // (oldMar would be useful for undo of the in-memory cache, but
+                       // the caller's undo scope covers ROM; cache always tracks ROM here.)
             return true;
         }
 
