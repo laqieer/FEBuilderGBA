@@ -197,9 +197,13 @@
             <!-- WF "間接エフェクト Jump" - opens ItemWeaponEffectViewerView
                  positioned at the entry whose B0 == the currently selected
                  list index (NOT the editable B6 ItemNumber, per Copilot
-                 v1-B2). Mirrors WF `ItemWeaponEffectForm.JumpTo`. -->
+                 v1-B2). Mirrors WF `ItemWeaponEffectForm.JumpTo`.
+                 Button label kept short ("Jump") to fit inside the 200px
+                 Grid column (#651 — long "Indirect Weapon Effect" label
+                 overflowed the StackPanel and overlapped adjacent cells).
+                 The tooltip below carries the full descriptive text. -->
             <Button AutomationProperties.AutomationId="ItemFE6_JumpToWeaponEffect_Button"
-                    Content="Indirect Weapon Effect"
+                    Content="Jump"
                     Click="JumpToWeaponEffect_Click"
                     FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open the indirect weapon effect table at the row for this item." />
