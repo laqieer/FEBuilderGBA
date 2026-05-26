@@ -151,11 +151,12 @@
             <!-- 16 RGB rows — each row: Color {i} label + R/G/B inputs.
                  The single-char labels "1".."16", "R", "G", "B" come from
                  the per-row headers (covers labels-sweep entries). -->
-            <Grid ColumnDefinitions="48,32,72,32,72,32,72" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+            <Grid ColumnDefinitions="48,32,72,32,72,32,72,56" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
               <TextBlock Grid.Row="0" Grid.Column="0" Text="No" FontWeight="Bold" HorizontalAlignment="Center" />
               <TextBlock Grid.Row="0" Grid.Column="1" Text="R" FontWeight="Bold" HorizontalAlignment="Center" />
               <TextBlock Grid.Row="0" Grid.Column="3" Text="G" FontWeight="Bold" HorizontalAlignment="Center" />
               <TextBlock Grid.Row="0" Grid.Column="5" Text="B" FontWeight="Bold" HorizontalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="7" Text="Color" FontWeight="Bold" HorizontalAlignment="Center" />
 
               <TextBlock Grid.Row="1" Grid.Column="0" Text="1" HorizontalAlignment="Center" />
               <NumericUpDown Grid.Row="1" Grid.Column="2" AutomationProperties.AutomationId="MapStyleEditor_Color1_R_Input" Name="Color1_RBox" Minimum="0" Maximum="31" Width="68" />

@@ -311,14 +311,31 @@ public class MapStyleEditorParityTests
     /// `_undoService.Begin -> _vm.WritePalette() -> Commit / Rollback`
     /// so the 32-byte palette mutation is atomically undoable.
     /// Mirrors View_Write_Click_UsesUndoService (#660 review item 3).
+    ///
+    /// The shape check requires BOTH a Commit AND a Rollback path
+    /// somewhere in the method body (Copilot inline review v1: the
+    /// previous "Commit|Rollback" regex would pass even if Commit
+    /// were deleted as long as Rollback survived). We verify Begin
+    /// precedes WritePalette, and that Commit AND Rollback both
+    /// appear after the call site.
     /// </summary>
     [Fact]
     public void View_PaletteWrite_Click_UsesUndoService()
     {
         string code = File.ReadAllText(CodeBehindPath());
+        // Extract the PaletteWrite_Click method body so we don't
+        // accidentally match Commit/Rollback from a neighbouring method.
+        var bodyMatch = Regex.Match(code,
+            @"void PaletteWrite_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|/// ))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "PaletteWrite_Click method not found");
+        string body = bodyMatch.Value;
+
         Assert.Matches(new Regex(
-            @"void PaletteWrite_Click[\s\S]*?_undoService\.Begin\([^)]*\)[\s\S]*?_vm\.WritePalette\(\)[\s\S]*?_undoService\.(Commit|Rollback)\(\)",
-            RegexOptions.Singleline), code);
+            @"_undoService\.Begin\([^)]*\)[\s\S]*?_vm\.WritePalette\(\)",
+            RegexOptions.Singleline), body);
+        Assert.Contains("_undoService.Commit()", body);
+        Assert.Contains("_undoService.Rollback()", body);
     }
 
     /// <summary>
@@ -482,6 +499,49 @@ public class MapStyleEditorParityTests
             // Force an unsafe PaletteAddress (last 10 bytes of ROM).
             vm.PaletteAddress = (uint)rom.Data.Length - 10;
             Assert.False(vm.WritePalette());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Stale-state regression (#660 Copilot PR v2 review item 3): after
+    /// a failed reload (out-of-bounds slice), the VM must clear its
+    /// write target so a subsequent <see cref="MapStyleEditorViewModel.WritePalette"/>
+    /// is refused -- otherwise it would write the new RGB values to the
+    /// previous (valid) slice address, corrupting that slice.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ClearPaletteState_RefusesSubsequentWrite()
+    {
+        var (rom, paletteBase) = MakeSyntheticPaletteRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            // Load a valid palette first.
+            Assert.True(vm.LoadPalette(paletteBase, paletteIndex: 1, isFog: false));
+            uint validAddr = vm.PaletteAddress;
+            Assert.NotEqual((uint)0, validAddr);
+
+            // Mutate the in-memory channels (simulating user edits).
+            vm.SetColorR(1, 31);
+            vm.SetColorG(1, 31);
+            vm.SetColorB(1, 31);
+
+            // Snapshot the original halfword at the valid slice so we can
+            // verify it isn't overwritten by the stale path.
+            uint originalHalfword = rom.u16(validAddr);
+
+            // Simulate a failed reload: clear the VM's write target.
+            // (The view calls this when LoadPalette returns false.)
+            vm.ClearPaletteState();
+
+            // WritePalette must refuse.
+            Assert.False(vm.WritePalette());
+
+            // The valid slice must be untouched.
+            Assert.Equal(originalHalfword, rom.u16(validAddr));
         }
         finally { CoreState.ROM = prevRom; }
     }

@@ -340,6 +340,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Clear the in-memory palette slice state. Called when a reload
+        /// fails (out-of-bounds or invalid base) so a subsequent
+        /// <see cref="WritePalette"/> cannot accidentally write the
+        /// previous palette's RGB values to the previous slice address.
+        /// (Copilot CLI v2 PR review — stale-state regression.)
+        /// </summary>
+        public void ClearPaletteState()
+        {
+            PaletteAddress = 0;
+            Array.Clear(_r, 0, 16);
+            Array.Clear(_g, 0, 16);
+            Array.Clear(_b, 0, 16);
+        }
+
+        /// <summary>
         /// Write the in-memory 16-color palette block back to the resolved
         /// <see cref="PaletteAddress"/> slice using 5-5-5 little-endian
         /// halfwords (matches the on-disk format read by <see cref="LoadPalette"/>).
