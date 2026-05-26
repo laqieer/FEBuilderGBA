@@ -108,12 +108,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     TilePaletteImage.Source = null;
                     TilePaletteImage.Width = double.NaN;
                     TilePaletteImage.Height = double.NaN;
+                    // Clear the chipset info too — otherwise a stale label from a
+                    // previously-loaded map would remain visible after the palette
+                    // is cleared.
+                    ChipsetInfoLabel.Text = R._("No chipset selected");
                     return;
                 }
                 var bmp = IconBitmapBuilder.FromRgba(paletteRgba, pw, ph);
                 if (bmp == null)
                 {
                     TilePaletteImage.Source = null;
+                    ChipsetInfoLabel.Text = R._("No chipset selected");
                     return;
                 }
                 TilePaletteImage.Source = bmp;
@@ -122,7 +127,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_vm.HasChipsetSelected)
                     ChipsetInfoLabel.Text = _vm.ChipsetInfo;
                 else
-                    ChipsetInfoLabel.Text = "No chipset selected";
+                    ChipsetInfoLabel.Text = R._("No chipset selected");
             }
             catch (Exception ex)
             {
