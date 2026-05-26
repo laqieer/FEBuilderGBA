@@ -23548,3 +23548,30 @@ DirectSound 固定频率反向
 
 :Select Font Family
 选择字体系列
+
+:Pick a PNG/BMP file, preview the 16-color quantized result, then write it into the selected portrait slot.
+选择一个 PNG/BMP 文件，预览 16 色减色后的结果，再写入所选肖像槽。
+
+:1. Source image
+1. 源图像
+
+:(no file selected)
+（未选择文件）
+
+:2. Quantized preview
+2. 减色预览
+
+:3. Target portrait slot (select on the left list)
+3. 目标肖像槽（在左侧列表中选择）
+
+:4. Write to ROM
+4. 写入 ROM
+
+:Notes: this first slice supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Advanced features (eye/mouth block sliders, batch import, custom palette, FE-Repo browser) are tracked under follow-up issues.
+说明：第一阶段仅支持简单的单图导入（在 D0 写入精灵图，在 D8 写入调色板）。当源是 128x112 合成图时，向导还会写入 mini 脸（D4）和嘴部帧（D12）—— 仅限 FE7/FE8。高级功能（眼睛/嘴部块滑块、批量导入、自定义调色板、FE-Repo 浏览器）已记录到后续 issue 中。
+
+:Pick PNG/BMP...
+选择 PNG/BMP...
+
+:Import to selected slot
+写入到所选槽
