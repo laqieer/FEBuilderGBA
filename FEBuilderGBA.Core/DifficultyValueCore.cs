@@ -22,15 +22,21 @@ namespace FEBuilderGBA
     {
         /// <summary>
         /// Pack three nibbles into the WinForms packed difficulty word.
-        /// Inputs are clamped to 0..15. The upper nibble (bits 12..15) is left
-        /// as zero by this helper — call <see cref="PackPreservingReserved"/>
+        /// Inputs are first clamped to <c>[0..15]</c> via <see cref="Math.Clamp(int,int,int)"/>
+        /// (so negative values become 0 instead of wrapping to 15), then placed
+        /// into their respective nibble slots. The upper nibble (bits 12..15)
+        /// is left as zero by this helper — call <see cref="PackPreservingReserved"/>
         /// if you need to preserve the original ROM bits there.
         /// </summary>
         public static ushort Pack(int hardBoost, int normalPenalty, int easyPenalty)
         {
-            uint h = (uint)(hardBoost & 0xF);
-            uint n = (uint)(normalPenalty & 0xF);
-            uint e = (uint)(easyPenalty & 0xF);
+            // Clamp first so negative inputs don't roll over to 0xF via the `& 0xF` mask.
+            int hardClamped = Math.Clamp(hardBoost, 0, 0xF);
+            int normalClamped = Math.Clamp(normalPenalty, 0, 0xF);
+            int easyClamped = Math.Clamp(easyPenalty, 0, 0xF);
+            uint h = (uint)hardClamped;
+            uint n = (uint)normalClamped;
+            uint e = (uint)easyClamped;
             return (ushort)((h << 4) | (n << 8) | (e << 0));
         }
 

@@ -31,10 +31,17 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Pack_OutOfRange_IsMaskedTo4Bits()
+        public void Pack_OutOfRange_IsClampedTo15()
         {
-            // 0x12 should become 0x2 in each nibble slot.
-            Assert.Equal((ushort)0x0222, DifficultyValueCore.Pack(0x12, 0x12, 0x12));
+            // Values above 15 clamp to 15 (not masked — so 0x12 becomes 0xF, not 0x2).
+            Assert.Equal((ushort)0x0FFF, DifficultyValueCore.Pack(0x12, 0x12, 0x12));
+        }
+
+        [Fact]
+        public void Pack_NegativeInputs_ClampedTo0()
+        {
+            // Negative values clamp to 0 (would wrap to 0xF if we just masked).
+            Assert.Equal((ushort)0x0000, DifficultyValueCore.Pack(-1, -5, -100));
         }
 
         // -- Unpack -------------------------------------------------------------
