@@ -15,26 +15,24 @@ namespace FEBuilderGBA.Avalonia.Controls
     /// viewer, and no pointer interaction.
     ///
     /// <para>
-    /// <b>WinForms parity (issue #342 follow-up 2026-05-21):</b> WinForms ships
-    /// the editor-area class/item icon previews as
-    /// <c>InterpolatedPictureBox</c> with
-    /// <c>PictureBoxSizeMode.StretchImage</c> and
-    /// <c>InterpolationMode.Bicubic</c>
-    /// (FEBuilderGBA/ClassForm.Designer.cs:2477-2486;
-    /// ItemForm.Designer.cs:2096-2104;
-    /// ClassFE6Form.Designer.cs:2055-2065). The picture-box always paints the
-    /// bitmap at the picture-box's own dimensions, regardless of source size —
-    /// so all wait-icon animTypes (16x16, 16x24, 32x32) render at the SAME
-    /// visual size. To preserve that user-facing contract in Avalonia, the
-    /// inner <see cref="Image"/> defaults to <see cref="Stretch.Fill"/> +
-    /// <see cref="BitmapInterpolationMode.HighQuality"/> and always sizes to
-    /// the outer Border.
+    /// <b>Natural-aspect rendering (issue #342 follow-up 2026-05-26):</b> the
+    /// user clarified that class wait-icon sources genuinely have different
+    /// aspects in the game (16x16, 16x24, 32x32 per animType) and should NOT
+    /// be forced to a single visual size by aspect-distorting stretch. The
+    /// inner <see cref="Image"/> defaults to <see cref="Stretch.Uniform"/> and
+    /// <see cref="BitmapInterpolationMode.None"/> (nearest-neighbour, for
+    /// pixel-art crispness). The inner Image is sized to
+    /// <c>bitmap.PixelSize * Scale</c> clamped to
+    /// <c>MaxImageWidth*Scale</c>/<c>MaxImageHeight*Scale</c>, so small icons
+    /// render at their natural size centered in the outer Border, larger icons
+    /// fill it, and aspect ratio is always preserved.
     /// </para>
     /// <para>
     /// The <see cref="Stretch"/> and <see cref="BitmapInterpolationMode"/>
-    /// styled properties let consumers opt back into the previous
-    /// <see cref="Stretch.Uniform"/> / nearest-neighbour behaviour per slot if
-    /// they need pixel-perfect aspect-preserving previews.
+    /// styled properties let consumers opt into <see cref="Stretch.Fill"/> /
+    /// high-quality interpolation per slot if they explicitly want WinForms
+    /// <c>PictureBoxSizeMode.StretchImage</c> + <c>InterpolationMode.Bicubic</c>
+    /// semantics.
     /// </para>
     /// </summary>
     public partial class IconPreviewControl : UserControl
@@ -55,29 +53,32 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>
         /// How to stretch the bitmap inside the outer box. Defaults to
-        /// <see cref="Stretch.Fill"/> to match WinForms
-        /// <c>PictureBoxSizeMode.StretchImage</c> (issue #342 follow-up).
+        /// <see cref="Stretch.Uniform"/> so source bitmaps render at their
+        /// natural aspect ratio with no distortion (issue #342 follow-up
+        /// 2026-05-26 — the user's stated preference: icons of different
+        /// natural aspects should render at different visual sizes).
         /// </summary>
         public static readonly StyledProperty<Stretch> StretchProperty =
-            AvaloniaProperty.Register<IconPreviewControl, Stretch>(nameof(Stretch), defaultValue: Stretch.Fill);
+            AvaloniaProperty.Register<IconPreviewControl, Stretch>(nameof(Stretch), defaultValue: Stretch.Uniform);
 
         /// <summary>
         /// Bitmap interpolation mode for the rendered icon. Defaults to
-        /// <see cref="BitmapInterpolationMode.HighQuality"/> to match WinForms
-        /// <c>InterpolationMode.Bicubic</c> (issue #342 follow-up).
+        /// <see cref="BitmapInterpolationMode.None"/> (nearest-neighbour) so
+        /// GBA pixel-art renders crisp at integer up-scale (issue #342
+        /// follow-up 2026-05-26 — bicubic on tiny sprites blurs the pixels).
         /// </summary>
         public static readonly StyledProperty<BitmapInterpolationMode> BitmapInterpolationModeProperty =
             AvaloniaProperty.Register<IconPreviewControl, BitmapInterpolationMode>(
-                nameof(BitmapInterpolationMode), defaultValue: BitmapInterpolationMode.HighQuality);
+                nameof(BitmapInterpolationMode), defaultValue: BitmapInterpolationMode.None);
 
         /// <summary>
-        /// Integer up-scale factor applied to the outer Border (and inner
-        /// Image) dimensions: outer = <c>Scale * MaxImageWidth</c> by
-        /// <c>Scale * MaxImageHeight</c>. Sampling mode is governed by
-        /// <see cref="BitmapInterpolationMode"/> — default
-        /// <see cref="BitmapInterpolationMode.HighQuality"/> (matching
-        /// WinForms <c>InterpolationMode.Bicubic</c>), NOT nearest-neighbour
-        /// by default (was prior to the #342 follow-up).
+        /// Integer up-scale factor applied to the bitmap and to the outer
+        /// Border. The outer Border is sized to
+        /// <c>Scale * MaxImageWidth</c> by <c>Scale * MaxImageHeight</c> so it
+        /// always reserves enough room for the largest expected icon. The
+        /// inner Image is sized to <c>bitmap.PixelSize * Scale</c> (clamped to
+        /// the outer Border) so each icon renders at its natural aspect and
+        /// integer-scaled size (issue #342 follow-up 2026-05-26).
         /// </summary>
         public int Scale
         {
@@ -101,8 +102,8 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>
         /// Stretch mode applied to the inner Image. Defaults to
-        /// <see cref="Stretch.Fill"/>, matching WinForms
-        /// <c>PictureBoxSizeMode.StretchImage</c>.
+        /// <see cref="Stretch.Uniform"/> so the bitmap renders at its natural
+        /// aspect ratio with no distortion (issue #342 follow-up 2026-05-26).
         /// </summary>
         public Stretch Stretch
         {
@@ -112,8 +113,9 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         /// <summary>
         /// Interpolation mode applied to the rendered icon. Defaults to
-        /// <see cref="BitmapInterpolationMode.HighQuality"/>, matching WinForms
-        /// <c>InterpolationMode.Bicubic</c>.
+        /// <see cref="BitmapInterpolationMode.None"/> (nearest-neighbour) for
+        /// pixel-art crispness on integer up-scale (issue #342 follow-up
+        /// 2026-05-26).
         /// </summary>
         public BitmapInterpolationMode BitmapInterpolationMode
         {
@@ -205,23 +207,34 @@ namespace FEBuilderGBA.Avalonia.Controls
 
             if (_bitmap == null)
             {
-                // No bitmap: collapse the inner Image so the outer box stays empty
-                // (Stretch.Fill on a null Source paints nothing regardless).
+                // No bitmap: collapse the inner Image so the outer box stays empty.
                 ImageDisplay.Width = double.NaN;
                 ImageDisplay.Height = double.NaN;
                 return;
             }
 
-            // WinForms parity: the inner Image always matches the outer Border
-            // size, regardless of source bitmap dimensions. Stretch=Fill (the
-            // default) then stretches the bitmap to that fixed canvas — so a
-            // 16x16, 16x24, or 32x32 source all render at the same visual size.
+            // Natural-aspect rendering (issue #342 follow-up 2026-05-26): the
+            // inner Image is sized to bitmap.PixelSize * Scale, clamped to the
+            // outer Border. With Stretch=Uniform this preserves the source
+            // aspect ratio with no distortion — so a 16x16 wait icon renders
+            // at 32x32 (Scale=2) while a 16x24 renders at 32x48, both inside
+            // the same 64x64 outer slot. Smaller icons appear centered within
+            // the outer Border via the Image's HorizontalAlignment/VerticalAlignment.
             int scale = Math.Max(1, Scale);
             int maxW = Math.Max(1, MaxImageWidth);
             int maxH = Math.Max(1, MaxImageHeight);
 
-            ImageDisplay.Width = scale * maxW;
-            ImageDisplay.Height = scale * maxH;
+            int srcW = _bitmap.PixelSize.Width;
+            int srcH = _bitmap.PixelSize.Height;
+
+            // Clamp scaled bitmap size to the outer Border so oversized sources
+            // never paint outside the slot. Stretch=Uniform (the default) will
+            // then preserve aspect even when the clamp kicks in.
+            int innerW = Math.Min(scale * srcW, scale * maxW);
+            int innerH = Math.Min(scale * srcH, scale * maxH);
+
+            ImageDisplay.Width = innerW;
+            ImageDisplay.Height = innerH;
         }
 
         void ApplyStretch()

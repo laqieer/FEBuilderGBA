@@ -12,17 +12,16 @@ namespace FEBuilderGBA.Avalonia.Tests;
 /// Headless UI tests for <see cref="IconPreviewControl"/>.
 ///
 /// <para>
-/// Tests originally landed with PR #351 to cover issue #342's clipping bug
-/// (Stretch="Uniform" with insufficient outer box size). Updated by the
-/// #342 follow-up (2026-05-21) to assert the WinForms-equivalent
-/// "consistent visual size" invariant: the inner Image always matches the
-/// outer Border, with Stretch=Fill + BitmapInterpolationMode=HighQuality as
-/// the defaults that mirror WinForms PictureBoxSizeMode.StretchImage +
-/// InterpolationMode.Bicubic.
+/// Tests originally landed with PR #351 to cover issue #342's clipping bug.
+/// The #342 follow-up (2026-05-26) restores natural-aspect rendering: the
+/// inner Image is sized to <c>bitmap.PixelSize * Scale</c> (not the outer
+/// Border), with defaults <c>Stretch=Uniform</c> + <c>BitmapInterpolationMode=None</c>
+/// (nearest-neighbour). Different source aspects render at different visual
+/// sizes, all centered inside the fixed outer Border, never clipped.
 /// </para>
 /// <para>
-/// Cross-bitmap-size consistency assertions and consumer wiring checks live
-/// in <see cref="IconPreviewConsistentSizeTests"/>.
+/// Cross-bitmap-size invariants and consumer wiring checks live
+/// in <see cref="IconPreviewNaturalSizeTests"/>.
 /// </para>
 /// </summary>
 public class IconPreviewControlTests
@@ -94,13 +93,15 @@ public class IconPreviewControlTests
     }
 
     /// <summary>
-    /// 16x16 source (animType=0 wait icon) fills the fixed 64x64 preview box.
-    /// Renamed from RendersFullBitmapNoCrop_16x16 per the #342 follow-up: the
-    /// invariant is now "inner Image matches outer Border", not "inner Image
-    /// equals bitmap pixel size × Scale".
+    /// 16x16 source (animType=0 wait icon) renders at its natural aspect:
+    /// 32x32 inner Image (Scale=2) centered inside the 64x64 outer Border.
+    /// Renamed from FillsFixedPreviewBox_16x16 per the #342 follow-up
+    /// (2026-05-26): the invariant is now "inner Image = bitmap * Scale",
+    /// not "inner Image = outer Border" — the user wants natural-aspect
+    /// rendering, not forced-uniform-size distortion.
     /// </summary>
     [AvaloniaFact]
-    public void FillsFixedPreviewBox_16x16()
+    public void RendersAtNaturalSize_16x16()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -110,17 +111,17 @@ public class IconPreviewControlTests
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);
-        Assert.Equal(64, imageDisplay!.Width);
-        Assert.Equal(64, imageDisplay.Height);
+        Assert.Equal(32, imageDisplay!.Width);
+        Assert.Equal(32, imageDisplay.Height);
     }
 
     /// <summary>
-    /// 16x24 source (animType=1 tall wait icon) fills the fixed 64x64 box.
-    /// Stretch=Fill stretches the bitmap to 64x64 with bicubic-equivalent
-    /// interpolation, matching WinForms.
+    /// 16x24 source (animType=1 tall wait icon) renders at natural aspect:
+    /// 32x48 inner Image centered inside the 64x64 outer Border. Stretch=Uniform
+    /// preserves the 2:3 aspect ratio with no distortion.
     /// </summary>
     [AvaloniaFact]
-    public void FillsFixedPreviewBox_16x24()
+    public void RendersAtNaturalSize_16x24()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -130,16 +131,17 @@ public class IconPreviewControlTests
 
         var imageDisplay = control.FindControl<Image>("ImageDisplay");
         Assert.NotNull(imageDisplay);
-        Assert.Equal(64, imageDisplay!.Width);
-        Assert.Equal(64, imageDisplay.Height);
+        Assert.Equal(32, imageDisplay!.Width);
+        Assert.Equal(48, imageDisplay.Height);
     }
 
     /// <summary>
-    /// 32x32 source (animType=2 wait icon — the original #342 crop case) fills
-    /// the fixed 64x64 box.
+    /// 32x32 source (animType=2 wait icon — the original #342 crop case) renders
+    /// at natural aspect: 64x64 inner Image fully fills the 64x64 outer Border
+    /// with no clipping.
     /// </summary>
     [AvaloniaFact]
-    public void FillsFixedPreviewBox_32x32()
+    public void RendersAtNaturalSize_32x32()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -173,9 +175,11 @@ public class IconPreviewControlTests
 
     /// <summary>
     /// XAML-set Scale/MaxImageWidth/MaxImageHeight must recompute BOTH the
-    /// outer Border size AND the inner Image size at runtime. Under the new
-    /// WinForms-matching contract (#342 follow-up) the inner Image always
-    /// equals the outer Border, so this asserts they stay locked together.
+    /// outer Border size AND the inner Image size at runtime. Under the
+    /// natural-aspect contract (#342 follow-up 2026-05-26), the inner Image
+    /// is sized to <c>bitmap.PixelSize * Scale</c> clamped to the outer
+    /// Border — so changing Scale moves the inner with the source, and
+    /// shrinking Max* below the scaled bitmap size clamps the inner Image.
     /// </summary>
     [AvaloniaFact]
     public void PropertyChange_RecomputesSize()
@@ -192,32 +196,33 @@ public class IconPreviewControlTests
         Assert.Equal(64, border!.Width);
         Assert.Equal(64, border.Height);
 
-        // Load a 16×16 bitmap → inner now equals outer (64x64).
+        // Load a 16×16 bitmap → inner = 16 * Scale = 32x32 (natural aspect).
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
         host.Window.UpdateLayout();
-        Assert.Equal(64, imageDisplay!.Width);
-        Assert.Equal(64, imageDisplay.Height);
+        Assert.Equal(32, imageDisplay!.Width);
+        Assert.Equal(32, imageDisplay.Height);
 
-        // Bump Scale → outer grows to 96×96 and inner stays locked at 96×96.
+        // Bump Scale → outer grows to 96×96, inner grows to 48x48 (16 * 3).
         control.Scale = 3;
         Assert.Equal(96, border.Width);
         Assert.Equal(96, border.Height);
-        Assert.Equal(96, imageDisplay.Width);
-        Assert.Equal(96, imageDisplay.Height);
+        Assert.Equal(48, imageDisplay.Width);
+        Assert.Equal(48, imageDisplay.Height);
 
-        // Change MaxImageWidth → outer recomputes on width; inner stays locked.
+        // Shrink MaxImageWidth below the scaled bitmap → outer 48 wide (3*16),
+        // inner clamped to outer (48 wide, still 48 tall).
         control.MaxImageWidth = 16;
         Assert.Equal(48, border.Width);  // 3 * 16
-        Assert.Equal(96, border.Height); // unchanged
-        Assert.Equal(48, imageDisplay.Width);
-        Assert.Equal(96, imageDisplay.Height);
+        Assert.Equal(96, border.Height); // 3 * 32 still
+        Assert.Equal(48, imageDisplay.Width); // bitmap 16 * 3 = 48 (no clamp)
+        Assert.Equal(48, imageDisplay.Height); // unchanged from prior step
 
-        // Change MaxImageHeight → outer height recomputes; inner stays locked.
+        // Bump MaxImageHeight large → outer height grows, inner stays at scaled bitmap.
         control.MaxImageHeight = 40;
         Assert.Equal(48, border.Width);
         Assert.Equal(120, border.Height); // 3 * 40
         Assert.Equal(48, imageDisplay.Width);
-        Assert.Equal(120, imageDisplay.Height);
+        Assert.Equal(48, imageDisplay.Height); // 16 * 3 = 48 (still bitmap-natural)
     }
 
     [AvaloniaFact]
@@ -241,10 +246,11 @@ public class IconPreviewControlTests
         Assert.Equal(2, control.Scale);
         Assert.Equal(32, control.MaxImageWidth);
         Assert.Equal(32, control.MaxImageHeight);
-        // #342 follow-up: defaults match WinForms PictureBoxSizeMode.StretchImage
-        // + InterpolationMode.Bicubic.
-        Assert.Equal(Stretch.Fill, control.Stretch);
-        Assert.Equal(BitmapInterpolationMode.HighQuality, control.BitmapInterpolationMode);
+        // #342 follow-up (2026-05-26): defaults are natural-aspect rendering
+        // — Stretch=Uniform (no distortion) + BitmapInterpolationMode=None
+        // (nearest-neighbour for pixel-art crispness).
+        Assert.Equal(Stretch.Uniform, control.Stretch);
+        Assert.Equal(BitmapInterpolationMode.None, control.BitmapInterpolationMode);
     }
 
     /// <summary>
