@@ -212,4 +212,52 @@ public class DataVerifyEmptyNumericUpDownTests
                 $"ImageUnitPaletteView (FE8U) has empty NUDs: {string.Join(", ", empty)}");
         });
     }
+
+    // -----------------------------------------------------------------
+    // Root cause #4 — NumericUpDown left at Avalonia's decimal? default
+    // null because the static read-config bar declares Value-less
+    // controls and nothing in LoadList()/UpdateUI() seeds them, AND the
+    // four KnownGap N00/N08/N10/N18 PanPotBox controls in the per-type
+    // tabs are likewise never seeded (the pan-pot field is not part of
+    // the Avalonia VM yet — same shape as ImageUnitPaletteView's
+    // BattleAnimeBox in commit e22139266). Both shapes sit on an
+    // IsEffectivelyVisible surface (the static read bar always; the
+    // PanPotBoxes whenever the loaded instrument's HeaderByte selects
+    // the matching DirectSound tab), so the production data-verify UI
+    // check flags them as UI_EMPTY. Surfaced in 2026-05-25/26 scheduled
+    // E2E failures (#639/#640/#641/#642/#643), introduced when
+    // SongInstrumentView landed via PR #626 (closes #387).
+    //
+    // The FE8U variant guards the ReadCountBox shape — instrument 0 has
+    // HeaderByte=0x01 (SquareWave1), which selects the N01 tab, so only
+    // the static read bar is visible.
+    //
+    // The FE7U variant guards the PanPotBox shape — instrument 0 has
+    // HeaderByte=0x00 (DirectSound), which selects the N00 tab, making
+    // N00_PanPotBox visible at load time.
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void SongInstrumentView_NoEmptyNumericUpDowns_FE8U()
+    {
+        if (!RomAvailable("FE8U")) return;
+        RomTestHelper.WithRom("FE8U", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<SongInstrumentView>();
+            Assert.True(empty.Count == 0,
+                $"SongInstrumentView (FE8U) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    [AvaloniaFact]
+    public void SongInstrumentView_NoEmptyNumericUpDowns_FE7U()
+    {
+        if (!RomAvailable("FE7U")) return;
+        RomTestHelper.WithRom("FE7U", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<SongInstrumentView>();
+            Assert.True(empty.Count == 0,
+                $"SongInstrumentView (FE7U) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
 }
