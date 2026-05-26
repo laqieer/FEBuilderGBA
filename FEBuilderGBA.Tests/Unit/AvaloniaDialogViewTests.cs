@@ -190,6 +190,42 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.DoesNotContain("not yet implemented", src);
         }
 
+        // --- MapSettingDifficultyView (batch editor, #659) ---
+
+        [Fact]
+        public void MapSettingDifficulty_VM_HasReadWriteAndNibbleProperties()
+        {
+            var src = ReadVM("MapSettingDifficultyViewModel.cs");
+            Assert.Contains("int HardBoost", src);
+            Assert.Contains("int NormalPenalty", src);
+            Assert.Contains("int EasyPenalty", src);
+            Assert.Contains("LoadEntry", src);
+            Assert.Contains("Write()", src);
+            Assert.Contains("DifficultyValueCore", src);
+        }
+
+        [Fact]
+        public void MapSettingDifficulty_View_HasUndoServiceAndWriteHandler()
+        {
+            var src = ReadView("MapSettingDifficultyView.axaml.cs");
+            Assert.Contains("UndoService", src);
+            Assert.Contains("OnWriteClick", src);
+            Assert.Contains("_vm.Write()", src);
+            Assert.Contains("IDataVerifiableView", src);
+        }
+
+        [Fact]
+        public void MapSettingDifficulty_Axaml_HasEditableControls()
+        {
+            var src = ReadAxaml("MapSettingDifficultyView.axaml");
+            Assert.Contains("HardBoostInput", src);
+            Assert.Contains("NormalPenaltyInput", src);
+            Assert.Contains("EasyPenaltyInput", src);
+            Assert.Contains("DifficultyValueDisplay", src);
+            Assert.Contains("Name=\"WriteButton\"", src);
+            Assert.DoesNotContain("not yet implemented", src);
+        }
+
         // --- MapStyleEditorAppendPopupView ---
 
         [Fact]
