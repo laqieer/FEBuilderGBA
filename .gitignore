@@ -74,6 +74,7 @@ docs/avalonia-gaps/*-screenshots/**/av/
 # IDE / editor
 .vs/
 .claude/*
+.claude.json
 !.claude/skills/
 FEBuilderGBA/FEBuilderGBA.csproj.user
 
