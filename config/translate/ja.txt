@@ -3533,6 +3533,18 @@ ID テキスト
 :Tile Editor (click on map to select)
 タイル エディタ (click on map to select)
 
+:Tile Palette
+タイル パレット
+
+:Paint Mode
+ペイント モード
+
+:No chipset selected
+チップセットが選択されていません
+
+:(click palette to pick a chipset, then click map to paint)
+(パレットでチップセットを選択してから、マップをクリックして描画)
+
 :Tile ID (hex):
 タイル ID (hex):
 
