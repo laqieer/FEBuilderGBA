@@ -22,26 +22,25 @@
         <TextBlock Text="Weapon effectiveness 2x/3x class list (per item)" FontSize="12" Foreground="Gray" />
       </StackPanel>
 
-      <!-- Address + Block-size + Selection metadata (mirrors WinForms panel6) -->
-      <Grid Grid.Row="1" Margin="0,8,0,8"
-            ColumnDefinitions="100,160,100,160,*"
-            RowDefinitions="Auto,Auto">
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="0" Grid.Column="1" Name="AddressLabel"
-                   AutomationProperties.AutomationId="ItemEffectivenessViewer_Address_Label"
-                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="0" Grid.Column="3" Name="BlockSizeLabel"
-                   AutomationProperties.AutomationId="ItemEffectivenessViewer_BlockSize_Label"
-                   VerticalAlignment="Center" Text="1" />
-        <Button Grid.Row="0" Grid.Column="4" Name="ReloadListButton"
-                AutomationProperties.AutomationId="ItemEffectivenessViewer_ReloadList_Button"
-                Content="Reload" Click="ReloadList_Click" HorizontalAlignment="Right" />
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Name="SelectAddressLabel"
-                   AutomationProperties.AutomationId="ItemEffectivenessViewer_SelectAddress_Label"
-                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
-      </Grid>
+      <!-- Address + Block-size + Selection metadata (mirrors WinForms panel6).
+           #649: addr/size/reload row migrated to unified EditorTopBar control. -->
+      <StackPanel Grid.Row="1" Margin="0,8,0,8" Spacing="4">
+        <controls:EditorTopBar
+            Name="TopBar"
+            AutomationProperties.AutomationId="ItemEffectivenessViewer_TopBar"
+            StartAddressLabel="Address:"
+            ShowReadCount="False"
+            StartAddressAutomationId="ItemEffectivenessViewer_Address_Label"
+            SizeAutomationId="ItemEffectivenessViewer_BlockSize_Label"
+            ReloadAutomationId="ItemEffectivenessViewer_ReloadList_Button"
+            ReloadRequested="OnTopBarReloadRequested" />
+        <Grid ColumnDefinitions="100,*">
+          <TextBlock Grid.Column="0" Text="Selected:" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Name="SelectAddressLabel"
+                     AutomationProperties.AutomationId="ItemEffectivenessViewer_SelectAddress_Label"
+                     VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
+        </Grid>
+      </StackPanel>
 
       <!-- Two-pane content: inner class list + right edit panel.
            The right pane is wrapped in a ScrollViewer so all controls remain

@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Controls.EditorTopBar">
+  <!--
+    Reusable editor top-bar (#649). Unifies the Start Address / Read Count /
+    Size / Filter / Reload affordances that 40+ editor views previously had
+    as ad-hoc bordered Grids or StackPanels.
+
+    Layout: one horizontal Border-wrapped StackPanel. Slots are individually
+    collapsible via the Show* styled properties so editors that only need a
+    subset (e.g. ClassEditorView only renders "Address: 0x...") just toggle
+    the others off.
+
+    AutomationId propagation: hosts set ONE AutomationProperties.AutomationId
+    on the EditorTopBar itself; the control derives suffixed ids
+    ("{base}_StartAddress_Label", "{base}_Reload_Button", etc.) so E2E
+    selectors stay greppable. Hosts that need to preserve a specific legacy
+    AutomationId for back-compat (e.g. UnitEditor_Reload_Button) set the
+    explicit override styled-properties (ReloadAutomationId, etc.).
+  -->
+  <Border Name="OuterBorder"
+          BorderBrush="Gray" BorderThickness="0,0,0,1"
+          Padding="4,4,4,6" Margin="0,0,0,4">
+    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+      <!-- Filter slot (TextBox; hidden by default) -->
+      <StackPanel Name="FilterSlot" Orientation="Horizontal" Spacing="4"
+                  VerticalAlignment="Center" IsVisible="False">
+        <TextBlock Name="FilterLabelBlock" Text="Filter:"
+                   VerticalAlignment="Center" FontSize="11" />
+        <TextBox Name="FilterInput" Width="140" FontSize="11"
+                 VerticalAlignment="Center" />
+      </StackPanel>
+
+      <!-- Start Address slot -->
+      <StackPanel Name="StartAddressSlot" Orientation="Horizontal" Spacing="4"
+                  VerticalAlignment="Center">
+        <TextBlock Name="StartAddressLabelBlock" Text="Start Address:"
+                   VerticalAlignment="Center" FontSize="11" />
+        <TextBlock Name="StartAddressValueBlock" VerticalAlignment="Center"
+                   FontFamily="Consolas, monospace" FontSize="11" />
+      </StackPanel>
+
+      <!-- Read Count slot -->
+      <StackPanel Name="ReadCountSlot" Orientation="Horizontal" Spacing="4"
+                  VerticalAlignment="Center" Margin="8,0,0,0">
+        <TextBlock Name="ReadCountLabelBlock" Text="Read Count:"
+                   VerticalAlignment="Center" FontSize="11" />
+        <TextBlock Name="ReadCountValueBlock" VerticalAlignment="Center"
+                   FontSize="11" />
+      </StackPanel>
+
+      <!-- Size slot -->
+      <StackPanel Name="SizeSlot" Orientation="Horizontal" Spacing="4"
+                  VerticalAlignment="Center" Margin="8,0,0,0">
+        <TextBlock Name="SizeLabelBlock" Text="Size:"
+                   VerticalAlignment="Center" FontSize="11" />
+        <TextBlock Name="SizeValueBlock" VerticalAlignment="Center"
+                   FontSize="11" />
+      </StackPanel>
+
+      <!-- Reload button (right-aligned via spacer) -->
+      <Button Name="ReloadButton" Content="Reload"
+              FontSize="11" Padding="6,2" Margin="8,0,0,0"
+              VerticalAlignment="Center"
+              Click="OnReloadClick" />
+    </StackPanel>
+  </Border>
+</UserControl>

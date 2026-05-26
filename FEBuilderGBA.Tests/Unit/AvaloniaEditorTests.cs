@@ -490,7 +490,9 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("ClassIconImage", src);
             Assert.Contains("IndependenceButton", src);
             Assert.Contains("ListExpandsButton", src);
-            Assert.Contains("ReloadListButton", src);
+            // #649: ReloadListButton was migrated to EditorTopBar — check the
+            // preserved legacy AutomationId instead of the obsolete Name.
+            Assert.Contains("ItemEffectivenessViewer_ReloadList_Button", src);
             Assert.Contains("ItemListBox", src);
         }
 
@@ -526,7 +528,9 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("ClassIdBox", src); // was ClassIdInput before #360 final
             Assert.Contains("ClassIconImage", src);
             Assert.Contains("ListExpandsButton", src);
-            Assert.Contains("ReloadListButton", src);
+            // #649: ReloadListButton was migrated to EditorTopBar — check the
+            // preserved legacy AutomationId instead of the obsolete Name.
+            Assert.Contains("ItemPromotionViewer_ReloadList_Button", src);
             Assert.Contains("X_IER_Patch", src);
         }
 

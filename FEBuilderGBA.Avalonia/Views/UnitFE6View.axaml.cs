@@ -441,8 +441,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
                 uint dataSize = rom.RomInfo.unit_datasize;
-                SizeLabel.Text = $"0x{dataSize:X}";
-                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
+                // #649: top-bar fields are properties on the unified
+                // EditorTopBar control; SizeLabel still lives on the right pane.
+                if (SizeLabel != null)
+                    SizeLabel.Text = $"0x{dataSize:X}";
+                if (TopBar != null)
+                    TopBar.ReadCountText = rom.RomInfo.unit_maxcount.ToString();
 
                 // Mirror the LoadUnitList safety checks before dereferencing:
                 // (1) the pointer field itself must be non-zero, and
@@ -450,13 +454,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint ptr = rom.RomInfo.unit_pointer;
                 if (ptr == 0)
                 {
-                    ReadStartAddressLabel.Text = "";
+                    if (TopBar != null) TopBar.StartAddressText = "";
                     return;
                 }
                 uint tableStart = rom.p32(ptr);
                 if (!U.isSafetyOffset(tableStart, rom))
                 {
-                    ReadStartAddressLabel.Text = "";
+                    if (TopBar != null) TopBar.StartAddressText = "";
                     return;
                 }
                 // FE6 InputFormRef.ReInit(p32(unit_pointer) + unit_datasize)
@@ -468,25 +472,26 @@ namespace FEBuilderGBA.Avalonia.Views
                 ulong baseAddrChecked = (ulong)tableStart + (ulong)dataSize;
                 if (baseAddrChecked > uint.MaxValue)
                 {
-                    ReadStartAddressLabel.Text = "";
+                    if (TopBar != null) TopBar.StartAddressText = "";
                     return;
                 }
                 uint baseAddr = (uint)baseAddrChecked;
                 if (!U.isSafetyOffset(baseAddr, rom))
                 {
-                    ReadStartAddressLabel.Text = "";
+                    if (TopBar != null) TopBar.StartAddressText = "";
                     return;
                 }
-                ReadStartAddressLabel.Text = $"0x{baseAddr:X8}";
+                if (TopBar != null) TopBar.StartAddressText = $"0x{baseAddr:X8}";
             }
             catch (Exception ex) { Log.Error("UnitFE6View.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
         /// <summary>
-        /// #407: Reload button — re-runs LoadList() (rebuilds the AddressList
-        /// from the current ROM). Mirrors WF UnitFE6Form's ReloadListButton.
+        /// #407 / #649: Reload routed event handler — wired from the
+        /// unified EditorTopBar control. Mirrors WF UnitFE6Form's
+        /// ReloadListButton click handler.
         /// </summary>
-        void Reload_Click(object? sender, RoutedEventArgs e)
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             LoadList();
             UpdateAddressBarInfra();

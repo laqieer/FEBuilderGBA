@@ -192,9 +192,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateTopBar()
         {
-            ReadStartAddressLabel.Text = $"0x{_vm.ReadStartAddress:X08}";
-            ReadCountLabel.Text = _vm.ReadCount.ToString();
-            BlockSizeLabel.Text = _vm.BlockSize.ToString();
+            // #649: unified EditorTopBar control.
+            if (TopBar == null) return;
+            TopBar.StartAddressText = $"0x{_vm.ReadStartAddress:X08}";
+            TopBar.ReadCountText = _vm.ReadCount.ToString();
+            TopBar.SizeText = _vm.BlockSize.ToString();
         }
 
         void UpdateUI()
@@ -719,7 +721,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { /* non-fatal — caching is best effort */ }
         }
 
-        void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         /// <summary>
         /// Write button. Single-owner pattern (Copilot CLI plan-review point):

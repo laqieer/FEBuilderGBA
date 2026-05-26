@@ -396,9 +396,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
                 uint resolvedBase = rom.p32(rom.RomInfo.class_pointer);
-                ReadStartAddressLabel.Text = $"0x{resolvedBase:X8}";
-                ReadCountLabel.Text = _vm.GetListCount().ToString();
-                SizeLabel.Text = $"0x{rom.RomInfo.class_datasize:X}";
+                // #649: top-bar fields are properties on the unified
+                // EditorTopBar control.
+                if (TopBar == null) return;
+                TopBar.StartAddressText = $"0x{resolvedBase:X8}";
+                TopBar.ReadCountText = _vm.GetListCount().ToString();
+                TopBar.SizeText = $"0x{rom.RomInfo.class_datasize:X}";
             }
             catch (Exception ex)
             {
@@ -406,7 +409,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Reload_Click(object? sender, RoutedEventArgs e) => LoadList();
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         // -- Write & CSV --
 

@@ -9,24 +9,21 @@
     <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto,Auto">
       <!-- WF parity header: Filter / Reload / list metadata
            (mirrors WF LabelFilter, ReloadListButton, label1 "先頭アドレス",
-           label2 "読込数", label3 "Size:"). -->
-      <StackPanel Grid.Row="0" Orientation="Vertical" Margin="4,4,4,2" Spacing="2">
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_Filter_Label" Text="Filter:" VerticalAlignment="Center" FontSize="11" />
-          <TextBox AutomationProperties.AutomationId="ItemFE6_Filter_Input" Name="FilterBox" Width="140" FontSize="11" />
-          <Button AutomationProperties.AutomationId="ItemFE6_Reload_Button" Name="ReloadButton" Content="Reload" Click="Reload_Click" FontSize="11" Padding="4,2" />
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_BaseAddr_Label" Text="Base Addr:" FontSize="10" Foreground="Gray" />
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_BaseAddrValue_Label" Name="BaseAddrLabel" FontSize="10" Foreground="Gray" />
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_ListCount_Label" Text="Count:" FontSize="10" Foreground="Gray" />
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_ListCountValue_Label" Name="ListCountLabel" FontSize="10" Foreground="Gray" />
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_Size_Label" Text="Size:" FontSize="10" Foreground="Gray" />
-          <TextBlock AutomationProperties.AutomationId="ItemFE6_SizeValue_Label" Name="SizeLabel" FontSize="10" Foreground="Gray" />
-        </StackPanel>
-      </StackPanel>
+           label2 "読込数", label3 "Size:").
+           #649: migrated to unified EditorTopBar control. -->
+      <controls:EditorTopBar Grid.Row="0" Margin="4,4,4,2"
+                             Name="TopBar"
+                             AutomationProperties.AutomationId="ItemFE6_TopBar"
+                             ShowFilter="True"
+                             StartAddressLabel="Base Addr:"
+                             ReadCountLabel="Count:"
+                             FilterAutomationId="ItemFE6_Filter_Input"
+                             StartAddressAutomationId="ItemFE6_BaseAddrValue_Label"
+                             ReadCountAutomationId="ItemFE6_ListCountValue_Label"
+                             SizeAutomationId="ItemFE6_SizeValue_Label"
+                             ReloadAutomationId="ItemFE6_Reload_Button"
+                             ReloadRequested="OnTopBarReloadRequested"
+                             FilterTextChanged="OnTopBarFilterTextChanged" />
       <controls:AddressListControl AutomationProperties.AutomationId="ItemFE6_Entry_List" Grid.Row="1" Name="EntryList" Margin="4" />
       <!-- Selected item icon preview -->
       <Border Grid.Row="2" Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
