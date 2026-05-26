@@ -523,36 +523,31 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             using var _ = EnsureImageService();
 
-            // Step 1: render a real portrait from the ROM to PNG bytes.
-            using var portraitImg = PortraitRendererCore.DrawPortraitMap(
-                _fixture.ROM.p32(_fixture.ROM.RomInfo.portrait_pointer + 0)
-                    + _fixture.ROM.RomInfo.portrait_datasize * 1 + 4, // approx
-                0u);
-            // The above may produce null on edge cases — fall back to a
-            // synthetic indexed image we know works.
-            ImageImportService.LoadResult loadResult;
-
+            // Build a small synthetic image, save to PNG, then drive the
+            // full wizard pipeline (PNG file -> ImageImportService quantize
+            // -> PortraitImportHelper.ImportSimple -> ROM write). Asserts
+            // the pointer fields actually changed.
             string tmpPng = Path.Combine(Path.GetTempPath(),
                 $"portrait_import_test_{Guid.NewGuid():N}.png");
             try
             {
-                // Use a known-safe synthetic 16x16 indexed image saved to PNG.
-                IImage synth = CoreState.ImageService.CreateImage(16, 16);
-                byte[] rgba = new byte[16 * 16 * 4];
-                for (int i = 0; i < 16 * 16; i++)
+                using (IImage synth = CoreState.ImageService.CreateImage(16, 16))
                 {
-                    rgba[i * 4 + 0] = (byte)((i * 7) & 0xFF);
-                    rgba[i * 4 + 1] = (byte)((i * 13) & 0xFF);
-                    rgba[i * 4 + 2] = (byte)((i * 23) & 0xFF);
-                    rgba[i * 4 + 3] = 255;
+                    byte[] rgba = new byte[16 * 16 * 4];
+                    for (int i = 0; i < 16 * 16; i++)
+                    {
+                        rgba[i * 4 + 0] = (byte)((i * 7) & 0xFF);
+                        rgba[i * 4 + 1] = (byte)((i * 13) & 0xFF);
+                        rgba[i * 4 + 2] = (byte)((i * 23) & 0xFF);
+                        rgba[i * 4 + 3] = 255;
+                    }
+                    synth.SetPixelData(rgba);
+                    synth.Save(tmpPng);
                 }
-                synth.SetPixelData(rgba);
-                synth.Save(tmpPng);
-                synth.Dispose();
 
                 // Step 2: full pipeline via ImageImportService (real PNG
                 // path the wizard's PickFile_Click uses).
-                loadResult = ImageImportService.LoadAndQuantizeFromFile(tmpPng, 0, 0, 16);
+                var loadResult = ImageImportService.LoadAndQuantizeFromFile(tmpPng, 0, 0, 16);
                 Assert.NotNull(loadResult);
                 Assert.True(loadResult.Success, loadResult.Error);
                 Assert.Equal(16, loadResult.Width);

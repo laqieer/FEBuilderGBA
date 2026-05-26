@@ -170,8 +170,13 @@ namespace FEBuilderGBA.Avalonia.Services
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
                 uint currentD0 = rom.p32(entryAddr + 0);
-                bool isCompressed = U.isSafetyOffset(U.toOffset(currentD0))
-                    && LZ77.iscompress(rom.Data, U.toOffset(currentD0));
+                // Use the rom-aware isSafetyOffset overload + reuse the
+                // computed offset (Copilot bot PR #684 inline review:
+                // avoid reaching back through `CoreState.ROM` from helper
+                // code that already has a `rom` parameter).
+                uint currentD0Offset = U.toOffset(currentD0);
+                bool isCompressed = U.isSafetyOffset(currentD0Offset, rom)
+                    && LZ77.iscompress(rom.Data, currentD0Offset);
 
                 uint sheetAddr;
                 if (isCompressed)

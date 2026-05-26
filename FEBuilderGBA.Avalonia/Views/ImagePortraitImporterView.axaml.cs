@@ -101,9 +101,16 @@ namespace FEBuilderGBA.Avalonia.Views
                     ? "128 x 112 composite sheet — will write face, mini, mouth, palette (FE7/FE8 only)"
                     : "Simple image — will write sheet (D0) + palette (D8) only";
 
-                // Preview
-                IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult);
-                PreviewImage.SetImage(preview);
+                // Preview — `BuildPreviewImage` returns an `IImage` (IDisposable);
+                // `SetImage` extracts pixel data immediately via
+                // `IconBitmapBuilder.FromImage`, so we dispose the source
+                // right after to avoid leaking native bitmap resources when
+                // the user picks multiple files (Copilot bot PR #684 inline
+                // review).
+                using (IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult))
+                {
+                    PreviewImage.SetImage(preview);
+                }
 
                 StatusLabel.Text = string.Empty;
                 StatusLabel.Foreground = global::Avalonia.Media.Brushes.Gray;

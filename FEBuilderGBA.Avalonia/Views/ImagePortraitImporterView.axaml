@@ -2,7 +2,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImagePortraitImporterView"
-        Title="Portrait Import Wizard" Width="900" Height="720"
+        Title="Portrait Import Wizard"
+        MinWidth="660" MinHeight="500"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="ImagePortraitImporter_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
