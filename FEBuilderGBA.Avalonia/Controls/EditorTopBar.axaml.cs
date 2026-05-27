@@ -10,11 +10,20 @@
 //
 // Layout summary
 //   [Filter:][Filter input]  [Start Address:][hex value]  [Read Count:][n]
-//   [Size:][n]  [Reload]
+//   [Size:][n]                                                     [Reload]
 //
-// Hidden slots collapse automatically — ClassEditorView for example only
-// shows the address pair because it sets ShowReadCount=false and
-// ShowSize=false.
+// Hidden slots collapse automatically — each migrated editor toggles whichever
+// slots it doesn't need via the Show* properties. Examples from the #649 batch:
+//   * UnitEditorView / UnitFE6View / UnitFE7View set ShowSize=false (the WF
+//     parity row only shows Read Start Address + Read Count).
+//   * ItemEffectivenessViewerView / ItemPromotionViewerView set
+//     ShowReadCount=false (those editors expose Start Address + Size only).
+//   * ItemFE6View sets ShowFilter=true (it is the only migrated editor that
+//     actually surfaces the inline Filter input — the default is hidden).
+//   * ClassEditorView / ClassFE6View leave all defaults intact, so they
+//     render the full Start Address + Read Count + Size + Reload row.
+// The Reload button is right-aligned within the row regardless of which slots
+// are visible (see the AXAML for the Grid layout that achieves this).
 //
 // AutomationId mapping
 //   Hosts set ONE AutomationId on the EditorTopBar (e.g. "UnitEditor_TopBar")
@@ -374,26 +383,34 @@ namespace FEBuilderGBA.Avalonia.Controls
             {
                 if (ReloadButton != null) ReloadButton.Content = ReloadButtonText;
             }
-            // Slot visibility
+            // Slot visibility — re-propagate ids because visibility gates
+            // whether the derived "{base}_{slot}_Label" id is applied (see
+            // PropagateInnerAutomationIds: hidden slots get an empty id so the
+            // host view can reuse the same suffix on another visible control).
             else if (change.Property == ShowStartAddressProperty)
             {
                 if (StartAddressSlot != null) StartAddressSlot.IsVisible = ShowStartAddress;
+                PropagateInnerAutomationIds();
             }
             else if (change.Property == ShowReadCountProperty)
             {
                 if (ReadCountSlot != null) ReadCountSlot.IsVisible = ShowReadCount;
+                PropagateInnerAutomationIds();
             }
             else if (change.Property == ShowSizeProperty)
             {
                 if (SizeSlot != null) SizeSlot.IsVisible = ShowSize;
+                PropagateInnerAutomationIds();
             }
             else if (change.Property == ShowFilterProperty)
             {
                 if (FilterSlot != null) FilterSlot.IsVisible = ShowFilter;
+                PropagateInnerAutomationIds();
             }
             else if (change.Property == ShowReloadProperty)
             {
                 if (ReloadButton != null) ReloadButton.IsVisible = ShowReload;
+                PropagateInnerAutomationIds();
             }
             // AutomationId overrides
             else if (change.Property == StartAddressAutomationIdProperty
@@ -435,6 +452,16 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// Derive AutomationIds for the inner controls from the host's id.
         /// Explicit overrides take precedence so legacy E2E ids survive
         /// migration (UnitEditor_Reload_Button, ItemFE6_Filter_Input, etc.).
+        ///
+        /// Hidden slots intentionally do NOT receive a derived id so the host
+        /// view can reuse the same suffix elsewhere without colliding (e.g.
+        /// UnitEditorView sets ShowSize=false and then attaches
+        /// "UnitEditor_Size_Label" to its own Selected-Address Size label
+        /// further down the view; auto-deriving "UnitEditor_Size_Label" on
+        /// the hidden TopBar block too would trip the
+        /// "No duplicate AutomationIds" test).
+        /// Hosts that explicitly set the *AutomationId override still get
+        /// that id applied — the visibility gate only suppresses *derivation*.
         /// </summary>
         void PropagateInnerAutomationIds()
         {
@@ -447,27 +474,35 @@ namespace FEBuilderGBA.Avalonia.Controls
                 baseId = baseId.Substring(0, baseId.Length - "_TopBar".Length);
 
             SetInnerId(StartAddressValueBlock, StartAddressAutomationId,
-                       baseId, "_StartAddress_Label");
+                       baseId, "_StartAddress_Label", ShowStartAddress);
             SetInnerId(ReadCountValueBlock, ReadCountAutomationId,
-                       baseId, "_ReadCount_Label");
+                       baseId, "_ReadCount_Label", ShowReadCount);
             SetInnerId(SizeValueBlock, SizeAutomationId,
-                       baseId, "_Size_Label");
+                       baseId, "_Size_Label", ShowSize);
             SetInnerId(FilterInput, FilterAutomationId,
-                       baseId, "_Filter_Input");
+                       baseId, "_Filter_Input", ShowFilter);
             SetInnerId(ReloadButton, ReloadAutomationId,
-                       baseId, "_Reload_Button");
+                       baseId, "_Reload_Button", ShowReload);
         }
 
-        static void SetInnerId(Control? target, string explicitId, string baseId, string suffix)
+        static void SetInnerId(Control? target, string explicitId, string baseId, string suffix, bool slotVisible)
         {
             if (target == null) return;
             if (!string.IsNullOrEmpty(explicitId))
             {
+                // Explicit override always wins — host is asserting they want
+                // this exact id on the inner control regardless of visibility.
                 AutomationProperties.SetAutomationId(target, explicitId);
             }
-            else if (!string.IsNullOrEmpty(baseId))
+            else if (slotVisible && !string.IsNullOrEmpty(baseId))
             {
                 AutomationProperties.SetAutomationId(target, baseId + suffix);
+            }
+            else
+            {
+                // Hidden slot + no explicit override → clear any previously
+                // derived id so a re-attach can't leave a stale value behind.
+                AutomationProperties.SetAutomationId(target, string.Empty);
             }
         }
 
