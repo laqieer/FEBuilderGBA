@@ -974,6 +974,97 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Per-editor Redo (#692 partial slice): runs
+        /// <see cref="Undo.RunRedo"/> on the global <see cref="CoreState.Undo"/>
+        /// buffer. Mirrors <see cref="Undo_Click"/>: guards on
+        /// <see cref="Undo.CanRedo"/>, then verifies the redo actually
+        /// advanced the cursor (RunRedo's bool surfaces silent
+        /// <see cref="Undo.RollbackROM"/> failures that
+        /// <see cref="Undo.Rollback(int)"/> would otherwise hide).
+        /// After a successful redo, reload the entry so palette /
+        /// chipset / preview reflect the rolled-forward ROM bytes.
+        /// </summary>
+        void Redo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
+                {
+                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    return;
+                }
+                if (!CoreState.Undo.RunRedo())
+                {
+                    CoreState.Services.ShowError("Redo failed.");
+                    return;
+                }
+                // Reload the current entry so palette / chipset / preview
+                // pick up the rolled-forward ROM bytes.
+                if (_vm.CurrentAddr != 0)
+                {
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        _vm.LoadEntry(_vm.CurrentAddr);
+                        UpdateUI();
+                    }
+                    finally { _vm.IsLoading = false; }
+                    RefreshChipPreview();
+                }
+                CoreState.Services.ShowInfo("Redo applied.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.Redo_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Redo failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Per-editor MapChip Export (#692 partial slice): writes the
+        /// VM's cached decompressed CONFIG buffer to a .MAPCHIP_CONFIG
+        /// file. Mirrors WF parity — raw ConfigUZ bytes, no magic header
+        /// (the WF importer reads raw bytes with only a 9216-byte
+        /// minimum check, so adding a header would break import parity).
+        /// Uses <see cref="FileDialogHelper.SaveFile"/> for picker parity
+        /// with the rest of the Avalonia layer.
+        /// </summary>
+        async void MapChipExport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[]? configClone = _vm.GetCachedConfigClone();
+                if (configClone == null || configClone.Length == 0)
+                {
+                    CoreState.Services.ShowError(
+                        "No chipset config loaded — select a Map Style entry first.");
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveFile(
+                    this,
+                    "Export Map Chip Config",
+                    "Map Chip Config",
+                    "*.MAPCHIP_CONFIG",
+                    "mapchip.MAPCHIP_CONFIG");
+                // Treat null / empty / whitespace as cancel — FileDialogHelper.SaveFile
+                // can return an empty string in some flows, and File.WriteAllBytes
+                // would throw on it. Matches the guard pattern used by other
+                // Save-path callers (e.g. ToolTranslateROMView). Copilot bot
+                // inline review on PR #706.
+                if (string.IsNullOrWhiteSpace(path)) return;
+
+                File.WriteAllBytes(path, configClone);
+                CoreState.Services.ShowInfo(
+                    $"Exported {configClone.Length} bytes to {System.IO.Path.GetFileName(path)}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.MapChipExport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Map Chip export failed: {ex.Message}");
+            }
+        }
+
         // -----------------------------------------------------------------
         // #704 — MapChip Import: read raw .MAPCHIP_CONFIG bytes (no header,
         // ≥ 9216 bytes per WF parity), persist via the CONFIG PLIST write

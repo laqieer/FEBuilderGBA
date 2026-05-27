@@ -138,6 +138,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             && _currentConfigPlist != 0xFF
             && _chipsetConfigAddress != 0;
 
+        /// <summary>
+        /// Returns a defensive clone of the cached decompressed CONFIG
+        /// buffer for export (#692 partial slice — MapChip Export). Returns
+        /// null when no entry is loaded or the LZ77 decompression at
+        /// <see cref="LoadEntry"/> time produced no usable buffer. The
+        /// clone protects the VM's internal cache from caller mutation
+        /// (Copilot CLI v2 review on the v3 plan).
+        /// </summary>
+        public byte[]? GetCachedConfigClone() =>
+            _cachedConfigData == null ? null : (byte[])_cachedConfigData.Clone();
+
         // ----- Palette helpers (5-5-5 RGB, 16 colors per palette) -----
         // colorIndex is 1-based to match the WF "PALETTE_P_1..16" labels.
 
