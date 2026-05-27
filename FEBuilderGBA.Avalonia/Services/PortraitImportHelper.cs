@@ -122,6 +122,22 @@ namespace FEBuilderGBA.Avalonia.Services
         /// When <paramref name="fuchidori"/> is true the indexed-pixel buffer is
         /// post-processed by <see cref="ImageUtilCore.Fuchidori(byte[], int, int, byte)"/>
         /// to add a 1-pixel black outline.
+        ///
+        /// Slice A of #663 (mouth/eye block coords): when <paramref name="mouthBlockX"/>,
+        /// <paramref name="mouthBlockY"/>, <paramref name="eyeBlockX"/>, or
+        /// <paramref name="eyeBlockY"/> are non-null AND the ROM uses the 28-byte
+        /// FE7/FE8 portrait entry layout (see <see cref="IsFe7Or8EntryLayout"/>), each
+        /// non-null value is written to its corresponding byte inside the same undo
+        /// scope as the D0 / D8 writes:
+        ///   - <paramref name="mouthBlockX"/> -> entryAddr + 20 (B20)
+        ///   - <paramref name="mouthBlockY"/> -> entryAddr + 21 (B21)
+        ///   - <paramref name="eyeBlockX"/>   -> entryAddr + 22 (B22)
+        ///   - <paramref name="eyeBlockY"/>   -> entryAddr + 23 (B23)
+        /// A null parameter means "caller didn't ask"; the byte is left untouched
+        /// for backward compatibility (existing callers omit the parameters). Any
+        /// byte value (0x00 .. 0xFF) is written as-is — 0xFF is NOT a sentinel.
+        /// On FE6 ROMs the 16-byte entry layout reuses those bytes for unrelated
+        /// fields, so the writes are skipped silently.
         /// </summary>
         public static ImportOutcome ImportSimple(
             ROM rom,
@@ -131,7 +147,11 @@ namespace FEBuilderGBA.Avalonia.Services
             PortraitPaletteMode mode,
             byte[] customPaletteBytes,
             bool fuchidori,
-            string undoLabel = "Import Portrait Image")
+            string undoLabel = "Import Portrait Image",
+            byte? mouthBlockX = null,
+            byte? mouthBlockY = null,
+            byte? eyeBlockX = null,
+            byte? eyeBlockY = null)
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -224,6 +244,13 @@ namespace FEBuilderGBA.Avalonia.Services
                     }
                 }
 
+                // #663 Slice A: persist optional mouth/eye block coords to
+                // bytes B20-B23. FE7/FE8 only — FE6's 16-byte entry layout uses
+                // those bytes for unrelated fields, so the writes are silently
+                // skipped on FE6 to keep callers version-agnostic.
+                WriteEyeMouthBlockCoords(rom, entryAddr, undoService,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+
                 undoService.Commit();
                 return ImportOutcome.Ok();
             }
@@ -252,9 +279,14 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Mode-aware overload (#662). Same palette-mode + Fuchidori semantics as
-        /// <see cref="ImportSimple(ROM, uint, ImageImportService.LoadResult, UndoService, PortraitPaletteMode, byte[], bool, string)"/>,
+        /// <see cref="ImportSimple(ROM, uint, ImageImportService.LoadResult, UndoService, PortraitPaletteMode, byte[], bool, string, byte?, byte?, byte?, byte?)"/>,
         /// but for 128x112 composite sheets. SharePalette dereferences D8 to
         /// re-use the existing palette; CustomPalette validates 32 bytes.
+        ///
+        /// Slice A of #663: same eye/mouth block-coord semantics as ImportSimple —
+        /// see that overload's XML doc. FE7/FE8 only (the ImportSheet entry is
+        /// already gated to that layout by <see cref="IsFe7Or8EntryLayout"/>, so
+        /// non-null values are always written here when supplied).
         /// </summary>
         public static ImportOutcome ImportSheet(
             ROM rom,
@@ -264,7 +296,11 @@ namespace FEBuilderGBA.Avalonia.Services
             PortraitPaletteMode mode,
             byte[] customPaletteBytes,
             bool fuchidori,
-            string undoLabel = "Import Portrait Sheet (128x112)")
+            string undoLabel = "Import Portrait Sheet (128x112)",
+            byte? mouthBlockX = null,
+            byte? mouthBlockY = null,
+            byte? eyeBlockX = null,
+            byte? eyeBlockY = null)
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -397,6 +433,13 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (mouthAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
 
+                // #663 Slice A: persist optional mouth/eye block coords to
+                // bytes B20-B23 inside the same undo scope as the pointer writes.
+                // FE7/FE8 only — ImportSheet is already gated to that layout,
+                // so non-null values are always honored here.
+                WriteEyeMouthBlockCoords(rom, entryAddr, undoService,
+                    mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
+
                 undoService.Commit();
                 return ImportOutcome.Ok();
             }
@@ -405,6 +448,32 @@ namespace FEBuilderGBA.Avalonia.Services
                 undoService.Rollback();
                 return ImportOutcome.Fail($"Sheet import failed: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// #663 Slice A: write any non-null mouth/eye block coords to bytes
+        /// B20-B23 of the portrait entry. Called inside an open
+        /// <see cref="UndoService"/> scope so the writes participate in the
+        /// same rollback as the D0/D8/D12 writes above. Skipped silently on
+        /// FE6 (16-byte entry layout reuses those bytes for unrelated fields).
+        /// </summary>
+        static void WriteEyeMouthBlockCoords(
+            ROM rom, uint entryAddr, UndoService undoService,
+            byte? mouthBlockX, byte? mouthBlockY,
+            byte? eyeBlockX, byte? eyeBlockY)
+        {
+            if (rom == null) return;
+            if (!IsFe7Or8EntryLayout(rom)) return;
+            if (mouthBlockX == null && mouthBlockY == null
+                && eyeBlockX == null && eyeBlockY == null) return;
+
+            // ROM.BeginUndoScope (entered by UndoService.Begin) routes
+            // rom.write_u8 through the active undo buffer, so a single
+            // rollback after these writes also reverts them.
+            if (mouthBlockX.HasValue) rom.write_u8(entryAddr + 20, mouthBlockX.Value);
+            if (mouthBlockY.HasValue) rom.write_u8(entryAddr + 21, mouthBlockY.Value);
+            if (eyeBlockX.HasValue)   rom.write_u8(entryAddr + 22, eyeBlockX.Value);
+            if (eyeBlockY.HasValue)   rom.write_u8(entryAddr + 23, eyeBlockY.Value);
         }
 
         /// <summary>
