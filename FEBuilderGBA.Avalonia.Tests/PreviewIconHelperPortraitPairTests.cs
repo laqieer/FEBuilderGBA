@@ -302,9 +302,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                     new AddrResult(scratch, "FF Garbage > Garbage", 0u),
                 };
 
-                // Reference: pair built from uid1=1 / uid2=2 (resolved to portraits).
-                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(1);
-                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(2);
+                // Reference: pair built from uid1=1 / uid2=2 (1-based per WinForms convention,
+                // matching the loader's new resolver — fixes #652/#653 off-by-one).
+                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(1);
+                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(2);
                 Assert.NotEqual(0u, pid1);
                 Assert.NotEqual(0u, pid2);
                 using var expected = PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
@@ -312,7 +313,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 byte[] expectedRgba = expected!.GetPixelData();
 
                 // Wrong pair (using decoy at addr+1)
-                uint wrongPid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(99);
+                uint wrongPid2 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(99);
                 using var wrong = PreviewIconHelper.LoadPortraitMiniPair(pid1, wrongPid2);
                 if (wrong != null)
                 {
@@ -399,8 +400,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // version-agnostic — the helper just renders whatever portrait
                 // IDs we hand it. The test's job is to prove the LOADER reads
                 // from offset 1 and not 2.
-                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid1);
-                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid2);
+                // Reference must mirror the loader's new 1-based resolver so the per-pixel
+                // expected/actual comparison is meaningful after the #652/#653 fix.
+                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(uid1);
+                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(uid2);
                 using var expected = PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
                 if (expected == null)
                 {
@@ -413,7 +416,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 // correct pair using addr+1 (uid2=2). If they happen to be
                 // equal (e.g., unit 99 resolves to the same portrait as 2),
                 // the test cannot prove offset 1 vs offset 2 — bail.
-                uint decoyPid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(99);
+                uint decoyPid2 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(99);
                 if (decoyPid2 == pid2)
                 {
                     _output.WriteLine("SKIP: decoy uid 99 resolves to same portrait as uid 2 on this ROM");
@@ -498,6 +501,71 @@ namespace FEBuilderGBA.Avalonia.Tests
                 rom.write_u8(scratch + 0, savedB0);
                 rom.write_u8(scratch + 2, savedB2);
             }
+        }
+
+        // ------------------------------------------------------------------
+        // 1-based portrait resolver — WinForms parity contract for #652/#653
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Issues #652/#653: <see cref="PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId"/>
+        /// must mirror WinForms <c>UnitForm.DrawUnitMapFacePicture(uid)</c>: subtract 1 from
+        /// the input (treating it as a 1-based unit ID) before indexing the unit table, so the
+        /// portrait shown next to a list row matches the unit name printed in that row.
+        /// </summary>
+        [Fact]
+        public void ResolveUnitPortraitIdByOneBasedId_IsOneBasedRelativeToZeroBasedHelper()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine("SKIP: no ROM available");
+                return;
+            }
+            // Contract: ResolveUnitPortraitIdByOneBasedId(uid) for uid > 0 must equal
+            // ResolveUnitPortraitIdByUnitId(uid - 1) on non-FE6 (FE7/FE8). On FE6 the
+            // 1-based helper additionally accounts for the dummy entry skip — we don't
+            // pin that here since FE6's raw 0-based path doesn't match WinForms either.
+            ROM rom = CoreState.ROM!;
+            if (rom.RomInfo.version == 6)
+            {
+                _output.WriteLine("SKIP: FE6 has its own dummy-entry skip path");
+                return;
+            }
+            // uid==0 must return 0 (matches WinForms DrawUnitMapFacePicture early return).
+            Assert.Equal(0u, PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(0));
+
+            for (uint uid = 1; uid <= 5; uid++)
+            {
+                uint viaOneBased = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(uid);
+                uint viaZeroBased = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid - 1);
+                Assert.Equal(viaZeroBased, viaOneBased);
+            }
+        }
+
+        /// <summary>
+        /// On FE8U, the unit at table index 0 is Eirika with portrait 1 (verified by
+        /// existing tests that render <c>LoadPortraitMini(1)</c> standalone). After the
+        /// #652/#653 fix, <c>ResolveUnitPortraitIdByOneBasedId(1)</c> must return Eirika's
+        /// portrait ID — pinning the off-by-one fix.
+        /// </summary>
+        [Fact]
+        public void ResolveUnitPortraitIdByOneBasedId_FE8U_Uid1_IsEirikaPortrait()
+        {
+            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
+            {
+                _output.WriteLine($"SKIP: FE8U.gba unavailable (have {_fixture.Version})");
+                return;
+            }
+
+            uint pidEirika = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(1);
+            // Eirika's portrait must be non-zero (real artwork exists on FE8U).
+            Assert.NotEqual(0u, pidEirika);
+
+            // The buggy 0-based path would index table row 1 (Ephraim) and return his
+            // portrait — a DIFFERENT value. Cross-check to pin the off-by-one fix.
+            uint pidEphraim = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(2);
+            Assert.NotEqual(0u, pidEphraim);
+            Assert.NotEqual(pidEirika, pidEphraim);
         }
 
         // ------------------------------------------------------------------

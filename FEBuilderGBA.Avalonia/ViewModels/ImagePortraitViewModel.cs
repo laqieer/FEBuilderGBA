@@ -255,9 +255,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 else nullCount = 0;
 
                 string name = $"0x{i:X2}";
-                // Try to get unit name if this portrait index corresponds to a unit
-                try { string uname = NameResolver.GetUnitName((uint)i); if (uname != "???" && uname != $"#{i}") name += $" {uname}"; }
-                catch (Exception ex) { Log.Error("ImagePortraitViewModel.LoadList unit name resolve: {0}", ex.Message); }
+                // #656 — resolve the portrait OWNER's name (scans unit/class tables
+                // for a unit/class with portrait_id == i) instead of treating the
+                // portrait index as a 0-based unit-table row. Mirrors WinForms
+                // ImagePortraitForm.GetPortraitNameFast.
+                try
+                {
+                    string pname = NameResolver.GetPortraitName((uint)i);
+                    if (!string.IsNullOrEmpty(pname)) name += $" {pname}";
+                }
+                catch (Exception ex) { Log.Error("ImagePortraitViewModel.LoadList portrait name resolve: {0}", ex.Message); }
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
             ReadCount = (uint)result.Count;

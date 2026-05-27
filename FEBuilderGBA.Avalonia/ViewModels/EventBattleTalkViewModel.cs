@@ -52,8 +52,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint attacker = rom.u16(addr);
                 uint defender = rom.u16(addr + 2);
-                string atkName = NameResolver.GetUnitName(attacker);
-                string defName = NameResolver.GetUnitName(defender);
+                // 1-based ROM-stored unit IDs — battle-talk fields use the
+                // GetUnitNameAndANY semantics: 0 renders as "ANY" (the entry
+                // matches any attacker/defender), not as an empty string.
+                string atkName = NameResolver.GetUnitNameAndANYByOneBasedId(attacker);
+                string defName = NameResolver.GetUnitNameAndANYByOneBasedId(defender);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;
