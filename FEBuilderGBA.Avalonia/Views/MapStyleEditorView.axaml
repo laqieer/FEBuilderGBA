@@ -99,28 +99,26 @@
             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
               <Button AutomationProperties.AutomationId="MapStyleEditor_ObjExport_Button"
                       Content="Image Export"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      Click="ObjExport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_ObjImport_Button"
                       Content="Image Import"
                       IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipExport_Button"
                       Content="Map Chip Save"
                       IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipImport_Button"
                       Content="Map Chip Load"
                       IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Undo_Button"
                       Content="UNDO"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      Click="Undo_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Redo_Button"
                       Content="REDO"
                       IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Write_Button"
                       Name="WriteButton" Content="Write"
                       Click="Write_Click" />
@@ -271,16 +269,13 @@
             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,16,0,0">
               <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteExport_Button"
                       Content="Palette Export"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      Click="PaletteExport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteImport_Button"
                       Content="Palette Import"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      Click="PaletteImport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteClipboard_Button"
                       Content="Clipboard"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #374." />
+                      Click="PaletteClipboard_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_PaletteWrite_Button"
                       Content="Palette Write"
                        Click="PaletteWrite_Click" Name="PaletteWriteButton" />
