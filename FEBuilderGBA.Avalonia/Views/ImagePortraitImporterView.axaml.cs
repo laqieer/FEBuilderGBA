@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Portrait Import Wizard — first meaningful slice (#657).
+// Portrait Import Wizard — first meaningful slice (#657) + FE-Repo browser
+// and drag-and-drop integration (#664).
 //
-// Pipeline: file dialog -> ImageImportService.LoadAndQuantizeFromFile (16-color
-// quantization) -> preview via PortraitImportHelper.BuildPreviewImage -> on
-// Import, call PortraitImportHelper.ImportSimple / ImportSheet under an
-// UndoService scope. All ROM-write logic lives in PortraitImportHelper so
-// both this wizard and ImagePortraitView share a single source of truth.
+// Pipeline: file dialog / drag-drop / FE-Repo -> LoadImageFromPath ->
+// ImageImportService.LoadAndQuantizeFromFile (16-color quantization) ->
+// preview via PortraitImportHelper.BuildPreviewImage -> on Import, call
+// PortraitImportHelper.ImportSimple / ImportSheet under an UndoService
+// scope. All ROM-write logic lives in PortraitImportHelper so both this
+// wizard and ImagePortraitView share a single source of truth.
 //
-// Out of scope for this slice (tracked under follow-ups):
+// Out of scope for #664 (tracked under follow-ups):
 //   - Batch import (#661)
 //   - Advanced palette options + Fuchidori (#662)
 //   - Eye/mouth block configuration + per-frame preview (#663)
-//   - FE-Repo browser + drag-and-drop integration (#664)
 using System;
+using System.IO;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -34,6 +37,12 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
+
+            // #664: enable drag-and-drop for image files. Mirrors the
+            // pattern from ImagePortraitView (ctor lines 43-45).
+            DragDrop.SetAllowDrop(this, true);
+            AddHandler(DragDrop.DragOverEvent, OnDragOver);
+            AddHandler(DragDrop.DropEvent, OnDrop);
         }
 
         void LoadList()
@@ -71,6 +80,45 @@ namespace FEBuilderGBA.Avalonia.Views
                 : string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
+        // #664: drag-over handler — accept the drag if any file has a
+        // .png or .bmp extension. Mirrors ImagePortraitView.OnDragOver.
+        void OnDragOver(object? sender, DragEventArgs e)
+        {
+            if (!e.Data.Contains(DataFormats.Files)) { e.DragEffects = DragDropEffects.None; return; }
+            var files = e.Data.GetFiles();
+            if (files != null)
+            {
+                foreach (var f in files)
+                {
+                    string ext = Path.GetExtension(f.Path.LocalPath).ToLowerInvariant();
+                    if (ext == ".png" || ext == ".bmp") { e.DragEffects = DragDropEffects.Copy; return; }
+                }
+            }
+            e.DragEffects = DragDropEffects.None;
+        }
+
+        // #664: drop handler — load the first .png/.bmp file via the shared
+        // LoadImageFromPath helper so drag-drop, Pick PNG/BMP, and FE-Repo
+        // all share the same load/preview path. The wizard does NOT
+        // auto-import on drop; the user must still hit "Import to selected
+        // slot" to commit the write (matches the Pick PNG/BMP flow).
+        void OnDrop(object? sender, DragEventArgs e)
+        {
+            var files = e.Data.GetFiles();
+            if (files == null) return;
+
+            foreach (var file in files)
+            {
+                string path = file.Path.LocalPath;
+                string ext = Path.GetExtension(path).ToLowerInvariant();
+                if (ext == ".png" || ext == ".bmp")
+                {
+                    LoadImageFromPath(path);
+                    return;
+                }
+            }
+        }
+
         async void PickFile_Click(object? sender, RoutedEventArgs e)
         {
             try
@@ -81,6 +129,46 @@ namespace FEBuilderGBA.Avalonia.Views
                     return; // user cancelled
                 }
 
+                LoadImageFromPath(filePath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitImporterView.PickFile_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Pick file failed: {ex.Message}");
+            }
+        }
+
+        // #664: FE-Repo browser button — open the FE-Repo resource browser
+        // window, await the user's selection, and load the returned file
+        // path through the shared LoadImageFromPath helper. Mirrors
+        // ImagePortraitView.FERepoButton_Click (line 676). The browser's
+        // ShowDialog<string>(owner) returns the selected file path or
+        // null/empty when cancelled.
+        async void FERepo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var browser = new FERepoResourceBrowserWindow();
+                string result = await browser.ShowDialog<string>(this);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    LoadImageFromPath(result);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitImporterView.FERepo_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"FE-Repo browser failed: {ex.Message}");
+            }
+        }
+
+        // Shared image-load + preview pipeline. Pick PNG/BMP, FE-Repo, and
+        // drag-and-drop all funnel through here so the preview behavior is
+        // identical across entry points (Copilot CLI plan #664 review #2).
+        void LoadImageFromPath(string filePath)
+        {
+            try
+            {
                 var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
                 if (loadResult == null)
                 {
@@ -118,8 +206,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ImagePortraitImporterView.PickFile_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Pick file failed: {ex.Message}");
+                Log.Error("ImagePortraitImporterView.LoadImageFromPath failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Load image failed: {ex.Message}");
             }
         }
 
