@@ -58,7 +58,7 @@ dotnet publish tools/ColorzCore/ColorzCore/ColorzCore.csproj -c Release -r linux
 
 **Runtime note:** All releases (WinForms, CLI, Avalonia) ship ColorzCore as a self-contained executable, requiring no additional .NET runtime.
 
-**Public Resources:** [FE-Repo](https://github.com/Klokinator/FE-Repo) (graphics) and [FE-Repo-Music-No-Preview](https://github.com/laqieer/FE-Repo-Music-No-Preview) (music) are included as submodules in `resources/`. Browse and insert resources directly from the portrait editor (FE-Repo button), the Portrait Import Wizard (FE-Repo button + PNG/BMP drag-and-drop), and song exchange form (FE-Repo Music button) in both WinForms and Avalonia.
+**Public Resources:** [FE-Repo](https://github.com/Klokinator/FE-Repo) (graphics) and [FE-Repo-Music-No-Preview](https://github.com/laqieer/FE-Repo-Music-No-Preview) (music) are included as submodules in `resources/`. Browse and insert resources directly from the portrait editor (FE-Repo button), the Portrait Import Wizard (FE-Repo button + PNG/BMP drag-and-drop + advanced palette options: Auto-quantize / Share with target slot / Custom palette file + Fuchidori black-outline checkbox — #662), and song exchange form (FE-Repo Music button) in both WinForms and Avalonia.
 
 ### Cross-Platform Build (Linux / macOS / Windows)
 
