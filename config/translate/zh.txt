@@ -23591,8 +23591,8 @@ FE-Repo...
 :4. Write to ROM
 4. 写入 ROM
 
-:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. Advanced features (eye/mouth block sliders) are tracked under follow-up issues.
-说明：此向导支持简单的单图导入（在 D0 写入精灵图，在 D8 写入调色板）。当源是 128x112 合成图时，向导还会写入 mini 脸（D4）和嘴部帧（D12）—— 仅限 FE7/FE8。使用「Pick Folder (batch)...」可一次性导入整个文件夹 —— 每个文件按 0xNN.png 或 NN.png 命名，向导即可识别目标槽位。调色板选项：Auto-quantize 从图像中选取 16 个最佳匹配颜色；Share with target slot 复用 ROM 中目标槽位已有的调色板；Custom palette file 导入 .pal/.act/.gpl 调色板。勾选「Add black outline (Fuchidori)」可在不透明区域周围绘制 1 像素的黑色描边。高级功能（眼睛/嘴部块滑块）已记录到后续 issue 中。
+:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663). Deferred to follow-up #707: per-frame live preview pane (eye crop, mouth crop, full face) and eye/mouth crop position/size NumericUpDowns + WF status label strings.
+说明：此向导支持简单的单图导入（在 D0 写入精灵图，在 D8 写入调色板）。当源是 128x112 合成图时，向导还会写入 mini 脸（D4）和嘴部帧（D12）—— 仅限 FE7/FE8。使用「Pick Folder (batch)...」可一次性导入整个文件夹 —— 每个文件按 0xNN.png 或 NN.png 命名，向导即可识别目标槽位。调色板选项：Auto-quantize 从图像中选取 16 个最佳匹配颜色；Share with target slot 复用 ROM 中目标槽位已有的调色板；Custom palette file 导入 .pal/.act/.gpl 调色板。勾选「Add black outline (Fuchidori)」可在不透明区域周围绘制 1 像素的黑色描边。Detail 展开器（仅限 FE7/FE8）可编辑本切片（#663）随附的口/眼块坐标字节 B20-B23。延期至后续 #707：每帧实时预览面板（眼睛裁剪、嘴部裁剪、完整脸部）以及眼睛/嘴部裁剪位置/尺寸 NumericUpDown 与 WF 状态标签字符串。
 
 :2a. Palette options
 2a. 调色板选项
@@ -23614,6 +23614,27 @@ FE-Repo...
 
 :Add black outline (Fuchidori)
 添加黑色描边 (Fuchidori)
+
+:2b. Detail — eye/mouth block coords (FE7/FE8 only)
+2b. 详细 — 眼/口块坐标（仅限 FE7/FE8）
+
+:Not available on FE6 portraits.
+FE6 头像不支持此功能。
+
+:Mouth Block X (B20):
+口块 X (B20):
+
+:Mouth Block Y (B21):
+口块 Y (B21):
+
+:Eye Block X (B22):
+眼块 X (B22):
+
+:Eye Block Y (B23):
+眼块 Y (B23):
+
+:These bytes mark the block coordinates inside the sprite sheet that the engine uses for mouth + eye animation. Values are pre-populated from the selected slot; tweak them to match a re-arranged sheet, then Import to persist.
+这些字节标记引擎用于口/眼动画的精灵图块坐标。数值会从所选槽预填充；如果重新排列了精灵图，请在此处调整后通过 Import 写入。
 
 :Pick PNG/BMP...
 选择 PNG/BMP...
