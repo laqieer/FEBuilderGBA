@@ -15,13 +15,24 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Load class wait icon by extracting class ID from the list item text prefix.
         /// Matches WinForms DrawClassAndText which uses U.atoh(text) to get the class ID.
         /// </summary>
+        /// <remarks>
+        /// #654: previously short-circuited on <c>classId == 0</c>, which
+        /// suppressed the icon for the very first row of every class list
+        /// (its prefix parses to 0). WinForms <c>ListBoxEx.DrawClassAndText</c>
+        /// has no such guard — class 0 still gets fed to
+        /// <c>ClassForm.DrawWaitIcon</c>, which returns
+        /// <c>ImageUtil.BlankDummy()</c> for invalid data so the icon column
+        /// stays the same width. Removing the guard lets
+        /// <see cref="PreviewIconHelper.LoadClassWaitIconByClassId"/> attempt
+        /// the lookup for class 0 too (it returns null only when ROM data is
+        /// invalid).
+        /// </remarks>
         public static Bitmap? ClassIconLoader(List<AddrResult> items, int index)
         {
             if (index < 0 || index >= items.Count) return null;
             try
             {
                 uint classId = U.atoh(items[index].name);
-                if (classId == 0) return null;
                 using var img = PreviewIconHelper.LoadClassWaitIconByClassId(classId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
@@ -32,13 +43,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Load item icon by extracting item ID from the list item text prefix.
         /// Matches WinForms DrawItemAndText which uses U.atoh(text) to get the item ID.
         /// </summary>
+        /// <remarks>
+        /// #654: previously short-circuited on <c>itemId == 0</c>, hiding the
+        /// first row's icon in every item list (its prefix parses to 0).
+        /// WinForms <c>ListBoxEx.DrawItemAndText</c> has no such guard.
+        /// </remarks>
         public static Bitmap? ItemIconLoader(List<AddrResult> items, int index)
         {
             if (index < 0 || index >= items.Count) return null;
             try
             {
                 uint itemId = U.atoh(items[index].name);
-                if (itemId == 0) return null;
                 using var img = PreviewIconHelper.LoadItemIconByItemId(itemId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
@@ -66,6 +81,13 @@ namespace FEBuilderGBA.Avalonia.Services
         /// ONLY use when the list items are from the actual unit table (addr points to a unit struct).
         /// For other tables (support, palette, summon, etc.), use UnitPortraitByIdLoader instead.
         /// </summary>
+        /// <remarks>
+        /// #654: <c>portraitId == 0</c> means the unit struct has no portrait
+        /// assigned (a NULL portrait pointer in the struct), which is semantically
+        /// distinct from "first list row". Keep the early return because the
+        /// loader's input is the ROM address, not the row index — index 0 of
+        /// the unit table can still have a non-zero portrait_id.
+        /// </remarks>
         public static Bitmap? UnitPortraitLoader(List<AddrResult> items, int index)
         {
             if (index < 0 || index >= items.Count) return null;
@@ -89,13 +111,29 @@ namespace FEBuilderGBA.Avalonia.Services
         /// the (1-based) unit ID. The 1-based-id helper subtracts 1 internally so the
         /// portrait shown matches the unit name printed in the row, fixing #652/#653.
         /// </summary>
+        /// <remarks>
+        /// #652/#653: switched to <c>ResolveUnitPortraitIdByOneBasedId</c> so
+        /// the 1-based hex prefix produced by <c>U.atoh(items[index].name)</c>
+        /// (matching WinForms <c>DrawUnitAndText</c>) is decremented before
+        /// indexing the unit table, fixing the off-by-one wrong-portrait bug
+        /// in Support Unit / Support Talk lists. The 1-based-id helper still
+        /// treats <c>unitId == 0</c> as the "no unit" sentinel and returns 0 —
+        /// that is a real semantic (the unit table is 1-indexed in every
+        /// supported ROM; there is no "unit 0"), not a row-index artifact, so
+        /// we additionally bail on <c>portraitId == 0</c> AFTER resolution
+        /// when the resolved unit has no portrait_id set in ROM.
+        ///
+        /// #654: removed the loader's own <c>unitId == 0</c> guard so every
+        /// row gets exercised consistently with the other text-prefix loaders
+        /// in this file (the post-resolution <c>portraitId == 0</c> check is
+        /// the only short-circuit now).
+        /// </remarks>
         public static Bitmap? UnitPortraitByIdLoader(List<AddrResult> items, int index)
         {
             if (index < 0 || index >= items.Count) return null;
             try
             {
                 uint unitId = U.atoh(items[index].name);
-                if (unitId == 0) return null;
                 uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(unitId);
                 if (portraitId == 0) return null;
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
@@ -108,13 +146,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Load portrait by extracting portrait ID from the list item text prefix.
         /// Matches WinForms DrawImagePortraitAndText which uses U.atoh(text) to get portrait ID.
         /// </summary>
+        /// <remarks>
+        /// #654: removed <c>portraitId == 0</c> guard so the first row (portrait 0)
+        /// gets its icon. WinForms <c>ListBoxEx.DrawImagePortraitAndText</c>
+        /// has no such guard.
+        /// </remarks>
         public static Bitmap? PortraitLoader(List<AddrResult> items, int index)
         {
             if (index < 0 || index >= items.Count) return null;
             try
             {
                 uint portraitId = U.atoh(items[index].name);
-                if (portraitId == 0) return null;
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }

@@ -243,7 +243,16 @@ namespace FEBuilderGBA
                 if (itemId == 0) break;
 
                 string itemName = NameResolver.GetItemName(itemId);
-                string name = U.ToHexString(i) + " " + itemName;
+                // #654: Use the item ID (not slot index) as the row-text prefix.
+                // The Avalonia ListIconLoaders.ItemIconLoader extracts the icon
+                // ID from this prefix via U.atoh(), and the Item Shop list
+                // shows the item's icon, NOT a slot icon. Previously we used
+                // U.ToHexString(i) which (a) made slot 0 hash to itemId 0 ->
+                // null icon (the bug in #654) and (b) made every other slot
+                // load the wrong icon (icon for slot index rather than the
+                // actual item). Matches WinForms ItemShopForm.Init which uses
+                // U.ToHexString(item_id) + " " + ItemForm.GetItemName(item_id).
+                string name = U.ToHexString(itemId) + " " + itemName;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

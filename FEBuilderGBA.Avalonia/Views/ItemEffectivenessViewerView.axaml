@@ -56,8 +56,8 @@
             <ListBox.ItemTemplate>
               <DataTemplate>
                 <StackPanel Orientation="Horizontal" Spacing="4">
+                  <!-- #654: do NOT bind IsVisible to Icon != null. -->
                   <Image Source="{Binding Icon}" Width="32" Height="32"
-                         IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"
                          Stretch="Fill" />
                   <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
                 </StackPanel>
@@ -110,8 +110,8 @@
               <ListBox.ItemTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal" Spacing="4">
+                    <!-- #654: do NOT bind IsVisible to Icon != null. -->
                     <Image Source="{Binding Icon}" Width="32" Height="32"
-                           IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"
                            Stretch="Fill" />
                     <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
                   </StackPanel>

@@ -208,24 +208,16 @@ namespace FEBuilderGBA.Avalonia.Tests
             var rom = new ROM();
             rom.SwapNewROMDataDirect(data);
             // Inject the RomInfo: set image_unit_palette_pointer = 0x100
-            var oldRom = CoreState.ROM;
-            try
-            {
-                CoreState.ROM = rom;
-                // We need a RomInfo whose image_unit_palette_pointer == 0x100.
-                // Use a stub RomInfo subclass to override only that field.
-                SetRomInfo(rom, new StubRomInfo(0x100));
+            SetRomInfo(rom, new StubRomInfo(0x100));
 
-                var vm = new ImageUnitPaletteViewModel();
-                var list = vm.LoadList();
-                Assert.NotEmpty(list);
-                // First row must be the "SOME" row (P12=0 with name!=0).
-                Assert.Equal(baseAddr, list[0].addr);
-            }
-            finally
-            {
-                CoreState.ROM = oldRom;
-            }
+            // Pass the synthetic ROM directly to LoadList to avoid a race with
+            // other xUnit collections that may transiently mutate CoreState.ROM
+            // while this test runs in parallel on CI.
+            var vm = new ImageUnitPaletteViewModel();
+            var list = vm.LoadList(rom);
+            Assert.NotEmpty(list);
+            // First row must be the "SOME" row (P12=0 with name!=0).
+            Assert.Equal(baseAddr, list[0].addr);
         }
 
         [Fact]
@@ -242,23 +234,18 @@ namespace FEBuilderGBA.Avalonia.Tests
             // the synthetic last entry only).
             var rom = new ROM();
             rom.SwapNewROMDataDirect(data);
-            var oldRom = CoreState.ROM;
-            try
+            SetRomInfo(rom, new StubRomInfo(0x100));
+
+            // Pass the synthetic ROM directly to LoadList to avoid a race with
+            // other xUnit collections that may transiently mutate CoreState.ROM
+            // while this test runs in parallel on CI.
+            var vm = new ImageUnitPaletteViewModel();
+            var list = vm.LoadList(rom);
+            // The VM appends a trailing "Unit Palette Editor" sentinel row at the
+            // end. The first row should NOT include the baseAddr terminator row.
+            foreach (var entry in list)
             {
-                CoreState.ROM = rom;
-                SetRomInfo(rom, new StubRomInfo(0x100));
-                var vm = new ImageUnitPaletteViewModel();
-                var list = vm.LoadList();
-                // The VM appends a trailing "Unit Palette Editor" sentinel row at the
-                // end. The first row should NOT include the baseAddr terminator row.
-                foreach (var entry in list)
-                {
-                    Assert.NotEqual(baseAddr, entry.addr);
-                }
-            }
-            finally
-            {
-                CoreState.ROM = oldRom;
+                Assert.NotEqual(baseAddr, entry.addr);
             }
         }
 

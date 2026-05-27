@@ -1741,7 +1741,13 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("<DataTemplate>", axaml);
             Assert.Contains("Source=\"{Binding Icon}\"", axaml);
             Assert.Contains("Text=\"{Binding Text}\"", axaml);
-            Assert.Contains("ObjectConverters.IsNotNull", axaml);
+            // #654: the icon image MUST NOT bind IsVisible to "Icon != null".
+            // Doing so collapses the 32x32 slot when the loader returns null
+            // (e.g. the first row whose prefix parses to ID 0), shifting the
+            // row's text left and visually losing the icon column. WinForms
+            // reserves OWNER_DRAW_ICON_SIZE unconditionally; the Avalonia
+            // template now does the same by omitting the IsVisible binding.
+            Assert.DoesNotContain("ObjectConverters.IsNotNull", axaml);
         }
 
         [Fact]
