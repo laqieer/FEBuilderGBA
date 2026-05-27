@@ -107,12 +107,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// then resolving that unit's portrait from the unit table.
         /// Use for views where the list items are NOT unit struct entries (support tables,
         /// summon tables, palette tables, etc.) but the text starts with a unit ID.
-        /// Matches WinForms DrawUnitAndText which uses U.atoh(text) to get the unit ID.
+        /// Matches WinForms <c>DrawUnitAndText</c> which uses <c>U.atoh(text)</c> to get
+        /// the (1-based) unit ID. The 1-based-id helper subtracts 1 internally so the
+        /// portrait shown matches the unit name printed in the row, fixing #652/#653.
         /// </summary>
         /// <remarks>
         /// #654: removed the loader's own <c>unitId == 0</c> guard so every
         /// row gets exercised consistently. Note that
-        /// <see cref="PreviewIconHelper.ResolveUnitPortraitIdByUnitId"/>
+        /// <see cref="PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId"/>
         /// still treats <c>unitId == 0</c> as the "no unit" sentinel and
         /// returns 0 — that is a real semantic (unit table is 1-indexed in
         /// every supported ROM; there is no "unit 0"), not a row-index
@@ -121,6 +123,11 @@ namespace FEBuilderGBA.Avalonia.Services
         /// portrait_id set in ROM. The end effect for the first row of a
         /// unit-id-prefixed list is still null, but the call path is now
         /// uniform with the other text-prefix loaders.
+        /// #675: switched to <c>ResolveUnitPortraitIdByOneBasedId</c> so the
+        /// 1-based hex prefix produced by <c>U.atoh(items[index].name)</c>
+        /// (matching WinForms <c>DrawUnitAndText</c>) is decremented before
+        /// indexing the unit table, fixing the wrong-portrait off-by-one
+        /// for #652/#653.
         /// </remarks>
         public static Bitmap? UnitPortraitByIdLoader(List<AddrResult> items, int index)
         {
@@ -128,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Services
             try
             {
                 uint unitId = U.atoh(items[index].name);
-                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(unitId);
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(unitId);
                 if (portraitId == 0) return null;
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
@@ -202,8 +209,9 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Load unit portrait by reading unit ID from ROM address as u16.
-        /// For views where the first field at the entry address is a 16-bit unit ID.
+        /// Load unit portrait by reading a 1-based unit ID from ROM address as u16.
+        /// For views where the first field at the entry address is a 16-bit unit ID
+        /// (ROM bytes store unit IDs 1-based per WinForms convention).
         /// Used by EventBattleTalk and SupportTalk views.
         /// </summary>
         public static Bitmap? UnitPortraitFromAddrU16Loader(List<AddrResult> items, int index)
@@ -217,7 +225,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (!U.isSafetyOffset(addr + 1)) return null;
                 uint unitId = rom.u16(addr);
                 if (unitId == 0) return null;
-                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(unitId);
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(unitId);
                 if (portraitId == 0) return null;
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
@@ -226,8 +234,9 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Load unit portrait by reading unit ID from ROM address as u8.
-        /// For views where the first field at the entry address is an 8-bit unit ID.
+        /// Load unit portrait by reading a 1-based unit ID from ROM address as u8.
+        /// For views where the first field at the entry address is an 8-bit unit ID
+        /// (ROM bytes store unit IDs 1-based per WinForms convention).
         /// Used by AIUnits (u8 unitId at +0, u8 unknown at +1).
         /// </summary>
         public static Bitmap? UnitPortraitFromAddrU8Loader(List<AddrResult> items, int index)
@@ -241,7 +250,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (!U.isSafetyOffset(addr)) return null;
                 uint unitId = rom.u8(addr);
                 if (unitId == 0) return null;
-                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(unitId);
+                uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(unitId);
                 if (portraitId == 0) return null;
                 using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
@@ -301,8 +310,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (!U.isSafetyOffset(addr + (uint)unit2Offset)) return null;
                 uint uid1 = rom.u8(addr);
                 uint uid2 = rom.u8(addr + (uint)unit2Offset);
-                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid1);
-                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByUnitId(uid2);
+                // uid1/uid2 are ROM-stored 1-based unit IDs (WinForms DrawUnit2AndText
+                // convention). Use the 1-based resolver so the portrait shown lines up
+                // with the unit name printed in the row (#653).
+                uint pid1 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(uid1);
+                uint pid2 = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(uid2);
                 return PreviewIconHelper.LoadPortraitMiniPair(pid1, pid2);
             }
             catch { return null; }

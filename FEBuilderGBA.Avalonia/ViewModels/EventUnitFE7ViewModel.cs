@@ -290,8 +290,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             AI3TargetRecovery = values["B14"];
             AI4Retreat = values["B15"];
 
-            // Resolve display names
-            UnitName = NameResolver.GetUnitName(UnitID);
+            // Resolve display names — UnitID is 1-based per WinForms convention; ClassID is 0-based.
+            UnitName = NameResolver.GetUnitNameByOneBasedId(UnitID);
             ClassName = NameResolver.GetClassName(ClassID);
             Item1Name = Item1 > 0 ? NameResolver.GetItemName(Item1) : "";
             Item2Name = Item2 > 0 ? NameResolver.GetItemName(Item2) : "";

@@ -37,7 +37,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint unitId = rom.u32(addr);
                 if (unitId == 0 || unitId > 0xFF) break;
 
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID.
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;

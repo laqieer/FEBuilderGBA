@@ -55,8 +55,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint uid1 = rom.u8(addr + 0);
                 uint uid2 = rom.u8(addr + 2);
-                string n1 = NameResolver.GetUnitName(uid1);
-                string n2 = NameResolver.GetUnitName(uid2);
+                // uid1/uid2 are 1-based ROM-stored unit IDs (WinForms convention).
+                // Use the 1-based resolver so each name matches the partner ID. (#653)
+                string n1 = NameResolver.GetUnitNameByOneBasedId(uid1);
+                string n2 = NameResolver.GetUnitNameByOneBasedId(uid2);
                 string name = $"{U.ToHexString(i)} {n1} (0x{uid1:X02}) & {n2} (0x{uid2:X02})";
                 result.Add(new AddrResult(addr, name, i));
             }

@@ -235,9 +235,15 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Resolve the portrait ID for a unit by unit ID (not address).
+        /// Resolve the portrait ID for a unit by 0-based table index.
         /// Looks up the unit struct from the unit table, then calls ResolveUnitPortraitId.
         /// </summary>
+        /// <remarks>
+        /// For ROM-stored unit IDs (1-based per WinForms convention) or for the
+        /// 1-based hex prefix extracted from a Unit-list label, use
+        /// <see cref="ResolveUnitPortraitIdByOneBasedId(uint)"/> instead — passing
+        /// a 1-based value here causes the wrong portrait to be loaded (issues #652, #653).
+        /// </remarks>
         public static uint ResolveUnitPortraitIdByUnitId(uint unitId)
         {
             ROM rom = CoreState.ROM;
@@ -257,6 +263,64 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (unitAddr + unitSize > (uint)rom.Data.Length) return 0;
 
                 return ResolveUnitPortraitId(unitAddr);
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Resolve the portrait ID for a unit by 1-based unit ID (matching the
+        /// WinForms convention used by <c>UnitForm.DrawUnitMapFacePicture(uid)</c>
+        /// and the hex prefix on every Avalonia list label). Subtracts 1 internally
+        /// before indexing, and on FE6 also skips the dummy entry at table index 0
+        /// (via <see cref="SupportUnitNavigation.GetUnitTableBase"/>).
+        /// </summary>
+        /// <param name="oneBasedUnitId">
+        /// The 1-based unit ID stored in ROM bytes / event data / list-label hex prefixes.
+        /// <c>0</c> returns <c>0</c> (no portrait — matches WinForms blank-dummy behavior).
+        /// </param>
+        /// <remarks>
+        /// Fixes the off-by-one portrait rendering bug in Support Unit Editor (#652) and
+        /// Support Talk Editor (#653) where every row showed the previous unit's portrait.
+        /// </remarks>
+        public static uint ResolveUnitPortraitIdByOneBasedId(uint oneBasedUnitId)
+        {
+            // Early-return on 0 BEFORE any arithmetic so the `oneBasedUnitId - 1`
+            // step below never underflows. A u16/u8 sentinel of 0 (no unit) is the
+            // most common caller, but malformed list prefixes can also feed 0 here.
+            if (oneBasedUnitId == 0) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+
+            try
+            {
+                // SupportUnitNavigation.GetUnitTableBase handles the FE6 dummy-entry
+                // skip (FE6's table starts at p32(unit_pointer) + unit_datasize).
+                uint unitBase = SupportUnitNavigation.GetUnitTableBase(rom);
+                if (unitBase == 0) return 0;
+
+                uint unitSize = rom.RomInfo.unit_datasize;
+                if (unitSize == 0) return 0;
+
+                // Reject out-of-range IDs up-front. unit_maxcount is the highest
+                // legitimate 1-based ID in the table; anything above (e.g. a u16
+                // field holding 0xFFFF or a corrupt list prefix) must not be
+                // resolved, because a u32 address computed from oneBasedUnitId *
+                // unitSize can wrap around and land back inside the ROM, producing
+                // a wrong portrait. Use ulong for the arithmetic so we can detect
+                // the wrap explicitly even before the bounds check.
+                uint maxCount = rom.RomInfo.unit_maxcount;
+                if (maxCount != 0 && oneBasedUnitId > maxCount) return 0;
+
+                ulong zeroBasedIndex = (ulong)oneBasedUnitId - 1UL;
+                ulong unitAddr64 = (ulong)unitBase + zeroBasedIndex * (ulong)unitSize;
+                ulong romLen = (ulong)rom.Data.Length;
+                if (unitAddr64 + (ulong)unitSize > romLen) return 0;
+                if (unitAddr64 > uint.MaxValue) return 0;
+
+                return ResolveUnitPortraitId((uint)unitAddr64);
             }
             catch
             {

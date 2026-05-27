@@ -50,7 +50,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint addr = baseAddr + (i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
 
-                string unitName = NameResolver.GetUnitName(i + 1);
+                // WinForms UnitPaletteForm uses UnitForm.GetUnitName((uint)i+1)
+                // where i+1 is 1-based (matches the displayed hex prefix).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(i + 1);
                 result.Add(new AddrResult(addr, $"0x{(i + 1):X2} {unitName}", i + 1));
             }
             return result;

@@ -136,7 +136,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Resolve names
             Text1Preview = TextId1 > 0 ? NameResolver.GetTextById(TextId1) : "";
             Text2Preview = TextId2 > 0 ? NameResolver.GetTextById(TextId2) : "";
-            UnitName = NameResolver.GetUnitName(UnitId);
+            // 1-based ROM-stored unit ID; classId is 0-based.
+            UnitName = NameResolver.GetUnitNameByOneBasedId(UnitId);
             ClassNameDisplay = NameResolver.GetClassName(ClassId);
 
             IsLoaded = true;

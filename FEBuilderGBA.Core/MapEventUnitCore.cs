@@ -290,7 +290,8 @@ namespace FEBuilderGBA
                 if (unitId == 0) break; // null terminator
 
                 uint classId = rom.u8(addr + 1);
-                string unitName = NameResolver.GetUnitName(unitId);
+                // 1-based ROM-stored unit ID (matches WinForms EventUnitForm).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 string className = NameResolver.GetClassName(classId);
 
                 uint unitGrow;

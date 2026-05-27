@@ -379,8 +379,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     TalkPanel.IsVisible = true;
                     Unit1Box.Value = _vm.Unit1;
                     Unit2Box.Value = _vm.Unit2;
-                    Unit1NameLabel.Text = NameResolver.GetUnitName(_vm.Unit1);
-                    Unit2NameLabel.Text = NameResolver.GetUnitName(_vm.Unit2);
+                    // 1-based ROM-stored unit IDs (matches Cond TALK convention).
+                    Unit1NameLabel.Text = NameResolver.GetUnitNameByOneBasedId(_vm.Unit1);
+                    Unit2NameLabel.Text = NameResolver.GetUnitNameByOneBasedId(_vm.Unit2);
                     AdditionalDecisionBox.Value = _vm.AdditionalDecision;
                     DecisionFlagBox.Value = _vm.DecisionFlag;
                     TalkAsmFuncBox.Value = _vm.AsmFunc;
@@ -567,8 +568,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (cat == CondCategory.TALK)
             {
-                string u1 = NameResolver.GetUnitName(_vm.ExtraB8);
-                string u2 = NameResolver.GetUnitName(_vm.ExtraB9);
+                // 1-based ROM-stored unit IDs.
+                string u1 = NameResolver.GetUnitNameByOneBasedId(_vm.ExtraB8);
+                string u2 = NameResolver.GetUnitNameByOneBasedId(_vm.ExtraB9);
                 hints.AppendLine($"Unit 1: {u1}");
                 hints.AppendLine($"Unit 2: {u2}");
             }
