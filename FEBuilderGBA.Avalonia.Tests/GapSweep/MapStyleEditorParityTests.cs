@@ -1014,8 +1014,16 @@ public class MapStyleEditorParityTests
 
     // -----------------------------------------------------------------
     // #672 Slice A — 5 newly-functional buttons (Palette Export / Import /
-    // Clipboard, OBJ Export, Undo). Remaining 4 buttons (Redo, OBJ Import,
-    // MapChip Export/Import) tracked by follow-up #692.
+    // Clipboard, OBJ Export, Undo). After #704 the remaining KnownGap set
+    // is just 3 buttons:
+    //   - MapChipExport_Button → #692
+    //   - ObjImport_Button     → #710 (new follow-up; needs option-dialog
+    //                                  port + 4bpp encoding + FE7 obj2)
+    //   - Redo_Button          → #692
+    // MapChipImport became functional via #704 — see the
+    // View_MapChipImport_Button_IsEnabled / View_MapChipImport_Click_HandlerWired
+    // positive parity tests near the end of this file. The authoritative
+    // issue mapping lives in `KnownGapTooltipIssue`.
     // -----------------------------------------------------------------
 
     public static IEnumerable<object[]> Slice672ButtonIds()

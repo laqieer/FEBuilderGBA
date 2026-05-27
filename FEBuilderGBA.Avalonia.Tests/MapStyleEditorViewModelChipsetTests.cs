@@ -559,6 +559,55 @@ public class MapStyleEditorViewModelChipsetTests
     }
 
     /// <summary>
+    /// Copilot bot v1 inline review: the VM must clone the caller-supplied
+    /// buffer before assigning it to the internal cache so a subsequent
+    /// caller-side mutation cannot reach into the VM's state. Without the
+    /// defensive clone, mutating <c>input</c> after a successful write
+    /// would silently corrupt the cached CONFIG buffer used by the next
+    /// chipset read.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_StoresDefensiveClone_NotCallerBuffer()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+            // Seed chipset 0 TSA slot 0 with a known value.
+            ushort original = (ushort)(0xF000 | 0x0123);
+            input[0] = (byte)(original & 0xFF);
+            input[1] = (byte)((original >> 8) & 0xFF);
+
+            var undoData = CoreState.Undo.NewUndoData("defensive clone");
+            using (ROM.BeginUndoScope(undoData))
+                Assert.True(vm.TryWriteConfigBuffer(input, out _));
+            CoreState.Undo.Push(undoData);
+
+            // Mutate the caller's buffer AFTER the write — the VM's cache
+            // must not change. Read back via TryLoadChipsetTSA so we go
+            // through the public API (no reflection needed).
+            input[0] = 0xCD;
+            input[1] = 0xAB;
+
+            Assert.True(vm.TryLoadChipsetTSA(0));
+            Assert.Equal(original, vm.GetSlotW(0));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
     /// When the resolved CONFIG plist is 0 or 0xFF (no usable slot), the
     /// VM must refuse the import without touching ROM.
     /// </summary>

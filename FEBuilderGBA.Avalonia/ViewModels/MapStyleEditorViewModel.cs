@@ -736,7 +736,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // Swap cache + address only after the write succeeded so a
             // failed write leaves the previous in-memory state untouched.
-            _cachedConfigData = newConfigData;
+            // Copilot bot v1 inline review: store a defensive clone so the
+            // caller cannot mutate our cache after we accept the bytes (and
+            // matches the WriteChipsetConfig "stage on a clone, then swap"
+            // ownership pattern).
+            _cachedConfigData = (byte[])newConfigData.Clone();
             ChipsetConfigAddress = newAddr;
             return true;
         }

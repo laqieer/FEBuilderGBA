@@ -1001,7 +1001,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     FileTypeFilter = new[]
                     {
                         new FilePickerFileType("Map Chip Config") { Patterns = new[] { "*.MAPCHIP_CONFIG", "*.mapchip_config" } },
-                        new FilePickerFileType("All files") { Patterns = new[] { "*.*" } },
+                        // Copilot bot v1 inline review: use "*" (not "*.*") so the
+                        // filter truly matches every file on every platform —
+                        // `*.*` skips extension-less filenames on macOS/Linux,
+                        // and mirrors `FileDialogHelper.MakeAllFileType` parity.
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } },
                     },
                 });
                 if (files == null || files.Count == 0) return;
