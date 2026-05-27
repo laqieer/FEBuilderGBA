@@ -559,12 +559,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Whole-chipset copy (mirrors WF <c>CopyTileButton_Click</c>): captures
-        /// all four staged W values into the clipboard slot. CopyTerrain is
-        /// independent so the user can paste tile-only or type-only.
+        /// all four staged W values AND the current terrain so a subsequent
+        /// <see cref="Paste"/> restores the chipset's full state (Copilot CLI
+        /// PR #691 review item 1 — WF serializes terrain into the Tile copy too).
+        /// <see cref="CopyTerrain"/> remains independent for callers that want
+        /// to paste type-only.
         /// </summary>
         public void CopyChipset()
         {
             _copiedChipset = (_slotW[0], _slotW[1], _slotW[2], _slotW[3]);
+            _copiedTerrain = (byte)(CurrentTerrain & 0xFF);
         }
 
         /// <summary>Capture just the terrain byte for paste-as-type-only.</summary>

@@ -341,6 +341,40 @@ public class MapStyleEditorViewModelChipsetTests
     }
 
     /// <summary>
+    /// PR #691 Copilot CLI review item 1: CopyChipset (Copy Tile) must
+    /// also capture the terrain so a subsequent Paste restores BOTH the
+    /// 4 W values AND the terrain — matching WF
+    /// <c>CopyTileButton_Click</c> which serializes terrain alongside
+    /// the W fields. A user who Alt+T then Alt+V should not silently
+    /// keep the destination's old terrain.
+    /// </summary>
+    [Fact]
+    public void CopyChipset_AlsoCapturesTerrain_PasteRestoresBoth()
+    {
+        var vm = new MapStyleEditorViewModel();
+        vm.SetSlotWByLogicalIndex(0, 0x1111);
+        vm.SetSlotWByLogicalIndex(1, 0x2222);
+        vm.SetSlotWByLogicalIndex(2, 0x3333);
+        vm.SetSlotWByLogicalIndex(3, 0x4444);
+        vm.CurrentTerrain = 0x55;
+
+        // Copy Tile (Alt+T) ONLY — no separate Copy Type call.
+        vm.CopyChipset();
+
+        // Mutate everything so we can prove paste rewrites it.
+        vm.SetSlotWByLogicalIndex(0, 0xAAAA);
+        vm.CurrentTerrain = 0xFF;
+
+        Assert.True(vm.Paste());
+        Assert.Equal((ushort)0x1111, vm.GetSlotW(0));
+        Assert.Equal((ushort)0x2222, vm.GetSlotW(2));
+        Assert.Equal((ushort)0x3333, vm.GetSlotW(4));
+        Assert.Equal((ushort)0x4444, vm.GetSlotW(6));
+        // Terrain must come back too — this is the WF-parity assertion.
+        Assert.Equal(0x55, vm.CurrentTerrain);
+    }
+
+    /// <summary>
     /// Per v5 plan #1: WF parity Paste applies ALL four W values and
     /// the terrain, not just one slot. Verify each slot W and the
     /// terrain land in the VM after a paste.

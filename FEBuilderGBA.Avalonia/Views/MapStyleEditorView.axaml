@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapStyleEditorView"
-        Title="Map Style Editor" Width="1080" Height="780"
+        Title="Map Style Editor" Width="1200" Height="780"
         SizeToContent="Manual">
   <!-- Chipset tab hotkeys (#671 acceptance): Alt+T = CopyTile,
        Alt+C = CopyType, Alt+V = Paste. The actual handler is wired
@@ -338,17 +338,17 @@
             <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
               <StackPanel Spacing="4">
                 <TextBlock Text="Top-Left" FontWeight="Bold" />
-                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
-                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_X_Input" Name="Slot0_XBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_Y_Input" Name="Slot0_YBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_PALETTE_Input" Name="Slot0_PALETTEBox" Minimum="0" Maximum="15" Width="64" />
-                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_FLIP_Input" Name="Slot0_FLIPBox" Minimum="0" Maximum="3" Width="64" />
-                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot0_W_Input" Name="Slot0_WBox" Minimum="0" Maximum="65535" Width="80" />
+                <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,110,Auto,110,Auto,130">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_X_Input" Name="Slot0_XBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_Y_Input" Name="Slot0_YBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_PALETTE_Input" Name="Slot0_PALETTEBox" Minimum="0" Maximum="15" Width="100" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot0_TSA_FLIP_Input" Name="Slot0_FLIPBox" Minimum="0" Maximum="3" Width="100" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot0_W_Input" Name="Slot0_WBox" Minimum="0" Maximum="65535" Width="120" />
                 </Grid>
               </StackPanel>
             </Border>
@@ -356,17 +356,17 @@
             <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
               <StackPanel Spacing="4">
                 <TextBlock Text="Top-Right" FontWeight="Bold" />
-                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
-                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_X_Input" Name="Slot2_XBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_Y_Input" Name="Slot2_YBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_PALETTE_Input" Name="Slot2_PALETTEBox" Minimum="0" Maximum="15" Width="64" />
-                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_FLIP_Input" Name="Slot2_FLIPBox" Minimum="0" Maximum="3" Width="64" />
-                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot2_W_Input" Name="Slot2_WBox" Minimum="0" Maximum="65535" Width="80" />
+                <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,110,Auto,110,Auto,130">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_X_Input" Name="Slot2_XBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_Y_Input" Name="Slot2_YBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_PALETTE_Input" Name="Slot2_PALETTEBox" Minimum="0" Maximum="15" Width="100" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot2_TSA_FLIP_Input" Name="Slot2_FLIPBox" Minimum="0" Maximum="3" Width="100" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot2_W_Input" Name="Slot2_WBox" Minimum="0" Maximum="65535" Width="120" />
                 </Grid>
               </StackPanel>
             </Border>
@@ -374,17 +374,17 @@
             <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
               <StackPanel Spacing="4">
                 <TextBlock Text="Bottom-Left" FontWeight="Bold" />
-                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
-                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_X_Input" Name="Slot4_XBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_Y_Input" Name="Slot4_YBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_PALETTE_Input" Name="Slot4_PALETTEBox" Minimum="0" Maximum="15" Width="64" />
-                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_FLIP_Input" Name="Slot4_FLIPBox" Minimum="0" Maximum="3" Width="64" />
-                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot4_W_Input" Name="Slot4_WBox" Minimum="0" Maximum="65535" Width="80" />
+                <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,110,Auto,110,Auto,130">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_X_Input" Name="Slot4_XBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_Y_Input" Name="Slot4_YBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_PALETTE_Input" Name="Slot4_PALETTEBox" Minimum="0" Maximum="15" Width="100" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot4_TSA_FLIP_Input" Name="Slot4_FLIPBox" Minimum="0" Maximum="3" Width="100" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot4_W_Input" Name="Slot4_WBox" Minimum="0" Maximum="65535" Width="120" />
                 </Grid>
               </StackPanel>
             </Border>
@@ -392,17 +392,17 @@
             <Border BorderBrush="DarkGray" BorderThickness="1" Padding="6">
               <StackPanel Spacing="4">
                 <TextBlock Text="Bottom-Right" FontWeight="Bold" />
-                <Grid ColumnDefinitions="80,*,80,*,80,*,80,*,80,*">
-                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_X_Input" Name="Slot6_XBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_Y_Input" Name="Slot6_YBox" Minimum="0" Maximum="31" Width="64" />
-                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_PALETTE_Input" Name="Slot6_PALETTEBox" Minimum="0" Maximum="15" Width="64" />
-                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_FLIP_Input" Name="Slot6_FLIPBox" Minimum="0" Maximum="3" Width="64" />
-                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" />
-                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot6_W_Input" Name="Slot6_WBox" Minimum="0" Maximum="65535" Width="80" />
+                <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,110,Auto,110,Auto,130">
+                  <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <NumericUpDown Grid.Column="1" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_X_Input" Name="Slot6_XBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="3" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_Y_Input" Name="Slot6_YBox" Minimum="0" Maximum="31" Width="100" />
+                  <TextBlock Grid.Column="4" Text="Palette" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="5" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_PALETTE_Input" Name="Slot6_PALETTEBox" Minimum="0" Maximum="15" Width="100" />
+                  <TextBlock Grid.Column="6" Text="Flip" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="7" AutomationProperties.AutomationId="MapStyleEditor_Slot6_TSA_FLIP_Input" Name="Slot6_FLIPBox" Minimum="0" Maximum="3" Width="100" />
+                  <TextBlock Grid.Column="8" Text="W" VerticalAlignment="Center" Margin="8,0,6,0" />
+                  <NumericUpDown Grid.Column="9" AutomationProperties.AutomationId="MapStyleEditor_Slot6_W_Input" Name="Slot6_WBox" Minimum="0" Maximum="65535" Width="120" />
                 </Grid>
               </StackPanel>
             </Border>
