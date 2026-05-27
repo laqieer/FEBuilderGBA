@@ -21,13 +21,18 @@ param(
 $ErrorActionPreference = "Stop"
 $AvaloniaRoot = (Resolve-Path $AvaloniaRoot).Path
 
-# Files that should be skipped (no AutomationIds inside)
+# Files that should be skipped (no AutomationIds inside).
+# These are reusable UserControls — their host views set ONE AutomationId on
+# the control instance and the control derives suffixed ids on its inner
+# elements at runtime (so the inner elements never carry literal AutomationId
+# attributes in the .axaml source).
 $exemptInternalFiles = @(
     "Controls\BitFlagPanel.axaml",
     "Controls\AddressListControl.axaml",
     "Controls\GbaImageControl.axaml",
     "Controls\IconPreviewControl.axaml",
     "Controls\IdFieldControl.axaml",
+    "Controls\EditorTopBar.axaml",
     "App.axaml"
 )
 

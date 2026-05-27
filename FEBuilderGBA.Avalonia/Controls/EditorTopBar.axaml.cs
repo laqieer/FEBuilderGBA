@@ -12,18 +12,22 @@
 //   [Filter:][Filter input]  [Start Address:][hex value]  [Read Count:][n]
 //   [Size:][n]                                                     [Reload]
 //
-// Hidden slots collapse automatically — each migrated editor toggles whichever
-// slots it doesn't need via the Show* properties. Examples from the #649 batch:
-//   * UnitEditorView / UnitFE6View / UnitFE7View set ShowSize=false (the WF
-//     parity row only shows Read Start Address + Read Count).
-//   * ItemEffectivenessViewerView / ItemPromotionViewerView set
-//     ShowReadCount=false (those editors expose Start Address + Size only).
-//   * ItemFE6View sets ShowFilter=true (it is the only migrated editor that
-//     actually surfaces the inline Filter input — the default is hidden).
-//   * ClassEditorView / ClassFE6View leave all defaults intact, so they
-//     render the full Start Address + Read Count + Size + Reload row.
-// The Reload button is right-aligned within the row regardless of which slots
-// are visible (see the AXAML for the Grid layout that achieves this).
+// Slot defaults
+//   Start Address / Read Count / Size / Reload are visible by default
+//   (ShowStartAddress / ShowReadCount / ShowSize / ShowReload default = true).
+//   The Filter input is hidden by default (ShowFilter default = false).
+//
+// Hidden slots collapse automatically — each migrated editor toggles
+// whichever slots it doesn't need via the Show* styled properties; examples
+// of how to opt in/out (NOT a binding contract — actual host usage may
+// change over time, grep the Views\ tree for the canonical list):
+//   * Show only Start Address + Read Count (no Size):  ShowSize="False"
+//   * Show only Start Address + Size (no Read Count):  ShowReadCount="False"
+//   * Surface the inline Filter TextBox:               ShowFilter="True"
+//   * Keep all defaults → renders the full Start Address + Read Count +
+//     Size + Reload row.
+// The Reload button is right-aligned within the row regardless of which
+// slots are visible (see the AXAML's Grid layout for how this is achieved).
 //
 // AutomationId mapping
 //   Hosts set ONE AutomationId on the EditorTopBar (e.g. "UnitEditor_TopBar")

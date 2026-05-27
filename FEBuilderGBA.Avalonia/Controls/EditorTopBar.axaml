@@ -6,24 +6,22 @@
     Size / Filter / Reload affordances that 40+ editor views previously had
     as ad-hoc bordered Grids or StackPanels.
 
-    Layout: one horizontal Border-wrapped StackPanel. Slots are individually
-    collapsible via the Show* styled properties so editors that only need a
-    subset (e.g. ClassEditorView only renders "Address: 0x...") just toggle
-    the others off.
+    Layout: a Border wrapping a three-column Grid ("Auto,*,Auto") so the
+    metadata slots (column 0) stay packed left, the star ('*') column in the
+    middle absorbs all leftover horizontal space, and the Reload button
+    (column 2) is genuinely pinned to the far right edge of the bar. The
+    metadata slots themselves live inside a horizontal StackPanel in
+    column 0 so they flow left-to-right with consistent inter-slot spacing,
+    while individual slots can be collapsed via the Show* styled properties
+    so editors that only need a subset just toggle the others off.
 
-    AutomationId propagation: hosts set ONE AutomationProperties.AutomationId
-    on the EditorTopBar itself; the control derives suffixed ids
+    AutomationId propagation: hosts set ONE automation id on the
+    EditorTopBar itself (via AutomationProperties on the control instance);
+    the control derives suffixed ids on the inner elements
     ("{base}_StartAddress_Label", "{base}_Reload_Button", etc.) so E2E
     selectors stay greppable. Hosts that need to preserve a specific legacy
-    AutomationId for back-compat (e.g. UnitEditor_Reload_Button) set the
-    explicit override styled-properties (ReloadAutomationId, etc.).
-
-    Right-alignment of the Reload button is achieved by hosting the row in a
-    Grid with a star ('*') spacer column between the metadata slots (column 0)
-    and the Reload button (column 2). A horizontal StackPanel was used in the
-    initial draft but that packs every child to the left; the Grid layout
-    actually pushes Reload to the far right edge while leaving the slot
-    StackPanel free to grow naturally on the left.
+    id for back-compat (e.g. UnitEditor_Reload_Button) set the explicit
+    override styled-properties (ReloadAutomationId, etc.).
   -->
   <Border Name="OuterBorder"
           BorderBrush="Gray" BorderThickness="0,0,0,1"
@@ -67,8 +65,11 @@
         </StackPanel>
       </StackPanel>
 
-      <!-- Reload button — right-aligned by living in column 2 (the '*' spacer
-           lives in column 1, so Reload always sits at the far right edge). -->
+      <!-- Reload button — pinned to the far right edge: lives in column 2
+           of the parent "Auto,*,Auto" Grid, while the star ('*') middle
+           column absorbs all leftover horizontal space. HorizontalAlignment
+           ="Right" keeps the button flush with the right edge of its cell
+           even if the cell ends up wider than the button's own Auto size. -->
       <Button Grid.Column="2" Name="ReloadButton" Content="Reload"
               FontSize="11" Padding="6,2" Margin="8,0,0,0"
               VerticalAlignment="Center"
