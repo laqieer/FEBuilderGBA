@@ -59,14 +59,14 @@ namespace FEBuilderGBA.Avalonia.Views
             else if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.Y)
             {
                 // Redo is not supported by the undo system — show status message
-                StatusText.Text = R._("Redo is not supported.");
+                SetStatusText(R._("Redo is not supported."));
                 e.Handled = true;
             }
             else if (e.KeyModifiers == KeyModifiers.None && e.Key == Key.F5)
             {
                 // Refresh: invalidate all open editors so they reload from ROM data
                 Undo.OnAllFormsInvalidated?.Invoke();
-                StatusText.Text = R._("View refreshed.");
+                SetStatusText(R._("View refreshed."));
                 e.Handled = true;
             }
         }
@@ -77,7 +77,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // Refresh status bar
                 _vm.UpdateFromRom();
-                StatusText.Text = _vm.StatusText;
+                SetStatusText(_vm.StatusText);
 
                 // Refresh menu headers and navigation labels
                 RefreshMenuHeaders();
@@ -87,6 +87,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 RefreshLabels();
                 RebuildRecentFilesMenu();
             });
+        }
+
+        /// <summary>
+        /// Set the MainWindow status bar text and mirror it into the TextBlock's
+        /// ToolTip.Tip so the user can hover to read the full message when the
+        /// status bar ellipsis-trims it. Wired in code-behind (not AXAML)
+        /// because the tooltip must follow each dynamic status update — a
+        /// static self-binding in the AXAML would not pick up programmatic
+        /// .Text changes. Per the #650 status-bar exemption documented in
+        /// AvaloniaEditorTests.cs, the AXAML must NOT carry a ToolTip.Tip on
+        /// StatusText.
+        /// </summary>
+        void SetStatusText(string text)
+        {
+            StatusText.Text = text;
+            ToolTip.SetTip(StatusText, text);
         }
 
         /// <summary>
@@ -605,7 +621,7 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshEditorButtons();
             RefreshLabels();
             _vm.UpdateFromRom();
-            StatusText.Text = _vm.StatusText;
+            SetStatusText(_vm.StatusText);
 
             // Auto-load ROM if --rom was specified
             if (!string.IsNullOrEmpty(App.StartupRomPath))
@@ -720,7 +736,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Update UI
             _vm.UpdateFromRom();
-            StatusText.Text = _vm.StatusText;
+            SetStatusText(_vm.StatusText);
             NoRomLabel.IsVisible = false;
             EditorPanel.IsVisible = true;
             SearchPanel.IsVisible = true;
@@ -2298,7 +2314,7 @@ namespace FEBuilderGBA.Avalonia.Views
         private void Refresh_Click(object? sender, RoutedEventArgs e)
         {
             Undo.OnAllFormsInvalidated?.Invoke();
-            StatusText.Text = R._("View refreshed.");
+            SetStatusText(R._("View refreshed."));
         }
 
         private void Exit_Click(object? sender, RoutedEventArgs e)

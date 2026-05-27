@@ -2773,18 +2773,6 @@ namespace FEBuilderGBA.Tests.Unit
         // anywhere in the file, so adding new truncated previews without a
         // matching tooltip will fail the assertion.
 
-        static int CountOccurrences(string haystack, string needle)
-        {
-            int count = 0;
-            int idx = 0;
-            while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
-            {
-                count++;
-                idx += needle.Length;
-            }
-            return count;
-        }
-
         // Matches a single <TextBlock ... /> element (self-closing), allowing the
         // attributes to span multiple lines. The PR only adds self-binding
         // ToolTip.Tip to self-closing TextBlock elements, so this is sufficient.
@@ -3053,6 +3041,33 @@ namespace FEBuilderGBA.Tests.Unit
             //    no-op and the central audit would silently pass).
             Assert.False(IsSelfBindingToolTip(statusBlock),
                 "#650 exemption: MainWindow status bar must NOT have a self-binding ToolTip in the AXAML (the tooltip is set in code-behind based on the current message).");
+        }
+
+        [Fact]
+        public void MainWindowStatusBar_TooltipIsSetDynamicallyInCodeBehind_Issue650()
+        {
+            // The status bar exemption claims its tooltip is set DYNAMICALLY in
+            // code-behind. Tightened per Copilot review on PR #666: verify the
+            // claim is actually true. MainWindow.axaml.cs must
+            //   (1) define a SetStatusText helper that mirrors the new text
+            //       into the StatusText TextBlock's ToolTip.Tip via
+            //       ToolTip.SetTip, and
+            //   (2) route ALL StatusText updates through that helper — no
+            //       remaining bare `StatusText.Text =` assignments outside the
+            //       helper itself, otherwise the tooltip would drift out of
+            //       sync with the displayed message.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml.cs"));
+
+            // (1) Helper exists and updates both Text and ToolTip.
+            Assert.Contains("void SetStatusText(string text)", src);
+            Assert.Contains("ToolTip.SetTip(StatusText", src);
+
+            // (2) No bare StatusText.Text = assignments outside the helper.
+            // The helper itself is the single allowed writer.
+            var bareAssignmentRegex = new System.Text.RegularExpressions.Regex(
+                @"StatusText\.Text\s*=");
+            int bareAssignments = bareAssignmentRegex.Matches(src).Count;
+            Assert.Equal(1, bareAssignments);
         }
 
         [Fact]
