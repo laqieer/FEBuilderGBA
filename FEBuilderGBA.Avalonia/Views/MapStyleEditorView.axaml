@@ -106,8 +106,7 @@
                       ToolTip.Tip="Pending Core extraction - tracked by #692." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipExport_Button"
                       Content="Map Chip Save"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
+                      Click="MapChipExport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipImport_Button"
                       Content="Map Chip Load"
                       IsEnabled="False"
@@ -117,8 +116,7 @@
                       Click="Undo_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Redo_Button"
                       Content="REDO"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
+                      Click="Redo_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Write_Button"
                       Name="WriteButton" Content="Write"
                       Click="Write_Click" />
