@@ -415,6 +415,280 @@ public class MapStyleEditorViewModelChipsetTests
         Assert.Equal(0x55, vm.CurrentTerrain);
     }
 
+    // -----------------------------------------------------------------
+    // #704 — TryWriteConfigBuffer (MapChip Import path).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// WF parity: MapStyleEditorForm rejects .MAPCHIP_CONFIG inputs
+    /// shorter than 9216 bytes (0x2000 TSA + 0x400 terrain). The Avalonia
+    /// VM enforces the same minimum.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_RejectsTooSmall()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+
+            byte[] tooSmall = new byte[8000];
+            Assert.False(vm.TryWriteConfigBuffer(tooSmall, out string err));
+            Assert.Contains("8000", err);
+            Assert.Contains("9216", err);
+
+            // Null input is also rejected with the size error path.
+            Assert.False(vm.TryWriteConfigBuffer(null!, out string nullErr));
+            Assert.Contains("9216", nullErr);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Round-trip: write a 9216-byte buffer with a distinct fingerprint,
+    /// then re-decompress the new PLIST entry and verify every byte
+    /// matches the input. This proves the LZ77 compress/decompress
+    /// roundtrip preserves the raw bytes — the prerequisite for
+    /// preserving palette bits.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_RoundTripsThroughLZ77()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+            Assert.True(vm.CanEditChipsetConfig);
+
+            // Build a 9216-byte input with a recognizable per-byte fingerprint.
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+            for (int i = 0; i < input.Length; i++)
+                input[i] = (byte)((i * 31 + 7) & 0xFF);
+
+            var undoData = CoreState.Undo.NewUndoData("test config import");
+            bool ok;
+            string err;
+            using (ROM.BeginUndoScope(undoData))
+                ok = vm.TryWriteConfigBuffer(input, out err);
+            Assert.True(ok, err);
+            CoreState.Undo.Push(undoData);
+
+            // Re-decompress from the new ChipsetConfigAddress and verify
+            // the bytes survive the LZ77 round-trip.
+            byte[] roundTripped = LZ77.decompress(rom.Data, vm.ChipsetConfigAddress);
+            Assert.NotNull(roundTripped);
+            Assert.True(roundTripped.Length >= input.Length,
+                $"Round-tripped buffer too short: {roundTripped.Length} < {input.Length}");
+            for (int i = 0; i < input.Length; i++)
+                Assert.Equal(input[i], roundTripped[i]);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
+    /// #704 core acceptance: palette-index bits (bits 12-15 of a TSA u16)
+    /// must survive the import round-trip. Plant a buffer where every
+    /// chipset's slot-0 TSA word encodes palette index 15 (0xF000) and
+    /// verify those bits land in the decompressed output untouched.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_PreservesPaletteIndexBits()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+
+            // Build a buffer where every chipset slot 0 has palette index 15.
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+            // Palette index 15 in bits 12-15 = 0xF000. Plus a known tile id 0x123.
+            ushort w = (ushort)(0xF000 | 0x0123);
+            for (int c = 0; c < MapEditorTilesetCore.CHIPSET_COUNT; c++)
+            {
+                int tsaBase = c * 8;
+                input[tsaBase + 0] = (byte)(w & 0xFF);
+                input[tsaBase + 1] = (byte)((w >> 8) & 0xFF);
+            }
+
+            var undoData = CoreState.Undo.NewUndoData("preserve palette bits");
+            bool ok;
+            using (ROM.BeginUndoScope(undoData))
+                ok = vm.TryWriteConfigBuffer(input, out _);
+            Assert.True(ok);
+            CoreState.Undo.Push(undoData);
+
+            byte[] roundTripped = LZ77.decompress(rom.Data, vm.ChipsetConfigAddress);
+            Assert.NotNull(roundTripped);
+
+            // Sample a few chipsets to confirm the palette-index bits survived.
+            int[] sampleChipsets = { 0, 1, 50, 500, 1023 };
+            foreach (int c in sampleChipsets)
+            {
+                int off = c * 8;
+                ushort readBack = (ushort)(roundTripped[off] | (roundTripped[off + 1] << 8));
+                Assert.Equal(w, readBack);
+                // Explicitly assert the high nibble (palette index) is 0xF.
+                Assert.Equal(0xF, (readBack >> 12) & 0xF);
+            }
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
+    /// Copilot bot v1 inline review: the VM must clone the caller-supplied
+    /// buffer before assigning it to the internal cache so a subsequent
+    /// caller-side mutation cannot reach into the VM's state. Without the
+    /// defensive clone, mutating <c>input</c> after a successful write
+    /// would silently corrupt the cached CONFIG buffer used by the next
+    /// chipset read.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_StoresDefensiveClone_NotCallerBuffer()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+            // Seed chipset 0 TSA slot 0 with a known value.
+            ushort original = (ushort)(0xF000 | 0x0123);
+            input[0] = (byte)(original & 0xFF);
+            input[1] = (byte)((original >> 8) & 0xFF);
+
+            var undoData = CoreState.Undo.NewUndoData("defensive clone");
+            using (ROM.BeginUndoScope(undoData))
+                Assert.True(vm.TryWriteConfigBuffer(input, out _));
+            CoreState.Undo.Push(undoData);
+
+            // Mutate the caller's buffer AFTER the write — the VM's cache
+            // must not change. Read back via TryLoadChipsetTSA so we go
+            // through the public API (no reflection needed).
+            input[0] = 0xCD;
+            input[1] = 0xAB;
+
+            Assert.True(vm.TryLoadChipsetTSA(0));
+            Assert.Equal(original, vm.GetSlotW(0));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
+    /// Copilot bot v2 inline review: import must work even when the existing
+    /// CONFIG cache is missing / decompression failed — as long as the
+    /// CONFIG plist id is valid. This is the recovery-from-corruption use
+    /// case: a user with a broken CONFIG block on the ROM should still be
+    /// able to drop a fresh .MAPCHIP_CONFIG file onto the editor.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_SucceedsWithEmptyCacheWhenPlistIdValid()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+            // Drop the cache via ClearCacheAndChipsetState — preserves the
+            // configPlist id but clears _cachedConfigData. Without the
+            // gate relaxation, TryWriteConfigBuffer would refuse here.
+            // Save the plist before clearing because ClearCacheAndChipsetState
+            // zeros _currentConfigPlist too — we just want to simulate the
+            // "decompress failed but plist is valid" scenario.
+            uint savedPlist = vm.CurrentConfigPlist;
+            vm.ClearCacheAndChipsetState();
+            vm.CurrentConfigPlist = savedPlist;
+            // CanEditChipsetConfig is now false (no cache, no address).
+            Assert.False(vm.CanEditChipsetConfig);
+
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+            for (int i = 0; i < input.Length; i++) input[i] = (byte)(i & 0xFF);
+
+            var undoData = CoreState.Undo.NewUndoData("recover from corrupt cache");
+            bool ok;
+            using (ROM.BeginUndoScope(undoData))
+                ok = vm.TryWriteConfigBuffer(input, out string err);
+            Assert.True(ok);
+            CoreState.Undo.Push(undoData);
+            // Sanity: post-write the cache + address are now populated so
+            // CanEditChipsetConfig flips back to true.
+            Assert.True(vm.CanEditChipsetConfig);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
+    /// When the resolved CONFIG plist is 0 or 0xFF (no usable slot), the
+    /// VM must refuse the import without touching ROM.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_FailsOnInvalidConfigPlist()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+            Assert.True(vm.CanEditChipsetConfig);
+
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+
+            vm.CurrentConfigPlist = 0;
+            Assert.False(vm.TryWriteConfigBuffer(input, out string err0));
+            Assert.NotEqual("", err0);
+
+            vm.CurrentConfigPlist = 0xFF;
+            Assert.False(vm.TryWriteConfigBuffer(input, out string errFF));
+            Assert.NotEqual("", errFF);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     /// <summary>
     /// Per v5 plan #1: WF parity Paste applies ALL four W values and
     /// the terrain, not just one slot. Verify each slot W and the

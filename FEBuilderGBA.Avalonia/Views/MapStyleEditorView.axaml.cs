@@ -8,6 +8,7 @@ using global::Avalonia.Controls.Shapes;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -1061,6 +1062,122 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("MapStyleEditorView.MapChipExport_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Map Chip export failed: {ex.Message}");
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // #704 — MapChip Import: read raw .MAPCHIP_CONFIG bytes (no header,
+        // ≥ 9216 bytes per WF parity), persist via the CONFIG PLIST write
+        // path. Palette bits in TSA words are preserved verbatim because
+        // the buffer is written byte-for-byte (the VM's TryWriteConfigBuffer
+        // never decodes TSA words during the write).
+        //
+        // OBJ Image Import remains a KnownGap — tracked by follow-up #710
+        // (needs option-dialog port + 4bpp encoding + FE7 obj2 handling).
+        // -----------------------------------------------------------------
+        async void MapChipImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel?.StorageProvider == null)
+                {
+                    CoreState.Services.ShowError("Storage provider not available.");
+                    return;
+                }
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Import Map Chip Config",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("Map Chip Config") { Patterns = new[] { "*.MAPCHIP_CONFIG", "*.mapchip_config" } },
+                        // Copilot bot v1 inline review: use "*" (not "*.*") so the
+                        // filter truly matches every file on every platform —
+                        // `*.*` skips extension-less filenames on macOS/Linux,
+                        // and mirrors `FileDialogHelper.MakeAllFileType` parity.
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } },
+                    },
+                });
+                if (files == null || files.Count == 0) return;
+
+                byte[] data;
+                try
+                {
+                    await using var s = await files[0].OpenReadAsync();
+                    using var ms = new MemoryStream();
+                    await s.CopyToAsync(ms);
+                    data = ms.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("MapStyleEditorView.MapChipImport_Click read failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Failed to read file: {ex.Message}");
+                    return;
+                }
+
+                // Copilot bot v2 inline review: split write/commit from
+                // UI-refresh so an exception during post-commit UI work
+                // can't trigger a no-op Rollback on an already-committed
+                // undo group (which would lie to the user about "import
+                // failed" while ROM bytes are already persisted).
+                _undoService.Begin("Import Map Chip Config");
+                try
+                {
+                    if (!_vm.TryWriteConfigBuffer(data, out string err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError($"Import failed: {err}");
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Import error: {ex.Message}");
+                    return;
+                }
+
+                // -- Post-commit UI refresh (no rollback path; ROM is
+                // already persisted at this point). Failures here only
+                // affect the visible state, not durability — log + warn
+                // but don't roll back.
+                try
+                {
+                    ChipsetConfigAddressLabel.Text = $"0x{_vm.ChipsetConfigAddress:X08}";
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        _vm.CurrentChipsetNo = 0;
+                        bool chipsetLoaded = _vm.CanEditChipsetConfig && _vm.TryLoadChipsetTSA(0);
+                        if (ChipsetNoInput != null)
+                            ChipsetNoInput.Value = chipsetLoaded ? 0m : (decimal?)null;
+                        PopulateTerrainCombo();
+                        if (chipsetLoaded) ReadSlotsFromVM();
+                        else ClearChipsetUI();
+                        SetChipsetEditingEnabled(chipsetLoaded);
+                    }
+                    finally { _vm.IsLoading = false; }
+                    RefreshChipPreview();
+                    CoreState.Services.ShowInfo($"Imported {data.Length} bytes of map chip config.");
+                }
+                catch (Exception ex)
+                {
+                    // Import succeeded but UI refresh failed — tell the user
+                    // their data is safe and ask them to reload.
+                    Log.Error("MapStyleEditorView.MapChipImport_Click UI refresh failed: {0}", ex.Message);
+                    CoreState.Services.ShowError(
+                        $"Import succeeded ({data.Length} bytes) but UI refresh failed: {ex.Message}. " +
+                        "Re-select the Map Style entry to refresh the view.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.MapChipImport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Map chip import failed: {ex.Message}");
             }
         }
     }

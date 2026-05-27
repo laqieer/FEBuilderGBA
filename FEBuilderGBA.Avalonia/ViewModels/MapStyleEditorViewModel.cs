@@ -695,6 +695,76 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Replace the cached CONFIG buffer with raw bytes from a
+        /// <c>.MAPCHIP_CONFIG</c> file (WF parity: no magic header, the file
+        /// is the raw decompressed buffer). Validates the WF-parity minimum
+        /// of <c>9216</c> bytes (<see cref="MapEditorTilesetCore.CHIPSET_SEP_BYTE"/>
+        /// for TSA + <see cref="MapEditorTilesetCore.CHIPSET_COUNT"/> terrain
+        /// bytes), then LZ77-compresses the result and persists it via the
+        /// CONFIG PLIST write path (#671). Palette-index bits in TSA words
+        /// (bits 12-15 of each u16) are preserved verbatim because the buffer
+        /// is written byte-for-byte to ROM — there is no slot-by-slot decode
+        /// path that could strip them (#704 acceptance).
+        ///
+        /// <para>Requires an ambient undo scope (opened by the view via
+        /// <c>UndoService.Begin</c>) so the LZ77 append + p32 write are
+        /// tracked. On success, swaps the cached buffer and the
+        /// <see cref="ChipsetConfigAddress"/> to the new location.</para>
+        ///
+        /// <para>Returns false (without ROM mutation) when the supplied bytes
+        /// are null or too small, no ROM is loaded, or the resolved CONFIG
+        /// plist is invalid (0 / 0xFF / no entry). <paramref name="error"/>
+        /// carries a short human-readable reason.</para>
+        /// </summary>
+        public bool TryWriteConfigBuffer(byte[] newConfigData, out string error)
+        {
+            error = "";
+            // WF parity: MapStyleEditorForm.MapChipImportButton_Click rejects
+            // anything < 9216 bytes (0x2000 TSA + 0x400 terrain).
+            const int MinConfigSize = MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT;
+            if (newConfigData == null || newConfigData.Length < MinConfigSize)
+            {
+                error = $"Config file too small ({(newConfigData?.Length ?? 0)} bytes); must be at least {MinConfigSize} bytes.";
+                return false;
+            }
+            // Copilot bot v2 inline review: validate only the CONFIG plist id,
+            // NOT the full CanEditChipsetConfig predicate. CanEditChipsetConfig
+            // also requires `_cachedConfigData != null` and `ChipsetConfigAddress
+            // != 0`, which would block import-as-recovery when the existing
+            // CONFIG block is corrupt or missing but the plist id itself is
+            // still valid. Import only needs the plist id (and ROM with a
+            // populated map_config_pointer — WritePlistData enforces the
+            // latter).
+            if (_currentConfigPlist == 0 || _currentConfigPlist == 0xFF)
+            {
+                error = "Map Style entry does not have a valid CONFIG PLIST.";
+                return false;
+            }
+            ROM rom = CoreState.ROM;
+            if (rom == null) { error = "no ROM"; return false; }
+
+            byte[] compressed = LZ77.compress(newConfigData);
+            if (compressed == null || compressed.Length == 0)
+            {
+                error = "LZ77 compress failed";
+                return false;
+            }
+
+            uint newAddr = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.CONFIG, _currentConfigPlist, compressed, out error);
+            if (newAddr == U.NOT_FOUND) return false;
+
+            // Swap cache + address only after the write succeeded so a
+            // failed write leaves the previous in-memory state untouched.
+            // Copilot bot v1 inline review: store a defensive clone so the
+            // caller cannot mutate our cache after we accept the bytes (and
+            // matches the WriteChipsetConfig "stage on a clone, then swap"
+            // ownership pattern).
+            _cachedConfigData = (byte[])newConfigData.Clone();
+            ChipsetConfigAddress = newAddr;
+            return true;
+        }
+
+        /// <summary>
         /// Re-read the full 16-palette block (16 palettes × 16 colors × 2 bytes
         /// = 512 bytes) from <see cref="PaletteBaseAddress"/> into the local
         /// cache used by the chip preview (#670). Called from <see cref="LoadEntry"/>

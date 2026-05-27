@@ -6840,6 +6840,9 @@ Core 抽出待ち - #500 で追跡中。
 :Pending Core extraction - tracked by #692.
 Core 抽出待ち - #692 で追跡中。
 
+:Pending Core extraction - tracked by #710.
+Core 抽出待ち - #710 で追跡中。
+
 :Animation @ 0x{0:X08} ({1})
 アニメーション @ 0x{0:X08} ({1})
 
