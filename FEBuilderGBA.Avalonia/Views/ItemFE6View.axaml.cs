@@ -4,6 +4,7 @@ using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -41,7 +42,8 @@ namespace FEBuilderGBA.Avalonia.Views
             // Copilot CLI review #576 finding 4: wire the Filter box so
             // typing actually narrows the item list (was previously
             // editable but inert). Mirrors WF `LabelFilter` text field.
-            FilterBox.TextChanged += FilterBox_TextChanged;
+            // #649: filter is now an inline slot on the EditorTopBar; the
+            // routed FilterTextChanged event handler is wired in AXAML.
         }
 
         void LoadList()
@@ -68,23 +70,27 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var rom = CoreState.ROM;
-                if (rom?.RomInfo != null)
+                if (TopBar != null)
                 {
-                    uint baseAddr = rom.p32(rom.RomInfo.item_pointer);
-                    BaseAddrLabel.Text = $"0x{baseAddr:X08}";
-                    SizeLabel.Text = $"{rom.RomInfo.item_datasize}";
+                    if (rom?.RomInfo != null)
+                    {
+                        uint baseAddr = rom.p32(rom.RomInfo.item_pointer);
+                        TopBar.StartAddressText = $"0x{baseAddr:X08}";
+                        TopBar.SizeText = $"{rom.RomInfo.item_datasize}";
+                    }
+                    else
+                    {
+                        TopBar.StartAddressText = "(no ROM)";
+                        TopBar.SizeText = "-";
+                    }
+                    TopBar.ReadCountText = count.ToString();
                 }
-                else
-                {
-                    BaseAddrLabel.Text = "(no ROM)";
-                    SizeLabel.Text = "-";
-                }
-                ListCountLabel.Text = count.ToString();
             }
             catch { /* purely informational */ }
         }
 
-        void Reload_Click(object? sender, RoutedEventArgs e)
+        // #649: routed events from the unified EditorTopBar control.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             LoadList();
         }
@@ -93,12 +99,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Filter the item list by substring match against each entry's
         /// rendered name. Mirrors WF `LabelFilter` behavior (text-box
         /// typing narrows the list). Copilot CLI #576 finding 4.
+        /// #649: now driven by the EditorTopBar FilterTextChanged routed event.
         /// </summary>
-        void FilterBox_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        void OnTopBarFilterTextChanged(object? sender, EditorTopBarFilterChangedEventArgs e)
         {
             try
             {
-                string filter = (FilterBox.Text ?? "").Trim();
+                string filter = (e.NewText ?? "").Trim();
                 var items = _vm.LoadItemList();
                 if (!string.IsNullOrEmpty(filter))
                 {
@@ -111,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("ItemFE6View.FilterBox_TextChanged failed: {0}", ex.Message);
+                Log.Error("ItemFE6View.OnTopBarFilterTextChanged failed: {0}", ex.Message);
             }
         }
 

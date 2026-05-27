@@ -14,23 +14,16 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Portrait Editor (FE6)" FontSize="18" FontWeight="Bold" />
 
-        <!-- Top-of-list config bar (mirrors WF 先頭アドレス / 読込数 / Size: + 再取得 button) -->
-        <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,0,0,6" Margin="0,0,0,4">
-          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
-            <TextBlock Grid.Column="0" Text="Start Address:" VerticalAlignment="Center" Margin="0,0,4,0" />
-            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ReadStartAddress_Label"
-                       Grid.Column="1" Name="ReadStartAddressLabel" VerticalAlignment="Center" Margin="0,0,12,0"
-                       FontFamily="Consolas, monospace" />
-            <TextBlock Grid.Column="2" Text="Read Count:" VerticalAlignment="Center" Margin="0,0,4,0" />
-            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_ReadCount_Label"
-                       Grid.Column="3" Name="ReadCountLabel" VerticalAlignment="Center" Margin="0,0,12,0" />
-            <TextBlock Grid.Column="4" Text="Size:" VerticalAlignment="Center" Margin="0,0,4,0" />
-            <TextBlock AutomationProperties.AutomationId="ImagePortraitFE6_BlockSize_Label"
-                       Grid.Column="5" Name="BlockSizeLabel" VerticalAlignment="Center" Margin="0,0,12,0" />
-            <Button AutomationProperties.AutomationId="ImagePortraitFE6_ReloadList_Button"
-                    Grid.Column="6" Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" Margin="0,0,4,0" />
-          </Grid>
-        </Border>
+        <!-- Top-of-list config bar (mirrors WF 先頭アドレス / 読込数 / Size: + 再取得 button).
+             #649: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar
+            Name="TopBar"
+            AutomationProperties.AutomationId="ImagePortraitFE6_TopBar"
+            StartAddressAutomationId="ImagePortraitFE6_ReadStartAddress_Label"
+            ReadCountAutomationId="ImagePortraitFE6_ReadCount_Label"
+            SizeAutomationId="ImagePortraitFE6_BlockSize_Label"
+            ReloadAutomationId="ImagePortraitFE6_ReloadList_Button"
+            ReloadRequested="OnTopBarReloadRequested" />
 
         <!-- Image / palette action buttons -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">

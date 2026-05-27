@@ -85,6 +85,26 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         };
 
         /// <summary>
+        /// Composite editor UserControls that, when used as a single XAML
+        /// element in a host view, internally instantiate N allow-listed
+        /// controls. Counting them as 1 (the bare element count) would
+        /// under-report the post-migration density and tip parity tests below
+        /// their threshold for views that historically had the controls
+        /// inline. The mapping value is the count of allow-listed controls
+        /// the composite shows when all slots are visible — pulled directly
+        /// from the composite's own .axaml.
+        ///
+        /// EditorTopBar (#649) inlines: 4 label TextBlocks (Filter, Start
+        /// Address, Read Count, Size), 3 value TextBlocks (StartAddressValue,
+        /// ReadCountValue, SizeValue), 1 TextBox (FilterInput), and 1 Button
+        /// (Reload) = 9 controls.
+        /// </summary>
+        static readonly Dictionary<string, int> AvCompositeExpansions = new(StringComparer.Ordinal)
+        {
+            ["EditorTopBar"] = 9,
+        };
+
+        /// <summary>
         /// Container elements that hold *templates* (not actual realised controls).
         /// Anything nested under one of these is excluded from the count to avoid
         /// double-counting items rendered per-row in lists, etc.
@@ -275,6 +295,13 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// <summary>
         /// Extracted for testability: counts Avalonia controls in an in-memory
         /// XDocument. Excludes anything nested inside a known template container.
+        ///
+        /// Composite UserControls listed in <see cref="AvCompositeExpansions"/>
+        /// contribute their expansion count instead of 1 — so e.g.
+        /// &lt;controls:EditorTopBar/&gt; counts as the 9 controls it inlines
+        /// rather than as a single element. Without this, migrating an editor
+        /// to the unified top-bar would falsely show up as a density regression
+        /// even though the realised UI is unchanged.
         /// </summary>
         public static int CountAvControlsInDocument(XDocument doc)
         {
@@ -283,9 +310,14 @@ namespace FEBuilderGBA.Avalonia.GapSweep
             int count = 0;
             foreach (XElement el in doc.Descendants())
             {
-                if (!AvControlTypes.Contains(el.Name.LocalName))
-                    continue;
                 if (IsInsideTemplate(el))
+                    continue;
+                if (AvCompositeExpansions.TryGetValue(el.Name.LocalName, out int expansion))
+                {
+                    count += expansion;
+                    continue;
+                }
+                if (!AvControlTypes.Contains(el.Name.LocalName))
                     continue;
                 count++;
             }

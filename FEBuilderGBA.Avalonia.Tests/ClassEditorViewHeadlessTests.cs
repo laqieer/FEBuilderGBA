@@ -255,7 +255,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             var validSuffixes = new[]
             {
                 "_Input", "_Combo", "_Button", "_List", "_Check",
-                "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control", "_Link"
+                "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control", "_Link",
+                // "_TopBar" is the host id of the unified EditorTopBar
+                // composite (#649); its inner controls receive the standard
+                // suffixed ids ("ClassEditor_ReadStartAddress_Label" etc.).
+                "_TopBar",
             };
 
             var view = new ClassEditorView();

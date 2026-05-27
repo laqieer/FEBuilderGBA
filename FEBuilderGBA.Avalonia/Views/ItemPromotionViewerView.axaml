@@ -38,23 +38,22 @@
                 HorizontalAlignment="Left" Margin="0,4,0,0" />
       </Grid>
 
-      <!-- Address + Block-size + Selection metadata (mirrors WinForms panel5) -->
+      <!-- Address + Block-size + Selection metadata (mirrors WinForms panel5).
+           #649: addr/size/reload row migrated to unified EditorTopBar control. -->
       <Grid Grid.Row="2" Margin="0,8,0,8"
-            ColumnDefinitions="100,160,100,160,*"
+            ColumnDefinitions="100,*"
             RowDefinitions="Auto,Auto">
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="0" Grid.Column="1" Name="AddressLabel"
-                   AutomationProperties.AutomationId="ItemPromotionViewer_Address_Label"
-                   VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="Size:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="0" Grid.Column="3" Name="BlockSizeLabel"
-                   AutomationProperties.AutomationId="ItemPromotionViewer_BlockSize_Label"
-                   VerticalAlignment="Center" Text="1" />
-        <Button Grid.Row="0" Grid.Column="4" Name="ReloadListButton"
-                AutomationProperties.AutomationId="ItemPromotionViewer_ReloadList_Button"
-                Content="Reload" Click="ReloadList_Click" HorizontalAlignment="Right" />
+        <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2"
+                               Name="TopBar"
+                               AutomationProperties.AutomationId="ItemPromotionViewer_TopBar"
+                               StartAddressLabel="Address:"
+                               ShowReadCount="False"
+                               StartAddressAutomationId="ItemPromotionViewer_Address_Label"
+                               SizeAutomationId="ItemPromotionViewer_BlockSize_Label"
+                               ReloadAutomationId="ItemPromotionViewer_ReloadList_Button"
+                               ReloadRequested="OnTopBarReloadRequested" />
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Selected:" VerticalAlignment="Center" />
-        <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Name="SelectAddressLabel"
+        <TextBlock Grid.Row="1" Grid.Column="1" Name="SelectAddressLabel"
                    AutomationProperties.AutomationId="ItemPromotionViewer_SelectAddress_Label"
                    VerticalAlignment="Center" FontFamily="Consolas,Courier New" />
       </Grid>

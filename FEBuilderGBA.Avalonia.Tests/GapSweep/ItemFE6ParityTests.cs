@@ -368,16 +368,30 @@ public class ItemFE6ParityTests
     }
 
     // -----------------------------------------------------------------
-    // Copilot CLI #576 follow-up - finding 4: FilterBox must be wired
+    // Copilot CLI #576 follow-up - finding 4: filter input must be wired
     // (typing narrows the list, NOT inert).
+    //
+    // #649: the standalone FilterBox TextBox was folded into the unified
+    // EditorTopBar control. The wiring now lives on the AXAML side as a
+    // FilterTextChanged routed-event handler attribute pointing at the
+    // OnTopBarFilterTextChanged code-behind method. Assert both halves of
+    // that wiring exist — the AXAML attribute and the named handler.
     // -----------------------------------------------------------------
 
     [Fact]
     public void View_WiresFilterBoxTextChanged()
     {
+        string axaml = ReadAxaml();
         string source = File.ReadAllText(ViewCodeBehindPath());
-        Assert.Contains("FilterBox.TextChanged", source);
-        Assert.Contains("FilterBox_TextChanged", source);
+        // AXAML must wire the routed FilterTextChanged event on the TopBar.
+        Assert.Contains("FilterTextChanged=\"OnTopBarFilterTextChanged\"", axaml);
+        // ShowFilter must be enabled — otherwise the inline TextBox stays
+        // collapsed and typing is impossible regardless of the handler.
+        Assert.Contains("ShowFilter=\"True\"", axaml);
+        // Code-behind must define the handler the AXAML points at, and it
+        // must actually consume the routed-event payload to drive filtering.
+        Assert.Contains("OnTopBarFilterTextChanged", source);
+        Assert.Contains("EditorTopBarFilterChangedEventArgs", source);
     }
 
     // -----------------------------------------------------------------

@@ -999,16 +999,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
                 uint resolvedBase = rom.p32(rom.RomInfo.class_pointer);
-                ReadStartAddressLabel.Text = $"0x{resolvedBase:X8}";
-                // ROMFEINFO has no class_maxcount field — derive it the same
-                // way LoadClassList does (walk to the u8(addr+4)==0 sentinel).
-                ReadCountLabel.Text = GetAllClassAddresses().Length.ToString();
-                SizeLabel.Text = $"0x{rom.RomInfo.class_datasize:X}";
+                // #649: top-bar fields are properties on the unified
+                // EditorTopBar control.
+                if (TopBar != null)
+                {
+                    TopBar.StartAddressText = $"0x{resolvedBase:X8}";
+                    // ROMFEINFO has no class_maxcount field — derive it the same
+                    // way LoadClassList does (walk to the u8(addr+4)==0 sentinel).
+                    TopBar.ReadCountText = GetAllClassAddresses().Length.ToString();
+                    TopBar.SizeText = $"0x{rom.RomInfo.class_datasize:X}";
+                }
             }
             catch (Exception ex) { Log.Error("ClassEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
-        void Reload_Click(object? sender, RoutedEventArgs e)
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             // LoadList() already calls UpdateAddressBarInfra() on its success
             // path; the prior duplicate call was redundant (Copilot CLI inline

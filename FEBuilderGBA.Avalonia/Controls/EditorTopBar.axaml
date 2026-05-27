@@ -1,0 +1,80 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Controls.EditorTopBar">
+  <!--
+    Reusable editor top-bar (#649). Unifies the Start Address / Read Count /
+    Size / Filter / Reload affordances that 40+ editor views previously had
+    as ad-hoc bordered Grids or StackPanels.
+
+    Layout: a Border wrapping a three-column Grid ("Auto,*,Auto") so the
+    metadata slots (column 0) stay packed left, the star ('*') column in the
+    middle absorbs all leftover horizontal space, and the Reload button
+    (column 2) is genuinely pinned to the far right edge of the bar. The
+    metadata slots themselves live inside a horizontal StackPanel in
+    column 0 so they flow left-to-right with consistent inter-slot spacing,
+    while individual slots can be collapsed via the Show* styled properties
+    so editors that only need a subset just toggle the others off.
+
+    AutomationId propagation: hosts set ONE automation id on the
+    EditorTopBar itself (via AutomationProperties on the control instance);
+    the control derives suffixed ids on the inner elements
+    ("{base}_StartAddress_Label", "{base}_Reload_Button", etc.) so E2E
+    selectors stay greppable. Hosts that need to preserve a specific legacy
+    id for back-compat (e.g. UnitEditor_Reload_Button) set the explicit
+    override styled-properties (ReloadAutomationId, etc.).
+  -->
+  <Border Name="OuterBorder"
+          BorderBrush="Gray" BorderThickness="0,0,0,1"
+          Padding="4,4,4,6" Margin="0,0,0,4">
+    <Grid ColumnDefinitions="Auto,*,Auto">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <!-- Filter slot (TextBox; hidden by default) -->
+        <StackPanel Name="FilterSlot" Orientation="Horizontal" Spacing="4"
+                    VerticalAlignment="Center" IsVisible="False">
+          <TextBlock Name="FilterLabelBlock" Text="Filter:"
+                     VerticalAlignment="Center" FontSize="11" />
+          <TextBox Name="FilterInput" Width="140" FontSize="11"
+                   VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Start Address slot -->
+        <StackPanel Name="StartAddressSlot" Orientation="Horizontal" Spacing="4"
+                    VerticalAlignment="Center">
+          <TextBlock Name="StartAddressLabelBlock" Text="Start Address:"
+                     VerticalAlignment="Center" FontSize="11" />
+          <TextBlock Name="StartAddressValueBlock" VerticalAlignment="Center"
+                     FontFamily="Consolas, monospace" FontSize="11" />
+        </StackPanel>
+
+        <!-- Read Count slot -->
+        <StackPanel Name="ReadCountSlot" Orientation="Horizontal" Spacing="4"
+                    VerticalAlignment="Center" Margin="8,0,0,0">
+          <TextBlock Name="ReadCountLabelBlock" Text="Read Count:"
+                     VerticalAlignment="Center" FontSize="11" />
+          <TextBlock Name="ReadCountValueBlock" VerticalAlignment="Center"
+                     FontSize="11" />
+        </StackPanel>
+
+        <!-- Size slot -->
+        <StackPanel Name="SizeSlot" Orientation="Horizontal" Spacing="4"
+                    VerticalAlignment="Center" Margin="8,0,0,0">
+          <TextBlock Name="SizeLabelBlock" Text="Size:"
+                     VerticalAlignment="Center" FontSize="11" />
+          <TextBlock Name="SizeValueBlock" VerticalAlignment="Center"
+                     FontSize="11" />
+        </StackPanel>
+      </StackPanel>
+
+      <!-- Reload button — pinned to the far right edge: lives in column 2
+           of the parent "Auto,*,Auto" Grid, while the star ('*') middle
+           column absorbs all leftover horizontal space. HorizontalAlignment
+           ="Right" keeps the button flush with the right edge of its cell
+           even if the cell ends up wider than the button's own Auto size. -->
+      <Button Grid.Column="2" Name="ReloadButton" Content="Reload"
+              FontSize="11" Padding="6,2" Margin="8,0,0,0"
+              VerticalAlignment="Center"
+              HorizontalAlignment="Right"
+              Click="OnReloadClick" />
+    </Grid>
+  </Border>
+</UserControl>

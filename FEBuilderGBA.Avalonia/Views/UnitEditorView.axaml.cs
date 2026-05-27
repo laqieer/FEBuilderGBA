@@ -823,14 +823,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
                 uint resolvedBase = rom.p32(rom.RomInfo.unit_pointer);
-                ReadStartAddressLabel.Text = $"0x{resolvedBase:X8}";
-                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
-                SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
+                // #649: top-bar fields are now properties on the unified
+                // EditorTopBar control. Setters cope with null during early
+                // construction (the AXAML-named control may be null before
+                // InitializeComponent finishes).
+                if (TopBar != null)
+                {
+                    TopBar.StartAddressText = $"0x{resolvedBase:X8}";
+                    TopBar.ReadCountText = rom.RomInfo.unit_maxcount.ToString();
+                }
+                if (SizeLabel != null)
+                    SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
             }
             catch (Exception ex) { Log.Error("UnitEditorView.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
-        void Reload_Click(object? sender, RoutedEventArgs e)
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             LoadList();
             UpdateAddressBarInfra();

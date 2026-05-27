@@ -118,8 +118,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateHeader()
         {
-            AddressLabel.Text = $"0x{_vm.CurrentArrayAddr:X08}";
-            BlockSizeLabel.Text = "1";
+            // #649: address/size labels live on the unified EditorTopBar.
+            if (TopBar != null)
+            {
+                TopBar.StartAddressText = $"0x{_vm.CurrentArrayAddr:X08}";
+                TopBar.SizeText = "1";
+            }
             SelectAddressLabel.Text = $"0x{_vm.CurrentClassAddr:X08}";
         }
 
@@ -152,7 +156,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void ReloadList_Click(object? sender, RoutedEventArgs e)
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             LoadList();
         }

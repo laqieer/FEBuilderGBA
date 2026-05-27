@@ -427,18 +427,24 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
-                ReadStartAddressLabel.Text = $"0x{rom.RomInfo.unit_pointer:X8}";
-                ReadCountLabel.Text = rom.RomInfo.unit_maxcount.ToString();
-                SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
+                // #649: top-bar fields are properties on the unified
+                // EditorTopBar control.
+                if (TopBar != null)
+                {
+                    TopBar.StartAddressText = $"0x{rom.RomInfo.unit_pointer:X8}";
+                    TopBar.ReadCountText = rom.RomInfo.unit_maxcount.ToString();
+                }
+                if (SizeLabel != null)
+                    SizeLabel.Text = $"0x{rom.RomInfo.unit_datasize:X}";
             }
             catch (Exception ex) { Log.Error("UnitFE7View.UpdateAddressBarInfra failed: {0}", ex.Message); }
         }
 
         /// <summary>
-        /// #428: Reload button — re-runs LoadList() (rebuilds the AddressList
-        /// from the current ROM). Mirrors WF UnitFE7Form's ReloadListButton.
+        /// #428 / #649: Reload routed event handler — wired from the unified
+        /// EditorTopBar control. Mirrors WF UnitFE7Form's ReloadListButton.
         /// </summary>
-        void Reload_Click(object? sender, RoutedEventArgs e)
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             LoadList();
             UpdateAddressBarInfra();

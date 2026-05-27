@@ -47,16 +47,17 @@
                      ToolTip.Tip="This class is referenced by hardcoded ASM. Click to view related patches." />
         </StackPanel>
 
-        <!-- Read-table infra row (parity with WF ClassForm.ReadStartAddress / ReadCount / ReloadListButton / BlockSize) -->
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-          <TextBlock Text="Read Start Address:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" />
-          <TextBlock AutomationProperties.AutomationId="ClassEditor_ReadStartAddress_Label" Name="ReadStartAddressLabel" VerticalAlignment="Center" FontSize="11" />
-          <TextBlock Text="Read Count:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" Margin="12,0,0,0" />
-          <TextBlock AutomationProperties.AutomationId="ClassEditor_ReadCount_Label" Name="ReadCountLabel" VerticalAlignment="Center" FontSize="11" />
-          <TextBlock Text="Size:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" Margin="12,0,0,0" />
-          <TextBlock AutomationProperties.AutomationId="ClassEditor_Size_Label" Name="SizeLabel" VerticalAlignment="Center" FontSize="11" />
-          <Button AutomationProperties.AutomationId="ClassEditor_Reload_Button" Content="Reload" Click="Reload_Click" FontSize="11" Padding="6,2" Margin="12,0,0,0" />
-        </StackPanel>
+        <!-- Read-table infra row (parity with WF ClassForm.ReadStartAddress / ReadCount / ReloadListButton / BlockSize).
+             #649: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Margin="0,2,0,0"
+                               Name="TopBar"
+                               AutomationProperties.AutomationId="ClassEditor_TopBar"
+                               StartAddressLabel="Read Start Address:"
+                               StartAddressAutomationId="ClassEditor_ReadStartAddress_Label"
+                               ReadCountAutomationId="ClassEditor_ReadCount_Label"
+                               SizeAutomationId="ClassEditor_Size_Label"
+                               ReloadAutomationId="ClassEditor_Reload_Button"
+                               ReloadRequested="OnTopBarReloadRequested" />
 
         <!-- Class Card Preview (issue #357): mirrors WinForms ClassForm top-right
              block — L_8_PORTRAIT_CLASS (face portrait) + L_5_CLASS (name) +

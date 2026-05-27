@@ -32,16 +32,17 @@
                      ToolTip.Tip="This class is referenced by hardcoded ASM. Click to view related patches." />
         </StackPanel>
 
-        <!-- Address-bar infra row (parity with WF ClassFE6Form.ReadStartAddress / ReadCount / ReloadListButton / BlockSize) -->
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-          <TextBlock Text="Read Start Address:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" />
-          <TextBlock AutomationProperties.AutomationId="ClassFE6_ReadStartAddress_Label" Name="ReadStartAddressLabel" VerticalAlignment="Center" FontSize="11" />
-          <TextBlock Text="Read Count:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" Margin="12,0,0,0" />
-          <TextBlock AutomationProperties.AutomationId="ClassFE6_ReadCount_Label" Name="ReadCountLabel" VerticalAlignment="Center" FontSize="11" />
-          <TextBlock Text="Size:" VerticalAlignment="Center" FontSize="11" Foreground="Gray" Margin="12,0,0,0" />
-          <TextBlock AutomationProperties.AutomationId="ClassFE6_Size_Label" Name="SizeLabel" VerticalAlignment="Center" FontSize="11" />
-          <Button AutomationProperties.AutomationId="ClassFE6_Reload_Button" Content="Reload" Click="Reload_Click" FontSize="11" Padding="6,2" Margin="12,0,0,0" />
-        </StackPanel>
+        <!-- Address-bar infra row (parity with WF ClassFE6Form.ReadStartAddress / ReadCount / ReloadListButton / BlockSize).
+             #649: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Margin="0,2,0,0"
+                               Name="TopBar"
+                               AutomationProperties.AutomationId="ClassFE6_TopBar"
+                               StartAddressLabel="Read Start Address:"
+                               StartAddressAutomationId="ClassFE6_ReadStartAddress_Label"
+                               ReadCountAutomationId="ClassFE6_ReadCount_Label"
+                               SizeAutomationId="ClassFE6_Size_Label"
+                               ReloadAutomationId="ClassFE6_Reload_Button"
+                               ReloadRequested="OnTopBarReloadRequested" />
 
         <!-- Identity / Misc -->
         <Expander AutomationProperties.AutomationId="ClassFE6_IdentityMisc_Expander" Header="Identity / Misc" IsExpanded="True" Margin="0,4,0,2">

@@ -33,11 +33,16 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         public AutomationIdTests(ITestOutputHelper output) => _output = output;
 
-        // Valid suffixes per the naming convention
+        // Valid suffixes per the naming convention. "_TopBar" is the host id
+        // of the unified EditorTopBar composite (#649) — the control derives
+        // suffixed inner ids from it (e.g. "{base}_StartAddress_Label",
+        // "{base}_Reload_Button") so the host id itself doesn't end in one of
+        // the leaf-control suffixes. It IS a valid id-shape; treat it as such.
         private static readonly string[] ValidSuffixes = new[]
         {
             "_Input", "_Combo", "_Button", "_List", "_Check",
-            "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control", "_Link"
+            "_Expander", "_TabControl", "_Tab", "_Image", "_Label", "_Control", "_Link",
+            "_TopBar",
         };
 
         /// <summary>
