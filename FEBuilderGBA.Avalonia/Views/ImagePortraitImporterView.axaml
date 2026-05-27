@@ -24,10 +24,18 @@
                       Name="PickFileButton" Content="Pick PNG/BMP..." Click="PickFile_Click" />
               <Button AutomationProperties.AutomationId="ImagePortraitImporter_FERepo_Button"
                       Name="FERepoButton" Content="FE-Repo..." Click="FERepo_Click" />
+              <Button AutomationProperties.AutomationId="ImagePortraitImporter_PickFolder_Button"
+                      Name="PickFolderButton" Content="Pick Folder (batch)..." Click="PickFolder_Click" />
               <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_SourceFile_Label"
                          Name="SourceFileLabel" VerticalAlignment="Center"
                          Text="(no file selected)" Foreground="Gray" />
             </StackPanel>
+            <ProgressBar AutomationProperties.AutomationId="ImagePortraitImporter_BatchProgress_Bar"
+                         Name="BatchProgressBar" IsVisible="False"
+                         Minimum="0" Maximum="100" Height="20" />
+            <TextBox AutomationProperties.AutomationId="ImagePortraitImporter_BatchResults_Input"
+                     Name="BatchResultsBox" IsVisible="False" AcceptsReturn="True"
+                     IsReadOnly="True" FontFamily="Consolas, monospace" MaxHeight="200" />
             <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_DropHint_Label"
                        Text="Tip: you can also drag-and-drop a PNG or BMP file onto this window."
                        Foreground="Gray" FontSize="11" />
@@ -77,7 +85,7 @@
         <!-- Notes -->
         <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Notes_Label"
                    TextWrapping="Wrap" Foreground="Gray" FontSize="11"
-                   Text="Notes: this first slice supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Advanced features (eye/mouth block sliders, batch import, custom palette) are tracked under follow-up issues." />
+                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Advanced features (eye/mouth block sliders, custom palette) are tracked under follow-up issues." />
 
       </StackPanel>
     </ScrollViewer>

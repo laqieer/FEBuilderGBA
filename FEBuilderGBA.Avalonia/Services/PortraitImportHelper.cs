@@ -26,6 +26,10 @@
 //                                           the entry address is derived
 //                                           via U.ToHexString(portraitIndex).)
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Services
@@ -36,6 +40,14 @@ namespace FEBuilderGBA.Avalonia.Services
         public static ImportOutcome Ok() => new(true, string.Empty);
         public static ImportOutcome Fail(string error) => new(false, error);
     }
+
+    /// <summary>Aggregate result of a batch folder import (#661).</summary>
+    /// <param name="Imported">Files successfully written to ROM.</param>
+    /// <param name="Failed">Files that parsed a slot ID but failed during load/quantize/write.</param>
+    /// <param name="Skipped">Files skipped because the filename did not encode a slot ID.</param>
+    /// <param name="Total">Total .png + .bmp files enumerated in the folder.</param>
+    /// <param name="Lines">Human-readable per-file outcome lines, in enumeration order.</param>
+    public record FolderImportResult(int Imported, int Failed, int Skipped, int Total, List<string> Lines);
 
     /// <summary>
     /// Shared portrait-slot import helper. Single source of truth for the
@@ -283,6 +295,303 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
             }
             return rgba;
+        }
+
+        /// <summary>
+        /// Parse a portrait slot ID from a filename. Accepts:
+        ///   - Hexadecimal prefix: "0x1F.png", "0x1f_anything.bmp" → 31
+        ///   - Decimal prefix:     "31.png",  "31_anything.bmp"   → 31
+        /// Returns -1 when no recognisable numeric prefix is present.
+        /// </summary>
+        internal static int ParseSlotIdFromFilename(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) return -1;
+            string name = Path.GetFileNameWithoutExtension(fileName);
+            if (string.IsNullOrEmpty(name)) return -1;
+
+            // Hex prefix: 0xNN or 0XNN. Check before decimal so "0x10" doesn't
+            // get matched as the decimal "0".
+            var hexMatch = System.Text.RegularExpressions.Regex.Match(name, @"^0[xX]([0-9A-Fa-f]+)");
+            if (hexMatch.Success && int.TryParse(hexMatch.Groups[1].Value,
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out int hex))
+            {
+                return hex;
+            }
+            // Decimal prefix.
+            var decMatch = System.Text.RegularExpressions.Regex.Match(name, @"^(\d+)");
+            if (decMatch.Success && int.TryParse(decMatch.Groups[1].Value,
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out int dec))
+            {
+                return dec;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Count the entries in the portrait table by walking from
+        /// <c>portrait_pointer</c> until an all-null sentinel sequence is
+        /// hit. Mirrors the scan logic in
+        /// <see cref="ViewModels.ImagePortraitImporterViewModel.LoadList"/> so
+        /// the batch-import slot-bound check rejects exactly the slots the
+        /// wizard's left-side list would consider out of range.
+        ///
+        /// Returns 0 when the ROM / pointer is unusable.
+        /// </summary>
+        internal static int CountPortraitTableEntries(ROM rom)
+        {
+            if (rom?.RomInfo == null) return 0;
+            uint pointer = rom.RomInfo.portrait_pointer;
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (pointer == 0 || dataSize == 0) return 0;
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            int count = 0;
+            int nullCount = 0;
+            // 512 mirrors the soft cap in LoadList. Hard ROMs never approach
+            // it; the sentinel terminates the scan first.
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * dataSize);
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0)
+                {
+                    nullCount++;
+                    if (nullCount > 3) break;
+                }
+                else
+                {
+                    nullCount = 0;
+                }
+                count = i + 1;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Batch-import every .png + .bmp file in <paramref name="folderPath"/>
+        /// into portrait slots derived from the filename prefix.
+        ///
+        /// **Per-file undo isolation** (Copilot CLI PR review blocking #1):
+        /// every file gets its OWN <see cref="UndoService"/> scope via the
+        /// normal (non-external) <see cref="ImportSimple"/> / <see cref="ImportSheet"/>
+        /// code path. That means:
+        ///   - A file that fails mid-write (e.g. D0 written, palette out of free
+        ///     space) rolls back ITS partial ROM bytes — failed files cannot
+        ///     pollute the ROM even when other files in the batch succeed.
+        ///   - Each successful file gets its own undo stack entry, so the user
+        ///     can selectively undo individual portraits afterwards.
+        /// Each file is also pre-validated (load + quantize) before any ROM
+        /// write — bad PNGs are rejected before <see cref="ImportSimple"/> opens
+        /// its scope.
+        ///
+        /// **Sheet routing** (Copilot CLI PR review blocking #2): 128x112
+        /// composite sheets are routed through <see cref="ImportSheet"/> on
+        /// FE7/FE8 ROMs so D4 (mini-face) and D12 (mouth frames) get written
+        /// alongside D0 + D8. FE6 ROMs reject sheet-sized inputs because the
+        /// 16-byte FE6 layout has no mouth-frame pointer at D12 (the FE6 gate
+        /// in <see cref="ImportSheet"/> handles this — the failure is reported
+        /// per file and does not abort the batch).
+        ///
+        /// File-naming convention (issue #661):
+        ///   "0x1F.png" or "31.png" -> slot 31
+        ///   anything else          -> skipped
+        ///
+        /// Caller is responsible for keeping <paramref name="rom"/> alive for
+        /// the duration of the task; ROM reads/writes run on the caller's
+        /// thread (no <c>Task.Run</c>).
+        /// </summary>
+        /// <param name="folderPath">Folder containing .png / .bmp portrait images.</param>
+        /// <param name="progress">Optional per-file progress reporter (filename + outcome line).</param>
+        /// <param name="undo">Undo service used for each per-file scope.</param>
+        /// <param name="rom">Target ROM.</param>
+        public static async Task<FolderImportResult> ImportFolderAsync(
+            string folderPath,
+            IProgress<string> progress,
+            UndoService undo,
+            ROM rom)
+        {
+            var lines = new List<string>();
+            if (rom == null)
+            {
+                lines.Add("ROM not loaded.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+            if (undo == null)
+            {
+                lines.Add("Undo service not initialized.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+            {
+                lines.Add($"Folder not found: {folderPath}");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            // Copilot CLI plan v1 review #2: the target address is
+            // `portrait_pointer` dereferenced (it's a pointer into the
+            // portrait table). Doing slotId * datasize off the raw pointer
+            // field address would land in completely unrelated ROM bytes.
+            uint portraitBase = rom.p32(rom.RomInfo.portrait_pointer);
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (dataSize == 0)
+            {
+                lines.Add("Invalid portrait_datasize.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            // Copilot CLI PR review (round 2) #1: enforce the portrait-table
+            // upper bound. A filename like "0xFFFF.png" would pass the raw
+            // rom.Data.Length bounds check but write outside the portrait
+            // table into unrelated ROM data. Use the same sentinel-terminated
+            // scan as ImagePortraitImporterViewModel.LoadList so the cap
+            // matches what the wizard's left-side list shows the user.
+            int portraitCount = CountPortraitTableEntries(rom);
+            if (portraitCount <= 0)
+            {
+                lines.Add("Portrait table not found or empty.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            // Enumerate .png + .bmp files, sorted alphabetically for
+            // deterministic ordering across platforms (Directory.EnumerateFiles
+            // does NOT guarantee an order).
+            List<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(folderPath)
+                    .Where(f =>
+                    {
+                        string ext = Path.GetExtension(f).ToLowerInvariant();
+                        return ext == ".png" || ext == ".bmp";
+                    })
+                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                lines.Add($"Failed to enumerate folder: {ex.Message}");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            if (files.Count == 0)
+            {
+                lines.Add("No .png or .bmp files found in folder.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            int imported = 0, failed = 0, skipped = 0;
+
+            foreach (string filePath in files)
+            {
+                string fileName = Path.GetFileName(filePath);
+                int slotId = ParseSlotIdFromFilename(fileName);
+                if (slotId < 0)
+                {
+                    skipped++;
+                    string line = $"{fileName} → SKIPPED: no slot ID prefix";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+
+                // Pre-validate: load + quantize BEFORE the helper opens its
+                // undo scope. A bad PNG must not even enter ImportSimple /
+                // ImportSheet (so we never push a no-op rollback entry).
+                ImageImportService.LoadResult loadResult;
+                try
+                {
+                    loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    string line = $"{fileName} → FAILED: load error: {ex.Message}";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+                if (loadResult == null || !loadResult.Success)
+                {
+                    failed++;
+                    string reason = loadResult?.Error ?? "unknown error";
+                    string line = $"{fileName} → FAILED: {reason}";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+
+                // Reject slots beyond the portrait-table cap so a stray
+                // "0xFFFF.png" cannot corrupt unrelated ROM data (Copilot CLI
+                // PR review round 2 #1).
+                if (slotId >= portraitCount)
+                {
+                    failed++;
+                    string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of range "
+                        + $"(portrait table size is 0x{portraitCount:X2})";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+
+                // Defense-in-depth: also check the underlying ROM bounds in
+                // case the table cap was computed against a smaller ROM than
+                // the one we're writing to (should be impossible, but cheap).
+                long addrLong = (long)portraitBase + (long)slotId * dataSize;
+                if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
+                {
+                    failed++;
+                    string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of ROM bounds";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+                uint entryAddr = (uint)addrLong;
+
+                // Per-file undo scope (Copilot PR review #1 fix). Each file
+                // owns its own scope so a mid-write failure rolls back only
+                // ITS partial ROM bytes — successful files in the batch stay
+                // committed. Route 128x112 composite sheets to ImportSheet so
+                // D4 (mini-face) + D12 (mouth frames) get written alongside
+                // D0/D8 (Copilot PR review #2 fix). On FE6 ROMs ImportSheet
+                // self-rejects with a clear error.
+                bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
+                ImportOutcome outcome = isSheet
+                    ? ImportSheet(rom, entryAddr, loadResult, undo,
+                        undoLabel: $"Import Portrait Sheet (Batch slot 0x{slotId:X2})")
+                    : ImportSimple(rom, entryAddr, loadResult, undo,
+                        undoLabel: $"Import Portrait Image (Batch slot 0x{slotId:X2})");
+
+                if (outcome.Success)
+                {
+                    imported++;
+                    // Record the source file so the per-slot Open/Select
+                    // Source buttons light up after a batch import.
+                    RecordSourceFile(slotId, filePath);
+                    string mode = isSheet ? " (sheet)" : "";
+                    string line = $"{fileName} → slot 0x{slotId:X2}{mode} → OK";
+                    lines.Add(line);
+                    progress?.Report(line);
+                }
+                else
+                {
+                    failed++;
+                    string line = $"{fileName} → slot 0x{slotId:X2} → FAILED: {outcome.Error}";
+                    lines.Add(line);
+                    progress?.Report(line);
+                }
+                await Task.Yield();
+            }
+
+            return new FolderImportResult(imported, failed, skipped, files.Count, lines);
         }
 
         /// <summary>
