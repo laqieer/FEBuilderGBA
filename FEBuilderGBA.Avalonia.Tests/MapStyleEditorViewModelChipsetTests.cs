@@ -608,6 +608,58 @@ public class MapStyleEditorViewModelChipsetTests
     }
 
     /// <summary>
+    /// Copilot bot v2 inline review: import must work even when the existing
+    /// CONFIG cache is missing / decompression failed — as long as the
+    /// CONFIG plist id is valid. This is the recovery-from-corruption use
+    /// case: a user with a broken CONFIG block on the ROM should still be
+    /// able to drop a fresh .MAPCHIP_CONFIG file onto the editor.
+    /// </summary>
+    [Fact]
+    public void TryWriteConfigBuffer_SucceedsWithEmptyCacheWhenPlistIdValid()
+    {
+        byte[] configUz = BuildSyntheticConfig();
+        var (rom, entryAddr, _) = MakeFe8uRomWithConfig(configUz);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            var vm = new MapStyleEditorViewModel();
+            vm.LoadEntry(entryAddr);
+            // Drop the cache via ClearCacheAndChipsetState — preserves the
+            // configPlist id but clears _cachedConfigData. Without the
+            // gate relaxation, TryWriteConfigBuffer would refuse here.
+            // Save the plist before clearing because ClearCacheAndChipsetState
+            // zeros _currentConfigPlist too — we just want to simulate the
+            // "decompress failed but plist is valid" scenario.
+            uint savedPlist = vm.CurrentConfigPlist;
+            vm.ClearCacheAndChipsetState();
+            vm.CurrentConfigPlist = savedPlist;
+            // CanEditChipsetConfig is now false (no cache, no address).
+            Assert.False(vm.CanEditChipsetConfig);
+
+            byte[] input = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE + MapEditorTilesetCore.CHIPSET_COUNT];
+            for (int i = 0; i < input.Length; i++) input[i] = (byte)(i & 0xFF);
+
+            var undoData = CoreState.Undo.NewUndoData("recover from corrupt cache");
+            bool ok;
+            using (ROM.BeginUndoScope(undoData))
+                ok = vm.TryWriteConfigBuffer(input, out string err);
+            Assert.True(ok);
+            CoreState.Undo.Push(undoData);
+            // Sanity: post-write the cache + address are now populated so
+            // CanEditChipsetConfig flips back to true.
+            Assert.True(vm.CanEditChipsetConfig);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
     /// When the resolved CONFIG plist is 0 or 0xFF (no usable slot), the
     /// VM must refuse the import without touching ROM.
     /// </summary>

@@ -727,7 +727,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 error = $"Config file too small ({(newConfigData?.Length ?? 0)} bytes); must be at least {MinConfigSize} bytes.";
                 return false;
             }
-            if (!CanEditChipsetConfig)
+            // Copilot bot v2 inline review: validate only the CONFIG plist id,
+            // NOT the full CanEditChipsetConfig predicate. CanEditChipsetConfig
+            // also requires `_cachedConfigData != null` and `ChipsetConfigAddress
+            // != 0`, which would block import-as-recovery when the existing
+            // CONFIG block is corrupt or missing but the plist id itself is
+            // still valid. Import only needs the plist id (and ROM with a
+            // populated map_config_pointer — WritePlistData enforces the
+            // latter).
+            if (_currentConfigPlist == 0 || _currentConfigPlist == 0xFF)
             {
                 error = "Map Style entry does not have a valid CONFIG PLIST.";
                 return false;

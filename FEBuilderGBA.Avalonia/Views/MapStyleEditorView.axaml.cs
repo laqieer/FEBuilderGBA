@@ -1116,6 +1116,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
+                // Copilot bot v2 inline review: split write/commit from
+                // UI-refresh so an exception during post-commit UI work
+                // can't trigger a no-op Rollback on an already-committed
+                // undo group (which would lie to the user about "import
+                // failed" while ROM bytes are already persisted).
                 _undoService.Begin("Import Map Chip Config");
                 try
                 {
@@ -1127,11 +1132,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     _undoService.Commit();
                     _vm.MarkClean();
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Import error: {ex.Message}");
+                    return;
+                }
 
-                    // Refresh the Chipset Tab UI from the new buffer so the
-                    // user sees the imported chipset 0's TSA + terrain. The
-                    // ChipsetConfigAddress label, slot NUDs, terrain combo,
-                    // and preview all need to reflect the new write.
+                // -- Post-commit UI refresh (no rollback path; ROM is
+                // already persisted at this point). Failures here only
+                // affect the visible state, not durability — log + warn
+                // but don't roll back.
+                try
+                {
                     ChipsetConfigAddressLabel.Text = $"0x{_vm.ChipsetConfigAddress:X08}";
                     _vm.IsLoading = true;
                     try
@@ -1151,9 +1166,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 catch (Exception ex)
                 {
-                    _undoService.Rollback();
-                    Log.Error("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
-                    CoreState.Services.ShowError($"Import error: {ex.Message}");
+                    // Import succeeded but UI refresh failed — tell the user
+                    // their data is safe and ask them to reload.
+                    Log.Error("MapStyleEditorView.MapChipImport_Click UI refresh failed: {0}", ex.Message);
+                    CoreState.Services.ShowError(
+                        $"Import succeeded ({data.Length} bytes) but UI refresh failed: {ex.Message}. " +
+                        "Re-select the Map Style entry to refresh the view.");
                 }
             }
             catch (Exception ex)
