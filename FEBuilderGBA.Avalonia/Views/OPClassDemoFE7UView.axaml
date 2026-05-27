@@ -63,7 +63,8 @@
             <TextBlock AutomationProperties.AutomationId="OPClassDemoFE7U_DescTextId_Label"
                        Grid.Row="2" Grid.Column="2" Name="DescTextPreview"
                        Foreground="Gray" FontSize="11" VerticalAlignment="Center" Margin="4,0,0,0"
-                       TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                       TextTrimming="CharacterEllipsis" MaxWidth="220"
+                       ToolTip.Tip="{Binding #DescTextPreview.Text}" />
 
             <TextBlock Grid.Row="3" Grid.Column="0" Text="Japanese Name Pointer:" VerticalAlignment="Center" Margin="0,2" />
             <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE7U_JpNamePtr_Input"

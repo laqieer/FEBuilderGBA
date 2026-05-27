@@ -20,7 +20,8 @@
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_DescTextId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="DescTextIdBox" Minimum="0" Maximum="4294967295" />
           <TextBlock AutomationProperties.AutomationId="OPClassDemoFE8U_DescTextId_Label" Grid.Row="1" Grid.Column="2" Name="DescTextPreview" Foreground="Gray" FontSize="11"
                      VerticalAlignment="Center" Margin="4,0,0,0"
-                     TextTrimming="CharacterEllipsis" MaxWidth="200" />
+                     TextTrimming="CharacterEllipsis" MaxWidth="200"
+                     ToolTip.Tip="{Binding #DescTextPreview.Text}" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Display Weapon:" VerticalAlignment="Center" Margin="0,2" />
           <NumericUpDown AutomationProperties.AutomationId="OPClassDemoFE8U_DisplayWeapon_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="DisplayWeaponBox" Minimum="0" Maximum="255" />
