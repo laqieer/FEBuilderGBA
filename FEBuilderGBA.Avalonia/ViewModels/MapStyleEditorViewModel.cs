@@ -36,6 +36,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // map-setting scan.
         byte[] _cachedConfigData;
         uint _currentConfigPlist;
+        // OBJ Image Import (#710): plist byte for the primary OBJ tileset.
+        // Resolved from the entry index inside the map_obj_pointer table at
+        // LoadEntry time so TryImportObjImage can rewrite the OBJECT PLIST
+        // slot without re-walking the map_setting list. 0 / >= 0xFF mean
+        // "no valid OBJ plist" (mirrors WF's reserved-sentinel semantics
+        // for plist 0 and the no-PLIST marker 0xFF).
+        uint _currentObjPlist;
         int _currentChipsetNo;
         int _currentTerrain;
 
@@ -66,7 +73,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint ObjPointer { get => _objPointer; set => SetField(ref _objPointer, value); }
+        public uint ObjPointer
+        {
+            get => _objPointer;
+            set { if (SetField(ref _objPointer, value)) OnPropertyChanged(nameof(CanImportObj)); }
+        }
         public uint ConfigPointer { get => _configPointer; set => SetField(ref _configPointer, value); }
 
         /// <summary>
@@ -86,7 +97,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public uint PaletteAddress { get => _paletteAddress; set => SetField(ref _paletteAddress, value); }
         public uint ObjAddress { get => _objAddress; set => SetField(ref _objAddress, value); }
-        public uint ObjAddress2 { get => _objAddress2; set => SetField(ref _objAddress2, value); }
+        public uint ObjAddress2
+        {
+            get => _objAddress2;
+            set { if (SetField(ref _objAddress2, value)) OnPropertyChanged(nameof(CanImportObj)); }
+        }
         public uint ChipsetConfigAddress { get => _chipsetConfigAddress; set => SetField(ref _chipsetConfigAddress, value); }
         public int PaletteIndex { get => _paletteIndex; set => SetField(ref _paletteIndex, value); }
         public bool IsFogPalette { get => _isFogPalette; set => SetField(ref _isFogPalette, value); }
@@ -104,6 +119,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             get => _currentConfigPlist;
             set { _currentConfigPlist = value; OnPropertyChanged(nameof(CurrentConfigPlist)); OnPropertyChanged(nameof(CanEditChipsetConfig)); }
+        }
+
+        /// <summary>
+        /// OBJ Image Import (#710): plist byte for the primary OBJ tileset.
+        /// Derived from the position of the loaded entry inside
+        /// <c>map_obj_pointer</c>. <see cref="CanImportObj"/> rejects
+        /// 0 (reserved sentinel) / >= 0xFF (no-PLIST marker).
+        /// </summary>
+        public uint CurrentObjPlist
+        {
+            get => _currentObjPlist;
+            set { _currentObjPlist = value; OnPropertyChanged(nameof(CurrentObjPlist)); OnPropertyChanged(nameof(CanImportObj)); }
         }
 
         /// <summary>
@@ -137,6 +164,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             && _currentConfigPlist != 0
             && _currentConfigPlist != 0xFF
             && _chipsetConfigAddress != 0;
+
+        /// <summary>
+        /// True when the Map Style Editor OBJ Image Import button should
+        /// be enabled (#710 ImageOnly slice):
+        ///   - a ROM is loaded
+        ///   - the entry has a non-zero <see cref="ObjPointer"/> (a tile
+        ///     sheet currently exists at the resolved address)
+        ///   - the resolved OBJ plist is non-zero (sentinel) and below
+        ///     0xFF (no-PLIST marker)
+        ///   - the entry does NOT carry a secondary FE7 obj2 tileset
+        ///     (<see cref="ObjAddress2"/> == 0). The obj2-bearing case
+        ///     requires the dual-tileset split path which is intentionally
+        ///     deferred — TryImportObjImage produces a clear error message
+        ///     when called on such a style so the View can route the
+        ///     user to the follow-up tracking issue.
+        /// </summary>
+        public bool CanImportObj
+        {
+            get
+            {
+                var rom = CoreState.ROM;
+                return rom != null
+                    && _objPointer != 0
+                    && _currentObjPlist > 0
+                    && _currentObjPlist < 0xFF
+                    && _objAddress2 == 0;
+            }
+        }
 
         /// <summary>
         /// Returns a defensive clone of the cached decompressed CONFIG
@@ -343,6 +398,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint objTableBase = rom.p32(rom.RomInfo.map_obj_pointer);
             if (U.isSafetyOffset(objTableBase, rom) && addr >= objTableBase)
                 index = (addr - objTableBase) / 4;
+            // OBJ Image Import (#710): the OBJ PLIST byte == the entry
+            // index inside the map_obj_pointer table. CanImportObj rejects
+            // 0 / 0xFF so the sentinel/no-plist slots can't reach the
+            // write path.
+            _currentObjPlist = index;
 
             byte palettePlist = 0;
             byte configPlist = 0;
@@ -476,6 +536,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 catch { _cachedConfigData = null; }
             }
             OnPropertyChanged(nameof(CanEditChipsetConfig));
+            // OBJ Image Import (#710): notify the View that the import
+            // surface enablement may have changed (ObjPointer / ObjAddress2
+            // / _currentObjPlist all just got updated).
+            OnPropertyChanged(nameof(CanImportObj));
 
             ConfigNo = $"0x{index:X2}";
             IsLoaded = true;
@@ -492,8 +556,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             _cachedConfigData = null;
             _currentConfigPlist = 0;
+            // OBJ Image Import (#710): clear the resolved OBJ PLIST on the
+            // same early-return paths so a previous style's plist can't
+            // leak into a row that fails to load.
+            _currentObjPlist = 0;
             ClearChipsetSlotState();
             OnPropertyChanged(nameof(CanEditChipsetConfig));
+            OnPropertyChanged(nameof(CanImportObj));
         }
 
         /// <summary>
@@ -762,6 +831,187 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _cachedConfigData = (byte[])newConfigData.Clone();
             ChipsetConfigAddress = newAddr;
             return true;
+        }
+
+        /// <summary>
+        /// OBJ Image Import — ImageOnly slice (#710): remap a source
+        /// RGBA image against the currently-loaded OBJ palette (palette
+        /// row 0), pack it into 4bpp tile data, LZ77-compress, and write
+        /// the result to a free-space slot via the OBJECT PLIST table.
+        /// The OBJ palette in ROM is NOT modified — this slice covers
+        /// only the tile-sheet path.
+        ///
+        /// <para>WinForms parity contract: width MUST be exactly 256
+        /// pixels, height MUST be >= 128, and height MUST be a multiple
+        /// of 8. These bounds mirror the WF
+        /// <c>MapStyleEditorForm.ImportObj</c> validation. The remap
+        /// step uses the existing <c>_cachedPaletteBytes</c> palette
+        /// row 0 (32 bytes) so quantization color drift is avoided —
+        /// see Copilot CLI v1 review item 1 on the v2 plan.</para>
+        ///
+        /// <para>FE7 styles that carry a secondary OBJ tileset
+        /// (<see cref="ObjAddress2"/> != 0) are rejected with an
+        /// actionable error: this slice writes a single tile sheet
+        /// only. Tracked separately as a follow-up.</para>
+        ///
+        /// <para>Requires an ambient undo scope (opened by the view via
+        /// <c>UndoService.Begin</c>) so the LZ77 append + p32 write are
+        /// undoable atomically. On success swaps the cached OBJ tile
+        /// data + <see cref="ObjAddress"/> / <see cref="ObjPointer"/>
+        /// to the new offset so the chip preview reflects the new
+        /// import on the next refresh.</para>
+        ///
+        /// <para>Returns false (without ROM mutation past the ambient
+        /// undo scope's rollback range) when any validation fails;
+        /// <paramref name="error"/> carries a short human-readable
+        /// reason.</para>
+        /// </summary>
+        public bool TryImportObjImage(byte[] sourceRgba, int width, int height, out string error)
+        {
+            error = "";
+
+            // WF parity dimension contract (Copilot CLI v1 review item 2).
+            // Width MUST be 256, height MUST be >= 128 and a multiple of 8.
+            if (width != 256)
+            {
+                error = $"OBJ image must be exactly 256 pixels wide (got {width}).";
+                return false;
+            }
+            if (height < 128)
+            {
+                error = $"OBJ image must be at least 128 pixels tall (got {height}).";
+                return false;
+            }
+            if ((height % 8) != 0)
+            {
+                error = $"OBJ image height must be a multiple of 8 (got {height}).";
+                return false;
+            }
+            if (sourceRgba == null || sourceRgba.Length < width * height * 4)
+            {
+                error = "Invalid source pixel data.";
+                return false;
+            }
+
+            // Reject FE7 obj2-bearing styles before any encoding work.
+            // Distinguish "obj2 present" from "no plist resolved" so the
+            // error message guides the user to the tracking issue rather
+            // than the wrong follow-up.
+            if (_objAddress2 != 0)
+            {
+                error = "OBJ image import does not yet support FE7 styles with a secondary obj2 tileset. Tracked separately.";
+                return false;
+            }
+            if (!CanImportObj)
+            {
+                error = "Cannot import OBJ image — no valid OBJ PLIST is selected.";
+                return false;
+            }
+
+            if (_cachedPaletteBytes == null || _cachedPaletteBytes.Length < 32)
+            {
+                error = "OBJ palette is not loaded.";
+                return false;
+            }
+
+            var rom = CoreState.ROM;
+            if (rom == null) { error = "No ROM loaded."; return false; }
+
+            // Remap pixels against existing palette row 0 (32 bytes / 16
+            // colors). Using the loaded palette avoids re-quantization and
+            // preserves the on-disk palette per the ImageOnly slice
+            // contract (Copilot CLI v1 review item 1).
+            byte[] palette32 = new byte[32];
+            System.Array.Copy(_cachedPaletteBytes, 0, palette32, 0, 32);
+            byte[] indexed;
+            try
+            {
+                indexed = ImageImportCore.RemapToExistingPalette(sourceRgba, width, height, palette32, 16);
+            }
+            catch (System.Exception ex)
+            {
+                error = $"Palette remap failed: {ex.Message}";
+                return false;
+            }
+            if (indexed == null)
+            {
+                error = "Palette remap returned no data (image service unavailable?).";
+                return false;
+            }
+
+            byte[] tileData;
+            try
+            {
+                tileData = ImageImportCore.EncodeDirectTiles4bpp(indexed, width, height);
+            }
+            catch (System.Exception ex)
+            {
+                error = $"Tile encoding failed: {ex.Message}";
+                return false;
+            }
+            if (tileData == null || tileData.Length == 0)
+            {
+                error = "Tile encoding produced no data.";
+                return false;
+            }
+
+            byte[] compressed;
+            try
+            {
+                compressed = LZ77.compress(tileData);
+            }
+            catch (System.Exception ex)
+            {
+                error = $"LZ77 compression failed: {ex.Message}";
+                return false;
+            }
+            if (compressed == null || compressed.Length == 0)
+            {
+                error = "LZ77 compression produced empty output.";
+                return false;
+            }
+
+            uint newAddr = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.OBJECT,
+                                                       _currentObjPlist, compressed, out error);
+            if (newAddr == U.NOT_FOUND) return false;
+
+            // Swap in the new cache + address only after the write
+            // succeeded so a failed write leaves preview state untouched.
+            _cachedObjData = tileData;
+            ObjAddress = newAddr;
+            ObjPointer = U.toPointer(newAddr);
+            return true;
+        }
+
+        // -----------------------------------------------------------------
+        // Test seams for #710. These are explicitly internal so unit tests
+        // can stage the in-memory caches that the LoadEntry path normally
+        // populates from ROM — without forcing the test to plant a full
+        // map_setting / map_obj_pointer / map_pal_pointer triple just to
+        // exercise the import write path.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Internal test seam: stage the cached 16-color OBJ palette
+        /// (32 bytes) so <see cref="TryImportObjImage"/> has palette data
+        /// to remap against without a full LoadEntry / LoadPalette call.
+        /// </summary>
+        internal void SetCachedPaletteBytesForTest(byte[] palette)
+        {
+            if (palette == null) { _cachedPaletteBytes = null; return; }
+            _cachedPaletteBytes = (byte[])palette.Clone();
+        }
+
+        /// <summary>
+        /// Internal test seam: stage the resolved OBJ PLIST byte so
+        /// <see cref="CanImportObj"/> reaches its happy-path branch
+        /// without needing a planted map_setting / map_obj_pointer pair.
+        /// </summary>
+        internal void SetCurrentObjPlistForTest(uint plist)
+        {
+            _currentObjPlist = plist;
+            OnPropertyChanged(nameof(CurrentObjPlist));
+            OnPropertyChanged(nameof(CanImportObj));
         }
 
         /// <summary>

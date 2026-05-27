@@ -101,9 +101,9 @@
                       Content="Image Export"
                       Click="ObjExport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_ObjImport_Button"
+                      Name="ObjImportButton"
                       Content="Image Import"
-                      IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #710." />
+                      Click="ObjImport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipExport_Button"
                       Content="Map Chip Save"
                       Click="MapChipExport_Click" />
