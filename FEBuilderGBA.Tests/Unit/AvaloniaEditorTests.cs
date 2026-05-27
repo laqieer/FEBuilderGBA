@@ -2785,22 +2785,140 @@ namespace FEBuilderGBA.Tests.Unit
             return count;
         }
 
+        // Matches a single <TextBlock ... /> element (self-closing), allowing the
+        // attributes to span multiple lines. The PR only adds self-binding
+        // ToolTip.Tip to self-closing TextBlock elements, so this is sufficient.
+        // RegexOptions.Singleline makes "." match newlines.
+        private static readonly System.Text.RegularExpressions.Regex TextBlockElementRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"<TextBlock\b[^>]*?/>",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // Element-name self ref: ToolTip.Tip="{Binding #ElementName.Text}"
+        private static readonly System.Text.RegularExpressions.Regex ToolTipElementSelfBindingRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"ToolTip\.Tip=""\{Binding\s+#(?<el>[A-Za-z_][A-Za-z0-9_]*)\.Text\}""",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // DataContext self ref: ToolTip.Tip="{Binding}"
+        private const string ToolTipDataContextBinding = @"ToolTip.Tip=""{Binding}""";
+
+        // Property self ref: ToolTip.Tip="{Binding PropName}" (must match Text="{Binding PropName}")
+        private static readonly System.Text.RegularExpressions.Regex ToolTipPropertyBindingRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"ToolTip\.Tip=""\{Binding\s+(?<prop>[A-Za-z_][A-Za-z0-9_]*)\}""",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        private static readonly System.Text.RegularExpressions.Regex NameAttrRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"\bName=""(?<name>[A-Za-z_][A-Za-z0-9_]*)""",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        private static readonly System.Text.RegularExpressions.Regex TextPropertyBindingRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"\bText=""\{Binding\s+(?<prop>[A-Za-z_][A-Za-z0-9_]*)\}""",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        /// <summary>
+        /// Returns true iff <paramref name="textBlockXml"/> declares a ToolTip.Tip
+        /// that genuinely SELF-binds to the same source as the visible Text. The
+        /// three accepted patterns are:
+        ///   1. ToolTip.Tip="{Binding #&lt;SelfName&gt;.Text}"         where SelfName matches the
+        ///      element's own Name="..." attribute (element-name self ref).
+        ///   2. ToolTip.Tip="{Binding}"                          DataContext IS the string
+        ///      (only valid when the TextBlock has no Text="{Binding Foo}" attribute,
+        ///      i.e. it inherits its content from the DataContext).
+        ///   3. ToolTip.Tip="{Binding &lt;Prop&gt;}"                  where the same TextBlock's
+        ///      Text="{Binding &lt;Prop&gt;}" binds the SAME property (DataTemplate self ref).
+        /// A binding that targets a DIFFERENT element or a DIFFERENT property is
+        /// REJECTED, because it does not display the truncated content on hover.
+        /// </summary>
+        static bool IsSelfBindingToolTip(string textBlockXml)
+        {
+            // Case 2: literal "{Binding}" — empty path always re-binds to DataContext.
+            if (textBlockXml.Contains(ToolTipDataContextBinding, StringComparison.Ordinal))
+                return true;
+
+            // Case 1: element-name self ref. The element name in the Binding MUST
+            // match the TextBlock's own Name attribute.
+            var elementMatch = ToolTipElementSelfBindingRegex.Match(textBlockXml);
+            if (elementMatch.Success)
+            {
+                var nameMatch = NameAttrRegex.Match(textBlockXml);
+                if (!nameMatch.Success)
+                    return false;
+                return string.Equals(
+                    elementMatch.Groups["el"].Value,
+                    nameMatch.Groups["name"].Value,
+                    StringComparison.Ordinal);
+            }
+
+            // Case 3: property self ref. The property in ToolTip.Tip binding MUST
+            // match the property in Text binding on the same TextBlock.
+            var propMatch = ToolTipPropertyBindingRegex.Match(textBlockXml);
+            if (propMatch.Success)
+            {
+                var textMatch = TextPropertyBindingRegex.Match(textBlockXml);
+                if (!textMatch.Success)
+                    return false;
+                return string.Equals(
+                    propMatch.Groups["prop"].Value,
+                    textMatch.Groups["prop"].Value,
+                    StringComparison.Ordinal);
+            }
+
+            return false;
+        }
+
         static void AssertHasSelfBindingToolTip(string file, string axaml)
         {
-            // Accept any of these self-binding patterns that route the tooltip
-            // text back to the same source as the visible Text:
-            //   - ToolTip.Tip="{Binding #<ElementName>.Text}"   (element-name self ref)
-            //   - ToolTip.Tip="{Binding}"                        (DataContext is the string)
-            //   - ToolTip.Tip="{Binding <SameProperty>}"         (same property as Text="{Binding <SameProperty>}")
-            // The third case is matched loosely (any "{Binding <name>}") since
-            // the caller verifies that the file ALSO uses TextTrimming —
-            // matching a non-self binding would be a code smell anyway.
-            bool hasSelfBinding =
-                axaml.Contains("ToolTip.Tip=\"{Binding #", StringComparison.Ordinal) ||
-                axaml.Contains("ToolTip.Tip=\"{Binding}\"", StringComparison.Ordinal) ||
-                axaml.Contains("ToolTip.Tip=\"{Binding ", StringComparison.Ordinal);
-            Assert.True(hasSelfBinding,
-                $"#650: {file} contains a truncated preview but no self-binding ToolTip.Tip — users cannot read the full text on hover.");
+            // Find every self-closing <TextBlock /> with TextTrimming="CharacterEllipsis"
+            // and verify each one declares a self-binding ToolTip.Tip via one of the
+            // three accepted forms (see IsSelfBindingToolTip). Tightened per Copilot
+            // review on PR #666: the previous check was too permissive — any
+            // {Binding ...} ToolTip would pass, even ones bound to unrelated
+            // sources. The strict form catches future regressions where someone
+            // copies a tooltip from another control and forgets to rewrite the
+            // binding target.
+
+            var trimmedBlocks = 0;
+            var coveredBlocks = 0;
+            var uncoveredSample = string.Empty;
+
+            foreach (System.Text.RegularExpressions.Match m in TextBlockElementRegex.Matches(axaml))
+            {
+                var block = m.Value;
+                if (!block.Contains("TextTrimming=\"CharacterEllipsis\"", StringComparison.Ordinal))
+                    continue;
+                trimmedBlocks++;
+                if (IsSelfBindingToolTip(block))
+                {
+                    coveredBlocks++;
+                }
+                else if (uncoveredSample.Length == 0)
+                {
+                    // Capture the first uncovered block for the failure message.
+                    uncoveredSample = block.Length > 240 ? block.Substring(0, 240) + "..." : block;
+                }
+            }
+
+            // Every trimmed TextBlock must be covered by a self-binding tooltip.
+            Assert.True(trimmedBlocks > 0,
+                $"#650: {file} was scanned for truncated previews but no self-closing TextBlock with TextTrimming=\"CharacterEllipsis\" was found.");
+            Assert.True(coveredBlocks == trimmedBlocks,
+                $"#650: {file} has {trimmedBlocks} truncated TextBlock(s) but only {coveredBlocks} carry a valid self-binding ToolTip.Tip. First uncovered block:\n{uncoveredSample}");
+
+            // Defence-in-depth: the file-wide count of self-binding tooltip
+            // attributes (the three accepted forms) must equal the count of
+            // TextTrimming="CharacterEllipsis" attributes. This is what the
+            // previously-dead CountOccurrences helper is now used to enforce —
+            // it catches stray bindings that the per-block scan would miss
+            // (e.g. ToolTip.Tip placed on a non-TextBlock element by mistake).
+            var trimmingCount = CountOccurrences(axaml, "TextTrimming=\"CharacterEllipsis\"");
+            var bindingCount = CountOccurrences(axaml, "ToolTip.Tip=\"{Binding ")
+                             + CountOccurrences(axaml, ToolTipDataContextBinding);
+            Assert.True(bindingCount == trimmingCount,
+                $"#650: {file} has {trimmingCount} TextTrimming=\"CharacterEllipsis\" attributes but {bindingCount} ToolTip.Tip self-bindings — each truncated preview must have exactly one self-binding tooltip.");
         }
 
         [Theory]
@@ -2844,13 +2962,48 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void MainWindowStatusBar_KeepsEllipsisWithoutSelfBindingToolTip_Issue650()
         {
-            // Sanity check: the status bar TextBlock keeps its ellipsis trimming
-            // and does NOT add a static self-binding tooltip (its tooltip is set
-            // in code-behind based on the current message). The status bar must
-            // remain one-line; wrapping would break the layout.
+            // The status bar TextBlock keeps its ellipsis trimming but its tooltip
+            // is set DYNAMICALLY in code-behind based on the current message — it
+            // must NOT carry a static ToolTip.Tip="{Binding ...}" self-binding in
+            // the AXAML, because that would freeze the tooltip text to whatever
+            // the binding resolves to and silently override the code-behind
+            // updates. The status bar must remain one-line; wrapping would break
+            // the layout. Tightened per Copilot review on PR #666: the previous
+            // version of this test only asserted the StatusText element exists
+            // and has ellipsis trimming — it did NOT verify the exemption (the
+            // "without self-binding ToolTip" claim in the test name).
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "MainWindow.axaml"));
-            Assert.Contains("Name=\"StatusText\"", src);
-            Assert.Contains("TextTrimming=\"CharacterEllipsis\"", src);
+
+            // Locate the StatusText TextBlock element. It is written as a
+            // self-closing tag, so we can use the same regex used elsewhere.
+            System.Text.RegularExpressions.Match? statusBlockMatch = null;
+            foreach (System.Text.RegularExpressions.Match m in TextBlockElementRegex.Matches(src))
+            {
+                if (m.Value.Contains("Name=\"StatusText\"", StringComparison.Ordinal))
+                {
+                    statusBlockMatch = m;
+                    break;
+                }
+            }
+            Assert.True(statusBlockMatch != null,
+                "#650 exemption: MainWindow.axaml must contain a self-closing <TextBlock Name=\"StatusText\" ... /> element.");
+            var statusBlock = statusBlockMatch!.Value;
+
+            // 1. Keeps ellipsis trimming (must stay one-line).
+            Assert.Contains("TextTrimming=\"CharacterEllipsis\"", statusBlock);
+
+            // 2. ACTIVELY does NOT wire a ToolTip.Tip in the AXAML. Any form
+            //    (static text, element self-binding, DataContext binding, or
+            //    property binding) would override the code-behind. The whole
+            //    point of the exemption is that the tooltip is set dynamically.
+            Assert.DoesNotContain("ToolTip.Tip", statusBlock);
+            Assert.DoesNotContain("ToolTip.Tip=\"{Binding}\"", statusBlock);
+
+            // 3. Helper sanity: the strict self-binding check must agree that
+            //    this block is NOT covered (otherwise the exemption would be a
+            //    no-op and the central audit would silently pass).
+            Assert.False(IsSelfBindingToolTip(statusBlock),
+                "#650 exemption: MainWindow status bar must NOT have a self-binding ToolTip in the AXAML (the tooltip is set in code-behind based on the current message).");
         }
 
         [Fact]
