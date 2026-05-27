@@ -12,9 +12,12 @@ using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Avalonia.Headless.XUnit;
+using Avalonia.Input;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.SkiaSharp;
 using Xunit;
 using Xunit.Abstractions;
@@ -428,6 +431,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 "ImagePortraitImporter_Entry_List",
                 "ImagePortraitImporter_PickFile_Button",
+                "ImagePortraitImporter_FERepo_Button",
                 "ImagePortraitImporter_SourceFile_Label",
                 "ImagePortraitImporter_ImageSize_Label",
                 "ImagePortraitImporter_SheetMode_Label",
@@ -441,6 +445,99 @@ namespace FEBuilderGBA.Avalonia.Tests
             foreach (string id in required)
             {
                 Assert.Contains(id, xaml);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // #664: FE-Repo browser + drag-and-drop wiring — static source +
+        // AXAML structure checks. We avoid trying to synthesize Avalonia
+        // DragEventArgs in headless tests (brittle), per Copilot CLI plan
+        // review on issue #664.
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void Wizard_View_HasFERepoButton()
+        {
+            string repoRoot = FindRepoRoot();
+            string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+                "ImagePortraitImporterView.axaml");
+            string xaml = File.ReadAllText(axamlPath);
+
+            // AXAML carries the FE-Repo button declaration.
+            Assert.Contains("ImagePortraitImporter_FERepo_Button", xaml);
+            Assert.Contains("Name=\"FERepoButton\"", xaml);
+            Assert.Contains("Click=\"FERepo_Click\"", xaml);
+
+            // Code-behind has the handler that opens the FERepoResourceBrowserWindow.
+            string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+                "ImagePortraitImporterView.axaml.cs");
+            string source = File.ReadAllText(viewCsPath);
+            Assert.Contains("void FERepo_Click", source);
+            Assert.Contains("new FERepoResourceBrowserWindow()", source);
+            Assert.Contains("ShowDialog<string>(this)", source);
+            // FE-Repo path must funnel through the shared loader, not import
+            // directly — so the user still sees the preview and hits Import.
+            Assert.Matches(new Regex(@"FERepo_Click[\s\S]+?LoadImageFromPath\("), source);
+        }
+
+        [Fact]
+        public void Wizard_View_HasDragAndDropWiring()
+        {
+            string repoRoot = FindRepoRoot();
+            string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+                "ImagePortraitImporterView.axaml.cs");
+            string source = File.ReadAllText(viewCsPath);
+
+            // AllowDrop enabled in the constructor.
+            Assert.Contains("DragDrop.SetAllowDrop(this, true)", source);
+            // Both drag handlers registered.
+            Assert.Contains("AddHandler(DragDrop.DragOverEvent, OnDragOver)", source);
+            Assert.Contains("AddHandler(DragDrop.DropEvent, OnDrop)", source);
+            // OnDrop delegates to the shared loader, not directly to import.
+            Assert.Contains("void OnDrop(", source);
+            Assert.Matches(new Regex(@"OnDrop\([\s\S]+?LoadImageFromPath\("), source);
+        }
+
+        [Fact]
+        public void Wizard_View_SharedLoadImageFromPath_UsedByAllEntryPoints()
+        {
+            // Copilot CLI plan review #2 acceptance: Pick PNG/BMP, FE-Repo,
+            // and drag-drop all funnel through LoadImageFromPath so preview
+            // behavior is identical.
+            string repoRoot = FindRepoRoot();
+            string viewCsPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+                "ImagePortraitImporterView.axaml.cs");
+            string source = File.ReadAllText(viewCsPath);
+
+            // The shared helper exists.
+            Assert.Contains("void LoadImageFromPath(string", source);
+
+            // PickFile_Click delegates to it (no longer inlines the load + preview).
+            Assert.Matches(new Regex(@"PickFile_Click[\s\S]+?LoadImageFromPath\("), source);
+
+            // BuildPreviewImage must be inside LoadImageFromPath (not duplicated
+            // in PickFile_Click), so all entry points share the preview path.
+            // Strip line comments first so the doc-header reference doesn't
+            // count as an extra call site.
+            string codeOnly = Regex.Replace(source, @"//.*", string.Empty);
+            var callMatches = Regex.Matches(codeOnly, @"PortraitImportHelper\.BuildPreviewImage\s*\(");
+            Assert.Single(callMatches);
+        }
+
+        [AvaloniaFact]
+        public void Wizard_View_AllowDropIsTrue_AfterConstruction()
+        {
+            // Construct the view in the Avalonia test app and verify the
+            // drag-drop attached property was set in the constructor.
+            var view = new ImagePortraitImporterView();
+            try
+            {
+                Assert.True(DragDrop.GetAllowDrop(view),
+                    "AllowDrop must be true so the window accepts file drops.");
+            }
+            finally
+            {
+                view.Close();
             }
         }
 
