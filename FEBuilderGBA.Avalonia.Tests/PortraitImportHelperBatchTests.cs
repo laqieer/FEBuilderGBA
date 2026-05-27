@@ -361,6 +361,75 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public async Task ImportFolderAsync_RejectsSlotIdBeyondPortraitTable()
+        {
+            // Copilot CLI PR review (round 2) #1 acceptance: filenames whose
+            // slot ID is past the portrait-table cap must be rejected as
+            // FAILED, not just bounds-checked against rom.Data.Length.
+            //
+            // We pick a slot ID well above any realistic FE8U portrait count
+            // (e.g. 0xFFFF) — that index passes a raw "addr + size <= ROM
+            // length" check on the full FE8U ROM (16 MiB), but would write
+            // outside the portrait table proper. The new table-bound check
+            // must catch it.
+            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
+            {
+                _output.WriteLine($"SKIP: needs FE8U ROM (have {_fixture.Version})");
+                return;
+            }
+
+            using var _ = EnsureImageService();
+            string folder = Path.Combine(Path.GetTempPath(), $"portrait_batch_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(folder);
+            try
+            {
+                // Filename slot ID = 0xFFFF — well past any real portrait
+                // table size, but still inside the ROM byte length.
+                WriteTinyPng(Path.Combine(folder, "0xFFFF.png"), 16, 16);
+
+                var rom = _fixture.ROM;
+                // Sanity check: the portrait table is much smaller than 0xFFFF.
+                int portraitCount = PortraitImportHelper.CountPortraitTableEntries(rom);
+                Assert.True(portraitCount > 0 && portraitCount < 0xFFFF,
+                    $"Test precondition broken — portrait table size is {portraitCount}");
+
+                // Snapshot the bytes at the OUT-OF-RANGE target — must NOT
+                // have changed after the batch (proves the helper bailed
+                // before any ROM write).
+                uint portraitBase = rom.p32(rom.RomInfo.portrait_pointer);
+                uint outOfRangeAddr = portraitBase + (uint)(0xFFFF * rom.RomInfo.portrait_datasize);
+                byte[] before = new byte[rom.RomInfo.portrait_datasize];
+                if (outOfRangeAddr + before.Length <= (uint)rom.Data.Length)
+                    Array.Copy(rom.Data, (int)outOfRangeAddr, before, 0, before.Length);
+
+                var undo = new UndoService();
+                var result = await PortraitImportHelper.ImportFolderAsync(folder, null, undo, rom);
+
+                Assert.Equal(1, result.Total);
+                Assert.Equal(0, result.Imported);
+                Assert.Equal(1, result.Failed);
+                Assert.Equal(0, result.Skipped);
+
+                // Result line names the out-of-range slot.
+                Assert.Contains(result.Lines, l =>
+                    l.Contains("0xFFFF.png") && l.Contains("FAILED") && l.Contains("out of range"));
+
+                // Out-of-range region remains byte-identical (when it's
+                // addressable at all).
+                if (outOfRangeAddr + before.Length <= (uint)rom.Data.Length)
+                {
+                    byte[] after = new byte[rom.RomInfo.portrait_datasize];
+                    Array.Copy(rom.Data, (int)outOfRangeAddr, after, 0, after.Length);
+                    Assert.Equal(before, after);
+                }
+            }
+            finally
+            {
+                try { Directory.Delete(folder, recursive: true); } catch { }
+            }
+        }
+
+        [Fact]
         public async Task ImportFolderAsync_ReportsErrorOnMissingFolder()
         {
             // No ROM / image service needed — this short-circuits on folder

@@ -330,6 +330,48 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Count the entries in the portrait table by walking from
+        /// <c>portrait_pointer</c> until an all-null sentinel sequence is
+        /// hit. Mirrors the scan logic in
+        /// <see cref="ViewModels.ImagePortraitImporterViewModel.LoadList"/> so
+        /// the batch-import slot-bound check rejects exactly the slots the
+        /// wizard's left-side list would consider out of range.
+        ///
+        /// Returns 0 when the ROM / pointer is unusable.
+        /// </summary>
+        internal static int CountPortraitTableEntries(ROM rom)
+        {
+            if (rom?.RomInfo == null) return 0;
+            uint pointer = rom.RomInfo.portrait_pointer;
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (pointer == 0 || dataSize == 0) return 0;
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+
+            int count = 0;
+            int nullCount = 0;
+            // 512 mirrors the soft cap in LoadList. Hard ROMs never approach
+            // it; the sentinel terminates the scan first.
+            for (int i = 0; i < 512; i++)
+            {
+                uint addr = baseAddr + (uint)(i * dataSize);
+                if (addr + dataSize > (uint)rom.Data.Length) break;
+                if (rom.u32(addr) == 0)
+                {
+                    nullCount++;
+                    if (nullCount > 3) break;
+                }
+                else
+                {
+                    nullCount = 0;
+                }
+                count = i + 1;
+            }
+            return count;
+        }
+
+        /// <summary>
         /// Batch-import every .png + .bmp file in <paramref name="folderPath"/>
         /// into portrait slots derived from the filename prefix.
         ///
@@ -398,6 +440,19 @@ namespace FEBuilderGBA.Avalonia.Services
             if (dataSize == 0)
             {
                 lines.Add("Invalid portrait_datasize.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            // Copilot CLI PR review (round 2) #1: enforce the portrait-table
+            // upper bound. A filename like "0xFFFF.png" would pass the raw
+            // rom.Data.Length bounds check but write outside the portrait
+            // table into unrelated ROM data. Use the same sentinel-terminated
+            // scan as ImagePortraitImporterViewModel.LoadList so the cap
+            // matches what the wizard's left-side list shows the user.
+            int portraitCount = CountPortraitTableEntries(rom);
+            if (portraitCount <= 0)
+            {
+                lines.Add("Portrait table not found or empty.");
                 return new FolderImportResult(0, 0, 0, 0, lines);
             }
 
@@ -472,7 +527,23 @@ namespace FEBuilderGBA.Avalonia.Services
                     continue;
                 }
 
-                // Bounds check before computing the entry address.
+                // Reject slots beyond the portrait-table cap so a stray
+                // "0xFFFF.png" cannot corrupt unrelated ROM data (Copilot CLI
+                // PR review round 2 #1).
+                if (slotId >= portraitCount)
+                {
+                    failed++;
+                    string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of range "
+                        + $"(portrait table size is 0x{portraitCount:X2})";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+
+                // Defense-in-depth: also check the underlying ROM bounds in
+                // case the table cap was computed against a smaller ROM than
+                // the one we're writing to (should be impossible, but cheap).
                 long addrLong = (long)portraitBase + (long)slotId * dataSize;
                 if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
                 {

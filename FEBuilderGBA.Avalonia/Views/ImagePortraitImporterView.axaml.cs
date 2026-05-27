@@ -25,7 +25,6 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
-using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -275,17 +274,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     BatchProgressBar.Maximum = Math.Max(1, allFiles.Count);
 
                     int processed = 0;
+                    // Copilot CLI PR review (round 2) #2: do NOT wrap the
+                    // callback body in Dispatcher.UIThread.Post. Progress<T>
+                    // already marshals each call to the captured
+                    // SynchronizationContext (the Avalonia UI thread, since
+                    // this handler runs on it). An inner Post schedules the
+                    // mutation for a LATER pump cycle — that cycle can run
+                    // AFTER the post-loop `BatchResultsBox.Text = ...` final
+                    // overwrite, producing duplicate lines and overshooting
+                    // the progress bar. Direct mutation here is safe and
+                    // ordered.
                     var progress = new Progress<string>(line =>
                     {
-                        // Progress<T> already posts to the captured
-                        // SynchronizationContext, but be explicit for
-                        // headless / non-UI sync contexts.
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            processed++;
-                            BatchProgressBar.Value = processed;
-                            BatchResultsBox.Text += line + "\n";
-                        });
+                        processed++;
+                        BatchProgressBar.Value = processed;
+                        BatchResultsBox.Text += line + "\n";
                     });
 
                     var result = await PortraitImportHelper.ImportFolderAsync(folder, progress, _undoService, rom);
