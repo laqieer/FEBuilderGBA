@@ -272,7 +272,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.Contains("ImagePortraitImporter_PickFolder_Button", xaml);
             Assert.Contains("ImagePortraitImporter_BatchProgress_Bar", xaml);
-            Assert.Contains("ImagePortraitImporter_BatchResults_TextBox", xaml);
+            Assert.Contains("ImagePortraitImporter_BatchResults_Input", xaml);
             Assert.Contains("Click=\"PickFolder_Click\"", xaml);
             // Notes blurb must no longer list "batch import" as a follow-up.
             // It SHOULD mention "Pick Folder (batch)" as a working feature.

@@ -33,7 +33,7 @@
             <ProgressBar AutomationProperties.AutomationId="ImagePortraitImporter_BatchProgress_Bar"
                          Name="BatchProgressBar" IsVisible="False"
                          Minimum="0" Maximum="100" Height="20" />
-            <TextBox AutomationProperties.AutomationId="ImagePortraitImporter_BatchResults_TextBox"
+            <TextBox AutomationProperties.AutomationId="ImagePortraitImporter_BatchResults_Input"
                      Name="BatchResultsBox" IsVisible="False" AcceptsReturn="True"
                      IsReadOnly="True" FontFamily="Consolas, monospace" MaxHeight="200" />
             <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_DropHint_Label"
