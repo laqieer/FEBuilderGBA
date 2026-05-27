@@ -34,6 +34,18 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+
+                // Compute banner / input-enabled state from explicit ROM state so
+                // users see WHY the editor is empty on FE6 or when no ROM is loaded.
+                var rom = CoreState.ROM;
+                bool hasRom = rom?.RomInfo != null;
+                bool supported = hasRom && DifficultyValueCore.IsSupported(rom);
+                NoRomBanner.IsVisible = !hasRom;
+                UnsupportedBanner.IsVisible = hasRom && !supported;
+                HardBoostInput.IsEnabled = supported;
+                NormalPenaltyInput.IsEnabled = supported;
+                EasyPenaltyInput.IsEnabled = supported;
+                WriteButton.IsEnabled = supported;
             }
             catch (Exception ex)
             {

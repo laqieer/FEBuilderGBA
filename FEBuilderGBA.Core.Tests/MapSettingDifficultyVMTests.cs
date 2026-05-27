@@ -126,6 +126,26 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void IsSupported_FalseOnFE6()
+        {
+            // FE6 map setting struct lacks the W20 packed difficulty word
+            // (offsets 0x14-0x15 are BGM IDs on FE6, not difficulty).
+            // DifficultyValueCore.IsSupported must reject FE6 so the editor's
+            // write path is correctly guarded. Regression test for #678.
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "AFEJ01");
+                CoreState.ROM = rom;
+                Assert.Equal(6, rom.RomInfo.version);
+
+                Assert.False(DifficultyValueCore.IsSupported(rom));
+            }
+            finally { CoreState.ROM = origRom; }
+        }
+
+        [Fact]
         public void Batch_Write_NoOpOnFE6()
         {
             var origRom = CoreState.ROM;
