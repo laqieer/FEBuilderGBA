@@ -43,9 +43,11 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.DoesNotContain("Content=\"Indirect Weapon Effect\"", src);
 
             // The fix: short "Jump" content for the JumpToWeaponEffect button.
-            Assert.Matches(
-                @"AutomationId=""ItemEditor_JumpToWeaponEffect_Button""\s*\r?\n\s*Content=""Jump""",
-                src);
+            // Match the <Button ...> element that owns the target AutomationId
+            // and assert it carries Content="Jump" somewhere in its attribute
+            // list — the regex is intentionally order-independent so future
+            // attribute re-orderings don't break the test.
+            AssertButtonHasShortJumpContent(src, "ItemEditor_JumpToWeaponEffect_Button");
 
             // The full descriptive text MUST still be available in the tooltip
             // so the affordance is not lost.
@@ -61,11 +63,45 @@ namespace FEBuilderGBA.Tests.Unit
 
             Assert.DoesNotContain("Content=\"Indirect Weapon Effect\"", src);
 
-            Assert.Matches(
-                @"AutomationId=""ItemFE6_JumpToWeaponEffect_Button""\s*\r?\n\s*Content=""Jump""",
-                src);
+            AssertButtonHasShortJumpContent(src, "ItemFE6_JumpToWeaponEffect_Button");
 
             Assert.Contains("Open the indirect weapon effect table at the row for this item.", src);
+        }
+
+        /// <summary>
+        /// Asserts that the .axaml source contains a single &lt;Button ...&gt;
+        /// element whose attribute list includes both
+        /// <c>AutomationId="{automationId}"</c> and <c>Content="Jump"</c> —
+        /// regardless of the order in which those attributes appear. This
+        /// keeps the regression test resilient to harmless attribute
+        /// re-orderings while still proving the long "Indirect Weapon Effect"
+        /// label was replaced with the short "Jump" label on the right button.
+        /// </summary>
+        private static void AssertButtonHasShortJumpContent(string src, string automationId)
+        {
+            // Capture every <Button ... /> or <Button ...>...</Button> opening
+            // tag (we only need the attributes, which all live before the
+            // first '>' that isn't inside an attribute value). XAML doesn't
+            // allow '>' inside attribute values without escaping, so a
+            // non-greedy match up to the next '>' is safe here.
+            var matches = System.Text.RegularExpressions.Regex.Matches(
+                src,
+                @"<Button\b[^>]*?>",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            foreach (System.Text.RegularExpressions.Match m in matches)
+            {
+                var openTag = m.Value;
+                if (openTag.Contains($"AutomationId=\"{automationId}\"")
+                    && openTag.Contains("Content=\"Jump\""))
+                {
+                    return; // Found the expected button — pass.
+                }
+            }
+
+            Assert.Fail(
+                $"Expected a <Button> element with AutomationId=\"{automationId}\" "
+                + "and Content=\"Jump\" (in any attribute order), but none was found.");
         }
 
         [Fact]
