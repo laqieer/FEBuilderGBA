@@ -2835,9 +2835,21 @@ namespace FEBuilderGBA.Tests.Unit
         /// </summary>
         static bool IsSelfBindingToolTip(string textBlockXml)
         {
-            // Case 2: literal "{Binding}" — empty path always re-binds to DataContext.
+            // Case 2: literal "{Binding}" — empty path re-binds to DataContext.
+            // This is only a self-binding when the TextBlock's VISIBLE Text ALSO
+            // comes directly from DataContext. If the TextBlock declares
+            // Text="{Binding Foo}", the tooltip ({Binding}) would route to the
+            // DataContext root while Text routes to a property — that's NOT a
+            // self ref and must be rejected. Tightened per Copilot bot review
+            // round 2 on PR #666.
             if (textBlockXml.Contains(ToolTipDataContextBinding, StringComparison.Ordinal))
+            {
+                // Reject if Text binds to a specific property on the DataContext
+                // (Text="{Binding PropName}") — tooltip and text would diverge.
+                if (TextPropertyBindingRegex.IsMatch(textBlockXml))
+                    return false;
                 return true;
+            }
 
             // Case 1: element-name self ref. The element name in the Binding MUST
             // match the TextBlock's own Name attribute.
@@ -2884,6 +2896,8 @@ namespace FEBuilderGBA.Tests.Unit
             var trimmedBlocks = 0;
             var coveredBlocks = 0;
             var uncoveredSample = string.Empty;
+            var trimmedBlockToolTipBindings = 0;
+            var trimmedBlockTrimmingAttrs = 0;
 
             foreach (System.Text.RegularExpressions.Match m in TextBlockElementRegex.Matches(axaml))
             {
@@ -2891,6 +2905,15 @@ namespace FEBuilderGBA.Tests.Unit
                 if (!block.Contains("TextTrimming=\"CharacterEllipsis\"", StringComparison.Ordinal))
                     continue;
                 trimmedBlocks++;
+                // CountOccurrences is used here (instead of a per-element bool)
+                // because a malformed block could in theory contain duplicate
+                // attributes; counting inside each trimmed block keeps the audit
+                // scoped to elements that actually need a tooltip, avoiding the
+                // brittle file-wide count that would clash with unrelated bound
+                // tooltips elsewhere in the file (Copilot bot review round 2).
+                trimmedBlockTrimmingAttrs += CountOccurrences(block, "TextTrimming=\"CharacterEllipsis\"");
+                trimmedBlockToolTipBindings += CountOccurrences(block, "ToolTip.Tip=\"{Binding ")
+                                            + CountOccurrences(block, ToolTipDataContextBinding);
                 if (IsSelfBindingToolTip(block))
                 {
                     coveredBlocks++;
@@ -2908,17 +2931,19 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(coveredBlocks == trimmedBlocks,
                 $"#650: {file} has {trimmedBlocks} truncated TextBlock(s) but only {coveredBlocks} carry a valid self-binding ToolTip.Tip. First uncovered block:\n{uncoveredSample}");
 
-            // Defence-in-depth: the file-wide count of self-binding tooltip
-            // attributes (the three accepted forms) must equal the count of
-            // TextTrimming="CharacterEllipsis" attributes. This is what the
-            // previously-dead CountOccurrences helper is now used to enforce —
-            // it catches stray bindings that the per-block scan would miss
-            // (e.g. ToolTip.Tip placed on a non-TextBlock element by mistake).
-            var trimmingCount = CountOccurrences(axaml, "TextTrimming=\"CharacterEllipsis\"");
-            var bindingCount = CountOccurrences(axaml, "ToolTip.Tip=\"{Binding ")
-                             + CountOccurrences(axaml, ToolTipDataContextBinding);
-            Assert.True(bindingCount == trimmingCount,
-                $"#650: {file} has {trimmingCount} TextTrimming=\"CharacterEllipsis\" attributes but {bindingCount} ToolTip.Tip self-bindings — each truncated preview must have exactly one self-binding tooltip.");
+            // Defence-in-depth (scoped to trimmed blocks only): the count of
+            // ToolTip.Tip="{Binding ...}" attributes WITHIN trimmed TextBlocks
+            // must equal the count of TextTrimming="CharacterEllipsis" attributes
+            // WITHIN those same blocks. This catches duplicates or whitespace-
+            // formatting issues that the per-block IsSelfBindingToolTip helper
+            // might silently accept (e.g. two ToolTip.Tip attributes on one
+            // element, only the second of which self-binds). It does NOT clash
+            // with unrelated bound tooltips elsewhere in the file (e.g. a Button
+            // ToolTip bound to a VM property) because the scan only enters
+            // TextBlocks that carry the trimming attribute. CountOccurrences is
+            // the helper that makes this scoped tally possible.
+            Assert.True(trimmedBlockToolTipBindings == trimmedBlockTrimmingAttrs,
+                $"#650: {file} has {trimmedBlockTrimmingAttrs} TextTrimming=\"CharacterEllipsis\" attribute(s) inside trimmed TextBlocks but {trimmedBlockToolTipBindings} ToolTip.Tip binding(s) — each truncated preview must have exactly one self-binding tooltip on its own element.");
         }
 
         [Theory]
