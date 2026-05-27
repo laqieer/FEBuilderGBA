@@ -82,6 +82,42 @@
           </StackPanel>
         </Border>
 
+        <!-- Step 2b: Detail — eye/mouth block coords (#663 Slice A) -->
+        <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
+          <Expander AutomationProperties.AutomationId="ImagePortraitImporter_Detail_Expander"
+                    Name="DetailExpander"
+                    Header="2b. Detail — eye/mouth block coords (FE7/FE8 only)"
+                    IsExpanded="False">
+            <StackPanel Spacing="6" Margin="8">
+              <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Detail_Fe6Notice_Label"
+                         Name="DetailFe6Notice" IsVisible="False"
+                         Text="Not available on FE6 portraits."
+                         Foreground="DarkOrange" />
+              <Grid ColumnDefinitions="160,120,160,120" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Mouth Block X (B20):" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_MouthBlockX_Input"
+                               Name="MouthBlockXInput" Minimum="0" Maximum="255" FormatString="0" Value="0" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Mouth Block Y (B21):" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <NumericUpDown Grid.Row="0" Grid.Column="3"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_MouthBlockY_Input"
+                               Name="MouthBlockYInput" Minimum="0" Maximum="255" FormatString="0" Value="0" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Eye Block X (B22):" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_EyeBlockX_Input"
+                               Name="EyeBlockXInput" Minimum="0" Maximum="255" FormatString="0" Value="0" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="Eye Block Y (B23):" VerticalAlignment="Center" Margin="8,0,0,0" />
+                <NumericUpDown Grid.Row="1" Grid.Column="3"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_EyeBlockY_Input"
+                               Name="EyeBlockYInput" Minimum="0" Maximum="255" FormatString="0" Value="0" />
+              </Grid>
+              <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Detail_Help_Label"
+                         TextWrapping="Wrap" Foreground="Gray" FontSize="11"
+                         Text="These bytes mark the block coordinates inside the sprite sheet that the engine uses for mouth + eye animation. Values are pre-populated from the selected slot; tweak them to match a re-arranged sheet, then Import to persist." />
+            </StackPanel>
+          </Expander>
+        </Border>
+
         <!-- Step 3: Target slot -->
         <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
           <StackPanel Spacing="6">
@@ -112,7 +148,7 @@
         <!-- Notes -->
         <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Notes_Label"
                    TextWrapping="Wrap" Foreground="Gray" FontSize="11"
-                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. Advanced features (eye/mouth block sliders) are tracked under follow-up issues." />
+                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663). Deferred to follow-up #707: per-frame live preview pane (eye crop, mouth crop, full face) and eye/mouth crop position/size NumericUpDowns + WF status label strings." />
 
       </StackPanel>
     </ScrollViewer>

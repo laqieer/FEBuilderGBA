@@ -18,8 +18,12 @@
 //   - Auto-quantize (default), Share with target slot, Custom palette file...
 //   - Fuchidori (black outline) checkbox orthogonal to palette mode.
 //
+// Eye/mouth block coords (#663 Slice A) — implemented via the Detail
+// expander: 4 NumericUpDowns (MouthBlockX/Y, EyeBlockX/Y) that map to
+// portrait entry bytes B20-B23 on FE7/FE8 ROMs. FE6 hides the inputs.
+//
 // Out of scope (tracked under follow-ups):
-//   - Eye/mouth block configuration + per-frame preview (#663)
+//   - Per-frame live preview pane + crop position/size + status label (#707)
 using System;
 using System.IO;
 using System.Linq;
@@ -99,6 +103,45 @@ namespace FEBuilderGBA.Avalonia.Views
             AddrLabel.Text = _vm.CurrentAddr == 0
                 ? "(no slot selected)"
                 : string.Format("0x{0:X08}", _vm.CurrentAddr);
+
+            // #663 Slice A: pre-populate the 4 Detail NumericUpDowns from the
+            // selected slot's current B20-B23 bytes. On FE6 the bytes are
+            // unrelated (16-byte entry layout), so we disable the expander and
+            // surface a notice instead of reading bogus values.
+            UpdateDetailPanel();
+        }
+
+        // #663 Slice A: refresh the Detail expander's enabled state + 4
+        // NumericUpDowns to match the currently selected slot. Called from
+        // UpdateUI (on slot selection) and once at Opened time so the panel
+        // reflects whatever slot the wizard auto-selects on first show.
+        void UpdateDetailPanel()
+        {
+            ROM rom = CoreState.ROM;
+            uint addr = _vm.CurrentAddr;
+            bool isFe7Or8 = rom != null && PortraitImportHelper.IsFe7Or8EntryLayout(rom);
+
+            if (DetailFe6Notice != null)
+                DetailFe6Notice.IsVisible = rom != null && !isFe7Or8;
+
+            // Disable the NUDs when there's no slot selected or the ROM is
+            // FE6 — values are meaningless / dangerous in either case.
+            bool enableNuds = isFe7Or8 && addr != 0;
+            if (MouthBlockXInput != null) MouthBlockXInput.IsEnabled = enableNuds;
+            if (MouthBlockYInput != null) MouthBlockYInput.IsEnabled = enableNuds;
+            if (EyeBlockXInput   != null) EyeBlockXInput.IsEnabled   = enableNuds;
+            if (EyeBlockYInput   != null) EyeBlockYInput.IsEnabled   = enableNuds;
+
+            if (!enableNuds) return;
+
+            // Safe bounds check: 28-byte FE7/FE8 entries, addr+23 must fit
+            // inside ROM.Data.
+            if ((long)addr + 24 > rom.Data.Length) return;
+
+            if (MouthBlockXInput != null) MouthBlockXInput.Value = rom.u8(addr + 20);
+            if (MouthBlockYInput != null) MouthBlockYInput.Value = rom.u8(addr + 21);
+            if (EyeBlockXInput   != null) EyeBlockXInput.Value   = rom.u8(addr + 22);
+            if (EyeBlockYInput   != null) EyeBlockYInput.Value   = rom.u8(addr + 23);
         }
 
         // #664: drag-over handler — accept the drag if any file has a
@@ -360,6 +403,20 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
+                // #663 Slice A: capture the 4 Detail block-coord values to pass
+                // through to the helper. Only send non-null values when the ROM
+                // is FE7/FE8 (the helper itself also skips FE6, but gating here
+                // keeps Slice A's intent self-documenting at the call site).
+                byte? mouthBlockX = null, mouthBlockY = null;
+                byte? eyeBlockX = null, eyeBlockY = null;
+                if (PortraitImportHelper.IsFe7Or8EntryLayout(rom))
+                {
+                    mouthBlockX = (byte)(MouthBlockXInput?.Value ?? 0);
+                    mouthBlockY = (byte)(MouthBlockYInput?.Value ?? 0);
+                    eyeBlockX   = (byte)(EyeBlockXInput?.Value   ?? 0);
+                    eyeBlockY   = (byte)(EyeBlockYInput?.Value   ?? 0);
+                }
+
                 // Single source of truth: PortraitImportHelper. Same path used
                 // by ImagePortraitView (drag-drop + Import PNG button).
                 ImportOutcome outcome;
@@ -367,13 +424,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     outcome = PortraitImportHelper.ImportSheet(rom, addr, loadResult, _undoService,
                         mode, _customPaletteBytes, FuchidoriEnabled,
-                        "Import Portrait Sheet (Wizard)");
+                        "Import Portrait Sheet (Wizard)",
+                        mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
                 }
                 else
                 {
                     outcome = PortraitImportHelper.ImportSimple(rom, addr, loadResult, _undoService,
                         mode, _customPaletteBytes, FuchidoriEnabled,
-                        "Import Portrait Image (Wizard)");
+                        "Import Portrait Image (Wizard)",
+                        mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
                 }
 
                 if (!outcome.Success)
