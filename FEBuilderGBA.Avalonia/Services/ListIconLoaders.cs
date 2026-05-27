@@ -112,22 +112,21 @@ namespace FEBuilderGBA.Avalonia.Services
         /// portrait shown matches the unit name printed in the row, fixing #652/#653.
         /// </summary>
         /// <remarks>
-        /// #654: removed the loader's own <c>unitId == 0</c> guard so every
-        /// row gets exercised consistently. Note that
-        /// <see cref="PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId"/>
-        /// still treats <c>unitId == 0</c> as the "no unit" sentinel and
-        /// returns 0 — that is a real semantic (unit table is 1-indexed in
-        /// every supported ROM; there is no "unit 0"), not a row-index
-        /// artifact. We additionally bail on <c>portraitId == 0</c> AFTER
-        /// resolution because that means the resolved unit has no
-        /// portrait_id set in ROM. The end effect for the first row of a
-        /// unit-id-prefixed list is still null, but the call path is now
-        /// uniform with the other text-prefix loaders.
-        /// #675: switched to <c>ResolveUnitPortraitIdByOneBasedId</c> so the
-        /// 1-based hex prefix produced by <c>U.atoh(items[index].name)</c>
+        /// #652/#653: switched to <c>ResolveUnitPortraitIdByOneBasedId</c> so
+        /// the 1-based hex prefix produced by <c>U.atoh(items[index].name)</c>
         /// (matching WinForms <c>DrawUnitAndText</c>) is decremented before
-        /// indexing the unit table, fixing the wrong-portrait off-by-one
-        /// for #652/#653.
+        /// indexing the unit table, fixing the off-by-one wrong-portrait bug
+        /// in Support Unit / Support Talk lists. The 1-based-id helper still
+        /// treats <c>unitId == 0</c> as the "no unit" sentinel and returns 0 —
+        /// that is a real semantic (the unit table is 1-indexed in every
+        /// supported ROM; there is no "unit 0"), not a row-index artifact, so
+        /// we additionally bail on <c>portraitId == 0</c> AFTER resolution
+        /// when the resolved unit has no portrait_id set in ROM.
+        ///
+        /// #654: removed the loader's own <c>unitId == 0</c> guard so every
+        /// row gets exercised consistently with the other text-prefix loaders
+        /// in this file (the post-resolution <c>portraitId == 0</c> check is
+        /// the only short-circuit now).
         /// </remarks>
         public static Bitmap? UnitPortraitByIdLoader(List<AddrResult> items, int index)
         {

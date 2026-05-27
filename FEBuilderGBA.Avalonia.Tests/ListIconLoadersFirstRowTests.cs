@@ -10,16 +10,15 @@ using Xunit.Abstractions;
 namespace FEBuilderGBA.Avalonia.Tests
 {
     /// <summary>
-    /// Issue #654 regression tests: every list-prefix icon loader must
-    /// attempt the icon lookup for the first row (whose prefix parses to
-    /// ID 0). Previously the loaders short-circuited on <c>id == 0</c>,
-    /// causing the first row of every class/item/portrait list view to
-    /// render with a missing icon (and the icon column to collapse,
-    /// shifting text left).
+    /// Issue #654 first-row icon resolution regression tests with true
+    /// differential coverage: every list-prefix icon loader must attempt the
+    /// icon lookup for the first row (whose prefix parses to ID 0).
+    /// Previously the loaders short-circuited on <c>id == 0</c>, causing
+    /// the first row of every class/item/portrait list view to render with
+    /// a missing icon (and the icon column to collapse, shifting text left).
     ///
-    /// We assert behaviour at three layers (Copilot review on PR #673
-    /// required true differential coverage — pre- vs post-fix outcomes
-    /// MUST differ in at least one scenario):
+    /// The tests assert behaviour at three layers so that reintroducing
+    /// the guard fails in at least one place:
     ///
     /// 1. <b>Source scan</b> — assert the production source files no
     ///    longer contain <c>if (xxxId == 0) return null;</c> guard lines

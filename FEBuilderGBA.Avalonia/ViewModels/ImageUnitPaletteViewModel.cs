@@ -49,15 +49,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint[] BChannel => _b;
 
         /// <summary>
-        /// Load the list of unit-palette rows. Matches WinForms
+        /// Load the list of unit-palette rows from the currently-active ROM
+        /// (<see cref="CoreState.ROM"/>). Matches WinForms
         /// <c>ImageUnitPaletteForm.Init()</c> row-acceptance: a row is accepted
         /// when its P12 slot holds a valid GBA pointer, OR P12 is zero AND the
         /// 12-byte name is non-empty (i.e. <c>rom.u32(addr+0) != 0</c>). Both
         /// P12 and name being zero is the terminator.
         /// </summary>
-        public List<AddrResult> LoadList()
+        public List<AddrResult> LoadList() => LoadList(CoreState.ROM);
+
+        /// <summary>
+        /// Test-friendly overload that scans <paramref name="rom"/> directly
+        /// instead of reading <see cref="CoreState.ROM"/>. Allows synthetic-ROM
+        /// parity tests to remain deterministic when xUnit collections run in
+        /// parallel and another test may transiently mutate
+        /// <see cref="CoreState.ROM"/> between the test's set and read points.
+        /// </summary>
+        public List<AddrResult> LoadList(ROM? rom)
         {
-            ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
             uint pointer = rom.RomInfo.image_unit_palette_pointer;

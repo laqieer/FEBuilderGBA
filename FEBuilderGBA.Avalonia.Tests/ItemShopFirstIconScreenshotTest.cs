@@ -17,8 +17,14 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// <summary>
     /// Issue #654: render the Avalonia <see cref="ItemShopViewerView"/> with a
     /// loaded shop to a PNG file that proves the first slot's icon is now
-    /// visible. The screenshot is saved to <c>pr-screenshots/</c> and attached
-    /// to the PR description.
+    /// visible. By default the PNG is written to a per-test temp directory
+    /// (so normal/CI runs do NOT dirty the repo's tracked
+    /// <c>pr-screenshots/</c>); set the <c>FEBUILDERGBA_SCREENSHOT_DIR</c>
+    /// environment variable to override the output directory — pointing it
+    /// at the repo's <c>pr-screenshots/</c> is how the canonical PR
+    /// screenshot is regenerated locally before being attached to the PR
+    /// description. See <see cref="ResolveScreenshotOutputDir"/> for the
+    /// resolution rules.
     ///
     /// This is a headless render — does NOT require a visible desktop, so it
     /// works on locked machines and in CI. Mirrors the pattern used by
