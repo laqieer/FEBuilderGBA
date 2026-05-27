@@ -73,13 +73,22 @@
                          Name="TilesetTypeLabel" VerticalAlignment="Center" />
             </Grid>
 
-            <!-- Map chip thumbnail placeholder (KnownGap — image-decode WF-only) -->
+            <!-- Map Chip Preview (#670). Renders the LZ77-decompressed OBJ
+                 tile sheet using the currently-selected palette index +
+                 fog offset. GbaImageControl has its own internal
+                 ScrollViewer so we deliberately do NOT wrap it in another
+                 one. The fixed 256x128 outer Border + ClipToBounds clips
+                 the oversize sheet to the thumbnail area. A hidden
+                 TextBlock preserves the legacy AutomationId expected by
+                 parity tests. -->
             <Border BorderBrush="DarkGray" BorderThickness="1" Width="256" Height="128"
-                    HorizontalAlignment="Left">
-              <TextBlock AutomationProperties.AutomationId="MapStyleEditor_MapChipPreview_Label"
-                         Text="Map Chip Preview"
-                         HorizontalAlignment="Center" VerticalAlignment="Center"
-                         Foreground="Gray" />
+                    HorizontalAlignment="Left" ClipToBounds="True">
+              <Panel>
+                <controls:GbaImageControl AutomationProperties.AutomationId="MapStyleEditor_MapChipPreview_Image"
+                                          Name="MapChipPreviewImage" />
+                <TextBlock AutomationProperties.AutomationId="MapStyleEditor_MapChipPreview_Label"
+                           Text="Map Chip Preview" IsVisible="False" />
+              </Panel>
             </Border>
 
             <!-- Object / Map Chip / Undo / Redo / Write button strip -->

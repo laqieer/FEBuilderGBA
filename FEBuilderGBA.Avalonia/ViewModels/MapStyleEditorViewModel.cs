@@ -19,6 +19,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isFogPalette;
         string _configNo = "";
 
+        // Chip-preview render caches (#670). Populated at the end of LoadEntry,
+        // cleared at the start of every load (and on every early-return path).
+        // _cachedObjData = LZ77-decompressed primary OBJ tileset.
+        // _cachedPaletteBytes = full 16-palette block (16 * 16 colors * 2 bytes
+        // = 512 bytes) read from PaletteBaseAddress.
+        byte[] _cachedObjData;
+        byte[] _cachedPaletteBytes;
+
         // 16 RGB rows × 3 channels — flat backing store keeps the helper
         // surface (`GetColorR/G/B`, `SetColorR/G/B`) compact and avoids
         // a `Color` struct dependency that some Avalonia themes ban.
@@ -203,6 +211,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void LoadEntry(uint addr)
         {
+            // Always clear the chip-preview caches first, including on the
+            // early-return paths below — otherwise a stale preview can leak
+            // from a previous selection into a row that fails to load.
+            _cachedObjData = null;
+            _cachedPaletteBytes = null;
+
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             if (addr + 4 > (uint)rom.Data.Length) return;
@@ -283,8 +297,73 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Safe-no-op when PaletteBaseAddress is 0 or out-of-bounds.
             LoadPalette(PaletteBaseAddress, PaletteIndex, IsFogPalette);
 
+            // Cache the LZ77-decompressed OBJ tile data for the chip preview
+            // (#670). FE7 obj2 secondary tileset is NOT handled — tracked as a
+            // follow-up; primary tileset only here.
+            if (ObjPointer != 0 && U.isSafetyOffset(U.toOffset(ObjPointer), rom))
+            {
+                try
+                {
+                    var objUz = LZ77.decompress(rom.Data, U.toOffset(ObjPointer));
+                    if (objUz != null && objUz.Length > 0)
+                        _cachedObjData = objUz;
+                }
+                catch { _cachedObjData = null; }
+            }
+
+            // Cache full 16-palette block (512 bytes) starting at PaletteBaseAddress.
+            RefreshCachedPaletteBytes();
+
             ConfigNo = $"0x{index:X2}";
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Re-read the full 16-palette block (16 palettes × 16 colors × 2 bytes
+        /// = 512 bytes) from <see cref="PaletteBaseAddress"/> into the local
+        /// cache used by the chip preview (#670). Called from <see cref="LoadEntry"/>
+        /// and from the view after a successful PaletteWrite so the preview
+        /// reflects edits.
+        /// </summary>
+        public void RefreshCachedPaletteBytes()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) { _cachedPaletteBytes = null; return; }
+            if (PaletteBaseAddress == 0) { _cachedPaletteBytes = null; return; }
+            int needed = 16 * 16 * 2;
+            if ((ulong)PaletteBaseAddress + (ulong)needed > (ulong)rom.Data.Length)
+            {
+                _cachedPaletteBytes = null;
+                return;
+            }
+            _cachedPaletteBytes = rom.getBinaryData(PaletteBaseAddress, (uint)needed);
+        }
+
+        /// <summary>
+        /// Render the cached OBJ tile sheet using the currently-selected palette
+        /// (with the fog offset applied) into an RGBA8888 buffer. Returns false
+        /// if either cache is missing or the underlying render fails.
+        /// </summary>
+        public bool TryRenderObjTileSheet(out byte[] rgba, out int width, out int height)
+        {
+            rgba = null;
+            width = 0;
+            height = 0;
+            if (_cachedObjData == null || _cachedPaletteBytes == null) return false;
+
+            // Effective palette index applies the fog offset like WF's CalcPatelleIndex().
+            int effectiveIndex = PaletteIndex + (IsFogPalette ? 5 : 0);
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(
+                _cachedObjData, _cachedPaletteBytes, effectiveIndex,
+                columns: 32, out width, out height);
+            if (result == null || width == 0 || height == 0)
+            {
+                width = 0;
+                height = 0;
+                return false;
+            }
+            rgba = result;
+            return true;
         }
 
         /// <summary>

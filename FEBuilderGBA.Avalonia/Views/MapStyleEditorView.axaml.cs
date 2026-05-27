@@ -104,11 +104,32 @@ namespace FEBuilderGBA.Avalonia.Views
                     MapStyleCombo.SelectedIndex = idx;
                 _vm.IsLoading = false;
                 _vm.MarkClean();
+                RefreshChipPreview();
             }
             catch (Exception ex)
             {
                 _vm.IsLoading = false;
                 Log.Error("MapStyleEditorView.OnSelected failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Repaint the Map Chip Preview thumbnail (#670). Pulls the cached
+        /// OBJ tile sheet + palette block from the VM and applies the
+        /// currently-selected palette index (with fog offset). Clears to
+        /// a 1x1 transparent pixel when no preview is available so a
+        /// stale image cannot leak from a previous entry.
+        /// </summary>
+        void RefreshChipPreview()
+        {
+            if (MapChipPreviewImage == null) return;
+            if (_vm.TryRenderObjTileSheet(out var rgba, out var w, out var h))
+            {
+                MapChipPreviewImage.SetRgbaData(rgba, w, h);
+            }
+            else
+            {
+                MapChipPreviewImage.SetRgbaData(new byte[4], 1, 1);
             }
         }
 
@@ -155,6 +176,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
             finally { _vm.IsLoading = false; }
+            // Repaint the chip preview after the palette index/fog flag
+            // changes so the thumbnail reflects the new selection.
+            RefreshChipPreview();
         }
 
         void ClearPaletteUI()
@@ -260,6 +284,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 _undoService.Commit();
                 _vm.MarkClean();
+                // Refresh the cached palette block so the chip preview
+                // immediately reflects the just-written values (#670).
+                _vm.RefreshCachedPaletteBytes();
+                RefreshChipPreview();
                 CoreState.Services.ShowInfo("Palette written.");
             }
             catch (Exception ex)

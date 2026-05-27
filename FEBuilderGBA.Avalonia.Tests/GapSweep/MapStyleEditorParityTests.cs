@@ -779,6 +779,29 @@ public class MapStyleEditorParityTests
     // -----------------------------------------------------------------
 
     /// <summary>
+    /// Map Chip Preview thumbnail (#670) must be a real GbaImageControl,
+    /// not the pre-#670 placeholder TextBlock. The control name
+    /// `MapChipPreviewImage` is referenced from the code-behind
+    /// `RefreshChipPreview()` helper, and the new AutomationId
+    /// `MapStyleEditor_MapChipPreview_Image` is what tests / harnesses
+    /// should target going forward.
+    /// </summary>
+    [Fact]
+    public void View_MapChipPreview_IsGbaImageControl_NotPlaceholder()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("Name=\"MapChipPreviewImage\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MapStyleEditor_MapChipPreview_Image\"",
+            axaml);
+        // The legacy MapStyleEditor_MapChipPreview_Label AutomationId is
+        // retained on a hidden TextBlock so older parity scans don't drop.
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MapStyleEditor_MapChipPreview_Label\"",
+            axaml);
+    }
+
+    /// <summary>
     /// The pre-#391 view exposed five AutomationIds that existing harnesses
     /// rely on. The rebuild must preserve them all (test pins this).
     /// </summary>
