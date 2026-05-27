@@ -9759,8 +9759,8 @@ FE-Repo...
 :4. Write to ROM
 4. ROM に書き込み
 
-:Notes: this first slice supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Advanced features (eye/mouth block sliders, batch import, custom palette, FE-Repo browser) are tracked under follow-up issues.
-備考: この最初のスライスはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。高度な機能（目・口ブロックスライダー、バッチインポート、カスタムパレット、FE-Repo ブラウザ）は follow-up issue で追跡しています。
+:Notes: this first slice supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Advanced features (eye/mouth block sliders, batch import, custom palette) are tracked under follow-up issues.
+備考: この最初のスライスはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。高度な機能（目・口ブロックスライダー、バッチインポート、カスタムパレット）は follow-up issue で追跡しています。
 
 :Pick PNG/BMP...
 PNG / BMP を選択...
