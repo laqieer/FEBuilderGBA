@@ -246,48 +246,87 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // calling the PLIST writer. Surface "(none)" until Core
             // extracts that writer (KnownGap #374). ObjAddress2 stays 0.
 
-            // Also load config pointer from the parallel config table
-            uint configTablePointer = rom.RomInfo.map_config_pointer;
-            uint configTableBase = 0;
+            // Resolve the obj_plist ID from the addr position inside the
+            // map_obj_pointer table. The user-facing palette_plist and
+            // config_plist for THIS obj_plist do NOT live in parallel
+            // tables under the same index — they are recorded as separate
+            // u8 fields on every map_setting entry (palette_plist at +6,
+            // config_plist at +7). To resolve them, find a map_setting
+            // entry whose obj_plist low byte equals our index, then look
+            // up the palette/config PLISTs in their respective pointer
+            // tables. (Copilot CLI v1 PR review — without this lookup the
+            // palette/config addresses share the obj index and the chip
+            // preview renders OBJ bytes as palette data.)
             uint index = 0;
-            if (configTablePointer != 0)
+            uint objTableBase = rom.p32(rom.RomInfo.map_obj_pointer);
+            if (U.isSafetyOffset(objTableBase, rom) && addr >= objTableBase)
+                index = (addr - objTableBase) / 4;
+
+            byte palettePlist = 0;
+            byte configPlist = 0;
+            byte obj2Plist = 0;
+            bool resolvedFromMapSetting = false;
+            foreach (var map in MapSettingCore.MakeMapIDList(rom))
             {
-                uint objTableBase = rom.p32(rom.RomInfo.map_obj_pointer);
-                if (U.isSafetyOffset(objTableBase, rom) && addr >= objTableBase)
+                if (map.addr + 8 > (uint)rom.Data.Length) continue;
+                ushort objPlistWord = (ushort)rom.u16(map.addr + 4);
+                if ((uint)(objPlistWord & 0xFF) != index) continue;
+                palettePlist = (byte)rom.u8(map.addr + 6);
+                configPlist = (byte)rom.u8(map.addr + 7);
+                obj2Plist = (byte)((objPlistWord >> 8) & 0xFF);
+                resolvedFromMapSetting = true;
+                break;
+            }
+
+            // Config pointer via PlistToOffsetAddr (configTableBase + configPlist*4).
+            if (resolvedFromMapSetting && rom.RomInfo.map_config_pointer != 0)
+            {
+                uint configTableBase = rom.p32(rom.RomInfo.map_config_pointer);
+                if (U.isSafetyOffset(configTableBase, rom))
                 {
-                    index = (addr - objTableBase) / 4;
-                    configTableBase = rom.p32(configTablePointer);
-                    if (U.isSafetyOffset(configTableBase, rom))
+                    uint configEntryAddr = configTableBase + (uint)configPlist * 4;
+                    if (configEntryAddr + 4 <= (uint)rom.Data.Length)
                     {
-                        uint configEntryAddr = configTableBase + index * 4;
-                        if (configEntryAddr + 4 <= (uint)rom.Data.Length)
-                        {
-                            ConfigPointer = rom.u32(configEntryAddr);
+                        ConfigPointer = rom.u32(configEntryAddr);
+                        if (ConfigPointer != 0 && U.isPointer(ConfigPointer))
                             ChipsetConfigAddress = U.toOffset(ConfigPointer);
-                        }
                     }
                 }
             }
 
-            // Resolve palette pointer from the parallel palette table.
-            // The dereferenced pointer is the BASE of the 5+5 palette
-            // block — stored in PaletteBaseAddress (NOT PaletteAddress)
+            // Palette base address via PlistToOffsetAddr
+            // (palTableBase + palettePlist*4). Stored in PaletteBaseAddress
             // so subsequent PaletteCombo/PaletteTypeCombo changes can
-            // re-index from this stable origin (Copilot bot v2 inline
-            // review). PaletteAddress holds the slice address per
-            // LoadPalette's contract.
-            uint palettePointer = rom.RomInfo.map_pal_pointer;
-            if (palettePointer != 0)
+            // re-index from this stable origin.
+            if (resolvedFromMapSetting && rom.RomInfo.map_pal_pointer != 0)
             {
-                uint paletteTableBase = rom.p32(palettePointer);
+                uint paletteTableBase = rom.p32(rom.RomInfo.map_pal_pointer);
                 if (U.isSafetyOffset(paletteTableBase, rom))
                 {
-                    uint paletteEntryAddr = paletteTableBase + index * 4;
+                    uint paletteEntryAddr = paletteTableBase + (uint)palettePlist * 4;
                     if (paletteEntryAddr + 4 <= (uint)rom.Data.Length)
                     {
                         uint palPtr = rom.u32(paletteEntryAddr);
                         if (palPtr != 0 && U.isPointer(palPtr))
                             PaletteBaseAddress = U.toOffset(palPtr);
+                    }
+                }
+            }
+
+            // FE7 obj_plist high byte = secondary OBJ tileset. Surface its
+            // resolved address only; the actual tileset append into the
+            // preview cache is tracked separately in #689.
+            if (obj2Plist > 0 && rom.RomInfo.map_obj_pointer != 0)
+            {
+                uint objTableBase2 = rom.p32(rom.RomInfo.map_obj_pointer);
+                if (U.isSafetyOffset(objTableBase2, rom))
+                {
+                    uint obj2EntryAddr = objTableBase2 + (uint)obj2Plist * 4;
+                    if (obj2EntryAddr + 4 <= (uint)rom.Data.Length)
+                    {
+                        uint obj2Ptr = rom.u32(obj2EntryAddr);
+                        if (obj2Ptr != 0 && U.isPointer(obj2Ptr))
+                            ObjAddress2 = U.toOffset(obj2Ptr);
                     }
                 }
             }
