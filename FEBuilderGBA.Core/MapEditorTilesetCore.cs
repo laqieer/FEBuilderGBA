@@ -76,6 +76,32 @@ namespace FEBuilderGBA
             GetTerrainDataFromMar(ChipsetIndexToMar(chipsetIndex), configUZ);
 
         /// <summary>
+        /// Write the terrain byte for a chipset (user-facing index 0..1023) into
+        /// the decompressed chipset-config buffer in place. Mirrors the algebraic
+        /// reduction of WF <c>MapStyleEditorForm</c>'s terrain-write block: the
+        /// MAR-based even/odd byte path simplifies to a single byte at
+        /// <c>CHIPSET_SEP_BYTE + chipsetIndex</c> when a user-facing index is
+        /// already in hand.
+        ///
+        /// <para>Returns <c>false</c> without mutating <paramref name="configUZ"/>
+        /// when <paramref name="chipsetIndex"/> falls outside the semantic
+        /// chipset range [0, <see cref="CHIPSET_COUNT"/>) OR the buffer is too
+        /// small to hold the target byte (<c>CHIPSET_SEP_BYTE + chipsetIndex
+        /// &gt;= configUZ.Length</c>). The double bound deliberately rejects
+        /// indices like <c>1024</c> that would land in the buffer's terrain
+        /// region without first failing the semantic check.</para>
+        /// </summary>
+        public static bool SetTerrainForChipset(int chipsetIndex, byte terrain, byte[] configUZ)
+        {
+            if (configUZ == null) return false;
+            if (chipsetIndex < 0 || chipsetIndex >= CHIPSET_COUNT) return false;
+            int offset = CHIPSET_SEP_BYTE + chipsetIndex;
+            if (offset >= configUZ.Length) return false;
+            configUZ[offset] = terrain;
+            return true;
+        }
+
+        /// <summary>
         /// Compute the byte offset into the decompressed map data array for a given
         /// (tileX, tileY) coordinate. Map data format is:
         ///   byte 0 = width, byte 1 = height, then u16 MAR values row-major.

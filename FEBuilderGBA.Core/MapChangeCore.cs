@@ -19,13 +19,14 @@ namespace FEBuilderGBA
     {
         /// <summary>
         /// Core-local equivalent of <c>MapPointerForm.PLIST_TYPE</c>.
-        /// Only the values needed by this helper are surfaced; the
-        /// WinForms enum has additional types (CONFIG, ANIMATION, etc.)
+        /// Only the values needed by Core helpers are surfaced; the
+        /// WinForms enum has additional types (ANIMATION, OBJECT, etc.)
         /// that are not yet exposed to Core.
         /// </summary>
         public enum PlistType
         {
             CHANGE,
+            CONFIG,
         }
 
         /// <summary>
@@ -119,11 +120,7 @@ namespace FEBuilderGBA
             uint limit = GetPlistLimit(rom);
             if (limit == 0 || plist >= limit) return U.NOT_FOUND;
 
-            uint basePointer = type switch
-            {
-                PlistType.CHANGE => rom.RomInfo.map_mapchange_pointer,
-                _ => 0u,
-            };
+            uint basePointer = GetPlistBasePointer(rom, type);
             if (basePointer == 0) return U.NOT_FOUND;
 
             uint baseAddr = rom.p32(basePointer);
@@ -139,6 +136,100 @@ namespace FEBuilderGBA
 
             outPointer = entryAddr;
             return target;
+        }
+
+        /// <summary>
+        /// Return the RomInfo pointer base for the given PLIST type.
+        /// 0 when the version-specific pointer is not defined.
+        /// </summary>
+        static uint GetPlistBasePointer(ROM rom, PlistType type)
+        {
+            if (rom?.RomInfo == null) return 0u;
+            return type switch
+            {
+                PlistType.CHANGE => rom.RomInfo.map_mapchange_pointer,
+                PlistType.CONFIG => rom.RomInfo.map_config_pointer,
+                _ => 0u,
+            };
+        }
+
+        /// <summary>
+        /// Resolve the ROM offset of the per-PLIST slot inside the pointer
+        /// table for <paramref name="type"/> (i.e. the dword that holds the
+        /// table's pointer for entry <paramref name="plist"/>). Unlike
+        /// <see cref="PlistToOffsetAddr"/>, this accepts entries whose
+        /// dereferenced target is currently zero/null — it only needs the
+        /// slot address itself so callers can <c>write_p32</c> a new target
+        /// after appending the data to free space.
+        ///
+        /// <para>Mirrors the slot-resolution path of WF
+        /// <c>MapPointerForm.Write_Plsit</c>: the per-version PLIST limit
+        /// gates the entry index, the resolved slot must sit within the
+        /// pointer table, and PLIST 0 is reserved (returning
+        /// <see cref="U.NOT_FOUND"/>) — but the dereferenced target value
+        /// itself is NOT inspected.</para>
+        ///
+        /// <para>Returns <see cref="U.NOT_FOUND"/> when <paramref name="type"/>
+        /// has no defined base pointer, <paramref name="plist"/> is 0 or
+        /// past the version-specific limit, the base pointer is unsafe, or
+        /// the slot would land past the end of the ROM.</para>
+        /// </summary>
+        public static uint ResolvePlistSlotAddr(ROM rom, PlistType type, uint plist)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+
+            // WF Write_Plsit rejects plist == 0 explicitly (it would
+            // overwrite the reserved sentinel slot).
+            if (plist == 0u) return U.NOT_FOUND;
+
+            uint limit = GetPlistLimit(rom);
+            if (limit == 0 || plist >= limit) return U.NOT_FOUND;
+
+            uint basePointer = GetPlistBasePointer(rom, type);
+            if (basePointer == 0) return U.NOT_FOUND;
+
+            uint baseAddr = rom.p32(basePointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            uint slotAddr = baseAddr + plist * 4u;
+            if (slotAddr + 4u > (uint)rom.Data.Length) return U.NOT_FOUND;
+            return slotAddr;
+        }
+
+        /// <summary>
+        /// Append <paramref name="compressed"/> bytes to ROM free space
+        /// (via <see cref="ImageImportCore.FindAndWriteData"/>) and update
+        /// the PLIST entry at (<paramref name="type"/>, <paramref name="plist"/>)
+        /// to point at the new data. Mirrors WF
+        /// <c>MapStyleEditorForm.WriteMapConfig</c> +
+        /// <c>MapPointerForm.Write_Plsit(CONFIG, ...)</c>.
+        ///
+        /// <para>All writes are recorded into the ambient undo scope opened
+        /// by <see cref="ROM.BeginUndoScope"/> (callers must open one before
+        /// invoking this helper). On any failure the partial writes are
+        /// captured by the ambient scope, so the caller's rollback path
+        /// restores ROM state to the pre-call snapshot.</para>
+        ///
+        /// <para>Returns the new ROM offset of the appended data on success,
+        /// or <see cref="U.NOT_FOUND"/> on any failure (invalid arguments,
+        /// out-of-range PLIST, free-space exhaustion). <paramref name="error"/>
+        /// carries a short human-readable reason for the failure.</para>
+        /// </summary>
+        public static uint WritePlistData(ROM rom, PlistType type, uint plist, byte[] compressed, out string error)
+        {
+            error = "";
+            if (rom == null || rom.RomInfo == null) { error = "no ROM"; return U.NOT_FOUND; }
+            if (compressed == null || compressed.Length == 0) { error = "empty data"; return U.NOT_FOUND; }
+
+            uint slotAddr = ResolvePlistSlotAddr(rom, type, plist);
+            if (slotAddr == U.NOT_FOUND) { error = $"invalid PLIST slot ({type}, {plist})"; return U.NOT_FOUND; }
+
+            uint newAddr = ImageImportCore.FindAndWriteData(rom, compressed);
+            if (newAddr == U.NOT_FOUND) { error = "free space exhausted"; return U.NOT_FOUND; }
+
+            // write_p32 records the 4-byte slot write into ambient undo.
+            rom.write_p32(slotAddr, newAddr);
+            return newAddr;
         }
 
         /// <summary>

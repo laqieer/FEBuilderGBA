@@ -356,5 +356,60 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0, w);
             Assert.Equal(0, h);
         }
+
+        // --------- SetTerrainForChipset (#671) ---------------------------------
+
+        /// <summary>
+        /// Round-trip: writing terrain via SetTerrainForChipset must be
+        /// readable by <see cref="MapEditorTilesetCore.GetTerrainDataFromChipset"/>
+        /// for the same chipset index. Verifies the byte-offset reduction
+        /// (CHIPSET_SEP_BYTE + chipsetIndex) matches WF's MAR-based read.
+        /// </summary>
+        [Theory]
+        [InlineData(0, 0x7F)]
+        [InlineData(1, 0x42)]
+        [InlineData(2, 0x21)]
+        [InlineData(7, 0x80)]
+        [InlineData(8, 0xAA)]
+        [InlineData(1023, 0xFF)]
+        public void SetTerrainForChipset_RoundTripsThroughGetTerrain(int chipsetIndex, byte terrain)
+        {
+            byte[] buf = new byte[0x2400];
+            Assert.True(MapEditorTilesetCore.SetTerrainForChipset(chipsetIndex, terrain, buf));
+            Assert.Equal((uint)terrain, MapEditorTilesetCore.GetTerrainDataFromChipset(chipsetIndex, buf));
+            // Confirm the actual byte offset matches the algebraic reduction.
+            Assert.Equal(terrain, buf[MapEditorTilesetCore.CHIPSET_SEP_BYTE + chipsetIndex]);
+        }
+
+        /// <summary>
+        /// Semantic bound: chipset index must be in [0, CHIPSET_COUNT).
+        /// 1024 (one past the end) lands inside the terrain region by raw
+        /// byte arithmetic if the buffer is long enough, so a buffer-only
+        /// bound would silently accept it. Confirm we reject it.
+        /// </summary>
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(1024)]
+        [InlineData(2048)]
+        public void SetTerrainForChipset_RejectsOutOfRangeIndex(int chipsetIndex)
+        {
+            byte[] buf = new byte[0x4000]; // big enough that raw byte math could "succeed"
+            byte original = buf[MapEditorTilesetCore.CHIPSET_SEP_BYTE + Math.Max(0, chipsetIndex)];
+            Assert.False(MapEditorTilesetCore.SetTerrainForChipset(chipsetIndex, 0x55, buf));
+            // The buffer must NOT have been mutated.
+            if (chipsetIndex >= 0)
+                Assert.Equal(original, buf[MapEditorTilesetCore.CHIPSET_SEP_BYTE + chipsetIndex]);
+        }
+
+        /// <summary>
+        /// Buffer-size bound: even an in-range index must be rejected when
+        /// the buffer is too small to hold the terrain byte at that offset.
+        /// </summary>
+        [Fact]
+        public void SetTerrainForChipset_RejectsTooSmallBuffer()
+        {
+            byte[] buf = new byte[MapEditorTilesetCore.CHIPSET_SEP_BYTE]; // no room for terrain[0]
+            Assert.False(MapEditorTilesetCore.SetTerrainForChipset(0, 0x55, buf));
+        }
     }
 }

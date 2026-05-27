@@ -104,23 +104,39 @@ namespace FEBuilderGBA
         // ---------- Map Terrain Names (FE6/7/8 multibyte terrain labels) ----------
 
         /// <summary>
-        /// List terrain-name pointer entries from `map_terrain_name_pointer`.
-        /// Mirrors WF `MapTerrainNameForm.MakeList()` (multibyte path). Each
-        /// entry is 4 bytes; iteration stops at the first entry whose +0 field
-        /// is neither a valid pointer nor NULL.
+        /// List terrain-name entries from <c>map_terrain_name_pointer</c>.
+        /// Mirrors both the multibyte WF <c>MapTerrainNameForm.MakeList()</c>
+        /// path (4-byte pointer entries, stop on non-pointer / non-NULL)
+        /// and the English fallback WF <c>MapTerrainNameEngForm.MakeList()</c>
+        /// path (2-byte text-id entries, stop only when the text-id is 0).
+        ///
+        /// <para>The 2-byte stop condition mirrors WF exactly: only a u16
+        /// value of <c>0x0000</c> terminates iteration. <c>0xFFFF</c> is NOT
+        /// a terminator — it is a valid text-id and stays in the list (the
+        /// WF form would render it as "FFFF (text)" for that entry).</para>
         /// </summary>
         public static List<AddrResult> MakeMapTerrainNameList(ROM rom)
         {
             var result = new List<AddrResult>();
             if (rom?.RomInfo == null) return result;
-            if (!rom.RomInfo.is_multibyte) return result;
 
             uint baseAddr = rom.p32(rom.RomInfo.map_terrain_name_pointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return result;
 
-            const uint blockSize = 4;
-            AppendBlockList(rom, baseAddr, blockSize, result,
-                (i, addr) => U.isPointerOrNULL(rom.u32(addr)));
+            if (rom.RomInfo.is_multibyte)
+            {
+                const uint blockSize = 4;
+                AppendBlockList(rom, baseAddr, blockSize, result,
+                    (i, addr) => U.isPointerOrNULL(rom.u32(addr)));
+            }
+            else
+            {
+                // English path — 2-byte text-id entries. WF
+                // MapTerrainNameEngForm.Init() stops only on u16 == 0.
+                const uint blockSize = 2;
+                AppendBlockList(rom, baseAddr, blockSize, result,
+                    (i, addr) => rom.u16(addr) != 0);
+            }
             return result;
         }
 

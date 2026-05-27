@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Shapes;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
 using FEBuilderGBA.Avalonia.Services;
@@ -34,7 +35,51 @@ namespace FEBuilderGBA.Avalonia.Views
             // The handler is no-op when _vm.IsLoading is true so programmatic
             // population (LoadEntry / ReloadPalette) does not feed itself.
             WireColorBoxes();
+            // Chipset tab wiring (#671).
+            WireChipsetControls();
+            // Alt+T / Alt+C / Alt+V hotkeys mirror WF MapStyleEditorForm_KeyDown.
+            KeyDown += OnChipsetHotKey;
         }
+
+        /// <summary>
+        /// Wire ValueChanged handlers on the 20 slot NumericUpDowns, the
+        /// ChipsetNoInput, and the terrain combo so user edits flow into
+        /// the VM. The handlers are no-ops while <c>_vm.IsLoading</c> is
+        /// true so programmatic population (LoadEntry / ReadSlotsFromVM /
+        /// PopulateTerrainCombo) does not feed itself.
+        /// </summary>
+        void WireChipsetControls()
+        {
+            if (ChipsetNoInput != null)
+                ChipsetNoInput.ValueChanged += (_, _) => OnChipsetNoChanged();
+            if (ConfigTerrainCombo != null)
+                ConfigTerrainCombo.SelectionChanged += (_, _) => OnTerrainChanged();
+
+            int[] suffixes = { 0, 2, 4, 6 };
+            foreach (int s in suffixes)
+            {
+                int suffix = s;
+                int logical = SuffixToLogicalIndex(suffix);
+                var xBox = this.FindControl<NumericUpDown>($"Slot{suffix}_XBox");
+                var yBox = this.FindControl<NumericUpDown>($"Slot{suffix}_YBox");
+                var palBox = this.FindControl<NumericUpDown>($"Slot{suffix}_PALETTEBox");
+                var flipBox = this.FindControl<NumericUpDown>($"Slot{suffix}_FLIPBox");
+                var wBox = this.FindControl<NumericUpDown>($"Slot{suffix}_WBox");
+                if (xBox != null) xBox.ValueChanged += (_, _) => OnSlotSplitChanged(logical, suffix);
+                if (yBox != null) yBox.ValueChanged += (_, _) => OnSlotSplitChanged(logical, suffix);
+                if (palBox != null) palBox.ValueChanged += (_, _) => OnSlotSplitChanged(logical, suffix);
+                if (flipBox != null) flipBox.ValueChanged += (_, _) => OnSlotSplitChanged(logical, suffix);
+                if (wBox != null) wBox.ValueChanged += (_, _) => OnSlotRawWChanged(logical, suffix);
+            }
+        }
+
+        /// <summary>
+        /// Map an AXAML control suffix (0/2/4/6 — WF historical byte offset
+        /// into the 8-byte TSA record) to the VM's logical sub-tile index
+        /// (0..3). Used by every chipset handler so VM methods always receive
+        /// 0..3, never raw byte offsets (v5 plan #3 — slot mapping).
+        /// </summary>
+        static int SuffixToLogicalIndex(int suffix) => suffix / 2;
 
         void WireColorBoxes()
         {
@@ -96,6 +141,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsLoading = true;
                 _vm.LoadEntry(addr);
                 UpdateUI();
+
+                // Deterministic Chipset Tab initial load (v7 #1): explicitly
+                // load chipset 0 regardless of whether the NUD value changed.
+                // Without this, selecting a new style with ChipsetNoInput
+                // already at 0 leaves slot fields/terrain stale or blank.
+                _vm.CurrentChipsetNo = 0;
+                bool chipsetLoaded = _vm.CanEditChipsetConfig && _vm.TryLoadChipsetTSA(0);
+                if (ChipsetNoInput != null)
+                    ChipsetNoInput.Value = chipsetLoaded ? 0m : (decimal?)null;
+                PopulateTerrainCombo();
+                if (chipsetLoaded) ReadSlotsFromVM();
+                else ClearChipsetUI();
+                SetChipsetEditingEnabled(chipsetLoaded);
+
                 // Sync the top-bar MapStyleCombo to the same entry without
                 // recursing — block the SelectionChanged handler while we
                 // assign by toggling _vm.IsLoading.
@@ -211,6 +270,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Tab 3 -- Chipset.
             ChipsetConfigAddressLabel.Text = $"0x{_vm.ChipsetConfigAddress:X08}";
+            // Hidden TextBlock retains the legacy MapStyleEditor_ConfigNo_Label
+            // AutomationId for parity scans; the visible NUD ChipsetNoInput
+            // is the user-facing editor (set via OnSelected -> TryLoadChipsetTSA).
             ConfigNoLabel.Text = _vm.ConfigNo;
 
             // Tab 2 -- Palette (populated by LoadEntry's LoadPalette call).
@@ -317,6 +379,278 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             ushort v = (ushort)(v5 & 0x1F);
             return (byte)((v << 3) | (v >> 2));
+        }
+
+        // -----------------------------------------------------------------
+        // Chipset Tab handlers (#671).
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Populate the terrain combo from the cached <see cref="TextSourceListCore.MakeMapTerrainNameList"/>
+        /// entries. Handles both the multibyte path and the FE7U/FE8U
+        /// 2-byte text-id path (extended in WU3). Selects the currently-loaded
+        /// terrain byte; clamps to 0 if the list is shorter than the byte.
+        /// </summary>
+        void PopulateTerrainCombo()
+        {
+            if (ConfigTerrainCombo == null) return;
+
+            var rom = CoreState.ROM;
+            var items = new List<string>();
+            if (rom != null)
+            {
+                var entries = TextSourceListCore.MakeMapTerrainNameList(rom);
+                for (int i = 0; i < entries.Count; i++)
+                    items.Add($"0x{i:X2} {entries[i].name}");
+            }
+            if (items.Count == 0)
+            {
+                // Empty fallback so the combo isn't unselectable; users
+                // can still type terrain values via the NUD path or paste.
+                for (int i = 0; i < 256; i++) items.Add($"0x{i:X2}");
+            }
+            ConfigTerrainCombo.ItemsSource = items;
+
+            int t = _vm.CurrentTerrain;
+            if (t < 0 || t >= items.Count) t = 0;
+            ConfigTerrainCombo.SelectedIndex = t;
+        }
+
+        /// <summary>
+        /// Push slot W values + terrain selection from the VM into the
+        /// AXAML controls. Called after every successful
+        /// <see cref="MapStyleEditorViewModel.TryLoadChipsetTSA"/> (programmatic
+        /// load — handlers are suppressed by <c>_vm.IsLoading</c>).
+        /// </summary>
+        void ReadSlotsFromVM()
+        {
+            int[] suffixes = { 0, 2, 4, 6 };
+            foreach (int s in suffixes)
+            {
+                int logical = SuffixToLogicalIndex(s);
+                ushort w = _vm.GetSlotW(s);
+                var (x, y, p, f) = MapStyleEditorViewModel.DecodeTsaWord(w);
+                SetNudValue($"Slot{s}_XBox", x);
+                SetNudValue($"Slot{s}_YBox", y);
+                SetNudValue($"Slot{s}_PALETTEBox", p);
+                SetNudValue($"Slot{s}_FLIPBox", f);
+                SetNudValue($"Slot{s}_WBox", w);
+            }
+            if (ConfigTerrainCombo != null && ConfigTerrainCombo.ItemsSource is IEnumerable<string> items)
+            {
+                int t = _vm.CurrentTerrain;
+                int count = 0;
+                foreach (var _ in items) count++;
+                ConfigTerrainCombo.SelectedIndex = (t >= 0 && t < count) ? t : 0;
+            }
+        }
+
+        /// <summary>
+        /// Wipe the slot/terrain UI when no valid chipset is loaded. Hidden
+        /// behind <c>_vm.IsLoading</c> so the handlers don't push the zeros
+        /// straight back into the VM.
+        /// </summary>
+        void ClearChipsetUI()
+        {
+            int[] suffixes = { 0, 2, 4, 6 };
+            foreach (int s in suffixes)
+            {
+                SetNudValue($"Slot{s}_XBox", 0);
+                SetNudValue($"Slot{s}_YBox", 0);
+                SetNudValue($"Slot{s}_PALETTEBox", 0);
+                SetNudValue($"Slot{s}_FLIPBox", 0);
+                SetNudValue($"Slot{s}_WBox", 0);
+            }
+            if (ConfigTerrainCombo != null) ConfigTerrainCombo.SelectedIndex = -1;
+        }
+
+        /// <summary>
+        /// Enable/disable the entire Chipset Tab edit surface (20 slot NUDs +
+        /// terrain combo + 4 buttons). The Chipset No NumericUpDown stays
+        /// enabled so the user can change selection even when the current
+        /// chipset failed to load.
+        /// </summary>
+        void SetChipsetEditingEnabled(bool enabled)
+        {
+            int[] suffixes = { 0, 2, 4, 6 };
+            foreach (int s in suffixes)
+            {
+                SetCtrlEnabled($"Slot{s}_XBox", enabled);
+                SetCtrlEnabled($"Slot{s}_YBox", enabled);
+                SetCtrlEnabled($"Slot{s}_PALETTEBox", enabled);
+                SetCtrlEnabled($"Slot{s}_FLIPBox", enabled);
+                SetCtrlEnabled($"Slot{s}_WBox", enabled);
+            }
+            if (ConfigTerrainCombo != null) ConfigTerrainCombo.IsEnabled = enabled;
+            if (CopyTileButton != null) CopyTileButton.IsEnabled = enabled;
+            if (CopyTypeButton != null) CopyTypeButton.IsEnabled = enabled;
+            if (PasteButton != null) PasteButton.IsEnabled = enabled;
+            if (ConfigWriteButton != null) ConfigWriteButton.IsEnabled = enabled;
+        }
+
+        void SetNudValue(string name, int value)
+        {
+            var box = this.FindControl<NumericUpDown>(name);
+            if (box != null) box.Value = value;
+        }
+
+        void SetCtrlEnabled(string name, bool enabled)
+        {
+            var ctrl = this.FindControl<Control>(name);
+            if (ctrl != null) ctrl.IsEnabled = enabled;
+        }
+
+        void OnChipsetNoChanged()
+        {
+            if (_vm.IsLoading) return;
+            if (ChipsetNoInput == null) return;
+            int newNo = (int)(ChipsetNoInput.Value ?? 0m);
+            try
+            {
+                _vm.IsLoading = true;
+                bool ok = _vm.TryLoadChipsetTSA(newNo);
+                if (ok) ReadSlotsFromVM();
+                else ClearChipsetUI();
+                SetChipsetEditingEnabled(_vm.CanEditChipsetConfig && ok);
+            }
+            finally { _vm.IsLoading = false; }
+        }
+
+        void OnTerrainChanged()
+        {
+            if (_vm.IsLoading) return;
+            if (ConfigTerrainCombo == null) return;
+            int idx = ConfigTerrainCombo.SelectedIndex;
+            if (idx < 0) return;
+            _vm.CurrentTerrain = idx;
+        }
+
+        void OnSlotSplitChanged(int logicalIndex, int suffix)
+        {
+            if (_vm.IsLoading) return;
+            var xBox = this.FindControl<NumericUpDown>($"Slot{suffix}_XBox");
+            var yBox = this.FindControl<NumericUpDown>($"Slot{suffix}_YBox");
+            var palBox = this.FindControl<NumericUpDown>($"Slot{suffix}_PALETTEBox");
+            var flipBox = this.FindControl<NumericUpDown>($"Slot{suffix}_FLIPBox");
+            var wBox = this.FindControl<NumericUpDown>($"Slot{suffix}_WBox");
+            int x = (int)(xBox?.Value ?? 0m);
+            int y = (int)(yBox?.Value ?? 0m);
+            int p = (int)(palBox?.Value ?? 0m);
+            int f = (int)(flipBox?.Value ?? 0m);
+            _vm.SetSlotSplitByLogicalIndex(logicalIndex, x, y, p, f);
+            try
+            {
+                _vm.IsLoading = true;
+                ushort w = _vm.GetSlotW(suffix);
+                if (wBox != null) wBox.Value = w;
+            }
+            finally { _vm.IsLoading = false; }
+        }
+
+        void OnSlotRawWChanged(int logicalIndex, int suffix)
+        {
+            if (_vm.IsLoading) return;
+            var wBox = this.FindControl<NumericUpDown>($"Slot{suffix}_WBox");
+            ushort w = (ushort)((int)(wBox?.Value ?? 0m) & 0xFFFF);
+            _vm.SetSlotWByLogicalIndex(logicalIndex, w);
+            try
+            {
+                _vm.IsLoading = true;
+                var (x, y, p, f) = MapStyleEditorViewModel.DecodeTsaWord(w);
+                SetNudValue($"Slot{suffix}_XBox", x);
+                SetNudValue($"Slot{suffix}_YBox", y);
+                SetNudValue($"Slot{suffix}_PALETTEBox", p);
+                SetNudValue($"Slot{suffix}_FLIPBox", f);
+            }
+            finally { _vm.IsLoading = false; }
+        }
+
+        void CopyTile_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanEditChipsetConfig) return;
+            _vm.CopyChipset();
+            CoreState.Services.ShowInfo("Chipset tile data copied.");
+        }
+
+        void CopyType_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanEditChipsetConfig) return;
+            _vm.CopyTerrain();
+            CoreState.Services.ShowInfo("Terrain type copied.");
+        }
+
+        /// <summary>
+        /// WF-parity Paste behavior: apply staged clipboard values then
+        /// immediately invoke ConfigWrite. <see cref="MapStyleEditorViewModel.Paste"/>
+        /// returns false when the clipboard is empty — the auto-write is
+        /// skipped in that case so we don't push the current state back to
+        /// ROM unchanged.
+        /// </summary>
+        void Paste_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanEditChipsetConfig) return;
+            bool applied;
+            try
+            {
+                _vm.IsLoading = true;
+                applied = _vm.Paste();
+                if (applied) ReadSlotsFromVM();
+            }
+            finally { _vm.IsLoading = false; }
+            if (!applied)
+            {
+                CoreState.Services.ShowError("Nothing to paste — copy a chipset or terrain first.");
+                return;
+            }
+            ConfigWrite_Click(sender, e);
+        }
+
+        void ConfigWrite_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanEditChipsetConfig)
+            {
+                CoreState.Services.ShowError("CONFIG PLIST not resolved — select a map style first.");
+                return;
+            }
+            _undoService.Begin("Edit Chipset Config");
+            try
+            {
+                bool ok = _vm.WriteChipsetConfig(out string err);
+                if (!ok)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError($"Config write refused ({err}).");
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+                ChipsetConfigAddressLabel.Text = $"0x{_vm.ChipsetConfigAddress:X08}";
+                RefreshChipPreview();
+                CoreState.Services.ShowInfo("Chipset config written.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("MapStyleEditorView.ConfigWrite_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Window-level Alt+T / Alt+C / Alt+V hotkey dispatch (mirrors WF
+        /// <c>MapStyleEditorForm_KeyDown</c>). Only fires when the Chipset
+        /// edit surface is enabled so background style switches don't
+        /// trigger copy/paste mid-load.
+        /// </summary>
+        void OnChipsetHotKey(object? sender, KeyEventArgs e)
+        {
+            if (!_vm.CanEditChipsetConfig) return;
+            if ((e.KeyModifiers & KeyModifiers.Alt) == 0) return;
+            switch (e.Key)
+            {
+                case Key.T: CopyTile_Click(sender, new RoutedEventArgs()); e.Handled = true; break;
+                case Key.C: CopyType_Click(sender, new RoutedEventArgs()); e.Handled = true; break;
+                case Key.V: Paste_Click(sender, new RoutedEventArgs()); e.Handled = true; break;
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

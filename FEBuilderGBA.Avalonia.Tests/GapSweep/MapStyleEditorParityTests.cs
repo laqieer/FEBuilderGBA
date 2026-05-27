@@ -202,10 +202,10 @@ public class MapStyleEditorParityTests
         // PaletteWrite is now functional (#660 first slice -- WritePalette
         // in-place rewrite of the resolved 32-byte slice). Tracked
         // positively by View_FunctionalPaletteWriteButton_IsEnabled.
-        "MapStyleEditor_CopyTile_Button",
-        "MapStyleEditor_CopyType_Button",
-        "MapStyleEditor_Paste_Button",
-        "MapStyleEditor_ConfigWrite_Button",
+        //
+        // CopyTile / CopyType / Paste / ConfigWrite became functional in
+        // #671 (Chipset Tab interactive editing + Config Write). Tracked
+        // positively by View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit.
         "MapStyleEditor_Undo_Button",
         "MapStyleEditor_Redo_Button",
     };
@@ -377,6 +377,154 @@ public class MapStyleEditorParityTests
                 $"AutomationProperties.AutomationId=\"MapStyleEditor_Color{i}_Swatch_Image\"",
                 axaml);
         }
+    }
+
+    // -----------------------------------------------------------------
+    // Chipset Tab — functional controls (#671).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #671 acceptance: the 4 chipset buttons (CopyTile / CopyType /
+    /// Paste / ConfigWrite) must NOT carry IsEnabled="False" anymore.
+    /// The view enables/disables them at runtime via SetChipsetEditingEnabled
+    /// based on CanEditChipsetConfig.
+    /// </summary>
+    [Fact]
+    public void View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit()
+    {
+        string axaml = ReadAxaml();
+        string[] ids =
+        {
+            "MapStyleEditor_CopyTile_Button",
+            "MapStyleEditor_CopyType_Button",
+            "MapStyleEditor_Paste_Button",
+            "MapStyleEditor_ConfigWrite_Button",
+        };
+        foreach (string id in ids)
+        {
+            var pattern = new Regex(
+                @"<Button[^>]*AutomationProperties\.AutomationId=""" + id + @"""[^>]*",
+                RegexOptions.None);
+            Match m = pattern.Match(axaml);
+            Assert.True(m.Success, $"{id} must exist");
+            Assert.False(m.Value.Contains("IsEnabled=\"False\""),
+                $"{id} must not carry IsEnabled=\"False\" anymore (#671 made it functional)");
+        }
+    }
+
+    /// <summary>
+    /// #671: terrain combo + 20 slot NUDs must NOT carry IsEnabled="False"
+    /// in AXAML. (The view toggles them at runtime via SetChipsetEditingEnabled.)
+    /// </summary>
+    [Fact]
+    public void View_ChipsetTab_SlotNUDsAndTerrainCombo_AreEnabled()
+    {
+        string axaml = ReadAxaml();
+        // Terrain combo.
+        var combo = Regex.Match(
+            axaml,
+            "<ComboBox[^>]*MapStyleEditor_ConfigTerrain_Combo[^>]*");
+        Assert.True(combo.Success, "ConfigTerrain combo must exist");
+        Assert.False(combo.Value.Contains("IsEnabled=\"False\""),
+            "ConfigTerrain combo must not be statically disabled");
+
+        // 20 slot NUDs (4 slots × 5 fields: X/Y/PALETTE/FLIP/W).
+        int[] slots = { 0, 2, 4, 6 };
+        string[] fields = { "TSA_X", "TSA_Y", "TSA_PALETTE", "TSA_FLIP", "W" };
+        foreach (int s in slots)
+        {
+            foreach (string f in fields)
+            {
+                var nud = Regex.Match(
+                    axaml,
+                    "<NumericUpDown[^>]*MapStyleEditor_Slot" + s + "_" + f + "_Input[^>]*");
+                Assert.True(nud.Success, $"NUD Slot{s}_{f} must exist");
+                Assert.False(nud.Value.Contains("IsEnabled=\"False\""),
+                    $"NUD Slot{s}_{f} must not be statically disabled");
+            }
+        }
+    }
+
+    /// <summary>
+    /// #671 KnownGap cleanup: the 4 chipset buttons + terrain combo +
+    /// 20 slot NUDs must no longer advertise the legacy `#374` tooltip.
+    /// </summary>
+    [Fact]
+    public void View_ChipsetTab_FunctionalControls_HaveNoStaleKnownGapTooltips()
+    {
+        string axaml = ReadAxaml();
+        string[] elementIds =
+        {
+            "MapStyleEditor_CopyTile_Button",
+            "MapStyleEditor_CopyType_Button",
+            "MapStyleEditor_Paste_Button",
+            "MapStyleEditor_ConfigWrite_Button",
+            "MapStyleEditor_ConfigTerrain_Combo",
+            "MapStyleEditor_Slot0_TSA_X_Input",
+            "MapStyleEditor_Slot0_W_Input",
+            "MapStyleEditor_Slot6_TSA_FLIP_Input",
+        };
+        foreach (string id in elementIds)
+        {
+            var element = Regex.Match(
+                axaml,
+                "<(Button|ComboBox|NumericUpDown)[^>]*" + id + "[^>]*");
+            Assert.True(element.Success, $"{id} must exist");
+            Assert.False(element.Value.Contains("#374"),
+                $"{id} must not carry the legacy #374 tooltip");
+        }
+    }
+
+    /// <summary>
+    /// #671 plan WU5: the (now-neutral) help label must NOT advertise
+    /// the KnownGap any more. Mirrors the wording requirement in the v6
+    /// plan. The legacy AutomationId is preserved.
+    /// </summary>
+    [Fact]
+    public void View_ChipsetTSAKnownGapLabel_HasNeutralText()
+    {
+        string axaml = ReadAxaml();
+        var element = Regex.Match(
+            axaml,
+            "<TextBlock[^>]*MapStyleEditor_ChipsetTSA_KnownGap_Label[^>]*[/]>",
+            RegexOptions.None);
+        Assert.True(element.Success, "ChipsetTSA_KnownGap_Label must still exist");
+        Assert.False(element.Value.Contains("#374"),
+            "ChipsetTSA_KnownGap_Label must not advertise #374 anymore");
+    }
+
+    /// <summary>
+    /// #671 plan WU5: code-behind wires Alt+T / Alt+C / Alt+V hotkeys
+    /// via the KeyDown event (the simplest portable approach in Avalonia).
+    /// </summary>
+    [Fact]
+    public void View_ChipsetTab_HasAltHotkeys()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Contains("KeyDown +=", code);
+        Assert.Contains("Key.T:", code);
+        Assert.Contains("Key.C:", code);
+        Assert.Contains("Key.V:", code);
+        Assert.Contains("KeyModifiers.Alt", code);
+    }
+
+    /// <summary>
+    /// #671: ConfigNoLabel is replaced with a NumericUpDown editor named
+    /// ChipsetNoInput. The hidden TextBlock keeps the legacy AutomationId
+    /// for parity scans.
+    /// </summary>
+    [Fact]
+    public void View_HasChipsetNoInput_NumericUpDown()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("Name=\"ChipsetNoInput\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MapStyleEditor_ChipsetNo_Input\"",
+            axaml);
+        // Legacy label retained.
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MapStyleEditor_ConfigNo_Label\"",
+            axaml);
     }
 
     // -----------------------------------------------------------------
