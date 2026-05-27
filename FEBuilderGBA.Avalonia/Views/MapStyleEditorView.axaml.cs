@@ -1046,7 +1046,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     "Map Chip Config",
                     "*.MAPCHIP_CONFIG",
                     "mapchip.MAPCHIP_CONFIG");
-                if (path == null) return;
+                // Treat null / empty / whitespace as cancel — FileDialogHelper.SaveFile
+                // can return an empty string in some flows, and File.WriteAllBytes
+                // would throw on it. Matches the guard pattern used by other
+                // Save-path callers (e.g. ToolTranslateROMView). Copilot bot
+                // inline review on PR #706.
+                if (string.IsNullOrWhiteSpace(path)) return;
 
                 File.WriteAllBytes(path, configClone);
                 CoreState.Services.ShowInfo(
