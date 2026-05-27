@@ -779,6 +779,53 @@ public class MapStyleEditorParityTests
     // -----------------------------------------------------------------
 
     /// <summary>
+    /// PLIST resolution regression (#670 Copilot CLI v1 PR review): the
+    /// chip-preview palette MUST resolve via the per-style palette_plist
+    /// (read from the map_setting struct at +6), NOT by reusing the
+    /// obj-table index against map_pal_pointer. Asserts the VM source
+    /// reads palette_plist from a map_setting entry whose obj_plist low
+    /// byte matches our obj-table index, and then computes the palette
+    /// table slot as palTableBase + palette_plist * 4.
+    /// </summary>
+    [Fact]
+    public void ViewModel_LoadEntry_ResolvesPalettePlistFromMapSetting()
+    {
+        string code = File.ReadAllText(ViewModelPath());
+        // Must enumerate map_setting entries to find the matching obj_plist.
+        Assert.Contains("MapSettingCore.MakeMapIDList(rom)", code);
+        // Must read palette_plist from map_setting +6 and config_plist from +7.
+        Assert.Contains("rom.u8(map.addr + 6)", code);
+        Assert.Contains("rom.u8(map.addr + 7)", code);
+        // Must NOT compute palette/config slot as obj-index*4 anymore.
+        // (Old code used `paletteTableBase + index * 4`.)
+        Assert.DoesNotContain("paletteTableBase + index * 4", code);
+        Assert.DoesNotContain("configTableBase + index * 4", code);
+    }
+
+    /// <summary>
+    /// Map Chip Preview thumbnail (#670) must be a real GbaImageControl,
+    /// not the pre-#670 placeholder TextBlock. The control name
+    /// `MapChipPreviewImage` is referenced from the code-behind
+    /// `RefreshChipPreview()` helper, and the new AutomationId
+    /// `MapStyleEditor_MapChipPreview_Image` is what tests / harnesses
+    /// should target going forward.
+    /// </summary>
+    [Fact]
+    public void View_MapChipPreview_IsGbaImageControl_NotPlaceholder()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("Name=\"MapChipPreviewImage\"", axaml);
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MapStyleEditor_MapChipPreview_Image\"",
+            axaml);
+        // The legacy MapStyleEditor_MapChipPreview_Label AutomationId is
+        // retained on a hidden TextBlock so older parity scans don't drop.
+        Assert.Contains(
+            "AutomationProperties.AutomationId=\"MapStyleEditor_MapChipPreview_Label\"",
+            axaml);
+    }
+
+    /// <summary>
     /// The pre-#391 view exposed five AutomationIds that existing harnesses
     /// rely on. The rebuild must preserve them all (test pins this).
     /// </summary>

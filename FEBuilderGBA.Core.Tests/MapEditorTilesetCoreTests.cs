@@ -276,5 +276,85 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(3 * 16, ph);
             Assert.NotNull(rgba);
         }
+
+        // --------- RenderTileSheet4bpp (Map Chip Preview #670) -----------------
+
+        [Fact]
+        public void RenderTileSheet4bpp_NullForEmptyTileData()
+        {
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(null, new byte[32], 0, 32, out int w, out int h);
+            Assert.Null(result);
+            Assert.Equal(0, w);
+            Assert.Equal(0, h);
+
+            result = MapEditorTilesetCore.RenderTileSheet4bpp(new byte[10], new byte[32], 0, 32, out w, out h);
+            Assert.Null(result);
+            Assert.Equal(0, w);
+            Assert.Equal(0, h);
+        }
+
+        [Fact]
+        public void RenderTileSheet4bpp_NullForNullPalette()
+        {
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(new byte[32], null, 0, 32, out int w, out int h);
+            Assert.Null(result);
+            Assert.Equal(0, w);
+            Assert.Equal(0, h);
+        }
+
+        [Fact]
+        public void RenderTileSheet4bpp_UsesSelectedPaletteIndex()
+        {
+            // One 4bpp tile where pixel (0,0) uses color index 1.
+            // 4bpp layout: each row = 4 bytes (8 nibbles); the LOW nibble of
+            // the first byte is the color index of pixel (0,0).
+            byte[] tileData = new byte[32];
+            tileData[0] = 0x01; // pixel(0,0)=1, pixel(1,0)=0
+
+            // 16 palettes × 16 colors × 2 bytes = 512 bytes
+            byte[] palette = new byte[16 * 16 * 2];
+            ushort red = (ushort)(31);
+            ushort green = (ushort)(31 << 5);
+            ushort blue = (ushort)(31 << 10);
+            ushort white = (ushort)(31 | (31 << 5) | (31 << 10));
+
+            void SetPalette(int palIdx, int colorIdx, ushort c)
+            {
+                int off = palIdx * 16 * 2 + colorIdx * 2;
+                palette[off] = (byte)(c & 0xFF);
+                palette[off + 1] = (byte)((c >> 8) & 0xFF);
+            }
+            SetPalette(0, 1, red);
+            SetPalette(1, 1, green);
+            SetPalette(2, 1, blue);
+            SetPalette(3, 1, white);
+
+            // paletteIndex=2 → pixel(0,0) should be blue.
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(tileData, palette, 2, 32, out int w, out int h);
+            Assert.NotNull(result);
+            Assert.True(w >= 8);
+            Assert.True(h >= 8);
+            Assert.Equal((byte)0, result[0]);          // R
+            Assert.Equal((byte)0, result[1]);          // G
+            Assert.Equal((byte)(31 << 3), result[2]);  // B = 248
+            Assert.Equal((byte)255, result[3]);        // alpha (index != 0)
+
+            // paletteIndex=1 → pixel(0,0) should be green.
+            var resultG = MapEditorTilesetCore.RenderTileSheet4bpp(tileData, palette, 1, 32, out _, out _);
+            Assert.Equal((byte)0, resultG[0]);
+            Assert.Equal((byte)(31 << 3), resultG[1]);
+            Assert.Equal((byte)0, resultG[2]);
+            Assert.Equal((byte)255, resultG[3]);
+        }
+
+        [Fact]
+        public void RenderTileSheet4bpp_NullForOutOfRangePaletteIndex()
+        {
+            // 32-byte palette = only palette index 0 fits. Index 1 must be rejected.
+            var result = MapEditorTilesetCore.RenderTileSheet4bpp(new byte[32], new byte[32], 1, 32, out int w, out int h);
+            Assert.Null(result);
+            Assert.Equal(0, w);
+            Assert.Equal(0, h);
+        }
     }
 }

@@ -209,6 +209,53 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Render a strip of 4bpp 8x8 tiles into an RGBA8888 image, <paramref name="columns"/>
+        /// tiles wide and <c>ceil(tileCount / columns)</c> tiles tall. Uses
+        /// <paramref name="paletteIndex"/> from a flat <paramref name="palette"/> block
+        /// (16 colors x 2 bytes per palette).
+        ///
+        /// <para>Returns null + zero dims when:</para>
+        /// <list type="bullet">
+        ///   <item><paramref name="tileData"/> is null or smaller than one tile (32 bytes),</item>
+        ///   <item><paramref name="palette"/> is null,</item>
+        ///   <item>palette block for <paramref name="paletteIndex"/> is out of range
+        ///       (i.e. <c>palette.Length &lt; (paletteIndex + 1) * 32</c>).</item>
+        /// </list>
+        /// </summary>
+        public static byte[] RenderTileSheet4bpp(
+            byte[] tileData,
+            byte[] palette,
+            int paletteIndex,
+            int columns,
+            out int width,
+            out int height)
+        {
+            width = 0;
+            height = 0;
+            const int bytesPerTile = 32;
+            const int tileSize = 8;
+            if (tileData == null || tileData.Length < bytesPerTile) return null;
+            if (palette == null) return null;
+            if (paletteIndex < 0) return null;
+            if (palette.Length < (paletteIndex + 1) * 16 * 2) return null;
+            if (columns <= 0) columns = 1;
+
+            int tileCount = tileData.Length / bytesPerTile;
+            int rows = (tileCount + columns - 1) / columns;
+            width = columns * tileSize;
+            height = rows * tileSize;
+
+            byte[] dest = new byte[width * height * 4];
+            for (int t = 0; t < tileCount; t++)
+            {
+                int destX = (t % columns) * tileSize;
+                int destY = (t / columns) * tileSize;
+                RenderTile4bpp(tileData, t, palette, paletteIndex, dest, width, destX, destY, false, false);
+            }
+            return dest;
+        }
+
+        /// <summary>
         /// Render one chipset (16x16 pixels = four 8x8 sub-tiles) into a
         /// destination RGBA buffer at (destX, destY).
         /// </summary>
