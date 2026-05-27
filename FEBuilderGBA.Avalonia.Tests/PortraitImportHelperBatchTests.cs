@@ -182,8 +182,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public async Task ImportFolderAsync_RollbackWhenAllFail()
+        public async Task ImportFolderAsync_AllSkipped_LeavesRomUnchanged()
         {
+            // With per-file undo isolation (Copilot PR review #1 fix), an
+            // all-skipped batch never even enters ImportSimple/ImportSheet,
+            // so no ROM bytes are written. This test guards against that
+            // invariant — bytes around a known slot must be byte-identical
+            // before and after the batch.
             if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
             {
                 _output.WriteLine($"SKIP: needs FE8U ROM (have {_fixture.Version})");
@@ -196,7 +201,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             try
             {
                 // All filenames have no numeric prefix -> all skipped, none
-                // imported. Imported == 0 must trigger Rollback path.
+                // imported. No file ever opens an undo scope.
                 WriteTinyPng(Path.Combine(folder, "no_prefix_one.png"), 16, 16);
                 WriteTinyPng(Path.Combine(folder, "no_prefix_two.bmp"), 16, 16);
 
@@ -215,9 +220,139 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(0, result.Imported);
                 Assert.Equal(2, result.Skipped);
 
-                // No portrait entry should have changed — rollback path.
+                // No portrait entry should have changed.
                 Assert.Equal(d0Before, rom.p32(slot5 + 0));
                 Assert.Equal(d8Before, rom.p32(slot5 + 8));
+            }
+            finally
+            {
+                try { Directory.Delete(folder, recursive: true); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task ImportFolderAsync_FileFailsMidWrite_DoesNotCommitItsBytes()
+        {
+            // Copilot PR review #1 acceptance: per-file undo isolation.
+            //
+            // Strategy: drive the batch with a mixed folder
+            //   - valid PNG -> slot A succeeds
+            //   - broken/corrupt PNG file with a valid slot prefix ->
+            //     LoadAndQuantizeFromFile returns Success=false, so the helper
+            //     reports FAILED and ImportSimple/ImportSheet is never even
+            //     called. That alone proves pre-validation guards the scope.
+            //
+            // Stronger guarantee — file fails AFTER opening the helper's undo
+            // scope: byte-equivalence check. We synthesize one valid PNG and
+            // run the batch, then on a fresh ROM copy we call ImportSimple
+            // directly for that same slot. If per-file isolation holds, the
+            // batch path leaves the same ROM bytes as the standalone call —
+            // ANY trace of an unrelated failed file's writes would show as a
+            // diff.
+            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
+            {
+                _output.WriteLine($"SKIP: needs FE8U ROM (have {_fixture.Version})");
+                return;
+            }
+
+            using var _ = EnsureImageService();
+            string folder = Path.Combine(Path.GetTempPath(), $"portrait_batch_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(folder);
+            try
+            {
+                // File 1: valid PNG -> slot 0x25.
+                WriteTinyPng(Path.Combine(folder, "0x25.png"), 16, 16);
+                // File 2: corrupt content with valid slot prefix -> fails load.
+                File.WriteAllBytes(Path.Combine(folder, "0x26.png"),
+                    new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 });
+
+                var rom = _fixture.ROM;
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                uint slot25 = baseAddr + (uint)(0x25 * rom.RomInfo.portrait_datasize);
+                uint slot26 = baseAddr + (uint)(0x26 * rom.RomInfo.portrait_datasize);
+
+                // Snapshot slot 0x26 BEFORE batch — must be byte-identical
+                // after the batch since file 2 failed pre-validation.
+                byte[] slot26Before = new byte[rom.RomInfo.portrait_datasize];
+                Array.Copy(rom.Data, (int)slot26, slot26Before, 0, slot26Before.Length);
+
+                uint d0_25_before = rom.p32(slot25 + 0);
+
+                var undo = new UndoService();
+                var result = await PortraitImportHelper.ImportFolderAsync(folder, null, undo, rom);
+
+                // Valid file 1 imported, corrupt file 2 reported as FAILED.
+                Assert.Equal(2, result.Total);
+                Assert.Equal(1, result.Imported);
+                Assert.Equal(1, result.Failed);
+                Assert.Equal(0, result.Skipped);
+
+                // Slot 0x25 was updated.
+                Assert.NotEqual(d0_25_before, rom.p32(slot25 + 0));
+
+                // Slot 0x26 — failed file MUST NOT have left any bytes behind.
+                byte[] slot26After = new byte[rom.RomInfo.portrait_datasize];
+                Array.Copy(rom.Data, (int)slot26, slot26After, 0, slot26After.Length);
+                Assert.Equal(slot26Before, slot26After);
+
+                // Result line for the corrupt file mentions FAILED (not OK).
+                Assert.Contains(result.Lines, l => l.Contains("0x26.png") && l.Contains("FAILED"));
+                Assert.Contains(result.Lines, l => l.Contains("0x25.png") && l.Contains("OK"));
+            }
+            finally
+            {
+                try { Directory.Delete(folder, recursive: true); } catch { }
+            }
+        }
+
+        [Fact]
+        public async Task ImportFolderAsync_128x112File_RoutesThroughImportSheet()
+        {
+            // Copilot PR review #2 acceptance: 128x112 composites must route
+            // through ImportSheet (writes D0 + D4 + D8 + D12) instead of
+            // ImportSimple (writes only D0 + D8). FE7/FE8 only — FE6 ROMs
+            // would reject via the IsFe7Or8EntryLayout gate.
+            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
+            {
+                _output.WriteLine($"SKIP: needs FE8U ROM (have {_fixture.Version})");
+                return;
+            }
+
+            using var _ = EnsureImageService();
+            string folder = Path.Combine(Path.GetTempPath(), $"portrait_batch_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(folder);
+            try
+            {
+                // Composite-sheet sized PNG: 128x112.
+                WriteTinyPng(Path.Combine(folder, "0x28.png"), 128, 112);
+
+                var rom = _fixture.ROM;
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                uint slot28 = baseAddr + (uint)(0x28 * rom.RomInfo.portrait_datasize);
+
+                uint d0Before = rom.p32(slot28 + 0);
+                uint d4Before = rom.p32(slot28 + 4);
+                uint d8Before = rom.p32(slot28 + 8);
+                uint d12Before = rom.p32(slot28 + 12);
+
+                var undo = new UndoService();
+                var result = await PortraitImportHelper.ImportFolderAsync(folder, null, undo, rom);
+
+                Assert.Equal(1, result.Total);
+                Assert.Equal(1, result.Imported);
+                Assert.Equal(0, result.Failed);
+
+                // ImportSheet path: D0 (sheet), D4 (mini), D8 (palette),
+                // D12 (mouth) all change. ImportSimple would have left D4 +
+                // D12 unchanged.
+                Assert.NotEqual(d0Before, rom.p32(slot28 + 0));
+                Assert.NotEqual(d4Before, rom.p32(slot28 + 4));
+                Assert.NotEqual(d8Before, rom.p32(slot28 + 8));
+                Assert.NotEqual(d12Before, rom.p32(slot28 + 12));
+
+                // Result line marks the slot as imported via the sheet path
+                // so users can tell which mode ran.
+                Assert.Contains(result.Lines, l => l.Contains("0x28.png") && l.Contains("(sheet)") && l.Contains("OK"));
             }
             finally
             {

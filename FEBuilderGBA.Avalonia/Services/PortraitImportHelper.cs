@@ -85,8 +85,7 @@ namespace FEBuilderGBA.Avalonia.Services
             uint entryAddr,
             ImageImportService.LoadResult loadResult,
             UndoService undoService,
-            string undoLabel = "Import Portrait Image",
-            bool useExternalScope = false)
+            string undoLabel = "Import Portrait Image")
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -94,42 +93,37 @@ namespace FEBuilderGBA.Avalonia.Services
             if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
             if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
 
-            // Batch import (#661) opens a single outer undo scope spanning the
-            // whole folder and reuses this helper per file. When the caller
-            // already owns a scope, we must NOT call Begin/Commit/Rollback —
-            // doing so would close the outer scope prematurely or push a
-            // per-file entry to the undo stack.
-            if (!useExternalScope) undoService.Begin(undoLabel);
+            undoService.Begin(undoLabel);
             try
             {
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(
                     loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null)
                 {
-                    if (!useExternalScope) undoService.Rollback();
+                    undoService.Rollback();
                     return ImportOutcome.Fail("Failed to encode tiles");
                 }
 
                 uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, entryAddr + 0);
                 if (tileAddr == U.NOT_FOUND)
                 {
-                    if (!useExternalScope) undoService.Rollback();
+                    undoService.Rollback();
                     return ImportOutcome.Fail("No free space for tile data");
                 }
 
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, entryAddr + 8);
                 if (palAddr == U.NOT_FOUND)
                 {
-                    if (!useExternalScope) undoService.Rollback();
+                    undoService.Rollback();
                     return ImportOutcome.Fail("No free space for palette");
                 }
 
-                if (!useExternalScope) undoService.Commit();
+                undoService.Commit();
                 return ImportOutcome.Ok();
             }
             catch (Exception ex)
             {
-                if (!useExternalScope) undoService.Rollback();
+                undoService.Rollback();
                 return ImportOutcome.Fail($"Import failed: {ex.Message}");
             }
         }
@@ -146,8 +140,7 @@ namespace FEBuilderGBA.Avalonia.Services
             uint entryAddr,
             ImageImportService.LoadResult loadResult,
             UndoService undoService,
-            string undoLabel = "Import Portrait Sheet (128x112)",
-            bool useExternalScope = false)
+            string undoLabel = "Import Portrait Sheet (128x112)")
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -187,16 +180,13 @@ namespace FEBuilderGBA.Avalonia.Services
             if (sheetIndexed == null || miniIndexed == null || mouthIndexed == null)
                 return ImportOutcome.Fail("Failed to remap sheet parts to palette.");
 
-            // Batch-import (#661) parity: when caller owns the scope, skip our
-            // Begin/Commit/Rollback so the per-file ROM writes flow through
-            // the outer batch scope.
-            if (!useExternalScope) undoService.Begin(undoLabel);
+            undoService.Begin(undoLabel);
             try
             {
                 byte[] sheetTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH);
                 if (sheetTiles == null)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
                 uint currentD0 = rom.p32(entryAddr + 0);
                 // Use the rom-aware isSafetyOffset overload + reuse the
@@ -220,34 +210,34 @@ namespace FEBuilderGBA.Avalonia.Services
                     sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + 0);
                 }
                 if (sheetAddr == U.NOT_FOUND)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
 
                 byte[] miniTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     miniIndexed, parts.MiniW, parts.MiniH);
                 if (miniTiles == null)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
                 uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + 4);
                 if (miniAddr == U.NOT_FOUND)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
 
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, entryAddr + 8);
                 if (palAddr == U.NOT_FOUND)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
 
                 byte[] mouthTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     mouthIndexed, parts.MouthW, parts.MouthH);
                 if (mouthTiles == null)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
                 uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + 12);
                 if (mouthAddr == U.NOT_FOUND)
-                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
+                { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
 
-                if (!useExternalScope) undoService.Commit();
+                undoService.Commit();
                 return ImportOutcome.Ok();
             }
             catch (Exception ex)
             {
-                if (!useExternalScope) undoService.Rollback();
+                undoService.Rollback();
                 return ImportOutcome.Fail($"Sheet import failed: {ex.Message}");
             }
         }
@@ -341,12 +331,28 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Batch-import every .png + .bmp file in <paramref name="folderPath"/>
-        /// into portrait slots derived from the filename prefix. Wraps the
-        /// whole batch in a single <see cref="UndoService"/> scope so the
-        /// user gets one combined undo entry (or full rollback when every
-        /// file fails). Per Copilot CLI plan v2 review, each file is
-        /// pre-validated (load + quantize) before any ROM write, so a bad
-        /// file cannot leave the ROM half-written.
+        /// into portrait slots derived from the filename prefix.
+        ///
+        /// **Per-file undo isolation** (Copilot CLI PR review blocking #1):
+        /// every file gets its OWN <see cref="UndoService"/> scope via the
+        /// normal (non-external) <see cref="ImportSimple"/> / <see cref="ImportSheet"/>
+        /// code path. That means:
+        ///   - A file that fails mid-write (e.g. D0 written, palette out of free
+        ///     space) rolls back ITS partial ROM bytes — failed files cannot
+        ///     pollute the ROM even when other files in the batch succeed.
+        ///   - Each successful file gets its own undo stack entry, so the user
+        ///     can selectively undo individual portraits afterwards.
+        /// Each file is also pre-validated (load + quantize) before any ROM
+        /// write — bad PNGs are rejected before <see cref="ImportSimple"/> opens
+        /// its scope.
+        ///
+        /// **Sheet routing** (Copilot CLI PR review blocking #2): 128x112
+        /// composite sheets are routed through <see cref="ImportSheet"/> on
+        /// FE7/FE8 ROMs so D4 (mini-face) and D12 (mouth frames) get written
+        /// alongside D0 + D8. FE6 ROMs reject sheet-sized inputs because the
+        /// 16-byte FE6 layout has no mouth-frame pointer at D12 (the FE6 gate
+        /// in <see cref="ImportSheet"/> handles this — the failure is reported
+        /// per file and does not abort the batch).
         ///
         /// File-naming convention (issue #661):
         ///   "0x1F.png" or "31.png" -> slot 31
@@ -358,7 +364,7 @@ namespace FEBuilderGBA.Avalonia.Services
         /// </summary>
         /// <param name="folderPath">Folder containing .png / .bmp portrait images.</param>
         /// <param name="progress">Optional per-file progress reporter (filename + outcome line).</param>
-        /// <param name="undo">Undo service that owns the outer batch scope.</param>
+        /// <param name="undo">Undo service used for each per-file scope.</param>
         /// <param name="rom">Target ROM.</param>
         public static async Task<FolderImportResult> ImportFolderAsync(
             string folderPath,
@@ -424,104 +430,94 @@ namespace FEBuilderGBA.Avalonia.Services
 
             int imported = 0, failed = 0, skipped = 0;
 
-            undo.Begin("Batch Portrait Import");
-            try
+            foreach (string filePath in files)
             {
-                foreach (string filePath in files)
+                string fileName = Path.GetFileName(filePath);
+                int slotId = ParseSlotIdFromFilename(fileName);
+                if (slotId < 0)
                 {
-                    string fileName = Path.GetFileName(filePath);
-                    int slotId = ParseSlotIdFromFilename(fileName);
-                    if (slotId < 0)
-                    {
-                        skipped++;
-                        string line = $"{fileName} → SKIPPED: no slot ID prefix";
-                        lines.Add(line);
-                        progress?.Report(line);
-                        await Task.Yield();
-                        continue;
-                    }
-
-                    // Pre-validate: load + quantize BEFORE writing anything to
-                    // ROM (Copilot review v1 #3). A bad PNG must not leave
-                    // any half-written tiles behind in the outer scope.
-                    ImageImportService.LoadResult loadResult;
-                    try
-                    {
-                        loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
-                    }
-                    catch (Exception ex)
-                    {
-                        failed++;
-                        string line = $"{fileName} → FAILED: load error: {ex.Message}";
-                        lines.Add(line);
-                        progress?.Report(line);
-                        await Task.Yield();
-                        continue;
-                    }
-                    if (loadResult == null || !loadResult.Success)
-                    {
-                        failed++;
-                        string reason = loadResult?.Error ?? "unknown error";
-                        string line = $"{fileName} → FAILED: {reason}";
-                        lines.Add(line);
-                        progress?.Report(line);
-                        await Task.Yield();
-                        continue;
-                    }
-
-                    // Bounds check before computing the entry address.
-                    long addrLong = (long)portraitBase + (long)slotId * dataSize;
-                    if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
-                    {
-                        failed++;
-                        string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of ROM bounds";
-                        lines.Add(line);
-                        progress?.Report(line);
-                        await Task.Yield();
-                        continue;
-                    }
-                    uint entryAddr = (uint)addrLong;
-
-                    ImportOutcome outcome = ImportSimple(
-                        rom, entryAddr, loadResult, undo,
-                        undoLabel: "Import Portrait Image (Batch)",
-                        useExternalScope: true);
-                    if (outcome.Success)
-                    {
-                        imported++;
-                        // Record the source file so the per-slot Open/Select
-                        // Source buttons light up after a batch import.
-                        RecordSourceFile(slotId, filePath);
-                        string line = $"{fileName} → slot 0x{slotId:X2} → OK";
-                        lines.Add(line);
-                        progress?.Report(line);
-                    }
-                    else
-                    {
-                        failed++;
-                        string line = $"{fileName} → slot 0x{slotId:X2} → FAILED: {outcome.Error}";
-                        lines.Add(line);
-                        progress?.Report(line);
-                    }
+                    skipped++;
+                    string line = $"{fileName} → SKIPPED: no slot ID prefix";
+                    lines.Add(line);
+                    progress?.Report(line);
                     await Task.Yield();
+                    continue;
                 }
 
-                if (imported > 0)
+                // Pre-validate: load + quantize BEFORE the helper opens its
+                // undo scope. A bad PNG must not even enter ImportSimple /
+                // ImportSheet (so we never push a no-op rollback entry).
+                ImageImportService.LoadResult loadResult;
+                try
                 {
-                    undo.Commit();
+                    loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    string line = $"{fileName} → FAILED: load error: {ex.Message}";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+                if (loadResult == null || !loadResult.Success)
+                {
+                    failed++;
+                    string reason = loadResult?.Error ?? "unknown error";
+                    string line = $"{fileName} → FAILED: {reason}";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+
+                // Bounds check before computing the entry address.
+                long addrLong = (long)portraitBase + (long)slotId * dataSize;
+                if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
+                {
+                    failed++;
+                    string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of ROM bounds";
+                    lines.Add(line);
+                    progress?.Report(line);
+                    await Task.Yield();
+                    continue;
+                }
+                uint entryAddr = (uint)addrLong;
+
+                // Per-file undo scope (Copilot PR review #1 fix). Each file
+                // owns its own scope so a mid-write failure rolls back only
+                // ITS partial ROM bytes — successful files in the batch stay
+                // committed. Route 128x112 composite sheets to ImportSheet so
+                // D4 (mini-face) + D12 (mouth frames) get written alongside
+                // D0/D8 (Copilot PR review #2 fix). On FE6 ROMs ImportSheet
+                // self-rejects with a clear error.
+                bool isSheet = loadResult.Width == 128 && loadResult.Height == 112;
+                ImportOutcome outcome = isSheet
+                    ? ImportSheet(rom, entryAddr, loadResult, undo,
+                        undoLabel: $"Import Portrait Sheet (Batch slot 0x{slotId:X2})")
+                    : ImportSimple(rom, entryAddr, loadResult, undo,
+                        undoLabel: $"Import Portrait Image (Batch slot 0x{slotId:X2})");
+
+                if (outcome.Success)
+                {
+                    imported++;
+                    // Record the source file so the per-slot Open/Select
+                    // Source buttons light up after a batch import.
+                    RecordSourceFile(slotId, filePath);
+                    string mode = isSheet ? " (sheet)" : "";
+                    string line = $"{fileName} → slot 0x{slotId:X2}{mode} → OK";
+                    lines.Add(line);
+                    progress?.Report(line);
                 }
                 else
                 {
-                    // Nothing landed in ROM — roll the outer scope back so
-                    // the user's ROM is byte-identical to before the batch.
-                    undo.Rollback();
+                    failed++;
+                    string line = $"{fileName} → slot 0x{slotId:X2} → FAILED: {outcome.Error}";
+                    lines.Add(line);
+                    progress?.Report(line);
                 }
-            }
-            catch (Exception ex)
-            {
-                undo.Rollback();
-                lines.Add($"Batch import aborted: {ex.Message}");
-                return new FolderImportResult(imported, failed, skipped, files.Count, lines);
+                await Task.Yield();
             }
 
             return new FolderImportResult(imported, failed, skipped, files.Count, lines);
