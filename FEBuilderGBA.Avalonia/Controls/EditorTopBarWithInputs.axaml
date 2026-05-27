@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Controls.EditorTopBarWithInputs">
+  <!--
+    Editable variant of EditorTopBar (#701 Slice A foundation).
+
+    Whereas EditorTopBar (#649) renders Start Address / Read Count / Size as
+    read-only display values, this control surfaces them as user-editable
+    NumericUpDown inputs plus a Reload button. Intended for editors that let
+    the user type a Read Start / Read Count / Read Size and click Reload to
+    re-read the table from a different address (e.g. table-of-tables editors,
+    debug viewers).
+
+    NO editor migrates to this control in the same PR — investigation per
+    Copilot CLI plan review of #701 showed each editor's top strip has unique
+    additional controls (FilterCombo, ChangeType, FilterBox, ListExpandButton,
+    etc.) requiring per-editor decisions. Per-editor migration is tracked as
+    a follow-up issue so this PR establishes the canonical API in isolation.
+  -->
+  <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+    <StackPanel Orientation="Horizontal" Spacing="6">
+      <TextBlock Text="Read Start:" VerticalAlignment="Center" />
+      <NumericUpDown AutomationProperties.AutomationId="ETBI_ReadStart_Input"
+                     Name="ReadStartInput" Width="120" FormatString="0"
+                     Minimum="0" Maximum="4294967295"
+                     VerticalAlignment="Center" />
+      <TextBlock Text="Read Count:" VerticalAlignment="Center" />
+      <NumericUpDown AutomationProperties.AutomationId="ETBI_ReadCount_Input"
+                     Name="ReadCountInput" Width="80" FormatString="0"
+                     Minimum="0" Maximum="65535"
+                     VerticalAlignment="Center" />
+      <TextBlock Text="Read Size:" VerticalAlignment="Center" />
+      <NumericUpDown AutomationProperties.AutomationId="ETBI_ReadSize_Input"
+                     Name="ReadSizeInput" Width="80" FormatString="0"
+                     Minimum="0" Maximum="65535"
+                     VerticalAlignment="Center" />
+      <Button AutomationProperties.AutomationId="ETBI_Reload_Button"
+              Name="ReloadButton" Content="Reload" Click="OnReloadClick"
+              VerticalAlignment="Center" />
+    </StackPanel>
+  </Border>
+</UserControl>
