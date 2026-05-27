@@ -9,15 +9,23 @@
 // scope. All ROM-write logic lives in PortraitImportHelper so both this
 // wizard and ImagePortraitView share a single source of truth.
 //
-// Out of scope for #664 (tracked under follow-ups):
-//   - Batch import (#661)
+// Batch import wired in #661: the "Pick Folder (batch)..." button enumerates
+// every PNG / BMP in a folder, parses the slot ID from the filename prefix
+// (0xNN.png or NN.png), and delegates to PortraitImportHelper.ImportFolderAsync
+// which wraps the whole batch in a single UndoService scope.
+//
+// Out of scope (tracked under follow-ups):
 //   - Advanced palette options + Fuchidori (#662)
 //   - Eye/mouth block configuration + per-frame preview (#663)
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -208,6 +216,108 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImagePortraitImporterView.LoadImageFromPath failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Load image failed: {ex.Message}");
+            }
+        }
+
+        // #661: batch folder import — enumerate every .png / .bmp in the
+        // chosen folder, parse the slot ID from the filename prefix, and
+        // delegate to PortraitImportHelper.ImportFolderAsync. A single outer
+        // UndoService scope wraps the whole batch (rollback if every file
+        // fails). UI buttons are disabled while the batch runs so the user
+        // cannot kick off a second import mid-flight.
+        async void PickFolder_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null) return;
+                var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+                {
+                    Title = "Pick a folder of portrait PNG/BMP files",
+                    AllowMultiple = false,
+                });
+                if (folders == null || folders.Count == 0) return;
+
+                string folder = folders[0].Path.LocalPath;
+                bool confirm = CoreState.Services.ShowYesNo(
+                    $"Batch-import all PNG/BMP files from {folder}? Each file must be named 0xNN.png or NN.png matching the portrait slot.");
+                if (!confirm) return;
+
+                var rom = CoreState.ROM;
+                if (rom == null)
+                {
+                    CoreState.Services.ShowError("No ROM loaded.");
+                    return;
+                }
+
+                PickFileButton.IsEnabled = false;
+                FERepoButton.IsEnabled = false;
+                PickFolderButton.IsEnabled = false;
+                ImportButton.IsEnabled = false;
+                BatchProgressBar.IsVisible = true;
+                BatchProgressBar.Value = 0;
+                BatchResultsBox.IsVisible = true;
+                BatchResultsBox.Text = string.Empty;
+
+                try
+                {
+                    // Pre-count the eligible files so the bar can be
+                    // determinate, matching the per-file Report cadence
+                    // inside ImportFolderAsync (one Report per processed file).
+                    var allFiles = Directory.EnumerateFiles(folder)
+                        .Where(f =>
+                        {
+                            string ext = Path.GetExtension(f).ToLowerInvariant();
+                            return ext == ".png" || ext == ".bmp";
+                        })
+                        .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    BatchProgressBar.Maximum = Math.Max(1, allFiles.Count);
+
+                    int processed = 0;
+                    var progress = new Progress<string>(line =>
+                    {
+                        // Progress<T> already posts to the captured
+                        // SynchronizationContext, but be explicit for
+                        // headless / non-UI sync contexts.
+                        Dispatcher.UIThread.Post(() =>
+                        {
+                            processed++;
+                            BatchProgressBar.Value = processed;
+                            BatchResultsBox.Text += line + "\n";
+                        });
+                    });
+
+                    var result = await PortraitImportHelper.ImportFolderAsync(folder, progress, _undoService, rom);
+
+                    BatchResultsBox.Text = string.Join("\n", result.Lines);
+                    BatchProgressBar.Value = BatchProgressBar.Maximum;
+
+                    CoreState.Services.ShowInfo(
+                        $"Batch import complete: {result.Imported} imported, {result.Failed} failed, {result.Skipped} skipped (total {result.Total}).");
+                    StatusLabel.Text = $"Batch import: {result.Imported}/{result.Total} imported";
+                    StatusLabel.Foreground = result.Imported > 0
+                        ? global::Avalonia.Media.Brushes.DarkGreen
+                        : global::Avalonia.Media.Brushes.Firebrick;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImagePortraitImporterView.PickFolder_Click batch failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Batch import error: {ex.Message}");
+                }
+                finally
+                {
+                    PickFileButton.IsEnabled = true;
+                    FERepoButton.IsEnabled = true;
+                    PickFolderButton.IsEnabled = true;
+                    // ImportButton: refresh from current image + slot state.
+                    RefreshImportButtonState();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitImporterView.PickFolder_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Pick folder failed: {ex.Message}");
             }
         }
 

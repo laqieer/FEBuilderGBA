@@ -26,6 +26,10 @@
 //                                           the entry address is derived
 //                                           via U.ToHexString(portraitIndex).)
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.ViewModels;
 
 namespace FEBuilderGBA.Avalonia.Services
@@ -36,6 +40,14 @@ namespace FEBuilderGBA.Avalonia.Services
         public static ImportOutcome Ok() => new(true, string.Empty);
         public static ImportOutcome Fail(string error) => new(false, error);
     }
+
+    /// <summary>Aggregate result of a batch folder import (#661).</summary>
+    /// <param name="Imported">Files successfully written to ROM.</param>
+    /// <param name="Failed">Files that parsed a slot ID but failed during load/quantize/write.</param>
+    /// <param name="Skipped">Files skipped because the filename did not encode a slot ID.</param>
+    /// <param name="Total">Total .png + .bmp files enumerated in the folder.</param>
+    /// <param name="Lines">Human-readable per-file outcome lines, in enumeration order.</param>
+    public record FolderImportResult(int Imported, int Failed, int Skipped, int Total, List<string> Lines);
 
     /// <summary>
     /// Shared portrait-slot import helper. Single source of truth for the
@@ -73,7 +85,8 @@ namespace FEBuilderGBA.Avalonia.Services
             uint entryAddr,
             ImageImportService.LoadResult loadResult,
             UndoService undoService,
-            string undoLabel = "Import Portrait Image")
+            string undoLabel = "Import Portrait Image",
+            bool useExternalScope = false)
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -81,37 +94,42 @@ namespace FEBuilderGBA.Avalonia.Services
             if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
             if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
 
-            undoService.Begin(undoLabel);
+            // Batch import (#661) opens a single outer undo scope spanning the
+            // whole folder and reuses this helper per file. When the caller
+            // already owns a scope, we must NOT call Begin/Commit/Rollback —
+            // doing so would close the outer scope prematurely or push a
+            // per-file entry to the undo stack.
+            if (!useExternalScope) undoService.Begin(undoLabel);
             try
             {
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(
                     loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null)
                 {
-                    undoService.Rollback();
+                    if (!useExternalScope) undoService.Rollback();
                     return ImportOutcome.Fail("Failed to encode tiles");
                 }
 
                 uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, entryAddr + 0);
                 if (tileAddr == U.NOT_FOUND)
                 {
-                    undoService.Rollback();
+                    if (!useExternalScope) undoService.Rollback();
                     return ImportOutcome.Fail("No free space for tile data");
                 }
 
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, entryAddr + 8);
                 if (palAddr == U.NOT_FOUND)
                 {
-                    undoService.Rollback();
+                    if (!useExternalScope) undoService.Rollback();
                     return ImportOutcome.Fail("No free space for palette");
                 }
 
-                undoService.Commit();
+                if (!useExternalScope) undoService.Commit();
                 return ImportOutcome.Ok();
             }
             catch (Exception ex)
             {
-                undoService.Rollback();
+                if (!useExternalScope) undoService.Rollback();
                 return ImportOutcome.Fail($"Import failed: {ex.Message}");
             }
         }
@@ -128,7 +146,8 @@ namespace FEBuilderGBA.Avalonia.Services
             uint entryAddr,
             ImageImportService.LoadResult loadResult,
             UndoService undoService,
-            string undoLabel = "Import Portrait Sheet (128x112)")
+            string undoLabel = "Import Portrait Sheet (128x112)",
+            bool useExternalScope = false)
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -168,13 +187,16 @@ namespace FEBuilderGBA.Avalonia.Services
             if (sheetIndexed == null || miniIndexed == null || mouthIndexed == null)
                 return ImportOutcome.Fail("Failed to remap sheet parts to palette.");
 
-            undoService.Begin(undoLabel);
+            // Batch-import (#661) parity: when caller owns the scope, skip our
+            // Begin/Commit/Rollback so the per-file ROM writes flow through
+            // the outer batch scope.
+            if (!useExternalScope) undoService.Begin(undoLabel);
             try
             {
                 byte[] sheetTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH);
                 if (sheetTiles == null)
-                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
                 uint currentD0 = rom.p32(entryAddr + 0);
                 // Use the rom-aware isSafetyOffset overload + reuse the
@@ -198,34 +220,34 @@ namespace FEBuilderGBA.Avalonia.Services
                     sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + 0);
                 }
                 if (sheetAddr == U.NOT_FOUND)
-                { undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
 
                 byte[] miniTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     miniIndexed, parts.MiniW, parts.MiniH);
                 if (miniTiles == null)
-                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
                 uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + 4);
                 if (miniAddr == U.NOT_FOUND)
-                { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
 
                 uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, entryAddr + 8);
                 if (palAddr == U.NOT_FOUND)
-                { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
 
                 byte[] mouthTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     mouthIndexed, parts.MouthW, parts.MouthH);
                 if (mouthTiles == null)
-                { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
                 uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + 12);
                 if (mouthAddr == U.NOT_FOUND)
-                { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
+                { if (!useExternalScope) undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
 
-                undoService.Commit();
+                if (!useExternalScope) undoService.Commit();
                 return ImportOutcome.Ok();
             }
             catch (Exception ex)
             {
-                undoService.Rollback();
+                if (!useExternalScope) undoService.Rollback();
                 return ImportOutcome.Fail($"Sheet import failed: {ex.Message}");
             }
         }
@@ -283,6 +305,226 @@ namespace FEBuilderGBA.Avalonia.Services
                 }
             }
             return rgba;
+        }
+
+        /// <summary>
+        /// Parse a portrait slot ID from a filename. Accepts:
+        ///   - Hexadecimal prefix: "0x1F.png", "0x1f_anything.bmp" → 31
+        ///   - Decimal prefix:     "31.png",  "31_anything.bmp"   → 31
+        /// Returns -1 when no recognisable numeric prefix is present.
+        /// </summary>
+        internal static int ParseSlotIdFromFilename(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) return -1;
+            string name = Path.GetFileNameWithoutExtension(fileName);
+            if (string.IsNullOrEmpty(name)) return -1;
+
+            // Hex prefix: 0xNN or 0XNN. Check before decimal so "0x10" doesn't
+            // get matched as the decimal "0".
+            var hexMatch = System.Text.RegularExpressions.Regex.Match(name, @"^0[xX]([0-9A-Fa-f]+)");
+            if (hexMatch.Success && int.TryParse(hexMatch.Groups[1].Value,
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out int hex))
+            {
+                return hex;
+            }
+            // Decimal prefix.
+            var decMatch = System.Text.RegularExpressions.Regex.Match(name, @"^(\d+)");
+            if (decMatch.Success && int.TryParse(decMatch.Groups[1].Value,
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out int dec))
+            {
+                return dec;
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Batch-import every .png + .bmp file in <paramref name="folderPath"/>
+        /// into portrait slots derived from the filename prefix. Wraps the
+        /// whole batch in a single <see cref="UndoService"/> scope so the
+        /// user gets one combined undo entry (or full rollback when every
+        /// file fails). Per Copilot CLI plan v2 review, each file is
+        /// pre-validated (load + quantize) before any ROM write, so a bad
+        /// file cannot leave the ROM half-written.
+        ///
+        /// File-naming convention (issue #661):
+        ///   "0x1F.png" or "31.png" -> slot 31
+        ///   anything else          -> skipped
+        ///
+        /// Caller is responsible for keeping <paramref name="rom"/> alive for
+        /// the duration of the task; ROM reads/writes run on the caller's
+        /// thread (no <c>Task.Run</c>).
+        /// </summary>
+        /// <param name="folderPath">Folder containing .png / .bmp portrait images.</param>
+        /// <param name="progress">Optional per-file progress reporter (filename + outcome line).</param>
+        /// <param name="undo">Undo service that owns the outer batch scope.</param>
+        /// <param name="rom">Target ROM.</param>
+        public static async Task<FolderImportResult> ImportFolderAsync(
+            string folderPath,
+            IProgress<string> progress,
+            UndoService undo,
+            ROM rom)
+        {
+            var lines = new List<string>();
+            if (rom == null)
+            {
+                lines.Add("ROM not loaded.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+            if (undo == null)
+            {
+                lines.Add("Undo service not initialized.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+            {
+                lines.Add($"Folder not found: {folderPath}");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            // Copilot CLI plan v1 review #2: the target address is
+            // `portrait_pointer` dereferenced (it's a pointer into the
+            // portrait table). Doing slotId * datasize off the raw pointer
+            // field address would land in completely unrelated ROM bytes.
+            uint portraitBase = rom.p32(rom.RomInfo.portrait_pointer);
+            uint dataSize = rom.RomInfo.portrait_datasize;
+            if (dataSize == 0)
+            {
+                lines.Add("Invalid portrait_datasize.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            // Enumerate .png + .bmp files, sorted alphabetically for
+            // deterministic ordering across platforms (Directory.EnumerateFiles
+            // does NOT guarantee an order).
+            List<string> files;
+            try
+            {
+                files = Directory.EnumerateFiles(folderPath)
+                    .Where(f =>
+                    {
+                        string ext = Path.GetExtension(f).ToLowerInvariant();
+                        return ext == ".png" || ext == ".bmp";
+                    })
+                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                lines.Add($"Failed to enumerate folder: {ex.Message}");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            if (files.Count == 0)
+            {
+                lines.Add("No .png or .bmp files found in folder.");
+                return new FolderImportResult(0, 0, 0, 0, lines);
+            }
+
+            int imported = 0, failed = 0, skipped = 0;
+
+            undo.Begin("Batch Portrait Import");
+            try
+            {
+                foreach (string filePath in files)
+                {
+                    string fileName = Path.GetFileName(filePath);
+                    int slotId = ParseSlotIdFromFilename(fileName);
+                    if (slotId < 0)
+                    {
+                        skipped++;
+                        string line = $"{fileName} → SKIPPED: no slot ID prefix";
+                        lines.Add(line);
+                        progress?.Report(line);
+                        await Task.Yield();
+                        continue;
+                    }
+
+                    // Pre-validate: load + quantize BEFORE writing anything to
+                    // ROM (Copilot review v1 #3). A bad PNG must not leave
+                    // any half-written tiles behind in the outer scope.
+                    ImageImportService.LoadResult loadResult;
+                    try
+                    {
+                        loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath, 0, 0, 16);
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        string line = $"{fileName} → FAILED: load error: {ex.Message}";
+                        lines.Add(line);
+                        progress?.Report(line);
+                        await Task.Yield();
+                        continue;
+                    }
+                    if (loadResult == null || !loadResult.Success)
+                    {
+                        failed++;
+                        string reason = loadResult?.Error ?? "unknown error";
+                        string line = $"{fileName} → FAILED: {reason}";
+                        lines.Add(line);
+                        progress?.Report(line);
+                        await Task.Yield();
+                        continue;
+                    }
+
+                    // Bounds check before computing the entry address.
+                    long addrLong = (long)portraitBase + (long)slotId * dataSize;
+                    if (addrLong < 0 || addrLong + dataSize > rom.Data.Length)
+                    {
+                        failed++;
+                        string line = $"{fileName} → FAILED: slot 0x{slotId:X2} out of ROM bounds";
+                        lines.Add(line);
+                        progress?.Report(line);
+                        await Task.Yield();
+                        continue;
+                    }
+                    uint entryAddr = (uint)addrLong;
+
+                    ImportOutcome outcome = ImportSimple(
+                        rom, entryAddr, loadResult, undo,
+                        undoLabel: "Import Portrait Image (Batch)",
+                        useExternalScope: true);
+                    if (outcome.Success)
+                    {
+                        imported++;
+                        // Record the source file so the per-slot Open/Select
+                        // Source buttons light up after a batch import.
+                        RecordSourceFile(slotId, filePath);
+                        string line = $"{fileName} → slot 0x{slotId:X2} → OK";
+                        lines.Add(line);
+                        progress?.Report(line);
+                    }
+                    else
+                    {
+                        failed++;
+                        string line = $"{fileName} → slot 0x{slotId:X2} → FAILED: {outcome.Error}";
+                        lines.Add(line);
+                        progress?.Report(line);
+                    }
+                    await Task.Yield();
+                }
+
+                if (imported > 0)
+                {
+                    undo.Commit();
+                }
+                else
+                {
+                    // Nothing landed in ROM — roll the outer scope back so
+                    // the user's ROM is byte-identical to before the batch.
+                    undo.Rollback();
+                }
+            }
+            catch (Exception ex)
+            {
+                undo.Rollback();
+                lines.Add($"Batch import aborted: {ex.Message}");
+                return new FolderImportResult(imported, failed, skipped, files.Count, lines);
+            }
+
+            return new FolderImportResult(imported, failed, skipped, files.Count, lines);
         }
 
         /// <summary>
