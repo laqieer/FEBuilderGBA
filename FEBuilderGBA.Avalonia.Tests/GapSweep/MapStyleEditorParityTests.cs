@@ -192,21 +192,18 @@ public class MapStyleEditorParityTests
     /// </summary>
     static readonly string[] KnownGapButtonIds =
     {
+        // 4 buttons deferred to follow-up #692 (Redo, OBJ Import, MapChip
+        // Export/Import). PaletteExport/Import/Clipboard/ObjExport/Undo
+        // became functional in #672 Slice A (see View_<Name>_Button_IsEnabled
+        // + View_<Name>_Click_HandlerWired tests below).
+        //
+        // PaletteWrite is functional via #660 first slice (tracked positively
+        // by View_FunctionalPaletteWriteButton_IsEnabled); CopyTile / CopyType /
+        // Paste / ConfigWrite became functional in #671 (tracked positively
+        // by View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit).
         "MapStyleEditor_MapChipExport_Button",
         "MapStyleEditor_MapChipImport_Button",
-        "MapStyleEditor_ObjExport_Button",
         "MapStyleEditor_ObjImport_Button",
-        "MapStyleEditor_PaletteExport_Button",
-        "MapStyleEditor_PaletteImport_Button",
-        "MapStyleEditor_PaletteClipboard_Button",
-        // PaletteWrite is now functional (#660 first slice -- WritePalette
-        // in-place rewrite of the resolved 32-byte slice). Tracked
-        // positively by View_FunctionalPaletteWriteButton_IsEnabled.
-        //
-        // CopyTile / CopyType / Paste / ConfigWrite became functional in
-        // #671 (Chipset Tab interactive editing + Config Write). Tracked
-        // positively by View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit.
-        "MapStyleEditor_Undo_Button",
         "MapStyleEditor_Redo_Button",
     };
 
@@ -217,14 +214,15 @@ public class MapStyleEditorParityTests
         foreach (string id in KnownGapButtonIds)
         {
             // Each button must appear with IsEnabled="False" AND a
-            // tooltip referencing #374 in the same element block.
-            // Allow attributes in any order via DOTALL flag.
+            // tooltip referencing the follow-up issue #692 in the same
+            // element block. Allow attributes in any order via DOTALL flag.
             var idAttr = $"AutomationProperties.AutomationId=\"{id}\"";
             Assert.Contains(idAttr, axaml);
 
             // Locate the <Button ... /> element containing this id and
-            // verify the element body has IsEnabled="False" and a #374
-            // tooltip.
+            // verify the element body has IsEnabled="False" and a #692
+            // tooltip (post-#672 Slice A — old #374 retired for the 5
+            // landed buttons; the 4 remaining track #692).
             var elementPattern = new Regex(
                 @"<Button(?:\s[^/>]*?)?" + Regex.Escape(idAttr) + @"[\s\S]*?/?>",
                 RegexOptions.None);
@@ -236,8 +234,8 @@ public class MapStyleEditorParityTests
                 elementText.Contains("IsEnabled=\"False\""),
                 $"KnownGap button {id} must have IsEnabled=\"False\"; element was: {elementText}");
             Assert.True(
-                elementText.Contains("#374"),
-                $"KnownGap button {id} must have a #374 tooltip; element was: {elementText}");
+                elementText.Contains("#692"),
+                $"KnownGap button {id} must have a #692 follow-up tooltip; element was: {elementText}");
         }
     }
 
@@ -996,6 +994,95 @@ public class MapStyleEditorParityTests
         Assert.Contains(
             "AutomationProperties.AutomationId=\"MapStyleEditor_Write_Button\"",
             axaml);
+    }
+
+    // -----------------------------------------------------------------
+    // #672 Slice A — 5 newly-functional buttons (Palette Export / Import /
+    // Clipboard, OBJ Export, Undo). Remaining 4 buttons (Redo, OBJ Import,
+    // MapChip Export/Import) tracked by follow-up #692.
+    // -----------------------------------------------------------------
+
+    public static IEnumerable<object[]> Slice672ButtonIds()
+    {
+        yield return new object[] { "MapStyleEditor_PaletteExport_Button", "PaletteExport_Click" };
+        yield return new object[] { "MapStyleEditor_PaletteImport_Button", "PaletteImport_Click" };
+        yield return new object[] { "MapStyleEditor_PaletteClipboard_Button", "PaletteClipboard_Click" };
+        yield return new object[] { "MapStyleEditor_ObjExport_Button", "ObjExport_Click" };
+        yield return new object[] { "MapStyleEditor_Undo_Button", "Undo_Click" };
+    }
+
+    /// <summary>
+    /// Each of the 5 #672 Slice A buttons must NOT carry IsEnabled="False"
+    /// in AXAML (parity with the #660 / #671 enable pattern).
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Slice672ButtonIds))]
+    public void View_Slice672_Button_IsEnabled(string id, string handler)
+    {
+        _ = handler; // signal that the handler name is checked elsewhere
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""" + Regex.Escape(id) + @"""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, $"{id} must exist");
+        Assert.False(m.Value.Contains("IsEnabled=\"False\""),
+            $"{id} must not carry IsEnabled=\"False\" anymore (#672 Slice A made it functional)");
+        // Stale #374 tooltips must NOT remain on the 5 #672 buttons.
+        Assert.False(m.Value.Contains("#374"),
+            $"{id} must not carry the legacy #374 tooltip (#672 Slice A enabled it)");
+    }
+
+    /// <summary>
+    /// Each of the 5 #672 Slice A buttons must wire its Click attribute to
+    /// the matching handler in AXAML. This catches accidental disconnects
+    /// between the XAML and the code-behind handler.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Slice672ButtonIds))]
+    public void View_Slice672_Click_HandlerWired(string id, string handler)
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""" + Regex.Escape(id) + @"""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, $"{id} must exist");
+        Assert.Contains($"Click=\"{handler}\"", m.Value);
+
+        // And the handler method must exist in the code-behind.
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"void " + Regex.Escape(handler) + @"\(object\?",
+            RegexOptions.None), code);
+    }
+
+    /// <summary>
+    /// Undo handler must guard on <c>CoreState.Undo?.Postion &gt; 0</c>
+    /// before calling RunUndo (v2 Copilot review item 2 — silently no-op
+    /// when Position is 0 misleads the user with a false "Undo applied"
+    /// toast). The code-behind must read Postion before RunUndo.
+    /// </summary>
+    [Fact]
+    public void View_Undo_Click_GuardsOnPostion()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // The Undo_Click body must reference Postion and bail to ShowInfo
+        // ("Nothing to undo") before RunUndo() is called.
+        var bodyMatch = Regex.Match(code,
+            @"void Undo_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|/// |\}))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "Undo_Click method not found");
+        string body = bodyMatch.Value;
+        Assert.Contains("Postion", body);
+        Assert.Contains("Nothing to undo", body);
+        // The guard must precede RunUndo() in source order.
+        int postionIdx = body.IndexOf("Postion", StringComparison.Ordinal);
+        int runUndoIdx = body.IndexOf("RunUndo()", StringComparison.Ordinal);
+        Assert.True(postionIdx >= 0 && runUndoIdx >= 0,
+            "Undo_Click must reference Postion and RunUndo()");
+        Assert.True(postionIdx < runUndoIdx,
+            "Postion guard must precede RunUndo() call");
     }
 
     // -----------------------------------------------------------------

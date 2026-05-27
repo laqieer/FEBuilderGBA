@@ -20820,6 +20820,9 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :Pending Core extraction - tracked by #500.
 等待 Core 抽取 - 跟踪于 #500。
 
+:Pending Core extraction - tracked by #692.
+等待 Core 抽取 - 跟踪于 #692。
+
 :Animation @ 0x{0:X08} ({1})
 动画 @ 0x{0:X08} ({1})
 

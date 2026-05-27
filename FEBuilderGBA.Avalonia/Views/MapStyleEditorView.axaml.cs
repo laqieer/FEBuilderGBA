@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Shapes;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -702,6 +707,270 @@ namespace FEBuilderGBA.Avalonia.Views
             text = text.Trim();
             if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) text = text[2..];
             return uint.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out uint v) ? v : 0;
+        }
+
+        // -----------------------------------------------------------------
+        // #672 Slice A: Palette Export / Import / Clipboard / OBJ Export /
+        // Undo handlers. Redo + OBJ Import + MapChip Export/Import deferred
+        // to follow-up issue #692.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Pack the 16 in-memory RGB triplets currently displayed in the
+        /// palette NUDs into 32 BGR555 LE bytes (the on-disk GBA palette
+        /// format). Returns a fresh 32-byte array; safe to round-trip
+        /// through <see cref="PaletteFormatConverter.ImportFromFormat"/>.
+        /// </summary>
+        internal byte[] PackPaletteToBytes()
+        {
+            byte[] bytes = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort r = (ushort)(_vm.GetColorR(i + 1) & 0x1F);
+                ushort g = (ushort)(_vm.GetColorG(i + 1) & 0x1F);
+                ushort b = (ushort)(_vm.GetColorB(i + 1) & 0x1F);
+                ushort packed = (ushort)(r | (g << 5) | (b << 10));
+                bytes[i * 2] = (byte)(packed & 0xFF);
+                bytes[i * 2 + 1] = (byte)((packed >> 8) & 0xFF);
+            }
+            return bytes;
+        }
+
+        /// <summary>
+        /// Unpack 32 BGR555 LE bytes into the 48 RGB NumericUpDowns + sync
+        /// the in-memory VM channels via SetColorR/G/B. Caller is responsible
+        /// for guarding <c>_vm.IsLoading</c> when invoking from a programmatic
+        /// path (e.g., after a confirmed import).
+        /// </summary>
+        void UnpackPaletteBytesIntoUI(byte[] palette32)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                ushort packed = (ushort)(palette32[i * 2] | (palette32[i * 2 + 1] << 8));
+                ushort r = (ushort)(packed & 0x1F);
+                ushort g = (ushort)((packed >> 5) & 0x1F);
+                ushort b = (ushort)((packed >> 10) & 0x1F);
+                _vm.SetColorR(i + 1, r);
+                _vm.SetColorG(i + 1, g);
+                _vm.SetColorB(i + 1, b);
+
+                var rBox = this.FindControl<NumericUpDown>($"Color{i + 1}_RBox");
+                var gBox = this.FindControl<NumericUpDown>($"Color{i + 1}_GBox");
+                var bBox = this.FindControl<NumericUpDown>($"Color{i + 1}_BBox");
+                if (rBox != null) rBox.Value = r;
+                if (gBox != null) gBox.Value = g;
+                if (bBox != null) bBox.Value = b;
+                UpdateSwatch(i + 1);
+            }
+        }
+
+        /// <summary>
+        /// Normalize raw palette import bytes per v2 Copilot review item 1:
+        /// reject inputs shorter than 32 bytes; truncate to the first 32 for
+        /// larger inputs (e.g. ACT files are 768 bytes for 256 colors).
+        /// Returns null when the input is too short. Internal so tests can
+        /// call it without driving the dialog path.
+        /// </summary>
+        internal static byte[]? NormalizeImportedPalette(byte[]? bytes)
+        {
+            if (bytes == null || bytes.Length < 32) return null;
+            if (bytes.Length == 32) return bytes;
+            byte[] trimmed = new byte[32];
+            Buffer.BlockCopy(bytes, 0, trimmed, 0, 32);
+            return trimmed;
+        }
+
+        async void PaletteExport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.SavePaletteFile(this, "map_style_palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+
+                byte[] gbaBytes = PackPaletteToBytes();
+                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(System.IO.Path.GetExtension(path));
+                byte[] output = PaletteFormatConverter.ExportToFormat(gbaBytes, fmt);
+                File.WriteAllBytes(path, output);
+                CoreState.Services.ShowInfo($"Palette exported to {System.IO.Path.GetFileName(path)}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.PaletteExport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Export palette failed: {ex.Message}");
+            }
+        }
+
+        async void PaletteImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+
+                byte[] fileData = File.ReadAllBytes(path);
+                PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, System.IO.Path.GetExtension(path));
+                byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
+
+                byte[]? staged = NormalizeImportedPalette(palData);
+                if (staged == null)
+                {
+                    CoreState.Services.ShowError("Palette file must contain at least 16 colors (32 bytes).");
+                    return;
+                }
+
+                // Per v1 Copilot review item 2 + v2 plan: stage in a local
+                // before touching VM / NUD state. Confirm-before-apply so a
+                // user can cancel after seeing the source filename.
+                string filename = System.IO.Path.GetFileName(path);
+                bool confirm = CoreState.Services.ShowYesNo(
+                    $"Import 16 colors from {filename} into current palette? " +
+                    "You can still cancel before clicking Palette Write.");
+                if (!confirm) return;
+
+                _vm.IsLoading = true;
+                try
+                {
+                    UnpackPaletteBytesIntoUI(staged);
+                }
+                finally { _vm.IsLoading = false; }
+                CoreState.Services.ShowInfo($"Imported palette from {filename}. Click Palette Write to persist.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.PaletteImport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Import palette failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Regex matching a 64-char hex string (16 colors * 4 hex chars).
+        /// Used by <see cref="PaletteClipboard_Click"/> to decide whether to
+        /// paste an existing clipboard string back into the palette or copy
+        /// the current palette out as 64-char hex.
+        /// </summary>
+        static readonly Regex HexPalette64 = new(@"^[0-9A-Fa-f]{64}$", RegexOptions.Compiled);
+
+        async void PaletteClipboard_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel?.Clipboard == null)
+                {
+                    CoreState.Services.ShowError("Clipboard not available.");
+                    return;
+                }
+
+                string? clipText = await topLevel.Clipboard.GetTextAsync();
+                string? trimmed = clipText?.Trim();
+
+                if (!string.IsNullOrEmpty(trimmed) && HexPalette64.IsMatch(trimmed))
+                {
+                    // Paste path: parse 64-char hex into 32 bytes, confirm,
+                    // then apply.
+                    byte[] staged = new byte[32];
+                    for (int i = 0; i < 32; i++)
+                    {
+                        staged[i] = byte.Parse(trimmed.Substring(i * 2, 2),
+                            System.Globalization.NumberStyles.HexNumber);
+                    }
+
+                    bool confirm = CoreState.Services.ShowYesNo(
+                        "Paste 16 colors from clipboard into current palette? " +
+                        "You can still cancel before clicking Palette Write.");
+                    if (!confirm) return;
+
+                    _vm.IsLoading = true;
+                    try { UnpackPaletteBytesIntoUI(staged); }
+                    finally { _vm.IsLoading = false; }
+                    CoreState.Services.ShowInfo("Palette pasted from clipboard. Click Palette Write to persist.");
+                }
+                else
+                {
+                    // Copy path: pack current palette to 64-char uppercase hex.
+                    byte[] bytes = PackPaletteToBytes();
+                    var sb = new StringBuilder(64);
+                    foreach (byte b in bytes) sb.AppendFormat("{0:X2}", b);
+                    await topLevel.Clipboard.SetTextAsync(sb.ToString());
+                    CoreState.Services.ShowInfo("Palette copied to clipboard.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.PaletteClipboard_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Clipboard operation failed: {ex.Message}");
+            }
+        }
+
+        async void ObjExport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.TryRenderObjTileSheet(out byte[] rgba, out int w, out int h))
+                {
+                    CoreState.Services.ShowError("No OBJ tile sheet available to export.");
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveImageFile(this, $"map_style_obj_{_vm.ConfigNo}.png");
+                if (string.IsNullOrEmpty(path)) return;
+
+                var bitmap = IconBitmapBuilder.FromRgba(rgba, w, h);
+                if (bitmap == null)
+                {
+                    CoreState.Services.ShowError("Failed to build bitmap from OBJ tile sheet.");
+                    return;
+                }
+                using (var stream = File.Create(path))
+                {
+                    bitmap.Save(stream);
+                }
+                CoreState.Services.ShowInfo($"OBJ tile sheet exported to {System.IO.Path.GetFileName(path)}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.ObjExport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"OBJ export failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Per-editor Undo (#672 Slice A): runs <see cref="Undo.RunUndo"/> on
+        /// the global <see cref="CoreState.Undo"/> buffer. Guards on Position
+        /// > 0 per v2 Copilot review item 2 so a no-op undo doesn't falsely
+        /// claim success. After a successful undo, the entry is reloaded so
+        /// the palette/chipset/preview surfaces reflect the rolled-back ROM
+        /// bytes.
+        /// </summary>
+        void Undo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null || CoreState.Undo.Postion <= 0)
+                {
+                    CoreState.Services.ShowInfo("Nothing to undo.");
+                    return;
+                }
+                CoreState.Undo.RunUndo();
+                // Reload the current entry so palette / chipset / preview
+                // pick up the rolled-back ROM bytes.
+                if (_vm.CurrentAddr != 0)
+                {
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        _vm.LoadEntry(_vm.CurrentAddr);
+                        UpdateUI();
+                    }
+                    finally { _vm.IsLoading = false; }
+                    RefreshChipPreview();
+                }
+                CoreState.Services.ShowInfo("Undo applied.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.Undo_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Undo failed: {ex.Message}");
+            }
         }
     }
 }
