@@ -38,7 +38,8 @@ $exemptInternalFiles = @(
 
 # Valid control type suffixes
 $validSuffixes = @('_Input', '_Combo', '_Button', '_List', '_Check', '_Expander',
-                   '_TabControl', '_Tab', '_Image', '_Label', '_Control', '_Link')
+                   '_TabControl', '_Tab', '_Image', '_Label', '_Control', '_Link',
+                   '_TopBar')
 
 # Interactive control types that should have AutomationIds
 $interactiveControlTypes = @(
@@ -51,7 +52,7 @@ $interactiveControlTypes = @(
 
 $customControlTypes = @(
     'controls:BitFlagPanel', 'controls:AddressListControl', 'controls:GbaImageControl',
-    'controls:IdFieldControl'
+    'controls:IdFieldControl', 'controls:EditorTopBar'
 )
 
 $totalErrors = 0
