@@ -308,28 +308,29 @@
       <TabItem AutomationProperties.AutomationId="WorldMapImage_Border_Tab" Header="Border">
         <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="240,*">
 
-          <!-- Row 0: Read-config bar (mirrors WF panel4) -->
-          <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-              <Label Content="Start Address" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Border_ReadStartAddress_Input"
-                             Name="Border_ReadStartAddressBox" FormatString="0"
-                             Minimum="0" Maximum="4294967295" Width="130"
-                             IsEnabled="False" VerticalAlignment="Center" />
-              <Label Content="Read Count" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_Border_ReadCount_Input"
-                             Name="Border_ReadCountBox" FormatString="0"
-                             Minimum="0" Maximum="65535" Width="80"
-                             IsEnabled="False" VerticalAlignment="Center" />
-              <Button AutomationProperties.AutomationId="WorldMapImage_Border_Reload_Button"
-                      Name="Border_ReloadButton" Content="Reload"
-                      Click="BorderReload_Click" />
-              <Button AutomationProperties.AutomationId="WorldMapImage_Border_AddressListExpand_Button"
-                      Name="Border_AddressListExpandButton" Content="List Expand"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
-            </StackPanel>
-          </Border>
+          <!-- Row 0: Read-config bar (mirrors WF panel4).
+               #668: start address / count / reload migrated to unified
+               EditorTopBar control. The List Expand button stays external
+               (not a standard top-bar slot) — Grid keeps EditorTopBar
+               stretched and pins List Expand to the right. -->
+          <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                ColumnDefinitions="*,Auto">
+            <controls:EditorTopBar Grid.Column="0"
+                                   Name="Border_TopBar"
+                                   AutomationProperties.AutomationId="WorldMapImage_Border_TopBar"
+                                   ShowSize="False"
+                                   StartAddressLabel="Start Address:"
+                                   ReadCountLabel="Read Count:"
+                                   StartAddressAutomationId="WorldMapImage_Border_ReadStartAddress_Label"
+                                   ReadCountAutomationId="WorldMapImage_Border_ReadCount_Label"
+                                   ReloadAutomationId="WorldMapImage_Border_Reload_Button"
+                                   ReloadRequested="OnBorderTopBarReloadRequested" />
+            <Button Grid.Column="1"
+                    AutomationProperties.AutomationId="WorldMapImage_Border_AddressListExpand_Button"
+                    Name="Border_AddressListExpandButton" Content="List Expand"
+                    IsEnabled="False" Margin="4,0,0,0" VerticalAlignment="Center"
+                    ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
+          </Grid>
 
           <!-- Row 1: Selection bar (mirrors WF AddressPanel) -->
           <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
@@ -426,28 +427,27 @@
       <TabItem AutomationProperties.AutomationId="WorldMapImage_IconData_Tab" Header="Icon Data">
         <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="240,*">
 
-          <!-- Row 0: Read-config bar -->
-          <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-              <Label Content="Start Address" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_IconData_ReadStartAddress_Input"
-                             Name="IconData_ReadStartAddressBox" FormatString="0"
-                             Minimum="0" Maximum="4294967295" Width="130"
-                             IsEnabled="False" VerticalAlignment="Center" />
-              <Label Content="Read Count" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_IconData_ReadCount_Input"
-                             Name="IconData_ReadCountBox" FormatString="0"
-                             Minimum="0" Maximum="65535" Width="80"
-                             IsEnabled="False" VerticalAlignment="Center" />
-              <Button AutomationProperties.AutomationId="WorldMapImage_IconData_Reload_Button"
-                      Name="IconData_ReloadButton" Content="Reload"
-                      Click="IconDataReload_Click" />
-              <Button AutomationProperties.AutomationId="WorldMapImage_IconData_AddressListExpand_Button"
-                      Name="IconData_AddressListExpandButton" Content="List Expand"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
-            </StackPanel>
-          </Border>
+          <!-- Row 0: Read-config bar.
+               #668: migrated to unified EditorTopBar control. List Expand
+               kept external. -->
+          <Grid Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                ColumnDefinitions="*,Auto">
+            <controls:EditorTopBar Grid.Column="0"
+                                   Name="IconData_TopBar"
+                                   AutomationProperties.AutomationId="WorldMapImage_IconData_TopBar"
+                                   ShowSize="False"
+                                   StartAddressLabel="Start Address:"
+                                   ReadCountLabel="Read Count:"
+                                   StartAddressAutomationId="WorldMapImage_IconData_ReadStartAddress_Label"
+                                   ReadCountAutomationId="WorldMapImage_IconData_ReadCount_Label"
+                                   ReloadAutomationId="WorldMapImage_IconData_Reload_Button"
+                                   ReloadRequested="OnIconDataTopBarReloadRequested" />
+            <Button Grid.Column="1"
+                    AutomationProperties.AutomationId="WorldMapImage_IconData_AddressListExpand_Button"
+                    Name="IconData_AddressListExpandButton" Content="List Expand"
+                    IsEnabled="False" Margin="4,0,0,0" VerticalAlignment="Center"
+                    ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
+          </Grid>
 
           <!-- Row 1: Selection bar -->
           <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">

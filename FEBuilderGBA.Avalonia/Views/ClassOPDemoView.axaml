@@ -22,23 +22,18 @@
   <!-- KnownGap: PatchAwareUI reason=Orphan ClassOPDemoForm constructor has zero PatchUtil calls; OPClassReelSort/Over255 affordances live in canonical OPClassDemoViewerView (PR #544). -->
   <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="270,*">
 
-    <!-- ===== Row 0: Top filter / reload bar (mirrors WF panel1) ===== -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Start Address" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="140"
-                       Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="500"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="ClassOPDemo_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- ===== Row 0: Top filter / reload bar (mirrors WF panel1) =====
+         #668: migrated to unified EditorTopBar control. -->
+    <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                           Name="TopBar"
+                           AutomationProperties.AutomationId="ClassOPDemo_TopBar"
+                           ShowSize="False"
+                           StartAddressLabel="Start Address:"
+                           ReadCountLabel="Read Count:"
+                           StartAddressAutomationId="ClassOPDemo_ReadStart_Label"
+                           ReadCountAutomationId="ClassOPDemo_ReadCount_Label"
+                           ReloadAutomationId="ClassOPDemo_ReloadList_Button"
+                           ReloadRequested="OnTopBarReloadRequested" />
 
     <!-- ===== Row 1: Main address-write bar (mirrors WF AddressPanel) ===== -->
     <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="4">

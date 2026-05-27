@@ -61,10 +61,16 @@ public class ClassOPDemoParityTests
     public void View_HasFilterAndReloadBar()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ClassOPDemo_ReadStart_Input\"", axaml);
-        Assert.Contains("AutomationId=\"ClassOPDemo_ReadCount_Input\"", axaml);
+        // #668: NUD-based ReadStart/ReadCount inputs became read-only
+        // TextBlock slots inside the unified EditorTopBar control. The
+        // *_Input AutomationIds are now *_Label; the ReloadList_Button id
+        // is preserved.
+        Assert.Contains("AutomationId=\"ClassOPDemo_ReadStart_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ClassOPDemo_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"ClassOPDemo_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        // The Reload routed event now bubbles via EditorTopBar; the
+        // host code-behind wires it through OnTopBarReloadRequested.
+        Assert.Contains("ReloadRequested=\"OnTopBarReloadRequested\"", axaml);
     }
 
     [Fact]
@@ -444,11 +450,28 @@ public class ClassOPDemoParityTests
                 $"WF-only label '{wfLabel}' must be in the coverage map.");
 
             // The English label must appear in the AXAML (either as
-            // Content=, Header=, Text=, or inside a KnownGap reason).
+            // Content=, Header=, Text=, an EditorTopBar slot-label
+            // override, or inside a KnownGap reason).
+            // #668: Start Address / Read Count / Reload labels migrated
+            // into EditorTopBar styled-property overrides. Accept the
+            // *Label="<en>" / *Label="<en>:" / ReloadButtonText="<en>"
+            // forms; for "Reload" the EditorTopBar default ReloadButtonText
+            // is "Reload" so the presence of <controls:EditorTopBar>
+            // counts as covering that label.
+            bool labelInEditorTopBarDefault =
+                (enLabel == "Reload" || enLabel == "Start Address" || enLabel == "Read Count")
+                && axaml.Contains("<controls:EditorTopBar", StringComparison.Ordinal);
+
             bool found =
                 axaml.Contains($"Content=\"{enLabel}\"", StringComparison.Ordinal)
                 || axaml.Contains($"Header=\"{enLabel}\"", StringComparison.Ordinal)
                 || axaml.Contains($"Text=\"{enLabel}\"", StringComparison.Ordinal)
+                || axaml.Contains($"StartAddressLabel=\"{enLabel}\"", StringComparison.Ordinal)
+                || axaml.Contains($"StartAddressLabel=\"{enLabel}:\"", StringComparison.Ordinal)
+                || axaml.Contains($"ReadCountLabel=\"{enLabel}\"", StringComparison.Ordinal)
+                || axaml.Contains($"ReadCountLabel=\"{enLabel}:\"", StringComparison.Ordinal)
+                || axaml.Contains($"ReloadButtonText=\"{enLabel}\"", StringComparison.Ordinal)
+                || labelInEditorTopBarDefault
                 || axaml.Contains($"KnownGap: {wfLabel}", StringComparison.Ordinal);
 
             Assert.True(found,

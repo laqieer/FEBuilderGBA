@@ -146,8 +146,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 Border_EntryList.SetItems(items);
                 // Mirror WF InputFormRef BaseAddress + DataCount in the
                 // read panel (Copilot bot inline review on PR #592 round 2).
-                Border_ReadStartAddressBox.Value = _vm.BorderReadStartAddress;
-                Border_ReadCountBox.Value = _vm.BorderReadCount;
+                if (Border_TopBar != null)
+                {
+                    Border_TopBar.StartAddressText = $"0x{_vm.BorderReadStartAddress:X08}";
+                    Border_TopBar.ReadCountText = _vm.BorderReadCount.ToString();
+                }
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -203,7 +206,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void BorderReload_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnBorderTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadBorderList(); }
             catch (Exception ex) { Log.Error("BorderReload failed: {0}", ex.Message); }
@@ -225,8 +229,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 IconData_EntryList.SetItems(items);
                 // Mirror WF InputFormRef BaseAddress + DataCount in the
                 // read panel (Copilot bot inline review on PR #592 round 2).
-                IconData_ReadStartAddressBox.Value = _vm.IconReadStartAddress;
-                IconData_ReadCountBox.Value = _vm.IconReadCount;
+                if (IconData_TopBar != null)
+                {
+                    IconData_TopBar.StartAddressText = $"0x{_vm.IconReadStartAddress:X08}";
+                    IconData_TopBar.ReadCountText = _vm.IconReadCount.ToString();
+                }
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
@@ -298,7 +305,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void IconDataReload_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnIconDataTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadIconList(); }
             catch (Exception ex) { Log.Error("IconDataReload failed: {0}", ex.Message); }

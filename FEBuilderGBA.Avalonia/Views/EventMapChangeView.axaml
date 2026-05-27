@@ -7,23 +7,18 @@
   <Grid ColumnDefinitions="220,*,220" RowDefinitions="Auto,Auto,*,Auto">
 
     <!-- Row 0: Top read-config bar (mirrors WF panel1: Top Address /
-         Read Count / Reload List). Spans all 3 columns. -->
-    <Border Grid.Row="0" Grid.ColumnSpan="3" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Top Address" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="EventMapChange_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="EventMapChange_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="256"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="EventMapChange_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+         Read Count / Reload List). Spans all 3 columns.
+         #668: migrated to unified EditorTopBar control. -->
+    <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="3" Margin="4"
+                           Name="TopBar"
+                           AutomationProperties.AutomationId="EventMapChange_TopBar"
+                           ShowSize="False"
+                           StartAddressLabel="Top Address:"
+                           ReadCountLabel="Read Count:"
+                           StartAddressAutomationId="EventMapChange_ReadStart_Label"
+                           ReadCountAutomationId="EventMapChange_ReadCount_Label"
+                           ReloadAutomationId="EventMapChange_ReloadList_Button"
+                           ReloadRequested="OnTopBarReloadRequested" />
 
     <!-- Row 1: AddressPanel (mirrors WF AddressPanel: Address / Size /
          Selected Address / Write button). Stretches across columns 1+2. -->

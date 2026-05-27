@@ -154,6 +154,7 @@ namespace FEBuilderGBA.Tests.Unit
 
         public static IEnumerable<object[]> MigratedEditorAxaml => new[]
         {
+            // PR #669 (issue #649) — original 10 representative editors.
             new object[] { "UnitEditorView.axaml" },
             new object[] { "ClassEditorView.axaml" },
             new object[] { "ItemFE6View.axaml" },
@@ -164,6 +165,13 @@ namespace FEBuilderGBA.Tests.Unit
             new object[] { "ImagePortraitFE6View.axaml" },
             new object[] { "ItemEffectivenessViewerView.axaml" },
             new object[] { "ItemPromotionViewerView.axaml" },
+            // Issue #668 Slice A — 5 additional read-only editors covering
+            // 9 EditorTopBar instances across single-tab + multi-tab views.
+            new object[] { "ClassOPDemoView.axaml" },
+            new object[] { "EDFE7View.axaml" },
+            new object[] { "EDView.axaml" },
+            new object[] { "EventMapChangeView.axaml" },
+            new object[] { "WorldMapImageView.axaml" },
         };
 
         [Theory]
@@ -178,6 +186,7 @@ namespace FEBuilderGBA.Tests.Unit
 
         public static IEnumerable<object[]> MigratedEditorCodeBehind => new[]
         {
+            // PR #669 (issue #649).
             new object[] { "UnitEditorView.axaml.cs" },
             new object[] { "ClassEditorView.axaml.cs" },
             new object[] { "ItemFE6View.axaml.cs" },
@@ -188,6 +197,12 @@ namespace FEBuilderGBA.Tests.Unit
             new object[] { "ImagePortraitFE6View.axaml.cs" },
             new object[] { "ItemEffectivenessViewerView.axaml.cs" },
             new object[] { "ItemPromotionViewerView.axaml.cs" },
+            // Issue #668 Slice A (this PR).
+            new object[] { "ClassOPDemoView.axaml.cs" },
+            new object[] { "EDFE7View.axaml.cs" },
+            new object[] { "EDView.axaml.cs" },
+            new object[] { "EventMapChangeView.axaml.cs" },
+            new object[] { "WorldMapImageView.axaml.cs" },
         };
 
         [Theory]
@@ -197,7 +212,11 @@ namespace FEBuilderGBA.Tests.Unit
             string path = Path.Combine(AvaloniaDir, "Views", codeBehindFile);
             Assert.True(File.Exists(path), $"Code-behind not found: {path}");
             string src = File.ReadAllText(path);
-            Assert.Contains("OnTopBarReloadRequested", src);
+            // Multi-tab editors name their reload handlers per-tab (e.g.
+            // OnLynTopBarReloadRequested); single-tab editors use the
+            // generic "OnTopBarReloadRequested" name. The "TopBarReloadRequested"
+            // suffix is the common substring across both shapes.
+            Assert.Contains("TopBarReloadRequested", src);
         }
 
         // -----------------------------------------------------------------
@@ -282,6 +301,63 @@ namespace FEBuilderGBA.Tests.Unit
             string src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ItemFE6View.axaml"));
             Assert.DoesNotContain("Name=\"FilterBox\"", src);
             Assert.DoesNotContain("Name=\"ReloadButton\"", src);
+        }
+
+        // -----------------------------------------------------------------
+        // Issue #668 Slice A — per-editor invariants
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void ClassOPDemoView_PreservesReloadAutomationId()
+        {
+            string src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ClassOPDemoView.axaml"));
+            Assert.Contains("ReloadAutomationId=\"ClassOPDemo_ReloadList_Button\"", src);
+            // Pre-migration NUD-based top-bar should be gone.
+            Assert.DoesNotContain("Name=\"ReadStartAddressBox\"", src);
+            Assert.DoesNotContain("Name=\"ReadCountBox\"", src);
+        }
+
+        [Fact]
+        public void EventMapChangeView_PreservesReloadAutomationId()
+        {
+            string src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EventMapChangeView.axaml"));
+            Assert.Contains("ReloadAutomationId=\"EventMapChange_ReloadList_Button\"", src);
+            Assert.DoesNotContain("Name=\"ReadStartAddressBox\"", src);
+            Assert.DoesNotContain("Name=\"ReadCountBox\"", src);
+        }
+
+        [Fact]
+        public void EDView_PreservesPerTabReloadAutomationIds()
+        {
+            string src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EDView.axaml"));
+            Assert.Contains("ReloadAutomationId=\"ED_Retreat_Reload_Button\"", src);
+            Assert.Contains("ReloadAutomationId=\"ED_Epithet_Reload_Button\"", src);
+            Assert.Contains("ReloadAutomationId=\"ED_Epilogue_Reload_Button\"", src);
+            // Epilogue filter combo is preserved externally (not merged into
+            // the EditorTopBar inline-filter slot — different semantics).
+            Assert.Contains("ED_Epilogue_Filter_Combo", src);
+        }
+
+        [Fact]
+        public void EDFE7View_PreservesPerTabReloadAutomationIds()
+        {
+            string src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "EDFE7View.axaml"));
+            Assert.Contains("ReloadAutomationId=\"EDFE7_Lyn_Reload_Button\"", src);
+            Assert.Contains("ReloadAutomationId=\"EDFE7_Retreat_Reload_Button\"", src);
+            Assert.Contains("ReloadAutomationId=\"EDFE7_Epithet_Reload_Button\"", src);
+            Assert.Contains("ReloadAutomationId=\"EDFE7_Epilogue_Reload_Button\"", src);
+            Assert.Contains("EDFE7_Epilogue_Filter_Combo", src);
+        }
+
+        [Fact]
+        public void WorldMapImageView_PreservesBorderAndIconDataReloadAutomationIds()
+        {
+            string src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "WorldMapImageView.axaml"));
+            Assert.Contains("ReloadAutomationId=\"WorldMapImage_Border_Reload_Button\"", src);
+            Assert.Contains("ReloadAutomationId=\"WorldMapImage_IconData_Reload_Button\"", src);
+            // List Expand stays external to the EditorTopBar.
+            Assert.Contains("WorldMapImage_Border_AddressListExpand_Button", src);
+            Assert.Contains("WorldMapImage_IconData_AddressListExpand_Button", src);
         }
     }
 }

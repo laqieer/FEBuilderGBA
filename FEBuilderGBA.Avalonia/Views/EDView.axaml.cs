@@ -86,10 +86,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadRetreatList();
             Retreat_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Retreat_ReadCountBox.Value = items.Count;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo != null && rom.RomInfo.ed_1_pointer != 0)
-                Retreat_TopAddressBox.Value = rom.p32(rom.RomInfo.ed_1_pointer);
+            if (Retreat_TopBar != null)
+            {
+                Retreat_TopBar.ReadCountText = items.Count.ToString();
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo != null && rom.RomInfo.ed_1_pointer != 0)
+                    Retreat_TopBar.StartAddressText = $"0x{rom.p32(rom.RomInfo.ed_1_pointer):X08}";
+            }
         }
 
         void OnRetreatSelected(uint addr)
@@ -112,7 +115,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void ReloadRetreat_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnRetreatTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadRetreatList(); }
             catch (Exception ex) { Log.Error("EDView.ReloadRetreat failed: {0}", ex.Message); }
@@ -200,10 +204,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadEpithetList();
             Epithet_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Epithet_ReadCountBox.Value = items.Count;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo != null && rom.RomInfo.ed_2_pointer != 0)
-                Epithet_TopAddressBox.Value = rom.p32(rom.RomInfo.ed_2_pointer);
+            if (Epithet_TopBar != null)
+            {
+                Epithet_TopBar.ReadCountText = items.Count.ToString();
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo != null && rom.RomInfo.ed_2_pointer != 0)
+                    Epithet_TopBar.StartAddressText = $"0x{rom.p32(rom.RomInfo.ed_2_pointer):X08}";
+            }
         }
 
         void OnEpithetSelected(uint addr)
@@ -237,7 +244,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { Epithet_EpithetTextLabel.Text = ""; }
         }
 
-        void ReloadEpithet_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnEpithetTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadEpithetList(); }
             catch (Exception ex) { Log.Error("EDView.ReloadEpithet failed: {0}", ex.Message); }
@@ -323,14 +331,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadEpilogueList();
             Epilogue_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Epilogue_ReadCountBox.Value = items.Count;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo != null)
+            if (Epilogue_TopBar != null)
             {
-                uint ptr = _vm.EpilogueRoute == EDViewModel.EpilogueRouteKind.Ephraim
-                    ? rom.RomInfo.ed_3b_pointer
-                    : rom.RomInfo.ed_3a_pointer;
-                Epilogue_TopAddressBox.Value = ptr != 0 ? rom.p32(ptr) : 0;
+                Epilogue_TopBar.ReadCountText = items.Count.ToString();
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo != null)
+                {
+                    uint ptr = _vm.EpilogueRoute == EDViewModel.EpilogueRouteKind.Ephraim
+                        ? rom.RomInfo.ed_3b_pointer
+                        : rom.RomInfo.ed_3a_pointer;
+                    uint resolved = ptr != 0 ? rom.p32(ptr) : 0;
+                    Epilogue_TopBar.StartAddressText = $"0x{resolved:X08}";
+                }
             }
         }
 
@@ -408,7 +420,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { Log.Error("EDView.EpilogueFilter_SelectionChanged failed: {0}", ex.Message); }
         }
 
-        void ReloadEpilogue_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnEpilogueTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadEpilogueList(); }
             catch (Exception ex) { Log.Error("EDView.ReloadEpilogue failed: {0}", ex.Message); }
