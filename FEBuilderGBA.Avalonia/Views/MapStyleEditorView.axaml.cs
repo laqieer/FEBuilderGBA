@@ -1117,10 +1117,30 @@ namespace FEBuilderGBA.Avalonia.Views
                     h = image.Height;
                     if (image.IsIndexed)
                     {
+                        // Copilot bot #4 on PR #716: fail early when the
+                        // indexed-image source can't fully cover w*h pixels
+                        // or its palette is too short to dereference any
+                        // valid index. Without this, an incomplete decode
+                        // silently produces large transparent/black regions
+                        // and the user gets a "successful" import full of
+                        // garbage.
                         byte[] indexData = image.GetPixelData();
                         byte[] palRgba = image.GetPaletteRGBA();
-                        rgba = new byte[w * h * 4];
-                        for (int i = 0; i < indexData.Length && i < w * h; i++)
+                        int expected = w * h;
+                        if (indexData == null || indexData.Length < expected)
+                        {
+                            CoreState.Services.ShowError(
+                                $"Image decode error: indexed pixel data is shorter than expected ({indexData?.Length ?? 0} < {expected}).");
+                            return;
+                        }
+                        if (palRgba == null || palRgba.Length < 4)
+                        {
+                            CoreState.Services.ShowError(
+                                "Image decode error: indexed image has no usable palette.");
+                            return;
+                        }
+                        rgba = new byte[expected * 4];
+                        for (int i = 0; i < expected; i++)
                         {
                             int palIdx = indexData[i];
                             int palOff = palIdx * 4;
@@ -1130,6 +1150,14 @@ namespace FEBuilderGBA.Avalonia.Views
                                 rgba[i * 4 + 1] = palRgba[palOff + 1];
                                 rgba[i * 4 + 2] = palRgba[palOff + 2];
                                 rgba[i * 4 + 3] = palRgba[palOff + 3];
+                            }
+                            else
+                            {
+                                // Out-of-range palette index — fail rather
+                                // than silently pad with transparent.
+                                CoreState.Services.ShowError(
+                                    $"Image decode error: indexed pixel {i} uses palette entry {palIdx} but palette has only {palRgba.Length / 4} colors.");
+                                return;
                             }
                         }
                     }

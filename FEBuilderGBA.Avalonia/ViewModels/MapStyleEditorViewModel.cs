@@ -73,11 +73,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-        public uint ObjPointer
-        {
-            get => _objPointer;
-            set { if (SetField(ref _objPointer, value)) OnPropertyChanged(nameof(CanImportObj)); }
-        }
+        public uint ObjPointer { get => _objPointer; set => SetField(ref _objPointer, value); }
         public uint ConfigPointer { get => _configPointer; set => SetField(ref _configPointer, value); }
 
         /// <summary>
@@ -169,27 +165,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// True when the Map Style Editor OBJ Image Import button should
         /// be enabled (#710 ImageOnly slice):
         ///   - a ROM is loaded
-        ///   - the entry has a non-zero <see cref="ObjPointer"/> (a tile
-        ///     sheet currently exists at the resolved address)
-        ///   - the resolved OBJ plist is non-zero (sentinel) and below
-        ///     0xFF (no-PLIST marker)
+        ///   - the resolved OBJ plist is non-zero (the reserved sentinel)
+        ///   - the plist is below the per-version PLIST limit returned by
+        ///     <see cref="MapChangeCore.GetPlistLimit"/> (Copilot bot #2
+        ///     on PR #716: 0xFF is too loose — FE8U vanilla limit is
+        ///     0xEC so an index of 0xED..0xFE would enable the button
+        ///     but <c>WritePlistData</c> would still reject it).
         ///   - the entry does NOT carry a secondary FE7 obj2 tileset
         ///     (<see cref="ObjAddress2"/> == 0). The obj2-bearing case
         ///     requires the dual-tileset split path which is intentionally
         ///     deferred — TryImportObjImage produces a clear error message
         ///     when called on such a style so the View can route the
         ///     user to the follow-up tracking issue.
+        ///
+        /// <para>Notably <see cref="ObjPointer"/> is NOT gated — a slot
+        /// that's currently null is a valid write target (WF
+        /// <c>InputFormRef.WriteBinaryData</c> + Core
+        /// <c>MapChangeCore.ResolvePlistSlotAddr</c> both treat address 0
+        /// as "append new data"). Copilot bot #1 on PR #716.</para>
         /// </summary>
         public bool CanImportObj
         {
             get
             {
                 var rom = CoreState.ROM;
-                return rom != null
-                    && _objPointer != 0
-                    && _currentObjPlist > 0
-                    && _currentObjPlist < 0xFF
-                    && _objAddress2 == 0;
+                if (rom == null) return false;
+                if (_currentObjPlist == 0) return false;
+                if (_objAddress2 != 0) return false;
+                uint limit = MapChangeCore.GetPlistLimit(rom);
+                if (limit == 0 || _currentObjPlist >= limit) return false;
+                return true;
             }
         }
 
@@ -887,7 +892,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 error = $"OBJ image height must be a multiple of 8 (got {height}).";
                 return false;
             }
-            if (sourceRgba == null || sourceRgba.Length < width * height * 4)
+            // Copilot bot #3 on PR #716: width * height * 4 uses int
+            // multiplication and overflows around height ≈ 2.1M. Use long
+            // arithmetic + LongLength to keep the bounds check honest even
+            // for large user inputs.
+            if (sourceRgba == null)
+            {
+                error = "Invalid source pixel data.";
+                return false;
+            }
+            long requiredBytes = (long)width * (long)height * 4L;
+            if (sourceRgba.LongLength < requiredBytes)
             {
                 error = "Invalid source pixel data.";
                 return false;
@@ -904,6 +919,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             if (!CanImportObj)
             {
+                // Provide a more specific error when the plist exceeds
+                // the per-version limit so the user knows the data is
+                // technically valid but the slot index is out of range.
+                var rom2 = CoreState.ROM;
+                if (rom2 != null)
+                {
+                    uint limit = MapChangeCore.GetPlistLimit(rom2);
+                    if (limit > 0 && _currentObjPlist >= limit)
+                    {
+                        error = $"OBJ PLIST 0x{_currentObjPlist:X2} is past the per-version limit (0x{limit:X2}).";
+                        return false;
+                    }
+                }
                 error = "Cannot import OBJ image — no valid OBJ PLIST is selected.";
                 return false;
             }

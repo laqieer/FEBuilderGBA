@@ -141,10 +141,83 @@ public class MapStyleEditorViewModelObjImportTests
             vm.SetCachedPaletteBytesForTest(MakeFlatPalette32());
             byte[] rgba = MakeSolidRgba(256, 128, 0, 0, 255);
 
+            // Per-version limit (FE8U: 0xEC) — 0xFF triggers the more
+            // specific "past the per-version limit" branch added in PR
+            // #716 review item 2.
             Assert.False(vm.TryImportObjImage(rgba, 256, 128, out string err));
-            Assert.Contains("no valid OBJ PLIST", err);
+            Assert.Contains("past the per-version limit", err);
         }
         finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Copilot bot #2 on PR #716: plists above the per-version PLIST limit
+    /// (e.g. FE8U vanilla 0xEC) but below 0xFF must also be rejected —
+    /// without this gate, CanImportObj would enable the button for a slot
+    /// that <see cref="MapChangeCore.WritePlistData"/> would refuse,
+    /// surfacing a confusing UX.
+    /// </summary>
+    [Fact]
+    public void TryImportObjImage_RejectsPlistAboveVersionLimit()
+    {
+        var (rom, _, _, _) = MakeFe8uRomForObjImport();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapStyleEditorViewModel();
+            vm.ObjPointer = 0x08C00000u;
+            // 0xED is above the FE8U default limit (0xEC) but below the
+            // 0xFF sentinel — must still be rejected.
+            vm.SetCurrentObjPlistForTest(0xED);
+
+            vm.SetCachedPaletteBytesForTest(MakeFlatPalette32());
+            byte[] rgba = MakeSolidRgba(256, 128, 0, 0, 255);
+            Assert.False(vm.TryImportObjImage(rgba, 256, 128, out string err));
+            Assert.Contains("past the per-version limit", err);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// Copilot bot #1 on PR #716: a null/zero OBJ pointer does NOT block
+    /// import — the slot is a valid write target (WF
+    /// <c>InputFormRef.WriteBinaryData</c> + <c>MapChangeCore.ResolvePlistSlotAddr</c>
+    /// both treat address 0 as "append new data"). Without this assertion
+    /// a future regression that re-introduces the <c>ObjPointer != 0</c>
+    /// gate would slip through.
+    /// </summary>
+    [Fact]
+    public void TryImportObjImage_AcceptsZeroObjPointer_AsAppend()
+    {
+        var (rom, objTableAddr, objPlist, palette32) = MakeFe8uRomForObjImport();
+        var prevRom = CoreState.ROM;
+        var prevImg = CoreState.ImageService;
+        try
+        {
+            CoreState.ROM = rom;
+            if (CoreState.ImageService == null) CoreState.ImageService = new SkiaImageService();
+
+            var vm = new MapStyleEditorViewModel();
+            // Explicitly leave ObjPointer at 0 — simulating a fresh PLIST
+            // slot that no Map Style entry has populated yet.
+            vm.ObjPointer = 0u;
+            vm.ObjAddress = 0u;
+            vm.SetCurrentObjPlistForTest(objPlist);
+            vm.SetCachedPaletteBytesForTest(palette32);
+
+            byte[] rgba = MakeSolidRgba(256, 128, 0, 0, 255);
+            Assert.True(vm.TryImportObjImage(rgba, 256, 128, out string err),
+                $"Import must succeed even when ObjPointer is 0; err = {err}");
+            // Slot must now hold a real pointer.
+            uint newPointer = rom.u32(objTableAddr + objPlist * 4u);
+            Assert.NotEqual(0u, newPointer);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.ImageService = prevImg;
+        }
     }
 
     [Fact]
