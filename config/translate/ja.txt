@@ -9738,6 +9738,12 @@ Font ROM から不足グリフをコピー - ビットマップ自動生成は W
 :Pick a PNG/BMP file, preview the 16-color quantized result, then write it into the selected portrait slot.
 PNG / BMP ファイルを選び、16 色に減色したプレビューを確認してから、選択した顔画像スロットに書き込みます。
 
+:Tip: you can also drag-and-drop a PNG or BMP file onto this window.
+ヒント: PNG や BMP ファイルをこのウィンドウにドラッグ＆ドロップすることもできます。
+
+:FE-Repo...
+FE-Repo...
+
 :1. Source image
 1. ソース画像
 

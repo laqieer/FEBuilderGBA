@@ -23570,6 +23570,12 @@ DirectSound 固定频率反向
 :Pick a PNG/BMP file, preview the 16-color quantized result, then write it into the selected portrait slot.
 选择一个 PNG/BMP 文件，预览 16 色减色后的结果，再写入所选肖像槽。
 
+:Tip: you can also drag-and-drop a PNG or BMP file onto this window.
+提示：也可以将 PNG 或 BMP 文件直接拖放到此窗口。
+
+:FE-Repo...
+FE-Repo...
+
 :1. Source image
 1. 源图像
 
