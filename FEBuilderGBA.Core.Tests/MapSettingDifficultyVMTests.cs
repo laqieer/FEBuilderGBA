@@ -14,14 +14,17 @@ namespace FEBuilderGBA.Core.Tests
     {
         // ---- Batch editor (MapSettingDifficultyViewModel) -----------------
 
-        [Fact]
-        public void Batch_LoadEntry_ReadsAndDecodesW20OnFE8U()
+        [Theory]
+        [InlineData("AE7J01")]
+        [InlineData("AE7E01")]
+        [InlineData("BE8E01")]
+        public void Batch_LoadEntry_ReadsAndDecodesW20(string productCode)
         {
             var origRom = CoreState.ROM;
             try
             {
                 var rom = new ROM();
-                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                rom.LoadLow("test.gba", new byte[0x1000000], productCode);
                 CoreState.ROM = rom;
 
                 // Map setting struct at addr 0x100: write packed 0x0123 at offset 20.
@@ -42,14 +45,17 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = origRom; }
         }
 
-        [Fact]
-        public void Batch_Write_EncodesNibblesIntoROMAtOffset20()
+        [Theory]
+        [InlineData("AE7J01")]
+        [InlineData("AE7E01")]
+        [InlineData("BE8E01")]
+        public void Batch_Write_EncodesNibblesIntoROMAtOffset20(string productCode)
         {
             var origRom = CoreState.ROM;
             try
             {
                 var rom = new ROM();
-                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                rom.LoadLow("test.gba", new byte[0x1000000], productCode);
                 CoreState.ROM = rom;
 
                 uint addr = 0x200;
@@ -70,14 +76,17 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = origRom; }
         }
 
-        [Fact]
-        public void Batch_Write_PreservesHighNibbleReservedBits()
+        [Theory]
+        [InlineData("AE7J01")]
+        [InlineData("AE7E01")]
+        [InlineData("BE8E01")]
+        public void Batch_Write_PreservesHighNibbleReservedBits(string productCode)
         {
             var origRom = CoreState.ROM;
             try
             {
                 var rom = new ROM();
-                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                rom.LoadLow("test.gba", new byte[0x1000000], productCode);
                 CoreState.ROM = rom;
 
                 uint addr = 0x300;
@@ -95,6 +104,23 @@ namespace FEBuilderGBA.Core.Tests
                 // High nibble 0xA should be preserved; low 12 bits = 0x123.
                 ushort written = (ushort)rom.u16(addr + 20);
                 Assert.Equal((ushort)0xA123, written);
+            }
+            finally { CoreState.ROM = origRom; }
+        }
+
+        [Theory]
+        [InlineData("AE7J01")]
+        [InlineData("AE7E01")]
+        public void IsSupported_TrueForFE7Family(string productCode)
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], productCode);
+                CoreState.ROM = rom;
+
+                Assert.True(DifficultyValueCore.IsSupported(rom));
             }
             finally { CoreState.ROM = origRom; }
         }
@@ -189,14 +215,17 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = origRom; }
         }
 
-        [Fact]
-        public void Batch_RoundTrip_PreservesValueAcrossWriteAndReload()
+        [Theory]
+        [InlineData("AE7J01")]
+        [InlineData("AE7E01")]
+        [InlineData("BE8E01")]
+        public void Batch_RoundTrip_PreservesValueAcrossWriteAndReload(string productCode)
         {
             var origRom = CoreState.ROM;
             try
             {
                 var rom = new ROM();
-                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                rom.LoadLow("test.gba", new byte[0x1000000], productCode);
                 CoreState.ROM = rom;
 
                 uint addr = 0x600;
