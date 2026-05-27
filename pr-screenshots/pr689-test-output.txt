@@ -1,0 +1,6 @@
+  Passed FEBuilderGBA.Avalonia.Tests.MapStyleEditorViewModelObj2Tests.LoadEntry_NoObj2_LeavesPrimaryOnly [35 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.MapStyleEditorViewModelObj2Tests.LoadEntry_Obj2DecompressFails_KeepsPrimaryCache [1 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.MapStyleEditorViewModelObj2Tests.LoadEntry_FE7Style_AppendsObj2ToCachedObjData [11 ms]
+Test Run Successful.
+Total tests: 3
+ Total time: 1.8574 Seconds

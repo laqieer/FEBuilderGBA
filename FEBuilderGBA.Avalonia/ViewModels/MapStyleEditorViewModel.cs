@@ -411,8 +411,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             LoadPalette(PaletteBaseAddress, PaletteIndex, IsFogPalette);
 
             // Cache the LZ77-decompressed OBJ tile data for the chip preview
-            // (#670). FE7 obj2 secondary tileset is NOT handled — tracked as a
-            // follow-up; primary tileset only here.
+            // (#670). FE7 obj2 secondary tileset is appended after the primary
+            // (#689) if `ObjAddress2 != 0`.
             if (ObjPointer != 0 && U.isSafetyOffset(U.toOffset(ObjPointer), rom))
             {
                 try
@@ -422,6 +422,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                         _cachedObjData = objUz;
                 }
                 catch { _cachedObjData = null; }
+            }
+
+            // Append FE7 secondary OBJ tileset (#689) if present.
+            // WinForms ImageUtilMap.DrawMapChipOnly does `objUZ = U.ArrayAppend(objUZ, obj2UZ)` for FE7 styles
+            // that pack two tilesets together. Without this, FE7 styles using obj2 would render only the
+            // primary tile sheet.
+            // Avalonia behavior difference: if obj2 decompression fails, we keep the primary-only cache
+            // rather than dropping the entire preview (WF returns null). This degrades gracefully.
+            if (_cachedObjData != null && ObjAddress2 != 0 && U.isSafetyOffset(ObjAddress2, rom))
+            {
+                try
+                {
+                    var obj2Uz = LZ77.decompress(rom.Data, ObjAddress2);
+                    if (obj2Uz != null && obj2Uz.Length > 0)
+                    {
+                        var combined = new byte[_cachedObjData.Length + obj2Uz.Length];
+                        System.Buffer.BlockCopy(_cachedObjData, 0, combined, 0, _cachedObjData.Length);
+                        System.Buffer.BlockCopy(obj2Uz, 0, combined, _cachedObjData.Length, obj2Uz.Length);
+                        _cachedObjData = combined;
+                    }
+                }
+                catch { /* leave primary-only cache on decompress failure */ }
             }
 
             // Cache full 16-palette block (512 bytes) starting at PaletteBaseAddress.
