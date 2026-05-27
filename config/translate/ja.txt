@@ -9728,3 +9728,30 @@ Font ROM から不足グリフをコピー - ビットマップ自動生成は W
 
 :Select Font Family
 フォントファミリーを選択
+
+:Pick a PNG/BMP file, preview the 16-color quantized result, then write it into the selected portrait slot.
+PNG / BMP ファイルを選び、16 色に減色したプレビューを確認してから、選択した顔画像スロットに書き込みます。
+
+:1. Source image
+1. ソース画像
+
+:(no file selected)
+（ファイル未選択）
+
+:2. Quantized preview
+2. 減色プレビュー
+
+:3. Target portrait slot (select on the left list)
+3. 書き込み先スロット（左のリストから選択）
+
+:4. Write to ROM
+4. ROM に書き込み
+
+:Notes: this first slice supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Advanced features (eye/mouth block sliders, batch import, custom palette, FE-Repo browser) are tracked under follow-up issues.
+備考: この最初のスライスはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。高度な機能（目・口ブロックスライダー、バッチインポート、カスタムパレット、FE-Repo ブラウザ）は follow-up issue で追跡しています。
+
+:Pick PNG/BMP...
+PNG / BMP を選択...
+
+:Import to selected slot
+選択スロットに書き込み
