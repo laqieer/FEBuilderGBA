@@ -157,6 +157,35 @@ namespace FEBuilderGBA
             }
             Rollback(this.Postion - 1);
         }
+
+        /// <summary>
+        /// True when there is a forward step available — i.e. the current
+        /// <see cref="Postion"/> is strictly less than the buffer length, so
+        /// <see cref="Rollback(int)"/> can replay one more record.
+        /// </summary>
+        public bool CanRedo => this.Postion < this.UndoBuffer.Count;
+
+        /// <summary>
+        /// Forward-step the undo cursor by one record (the inverse of
+        /// <see cref="RunUndo"/>). Returns false when the cursor is already
+        /// at the end of the buffer, or when the underlying
+        /// <see cref="Rollback(int)"/> silently fails (its internal
+        /// <see cref="RollbackROM(int, ROM)"/> success bool is discarded
+        /// before reaching the caller). This method verifies <see cref="Postion"/>
+        /// actually advanced after the rollback so a hidden failure surfaces
+        /// as a false return.
+        /// </summary>
+        public bool RunRedo()
+        {
+            if (!CanRedo)
+            {
+                return false;
+            }
+            int posBeforeRedo = this.Postion;
+            Rollback(this.Postion + 1);
+            return this.Postion > posBeforeRedo;
+        }
+
         public void Rollback(int pos)
         {
             if (pos < 0)

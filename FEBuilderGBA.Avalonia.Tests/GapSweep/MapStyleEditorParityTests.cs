@@ -192,19 +192,19 @@ public class MapStyleEditorParityTests
     /// </summary>
     static readonly string[] KnownGapButtonIds =
     {
-        // 4 buttons deferred to follow-up #692 (Redo, OBJ Import, MapChip
-        // Export/Import). PaletteExport/Import/Clipboard/ObjExport/Undo
-        // became functional in #672 Slice A (see View_<Name>_Button_IsEnabled
-        // + View_<Name>_Click_HandlerWired tests below).
+        // 2 buttons deferred to follow-up after #692 partial slice
+        // (OBJ Import + MapChip Import). PaletteExport/Import/Clipboard/
+        // ObjExport/Undo became functional in #672 Slice A; Redo and
+        // MapChip Export became functional in #692 partial slice (see
+        // View_<Name>_Button_IsEnabled + View_<Name>_Click_HandlerWired
+        // tests below).
         //
         // PaletteWrite is functional via #660 first slice (tracked positively
         // by View_FunctionalPaletteWriteButton_IsEnabled); CopyTile / CopyType /
         // Paste / ConfigWrite became functional in #671 (tracked positively
         // by View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit).
-        "MapStyleEditor_MapChipExport_Button",
         "MapStyleEditor_MapChipImport_Button",
         "MapStyleEditor_ObjImport_Button",
-        "MapStyleEditor_Redo_Button",
     };
 
     [Fact]
@@ -997,9 +997,11 @@ public class MapStyleEditorParityTests
     }
 
     // -----------------------------------------------------------------
-    // #672 Slice A — 5 newly-functional buttons (Palette Export / Import /
-    // Clipboard, OBJ Export, Undo). Remaining 4 buttons (Redo, OBJ Import,
-    // MapChip Export/Import) tracked by follow-up #692.
+    // #672 Slice A + #692 partial slice — 7 newly-functional buttons.
+    // #672 Slice A: PaletteExport / PaletteImport / PaletteClipboard /
+    // ObjExport / Undo. #692 partial slice: Redo + MapChip Export. The
+    // 2 remaining buttons (OBJ Import + MapChip Import) are tracked by
+    // the follow-up issue filed before the #692 partial-slice PR.
     // -----------------------------------------------------------------
 
     public static IEnumerable<object[]> Slice672ButtonIds()
@@ -1009,6 +1011,9 @@ public class MapStyleEditorParityTests
         yield return new object[] { "MapStyleEditor_PaletteClipboard_Button", "PaletteClipboard_Click" };
         yield return new object[] { "MapStyleEditor_ObjExport_Button", "ObjExport_Click" };
         yield return new object[] { "MapStyleEditor_Undo_Button", "Undo_Click" };
+        // #692 partial slice additions.
+        yield return new object[] { "MapStyleEditor_Redo_Button", "Redo_Click" };
+        yield return new object[] { "MapStyleEditor_MapChipExport_Button", "MapChipExport_Click" };
     }
 
     /// <summary>
@@ -1083,6 +1088,72 @@ public class MapStyleEditorParityTests
             "Undo_Click must reference Postion and RunUndo()");
         Assert.True(postionIdx < runUndoIdx,
             "Postion guard must precede RunUndo() call");
+    }
+
+    // -----------------------------------------------------------------
+    // #692 partial slice — Redo + MapChip Export specific shape checks.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// Redo handler must guard on <see cref="Undo.CanRedo"/> before calling
+    /// <see cref="Undo.RunRedo"/> (mirrors <see cref="Undo_Click"/>'s
+    /// Postion-guard pattern) and emit a "Nothing to redo" toast on the
+    /// no-op path. The guard must precede RunRedo() in source order so a
+    /// silently no-op rollback never falsely claims "Redo applied".
+    /// </summary>
+    [Fact]
+    public void View_Redo_Click_GuardsOnCanRedo()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        var bodyMatch = Regex.Match(code,
+            @"void Redo_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|/// |\}))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "Redo_Click method not found");
+        string body = bodyMatch.Value;
+        Assert.Contains("CanRedo", body);
+        Assert.Contains("Nothing to redo", body);
+        int canRedoIdx = body.IndexOf("CanRedo", StringComparison.Ordinal);
+        int runRedoIdx = body.IndexOf("RunRedo()", StringComparison.Ordinal);
+        Assert.True(canRedoIdx >= 0 && runRedoIdx >= 0,
+            "Redo_Click must reference CanRedo and RunRedo()");
+        Assert.True(canRedoIdx < runRedoIdx,
+            "CanRedo guard must precede RunRedo() call");
+    }
+
+    /// <summary>
+    /// MapChip Export handler must access the VM's CONFIG buffer via the
+    /// public <c>GetCachedConfigClone</c> accessor (which clones the
+    /// internal cache to prevent caller mutation — Copilot CLI v2 review)
+    /// and use the shared <c>FileDialogHelper.SaveFile</c> wrapper for
+    /// picker parity with the rest of the Avalonia layer.
+    /// </summary>
+    [Fact]
+    public void View_MapChipExport_Click_UsesVmAccessorAndFileDialogHelper()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        var bodyMatch = Regex.Match(code,
+            @"async void MapChipExport_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|async\s|/// |\}))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "MapChipExport_Click method not found");
+        string body = bodyMatch.Value;
+        Assert.Contains("_vm.GetCachedConfigClone()", body);
+        Assert.Contains("FileDialogHelper.SaveFile", body);
+        Assert.Contains("*.MAPCHIP_CONFIG", body);
+        Assert.Contains("File.WriteAllBytes", body);
+    }
+
+    /// <summary>
+    /// The VM must expose <c>GetCachedConfigClone</c> as a public method
+    /// that returns a defensive clone (i.e. `.Clone()` appears in the
+    /// expression body). This catches direct field exposure regressions.
+    /// </summary>
+    [Fact]
+    public void ViewModel_GetCachedConfigClone_ReturnsDefensiveClone()
+    {
+        string vm = File.ReadAllText(ViewModelPath());
+        Assert.Matches(new Regex(
+            @"public\s+byte\[\]\??\s+GetCachedConfigClone\(\)[\s\S]*?Clone\(\)",
+            RegexOptions.Singleline), vm);
     }
 
     // -----------------------------------------------------------------
