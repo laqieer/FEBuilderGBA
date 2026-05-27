@@ -29,10 +29,21 @@ namespace FEBuilderGBA.Avalonia.Controls
     /// </para>
     /// <para>
     /// The <see cref="Stretch"/> and <see cref="BitmapInterpolationMode"/>
-    /// styled properties let consumers opt into <see cref="Stretch.Fill"/> /
-    /// high-quality interpolation per slot if they explicitly want WinForms
-    /// <c>PictureBoxSizeMode.StretchImage</c> + <c>InterpolationMode.Bicubic</c>
-    /// semantics.
+    /// styled properties are surfaced so consumers can override the
+    /// nearest-neighbour interpolation (e.g. set
+    /// <see cref="BitmapInterpolationMode.HighQuality"/> for non-pixel-art
+    /// previews) and override the <see cref="Stretch.Uniform"/> default
+    /// (e.g. <see cref="Stretch.None"/> when a slot must show the bitmap
+    /// 1:1 with no upscaling). Because the inner <see cref="Image"/> is
+    /// sized to <c>bitmap.PixelSize * Scale</c> (clamped to the outer
+    /// Border), changing <see cref="Stretch"/> to <see cref="Stretch.Fill"/>
+    /// here only affects how the bitmap paints inside that already-aspect-
+    /// preserving inner box — it does NOT make the icon stretch out to
+    /// fill the entire outer Border the way WinForms
+    /// <c>PictureBoxSizeMode.StretchImage</c> would. The natural-aspect
+    /// sizing is the contract of this control by design (issue #342
+    /// follow-up); pick a different control if you need WinForms
+    /// StretchImage semantics.
     /// </para>
     /// </summary>
     public partial class IconPreviewControl : UserControl

@@ -16,14 +16,17 @@
         <DataTemplate>
           <StackPanel Orientation="Horizontal" Spacing="4">
             <!--
-              #342 follow-up (2026-05-26): Stretch="Uniform" so source bitmaps
-              of different dimensions (16x16 / 16x24 / 32x32 class wait icons
-              by animType) render at their natural aspect ratio with no
-              distortion. The user rejected the PR #452 "force all icons to
-              one visual size" approach because the source icons genuinely
-              have different aspects in the game. Smaller icons appear smaller
-              (centered in the 32x32 slot), taller icons appear taller —
-              never clipped, never squished.
+              #342 follow-up (2026-05-26): the list-row preview slot is a
+              fixed 32x32 box (Width="32" Height="32") so every row has the
+              same vertical footprint regardless of source dimensions. With
+              Stretch="Uniform" the source bitmap (16x16 / 16x24 / 32x32 class
+              wait icons by animType) is fit inside that 32x32 slot with its
+              aspect ratio preserved — never clipped, never squished. Sources
+              smaller than 32x32 scale UP uniformly (16x16 → 32x32); taller
+              sources are scaled DOWN to fit (16x24 → ~21x32). For natural-
+              size, never-upscaled previews use IconPreviewControl in the
+              detail panel; this list-row slot intentionally normalises the
+              row height for tidy list scrolling.
             -->
             <Image Source="{Binding Icon}" Width="32" Height="32"
                    IsVisible="{Binding Icon, Converter={x:Static ObjectConverters.IsNotNull}}"

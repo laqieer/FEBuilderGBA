@@ -209,19 +209,23 @@ public class IconPreviewControlTests
         Assert.Equal(48, imageDisplay.Width);
         Assert.Equal(48, imageDisplay.Height);
 
-        // Shrink MaxImageWidth below the scaled bitmap → outer 48 wide (3*16),
-        // inner clamped to outer (48 wide, still 48 tall).
-        control.MaxImageWidth = 16;
-        Assert.Equal(48, border.Width);  // 3 * 16
+        // Shrink MaxImageWidth below the source-bitmap width (16 → 8) → the
+        // outer Border becomes 24 wide (Scale 3 * MaxImageWidth 8) and the
+        // inner Image clamps to that outer width because the un-clamped
+        // scaled bitmap (16 * 3 = 48) exceeds the new outer (8 * 3 = 24).
+        control.MaxImageWidth = 8;
+        Assert.Equal(24, border.Width);  // 3 * 8
         Assert.Equal(96, border.Height); // 3 * 32 still
-        Assert.Equal(48, imageDisplay.Width); // bitmap 16 * 3 = 48 (no clamp)
-        Assert.Equal(48, imageDisplay.Height); // unchanged from prior step
+        Assert.Equal(24, imageDisplay.Width); // clamped to outer (3 * 8)
+        Assert.Equal(48, imageDisplay.Height); // height unaffected, still 16 * 3
 
-        // Bump MaxImageHeight large → outer height grows, inner stays at scaled bitmap.
+        // Bump MaxImageHeight large → outer height grows; inner width is
+        // still clamped by the small MaxImageWidth, inner height stays at
+        // the natural scaled bitmap height (16 * 3 = 48 < 3 * 40 = 120).
         control.MaxImageHeight = 40;
-        Assert.Equal(48, border.Width);
+        Assert.Equal(24, border.Width);
         Assert.Equal(120, border.Height); // 3 * 40
-        Assert.Equal(48, imageDisplay.Width);
+        Assert.Equal(24, imageDisplay.Width); // still clamped
         Assert.Equal(48, imageDisplay.Height); // 16 * 3 = 48 (still bitmap-natural)
     }
 
