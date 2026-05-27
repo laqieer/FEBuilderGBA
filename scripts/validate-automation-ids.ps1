@@ -33,6 +33,7 @@ $exemptInternalFiles = @(
     "Controls\IconPreviewControl.axaml",
     "Controls\IdFieldControl.axaml",
     "Controls\EditorTopBar.axaml",
+    "Controls\EditorTopBarWithInputs.axaml",
     "App.axaml"
 )
 
@@ -52,7 +53,7 @@ $interactiveControlTypes = @(
 
 $customControlTypes = @(
     'controls:BitFlagPanel', 'controls:AddressListControl', 'controls:GbaImageControl',
-    'controls:IdFieldControl', 'controls:EditorTopBar'
+    'controls:IdFieldControl', 'controls:EditorTopBar', 'controls:EditorTopBarWithInputs'
 )
 
 $totalErrors = 0
