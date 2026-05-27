@@ -39,6 +39,11 @@ namespace FEBuilderGBA.Avalonia.Views
             WireChipsetControls();
             // Alt+T / Alt+C / Alt+V hotkeys mirror WF MapStyleEditorForm_KeyDown.
             KeyDown += OnChipsetHotKey;
+            // Start with the Chipset edit surface disabled — OnSelected will
+            // enable it once a successful TryLoadChipsetTSA confirms a valid
+            // CONFIG cache + plist (Copilot bot v2 inline review on PR #691).
+            // Set synchronously now so we don't race the first OnSelected.
+            SetChipsetEditingEnabled(false);
         }
 
         /// <summary>
@@ -387,9 +392,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Populate the terrain combo from the cached <see cref="TextSourceListCore.MakeMapTerrainNameList"/>
-        /// entries. Handles both the multibyte path and the FE7U/FE8U
-        /// 2-byte text-id path (extended in WU3). Selects the currently-loaded
+        /// entries. Handles both the multibyte path (4-byte pointer per
+        /// entry — dereference + getString) and the FE7U/FE8U 2-byte text-id
+        /// path (read u16 + FETextDecode.Direct). Selects the currently-loaded
         /// terrain byte; clamps to 0 if the list is shorter than the byte.
+        ///
+        /// <para>The Core helper returns <c>AddrResult</c>s with the entry
+        /// address but an empty <c>name</c> (it does not deref the per-entry
+        /// text). This method enriches each row with the localized terrain
+        /// name so the combo shows real labels rather than just hex prefixes
+        /// (Copilot bot v2 inline review on PR #691).</para>
         /// </summary>
         void PopulateTerrainCombo()
         {
@@ -400,8 +412,36 @@ namespace FEBuilderGBA.Avalonia.Views
             if (rom != null)
             {
                 var entries = TextSourceListCore.MakeMapTerrainNameList(rom);
+                bool multibyte = rom.RomInfo?.is_multibyte ?? false;
                 for (int i = 0; i < entries.Count; i++)
-                    items.Add($"0x{i:X2} {entries[i].name}");
+                {
+                    string label;
+                    try
+                    {
+                        if (multibyte)
+                        {
+                            // 4-byte pointer entry: deref to a C string.
+                            uint addr = entries[i].addr;
+                            if (addr + 4 <= (uint)rom.Data.Length)
+                            {
+                                uint strPtr = rom.p32(addr);
+                                label = U.isSafetyOffset(strPtr, rom)
+                                    ? rom.getString(strPtr)
+                                    : string.Empty;
+                            }
+                            else { label = string.Empty; }
+                        }
+                        else
+                        {
+                            // 2-byte text-id entry: decode via FETextDecode.
+                            uint addr = entries[i].addr;
+                            uint textId = (addr + 2 <= (uint)rom.Data.Length) ? rom.u16(addr) : 0u;
+                            label = FETextDecode.Direct(textId);
+                        }
+                    }
+                    catch { label = string.Empty; }
+                    items.Add($"0x{i:X2} {label}");
+                }
             }
             if (items.Count == 0)
             {
@@ -427,7 +467,6 @@ namespace FEBuilderGBA.Avalonia.Views
             int[] suffixes = { 0, 2, 4, 6 };
             foreach (int s in suffixes)
             {
-                int logical = SuffixToLogicalIndex(s);
                 ushort w = _vm.GetSlotW(s);
                 var (x, y, p, f) = MapStyleEditorViewModel.DecodeTsaWord(w);
                 SetNudValue($"Slot{s}_XBox", x);

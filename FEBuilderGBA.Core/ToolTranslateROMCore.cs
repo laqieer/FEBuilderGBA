@@ -519,11 +519,18 @@ namespace FEBuilderGBA
                     }
 
                     // --- Map terrain names ---
+                    // MakeMapTerrainNameList returns 4-byte pointer entries
+                    // for multibyte ROMs (deref u32 -> pointer to a Huffman
+                    // text id at +0) and 2-byte text-id entries for English
+                    // ROMs (read u16 directly). Pick the right width here so
+                    // the export path doesn't combine two adjacent 2-byte
+                    // entries into one bogus 32-bit id (Copilot v2 PR review).
                     var terrainList = TextSourceListCore.MakeMapTerrainNameList(rom);
+                    bool terrainMultibyte = rom.RomInfo.is_multibyte;
                     foreach (var t in terrainList)
                     {
                         if (!U.isSafetyOffset(t.addr, rom)) continue;
-                        uint textid = rom.u32(t.addr);
+                        uint textid = terrainMultibyte ? rom.u32(t.addr) : rom.u16(t.addr);
                         string str = decoder.Decode(textid);
                         if (string.IsNullOrWhiteSpace(str)) continue;
 
@@ -1126,10 +1133,13 @@ namespace FEBuilderGBA
                         }
                     }
 
+                    // Pick the correct read width per ROM type — see the
+                    // export-path note above (Copilot v2 PR review).
+                    bool terrainMultibyteFont = rom.RomInfo.is_multibyte;
                     foreach (var terrain in TextSourceListCore.MakeMapTerrainNameList(rom))
                     {
                         if (!U.isSafetyOffset(terrain.addr, rom)) continue;
-                        uint textid = rom.u32(terrain.addr);
+                        uint textid = terrainMultibyteFont ? rom.u32(terrain.addr) : rom.u16(terrain.addr);
                         string str = FETextDecode.Direct(textid);
                         if (string.IsNullOrEmpty(str)) continue;
                         progressCallback?.Invoke($"TerrainFontScan:{U.To0xHexString(textid)}");
