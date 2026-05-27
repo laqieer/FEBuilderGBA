@@ -461,6 +461,11 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint itemAddr = itemBase + itemId * itemSize;
                 if (itemAddr + itemSize > (uint)rom.Data.Length) return null;
                 uint iconIndex = rom.u8(itemAddr + 29);
+                // The icon index at +29 is the per-item "icon slot" field;
+                // value 0 means "no icon" (null item placeholder). Bailing
+                // here matches the remarks above and prevents rendering a
+                // phantom icon from slot 0 of the icon table.
+                if (iconIndex == 0) return null;
                 return LoadItemIcon(iconIndex);
             }
             catch { return null; }

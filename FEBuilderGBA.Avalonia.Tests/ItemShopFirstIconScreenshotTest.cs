@@ -82,7 +82,7 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             // Verify the icon loader resolves a non-null bitmap for slot 0
             // (proves Bug 1+2+3 fixes wired through).
-            var bmp0 = ListIconLoaders.ItemIconLoader(slots, 0);
+            using var bmp0 = ListIconLoaders.ItemIconLoader(slots, 0);
             _output.WriteLine($"slot[0] icon = {(bmp0 == null ? "null" : "Bitmap")}");
             // Bitmap might still be null if item ID 0 was used (null item) —
             // but for any real shop slot the item ID is non-zero so the icon
@@ -117,10 +117,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 const int H = 720;
                 view.Measure(new Size(W, H));
                 view.Arrange(new Rect(0, 0, W, H));
-                var bitmap = new RenderTargetBitmap(new PixelSize(W, H));
+                using var bitmap = new RenderTargetBitmap(new PixelSize(W, H));
                 bitmap.Render(view);
 
-                string outDir = FindPrScreenshotsDir();
+                string outDir = ResolveScreenshotOutputDir();
                 Directory.CreateDirectory(outDir);
                 string outPath = Path.Combine(outDir, "pr-654-first-icon-fix.png");
                 bitmap.Save(outPath);
@@ -132,21 +132,20 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
-        /// <summary>Walk up from the test assembly to find pr-screenshots/.</summary>
-        static string FindPrScreenshotsDir()
+        /// <summary>
+        /// Resolve the output directory for the rendered PNG.
+        /// Default: per-test temp directory (does NOT dirty the repo's
+        /// tracked <c>pr-screenshots/</c> on normal/CI runs).
+        /// Override via <c>FEBUILDERGBA_SCREENSHOT_DIR</c> env var to
+        /// write into the repo's <c>pr-screenshots/</c> (used when
+        /// regenerating the canonical PR screenshot locally).
+        /// </summary>
+        static string ResolveScreenshotOutputDir()
         {
-            string? dir = Path.GetDirectoryName(
-                System.Reflection.Assembly.GetExecutingAssembly().Location);
-            for (int i = 0; i < 10 && dir != null; i++)
-            {
-                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
-                    return Path.Combine(dir, "pr-screenshots");
-                dir = Path.GetDirectoryName(dir);
-            }
-            // Fallback: save into the test output directory.
-            return Path.Combine(
-                Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? ".",
-                "pr-screenshots");
+            string? overrideDir = Environment.GetEnvironmentVariable("FEBUILDERGBA_SCREENSHOT_DIR");
+            if (!string.IsNullOrEmpty(overrideDir))
+                return overrideDir;
+            return Path.Combine(Path.GetTempPath(), "FEBuilderGBA-screenshots");
         }
     }
 }

@@ -110,11 +110,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Matches WinForms DrawUnitAndText which uses U.atoh(text) to get the unit ID.
         /// </summary>
         /// <remarks>
-        /// #654: removed <c>unitId == 0</c> guard so the first row of every
-        /// unit-id-prefixed list resolves a portrait (was always null before).
-        /// We still bail on <c>portraitId == 0</c> AFTER resolution because
-        /// that means the resolved unit has no portrait_id set in ROM — that's
-        /// a real "no data" state, not a row-index artifact.
+        /// #654: removed the loader's own <c>unitId == 0</c> guard so every
+        /// row gets exercised consistently. Note that
+        /// <see cref="PreviewIconHelper.ResolveUnitPortraitIdByUnitId"/>
+        /// still treats <c>unitId == 0</c> as the "no unit" sentinel and
+        /// returns 0 — that is a real semantic (unit table is 1-indexed in
+        /// every supported ROM; there is no "unit 0"), not a row-index
+        /// artifact. We additionally bail on <c>portraitId == 0</c> AFTER
+        /// resolution because that means the resolved unit has no
+        /// portrait_id set in ROM. The end effect for the first row of a
+        /// unit-id-prefixed list is still null, but the call path is now
+        /// uniform with the other text-prefix loaders.
         /// </remarks>
         public static Bitmap? UnitPortraitByIdLoader(List<AddrResult> items, int index)
         {

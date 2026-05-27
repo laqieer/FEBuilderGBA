@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             // the call must not throw. We cannot assert NotNull because
             // for some ROMs class 0 is a placeholder with no wait icon,
             // but the call path MUST be exercised.
-            var bmp = ListIconLoaders.ClassIconLoader(items, 0);
+            using var bmp = ListIconLoaders.ClassIconLoader(items, 0);
             // Result-shape assertion: we only care that the call returns
             // (does not throw and does not panic). The bitmap may be null
             // when the underlying class 0 has no wait icon.
@@ -87,7 +87,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 new AddrResult(0x100, "00 NullItem", 0),
             };
 
-            var bmp = ListIconLoaders.ItemIconLoader(items, 0);
+            using var bmp = ListIconLoaders.ItemIconLoader(items, 0);
             _output.WriteLine($"ItemIconLoader(0) -> {(bmp == null ? "null" : "Bitmap")}");
         }
 
@@ -106,7 +106,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 new AddrResult(0x100, "00 NullPortrait", 0),
             };
 
-            var bmp = ListIconLoaders.PortraitLoader(items, 0);
+            using var bmp = ListIconLoaders.PortraitLoader(items, 0);
             _output.WriteLine($"PortraitLoader(0) -> {(bmp == null ? "null" : "Bitmap")}");
         }
 
