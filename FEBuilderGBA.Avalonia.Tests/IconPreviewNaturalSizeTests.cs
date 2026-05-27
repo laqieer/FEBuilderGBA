@@ -10,29 +10,28 @@ using FEBuilderGBA.Avalonia.Views;
 namespace FEBuilderGBA.Avalonia.Tests;
 
 /// <summary>
-/// Issue #342 follow-up (2026-05-21): wait icons in the Avalonia list-preview
-/// slot rendered at three different sizes (32x32 / 32x48 / 64x64) depending on
-/// the source bitmap's animType, because <see cref="IconPreviewControl"/> used
-/// <c>Stretch="Uniform"</c> + nearest-neighbour and sized the inner Image to
-/// <c>bitmap.PixelSize * Scale</c>.
+/// Issue #342 follow-up (2026-05-26): the user clarified that class unit wait
+/// icons "have different sizes in the game, so you cannot display them all in
+/// the same size." PR #452's <c>Stretch="Fill"</c> approach (forcing every
+/// source bitmap into the same outer-Border canvas) was rejected because it
+/// distorts non-square sources (e.g. 16x24 cavalier icons squashed into 64x64).
 ///
-/// WinForms ships <c>PictureBoxSizeMode.StretchImage</c> with
-/// <c>InterpolationMode.Bicubic</c>: the picture-box always paints the bitmap
-/// at the picture-box's own size, regardless of source dimensions
-/// (FEBuilderGBA/ClassForm.Designer.cs:2477-2486; ItemForm.Designer.cs:2096-2104;
-/// ClassFE6Form.Designer.cs:2055-2065). All animTypes render at the same
-/// visual size in WinForms.
+/// The corrected invariant: <see cref="IconPreviewControl"/> renders each
+/// bitmap at <c>bitmap.PixelSize * Scale</c> with <c>Stretch=Uniform</c>
+/// (centered inside the outer Border). 16x16 → 32x32, 16x24 → 32x48,
+/// 32x32 → 64x64 — three different visual sizes, all aspect-preserved, all
+/// fully visible, none clipped.
 ///
-/// These tests enforce the WinForms-equivalent invariant in Avalonia:
-/// <c>ImageDisplay.Width</c> and <c>ImageDisplay.Height</c> equal
-/// <c>OuterBorder.Width</c> and <c>OuterBorder.Height</c> for ALL source
-/// sizes. The control sets those Width/Height values explicitly from
-/// code-behind so the layout pass is deterministic; tests therefore
-/// compare those properties (not <c>Bounds</c>) so the assertion runs
-/// before the headless platform's layout pass settles. Defaults are
-/// <c>Stretch.Fill</c> and <c>BitmapInterpolationMode.HighQuality</c>.
+/// These tests enforce that natural-aspect contract end-to-end:
+///   * inner Image size = bitmap * Scale for the three documented animTypes;
+///   * default Stretch is Uniform and default interpolation is None;
+///   * runtime property changes propagate;
+///   * stale-state regression covered (null → reload different size);
+///   * all four list-preview consumer views still wire to IconPreviewControl
+///     with the expected Scale/MaxImageWidth/MaxImageHeight;
+///   * AddressListControl item-template Image uses Stretch="Uniform".
 /// </summary>
-public class IconPreviewConsistentSizeTests
+public class IconPreviewNaturalSizeTests
 {
     /// <summary>Create a solid-blue RGBA byte array of the given dimensions.</summary>
     static byte[] MakeRgba(int width, int height)
@@ -82,16 +81,15 @@ public class IconPreviewConsistentSizeTests
     }
 
     // ----------------------------------------------------------------------
-    // CORE INVARIANT: inner Image always matches outer Border, for ALL sizes
+    // CORE INVARIANT: inner Image = bitmap.PixelSize * Scale (natural aspect)
     // ----------------------------------------------------------------------
 
     /// <summary>
-    /// animType=0 wait icon (16x16 source). With the WinForms-matching contract,
-    /// the inner Image must equal the outer Border size (64x64 for Scale=2,
-    /// Max=32x32) regardless of source dimensions.
+    /// animType=0 wait icon (16x16 source). Natural-aspect contract: inner
+    /// Image is 32x32 (Scale=2), CENTERED inside the 64x64 outer Border.
     /// </summary>
     [AvaloniaFact]
-    public void Source16x16_InnerImage_MatchesOuterBorder()
+    public void Source16x16_InnerImage_MatchesBitmapScale()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -101,15 +99,18 @@ public class IconPreviewConsistentSizeTests
 
         var border = control.FindControl<Border>("OuterBorder")!;
         var image = control.FindControl<Image>("ImageDisplay")!;
-        Assert.Equal(border.Width, image.Width);
-        Assert.Equal(border.Height, image.Height);
+        Assert.Equal(64, border.Width);
+        Assert.Equal(64, border.Height);
+        Assert.Equal(32, image.Width);
+        Assert.Equal(32, image.Height);
     }
 
     /// <summary>
-    /// animType=1 wait icon (16x24 tall source — myrm/cavalier shape).
+    /// animType=1 wait icon (16x24 tall source). Inner Image is 32x48,
+    /// centered inside the 64x64 outer Border — 2:3 aspect preserved.
     /// </summary>
     [AvaloniaFact]
-    public void Source16x24_InnerImage_MatchesOuterBorder()
+    public void Source16x24_InnerImage_MatchesBitmapScale()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -119,16 +120,19 @@ public class IconPreviewConsistentSizeTests
 
         var border = control.FindControl<Border>("OuterBorder")!;
         var image = control.FindControl<Image>("ImageDisplay")!;
-        Assert.Equal(border.Width, image.Width);
-        Assert.Equal(border.Height, image.Height);
+        Assert.Equal(64, border.Width);
+        Assert.Equal(64, border.Height);
+        Assert.Equal(32, image.Width);
+        Assert.Equal(48, image.Height);
     }
 
     /// <summary>
-    /// animType=2 wait icon (32x32 source — Demon King and other monster classes).
-    /// This was the original #342 crop case; now must also equal the outer Border.
+    /// animType=2 wait icon (32x32 source — was the original #342 crop case).
+    /// Inner Image is 64x64, fully filling the 64x64 outer Border with no
+    /// clipping.
     /// </summary>
     [AvaloniaFact]
-    public void Source32x32_InnerImage_MatchesOuterBorder()
+    public void Source32x32_InnerImage_MatchesBitmapScale()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -138,19 +142,21 @@ public class IconPreviewConsistentSizeTests
 
         var border = control.FindControl<Border>("OuterBorder")!;
         var image = control.FindControl<Image>("ImageDisplay")!;
-        Assert.Equal(border.Width, image.Width);
-        Assert.Equal(border.Height, image.Height);
+        Assert.Equal(64, border.Width);
+        Assert.Equal(64, border.Height);
+        Assert.Equal(64, image.Width);
+        Assert.Equal(64, image.Height);
     }
 
     /// <summary>
-    /// THE bug reported on 2026-05-21: three different source sizes must NOT
-    /// produce three different inner-Image sizes in the same preview slot.
-    /// Creating three identically-configured controls and feeding each a
-    /// different animType source, the resulting inner-Image sizes must all
-    /// match each other.
+    /// Per Copilot CLI plan v5 review (refinement #1): the regression guard for
+    /// PR #452's rejected "all icons same visual size" approach should be the
+    /// OPPOSITE invariant — three different source aspects produce three
+    /// different inner-Image sizes. This is the strong inverse of the old
+    /// AllAnimTypes_RenderAtSameVisualSize test from PR #452.
     /// </summary>
     [AvaloniaFact]
-    public void AllAnimTypes_RenderAtSameVisualSize()
+    public void AllAnimTypes_RenderAtNaturalDifferentSizes()
     {
         var c0 = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         var c1 = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
@@ -171,36 +177,100 @@ public class IconPreviewConsistentSizeTests
         var i1 = c1.FindControl<Image>("ImageDisplay")!;
         var i2 = c2.FindControl<Image>("ImageDisplay")!;
 
-        Assert.Equal(i0.Width, i1.Width);
-        Assert.Equal(i0.Width, i2.Width);
-        Assert.Equal(i0.Height, i1.Height);
-        Assert.Equal(i0.Height, i2.Height);
+        // Expected: 32x32, 32x48, 64x64. Three different visual sizes.
+        Assert.Equal(32, i0.Width);
+        Assert.Equal(32, i0.Height);
+        Assert.Equal(32, i1.Width);
+        Assert.Equal(48, i1.Height);
+        Assert.Equal(64, i2.Width);
+        Assert.Equal(64, i2.Height);
+
+        // And explicitly NOT all equal (regression guard against PR #452).
+        Assert.NotEqual(i0.Height, i1.Height);
+        Assert.NotEqual(i0.Width, i2.Width);
+        Assert.NotEqual(i1.Height, i2.Height);
+    }
+
+    /// <summary>
+    /// Aspect-ratio invariant: source aspect must equal rendered aspect for
+    /// every animType. With Stretch=Uniform and inner Image sized to
+    /// bitmap*Scale, aspect must be preserved exactly.
+    /// </summary>
+    [AvaloniaTheory]
+    [InlineData(16, 16)]
+    [InlineData(16, 24)]
+    [InlineData(32, 32)]
+    [InlineData(8, 16)]   // edge: very small icon
+    public void PreservesAspectRatio_AllAnimTypes(int srcW, int srcH)
+    {
+        var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
+        using var host = HostInWindow(control);
+        control.SetRgbaData(MakeRgba(srcW, srcH), srcW, srcH);
+        host.Window.UpdateLayout();
+
+        var image = control.FindControl<Image>("ImageDisplay")!;
+        // bitmap * Scale, no distortion.
+        Assert.Equal(srcW * 2, image.Width);
+        Assert.Equal(srcH * 2, image.Height);
+        // Aspect equals source aspect (within float precision).
+        double srcAspect = (double)srcW / srcH;
+        double imgAspect = image.Width / image.Height;
+        Assert.Equal(srcAspect, imgAspect, 6);
+    }
+
+    /// <summary>
+    /// Outer Border clamp: when the source is LARGER than Max*, the inner
+    /// Image is clamped so the icon never paints outside the outer slot —
+    /// the no-clipping promise of #342.
+    /// </summary>
+    [AvaloniaFact]
+    public void OversizedSource_InnerImage_ClampedToOuterBorder()
+    {
+        var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
+        using var host = HostInWindow(control);
+        // 64x64 source — bigger than the 32x32 Max box.
+        control.SetRgbaData(MakeRgba(64, 64), 64, 64);
+        host.Window.UpdateLayout();
+
+        var border = control.FindControl<Border>("OuterBorder")!;
+        var image = control.FindControl<Image>("ImageDisplay")!;
+        // Inner stays clamped to the outer (64x64), Stretch=Uniform downscales.
+        Assert.Equal(64, border.Width);
+        Assert.Equal(64, border.Height);
+        Assert.Equal(64, image.Width);
+        Assert.Equal(64, image.Height);
+        // Inner never exceeds outer.
+        Assert.True(image.Width <= border.Width);
+        Assert.True(image.Height <= border.Height);
     }
 
     // ----------------------------------------------------------------------
-    // Default render settings (WinForms parity)
+    // Default render settings — natural-aspect contract
     // ----------------------------------------------------------------------
 
-    /// <summary>WinForms ships <c>PictureBoxSizeMode.StretchImage</c>; Avalonia equivalent is <c>Stretch.Fill</c>.</summary>
+    /// <summary>Default is <c>Stretch.Uniform</c> for natural aspect.</summary>
     [AvaloniaFact]
-    public void DefaultStretchMode_IsFill()
+    public void DefaultStretchMode_IsUniform()
     {
         var control = new IconPreviewControl();
         using var host = HostInWindow(control);
 
         var image = control.FindControl<Image>("ImageDisplay")!;
-        Assert.Equal(Stretch.Fill, image.Stretch);
+        Assert.Equal(Stretch.Uniform, image.Stretch);
     }
 
-    /// <summary>WinForms ships <c>InterpolationMode.Bicubic</c>; Avalonia equivalent is <c>BitmapInterpolationMode.HighQuality</c>.</summary>
+    /// <summary>
+    /// Default is <c>BitmapInterpolationMode.None</c> (nearest-neighbour) so
+    /// GBA pixel-art stays crisp at integer up-scale.
+    /// </summary>
     [AvaloniaFact]
-    public void DefaultInterpolationMode_IsHighQuality()
+    public void DefaultInterpolationMode_IsNone()
     {
         var control = new IconPreviewControl();
         using var host = HostInWindow(control);
 
         var image = control.FindControl<Image>("ImageDisplay")!;
-        Assert.Equal(BitmapInterpolationMode.HighQuality,
+        Assert.Equal(BitmapInterpolationMode.None,
             RenderOptions.GetBitmapInterpolationMode(image));
     }
 
@@ -209,7 +279,7 @@ public class IconPreviewConsistentSizeTests
     // ----------------------------------------------------------------------
 
     /// <summary>
-    /// The new <c>Stretch</c> styled property must apply to the inner Image
+    /// The <c>Stretch</c> styled property must apply to the inner Image
     /// both BEFORE and AFTER a bitmap is loaded.
     /// </summary>
     [AvaloniaFact]
@@ -221,8 +291,8 @@ public class IconPreviewConsistentSizeTests
         var image = control.FindControl<Image>("ImageDisplay")!;
 
         // Before load — change Stretch
-        control.Stretch = Stretch.Uniform;
-        Assert.Equal(Stretch.Uniform, image.Stretch);
+        control.Stretch = Stretch.Fill;
+        Assert.Equal(Stretch.Fill, image.Stretch);
 
         // Load a bitmap, then change again
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
@@ -231,12 +301,12 @@ public class IconPreviewConsistentSizeTests
         Assert.Equal(Stretch.UniformToFill, image.Stretch);
 
         // Back to default
-        control.Stretch = Stretch.Fill;
-        Assert.Equal(Stretch.Fill, image.Stretch);
+        control.Stretch = Stretch.Uniform;
+        Assert.Equal(Stretch.Uniform, image.Stretch);
     }
 
     /// <summary>
-    /// The new <c>BitmapInterpolationMode</c> styled property must apply to
+    /// The <c>BitmapInterpolationMode</c> styled property must apply to
     /// the inner Image both BEFORE and AFTER a bitmap is loaded.
     /// </summary>
     [AvaloniaFact]
@@ -248,8 +318,8 @@ public class IconPreviewConsistentSizeTests
         var image = control.FindControl<Image>("ImageDisplay")!;
 
         // Before load — change interpolation
-        control.BitmapInterpolationMode = BitmapInterpolationMode.None;
-        Assert.Equal(BitmapInterpolationMode.None, RenderOptions.GetBitmapInterpolationMode(image));
+        control.BitmapInterpolationMode = BitmapInterpolationMode.HighQuality;
+        Assert.Equal(BitmapInterpolationMode.HighQuality, RenderOptions.GetBitmapInterpolationMode(image));
 
         // Load a bitmap, then change again
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
@@ -258,54 +328,54 @@ public class IconPreviewConsistentSizeTests
         Assert.Equal(BitmapInterpolationMode.LowQuality, RenderOptions.GetBitmapInterpolationMode(image));
 
         // Back to default
-        control.BitmapInterpolationMode = BitmapInterpolationMode.HighQuality;
-        Assert.Equal(BitmapInterpolationMode.HighQuality, RenderOptions.GetBitmapInterpolationMode(image));
+        control.BitmapInterpolationMode = BitmapInterpolationMode.None;
+        Assert.Equal(BitmapInterpolationMode.None, RenderOptions.GetBitmapInterpolationMode(image));
     }
 
     // ----------------------------------------------------------------------
-    // Stale-state regression: null then load different size still fills
+    // Stale-state regression: null then load different size still renders right
     // ----------------------------------------------------------------------
 
     /// <summary>
     /// Setting a bitmap, clearing via <c>SetImage(null)</c>, then loading a
-    /// DIFFERENT-sized bitmap must still produce an inner Image that fills
-    /// the outer Border. Guards against stale Width/Height left from the
-    /// previous SetImage call.
+    /// DIFFERENT-sized bitmap must produce an inner Image sized to the NEW
+    /// bitmap's natural scale (not the previous one's). Guards against stale
+    /// Width/Height left from the previous SetImage call.
     /// </summary>
     [AvaloniaFact]
-    public void SetImage_Null_ThenLoadDifferentSize_StillFillsBox()
+    public void SetImage_Null_ThenLoadDifferentSize_RendersAtNewNaturalSize()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
 
-        // Load 16x16 first
+        // Load 16x16 first → 32x32 inner
         control.SetRgbaData(MakeRgba(16, 16), 16, 16);
         host.Window.UpdateLayout();
+        var image = control.FindControl<Image>("ImageDisplay")!;
+        Assert.Equal(32, image.Width);
+        Assert.Equal(32, image.Height);
 
         // Clear
         control.SetImage(null);
         Assert.False(control.HasImage);
 
-        // Load a DIFFERENT size (16x24)
+        // Load 16x24 → inner should be 32x48 (NOT 32x32 from the previous one)
         control.SetRgbaData(MakeRgba(16, 24), 16, 24);
         host.Window.UpdateLayout();
-
-        var border = control.FindControl<Border>("OuterBorder")!;
-        var image = control.FindControl<Image>("ImageDisplay")!;
-        Assert.Equal(border.Width, image.Width);
-        Assert.Equal(border.Height, image.Height);
+        Assert.Equal(32, image.Width);
+        Assert.Equal(48, image.Height);
     }
 
     // ----------------------------------------------------------------------
-    // Scale/Max property changes after load — outer + inner stay locked
+    // Scale/Max property changes after load
     // ----------------------------------------------------------------------
 
     /// <summary>
     /// After loading a bitmap, changing Scale must update BOTH the outer
-    /// Border AND the inner Image — they stay locked at the same dimensions.
+    /// Border AND the inner Image (inner = bitmap * Scale).
     /// </summary>
     [AvaloniaFact]
-    public void ScaleChange_AfterLoad_OuterAndInner_StayLocked()
+    public void ScaleChange_AfterLoad_OuterAndInner_BothUpdate()
     {
         var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
         using var host = HostInWindow(control);
@@ -315,38 +385,14 @@ public class IconPreviewConsistentSizeTests
         var border = control.FindControl<Border>("OuterBorder")!;
         var image = control.FindControl<Image>("ImageDisplay")!;
         Assert.Equal(64, border.Width);
-        Assert.Equal(64, image.Width);
+        Assert.Equal(32, image.Width);
 
         control.Scale = 3;
 
         Assert.Equal(96, border.Width);
         Assert.Equal(96, border.Height);
-        Assert.Equal(border.Width, image.Width);
-        Assert.Equal(border.Height, image.Height);
-    }
-
-    /// <summary>
-    /// After loading a bitmap, changing MaxImageWidth/Height must update
-    /// BOTH the outer Border AND the inner Image.
-    /// </summary>
-    [AvaloniaFact]
-    public void MaxImageChange_AfterLoad_OuterAndInner_StayLocked()
-    {
-        var control = new IconPreviewControl { Scale = 2, MaxImageWidth = 32, MaxImageHeight = 32 };
-        using var host = HostInWindow(control);
-        control.SetRgbaData(MakeRgba(16, 24), 16, 24);
-        host.Window.UpdateLayout();
-
-        var border = control.FindControl<Border>("OuterBorder")!;
-        var image = control.FindControl<Image>("ImageDisplay")!;
-
-        control.MaxImageWidth = 16;
-        Assert.Equal(32, border.Width);
-        Assert.Equal(border.Width, image.Width);
-
-        control.MaxImageHeight = 40;
-        Assert.Equal(80, border.Height);
-        Assert.Equal(border.Height, image.Height);
+        Assert.Equal(48, image.Width);  // 16 * 3
+        Assert.Equal(48, image.Height); // 16 * 3
     }
 
     // ----------------------------------------------------------------------
@@ -405,21 +451,21 @@ public class IconPreviewConsistentSizeTests
     }
 
     // ----------------------------------------------------------------------
-    // AddressListControl item template — same WinForms-equivalent fix.
-    // The address list itself renders class wait icons of different animTypes
-    // (16x16, 16x24, 32x32) inside a fixed 32x32 Image slot. Before the #342
-    // follow-up the Image used Stretch="Uniform" which left smaller icons
-    // smaller — visible as the user's "different sizes" complaint. The fix
-    // is to switch the template Image to Stretch="Fill" to match WinForms
-    // PictureBoxSizeMode.StretchImage semantics.
+    // AddressListControl item template — same natural-aspect fix.
+    // Per Copilot CLI plan v5 review (refinement #2): the no-clipping
+    // verification must also cover the composed UI, not just the standalone
+    // control. The AddressListControl item template uses Stretch="Uniform"
+    // so source bitmaps of different aspects (16x16, 16x24, 32x32 wait icons)
+    // render at their natural aspect inside the fixed 32x32 list slot.
     // ----------------------------------------------------------------------
 
     /// <summary>
     /// Parse the AddressListControl XAML and assert the icon Image uses
-    /// Stretch="Fill" (the WinForms-equivalent fix in the #342 follow-up).
+    /// <c>Stretch="Uniform"</c> (the natural-aspect fix in the #342 follow-up
+    /// 2026-05-26).
     /// </summary>
     [AvaloniaFact]
-    public void AddressListControl_IconImage_UsesFillStretch()
+    public void AddressListControl_IconImage_UsesUniformStretch()
     {
         // Locate repo root by walking up from the test assembly's directory
         // (AppDomain.CurrentDomain.BaseDirectory — the bin/Release/netN.0
@@ -439,16 +485,15 @@ public class IconPreviewConsistentSizeTests
             $"AddressListControl.axaml not found under repo root '{dir}'");
         var xaml = System.IO.File.ReadAllText(axamlPath);
 
-        // Match WinForms PictureBoxSizeMode.StretchImage semantics.
-        Assert.Contains("Stretch=\"Fill\"", xaml);
-        // Ensure the previous (PR #351 era) Stretch="Uniform" isn't lingering
-        // on the icon Image. Allow Uniform elsewhere if any future StackPanel
-        // alignment uses it — but the icon Image must be Fill.
+        // Match natural-aspect rendering — Stretch=Uniform, never Fill.
+        Assert.Contains("Stretch=\"Uniform\"", xaml);
         var iconBlockStart = xaml.IndexOf("Source=\"{Binding Icon}\"");
         Assert.True(iconBlockStart >= 0, "Icon Image template not found in XAML");
-        // Look forward 200 chars from "Source={Binding Icon}" for Stretch attribute.
+        // Look forward 300 chars from "Source={Binding Icon}" for Stretch attribute.
         var window = xaml.Substring(iconBlockStart, System.Math.Min(300, xaml.Length - iconBlockStart));
-        Assert.Contains("Stretch=\"Fill\"", window);
-        Assert.DoesNotContain("Stretch=\"Uniform\"", window);
+        Assert.Contains("Stretch=\"Uniform\"", window);
+        // Regression guard: the icon Image template must NOT use Stretch="Fill"
+        // (the rejected PR #452 approach).
+        Assert.DoesNotContain("Stretch=\"Fill\"", window);
     }
 }

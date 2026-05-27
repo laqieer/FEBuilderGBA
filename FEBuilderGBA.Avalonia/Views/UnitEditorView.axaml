@@ -218,13 +218,15 @@
         </Expander>
 
         <!-- Growth Simulator -->
+        <!-- #648: Calculate Growth button removed - growth recomputes automatically
+             when any input (stat, growth, level, sim-level, class) changes via the
+             ValueChanged handlers wired in WireGrowthAutoRecalc(). -->
         <Expander AutomationProperties.AutomationId="UnitEditor_GrowthSimulator_Expander" Header="Growth Simulator" IsExpanded="True" Margin="0,4,0,2">
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8" CornerRadius="4">
           <StackPanel Spacing="4">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Text="Simulate to LV:" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="UnitEditor_SimLevel_Input" FormatString="0" Name="SimLevelBox" Minimum="1" Maximum="99" Value="20" Width="100" />
-              <Button AutomationProperties.AutomationId="UnitEditor_CalculateGrowth_Button" Content="Calculate Growth" Click="CalculateGrowth_Click" />
             </StackPanel>
             <TextBlock AutomationProperties.AutomationId="UnitEditor_GrowthSim_Label" Name="GrowthSimLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" TextWrapping="Wrap" />
           </StackPanel>

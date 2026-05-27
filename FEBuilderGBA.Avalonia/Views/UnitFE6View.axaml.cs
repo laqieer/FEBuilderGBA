@@ -68,7 +68,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                // #648: Use ViewHelpers.ParseHexText - U.atoh truncates at the
+                // 'x' in the displayed "0x..." string and silently returns 0.
+                uint supportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
                 if (supportPtr == 0) return;
                 var window = WindowManager.Instance.Open<SupportUnitFE6View>();
                 window.JumpToAddr(supportPtr);
@@ -268,8 +270,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Ability3 = (uint)(Ability3Box.Value ?? 0);
             _vm.Ability4 = (uint)(Ability4Box.Value ?? 0);
 
-            // Support pointer (parse hex)
-            _vm.SupportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+            // Support pointer (parse hex) - #648: ViewHelpers.ParseHexText
+            // handles the displayed "0x..." form; U.atoh would zero out the
+            // pointer on every Write.
+            _vm.SupportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
         }
 
         void TryShowPortrait()

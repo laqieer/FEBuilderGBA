@@ -68,7 +68,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint supportPtr = U.atoh(SupportPtrBox.Text ?? "0");
+                // #648: Use ViewHelpers.ParseHexText - U.atoh truncates at the
+                // 'x' in the displayed "0x..." string and silently returns 0.
+                uint supportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
                 if (supportPtr == 0) return;
                 var window = WindowManager.Instance.Open<SupportUnitEditorView>();
                 window.JumpToAddr(supportPtr);

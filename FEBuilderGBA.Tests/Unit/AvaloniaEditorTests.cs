@@ -2691,5 +2691,80 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("EmptyStateLabel.IsVisible", src);
             Assert.Contains("WriteButton.IsVisible", src);
         }
+
+        // ---------------------------------------------- #648 dead-button fixes
+
+        [Fact]
+        public void UnitEditorView_RemovesCalculateGrowthButton()
+        {
+            // #648: the redundant "Calculate Growth" button was removed because
+            // WireGrowthAutoRecalc() already wires ValueChanged on every NUD
+            // (including SimLevelBox) and the ClassIdCombo, so the simulator
+            // auto-updates on any relevant input change.
+            var xaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml"));
+            Assert.DoesNotContain("UnitEditor_CalculateGrowth_Button", xaml);
+            Assert.DoesNotContain("Click=\"CalculateGrowth_Click\"", xaml);
+        }
+
+        [Fact]
+        public void UnitEditorView_RemovesCalculateGrowthHandler()
+        {
+            // #648: no orphan handler should remain in the code-behind.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.DoesNotContain("void CalculateGrowth_Click(", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_AutoRecalcWiredForSimLevel()
+        {
+            // #648: SimLevelBox must remain wired through WireGrowthAutoRecalc so
+            // that removing the button does not regress auto-recalculation.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("WireGrowthAutoRecalc", src);
+            Assert.Contains("SimLevelBox", src);
+        }
+
+        [Fact]
+        public void UnitEditorView_JumpToSupportUnit_UsesParseHexText()
+        {
+            // #648: the Open Support handler must parse the displayed "0x..."
+            // pointer via ViewHelpers.ParseHexText. U.atoh truncates at the 'x'
+            // and would silently return 0.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitEditorView.axaml.cs"));
+            Assert.Contains("ViewHelpers.ParseHexText(SupportPtrBox.Text)", src);
+            Assert.DoesNotContain("U.atoh(SupportPtrBox.Text", src);
+        }
+
+        [Fact]
+        public void UnitFE6View_JumpToSupportUnit_UsesParseHexText()
+        {
+            // #648: same fix in the FE6-specific Unit editor.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE6View.axaml.cs"));
+            Assert.Contains("ViewHelpers.ParseHexText(SupportPtrBox.Text)", src);
+            Assert.DoesNotContain("U.atoh(SupportPtrBox.Text", src);
+        }
+
+        [Fact]
+        public void UnitFE7View_JumpToSupportUnit_UsesParseHexText()
+        {
+            // #648: same fix in the FE7/FE8-specific Unit editor (navigation
+            // only; write-back was already safe via local ParseHexText).
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "UnitFE7View.axaml.cs"));
+            Assert.Contains("ViewHelpers.ParseHexText(SupportPtrBox.Text)", src);
+            Assert.DoesNotContain("U.atoh(SupportPtrBox.Text", src);
+        }
+
+        [Fact]
+        public void ViewHelpers_ParseHexText_HandlesZeroXPrefix()
+        {
+            // #648: regression guard - ViewHelpers.ParseHexText must accept the
+            // exact "0x{...:X08}" form that UnitEditorView writes into the
+            // SupportPtr text box. ParseHexText is internal, so we exercise it
+            // indirectly by asserting the helper file documents both prefix
+            // forms via the case-insensitive 0x/0X startswith check.
+            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "ViewHelpers.cs"));
+            Assert.Contains("StartsWith(\"0x\", StringComparison.OrdinalIgnoreCase)", src);
+            Assert.Contains("NumberStyles.HexNumber", src);
+        }
     }
 }

@@ -161,9 +161,14 @@
             <NumericUpDown AutomationProperties.AutomationId="ItemEditor_DamageEffect_Input" FormatString="0" Name="DamageEffectBox" Minimum="0" Maximum="255" Width="100" />
             <!-- WF "間接エフェクト Jump" — opens ItemWeaponEffectViewerView
                  positioned at the entry whose B0 == currently-selected item id
-                 (mirrors WF ItemWeaponEffectForm.JumpTo search by id). -->
+                 (mirrors WF ItemWeaponEffectForm.JumpTo search by id).
+                 Button label kept short ("Jump") to fit inside the 200px
+                 Grid column without overflowing into the next column
+                 (#651 — long "Indirect Weapon Effect" label overlapped the
+                 adjacent "Wep Exp (B32):" label). The tooltip below
+                 carries the full descriptive text. -->
             <Button AutomationProperties.AutomationId="ItemEditor_JumpToWeaponEffect_Button"
-                    Content="Indirect Weapon Effect"
+                    Content="Jump"
                     Click="JumpToWeaponEffect_Click"
                     FontSize="11" Padding="4,2" VerticalAlignment="Center"
                     ToolTip.Tip="Open the indirect weapon effect table at the row for this item." />

@@ -2,12 +2,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapEditorView"
-        Title="Visual Map Editor" Width="1100" Height="750"
+        Title="Visual Map Editor" Width="1200" Height="800"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="MapEditor_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*" Margin="4">
+    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,*" Margin="4">
       <!-- Info panel -->
       <StackPanel Grid.Row="0" Spacing="4" Margin="8,4,8,4">
         <TextBlock Text="Visual Map Editor" FontSize="18" FontWeight="Bold" />
@@ -17,11 +17,37 @@
           <Button AutomationProperties.AutomationId="MapEditor_ZoomInBtn_Button" Name="ZoomInBtn" Content="+" Width="30" />
           <TextBlock AutomationProperties.AutomationId="MapEditor_Zoom_Label" Name="ZoomLabel" Text="1x" VerticalAlignment="Center" />
           <Button AutomationProperties.AutomationId="MapEditor_ZoomOutBtn_Button" Name="ZoomOutBtn" Content="-" Width="30" />
+          <CheckBox AutomationProperties.AutomationId="MapEditor_PaintMode_Check" Name="PaintModeCheck" Content="Paint Mode" VerticalAlignment="Center" Margin="16,0,0,0" />
+          <TextBlock Text="(click palette to pick a chipset, then click map to paint)" VerticalAlignment="Center" Foreground="Gray" FontSize="11" />
         </StackPanel>
       </StackPanel>
 
-      <!-- Tile editing panel -->
+      <!-- Chipset palette panel (first slice of #658) -->
       <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
+              Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
+        <StackPanel Spacing="4">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Tile Palette" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="MapEditor_ChipsetInfo_Label" Name="ChipsetInfoLabel" FontFamily="Consolas,Courier New,monospace" FontSize="12" VerticalAlignment="Center" Text="No chipset selected" />
+          </StackPanel>
+          <Border BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Height="180">
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+              <!-- Border with transparent background catches pointer events
+                   anywhere over the palette grid, even on transparent chipset pixels. -->
+              <Border Background="Transparent" Name="TilePaletteHitArea">
+                <Image AutomationProperties.AutomationId="MapEditor_TilePalette_Image"
+                       Name="TilePaletteImage"
+                       Stretch="None"
+                       HorizontalAlignment="Left" VerticalAlignment="Top"
+                       RenderOptions.BitmapInterpolationMode="None" />
+              </Border>
+            </ScrollViewer>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- Tile editing panel -->
+      <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Margin="8,4,8,4" Padding="8"
               Background="{DynamicResource MapEditorToolbarBrush}" CornerRadius="4">
         <StackPanel Spacing="4">
           <TextBlock Text="Tile Editor (click on map to select)" FontWeight="SemiBold" />
@@ -37,7 +63,7 @@
       </Border>
 
       <!-- Map image in scrollable area -->
-      <Border Grid.Row="2" BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Margin="8,0,8,8">
+      <Border Grid.Row="3" BorderBrush="Gray" BorderThickness="1" Background="{DynamicResource MapEditorCanvasBrush}" Margin="8,0,8,8">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
           <controls:GbaImageControl AutomationProperties.AutomationId="MapEditor_MapImage_Image" Name="MapImageControl" />
         </ScrollViewer>
