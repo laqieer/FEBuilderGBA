@@ -43,8 +43,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (rom.u16(addr) == 0xFFFF) break;
 
                 uint unitId = rom.u16(addr);
-                // 1-based ROM-stored unit ID.
-                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
+                // 1-based ROM-stored unit ID — force-sortie uses GetUnitNameAndANY
+                // semantics: 0 renders as "ANY" (entry applies to any unit), matching
+                // WinForms EventForceSortieForm.
+                string unitName = NameResolver.GetUnitNameAndANYByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;

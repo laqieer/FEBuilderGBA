@@ -1230,9 +1230,11 @@ namespace FEBuilderGBA.Avalonia.Services
 
                 uint attacker = rom.u16(addr);
                 uint defender = rom.u16(addr + 2);
-                // 1-based ROM-stored unit IDs (matches EventBattleTalkViewModel).
-                string atkName = NameResolver.GetUnitNameByOneBasedId(attacker);
-                string defName = NameResolver.GetUnitNameByOneBasedId(defender);
+                // 1-based ROM-stored unit IDs — battle-talk uses
+                // GetUnitNameAndANY semantics (0 => "ANY"), matching
+                // WinForms EventBattleTalkForm and EventBattleTalkViewModel.
+                string atkName = NameResolver.GetUnitNameAndANYByOneBasedId(attacker);
+                string defName = NameResolver.GetUnitNameAndANYByOneBasedId(defender);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {atkName} vs {defName}", (uint)i));
             }
             return result;
@@ -1255,8 +1257,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u16(addr) == 0xFFFF) break;
 
                 uint unitId = rom.u8(addr);
-                // 1-based ROM-stored unit ID (matches EventHaikuViewModel).
-                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
+                // 1-based ROM-stored unit ID — haiku uses GetUnitNameAndANY
+                // semantics (0 => "ANY"), matching WinForms EventHaikuForm
+                // and EventHaikuViewModel.
+                string unitName = NameResolver.GetUnitNameAndANYByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;
@@ -1279,8 +1283,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (rom.u16(addr) == 0xFFFF) break;
 
                 uint unitId = rom.u16(addr);
-                // 1-based ROM-stored unit ID (matches EventForceSortieViewModel).
-                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
+                // 1-based ROM-stored unit ID — force-sortie uses
+                // GetUnitNameAndANY semantics (0 => "ANY"), matching
+                // WinForms EventForceSortieForm and EventForceSortieViewModel.
+                string unitName = NameResolver.GetUnitNameAndANYByOneBasedId(unitId);
                 result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
             }
             return result;

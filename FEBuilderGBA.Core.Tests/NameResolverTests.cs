@@ -171,6 +171,160 @@ namespace FEBuilderGBA.Core.Tests
             return rom;
         }
 
+        static ROM MakeFE8URom()
+        {
+            var rom = new ROM();
+            rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+            Assert.NotNull(rom.RomInfo);
+            Assert.Equal(8, rom.RomInfo.version);
+            return rom;
+        }
+
+        // -------------------------------------------------------------
+        // GetUnitNameByOneBasedId — FE8 sentinel and bounds-check coverage
+        // -------------------------------------------------------------
+
+        /// <summary>
+        /// FE8 reserves three u16 unit-ID sentinels (0xFFFF / 0xFFFE / 0xFFFD)
+        /// for camera-controlled unit / memory-slot B coords / memory-slot 2
+        /// unit ID. WinForms UnitForm.GetUnitName(uid) maps each to a localized
+        /// string instead of resolving as a table index — the Core resolver
+        /// must mirror that, otherwise the sentinel u16 wraps the (uid-1) *
+        /// unit_datasize multiplication and indexes some unrelated row.
+        /// </summary>
+        [Fact]
+        public void GetUnitNameByOneBasedId_FE8_Sentinels_ReturnLocalizedStrings()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeFE8URom();
+                NameResolver.ClearCache();
+
+                string n1 = NameResolver.GetUnitNameByOneBasedId(0xFFFF);
+                string n2 = NameResolver.GetUnitNameByOneBasedId(0xFFFE);
+                string n3 = NameResolver.GetUnitNameByOneBasedId(0xFFFD);
+
+                // Whatever the active translation, the sentinels MUST NOT be
+                // empty, "???", or "#N" (the un-mapped fallback shapes) — they
+                // are reserved logical values, not table rows.
+                Assert.False(string.IsNullOrEmpty(n1));
+                Assert.False(string.IsNullOrEmpty(n2));
+                Assert.False(string.IsNullOrEmpty(n3));
+                Assert.NotEqual("???", n1);
+                Assert.NotEqual("???", n2);
+                Assert.NotEqual("???", n3);
+                Assert.DoesNotContain("#", n1);
+                Assert.DoesNotContain("#", n2);
+                Assert.DoesNotContain("#", n3);
+
+                // The three sentinels also have distinct meanings, so their
+                // localized strings must differ from each other.
+                Assert.NotEqual(n1, n2);
+                Assert.NotEqual(n2, n3);
+                Assert.NotEqual(n1, n3);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// On FE6 (which does NOT define the 0xFFFF sentinel), an out-of-range
+        /// 1-based ID must return "" rather than wrapping the address math and
+        /// returning a stale or fabricated name.
+        /// </summary>
+        [Fact]
+        public void GetUnitNameByOneBasedId_FE6_AboveMaxCount_ReturnsEmpty()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeFE6Rom();
+                NameResolver.ClearCache();
+
+                uint maxCount = CoreState.ROM.RomInfo.unit_maxcount;
+                Assert.True(maxCount > 0);
+
+                // First definitely-out-of-range 1-based id and a stray u16 value
+                // both must produce empty (matches WinForms IDToAddr/isSafetyOffset
+                // path which returns "" for out-of-table IDs).
+                Assert.Equal("", NameResolver.GetUnitNameByOneBasedId(maxCount + 1));
+                Assert.Equal("", NameResolver.GetUnitNameByOneBasedId(0xFFFF));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
+        }
+
+        // -------------------------------------------------------------
+        // GetUnitNameAndANYByOneBasedId — WinForms GetUnitNameAndANY parity
+        // -------------------------------------------------------------
+
+        /// <summary>
+        /// Event tables (battle-talk, force-sortie, haiku) treat unit ID 0 as
+        /// "ANY" — the row applies to any unit, not "no unit". WinForms
+        /// UnitForm.GetUnitNameAndANY returns R._("ANY") for 0; the Core
+        /// resolver must mirror that, otherwise list labels render as
+        /// "0x00  vs Eirika" with a blank attacker.
+        /// </summary>
+        [Fact]
+        public void GetUnitNameAndANYByOneBasedId_Zero_ReturnsANY()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeFE8URom();
+                NameResolver.ClearCache();
+
+                string result = NameResolver.GetUnitNameAndANYByOneBasedId(0);
+                Assert.False(string.IsNullOrEmpty(result));
+                // The ANY label must differ from the GetUnitNameByOneBasedId(0)
+                // contract (which returns ""), proving the call routed through
+                // the ANY-aware override.
+                Assert.NotEqual("", result);
+                Assert.NotEqual(NameResolver.GetUnitNameByOneBasedId(0), result);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// For non-zero IDs the ANY resolver must produce the same string as
+        /// the non-ANY variant — the only difference between the two helpers
+        /// is the 0-handling. This pins that no extra divergence creeps in
+        /// (e.g. sentinel reinterpretation).
+        /// </summary>
+        [Fact]
+        public void GetUnitNameAndANYByOneBasedId_NonZero_MatchesPlainResolver()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeFE8URom();
+                NameResolver.ClearCache();
+
+                for (uint uid = 1; uid <= 5; uid++)
+                {
+                    string a = NameResolver.GetUnitNameAndANYByOneBasedId(uid);
+                    string b = NameResolver.GetUnitNameByOneBasedId(uid);
+                    Assert.Equal(b, a);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                NameResolver.ClearCache();
+            }
+        }
+
         [Fact]
         public void GetClassName_NullRom_ReturnsFallback()
         {
