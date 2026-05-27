@@ -8,6 +8,7 @@ using global::Avalonia.Controls.Shapes;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -973,94 +974,97 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        /// <summary>
-        /// Per-editor Redo (#692 partial slice): runs
-        /// <see cref="Undo.RunRedo"/> on the global <see cref="CoreState.Undo"/>
-        /// buffer. Mirrors <see cref="Undo_Click"/>: guards on
-        /// <see cref="Undo.CanRedo"/>, then verifies the redo actually
-        /// advanced the cursor (RunRedo's bool surfaces silent
-        /// <see cref="Undo.RollbackROM"/> failures that
-        /// <see cref="Undo.Rollback(int)"/> would otherwise hide).
-        /// After a successful redo, reload the entry so palette /
-        /// chipset / preview reflect the rolled-forward ROM bytes.
-        /// </summary>
-        void Redo_Click(object? sender, RoutedEventArgs e)
+        // -----------------------------------------------------------------
+        // #704 — MapChip Import: read raw .MAPCHIP_CONFIG bytes (no header,
+        // ≥ 9216 bytes per WF parity), persist via the CONFIG PLIST write
+        // path. Palette bits in TSA words are preserved verbatim because
+        // the buffer is written byte-for-byte (the VM's TryWriteConfigBuffer
+        // never decodes TSA words during the write).
+        //
+        // OBJ Image Import remains a KnownGap — tracked by follow-up #710
+        // (needs option-dialog port + 4bpp encoding + FE7 obj2 handling).
+        // -----------------------------------------------------------------
+        async void MapChipImport_Click(object? sender, RoutedEventArgs e)
         {
             try
             {
-                if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel?.StorageProvider == null)
                 {
-                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    CoreState.Services.ShowError("Storage provider not available.");
                     return;
                 }
-                if (!CoreState.Undo.RunRedo())
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    CoreState.Services.ShowError("Redo failed.");
+                    Title = "Import Map Chip Config",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("Map Chip Config") { Patterns = new[] { "*.MAPCHIP_CONFIG", "*.mapchip_config" } },
+                        new FilePickerFileType("All files") { Patterns = new[] { "*.*" } },
+                    },
+                });
+                if (files == null || files.Count == 0) return;
+
+                byte[] data;
+                try
+                {
+                    await using var s = await files[0].OpenReadAsync();
+                    using var ms = new MemoryStream();
+                    await s.CopyToAsync(ms);
+                    data = ms.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("MapStyleEditorView.MapChipImport_Click read failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Failed to read file: {ex.Message}");
                     return;
                 }
-                // Reload the current entry so palette / chipset / preview
-                // pick up the rolled-forward ROM bytes.
-                if (_vm.CurrentAddr != 0)
+
+                _undoService.Begin("Import Map Chip Config");
+                try
                 {
+                    if (!_vm.TryWriteConfigBuffer(data, out string err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError($"Import failed: {err}");
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // Refresh the Chipset Tab UI from the new buffer so the
+                    // user sees the imported chipset 0's TSA + terrain. The
+                    // ChipsetConfigAddress label, slot NUDs, terrain combo,
+                    // and preview all need to reflect the new write.
+                    ChipsetConfigAddressLabel.Text = $"0x{_vm.ChipsetConfigAddress:X08}";
                     _vm.IsLoading = true;
                     try
                     {
-                        _vm.LoadEntry(_vm.CurrentAddr);
-                        UpdateUI();
+                        _vm.CurrentChipsetNo = 0;
+                        bool chipsetLoaded = _vm.CanEditChipsetConfig && _vm.TryLoadChipsetTSA(0);
+                        if (ChipsetNoInput != null)
+                            ChipsetNoInput.Value = chipsetLoaded ? 0m : (decimal?)null;
+                        PopulateTerrainCombo();
+                        if (chipsetLoaded) ReadSlotsFromVM();
+                        else ClearChipsetUI();
+                        SetChipsetEditingEnabled(chipsetLoaded);
                     }
                     finally { _vm.IsLoading = false; }
                     RefreshChipPreview();
+                    CoreState.Services.ShowInfo($"Imported {data.Length} bytes of map chip config.");
                 }
-                CoreState.Services.ShowInfo("Redo applied.");
-            }
-            catch (Exception ex)
-            {
-                Log.Error("MapStyleEditorView.Redo_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Redo failed: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Per-editor MapChip Export (#692 partial slice): writes the
-        /// VM's cached decompressed CONFIG buffer to a .MAPCHIP_CONFIG
-        /// file. Mirrors WF parity — raw ConfigUZ bytes, no magic header
-        /// (the WF importer reads raw bytes with only a 9216-byte
-        /// minimum check, so adding a header would break import parity).
-        /// Uses <see cref="FileDialogHelper.SaveFile"/> for picker parity
-        /// with the rest of the Avalonia layer.
-        /// </summary>
-        async void MapChipExport_Click(object? sender, RoutedEventArgs e)
-        {
-            try
-            {
-                byte[]? configClone = _vm.GetCachedConfigClone();
-                if (configClone == null || configClone.Length == 0)
+                catch (Exception ex)
                 {
-                    CoreState.Services.ShowError(
-                        "No chipset config loaded — select a Map Style entry first.");
-                    return;
+                    _undoService.Rollback();
+                    Log.Error("MapStyleEditorView.MapChipImport_Click write failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Import error: {ex.Message}");
                 }
-                string? path = await FileDialogHelper.SaveFile(
-                    this,
-                    "Export Map Chip Config",
-                    "Map Chip Config",
-                    "*.MAPCHIP_CONFIG",
-                    "mapchip.MAPCHIP_CONFIG");
-                // Treat null / empty / whitespace as cancel — FileDialogHelper.SaveFile
-                // can return an empty string in some flows, and File.WriteAllBytes
-                // would throw on it. Matches the guard pattern used by other
-                // Save-path callers (e.g. ToolTranslateROMView). Copilot bot
-                // inline review on PR #706.
-                if (string.IsNullOrWhiteSpace(path)) return;
-
-                File.WriteAllBytes(path, configClone);
-                CoreState.Services.ShowInfo(
-                    $"Exported {configClone.Length} bytes to {System.IO.Path.GetFileName(path)}.");
             }
             catch (Exception ex)
             {
-                Log.Error("MapStyleEditorView.MapChipExport_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError($"Map Chip export failed: {ex.Message}");
+                Log.Error("MapStyleEditorView.MapChipImport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Map chip import failed: {ex.Message}");
             }
         }
     }

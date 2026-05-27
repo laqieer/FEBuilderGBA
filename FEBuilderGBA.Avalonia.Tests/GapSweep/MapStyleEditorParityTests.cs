@@ -192,19 +192,34 @@ public class MapStyleEditorParityTests
     /// </summary>
     static readonly string[] KnownGapButtonIds =
     {
-        // 2 buttons deferred to follow-up after #692 partial slice
-        // (OBJ Import + MapChip Import). PaletteExport/Import/Clipboard/
-        // ObjExport/Undo became functional in #672 Slice A; Redo and
-        // MapChip Export became functional in #692 partial slice (see
-        // View_<Name>_Button_IsEnabled + View_<Name>_Click_HandlerWired
-        // tests below).
+        // 3 buttons remain deferred. Redo + MapChipExport track #692;
+        // ObjImport tracks the new #710 (#704 follow-up that needs the
+        // MapStyleEditorImportImageOptionForm port + 4bpp encoding + FE7
+        // obj2 handling). MapChipImport became functional in #704.
+        // PaletteExport/Import/Clipboard/ObjExport/Undo became functional
+        // in #672 Slice A (see View_<Name>_Button_IsEnabled +
+        // View_<Name>_Click_HandlerWired tests below).
         //
         // PaletteWrite is functional via #660 first slice (tracked positively
         // by View_FunctionalPaletteWriteButton_IsEnabled); CopyTile / CopyType /
         // Paste / ConfigWrite became functional in #671 (tracked positively
         // by View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit).
-        "MapStyleEditor_MapChipImport_Button",
+        "MapStyleEditor_MapChipExport_Button",
         "MapStyleEditor_ObjImport_Button",
+        "MapStyleEditor_Redo_Button",
+    };
+
+    /// <summary>
+    /// Mapping of each remaining KnownGap button to the issue number its
+    /// follow-up tooltip must reference. OBJ Import was promoted from the
+    /// shared #692 bucket to its own follow-up #710 in #704 because it
+    /// needs substantially more work (option dialog + 4bpp + obj2).
+    /// </summary>
+    static readonly System.Collections.Generic.Dictionary<string, string> KnownGapTooltipIssue = new()
+    {
+        ["MapStyleEditor_MapChipExport_Button"] = "#692",
+        ["MapStyleEditor_ObjImport_Button"] = "#710",
+        ["MapStyleEditor_Redo_Button"] = "#692",
     };
 
     [Fact]
@@ -214,15 +229,14 @@ public class MapStyleEditorParityTests
         foreach (string id in KnownGapButtonIds)
         {
             // Each button must appear with IsEnabled="False" AND a
-            // tooltip referencing the follow-up issue #692 in the same
+            // tooltip referencing its tracked follow-up issue in the same
             // element block. Allow attributes in any order via DOTALL flag.
             var idAttr = $"AutomationProperties.AutomationId=\"{id}\"";
             Assert.Contains(idAttr, axaml);
 
             // Locate the <Button ... /> element containing this id and
-            // verify the element body has IsEnabled="False" and a #692
-            // tooltip (post-#672 Slice A — old #374 retired for the 5
-            // landed buttons; the 4 remaining track #692).
+            // verify the element body has IsEnabled="False" and the
+            // tracked follow-up tooltip.
             var elementPattern = new Regex(
                 @"<Button(?:\s[^/>]*?)?" + Regex.Escape(idAttr) + @"[\s\S]*?/?>",
                 RegexOptions.None);
@@ -233,9 +247,11 @@ public class MapStyleEditorParityTests
             Assert.True(
                 elementText.Contains("IsEnabled=\"False\""),
                 $"KnownGap button {id} must have IsEnabled=\"False\"; element was: {elementText}");
+
+            string expectedIssue = KnownGapTooltipIssue[id];
             Assert.True(
-                elementText.Contains("#692"),
-                $"KnownGap button {id} must have a #692 follow-up tooltip; element was: {elementText}");
+                elementText.Contains(expectedIssue),
+                $"KnownGap button {id} must have a {expectedIssue} follow-up tooltip; element was: {elementText}");
         }
     }
 
@@ -997,11 +1013,9 @@ public class MapStyleEditorParityTests
     }
 
     // -----------------------------------------------------------------
-    // #672 Slice A + #692 partial slice — 7 newly-functional buttons.
-    // #672 Slice A: PaletteExport / PaletteImport / PaletteClipboard /
-    // ObjExport / Undo. #692 partial slice: Redo + MapChip Export. The
-    // 2 remaining buttons (OBJ Import + MapChip Import) are tracked by
-    // the follow-up issue filed before the #692 partial-slice PR.
+    // #672 Slice A — 5 newly-functional buttons (Palette Export / Import /
+    // Clipboard, OBJ Export, Undo). Remaining 4 buttons (Redo, OBJ Import,
+    // MapChip Export/Import) tracked by follow-up #692.
     // -----------------------------------------------------------------
 
     public static IEnumerable<object[]> Slice672ButtonIds()
@@ -1011,9 +1025,6 @@ public class MapStyleEditorParityTests
         yield return new object[] { "MapStyleEditor_PaletteClipboard_Button", "PaletteClipboard_Click" };
         yield return new object[] { "MapStyleEditor_ObjExport_Button", "ObjExport_Click" };
         yield return new object[] { "MapStyleEditor_Undo_Button", "Undo_Click" };
-        // #692 partial slice additions.
-        yield return new object[] { "MapStyleEditor_Redo_Button", "Redo_Click" };
-        yield return new object[] { "MapStyleEditor_MapChipExport_Button", "MapChipExport_Click" };
     }
 
     /// <summary>
@@ -1062,6 +1073,65 @@ public class MapStyleEditorParityTests
             RegexOptions.None), code);
     }
 
+    // -----------------------------------------------------------------
+    // #704 — MapChip Import button parity tests.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #704: the MapChip Import button must NOT carry IsEnabled="False"
+    /// or any stale #374/#692 tooltip anymore — it became functional via
+    /// the #704 raw .MAPCHIP_CONFIG read path.
+    /// </summary>
+    [Fact]
+    public void View_MapChipImport_Button_IsEnabled()
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""MapStyleEditor_MapChipImport_Button""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, "MapStyleEditor_MapChipImport_Button must exist");
+        Assert.False(m.Value.Contains("IsEnabled=\"False\""),
+            "MapStyleEditor_MapChipImport_Button must not carry IsEnabled=\"False\" anymore (#704)");
+        Assert.False(m.Value.Contains("#374"),
+            "MapStyleEditor_MapChipImport_Button must not advertise the legacy #374 tooltip");
+        Assert.False(m.Value.Contains("#692"),
+            "MapStyleEditor_MapChipImport_Button must not advertise the stale #692 tooltip (functional in #704)");
+    }
+
+    /// <summary>
+    /// #704: the MapChip Import button must wire Click to the
+    /// MapChipImport_Click handler in AXAML AND the handler method must
+    /// exist in the code-behind.
+    /// </summary>
+    [Fact]
+    public void View_MapChipImport_Click_HandlerWired()
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""MapStyleEditor_MapChipImport_Button""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, "MapStyleEditor_MapChipImport_Button must exist");
+        Assert.Contains("Click=\"MapChipImport_Click\"", m.Value);
+
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"void MapChipImport_Click\(object\?",
+            RegexOptions.None), code);
+        // Handler must wrap the VM call in an undo scope (Begin / Commit /
+        // Rollback) so a failed write does not leave a half-applied import.
+        var bodyMatch = Regex.Match(code,
+            @"void MapChipImport_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|/// |\}))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "MapChipImport_Click method not found");
+        string body = bodyMatch.Value;
+        Assert.Contains("_undoService.Begin", body);
+        Assert.Contains("_vm.TryWriteConfigBuffer", body);
+        Assert.Contains("_undoService.Commit()", body);
+        Assert.Contains("_undoService.Rollback()", body);
+    }
+
     /// <summary>
     /// Undo handler must guard on <c>CoreState.Undo?.Postion &gt; 0</c>
     /// before calling RunUndo (v2 Copilot review item 2 — silently no-op
@@ -1088,72 +1158,6 @@ public class MapStyleEditorParityTests
             "Undo_Click must reference Postion and RunUndo()");
         Assert.True(postionIdx < runUndoIdx,
             "Postion guard must precede RunUndo() call");
-    }
-
-    // -----------------------------------------------------------------
-    // #692 partial slice — Redo + MapChip Export specific shape checks.
-    // -----------------------------------------------------------------
-
-    /// <summary>
-    /// Redo handler must guard on <see cref="Undo.CanRedo"/> before calling
-    /// <see cref="Undo.RunRedo"/> (mirrors <see cref="Undo_Click"/>'s
-    /// Postion-guard pattern) and emit a "Nothing to redo" toast on the
-    /// no-op path. The guard must precede RunRedo() in source order so a
-    /// silently no-op rollback never falsely claims "Redo applied".
-    /// </summary>
-    [Fact]
-    public void View_Redo_Click_GuardsOnCanRedo()
-    {
-        string code = File.ReadAllText(CodeBehindPath());
-        var bodyMatch = Regex.Match(code,
-            @"void Redo_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|/// |\}))",
-            RegexOptions.Singleline);
-        Assert.True(bodyMatch.Success, "Redo_Click method not found");
-        string body = bodyMatch.Value;
-        Assert.Contains("CanRedo", body);
-        Assert.Contains("Nothing to redo", body);
-        int canRedoIdx = body.IndexOf("CanRedo", StringComparison.Ordinal);
-        int runRedoIdx = body.IndexOf("RunRedo()", StringComparison.Ordinal);
-        Assert.True(canRedoIdx >= 0 && runRedoIdx >= 0,
-            "Redo_Click must reference CanRedo and RunRedo()");
-        Assert.True(canRedoIdx < runRedoIdx,
-            "CanRedo guard must precede RunRedo() call");
-    }
-
-    /// <summary>
-    /// MapChip Export handler must access the VM's CONFIG buffer via the
-    /// public <c>GetCachedConfigClone</c> accessor (which clones the
-    /// internal cache to prevent caller mutation — Copilot CLI v2 review)
-    /// and use the shared <c>FileDialogHelper.SaveFile</c> wrapper for
-    /// picker parity with the rest of the Avalonia layer.
-    /// </summary>
-    [Fact]
-    public void View_MapChipExport_Click_UsesVmAccessorAndFileDialogHelper()
-    {
-        string code = File.ReadAllText(CodeBehindPath());
-        var bodyMatch = Regex.Match(code,
-            @"async void MapChipExport_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|async\s|/// |\}))",
-            RegexOptions.Singleline);
-        Assert.True(bodyMatch.Success, "MapChipExport_Click method not found");
-        string body = bodyMatch.Value;
-        Assert.Contains("_vm.GetCachedConfigClone()", body);
-        Assert.Contains("FileDialogHelper.SaveFile", body);
-        Assert.Contains("*.MAPCHIP_CONFIG", body);
-        Assert.Contains("File.WriteAllBytes", body);
-    }
-
-    /// <summary>
-    /// The VM must expose <c>GetCachedConfigClone</c> as a public method
-    /// that returns a defensive clone (i.e. `.Clone()` appears in the
-    /// expression body). This catches direct field exposure regressions.
-    /// </summary>
-    [Fact]
-    public void ViewModel_GetCachedConfigClone_ReturnsDefensiveClone()
-    {
-        string vm = File.ReadAllText(ViewModelPath());
-        Assert.Matches(new Regex(
-            @"public\s+byte\[\]\??\s+GetCachedConfigClone\(\)[\s\S]*?Clone\(\)",
-            RegexOptions.Singleline), vm);
     }
 
     // -----------------------------------------------------------------

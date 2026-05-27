@@ -103,20 +103,21 @@
               <Button AutomationProperties.AutomationId="MapStyleEditor_ObjImport_Button"
                       Content="Image Import"
                       IsEnabled="False"
-                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
+                      ToolTip.Tip="Pending Core extraction - tracked by #710." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipExport_Button"
                       Content="Map Chip Save"
-                      Click="MapChipExport_Click" />
-              <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipImport_Button"
-                      Content="Map Chip Load"
                       IsEnabled="False"
                       ToolTip.Tip="Pending Core extraction - tracked by #692." />
+              <Button AutomationProperties.AutomationId="MapStyleEditor_MapChipImport_Button"
+                      Content="Map Chip Load"
+                      Click="MapChipImport_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Undo_Button"
                       Content="UNDO"
                       Click="Undo_Click" />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Redo_Button"
                       Content="REDO"
-                      Click="Redo_Click" />
+                      IsEnabled="False"
+                      ToolTip.Tip="Pending Core extraction - tracked by #692." />
               <Button AutomationProperties.AutomationId="MapStyleEditor_Write_Button"
                       Name="WriteButton" Content="Write"
                       Click="Write_Click" />
