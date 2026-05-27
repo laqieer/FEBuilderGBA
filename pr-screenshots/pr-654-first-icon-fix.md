@@ -16,9 +16,10 @@ slot[0] icon = Bitmap
 ```
 
 Before this PR:
-- `slot[0]` row text would be `"0 Iron Sword"` (slot index 0 — the bug)
+- `slot[0]` row text would be `"00 Iron Sword"` (slot index 0 formatted by
+  `U.ToHexString(0)` as the two-digit hex `"00"` — the bug)
 - `ListIconLoaders.ItemIconLoader(slots, 0)` would return `null`
-  (because `U.atoh("0 Iron Sword") == 0` and the loader hard-bailed on `id == 0`)
+  (because `U.atoh("00 Iron Sword") == 0` and the loader hard-bailed on `id == 0`)
 - The icon would NOT render
 
 After this PR:
