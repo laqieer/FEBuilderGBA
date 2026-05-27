@@ -1,0 +1,22 @@
+Test run for C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a48aec64cb2440648\FEBuilderGBA.Avalonia.Tests\bin\Release\net9.0\FEBuilderGBA.Avalonia.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a48aec64cb2440648\FEBuilderGBA.Avalonia.Tests\bin\Release\net9.0\FEBuilderGBA.Avalonia.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 9.0.16)
+[xUnit.net 00:00:00.66]   Discovering: FEBuilderGBA.Avalonia.Tests
+[xUnit.net 00:00:10.15]   Discovered:  FEBuilderGBA.Avalonia.Tests
+[xUnit.net 00:00:10.19]   Starting:    FEBuilderGBA.Avalonia.Tests
+[xUnit.net 00:00:11.78]   Finished:    FEBuilderGBA.Avalonia.Tests
+  Passed FEBuilderGBA.Avalonia.Tests.AvaloniaAppServicesDialogTests.ShowQuestion_OnUIThread_ClickYes_ReturnsTrue_WithoutDeadlock [987 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.AvaloniaAppServicesDialogTests.ShowQuestion_NoMainWindow_ReturnsFalseSafely [< 1 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.AvaloniaAppServicesDialogTests.ShowQuestion_OnUIThread_ClickNo_ReturnsFalse_WithoutDeadlock [10 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.AvaloniaAppServicesDialogTests.ShowYesNo_DelegatesToShowQuestion_ClickYes_ReturnsTrue [9 ms]
+
+Test Run Successful.
+Total tests: 4
+     Passed: 4
+ Total time: 13.2241 Seconds
+
+Workload updates are available. Run `dotnet workload list` for more information.
