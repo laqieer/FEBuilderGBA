@@ -235,6 +235,137 @@ namespace FEBuilderGBA
             return image;
         }
 
+        /// <summary>
+        /// Apply a 1-pixel black outline (Fuchidori) around opaque regions of
+        /// an 8bpp indexed-pixel buffer. Ports WinForms <c>ImageUtil.Fuchidori</c>:
+        /// for every transparent pixel (index 0) that is adjacent to an opaque
+        /// pixel on the "outside" edge (left/right transparent → up/down not
+        /// black, or up/down transparent → left/right not black), the pixel is
+        /// rewritten to <paramref name="blackColorIndex"/>.
+        ///
+        /// The buffer is <c>width * height</c> bytes, row-major (stride = width).
+        /// Used by the Portrait Import Wizard (#662) when the user toggles
+        /// "Add black outline (Fuchidori)".
+        /// </summary>
+        /// <param name="indexedPixels">8bpp indexed buffer (1 byte per pixel). Modified in place.</param>
+        /// <param name="width">Image width in pixels.</param>
+        /// <param name="height">Image height in pixels.</param>
+        /// <param name="blackColorIndex">Palette index to use for the outline.</param>
+        public static void Fuchidori(byte[] indexedPixels, int width, int height, byte blackColorIndex)
+        {
+            if (indexedPixels == null) return;
+            if (width <= 0 || height <= 0) return;
+            if (indexedPixels.Length < width * height) return;
+
+            // Snapshot original pixels so the outline test inspects only the
+            // source image, not partially-outlined output (matches the WF
+            // double-buffer src/dest behavior).
+            byte[] src = new byte[indexedPixels.Length];
+            Array.Copy(indexedPixels, src, indexedPixels.Length);
+
+            int endX = width - 1;
+            int endY = height - 1;
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    int idx = y * width + x;
+                    byte cc = src[idx];
+
+                    // Only fill currently-transparent pixels with the outline.
+                    if (cc != 0) continue;
+
+                    int transCount = 0;
+                    bool isLTrans = false, isLBlack = false;
+                    bool isRTrans = false, isRBlack = false;
+                    bool isUTrans = false, isUBlack = false;
+                    bool isDTrans = false, isDBlack = false;
+
+                    if (x > 0)
+                    {
+                        byte cDest = indexedPixels[idx - 1];
+                        if (cDest == blackColorIndex) isLBlack = true;
+                        if (src[idx - 1] == 0) { isLTrans = true; transCount++; }
+                    }
+                    if (x < endX)
+                    {
+                        byte cDest = indexedPixels[idx + 1];
+                        if (cDest == blackColorIndex) isRBlack = true;
+                        if (src[idx + 1] == 0) { isRTrans = true; transCount++; }
+                    }
+                    if (y > 0)
+                    {
+                        byte cDest = indexedPixels[idx - width];
+                        if (cDest == blackColorIndex) isUBlack = true;
+                        if (src[idx - width] == 0) { isUTrans = true; transCount++; }
+                    }
+                    if (y < endY)
+                    {
+                        byte cDest = indexedPixels[idx + width];
+                        if (cDest == blackColorIndex) isDBlack = true;
+                        if (src[idx + width] == 0) { isDTrans = true; transCount++; }
+                    }
+
+                    // 3+ transparent neighbors — isolated pixel, no outline.
+                    if (transCount >= 3) continue;
+
+                    // Left/right transparent and up/down not both black -> outline.
+                    if (isLTrans || isRTrans)
+                    {
+                        if (!isUBlack || !isDBlack)
+                        {
+                            indexedPixels[idx] = blackColorIndex;
+                            continue;
+                        }
+                    }
+                    // Up/down transparent and left/right not both black -> outline.
+                    if (isUTrans || isDTrans)
+                    {
+                        if (!isLBlack || !isRBlack)
+                        {
+                            indexedPixels[idx] = blackColorIndex;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Find the palette index with the darkest color (lowest combined R+G+B)
+        /// inside the half-open range [start, end). Defaults to <paramref name="start"/>
+        /// when no candidate is found. Mirrors WinForms <c>ImageUtil.FindBlackColorFromPalette</c>.
+        /// </summary>
+        /// <param name="gbaPalette">Palette bytes (BGR555 LE, 2 bytes/color).</param>
+        /// <param name="start">First palette index considered (inclusive).</param>
+        /// <param name="end">Stop index (exclusive).</param>
+        /// <returns>Index of the darkest color in the range.</returns>
+        public static int FindBlackColorIndex(byte[] gbaPalette, int start, int end)
+        {
+            if (gbaPalette == null || gbaPalette.Length < 2) return start;
+            if (CoreState.ImageService == null) return start;
+
+            int maxColors = gbaPalette.Length / 2;
+            if (end > maxColors) end = maxColors;
+            if (start < 0) start = 0;
+            if (start >= end) return start;
+
+            int bestIndex = start;
+            int bestSum = int.MaxValue;
+            for (int i = start; i < end; i++)
+            {
+                ushort gba = (ushort)(gbaPalette[i * 2] | (gbaPalette[i * 2 + 1] << 8));
+                CoreState.ImageService.GBAColorToRGBA(gba, out byte r, out byte g, out byte b);
+                int sum = r + g + b;
+                if (sum < bestSum)
+                {
+                    bestSum = sum;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
+        }
+
         static void DecodeTileToPixels(byte[] tileData, int tileIndex, byte[] gbaPalette, int palIndex,
             byte[] pixels, int imageWidth, int tileX, int tileY, bool hFlip, bool vFlip, bool is4bpp)
         {

@@ -55,6 +55,33 @@
           </StackPanel>
         </Border>
 
+        <!-- Step 2a: Palette options (#662) -->
+        <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
+          <StackPanel Spacing="6">
+            <TextBlock Text="2a. Palette options" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <RadioButton AutomationProperties.AutomationId="ImagePortraitImporter_PaletteMode_Auto_Check"
+                           Name="PaletteAutoRadio" GroupName="PaletteMode" Content="Auto-quantize" IsChecked="True"
+                           IsCheckedChanged="PaletteMode_Changed" />
+              <RadioButton AutomationProperties.AutomationId="ImagePortraitImporter_PaletteMode_Share_Check"
+                           Name="PaletteShareRadio" GroupName="PaletteMode" Content="Share with target slot"
+                           IsCheckedChanged="PaletteMode_Changed" />
+              <RadioButton AutomationProperties.AutomationId="ImagePortraitImporter_PaletteMode_Custom_Check"
+                           Name="PaletteCustomRadio" GroupName="PaletteMode" Content="Custom palette file..."
+                           IsCheckedChanged="PaletteMode_Changed" />
+            </StackPanel>
+            <StackPanel Name="CustomPalettePickerRow" Orientation="Horizontal" Spacing="8" IsVisible="False">
+              <Button AutomationProperties.AutomationId="ImagePortraitImporter_CustomPalette_Pick_Button"
+                      Name="CustomPalettePickButton" Content="Pick palette..." Click="CustomPalettePick_Click" />
+              <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_CustomPalette_Label"
+                         Name="CustomPaletteLabel" VerticalAlignment="Center"
+                         Text="(none)" Foreground="Gray" />
+            </StackPanel>
+            <CheckBox AutomationProperties.AutomationId="ImagePortraitImporter_Fuchidori_Check"
+                      Name="FuchidoriCheckbox" Content="Add black outline (Fuchidori)" />
+          </StackPanel>
+        </Border>
+
         <!-- Step 3: Target slot -->
         <Border BorderBrush="Gray" BorderThickness="0,0,0,1" Padding="0,4" Margin="0,0,0,4">
           <StackPanel Spacing="6">
@@ -85,7 +112,7 @@
         <!-- Notes -->
         <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Notes_Label"
                    TextWrapping="Wrap" Foreground="Gray" FontSize="11"
-                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Advanced features (eye/mouth block sliders, custom palette) are tracked under follow-up issues." />
+                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. Advanced features (eye/mouth block sliders) are tracked under follow-up issues." />
 
       </StackPanel>
     </ScrollViewer>

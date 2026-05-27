@@ -9759,8 +9759,29 @@ FE-Repo...
 :4. Write to ROM
 4. ROM に書き込み
 
-:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Advanced features (eye/mouth block sliders, custom palette) are tracked under follow-up issues.
-備考: このウィザードはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。「Pick Folder (batch)...」でフォルダ内のファイルを一括インポートできます — 各ファイル名を 0xNN.png または NN.png にすると、ウィザードが書き込み先スロットを判別します。高度な機能（目・口ブロックスライダー、カスタムパレット）は follow-up issue で追跡しています。
+:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. Advanced features (eye/mouth block sliders) are tracked under follow-up issues.
+備考: このウィザードはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。「Pick Folder (batch)...」でフォルダ内のファイルを一括インポートできます — 各ファイル名を 0xNN.png または NN.png にすると、ウィザードが書き込み先スロットを判別します。パレットオプション: Auto-quantize は画像から最適な 16 色を選びます; Share with target slot は ROM の対象スロットにある既存パレットを再利用します; Custom palette file は .pal/.act/.gpl パレットをインポートします。「Add black outline (Fuchidori)」をチェックすると、不透明部の周りに 1 ピクセルの黒い縁取りを描きます。高度な機能（目・口ブロックスライダー）は follow-up issue で追跡しています。
+
+:2a. Palette options
+2a. パレットオプション
+
+:Auto-quantize
+自動減色
+
+:Share with target slot
+対象スロットと共有
+
+:Custom palette file...
+カスタムパレットファイル...
+
+:Pick palette...
+パレットを選択...
+
+:(none)
+（なし）
+
+:Add black outline (Fuchidori)
+縁を黒どりする (Fuchidori)
 
 :Pick PNG/BMP...
 PNG / BMP を選択...

@@ -14,8 +14,11 @@
 // (0xNN.png or NN.png), and delegates to PortraitImportHelper.ImportFolderAsync
 // which wraps the whole batch in a single UndoService scope.
 //
+// Advanced palette options + Fuchidori — implemented in #662:
+//   - Auto-quantize (default), Share with target slot, Custom palette file...
+//   - Fuchidori (black outline) checkbox orthogonal to palette mode.
+//
 // Out of scope (tracked under follow-ups):
-//   - Advanced palette options + Fuchidori (#662)
 //   - Eye/mouth block configuration + per-frame preview (#663)
 using System;
 using System.IO;
@@ -35,6 +38,17 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ImagePortraitImporterViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        // #662: advanced palette options + Fuchidori state.
+        byte[] _customPaletteBytes;
+        string _customPaletteFilename = string.Empty;
+
+        PortraitPaletteMode CurrentPaletteMode =>
+            PaletteShareRadio.IsChecked == true ? PortraitPaletteMode.SharePalette :
+            PaletteCustomRadio.IsChecked == true ? PortraitPaletteMode.CustomPalette :
+            PortraitPaletteMode.AutoQuantize;
+
+        bool FuchidoriEnabled => FuchidoriCheckbox.IsChecked == true;
 
         public string ViewTitle => "Portrait Import Wizard";
         public bool IsLoaded => _vm.IsLoaded;
@@ -338,17 +352,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (loadResult == null || !loadResult.Success)
                 { CoreState.Services.ShowError("Pick a source image first."); return; }
 
+                // #662: validate custom palette mode pre-requisites.
+                PortraitPaletteMode mode = CurrentPaletteMode;
+                if (mode == PortraitPaletteMode.CustomPalette && _customPaletteBytes == null)
+                {
+                    CoreState.Services.ShowError("Custom palette mode requires picking a palette file first.");
+                    return;
+                }
+
                 // Single source of truth: PortraitImportHelper. Same path used
                 // by ImagePortraitView (drag-drop + Import PNG button).
                 ImportOutcome outcome;
                 if (loadResult.Width == 128 && loadResult.Height == 112)
                 {
                     outcome = PortraitImportHelper.ImportSheet(rom, addr, loadResult, _undoService,
+                        mode, _customPaletteBytes, FuchidoriEnabled,
                         "Import Portrait Sheet (Wizard)");
                 }
                 else
                 {
                     outcome = PortraitImportHelper.ImportSimple(rom, addr, loadResult, _undoService,
+                        mode, _customPaletteBytes, FuchidoriEnabled,
                         "Import Portrait Image (Wizard)");
                 }
 
@@ -374,6 +398,89 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImagePortraitImporterView.Import_Click failed: {0}", ex.Message);
                 CoreState.Services.ShowError($"Import failed: {ex.Message}");
+            }
+        }
+
+        // #662: show/hide the custom-palette picker row when the user toggles
+        // between Auto / Share / Custom palette modes. Wired via XAML
+        // IsCheckedChanged on all three radio buttons.
+        void PaletteMode_Changed(object? sender, RoutedEventArgs e)
+        {
+            if (CustomPalettePickerRow != null)
+            {
+                CustomPalettePickerRow.IsVisible = PaletteCustomRadio.IsChecked == true;
+            }
+        }
+
+        // #662: pick a .pal/.act/.gpl/.txt/.gbapal palette file and stage its
+        // 32 BGR555 bytes for the next import. The PaletteFormatConverter
+        // result may be longer than 32 bytes (e.g. ACT files are typically
+        // 768 bytes / 256 colors); we take the first 32 bytes / 16 colors and
+        // reject inputs shorter than that with a clear error.
+        async void CustomPalettePick_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var topLevel = TopLevel.GetTopLevel(this);
+                if (topLevel == null) return;
+
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Pick a palette file",
+                    AllowMultiple = false,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("Palette files")
+                        {
+                            Patterns = new[] { "*.pal", "*.act", "*.gpl", "*.txt", "*.gbapal" }
+                        },
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } },
+                    },
+                });
+                if (files == null || files.Count == 0) return;
+
+                string path = files[0].Path.LocalPath;
+                byte[] fileBytes;
+                try
+                {
+                    fileBytes = File.ReadAllBytes(path);
+                }
+                catch (Exception ex)
+                {
+                    CoreState.Services.ShowError($"Failed to read palette file: {ex.Message}");
+                    return;
+                }
+
+                string ext = Path.GetExtension(path);
+                PaletteFormat format = PaletteFormatConverter.DetectFormat(fileBytes, ext);
+                byte[] imported;
+                try
+                {
+                    imported = PaletteFormatConverter.ImportFromFormat(fileBytes, format);
+                }
+                catch (Exception ex)
+                {
+                    CoreState.Services.ShowError($"Failed to parse palette file: {ex.Message}");
+                    return;
+                }
+
+                if (imported == null || imported.Length < 32)
+                {
+                    CoreState.Services.ShowError(
+                        $"Invalid palette file — expected 16 colors (32 bytes), got {imported?.Length ?? 0}.");
+                    return;
+                }
+
+                _customPaletteBytes = new byte[32];
+                Array.Copy(imported, 0, _customPaletteBytes, 0, 32);
+                _customPaletteFilename = Path.GetFileName(path);
+                CustomPaletteLabel.Text = _customPaletteFilename;
+                CustomPaletteLabel.Foreground = global::Avalonia.Media.Brushes.Black;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePortraitImporterView.CustomPalettePick_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Pick palette failed: {ex.Message}");
             }
         }
 

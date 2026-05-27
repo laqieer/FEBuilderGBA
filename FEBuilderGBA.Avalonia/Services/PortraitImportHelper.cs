@@ -41,6 +41,27 @@ namespace FEBuilderGBA.Avalonia.Services
         public static ImportOutcome Fail(string error) => new(false, error);
     }
 
+    /// <summary>
+    /// Palette-handling mode for the Portrait Import Wizard (#662).
+    ///
+    /// <list type="bullet">
+    /// <item><description><see cref="AutoQuantize"/> — quantize the source image to 16 best-fit
+    /// colors (default; matches the original wizard behavior).</description></item>
+    /// <item><description><see cref="SharePalette"/> — read the palette already at the target
+    /// slot's D8 pointer (dereferenced) and remap the source pixels to it. Does NOT
+    /// write a new palette; only the tile data at D0 is touched.</description></item>
+    /// <item><description><see cref="CustomPalette"/> — use a user-supplied .pal/.act/.gpl
+    /// file as the palette. Remaps the source pixels to that palette and writes
+    /// both the tile data and the new palette.</description></item>
+    /// </list>
+    /// </summary>
+    public enum PortraitPaletteMode
+    {
+        AutoQuantize = 0,
+        SharePalette = 1,
+        CustomPalette = 2,
+    }
+
     /// <summary>Aggregate result of a batch folder import (#661).</summary>
     /// <param name="Imported">Files successfully written to ROM.</param>
     /// <param name="Failed">Files that parsed a slot ID but failed during load/quantize/write.</param>
@@ -86,6 +107,31 @@ namespace FEBuilderGBA.Avalonia.Services
             ImageImportService.LoadResult loadResult,
             UndoService undoService,
             string undoLabel = "Import Portrait Image")
+            => ImportSimple(rom, entryAddr, loadResult, undoService,
+                PortraitPaletteMode.AutoQuantize, null, false, undoLabel);
+
+        /// <summary>
+        /// Mode-aware overload (#662). Honors <see cref="PortraitPaletteMode"/>:
+        ///   - <see cref="PortraitPaletteMode.AutoQuantize"/>: quantize and write the
+        ///     palette (existing behavior).
+        ///   - <see cref="PortraitPaletteMode.SharePalette"/>: dereference D8 to find the
+        ///     existing palette, remap source pixels, SKIP the palette write.
+        ///   - <see cref="PortraitPaletteMode.CustomPalette"/>: use <paramref name="customPaletteBytes"/>
+        ///     (must be exactly 32 BGR555 bytes), remap source pixels, write the
+        ///     palette to ROM.
+        /// When <paramref name="fuchidori"/> is true the indexed-pixel buffer is
+        /// post-processed by <see cref="ImageUtilCore.Fuchidori(byte[], int, int, byte)"/>
+        /// to add a 1-pixel black outline.
+        /// </summary>
+        public static ImportOutcome ImportSimple(
+            ROM rom,
+            uint entryAddr,
+            ImageImportService.LoadResult loadResult,
+            UndoService undoService,
+            PortraitPaletteMode mode,
+            byte[] customPaletteBytes,
+            bool fuchidori,
+            string undoLabel = "Import Portrait Image")
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -93,11 +139,66 @@ namespace FEBuilderGBA.Avalonia.Services
             if (entryAddr == 0) return ImportOutcome.Fail("No portrait entry selected");
             if (undoService == null) return ImportOutcome.Fail("Undo service not initialized");
 
+            // Resolve mode-specific palette + indexed pixels BEFORE opening the
+            // undo scope (Copilot CLI plan v2 review #1: a bad palette / pointer
+            // must fail without leaving a no-op rollback entry on the stack).
+            byte[] effectivePalette;
+            byte[] indexedPixels;
+            switch (mode)
+            {
+                case PortraitPaletteMode.SharePalette:
+                {
+                    // Critical fix #1: dereference the D8 pointer rather than
+                    // reading bytes directly from entryAddr+8 (those are pointer
+                    // bytes, not palette bytes).
+                    uint palettePtr = rom.p32(entryAddr + 8);
+                    uint paletteOffset = U.toOffset(palettePtr);
+                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                        return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
+                    effectivePalette = rom.getBinaryData(paletteOffset, 32);
+                    if (effectivePalette == null || effectivePalette.Length < 32)
+                        return ImportOutcome.Fail("Could not read existing palette at D8 pointer.");
+                    indexedPixels = ImageImportCore.RemapToExistingPalette(
+                        ReconstructRgbaWithPaletteZeroTransparent(loadResult),
+                        loadResult.Width, loadResult.Height, effectivePalette, 16);
+                    if (indexedPixels == null)
+                        return ImportOutcome.Fail("Failed to remap pixels to existing palette.");
+                    break;
+                }
+                case PortraitPaletteMode.CustomPalette:
+                {
+                    // Critical fix #2: validate exactly 32 bytes (16 colors).
+                    if (customPaletteBytes == null || customPaletteBytes.Length != 32)
+                        return ImportOutcome.Fail(
+                            $"Invalid custom palette — expected 16 colors (32 bytes), got {customPaletteBytes?.Length ?? 0}.");
+                    effectivePalette = customPaletteBytes;
+                    indexedPixels = ImageImportCore.RemapToExistingPalette(
+                        ReconstructRgbaWithPaletteZeroTransparent(loadResult),
+                        loadResult.Width, loadResult.Height, effectivePalette, 16);
+                    if (indexedPixels == null)
+                        return ImportOutcome.Fail("Failed to remap pixels to custom palette.");
+                    break;
+                }
+                default: // AutoQuantize
+                    effectivePalette = loadResult.GBAPalette;
+                    indexedPixels = loadResult.IndexedPixels;
+                    break;
+            }
+
+            if (fuchidori && indexedPixels != null && effectivePalette != null)
+            {
+                // Pick the darkest available palette index as the outline color,
+                // matching WF ImagePortraitImporterForm's FindBlackColorFromPalette
+                // call. Skip index 0 (reserved for transparency).
+                int blackIdx = ImageUtilCore.FindBlackColorIndex(effectivePalette, 1, 16);
+                ImageUtilCore.Fuchidori(indexedPixels, loadResult.Width, loadResult.Height, (byte)blackIdx);
+            }
+
             undoService.Begin(undoLabel);
             try
             {
                 byte[] tileData = ImageImportCore.EncodeDirectTiles4bpp(
-                    loadResult.IndexedPixels, loadResult.Width, loadResult.Height);
+                    indexedPixels, loadResult.Width, loadResult.Height);
                 if (tileData == null)
                 {
                     undoService.Rollback();
@@ -111,11 +212,16 @@ namespace FEBuilderGBA.Avalonia.Services
                     return ImportOutcome.Fail("No free space for tile data");
                 }
 
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, entryAddr + 8);
-                if (palAddr == U.NOT_FOUND)
+                // SharePalette intentionally skips the palette write — the
+                // existing palette stays in place at the dereferenced offset.
+                if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    undoService.Rollback();
-                    return ImportOutcome.Fail("No free space for palette");
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + 8);
+                    if (palAddr == U.NOT_FOUND)
+                    {
+                        undoService.Rollback();
+                        return ImportOutcome.Fail("No free space for palette");
+                    }
                 }
 
                 undoService.Commit();
@@ -141,6 +247,24 @@ namespace FEBuilderGBA.Avalonia.Services
             ImageImportService.LoadResult loadResult,
             UndoService undoService,
             string undoLabel = "Import Portrait Sheet (128x112)")
+            => ImportSheet(rom, entryAddr, loadResult, undoService,
+                PortraitPaletteMode.AutoQuantize, null, false, undoLabel);
+
+        /// <summary>
+        /// Mode-aware overload (#662). Same palette-mode + Fuchidori semantics as
+        /// <see cref="ImportSimple(ROM, uint, ImageImportService.LoadResult, UndoService, PortraitPaletteMode, byte[], bool, string)"/>,
+        /// but for 128x112 composite sheets. SharePalette dereferences D8 to
+        /// re-use the existing palette; CustomPalette validates 32 bytes.
+        /// </summary>
+        public static ImportOutcome ImportSheet(
+            ROM rom,
+            uint entryAddr,
+            ImageImportService.LoadResult loadResult,
+            UndoService undoService,
+            PortraitPaletteMode mode,
+            byte[] customPaletteBytes,
+            bool fuchidori,
+            string undoLabel = "Import Portrait Sheet (128x112)")
         {
             if (rom == null) return ImportOutcome.Fail("ROM not loaded");
             if (loadResult == null || !loadResult.Success)
@@ -158,6 +282,33 @@ namespace FEBuilderGBA.Avalonia.Services
                 return ImportOutcome.Fail("128x112 composite sheets are FE7/FE8 only "
                     + "— use the FE6 portrait editor for FE6 ROMs.");
 
+            // Resolve mode-specific palette BEFORE opening the undo scope so
+            // a pointer/format failure can't leave a no-op rollback entry.
+            byte[] effectivePalette;
+            switch (mode)
+            {
+                case PortraitPaletteMode.SharePalette:
+                {
+                    uint palettePtr = rom.p32(entryAddr + 8);
+                    uint paletteOffset = U.toOffset(palettePtr);
+                    if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
+                        return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
+                    effectivePalette = rom.getBinaryData(paletteOffset, 32);
+                    if (effectivePalette == null || effectivePalette.Length < 32)
+                        return ImportOutcome.Fail("Could not read existing palette at D8 pointer.");
+                    break;
+                }
+                case PortraitPaletteMode.CustomPalette:
+                    if (customPaletteBytes == null || customPaletteBytes.Length != 32)
+                        return ImportOutcome.Fail(
+                            $"Invalid custom palette — expected 16 colors (32 bytes), got {customPaletteBytes?.Length ?? 0}.");
+                    effectivePalette = customPaletteBytes;
+                    break;
+                default:
+                    effectivePalette = loadResult.GBAPalette;
+                    break;
+            }
+
             // Reconstruct RGBA from indexed for the splitter (palette index
             // 0 = transparent, matching WF / ImagePortraitView behavior).
             byte[] rgbaPixels = ReconstructRgbaWithPaletteZeroTransparent(loadResult);
@@ -170,15 +321,23 @@ namespace FEBuilderGBA.Avalonia.Services
 
             byte[] sheetIndexed = ImageImportCore.RemapToExistingPalette(
                 parts.SpriteSheetPixels, parts.SpriteSheetW, parts.SpriteSheetH,
-                loadResult.GBAPalette, 16);
+                effectivePalette, 16);
             byte[] miniIndexed = ImageImportCore.RemapToExistingPalette(
                 parts.MiniPixels, parts.MiniW, parts.MiniH,
-                loadResult.GBAPalette, 16);
+                effectivePalette, 16);
             byte[] mouthIndexed = ImageImportCore.RemapToExistingPalette(
                 parts.MouthPixels, parts.MouthW, parts.MouthH,
-                loadResult.GBAPalette, 16);
+                effectivePalette, 16);
             if (sheetIndexed == null || miniIndexed == null || mouthIndexed == null)
                 return ImportOutcome.Fail("Failed to remap sheet parts to palette.");
+
+            if (fuchidori)
+            {
+                int blackIdx = ImageUtilCore.FindBlackColorIndex(effectivePalette, 1, 16);
+                ImageUtilCore.Fuchidori(sheetIndexed, parts.SpriteSheetW, parts.SpriteSheetH, (byte)blackIdx);
+                ImageUtilCore.Fuchidori(miniIndexed, parts.MiniW, parts.MiniH, (byte)blackIdx);
+                ImageUtilCore.Fuchidori(mouthIndexed, parts.MouthW, parts.MouthH, (byte)blackIdx);
+            }
 
             undoService.Begin(undoLabel);
             try
@@ -220,9 +379,15 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (miniAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
 
-                uint palAddr = ImageImportCore.WritePaletteToROM(rom, loadResult.GBAPalette, entryAddr + 8);
-                if (palAddr == U.NOT_FOUND)
-                { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
+                // SharePalette intentionally skips the palette write — the
+                // existing palette at the dereferenced D8 offset stays in place
+                // (#662). Auto / Custom write the effective palette to D8.
+                if (mode != PortraitPaletteMode.SharePalette)
+                {
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + 8);
+                    if (palAddr == U.NOT_FOUND)
+                    { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
+                }
 
                 byte[] mouthTiles = ImageImportCore.EncodeDirectTiles4bpp(
                     mouthIndexed, parts.MouthW, parts.MouthH);
