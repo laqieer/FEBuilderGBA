@@ -23587,3 +23587,9 @@ DirectSound 固定频率反向
 
 :Import to selected slot
 写入到所选槽
+
+:Open a ROM to edit difficulty settings.
+打开ROM以编辑难度设置。
+
+:Per-map difficulty adjustment is not available for FE6. FE6's map setting struct does not have the W20 packed-difficulty word that this editor edits — those bytes are BGM IDs on FE6.
+FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑器所编辑的 W20 难度打包字 —— 那两个字节在 FE6 上是 BGM ID。
