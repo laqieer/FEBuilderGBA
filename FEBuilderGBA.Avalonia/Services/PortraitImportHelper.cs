@@ -13,11 +13,18 @@
 //   - ImportSimple / ImportSheet           — caller passes an open
 //     UndoService; helper enters Begin, writes, calls Commit on success
 //     or Rollback on any failure. Returns ImportOutcome.
-//   - RecordSourceFile(rom, entryAddr,    — replicate the WF
-//     resourceCache, sourcePath)            ImagePortraitForm "Portrait_"
+//   - RecordSourceFile(portraitIndex,      — replicate the WF
+//     sourcePath)                            ImagePortraitForm "Portrait_"
 //                                           ResourceCache key so the
 //                                           Open/Select Source buttons
 //                                           on ImagePortraitView light up.
+//                                           (The actual signature takes
+//                                           only the portrait index + the
+//                                           source path; the cache is
+//                                           resolved internally from
+//                                           CoreState.ResourceCache, and
+//                                           the entry address is derived
+//                                           via U.ToHexString(portraitIndex).)
 using System;
 using FEBuilderGBA.Avalonia.ViewModels;
 
