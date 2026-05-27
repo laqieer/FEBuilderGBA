@@ -27,6 +27,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         byte[] _cachedObjData;
         byte[] _cachedPaletteBytes;
 
+        // Chipset tab state (#671). _cachedConfigData = the LZ77-decompressed
+        // CONFIG buffer for the currently-loaded map style (used as the
+        // staging source for chipset edits + the destination for terrain
+        // reads). _currentConfigPlist = the PLIST byte resolved from the
+        // matching map_setting entry's +7 field; explicitly retained so
+        // WriteChipsetConfig can re-resolve the slot without re-running the
+        // map-setting scan.
+        byte[] _cachedConfigData;
+        uint _currentConfigPlist;
+        int _currentChipsetNo;
+        int _currentTerrain;
+
+        // Whole-chipset clipboard (mirrors WF Copy Tile / Copy Type / Paste).
+        // Both _copiedChipset and _copiedTerrain are set on the corresponding
+        // Copy operation; Paste() applies whichever values are populated and
+        // returns false when both are null (the WF "no usable clipboard"
+        // path). See PR #690 / v6 plan WU4 — the clipboard is whole-chipset,
+        // never per-slot.
+        (ushort W0, ushort W1, ushort W2, ushort W3)? _copiedChipset;
+        byte? _copiedTerrain;
+
         // 16 RGB rows × 3 channels — flat backing store keeps the helper
         // surface (`GetColorR/G/B`, `SetColorR/G/B`) compact and avoids
         // a `Color` struct dependency that some Avalonia themes ban.
@@ -70,6 +91,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int PaletteIndex { get => _paletteIndex; set => SetField(ref _paletteIndex, value); }
         public bool IsFogPalette { get => _isFogPalette; set => SetField(ref _isFogPalette, value); }
         public string ConfigNo { get => _configNo; set => SetField(ref _configNo, value); }
+
+        /// <summary>
+        /// PLIST byte resolved from the matching map_setting entry's +7
+        /// field at <see cref="LoadEntry"/> time. 0 / 0xFF mean "no usable
+        /// CONFIG plist"; <see cref="CanEditChipsetConfig"/> false in that
+        /// case so the view disables the edit surface and the Config Write
+        /// button can never call <see cref="WriteChipsetConfig"/> with an
+        /// invalid slot.
+        /// </summary>
+        public uint CurrentConfigPlist
+        {
+            get => _currentConfigPlist;
+            set { _currentConfigPlist = value; OnPropertyChanged(nameof(CurrentConfigPlist)); OnPropertyChanged(nameof(CanEditChipsetConfig)); }
+        }
+
+        /// <summary>
+        /// The currently-selected chipset (0..1023). Driven by the
+        /// <c>ChipsetNoInput</c> NumericUpDown; <see cref="TryLoadChipsetTSA"/>
+        /// reads from this and writes back to it on success.
+        /// </summary>
+        public int CurrentChipsetNo
+        {
+            get => _currentChipsetNo;
+            set => SetField(ref _currentChipsetNo, value);
+        }
+
+        /// <summary>Currently-selected terrain byte (0..255).</summary>
+        public int CurrentTerrain
+        {
+            get => _currentTerrain;
+            set => SetField(ref _currentTerrain, value);
+        }
+
+        /// <summary>
+        /// True when the Chipset tab edit surface should be enabled: a CONFIG
+        /// buffer is decompressed in memory, a valid CONFIG slot exists, and
+        /// the resolved <see cref="ChipsetConfigAddress"/> is non-zero. The
+        /// view binds this to <c>IsEnabled</c> on the 20 slot NUDs, terrain
+        /// combo, and 4 buttons so an unresolved map style cannot reach the
+        /// write path.
+        /// </summary>
+        public bool CanEditChipsetConfig =>
+            _cachedConfigData != null
+            && _currentConfigPlist != 0
+            && _currentConfigPlist != 0xFF
+            && _chipsetConfigAddress != 0;
 
         // ----- Palette helpers (5-5-5 RGB, 16 colors per palette) -----
         // colorIndex is 1-based to match the WF "PALETTE_P_1..16" labels.
@@ -216,6 +283,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // from a previous selection into a row that fails to load.
             _cachedObjData = null;
             _cachedPaletteBytes = null;
+            // Same intent for the Chipset tab: every reload starts from a
+            // blank cache + cleared slot/terrain state. ClearCacheAndChipsetState
+            // wraps both so the early-return paths below don't drift.
+            ClearCacheAndChipsetState();
 
             ROM rom = CoreState.ROM;
             if (rom == null) return;
@@ -279,8 +350,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             // Config pointer via PlistToOffsetAddr (configTableBase + configPlist*4).
+            // Also retain the resolved configPlist itself so WriteChipsetConfig
+            // can rewrite the correct PLIST slot without re-scanning map_setting.
             if (resolvedFromMapSetting && rom.RomInfo.map_config_pointer != 0)
             {
+                _currentConfigPlist = configPlist;
                 uint configTableBase = rom.p32(rom.RomInfo.map_config_pointer);
                 if (U.isSafetyOffset(configTableBase, rom))
                 {
@@ -353,8 +427,238 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Cache full 16-palette block (512 bytes) starting at PaletteBaseAddress.
             RefreshCachedPaletteBytes();
 
+            // CONFIG decompress (#671). Cached buffer drives both TSA reads
+            // for TryLoadChipsetTSA and the staging clone for WriteChipsetConfig.
+            // Wrapped in try/catch so a malformed compressed block in a synthetic
+            // or corrupted ROM does not abort LoadEntry halfway through (the
+            // chip preview path uses the same pattern).
+            if (ChipsetConfigAddress != 0 && U.isSafetyOffset(ChipsetConfigAddress, rom))
+            {
+                try
+                {
+                    var configUz = LZ77.decompress(rom.Data, ChipsetConfigAddress);
+                    if (configUz != null && configUz.Length > 0)
+                        _cachedConfigData = configUz;
+                }
+                catch { _cachedConfigData = null; }
+            }
+            OnPropertyChanged(nameof(CanEditChipsetConfig));
+
             ConfigNo = $"0x{index:X2}";
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Wipe both the decompressed CONFIG cache + the current slot state
+        /// (chipset/terrain/slot Ws). Used by <see cref="LoadEntry"/> when the
+        /// CONFIG path fails or the entry resolves to no map_setting record,
+        /// and by every early-return path so a previous-style cache cannot
+        /// leak into the next selection.
+        /// </summary>
+        public void ClearCacheAndChipsetState()
+        {
+            _cachedConfigData = null;
+            _currentConfigPlist = 0;
+            ClearChipsetSlotState();
+            OnPropertyChanged(nameof(CanEditChipsetConfig));
+        }
+
+        /// <summary>
+        /// Reset only the per-chipset slot state (slot Ws, split fields,
+        /// chipset number, terrain). Preserves <c>_cachedConfigData</c> /
+        /// <see cref="CurrentConfigPlist"/> so the user can correct the
+        /// ChipsetNo input without losing the decompressed CONFIG buffer.
+        /// </summary>
+        public void ClearChipsetSlotState()
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                _slotW[i] = 0;
+                _slotX[i] = 0;
+                _slotY[i] = 0;
+                _slotPal[i] = 0;
+                _slotFlip[i] = 0;
+            }
+            _currentChipsetNo = 0;
+            _currentTerrain = 0;
+            OnPropertyChanged(nameof(CurrentChipsetNo));
+            OnPropertyChanged(nameof(CurrentTerrain));
+            // Fire property change for all slot-W bindings so the view's
+            // ReadSlotsFromVM() pass picks up the zeroed values.
+            int[] suffixes = { 0, 2, 4, 6 };
+            foreach (int s in suffixes) OnPropertyChanged($"Slot{s}_W");
+        }
+
+        /// <summary>
+        /// Decode the per-chipset TSA block at <paramref name="chipsetNo"/>
+        /// (4 u16 entries, 8 bytes) plus its terrain byte from the cached
+        /// CONFIG buffer into the slot state. Returns false (and calls
+        /// <see cref="ClearChipsetSlotState"/>) when no cache is loaded,
+        /// the index is outside the chipset range
+        /// [0, <see cref="MapEditorTilesetCore.CHIPSET_COUNT"/>), or the
+        /// buffer is too small to hold either the 8-byte TSA block or the
+        /// terrain byte at <c>CHIPSET_SEP_BYTE + chipsetNo</c>.
+        /// </summary>
+        public bool TryLoadChipsetTSA(int chipsetNo)
+        {
+            if (_cachedConfigData == null) { ClearChipsetSlotState(); return false; }
+            if (chipsetNo < 0 || chipsetNo >= MapEditorTilesetCore.CHIPSET_COUNT)
+            { ClearChipsetSlotState(); return false; }
+
+            int tsaBase = chipsetNo * 8;
+            if (tsaBase + 7 >= _cachedConfigData.Length) { ClearChipsetSlotState(); return false; }
+            int terrainOffset = MapEditorTilesetCore.CHIPSET_SEP_BYTE + chipsetNo;
+            if (terrainOffset >= _cachedConfigData.Length) { ClearChipsetSlotState(); return false; }
+
+            for (int sub = 0; sub < 4; sub++)
+            {
+                int off = tsaBase + sub * 2;
+                ushort w = (ushort)(_cachedConfigData[off] | (_cachedConfigData[off + 1] << 8));
+                _slotW[sub] = w;
+                var (x, y, p, f) = DecodeTsaWord(w);
+                _slotX[sub] = x;
+                _slotY[sub] = y;
+                _slotPal[sub] = p;
+                _slotFlip[sub] = f;
+            }
+            _currentChipsetNo = chipsetNo;
+            _currentTerrain = _cachedConfigData[terrainOffset];
+
+            OnPropertyChanged(nameof(CurrentChipsetNo));
+            OnPropertyChanged(nameof(CurrentTerrain));
+            int[] suffixes = { 0, 2, 4, 6 };
+            foreach (int s in suffixes) OnPropertyChanged($"Slot{s}_W");
+            return true;
+        }
+
+        /// <summary>
+        /// Logical-index helper for the slot W setters. Slot suffix 0 / 2 / 4 / 6
+        /// (used by the existing AXAML control names) maps to logical index
+        /// 0 / 1 / 2 / 3 via <c>suffix / 2</c>.
+        /// </summary>
+        public void SetSlotWByLogicalIndex(int logicalIndex, ushort w)
+        {
+            if (logicalIndex < 0 || logicalIndex > 3)
+                throw new ArgumentOutOfRangeException(nameof(logicalIndex),
+                    $"Slot logical index must be 0..3, got {logicalIndex}");
+            SetSlotW(logicalIndex * 2, w);
+        }
+
+        /// <summary>
+        /// Convenience wrapper for the view: take the X/Y/Palette/Flip values
+        /// the user entered into a slot's split NUDs, encode them, and call
+        /// the byte-offset SetSlotW so the raw-W field updates in lockstep.
+        /// </summary>
+        public void SetSlotSplitByLogicalIndex(int logicalIndex, int x, int y, int palette, int flip)
+        {
+            if (logicalIndex < 0 || logicalIndex > 3)
+                throw new ArgumentOutOfRangeException(nameof(logicalIndex),
+                    $"Slot logical index must be 0..3, got {logicalIndex}");
+            SetSlotSplit(logicalIndex * 2, x, y, palette, flip);
+        }
+
+        /// <summary>
+        /// Whole-chipset copy (mirrors WF <c>CopyTileButton_Click</c>): captures
+        /// all four staged W values AND the current terrain so a subsequent
+        /// <see cref="Paste"/> restores the chipset's full state (Copilot CLI
+        /// PR #691 review item 1 — WF serializes terrain into the Tile copy too).
+        /// <see cref="CopyTerrain"/> remains independent for callers that want
+        /// to paste type-only.
+        /// </summary>
+        public void CopyChipset()
+        {
+            _copiedChipset = (_slotW[0], _slotW[1], _slotW[2], _slotW[3]);
+            _copiedTerrain = (byte)(CurrentTerrain & 0xFF);
+        }
+
+        /// <summary>
+        /// Capture just the terrain byte for paste-as-type-only.
+        ///
+        /// <para>Clears any previously-copied chipset W values so a
+        /// subsequent <see cref="Paste"/> applies ONLY the terrain. Without
+        /// this, a Copy Tile -> Copy Type -> Paste sequence would silently
+        /// reapply the old tile's W values on top of the user's intended
+        /// terrain-only paste (Copilot v3 inline review on PR #691).</para>
+        /// </summary>
+        public void CopyTerrain()
+        {
+            _copiedChipset = null;
+            _copiedTerrain = (byte)(CurrentTerrain & 0xFF);
+        }
+
+        /// <summary>
+        /// Apply the current clipboard contents to the staged slot state.
+        /// Returns false when the clipboard is empty (neither tile nor
+        /// terrain captured) — the view uses this signal to suppress the
+        /// auto-write that follows a successful paste.
+        /// </summary>
+        public bool Paste()
+        {
+            if (_copiedChipset == null && _copiedTerrain == null) return false;
+            if (_copiedChipset is { } c)
+            {
+                SetSlotWByLogicalIndex(0, c.W0);
+                SetSlotWByLogicalIndex(1, c.W1);
+                SetSlotWByLogicalIndex(2, c.W2);
+                SetSlotWByLogicalIndex(3, c.W3);
+            }
+            if (_copiedTerrain is { } t) CurrentTerrain = t;
+            return true;
+        }
+
+        /// <summary>
+        /// Persist the staged chipset state back to ROM. Clones the cached
+        /// CONFIG buffer, writes the 4 TSA words for <see cref="CurrentChipsetNo"/>
+        /// + the terrain byte, LZ77-compresses the result, appends it to
+        /// free space via <see cref="MapChangeCore.WritePlistData"/>, and
+        /// updates the CONFIG PLIST slot to point at the new offset.
+        ///
+        /// <para>Requires an ambient undo scope (opened by the view via
+        /// <c>UndoService.Begin</c>) so the append + p32 write are tracked.
+        /// On success, swaps <see cref="ChipsetConfigAddress"/> and the
+        /// cached buffer to the new location/contents.</para>
+        ///
+        /// <para>Returns false (without ROM mutation) when no cache is
+        /// loaded, the configPlist is 0 / 0xFF, the chipset/terrain bounds
+        /// reject the in-memory edits, or the LZ77 compress / WritePlistData
+        /// step fails. <paramref name="error"/> carries a short reason.</para>
+        /// </summary>
+        public bool WriteChipsetConfig(out string error)
+        {
+            error = "";
+            ROM rom = CoreState.ROM;
+            if (rom == null) { error = "no ROM"; return false; }
+            if (_cachedConfigData == null) { error = "CONFIG buffer not loaded"; return false; }
+            if (_currentConfigPlist == 0 || _currentConfigPlist == 0xFF)
+            { error = "invalid CONFIG plist"; return false; }
+            if (_currentChipsetNo < 0 || _currentChipsetNo >= MapEditorTilesetCore.CHIPSET_COUNT)
+            { error = "chipset index out of range"; return false; }
+
+            // Stage on a clone — the source cache stays intact until ROM
+            // write succeeds.
+            byte[] staged = (byte[])_cachedConfigData.Clone();
+            int tsaBase = _currentChipsetNo * 8;
+            if (tsaBase + 7 >= staged.Length) { error = "TSA offset past buffer end"; return false; }
+            for (int sub = 0; sub < 4; sub++)
+            {
+                int off = tsaBase + sub * 2;
+                ushort w = _slotW[sub];
+                staged[off + 0] = (byte)(w & 0xFF);
+                staged[off + 1] = (byte)((w >> 8) & 0xFF);
+            }
+            if (!MapEditorTilesetCore.SetTerrainForChipset(_currentChipsetNo, (byte)(CurrentTerrain & 0xFF), staged))
+            { error = "terrain offset past buffer end"; return false; }
+
+            byte[] compressed = LZ77.compress(staged);
+            if (compressed == null || compressed.Length == 0) { error = "LZ77 compress failed"; return false; }
+
+            uint newAddr = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.CONFIG, _currentConfigPlist, compressed, out error);
+            if (newAddr == U.NOT_FOUND) return false;
+
+            // Swap in the new cache + address only after the write succeeded.
+            _cachedConfigData = staged;
+            ChipsetConfigAddress = newAddr;
+            return true;
         }
 
         /// <summary>

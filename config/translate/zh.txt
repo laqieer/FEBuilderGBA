@@ -22671,6 +22671,9 @@ PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
 :TSA grids require LZ77 + CONFIG PLIST extraction (KnownGap: tracked by #374).
 TSA 网格需要 LZ77 + CONFIG PLIST 抽取 (KnownGap: 跟踪于 #374)。
 
+:Edit chipset TSA and terrain. Use Config Write to persist changes to ROM.
+编辑 chipset 的 TSA 和地形。点击 Config Write 将更改写入 ROM。
+
 :Pending Core extraction (terrain list from LZ77 ChipsetData) - tracked by #374.
 等待 Core 抽取 (LZ77 ChipsetData 中的地形列表) - 跟踪于 #374。
 :Class change class (0 = no promotion)

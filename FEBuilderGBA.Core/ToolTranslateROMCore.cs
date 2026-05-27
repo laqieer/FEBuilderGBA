@@ -518,7 +518,13 @@ namespace FEBuilderGBA
                         }
                     }
 
-                    // --- Map terrain names ---
+                    // --- Map terrain names (multibyte ROMs only) ---
+                    // This whole block is already inside the multibyte guard
+                    // (line 496) so MakeMapTerrainNameList's 4-byte path
+                    // applies and rom.u32 is correct. The English path's
+                    // 2-byte entries are surfaced by the Avalonia view
+                    // (PopulateTerrainCombo) — moving the font-scan + export
+                    // outside the guard is tracked separately for #671 v3.
                     var terrainList = TextSourceListCore.MakeMapTerrainNameList(rom);
                     foreach (var t in terrainList)
                     {
@@ -1126,6 +1132,10 @@ namespace FEBuilderGBA
                         }
                     }
 
+                    // This font-scan loop sits inside the multibyte guard
+                    // above, so MakeMapTerrainNameList's 4-byte path applies
+                    // and rom.u32 is correct here. English terrain font-port
+                    // is out of scope for #671 — tracked separately.
                     foreach (var terrain in TextSourceListCore.MakeMapTerrainNameList(rom))
                     {
                         if (!U.isSafetyOffset(terrain.addr, rom)) continue;

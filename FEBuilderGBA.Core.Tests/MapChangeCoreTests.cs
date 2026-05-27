@@ -249,6 +249,171 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // -------------------------------------------------------------
+        // ResolvePlistSlotAddr / WritePlistData — CONFIG slice for #671.
+        // -------------------------------------------------------------
+
+        /// <summary>
+        /// ResolvePlistSlotAddr returns the per-entry slot address even
+        /// when the dereferenced target is currently null. WF
+        /// Write_Plsit needs to be able to overwrite a previously-unset
+        /// slot with a freshly-appended pointer.
+        /// </summary>
+        [Fact]
+        public void ResolvePlistSlotAddr_NullTarget_ReturnsSlotAddress()
+        {
+            var rom = MakeFe8uRom();
+            uint cfgTableAddr = 0x00880000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, cfgTableAddr | 0x08000000u);
+            // Slot 3 is null (uint 0). Make sure ResolvePlistSlotAddr
+            // still returns the slot's address so a write can populate it.
+            WriteU32(rom.Data, (int)(cfgTableAddr + 3 * 4u), 0u);
+
+            uint slot = MapChangeCore.ResolvePlistSlotAddr(rom, MapChangeCore.PlistType.CONFIG, 3);
+            Assert.Equal(cfgTableAddr + 3 * 4u, slot);
+        }
+
+        /// <summary>
+        /// PLIST 0 is reserved by WF's Write_Plsit semantics — the helper
+        /// must refuse to resolve a slot for it.
+        /// </summary>
+        [Fact]
+        public void ResolvePlistSlotAddr_PlistZero_ReturnsNotFound()
+        {
+            var rom = MakeFe8uRom();
+            uint cfgTableAddr = 0x00880000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, cfgTableAddr | 0x08000000u);
+
+            uint slot = MapChangeCore.ResolvePlistSlotAddr(rom, MapChangeCore.PlistType.CONFIG, 0);
+            Assert.Equal(U.NOT_FOUND, slot);
+        }
+
+        /// <summary>
+        /// PLIST values past <see cref="MapChangeCore.GetPlistLimit"/> are
+        /// rejected (mirrors WF Init's `i >= limit ⇒ invalid`).
+        /// </summary>
+        [Fact]
+        public void ResolvePlistSlotAddr_PlistPastLimit_ReturnsNotFound()
+        {
+            var rom = MakeFe8uRom();
+            uint cfgTableAddr = 0x00880000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, cfgTableAddr | 0x08000000u);
+            // Force the not-split branch so the per-version vanilla limit applies.
+            WriteU32(rom.Data, (int)rom.RomInfo.map_tileanime1_pointer, cfgTableAddr | 0x08000000u);
+
+            uint limit = MapChangeCore.GetPlistLimit(rom);
+            // limit must be > 0 and < uint.MaxValue for the test to make sense.
+            Assert.True(limit > 0);
+            uint slot = MapChangeCore.ResolvePlistSlotAddr(rom, MapChangeCore.PlistType.CONFIG, limit);
+            Assert.Equal(U.NOT_FOUND, slot);
+        }
+
+        /// <summary>
+        /// Round-trip: write a compressed payload through WritePlistData
+        /// and assert the PLIST slot now points at the new offset and the
+        /// new offset contains the payload bytes.
+        /// </summary>
+        [Fact]
+        public void WritePlistData_RoundTrips_UpdatesSlotAndWritesBytes()
+        {
+            var rom = MakeFe8uRom();
+            uint cfgTableAddr = 0x00880000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, cfgTableAddr | 0x08000000u);
+
+            byte[] payload = { 0x10, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD };
+            uint addr = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.CONFIG, 3, payload, out string err);
+            Assert.NotEqual(U.NOT_FOUND, addr);
+            Assert.Equal("", err);
+            // Slot now points at the new offset.
+            uint slot = cfgTableAddr + 3 * 4u;
+            Assert.Equal(addr, rom.p32(slot));
+            // Bytes were written at the new offset.
+            for (int i = 0; i < payload.Length; i++)
+                Assert.Equal(payload[i], rom.Data[addr + i]);
+        }
+
+        /// <summary>
+        /// WritePlistData refuses PLIST 0 (matches WF Write_Plsit early
+        /// return — the reserved sentinel slot must never be overwritten).
+        /// PLIST 0xFF is allowed at the Core level (WF's IDToAddr accepts
+        /// any in-range index); the VM-level WriteChipsetConfig adds the
+        /// additional 0xFF rejection per plan WU4. See
+        /// MapStyleEditorViewModelChipsetTests.WriteChipsetConfig_FailsOn_PlistZero_OrPlistFF.
+        /// </summary>
+        [Fact]
+        public void WritePlistData_FailsOn_PlistZero()
+        {
+            var rom = MakeFe8uRom();
+            uint cfgTableAddr = 0x00100000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, cfgTableAddr | 0x08000000u);
+
+            byte[] payload = { 0x10, 0x00, 0x00, 0x00 };
+            uint addr0 = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.CONFIG, 0, payload, out string err0);
+            Assert.Equal(U.NOT_FOUND, addr0);
+            Assert.NotEqual("", err0);
+        }
+
+        /// <summary>
+        /// Undo-scope coverage (Copilot v1 plan review item 6): the write
+        /// is recorded into ambient undo so calling RunUndo restores both
+        /// the PLIST slot value AND any byte writes at the appended offset.
+        /// The table sits well before the free-space search midpoint so
+        /// FindAndWriteData doesn't accidentally append into the table region.
+        /// </summary>
+        [Fact]
+        public void WritePlistData_UndoableRestoresOriginalSlot()
+        {
+            var rom = MakeFe8uRom();
+            // Place CONFIG PLIST table at 0x100000 — well below mid-ROM
+            // (0x880000) so FindAndWriteData's mid-ROM scan doesn't hit it.
+            uint cfgTableAddr = 0x00100000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_config_pointer, cfgTableAddr | 0x08000000u);
+
+            // Pre-seed slot 5 with a known pointer so undo has a value to restore.
+            uint preSlotValue = 0x080A0000u;
+            WriteU32(rom.Data, (int)(cfgTableAddr + 5 * 4u), preSlotValue);
+
+            // Plant a "wall" of 0x01 bytes at mid-ROM so FindAndWriteData
+            // sees the region as occupied and either lands further along
+            // or appends past it.
+            for (int i = 0; i < 0x10000; i++) rom.Data[0x880000 + i] = 0x01;
+
+            var prevUndo = CoreState.Undo;
+            var prevRom = CoreState.ROM;
+            try
+            {
+                // Undo.NewUndoDataLow needs CoreState.ROM.Data.Length for
+                // the file-size snapshot.
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                byte[] payload = { 0x42, 0x42, 0x42, 0x42 };
+                var undoData = CoreState.Undo.NewUndoData("test config write");
+                uint newAddr;
+                using (ROM.BeginUndoScope(undoData))
+                {
+                    newAddr = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.CONFIG, 5, payload, out _);
+                }
+                Assert.NotEqual(U.NOT_FOUND, newAddr);
+                CoreState.Undo.Push(undoData);
+
+                // Sanity: the write did NOT overlap the table region.
+                Assert.True(newAddr < cfgTableAddr || newAddr >= cfgTableAddr + 256 * 4u,
+                    $"new addr 0x{newAddr:X} must not overlap the PLIST table");
+
+                // Confirm slot now points at the new offset.
+                Assert.Equal(newAddr, rom.p32(cfgTableAddr + 5 * 4u));
+
+                CoreState.Undo.RunUndo();
+                // Slot value restored.
+                Assert.Equal(preSlotValue, rom.u32(cfgTableAddr + 5 * 4u));
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        // -------------------------------------------------------------
         // Helpers.
         // -------------------------------------------------------------
 

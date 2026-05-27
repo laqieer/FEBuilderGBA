@@ -353,11 +353,16 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeMapTerrainNameList_NonMultibyte_ReturnsEmpty()
+        public void MakeMapTerrainNameList_NonMultibyte_EmptyTable_ReturnsZeroEntries()
         {
+            // After #671 WU3: non-multibyte ROMs no longer early-return;
+            // they enumerate 2-byte text-id entries (mirroring WF
+            // MapTerrainNameEngForm.MakeList) and stop on u16 == 0.
+            // A freshly-loaded synthetic ROM whose terrain-name table
+            // region is all zeros sees the first u16 as the terminator
+            // and returns 0 entries. The detailed 2-byte iteration
+            // semantics are covered by TextSourceListCoreTests.
             ROM rom = MakeRomLoadable("BE8E01");
-            // Non-multibyte FE8U: WF MapTerrainNameForm.MakeList early-returns
-            // and dispatches to the English form. Core skips outright.
             var result = TextSourceListCore.MakeMapTerrainNameList(rom);
             Assert.NotNull(result);
             Assert.Empty(result);
