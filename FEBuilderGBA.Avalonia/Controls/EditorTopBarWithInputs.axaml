@@ -17,25 +17,28 @@
     etc.) requiring per-editor decisions. Per-editor migration is tracked as
     a follow-up issue so this PR establishes the canonical API in isolation.
   -->
+  <!--
+    AutomationIds are NOT hard-coded here. Code-behind derives them from the
+    host AutomationId (e.g. "MonsterItem_ReadBar" -> "MonsterItem_ReadStart_Input")
+    on AttachedToVisualTree, with explicit per-slot overrides for legacy E2E
+    selectors. This mirrors EditorTopBar (#649) so multiple instances in the
+    same view (e.g. MonsterItemViewer's 3 tabs) don't collide.
+  -->
   <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
     <StackPanel Orientation="Horizontal" Spacing="6">
       <TextBlock Text="Read Start:" VerticalAlignment="Center" />
-      <NumericUpDown AutomationProperties.AutomationId="ETBI_ReadStart_Input"
-                     Name="ReadStartInput" Width="120" FormatString="0"
+      <NumericUpDown Name="ReadStartInput" Width="120" FormatString="0"
                      Minimum="0" Maximum="4294967295"
                      VerticalAlignment="Center" />
       <TextBlock Text="Read Count:" VerticalAlignment="Center" />
-      <NumericUpDown AutomationProperties.AutomationId="ETBI_ReadCount_Input"
-                     Name="ReadCountInput" Width="80" FormatString="0"
+      <NumericUpDown Name="ReadCountInput" Width="80" FormatString="0"
                      Minimum="0" Maximum="65535"
                      VerticalAlignment="Center" />
       <TextBlock Text="Read Size:" VerticalAlignment="Center" />
-      <NumericUpDown AutomationProperties.AutomationId="ETBI_ReadSize_Input"
-                     Name="ReadSizeInput" Width="80" FormatString="0"
+      <NumericUpDown Name="ReadSizeInput" Width="80" FormatString="0"
                      Minimum="0" Maximum="65535"
                      VerticalAlignment="Center" />
-      <Button AutomationProperties.AutomationId="ETBI_Reload_Button"
-              Name="ReloadButton" Content="Reload" Click="OnReloadClick"
+      <Button Name="ReloadButton" Content="Reload" Click="OnReloadClick"
               VerticalAlignment="Center" />
     </StackPanel>
   </Border>
