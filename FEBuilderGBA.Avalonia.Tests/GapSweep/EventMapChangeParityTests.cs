@@ -62,8 +62,11 @@ public class EventMapChangeParityTests
 
         string[] required = {
             // Read-config bar
-            "EventMapChange_ReadStart_Input",
-            "EventMapChange_ReadCount_Input",
+            // #668: NUD-based ReadStart/ReadCount inputs migrated to
+            // read-only EditorTopBar slots; *_Input ids renamed to
+            // *_Label.
+            "EventMapChange_ReadStart_Label",
+            "EventMapChange_ReadCount_Label",
             "EventMapChange_ReloadList_Button",
             // Address panel
             "EventMapChange_BlockSize_Input",

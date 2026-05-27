@@ -89,8 +89,10 @@ public class EDParityTests
         string axaml = ReadAxaml();
 
         // Tab header bar
-        Assert.Contains("AutomationId=\"ED_Retreat_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"ED_Retreat_ReadCount_Input\"", axaml);
+        // #668: NUD-based TopAddress/ReadCount inputs migrated to read-only
+        // EditorTopBar slots; *_Input ids renamed to *_Label (display-only).
+        Assert.Contains("AutomationId=\"ED_Retreat_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ED_Retreat_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"ED_Retreat_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"ED_Retreat_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"ED_Retreat_BlockSize_Input\"", axaml);
@@ -116,8 +118,10 @@ public class EDParityTests
         string axaml = ReadAxaml();
 
         // Tab header bar
-        Assert.Contains("AutomationId=\"ED_Epithet_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"ED_Epithet_ReadCount_Input\"", axaml);
+        // #668: NUD-based TopAddress/ReadCount inputs migrated to read-only
+        // EditorTopBar slots; *_Input ids renamed to *_Label.
+        Assert.Contains("AutomationId=\"ED_Epithet_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ED_Epithet_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"ED_Epithet_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"ED_Epithet_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"ED_Epithet_BlockSize_Input\"", axaml);
@@ -143,8 +147,10 @@ public class EDParityTests
         string axaml = ReadAxaml();
 
         // Tab header bar
-        Assert.Contains("AutomationId=\"ED_Epilogue_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"ED_Epilogue_ReadCount_Input\"", axaml);
+        // #668: NUD-based TopAddress/ReadCount inputs migrated to read-only
+        // EditorTopBar slots; *_Input ids renamed to *_Label.
+        Assert.Contains("AutomationId=\"ED_Epilogue_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"ED_Epilogue_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"ED_Epilogue_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"ED_Epilogue_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"ED_Epilogue_BlockSize_Input\"", axaml);

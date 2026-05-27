@@ -141,8 +141,13 @@ public class WorldMapImageParityTests
         Assert.Contains("AutomationId=\"WorldMapImage_Border_BlockSize_Label\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_Border_Write_Button\"", axaml);
         // Read panel.
-        Assert.Contains("AutomationId=\"WorldMapImage_Border_ReadStartAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"WorldMapImage_Border_ReadCount_Input\"", axaml);
+        // #668: NUD-based "ReadStartAddress" / "ReadCount" surfaces became
+        // read-only TextBlock slots inside the unified EditorTopBar, so the
+        // *_Input AutomationIds were renamed to *_Label (the values are
+        // now display-only). The Reload_Button and AddressListExpand_Button
+        // AutomationIds are preserved unchanged.
+        Assert.Contains("AutomationId=\"WorldMapImage_Border_ReadStartAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"WorldMapImage_Border_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_Border_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_Border_AddressListExpand_Button\"", axaml);
     }
@@ -169,8 +174,10 @@ public class WorldMapImageParityTests
         Assert.Contains("AutomationId=\"WorldMapImage_IconData_SelectAddress_Label\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_IconData_BlockSize_Label\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_IconData_Write_Button\"", axaml);
-        Assert.Contains("AutomationId=\"WorldMapImage_IconData_ReadStartAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"WorldMapImage_IconData_ReadCount_Input\"", axaml);
+        // #668: NUD inputs → EditorTopBar read-only Label slots (see
+        // Border-tab note above).
+        Assert.Contains("AutomationId=\"WorldMapImage_IconData_ReadStartAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"WorldMapImage_IconData_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_IconData_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"WorldMapImage_IconData_AddressListExpand_Button\"", axaml);
     }

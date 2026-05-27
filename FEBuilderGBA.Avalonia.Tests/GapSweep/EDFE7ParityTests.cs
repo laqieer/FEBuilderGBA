@@ -98,8 +98,8 @@ public class EDFE7ParityTests
         // and ed_3c_pointer is DIRECT BASE so we can't relocate the table).
         string axaml = ReadAxaml();
 
-        Assert.Contains("AutomationId=\"EDFE7_Lyn_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"EDFE7_Lyn_ReadCount_Input\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Lyn_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Lyn_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Lyn_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Lyn_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Lyn_BlockSize_Input\"", axaml);
@@ -128,8 +128,8 @@ public class EDFE7ParityTests
     {
         string axaml = ReadAxaml();
 
-        Assert.Contains("AutomationId=\"EDFE7_Retreat_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"EDFE7_Retreat_ReadCount_Input\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Retreat_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Retreat_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Retreat_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Retreat_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Retreat_BlockSize_Input\"", axaml);
@@ -155,8 +155,8 @@ public class EDFE7ParityTests
     {
         string axaml = ReadAxaml();
 
-        Assert.Contains("AutomationId=\"EDFE7_Epithet_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"EDFE7_Epithet_ReadCount_Input\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Epithet_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Epithet_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Epithet_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Epithet_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Epithet_BlockSize_Input\"", axaml);
@@ -177,8 +177,8 @@ public class EDFE7ParityTests
     {
         string axaml = ReadAxaml();
 
-        Assert.Contains("AutomationId=\"EDFE7_Epilogue_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"EDFE7_Epilogue_ReadCount_Input\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Epilogue_TopAddress_Label\"", axaml);
+        Assert.Contains("AutomationId=\"EDFE7_Epilogue_ReadCount_Label\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Epilogue_Reload_Button\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Epilogue_Address_Input\"", axaml);
         Assert.Contains("AutomationId=\"EDFE7_Epilogue_BlockSize_Input\"", axaml);

@@ -45,8 +45,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 var entries = _vm.LoadList();
                 EntryList.SetItems(entries);
 
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                if (TopBar != null)
+                {
+                    TopBar.StartAddressText = $"0x{_vm.ReadStartAddress:X08}";
+                    TopBar.ReadCountText = _vm.ReadCount.ToString();
+                }
                 BlockSizeBox.Text = $"0x{_vm.BlockSize:X}";
 
                 if (_mapItems.Count > 0)
@@ -105,8 +108,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // Refresh the read-config bar too — VM updates these per
             // selected change-data entry (mirrors WF's per-map ReInit;
             // Copilot bot review on issue #423).
-            ReadStartAddressBox.Value = _vm.ReadStartAddress;
-            ReadCountBox.Value = _vm.ReadCount;
+            if (TopBar != null)
+            {
+                TopBar.StartAddressText = $"0x{_vm.ReadStartAddress:X08}";
+                TopBar.ReadCountText = _vm.ReadCount.ToString();
+            }
             B0Box.Value = _vm.B0;
             B1Box.Value = _vm.B1;
             B2Box.Value = _vm.B2;
@@ -128,8 +134,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // loaded" instead of carrying the previous map's stale
             // ReadStartAddress / ReadCount (Copilot bot 3rd-pass
             // review on issue #423).
-            ReadStartAddressBox.Value = 0;
-            ReadCountBox.Value = 0;
+            if (TopBar != null)
+            {
+                TopBar.StartAddressText = string.Empty;
+                TopBar.ReadCountText = string.Empty;
+            }
             BlockSizeBox.Text = "";
             SelectedAddressBox.Text = "";
             B0Box.Value = 0;
@@ -157,7 +166,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.P8 = ParseHexText(P8Box.Text);
         }
 
-        void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+        // #668: routed event from the unified EditorTopBar control.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {

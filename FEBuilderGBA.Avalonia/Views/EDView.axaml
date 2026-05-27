@@ -17,24 +17,18 @@
     <TabItem AutomationProperties.AutomationId="ED_Retreat_Tab" Header="Retreat">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <!-- Row 0: Read-config bar (mirrors WF panel1) -->
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_TopAddress_Input"
-                           Name="Retreat_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ED_Retreat_ReadCount_Input"
-                           Name="Retreat_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="ED_Retreat_Reload_Button"
-                    Name="Retreat_ReloadButton" Content="Reload"
-                    Click="ReloadRetreat_Click" />
-          </StackPanel>
-        </Border>
+        <!-- Row 0: Read-config bar (mirrors WF panel1).
+             #668: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                               Name="Retreat_TopBar"
+                               AutomationProperties.AutomationId="ED_Retreat_TopBar"
+                               ShowSize="False"
+                               StartAddressLabel="Top Address:"
+                               ReadCountLabel="Read Count:"
+                               StartAddressAutomationId="ED_Retreat_TopAddress_Label"
+                               ReadCountAutomationId="ED_Retreat_ReadCount_Label"
+                               ReloadAutomationId="ED_Retreat_Reload_Button"
+                               ReloadRequested="OnRetreatTopBarReloadRequested" />
 
         <!-- Row 1: Selection bar (mirrors WF AddressPanel) -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
@@ -127,24 +121,18 @@
     <TabItem AutomationProperties.AutomationId="ED_Epithet_Tab" Header="Epithet">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <!-- Row 0: Read-config bar -->
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_TopAddress_Input"
-                           Name="Epithet_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ED_Epithet_ReadCount_Input"
-                           Name="Epithet_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="ED_Epithet_Reload_Button"
-                    Name="Epithet_ReloadButton" Content="Reload"
-                    Click="ReloadEpithet_Click" />
-          </StackPanel>
-        </Border>
+        <!-- Row 0: Read-config bar.
+             #668: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                               Name="Epithet_TopBar"
+                               AutomationProperties.AutomationId="ED_Epithet_TopBar"
+                               ShowSize="False"
+                               StartAddressLabel="Top Address:"
+                               ReadCountLabel="Read Count:"
+                               StartAddressAutomationId="ED_Epithet_TopAddress_Label"
+                               ReadCountAutomationId="ED_Epithet_ReadCount_Label"
+                               ReloadAutomationId="ED_Epithet_Reload_Button"
+                               ReloadRequested="OnEpithetTopBarReloadRequested" />
 
         <!-- Row 1: Selection bar -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
@@ -233,31 +221,33 @@
     <TabItem AutomationProperties.AutomationId="ED_Epilogue_Tab" Header="Epilogue">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <!-- Row 0: Read-config bar - includes Eirika/Ephraim filter combo -->
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Filter:" VerticalAlignment="Center" />
-            <ComboBox AutomationProperties.AutomationId="ED_Epilogue_Filter_Combo"
-                      Name="Epilogue_FilterCombo" Width="160" SelectedIndex="0"
-                      SelectionChanged="EpilogueFilter_SelectionChanged">
-              <ComboBoxItem Name="Epilogue_FilterItem_Eirika"><TextBlock Text="Eirika Route" /></ComboBoxItem>
-              <ComboBoxItem Name="Epilogue_FilterItem_Ephraim"><TextBlock Text="Ephraim Route" /></ComboBoxItem>
-            </ComboBox>
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_TopAddress_Input"
-                           Name="Epilogue_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ED_Epilogue_ReadCount_Input"
-                           Name="Epilogue_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="ED_Epilogue_Reload_Button"
-                    Name="Epilogue_ReloadButton" Content="Reload"
-                    Click="ReloadEpilogue_Click" />
-          </StackPanel>
-        </Border>
+        <!-- Row 0: Read-config bar - includes Eirika/Ephraim filter combo.
+             #668: address/count/reload portion migrated to unified
+             EditorTopBar control; Filter combo stays external (it's a
+             route-picker combobox, not the inline-filter TextBox the
+             EditorTopBar exposes). -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="4" Spacing="2">
+          <Border BorderBrush="Gray" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+              <Label Content="Filter:" VerticalAlignment="Center" />
+              <ComboBox AutomationProperties.AutomationId="ED_Epilogue_Filter_Combo"
+                        Name="Epilogue_FilterCombo" Width="160" SelectedIndex="0"
+                        SelectionChanged="EpilogueFilter_SelectionChanged">
+                <ComboBoxItem Name="Epilogue_FilterItem_Eirika"><TextBlock Text="Eirika Route" /></ComboBoxItem>
+                <ComboBoxItem Name="Epilogue_FilterItem_Ephraim"><TextBlock Text="Ephraim Route" /></ComboBoxItem>
+              </ComboBox>
+            </StackPanel>
+          </Border>
+          <controls:EditorTopBar Name="Epilogue_TopBar"
+                                 AutomationProperties.AutomationId="ED_Epilogue_TopBar"
+                                 ShowSize="False"
+                                 StartAddressLabel="Top Address:"
+                                 ReadCountLabel="Read Count:"
+                                 StartAddressAutomationId="ED_Epilogue_TopAddress_Label"
+                                 ReadCountAutomationId="ED_Epilogue_ReadCount_Label"
+                                 ReloadAutomationId="ED_Epilogue_Reload_Button"
+                                 ReloadRequested="OnEpilogueTopBarReloadRequested" />
+        </StackPanel>
 
         <!-- Row 1: Selection bar -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">

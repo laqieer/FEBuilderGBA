@@ -22,24 +22,18 @@
     <TabItem AutomationProperties.AutomationId="EDFE7_Lyn_Tab" Header="Lyn Arc">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <!-- Row 0: Read-config bar (mirrors WF panel1) -->
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Lyn_TopAddress_Input"
-                           Name="Lyn_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Lyn_ReadCount_Input"
-                           Name="Lyn_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="EDFE7_Lyn_Reload_Button"
-                    Name="Lyn_ReloadButton" Content="Reload"
-                    Click="ReloadLyn_Click" />
-          </StackPanel>
-        </Border>
+        <!-- Row 0: Read-config bar (mirrors WF panel1).
+             #668: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                               Name="Lyn_TopBar"
+                               AutomationProperties.AutomationId="EDFE7_Lyn_TopBar"
+                               ShowSize="False"
+                               StartAddressLabel="Top Address:"
+                               ReadCountLabel="Read Count:"
+                               StartAddressAutomationId="EDFE7_Lyn_TopAddress_Label"
+                               ReadCountAutomationId="EDFE7_Lyn_ReadCount_Label"
+                               ReloadAutomationId="EDFE7_Lyn_Reload_Button"
+                               ReloadRequested="OnLynTopBarReloadRequested" />
 
         <!-- Row 1: Selection bar (mirrors WF AddressPanel) -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
@@ -146,23 +140,17 @@
     <TabItem AutomationProperties.AutomationId="EDFE7_Retreat_Tab" Header="Retreat">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Retreat_TopAddress_Input"
-                           Name="Retreat_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Retreat_ReadCount_Input"
-                           Name="Retreat_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="EDFE7_Retreat_Reload_Button"
-                    Name="Retreat_ReloadButton" Content="Reload"
-                    Click="ReloadRetreat_Click" />
-          </StackPanel>
-        </Border>
+        <!-- #668: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                               Name="Retreat_TopBar"
+                               AutomationProperties.AutomationId="EDFE7_Retreat_TopBar"
+                               ShowSize="False"
+                               StartAddressLabel="Top Address:"
+                               ReadCountLabel="Read Count:"
+                               StartAddressAutomationId="EDFE7_Retreat_TopAddress_Label"
+                               ReadCountAutomationId="EDFE7_Retreat_ReadCount_Label"
+                               ReloadAutomationId="EDFE7_Retreat_Reload_Button"
+                               ReloadRequested="OnRetreatTopBarReloadRequested" />
 
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
@@ -254,23 +242,17 @@
     <TabItem AutomationProperties.AutomationId="EDFE7_Epithet_Tab" Header="Epithet">
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Epithet_TopAddress_Input"
-                           Name="Epithet_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Epithet_ReadCount_Input"
-                           Name="Epithet_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="EDFE7_Epithet_Reload_Button"
-                    Name="Epithet_ReloadButton" Content="Reload"
-                    Click="ReloadEpithet_Click" />
-          </StackPanel>
-        </Border>
+        <!-- #668: migrated to unified EditorTopBar control. -->
+        <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                               Name="Epithet_TopBar"
+                               AutomationProperties.AutomationId="EDFE7_Epithet_TopBar"
+                               ShowSize="False"
+                               StartAddressLabel="Top Address:"
+                               ReadCountLabel="Read Count:"
+                               StartAddressAutomationId="EDFE7_Epithet_TopAddress_Label"
+                               ReadCountAutomationId="EDFE7_Epithet_ReadCount_Label"
+                               ReloadAutomationId="EDFE7_Epithet_Reload_Button"
+                               ReloadRequested="OnEpithetTopBarReloadRequested" />
 
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
@@ -354,31 +336,33 @@
       <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="260,*">
 
         <!-- Row 0: Read-config bar - includes Eliwood/Hector filter combo
-             (FE7-specific names - NOT Eirika/Ephraim from FE8). -->
-        <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Filter:" VerticalAlignment="Center" />
-            <ComboBox AutomationProperties.AutomationId="EDFE7_Epilogue_Filter_Combo"
-                      Name="Epilogue_FilterCombo" Width="160" SelectedIndex="0"
-                      SelectionChanged="EpilogueFilter_SelectionChanged">
-              <ComboBoxItem Name="Epilogue_FilterItem_Eliwood"><TextBlock Text="Eliwood Route" /></ComboBoxItem>
-              <ComboBoxItem Name="Epilogue_FilterItem_Hector"><TextBlock Text="Hector Route" /></ComboBoxItem>
-            </ComboBox>
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Epilogue_TopAddress_Input"
-                           Name="Epilogue_TopAddressBox" FormatString="0"
-                           Minimum="0" Maximum="4294967295" Width="130"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="EDFE7_Epilogue_ReadCount_Input"
-                           Name="Epilogue_ReadCountBox" FormatString="0"
-                           Minimum="0" Maximum="65535" Width="80"
-                           IsEnabled="False" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="EDFE7_Epilogue_Reload_Button"
-                    Name="Epilogue_ReloadButton" Content="Reload"
-                    Click="ReloadEpilogue_Click" />
-          </StackPanel>
-        </Border>
+             (FE7-specific names - NOT Eirika/Ephraim from FE8).
+             #668: address/count/reload portion migrated to unified
+             EditorTopBar control; Filter combo stays external (it's a
+             route-picker combobox, not the inline-filter TextBox the
+             EditorTopBar exposes). -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="4" Spacing="2">
+          <Border BorderBrush="Gray" BorderThickness="1">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+              <Label Content="Filter:" VerticalAlignment="Center" />
+              <ComboBox AutomationProperties.AutomationId="EDFE7_Epilogue_Filter_Combo"
+                        Name="Epilogue_FilterCombo" Width="160" SelectedIndex="0"
+                        SelectionChanged="EpilogueFilter_SelectionChanged">
+                <ComboBoxItem Name="Epilogue_FilterItem_Eliwood"><TextBlock Text="Eliwood Route" /></ComboBoxItem>
+                <ComboBoxItem Name="Epilogue_FilterItem_Hector"><TextBlock Text="Hector Route" /></ComboBoxItem>
+              </ComboBox>
+            </StackPanel>
+          </Border>
+          <controls:EditorTopBar Name="Epilogue_TopBar"
+                                 AutomationProperties.AutomationId="EDFE7_Epilogue_TopBar"
+                                 ShowSize="False"
+                                 StartAddressLabel="Top Address:"
+                                 ReadCountLabel="Read Count:"
+                                 StartAddressAutomationId="EDFE7_Epilogue_TopAddress_Label"
+                                 ReadCountAutomationId="EDFE7_Epilogue_ReadCount_Label"
+                                 ReloadAutomationId="EDFE7_Epilogue_Reload_Button"
+                                 ReloadRequested="OnEpilogueTopBarReloadRequested" />
+        </StackPanel>
 
         <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,4">
           <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">

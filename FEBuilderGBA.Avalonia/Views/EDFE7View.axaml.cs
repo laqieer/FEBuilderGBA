@@ -70,12 +70,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadLynList();
             Lyn_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Lyn_ReadCountBox.Value = items.Count;
-            var rom = CoreState.ROM;
-            // For Lyn ed_3c_pointer IS the table base (NOT a pointer field);
-            // display it as the top address directly without p32().
-            if (rom?.RomInfo != null && rom.RomInfo.ed_3c_pointer != 0)
-                Lyn_TopAddressBox.Value = rom.RomInfo.ed_3c_pointer;
+            if (Lyn_TopBar != null)
+            {
+                Lyn_TopBar.ReadCountText = items.Count.ToString();
+                var rom = CoreState.ROM;
+                // For Lyn ed_3c_pointer IS the table base (NOT a pointer field);
+                // display it as the top address directly without p32().
+                if (rom?.RomInfo != null && rom.RomInfo.ed_3c_pointer != 0)
+                    Lyn_TopBar.StartAddressText = $"0x{rom.RomInfo.ed_3c_pointer:X08}";
+            }
         }
 
         void OnLynSelected(uint addr)
@@ -123,7 +126,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { Lyn_RetreatTextLabel.Text = ""; }
         }
 
-        void ReloadLyn_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnLynTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadLynList(); }
             catch (Exception ex) { Log.Error("EDFE7View.ReloadLyn failed: {0}", ex.Message); }
@@ -187,10 +191,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadRetreatList();
             Retreat_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Retreat_ReadCountBox.Value = items.Count;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo != null && rom.RomInfo.ed_1_pointer != 0)
-                Retreat_TopAddressBox.Value = rom.p32(rom.RomInfo.ed_1_pointer);
+            if (Retreat_TopBar != null)
+            {
+                Retreat_TopBar.ReadCountText = items.Count.ToString();
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo != null && rom.RomInfo.ed_1_pointer != 0)
+                    Retreat_TopBar.StartAddressText = $"0x{rom.p32(rom.RomInfo.ed_1_pointer):X08}";
+            }
         }
 
         void OnRetreatSelected(uint addr)
@@ -213,7 +220,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void ReloadRetreat_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnRetreatTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadRetreatList(); }
             catch (Exception ex) { Log.Error("EDFE7View.ReloadRetreat failed: {0}", ex.Message); }
@@ -301,10 +309,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadEpithetList();
             Epithet_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Epithet_ReadCountBox.Value = items.Count;
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo != null && rom.RomInfo.ed_2_pointer != 0)
-                Epithet_TopAddressBox.Value = rom.p32(rom.RomInfo.ed_2_pointer);
+            if (Epithet_TopBar != null)
+            {
+                Epithet_TopBar.ReadCountText = items.Count.ToString();
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo != null && rom.RomInfo.ed_2_pointer != 0)
+                    Epithet_TopBar.StartAddressText = $"0x{rom.p32(rom.RomInfo.ed_2_pointer):X08}";
+            }
         }
 
         void OnEpithetSelected(uint addr)
@@ -338,7 +349,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { Epithet_EpithetTextLabel.Text = ""; }
         }
 
-        void ReloadEpithet_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnEpithetTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadEpithetList(); }
             catch (Exception ex) { Log.Error("EDFE7View.ReloadEpithet failed: {0}", ex.Message); }
@@ -424,14 +436,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var items = _vm.LoadEpilogueList();
             Epilogue_EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
-            Epilogue_ReadCountBox.Value = items.Count;
+            if (Epilogue_TopBar != null)
+                Epilogue_TopBar.ReadCountText = items.Count.ToString();
             var rom = CoreState.ROM;
-            if (rom?.RomInfo != null)
+            if (rom?.RomInfo != null && Epilogue_TopBar != null)
             {
                 uint ptr = _vm.EpilogueRoute == EDFE7ViewModel.EpilogueRouteKind.Hector
                     ? rom.RomInfo.ed_3b_pointer
                     : rom.RomInfo.ed_3a_pointer;
-                Epilogue_TopAddressBox.Value = ptr != 0 ? rom.p32(ptr) : 0;
+                uint resolved = ptr != 0 ? rom.p32(ptr) : 0;
+                Epilogue_TopBar.StartAddressText = $"0x{resolved:X08}";
             }
         }
 
@@ -502,7 +516,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { Log.Error("EDFE7View.EpilogueFilter_SelectionChanged failed: {0}", ex.Message); }
         }
 
-        void ReloadEpilogue_Click(object? sender, RoutedEventArgs e)
+        // #668: routed event from the unified EditorTopBar control.
+        void OnEpilogueTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             try { LoadEpilogueList(); }
             catch (Exception ex) { Log.Error("EDFE7View.ReloadEpilogue failed: {0}", ex.Message); }

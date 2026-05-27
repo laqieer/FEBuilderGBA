@@ -140,10 +140,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadClassOPDemoList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
-                if (CoreState.ROM?.RomInfo != null)
+                if (CoreState.ROM?.RomInfo != null && TopBar != null)
                 {
-                    ReadStartAddressBox.Value = CoreState.ROM.RomInfo.op_class_demo_pointer;
-                    ReadCountBox.Value = items.Count;
+                    TopBar.StartAddressText = $"0x{CoreState.ROM.RomInfo.op_class_demo_pointer:X08}";
+                    TopBar.ReadCountText = items.Count.ToString();
                 }
             }
             catch (Exception ex)
@@ -470,7 +470,8 @@ namespace FEBuilderGBA.Avalonia.Views
         // Click handlers (all ROM writes wrapped in `_undoService`).
         // -----------------------------------------------------------------
 
-        void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+        // #668: routed event from the unified EditorTopBar control.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
