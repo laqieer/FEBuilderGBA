@@ -9755,3 +9755,9 @@ PNG / BMP を選択...
 
 :Import to selected slot
 選択スロットに書き込み
+
+:Open a ROM to edit difficulty settings.
+ROMファイルを開いて難易度設定を編集してください。
+
+:Per-map difficulty adjustment is not available for FE6. FE6's map setting struct does not have the W20 packed-difficulty word that this editor edits — those bytes are BGM IDs on FE6.
+マップごとの難易度調整はFE6では使用できません。FE6のマップ設定構造体には、このエディタが編集するW20難易度パック語がありません — それらのバイトはFE6ではBGMのIDです。

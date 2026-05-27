@@ -11,6 +11,13 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Difficulty Settings" FontSize="18" FontWeight="Bold" />
 
+        <TextBlock AutomationProperties.AutomationId="MapSettingDifficulty_NoRom_Label" Name="NoRomBanner"
+                   Text="Open a ROM to edit difficulty settings."
+                   Foreground="DarkOrange" FontWeight="Bold" TextWrapping="Wrap" IsVisible="False" />
+        <TextBlock AutomationProperties.AutomationId="MapSettingDifficulty_Unsupported_Label" Name="UnsupportedBanner"
+                   Text="Per-map difficulty adjustment is not available for FE6. FE6's map setting struct does not have the W20 packed-difficulty word that this editor edits — those bytes are BGM IDs on FE6."
+                   Foreground="DarkOrange" FontWeight="Bold" TextWrapping="Wrap" IsVisible="False" />
+
         <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="MapSettingDifficulty_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
