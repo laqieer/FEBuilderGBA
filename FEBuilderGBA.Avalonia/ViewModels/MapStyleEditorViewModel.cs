@@ -571,9 +571,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _copiedTerrain = (byte)(CurrentTerrain & 0xFF);
         }
 
-        /// <summary>Capture just the terrain byte for paste-as-type-only.</summary>
+        /// <summary>
+        /// Capture just the terrain byte for paste-as-type-only.
+        ///
+        /// <para>Clears any previously-copied chipset W values so a
+        /// subsequent <see cref="Paste"/> applies ONLY the terrain. Without
+        /// this, a Copy Tile -> Copy Type -> Paste sequence would silently
+        /// reapply the old tile's W values on top of the user's intended
+        /// terrain-only paste (Copilot v3 inline review on PR #691).</para>
+        /// </summary>
         public void CopyTerrain()
         {
+            _copiedChipset = null;
             _copiedTerrain = (byte)(CurrentTerrain & 0xFF);
         }
 

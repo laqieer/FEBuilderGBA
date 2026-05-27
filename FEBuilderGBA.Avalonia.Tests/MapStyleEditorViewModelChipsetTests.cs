@@ -333,6 +333,47 @@ public class MapStyleEditorViewModelChipsetTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    /// <summary>
+    /// Copilot v3 inline review on PR #691: a Copy Tile (captures all 4 W +
+    /// terrain) followed by Copy Type (terrain-only intent) followed by
+    /// Paste must apply ONLY the terrain — not the stale W values from
+    /// the earlier Copy Tile. <see cref="MapStyleEditorViewModel.CopyTerrain"/>
+    /// clears <c>_copiedChipset</c> so Paste downgrades to terrain-only.
+    /// </summary>
+    [Fact]
+    public void CopyTerrain_AfterCopyChipset_PasteAppliesOnlyTerrain()
+    {
+        var vm = new MapStyleEditorViewModel();
+        // Seed and Copy Tile (captures W + terrain).
+        vm.SetSlotWByLogicalIndex(0, 0xAAAA);
+        vm.SetSlotWByLogicalIndex(1, 0xBBBB);
+        vm.SetSlotWByLogicalIndex(2, 0xCCCC);
+        vm.SetSlotWByLogicalIndex(3, 0xDDDD);
+        vm.CurrentTerrain = 0x42;
+        vm.CopyChipset();
+
+        // Now Copy Type with a new terrain — must clear the tile clipboard.
+        vm.CurrentTerrain = 0x99;
+        vm.CopyTerrain();
+
+        // Change everything in the VM so we can see what Paste applies.
+        vm.SetSlotWByLogicalIndex(0, 0x1111);
+        vm.SetSlotWByLogicalIndex(1, 0x2222);
+        vm.SetSlotWByLogicalIndex(2, 0x3333);
+        vm.SetSlotWByLogicalIndex(3, 0x4444);
+        vm.CurrentTerrain = 0x00;
+
+        Assert.True(vm.Paste());
+        // W values must be untouched (the earlier CopyChipset clipboard
+        // was cleared by CopyTerrain).
+        Assert.Equal((ushort)0x1111, vm.GetSlotW(0));
+        Assert.Equal((ushort)0x2222, vm.GetSlotW(2));
+        Assert.Equal((ushort)0x3333, vm.GetSlotW(4));
+        Assert.Equal((ushort)0x4444, vm.GetSlotW(6));
+        // Terrain must be the one captured by Copy Type.
+        Assert.Equal(0x99, vm.CurrentTerrain);
+    }
+
     [Fact]
     public void Paste_ReturnsFalseWhenClipboardEmpty()
     {
@@ -377,7 +418,9 @@ public class MapStyleEditorViewModelChipsetTests
     /// <summary>
     /// Per v5 plan #1: WF parity Paste applies ALL four W values and
     /// the terrain, not just one slot. Verify each slot W and the
-    /// terrain land in the VM after a paste.
+    /// terrain land in the VM after a paste. <see cref="MapStyleEditorViewModel.CopyChipset"/>
+    /// captures both halves on its own (per PR #691 review item 1), so
+    /// a single Copy Tile is enough.
     /// </summary>
     [Fact]
     public void Paste_AppliesAllFourWAndTerrain_NotJustOneSlot()
@@ -390,7 +433,6 @@ public class MapStyleEditorViewModelChipsetTests
         vm.SetSlotWByLogicalIndex(3, 0xDDDD);
         vm.CurrentTerrain = 0x42;
         vm.CopyChipset();
-        vm.CopyTerrain();
 
         // Mutate everything so we can prove paste rewrites it.
         vm.SetSlotWByLogicalIndex(0, 0x1111);

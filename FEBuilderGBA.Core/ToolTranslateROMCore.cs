@@ -518,19 +518,18 @@ namespace FEBuilderGBA
                         }
                     }
 
-                    // --- Map terrain names ---
-                    // MakeMapTerrainNameList returns 4-byte pointer entries
-                    // for multibyte ROMs (deref u32 -> pointer to a Huffman
-                    // text id at +0) and 2-byte text-id entries for English
-                    // ROMs (read u16 directly). Pick the right width here so
-                    // the export path doesn't combine two adjacent 2-byte
-                    // entries into one bogus 32-bit id (Copilot v2 PR review).
+                    // --- Map terrain names (multibyte ROMs only) ---
+                    // This whole block is already inside the multibyte guard
+                    // (line 496) so MakeMapTerrainNameList's 4-byte path
+                    // applies and rom.u32 is correct. The English path's
+                    // 2-byte entries are surfaced by the Avalonia view
+                    // (PopulateTerrainCombo) — moving the font-scan + export
+                    // outside the guard is tracked separately for #671 v3.
                     var terrainList = TextSourceListCore.MakeMapTerrainNameList(rom);
-                    bool terrainMultibyte = rom.RomInfo.is_multibyte;
                     foreach (var t in terrainList)
                     {
                         if (!U.isSafetyOffset(t.addr, rom)) continue;
-                        uint textid = terrainMultibyte ? rom.u32(t.addr) : rom.u16(t.addr);
+                        uint textid = rom.u32(t.addr);
                         string str = decoder.Decode(textid);
                         if (string.IsNullOrWhiteSpace(str)) continue;
 
@@ -1133,13 +1132,14 @@ namespace FEBuilderGBA
                         }
                     }
 
-                    // Pick the correct read width per ROM type — see the
-                    // export-path note above (Copilot v2 PR review).
-                    bool terrainMultibyteFont = rom.RomInfo.is_multibyte;
+                    // This font-scan loop sits inside the multibyte guard
+                    // above, so MakeMapTerrainNameList's 4-byte path applies
+                    // and rom.u32 is correct here. English terrain font-port
+                    // is out of scope for #671 — tracked separately.
                     foreach (var terrain in TextSourceListCore.MakeMapTerrainNameList(rom))
                     {
                         if (!U.isSafetyOffset(terrain.addr, rom)) continue;
-                        uint textid = terrainMultibyteFont ? rom.u32(terrain.addr) : rom.u16(terrain.addr);
+                        uint textid = rom.u32(terrain.addr);
                         string str = FETextDecode.Direct(textid);
                         if (string.IsNullOrEmpty(str)) continue;
                         progressCallback?.Invoke($"TerrainFontScan:{U.To0xHexString(textid)}");
