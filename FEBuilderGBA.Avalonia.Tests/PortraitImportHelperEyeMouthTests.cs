@@ -292,5 +292,51 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal((uint)33, rom.u8(entryAddr + 22));
             Assert.Equal((uint)44, rom.u8(entryAddr + 23));
         }
+
+        // ------------------------------------------------------------------
+        // #657: ImportSimple must zero D4 (mini face pointer) and D12 (mouth
+        // frames pointer) on FE7/8 so the Portrait Image Editor doesn't
+        // render those sub-views from STALE old portrait tile blocks under
+        // the new palette — that was the "total mess" the user reported in
+        // the reopened #657 screenshot.
+        // ------------------------------------------------------------------
+        [Fact]
+        public void ImportSimple_FE8U_ZerosD4AndD12_Issue657()
+        {
+            if (!_fixture.IsAvailable || _fixture.Version != "FE8U")
+            {
+                _output.WriteLine($"SKIP: needs FE8U ROM (have {_fixture.Version})");
+                return;
+            }
+
+            using var _ = EnsureImageService();
+            var rom = _fixture.ROM;
+            uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
+
+            // Seed D4 and D12 with non-zero sentinel pointers so the test
+            // can prove the import overwrote them. Use the shared offset
+            // constants from PortraitImportHelper rather than literals so
+            // this test stays aligned if the layout offsets are ever
+            // refactored (Copilot bot PR #731 review).
+            rom.write_p32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE,     0x08AAAAAAu);
+            rom.write_p32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES, 0x08BBBBBBu);
+            Assert.Equal((uint)0x08AAAAAA, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE));
+            Assert.Equal((uint)0x08BBBBBB, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES));
+
+            var loadResult = MakeSimpleLoadResult();
+            var undo = new UndoService();
+            var outcome = PortraitImportHelper.ImportSimple(
+                rom, entryAddr, loadResult, undo,
+                PortraitPaletteMode.AutoQuantize, null, false,
+                "Import w/ D4+D12 invalidate (FE8U #657 test)",
+                mouthBlockX: null, mouthBlockY: null, eyeBlockX: null, eyeBlockY: null);
+
+            Assert.True(outcome.Success, $"Import failed: {outcome.Error}");
+            // D4 and D12 should now read as 0 — the editor will render the
+            // mini face and mouth-frame sub-views as blank instead of the
+            // garbled old data the user saw.
+            Assert.Equal((uint)0, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE));
+            Assert.Equal((uint)0, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES));
+        }
     }
 }
