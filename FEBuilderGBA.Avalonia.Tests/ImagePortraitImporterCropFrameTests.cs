@@ -79,5 +79,49 @@ namespace FEBuilderGBA.Avalonia.Tests
             // string before they touch the NUD.
             Assert.Contains("FrameStatusLabel.Text", source);
         }
+
+        // Regression guard: WF parity for crop NUD min/max/default attributes.
+        // Mirrors ImagePortraitImporterForm.Designer.cs values verbatim — if
+        // someone bumps a NUD bound without updating WF parity in mind, this
+        // test fails immediately (Copilot PR #719 review point).
+        [Theory]
+        [InlineData("EyeCropX",   "Minimum=\"0\"", "Maximum=\"32\"", "Value=\"6\"")]
+        [InlineData("EyeCropY",   "Minimum=\"0\"", "Maximum=\"16\"", "Value=\"1\"")]
+        [InlineData("EyeCropW",   "Minimum=\"1\"", "Maximum=\"32\"", "Value=\"23\"")]
+        [InlineData("EyeCropH",   "Minimum=\"1\"", "Maximum=\"16\"", "Value=\"10\"")]
+        [InlineData("MouthCropX", "Minimum=\"0\"", "Maximum=\"32\"", "Value=\"8\"")]
+        [InlineData("MouthCropY", "Minimum=\"0\"", "Maximum=\"16\"", "Value=\"0\"")]
+        [InlineData("MouthCropW", "Minimum=\"1\"", "Maximum=\"32\"", "Value=\"14\"")]
+        [InlineData("MouthCropH", "Minimum=\"1\"", "Maximum=\"16\"", "Value=\"8\"")]
+        public void CropNud_HasWfParityMinMaxDefault(string baseName, string min, string max, string value)
+        {
+            string source = ReadView();
+
+            // Find the line carrying the AutomationId for this NUD and assert
+            // the WF-parity attributes appear in the same NumericUpDown
+            // element. We do this by checking that the substring window
+            // around the AutomationId contains all three attributes.
+            string autoId = $"ImagePortraitImporter_{baseName}_Input";
+            int idIdx = source.IndexOf(autoId, StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, $"AutomationId {autoId} not found in AXAML.");
+
+            // Look forward at most 500 chars (one NumericUpDown element fits).
+            int sliceLen = Math.Min(500, source.Length - idIdx);
+            string slice = source.Substring(idIdx, sliceLen);
+            Assert.Contains(min,   slice);
+            Assert.Contains(max,   slice);
+            Assert.Contains(value, slice);
+        }
+
+        [Fact]
+        public void FrameInput_HasInitialValueZero()
+        {
+            string source = ReadView();
+            int idIdx = source.IndexOf("ImagePortraitImporter_Frame_Input", StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, "Frame_Input AutomationId not found");
+            int sliceLen = Math.Min(500, source.Length - idIdx);
+            string slice = source.Substring(idIdx, sliceLen);
+            Assert.Contains("Value=\"0\"", slice);
+        }
     }
 }

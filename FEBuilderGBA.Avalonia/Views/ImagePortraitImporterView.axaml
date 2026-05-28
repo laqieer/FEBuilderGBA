@@ -116,17 +116,23 @@
                          Text="These bytes mark the block coordinates inside the sprite sheet that the engine uses for mouth + eye animation. Values are pre-populated from the selected slot; tweak them to match a re-arranged sheet, then Import to persist." />
 
               <!-- Crop position + size (#707 Slice A — UI inputs only, no preview render yet).
-                   Min / Max / default values mirror WF ImagePortraitImporterForm.Designer.cs:
-                     Eye  X/Y max 32/16, W/H min 1 max 32/16, defaults EyeY=1, EyeW=23
-                     Mouth X/Y max 32/16, W/H min 1 max 32/16, defaults MouthW=14, MouthH=8
-                   Constraining here prevents users from picking values WF never allows and
-                   avoids extra clamping in the future preview-rendering follow-up (#717). -->
+                   Min / Max / default values mirror WF ImagePortraitImporterForm.Designer.cs
+                   exactly so the Avalonia wizard opens with the SAME crop boxes WF does and
+                   the future preview-rendering follow-up (#717) doesn't need extra clamping:
+                     Eye   X max 32     default 6     (WF line 156-170)
+                     Eye   Y max 16     default 1     (WF line 183-197)
+                     Eye   W min 1 max 32 default 23  (WF line 230-249)
+                     Eye   H min 1 max 16 default 10  (WF line 298-317)
+                     Mouth X max 32     default 8     (WF line 378-392)
+                     Mouth Y max 16     default 0     (WF line 423-432, no explicit Value)
+                     Mouth W min 1 max 32 default 14  (WF line 454-473)
+                     Mouth H min 1 max 16 default 8   (WF line 486-505) -->
               <TextBlock Text="Eye crop" FontWeight="SemiBold" Margin="0,8,0,0" />
               <Grid ColumnDefinitions="60,80,60,80" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropX_Input"
-                               Name="EyeCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="0" />
+                               Name="EyeCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="6" />
                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropY_Input"
@@ -138,7 +144,7 @@
                 <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="1" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropH_Input"
-                               Name="EyeCropHInput" Minimum="1" Maximum="16" FormatString="0" Value="1" />
+                               Name="EyeCropHInput" Minimum="1" Maximum="16" FormatString="0" Value="10" />
               </Grid>
 
               <TextBlock Text="Mouth crop" FontWeight="SemiBold" Margin="0,8,0,0" />
@@ -146,7 +152,7 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropX_Input"
-                               Name="MouthCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="0" />
+                               Name="MouthCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="8" />
                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" />
                 <NumericUpDown Grid.Row="0" Grid.Column="3"
                                AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropY_Input"
