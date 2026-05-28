@@ -39,19 +39,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// Differential regression test for #656 (round 2).
         ///
-        /// On FE8U:
-        ///   - Portrait index 1 is owned by Eirika (unit-table row 0).
-        ///   - Unit-table row 1 (0-based) is Ephraim.
+        /// On FE8U (verified empirically from the wizard's rendered list):
+        ///   - Portrait index 1 is owned by Queen (class-table entry whose
+        ///     portrait field == 1).
+        ///   - Unit-table row 1 (0-based) is Seth.
         /// Therefore:
-        ///   - OLD buggy wizard: GetUnitName(1) returned Ephraim's name → label
-        ///     "0x01 Ephraim".
+        ///   - OLD buggy wizard: GetUnitName(1) returned Seth's name → label
+        ///     "0x01 Seth".
         ///   - NEW fixed wizard: GetPortraitName(1) reverse-scans for the unit/
-        ///     class whose portrait field == 1 → returns Eirika's name → label
-        ///     "0x01 Eirika".
+        ///     class whose portrait field == 1 → returns Queen's name → label
+        ///     "0x01 Queen".
         ///
         /// The test scans the FE8U list, finds a portrait index where the two
-        /// resolvers disagree, and asserts the wizard label contains the NEW
-        /// value and does NOT contain the OLD value.
+        /// resolvers disagree (the differential index is discovered dynamically
+        /// rather than hardcoded), and asserts the wizard label contains the
+        /// NEW value and does NOT contain the OLD value.
         /// </summary>
         [Fact]
         public void LoadList_FE8U_LabelUsesPortraitOwnerNotZeroBasedUnitTable()
@@ -92,8 +94,8 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             Assert.True(differentialIndex >= 0,
                 "expected at least one portrait index where GetPortraitName and " +
-                "GetUnitName disagree on FE8U (e.g. portrait 1 = Eirika vs " +
-                "unit-table[1] = Ephraim) — without such an index this test " +
+                "GetUnitName disagree on FE8U (e.g. portrait 1 = Queen vs " +
+                "unit-table[1] = Seth) — without such an index this test " +
                 "cannot distinguish old vs new behavior");
 
             string label = list[differentialIndex].name;
