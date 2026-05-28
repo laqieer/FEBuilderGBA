@@ -78,6 +78,15 @@ namespace FEBuilderGBA.Avalonia.Services
     /// </summary>
     public static class PortraitImportHelper
     {
+        // FE7 / FE8 portrait entry layout (28 bytes). Named constants for the
+        // pointer offsets so D4 / D12 writes (#657 invalidate path) and any
+        // future field additions don't depend on magic numbers (Copilot bot
+        // review on PR #731).
+        internal const uint OFFSET_D0_TILE_SHEET     = 0;   // D0: main portrait tiles pointer
+        internal const uint OFFSET_D4_MINI_FACE      = 4;   // D4: 32x32 mini face tiles pointer
+        internal const uint OFFSET_D8_PALETTE        = 8;   // D8: palette pointer
+        internal const uint OFFSET_D12_MOUTH_FRAMES  = 12;  // D12: mouth-frames tiles pointer
+
         /// <summary>
         /// FE7 / FE8 portrait entries are 28 bytes (D0 sheet, D4 mini-face,
         /// D8 palette, D12 mouth frames, D16 class card, B20-B27 coords).
@@ -251,20 +260,20 @@ namespace FEBuilderGBA.Avalonia.Services
                 WriteEyeMouthBlockCoords(rom, entryAddr, undoService,
                     mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
 
-                // #657: simple imports only touch D0 (tile data) and D8
-                // (palette). The Portrait Image Editor renders sub-views
-                // (mini face, eye frames, mouth frames) by following D4 and
-                // D12, which still pointed at the PREVIOUS portrait's tile
-                // blocks. Those old tile blocks decode under the NEW palette
-                // and render as garbled garbage — the user reported a
+                // #657: Simple Import writes D0 (tile data) and D8 (palette)
+                // above, plus the optional B20-B23 block coords. It does NOT
+                // write D4 (mini face) or D12 (mouth frames) — those still
+                // point at the PREVIOUS portrait's tile blocks. The Portrait
+                // Image Editor decodes those blocks under the NEW palette
+                // and renders them as garbled garbage — the user reported a
                 // "total mess". Zero D4 and D12 so the editor renders blank
                 // for those sub-views instead of stale data. FE7/8 only
                 // (FE6 16-byte entries use offsets 12-15 for unrelated
                 // fields, so we keep the existing layout gate).
                 if (IsFe7Or8EntryLayout(rom))
                 {
-                    rom.write_p32(entryAddr + 4, 0);   // D4 — mini face pointer
-                    rom.write_p32(entryAddr + 12, 0);  // D12 — mouth frames pointer
+                    rom.write_p32(entryAddr + OFFSET_D4_MINI_FACE, 0);
+                    rom.write_p32(entryAddr + OFFSET_D12_MOUTH_FRAMES, 0);
                 }
 
                 undoService.Commit();
