@@ -122,6 +122,33 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
+        /// Convert a pointer event into the displayed bitmap's source-pixel coordinates,
+        /// accounting for the internal ScrollViewer + zoom. The earlier MapEditor click
+        /// handler called <c>e.GetPosition(MapImageControl)</c> on the outer UserControl,
+        /// which gave coordinates that did NOT account for the inner ImageDisplay's
+        /// position inside the DockPanel/ScrollViewer or for the control's zoom — so a
+        /// click landed at the wrong tile (issue #658).
+        /// </summary>
+        public bool TryGetSourcePixel(PointerEventArgs e, out int srcX, out int srcY)
+        {
+            srcX = 0;
+            srcY = 0;
+            if (e == null || _bitmap == null || ImageDisplay == null) return false;
+            var pos = e.GetPosition(ImageDisplay);
+            if (pos.X < 0 || pos.Y < 0) return false;
+            // ImageDisplay has explicit Width/Height = pixel * _zoom (UpdateDisplay),
+            // so each source pixel maps to _zoom display pixels.
+            int sx = (int)(pos.X / _zoom);
+            int sy = (int)(pos.Y / _zoom);
+            int w = _bitmap.PixelSize.Width;
+            int h = _bitmap.PixelSize.Height;
+            if (sx < 0 || sy < 0 || sx >= w || sy >= h) return false;
+            srcX = sx;
+            srcY = sy;
+            return true;
+        }
+
+        /// <summary>
         /// Mouse wheel zoom centered on cursor position.
         /// Keeps the content point under the cursor stable after zoom.
         /// </summary>

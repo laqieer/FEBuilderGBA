@@ -65,6 +65,21 @@ public class GbaImageControlTests
     }
 
     [AvaloniaFact]
+    public void TryGetSourcePixel_BeforeBitmap_ReturnsFalse()
+    {
+        // Regression for #658: previously the click handler used outer
+        // UserControl coords with no bitmap check, so even an empty control
+        // produced spurious tile coords.
+        var control = new GbaImageControl();
+        // Use a synthetic PointerEventArgs via reflection-free fallback:
+        // we just call with a default e — the method must return false
+        // because _bitmap is null.
+        Assert.False(control.TryGetSourcePixel(null!, out int sx, out int sy));
+        Assert.Equal(0, sx);
+        Assert.Equal(0, sy);
+    }
+
+    [AvaloniaFact]
     public void SetRgbaData_UpdatesImageDimensions()
     {
         var control = new GbaImageControl();

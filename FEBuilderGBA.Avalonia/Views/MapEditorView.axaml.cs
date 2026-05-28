@@ -160,9 +160,13 @@ namespace FEBuilderGBA.Avalonia.Views
             tileX = 0;
             tileY = 0;
             if (_vm.MapWidth <= 0 || _vm.MapHeight <= 0) return false;
-            var pos = e.GetPosition(MapImageControl);
-            tileX = (int)(pos.X / (16 * _zoom));
-            tileY = (int)(pos.Y / (16 * _zoom));
+            // Use the inner ImageDisplay's source-pixel coords (#658). Calling
+            // e.GetPosition(MapImageControl) on the outer UserControl gave coords
+            // that didn't account for ScrollViewer offset / zoom, so the click
+            // landed at the wrong tile.
+            if (!MapImageControl.TryGetSourcePixel(e, out int srcX, out int srcY)) return false;
+            tileX = srcX / 16;
+            tileY = srcY / 16;
             if (tileX < 0 || tileY < 0 || tileX >= _vm.MapWidth || tileY >= _vm.MapHeight) return false;
             return true;
         }
