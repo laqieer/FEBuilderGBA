@@ -71,7 +71,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #648: Use ViewHelpers.ParseHexText - U.atoh truncates at the
                 // 'x' in the displayed "0x..." string and silently returns 0.
                 uint supportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
-                if (supportPtr == 0) return;
+                if (supportPtr == 0)
+                {
+                    // #648: silent no-op made the button appear broken when the
+                    // current unit had no support data. Surface a friendly
+                    // message instead. Same fix as UnitEditorView + UnitFE6View.
+                    CoreState.Services?.ShowInfo("This unit has no support data (support pointer is 0).");
+                    return;
+                }
                 var window = WindowManager.Instance.Open<SupportUnitEditorView>();
                 window.JumpToAddr(supportPtr);
             }
