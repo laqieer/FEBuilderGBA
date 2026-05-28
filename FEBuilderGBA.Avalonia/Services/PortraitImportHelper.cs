@@ -78,14 +78,24 @@ namespace FEBuilderGBA.Avalonia.Services
     /// </summary>
     public static class PortraitImportHelper
     {
-        // FE7 / FE8 portrait entry layout (28 bytes). Named constants for the
-        // pointer offsets so D4 / D12 writes (#657 invalidate path) and any
-        // future field additions don't depend on magic numbers (Copilot bot
-        // review on PR #731).
-        internal const uint OFFSET_D0_TILE_SHEET     = 0;   // D0: main portrait tiles pointer
-        internal const uint OFFSET_D4_MINI_FACE      = 4;   // D4: 32x32 mini face tiles pointer
-        internal const uint OFFSET_D8_PALETTE        = 8;   // D8: palette pointer
-        internal const uint OFFSET_D12_MOUTH_FRAMES  = 12;  // D12: mouth-frames tiles pointer
+        // Portrait entry pointer offsets. Named constants so the #657
+        // invalidate path and any future field additions don't depend on
+        // magic numbers (Copilot bot review on PR #731).
+        //
+        // Layout coverage:
+        //   D0 / D4 / D8         — present in BOTH FE6 (16-byte entry) AND
+        //                          FE7/FE8 (28-byte entry). FE6's D4 is the
+        //                          Mini/Map face pointer; D8 is the palette
+        //                          pointer in all three versions.
+        //   D12 (mouth frames)   — pointer ONLY on FE7/FE8. FE6 reuses
+        //                          bytes +12..+15 for u8 mouth-X / mouth-Y /
+        //                          two unused fields (not a pointer).
+        //   B20-B23 block coords — FE7/FE8 only (do not exist on FE6's
+        //                          16-byte entry).
+        internal const uint OFFSET_D0_TILE_SHEET     = 0;   // D0: main portrait tiles pointer (FE6/7/8)
+        internal const uint OFFSET_D4_MINI_FACE      = 4;   // D4: 32x32 mini face tiles pointer (FE6/7/8)
+        internal const uint OFFSET_D8_PALETTE        = 8;   // D8: palette pointer (FE6/7/8)
+        internal const uint OFFSET_D12_MOUTH_FRAMES  = 12;  // D12: mouth-frames tiles pointer (FE7/8 only — FE6 reuses bytes +12..+15 for coords)
         internal const uint OFFSET_B20_MOUTH_BLOCK_X = 20;  // B20: mouth block X (FE7/8 only)
         internal const uint OFFSET_B21_MOUTH_BLOCK_Y = 21;  // B21: mouth block Y (FE7/8 only)
         internal const uint OFFSET_B22_EYE_BLOCK_X   = 22;  // B22: eye block X (FE7/8 only)
@@ -108,8 +118,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Import a single PNG into the portrait sheet (D0) + palette (D8)
         /// slots of the entry at <paramref name="entryAddr"/>. Safe on all
-        /// ROM versions (FE6 included) because only D0 + D8 are touched —
-        /// both are present in both 16-byte FE6 and 28-byte FE7/8 layouts.
+        /// ROM versions (FE6 included) because the writes target fields
+        /// that exist on both 16-byte FE6 and 28-byte FE7/8 layouts.
+        ///
+        /// As of #657 this also zeroes:
+        ///   - D4 (Mini/Map face pointer) on every ROM version, and
+        ///   - D12 (mouth-frames pointer) on FE7/FE8 only
+        /// so the Portrait Image Editor renders those sub-views as BLANK
+        /// instead of decoding the previous portrait's tile blocks under
+        /// the NEW palette (the "total mess" rendering reported in #657).
+        /// FE6 bytes +12..+15 are mouth coords (not a pointer) and stay
+        /// untouched on FE6.
         ///
         /// Mirrors the original <c>ImagePortraitView.ImportImageFromFile</c>
         /// simple-path branch.
@@ -182,8 +201,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 case PortraitPaletteMode.SharePalette:
                 {
                     // Critical fix #1: dereference the D8 pointer rather than
-                    // reading bytes directly from entryAddr+D8 (those are pointer
-                    // bytes, not palette bytes).
+                    // reading bytes directly from entryAddr + OFFSET_D8_PALETTE
+                    // (those are pointer bytes, not palette bytes).
                     uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
                     uint paletteOffset = U.toOffset(palettePtr);
                     if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
@@ -265,12 +284,17 @@ namespace FEBuilderGBA.Avalonia.Services
                     mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
 
                 // #657: Simple Import writes D0 (tile data) and D8 (palette)
-                // above, plus the optional B20-B23 block coords. It does NOT
-                // write D4 (mini face) or D12 (mouth frames) — those still
-                // point at the PREVIOUS portrait's tile blocks. The Portrait
-                // Image Editor decodes those blocks under the NEW palette
-                // and renders them as garbled garbage — the user reported a
-                // "total mess".
+                // above, plus the optional B20-B23 block coords. Before this
+                // fix it did NOT touch D4 (mini face) or D12 (mouth frames)
+                // — those still pointed at the PREVIOUS portrait's tile
+                // blocks. The Portrait Image Editor decodes those blocks
+                // under the NEW palette and renders them as garbled garbage
+                // — the user reported a "total mess".
+                //
+                // INVALIDATE PATH below: Simple Import now also zeroes D4
+                // (and D12 on FE7/8) so the editor renders the mini-face
+                // and mouth-frame sub-views as BLANK instead of garbled
+                // stale data.
                 //
                 // D4 (Mini/Map face pointer) is present in BOTH the 16-byte
                 // FE6 entry layout and the 28-byte FE7/FE8 layout, so zero
