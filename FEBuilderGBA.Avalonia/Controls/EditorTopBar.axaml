@@ -27,10 +27,14 @@
           BorderBrush="Gray" BorderThickness="0,0,0,1"
           Padding="4,4,4,6" Margin="0,0,0,4">
     <Grid ColumnDefinitions="Auto,*,Auto">
-      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+      <!-- #723: use WrapPanel so slots wrap to a second line when the host
+           is narrow (e.g. UnitEditor's 250-wide left column) instead of
+           clipping ReadCount/Size values off the right edge. -->
+      <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                 ItemHeight="22">
         <!-- Filter slot (TextBox; hidden by default) -->
         <StackPanel Name="FilterSlot" Orientation="Horizontal" Spacing="4"
-                    VerticalAlignment="Center" IsVisible="False">
+                    VerticalAlignment="Center" IsVisible="False" Margin="0,0,8,0">
           <TextBlock Name="FilterLabelBlock" Text="Filter:"
                      VerticalAlignment="Center" FontSize="11" />
           <TextBox Name="FilterInput" Width="140" FontSize="11"
@@ -39,7 +43,7 @@
 
         <!-- Start Address slot -->
         <StackPanel Name="StartAddressSlot" Orientation="Horizontal" Spacing="4"
-                    VerticalAlignment="Center">
+                    VerticalAlignment="Center" Margin="0,0,8,0">
           <TextBlock Name="StartAddressLabelBlock" Text="Start Address:"
                      VerticalAlignment="Center" FontSize="11" />
           <TextBlock Name="StartAddressValueBlock" VerticalAlignment="Center"
@@ -48,7 +52,7 @@
 
         <!-- Read Count slot -->
         <StackPanel Name="ReadCountSlot" Orientation="Horizontal" Spacing="4"
-                    VerticalAlignment="Center" Margin="8,0,0,0">
+                    VerticalAlignment="Center" Margin="0,0,8,0">
           <TextBlock Name="ReadCountLabelBlock" Text="Read Count:"
                      VerticalAlignment="Center" FontSize="11" />
           <TextBlock Name="ReadCountValueBlock" VerticalAlignment="Center"
@@ -57,13 +61,13 @@
 
         <!-- Size slot -->
         <StackPanel Name="SizeSlot" Orientation="Horizontal" Spacing="4"
-                    VerticalAlignment="Center" Margin="8,0,0,0">
+                    VerticalAlignment="Center" Margin="0,0,8,0">
           <TextBlock Name="SizeLabelBlock" Text="Size:"
                      VerticalAlignment="Center" FontSize="11" />
           <TextBlock Name="SizeValueBlock" VerticalAlignment="Center"
                      FontSize="11" />
         </StackPanel>
-      </StackPanel>
+      </WrapPanel>
 
       <!-- Reload button — pinned to the far right edge: lives in column 2
            of the parent "Auto,*,Auto" Grid, while the star ('*') middle
