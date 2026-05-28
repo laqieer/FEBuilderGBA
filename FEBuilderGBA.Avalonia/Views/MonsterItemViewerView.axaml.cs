@@ -64,9 +64,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadMonsterItemList();
+                // #743: unified top-bar surfaces ReadStart / Count via CLR properties.
                 items = ApplyReadWindow(items,
-                    (uint)(ItemReadStartBox.Value ?? 0),
-                    (uint)(ItemReadCountBox.Value ?? 0));
+                    ItemTopBar?.ReadStartAddress ?? 0u,
+                    (uint)(ItemTopBar?.ReadCount ?? 0));
                 if (preserveAddress != 0)
                     EntryList.SetItemsPreserveSelection(items, preserveAddress);
                 else
@@ -140,6 +141,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ItemReload_Click(object? sender, RoutedEventArgs e) => LoadItemList();
 
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button (Tab 1).
+        void OnItemTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadItemList();
+
         void ItemExpand_Click(object? sender, RoutedEventArgs e)
         {
             var rom = CoreState.ROM;
@@ -180,9 +184,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadMonsterItemProbabilityList();
+                // #743: unified top-bar surfaces ReadStart / Count via CLR properties.
                 items = ApplyReadWindow(items,
-                    (uint)(ProbReadStartBox.Value ?? 0),
-                    (uint)(ProbReadCountBox.Value ?? 0));
+                    ProbTopBar?.ReadStartAddress ?? 0u,
+                    (uint)(ProbTopBar?.ReadCount ?? 0));
                 if (preserveAddress != 0)
                     ProbEntryList.SetItemsPreserveSelection(items, preserveAddress);
                 else
@@ -260,6 +265,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ProbReload_Click(object? sender, RoutedEventArgs e) => LoadProbList();
 
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button (Tab 2).
+        void OnProbTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadProbList();
+
         void ProbExpand_Click(object? sender, RoutedEventArgs e)
         {
             var rom = CoreState.ROM;
@@ -300,9 +308,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadMonsterItemHoldingsList();
+                // #743: unified top-bar surfaces ReadStart / Count via CLR properties.
                 items = ApplyReadWindow(items,
-                    (uint)(HoldReadStartBox.Value ?? 0),
-                    (uint)(HoldReadCountBox.Value ?? 0));
+                    HoldTopBar?.ReadStartAddress ?? 0u,
+                    (uint)(HoldTopBar?.ReadCount ?? 0));
                 if (preserveAddress != 0)
                     HoldingEntryList.SetItemsPreserveSelection(items, preserveAddress);
                 else
@@ -447,6 +456,9 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void HoldReload_Click(object? sender, RoutedEventArgs e) => LoadHoldList();
+
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button (Tab 3).
+        void OnHoldTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadHoldList();
 
         void HoldExpand_Click(object? sender, RoutedEventArgs e)
         {

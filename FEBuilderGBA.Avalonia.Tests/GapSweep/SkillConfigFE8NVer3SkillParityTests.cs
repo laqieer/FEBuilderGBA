@@ -560,9 +560,11 @@ public class SkillConfigFE8NVer3SkillParityTests
     [Fact]
     public void View_HasReloadButton_Wired()
     {
+        // #743: top bar migrated to EditorTopBarWithInputs — see
+        // SkillConfigSkillSystemParityTests for the migration pattern.
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"SkillConfigFE8NVer3Skill_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        Assert.Contains("ReloadRequested=\"OnTopBarReloadRequested\"", axaml);
     }
 
     [Fact]

@@ -63,8 +63,12 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.FE8NVer2SkillIconLoader(items, i));
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #743: unified top-bar surfaces ReadStart / ReadCount via CLR properties.
+                if (TopBar != null)
+                {
+                    TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                    TopBar.ReadCount = (int)_vm.ReadCount;
+                }
                 BlockSizeBox.Value = _vm.BlockSize;
 
                 // Show / hide the Item2 row + tab based on detected stride.
@@ -91,6 +95,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             LoadList();
         }
+
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void OnSelected(uint addr)
         {

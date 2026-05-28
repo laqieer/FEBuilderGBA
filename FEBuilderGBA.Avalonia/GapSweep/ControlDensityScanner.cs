@@ -98,10 +98,18 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// Address, Read Count, Size), 3 value TextBlocks (StartAddressValue,
         /// ReadCountValue, SizeValue), 1 TextBox (FilterInput), and 1 Button
         /// (Reload) = 9 controls.
+        ///
+        /// EditorTopBarWithInputs (#701 / #743) inlines: 3 label TextBlocks
+        /// (ReadStart, ReadCount, ReadSize), 3 NumericUpDown inputs
+        /// (ReadStartInput, ReadCountInput, ReadSizeInput), and 1 Button
+        /// (Reload) = 7 controls. Hosts that hide a slot (e.g.
+        /// ShowReadSize="False") still report 7 — the slot is just
+        /// IsVisible=false, the controls still exist in the tree.
         /// </summary>
         static readonly Dictionary<string, int> AvCompositeExpansions = new(StringComparer.Ordinal)
         {
             ["EditorTopBar"] = 9,
+            ["EditorTopBarWithInputs"] = 7,
         };
 
         /// <summary>

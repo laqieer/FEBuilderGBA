@@ -61,8 +61,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Use ClassIconLoader (one wait-icon per class index) to mirror the WF AddressList
                 // OwnerDraw=DrawClassAndText (Copilot bot review on PR #555).
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #743: unified top-bar surfaces ReadStart / ReadCount via CLR properties.
+                if (TopBar != null)
+                {
+                    TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                    TopBar.ReadCount = (int)_vm.ReadCount;
+                }
                 UpdateMasterPanelVisibility();
             }
             catch (Exception ex)
@@ -73,6 +77,9 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void ReloadList_Click(object sender, RoutedEventArgs e) => LoadList();
+
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void OnSelected(uint addr)
         {

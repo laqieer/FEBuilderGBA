@@ -30,27 +30,24 @@
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Item Table" FontSize="18" FontWeight="Bold" />
 
-            <!-- Reread bar — mirrors WF panel1 (Read Start Address / Read Count / Reload).
+            <!-- Reread bar — unified via EditorTopBarWithInputs (#743).
                  Read Start + Count are wired into LoadItemList via ApplyReadWindow:
                    - BOTH 0 (default): full list, no slicing.
                    - Either > 0: slice from Start for up to Count entries.
                      Count==0 with Start>0 reads to the end of the list.
                  See ApplyReadWindow in MonsterItemViewerView.axaml.cs for the
                  full clamping semantics. -->
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-              <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
-                <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_ReadStart_Input"
-                               Grid.Column="1" Name="ItemReadStartBox" Minimum="0" Maximum="33554432"
-                               Value="0" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="Count:" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_ReadCount_Input"
-                               Grid.Column="3" Name="ItemReadCountBox" Minimum="0" Maximum="512"
-                               Value="0" VerticalAlignment="Center" />
-                <Button AutomationProperties.AutomationId="MonsterItemViewer_Item_Reload_Button"
-                        Grid.Column="4" Name="ItemReloadButton" Content="Reload" Margin="8,0,0,0" Click="ItemReload_Click" />
-              </Grid>
-            </Border>
+            <controls:EditorTopBarWithInputs Name="ItemTopBar"
+                                             AutomationProperties.AutomationId="MonsterItemViewer_Item_TopBar"
+                                             ReadStartLabel="Read Start:"
+                                             ReadCountLabel="Count:"
+                                             ReadStartMaximum="33554432"
+                                             ReadCountMaximum="512"
+                                             ShowReadSize="False"
+                                             ReadStartAutomationId="MonsterItemViewer_Item_ReadStart_Input"
+                                             ReadCountAutomationId="MonsterItemViewer_Item_ReadCount_Input"
+                                             ReloadAutomationId="MonsterItemViewer_Item_Reload_Button"
+                                             ReloadRequested="OnItemTopBarReloadRequested" />
 
             <!-- Address bar — mirrors WF AddressPanel (Address / Block Size / Selected Address). -->
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
@@ -149,20 +146,18 @@
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Probability Table" FontSize="18" FontWeight="Bold" />
 
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-              <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
-                <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_ReadStart_Input"
-                               Grid.Column="1" Name="ProbReadStartBox" Minimum="0" Maximum="33554432"
-                               Value="0" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="Count:" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Prob_ReadCount_Input"
-                               Grid.Column="3" Name="ProbReadCountBox" Minimum="0" Maximum="512"
-                               Value="0" VerticalAlignment="Center" />
-                <Button AutomationProperties.AutomationId="MonsterItemViewer_Prob_Reload_Button"
-                        Grid.Column="4" Name="ProbReloadButton" Content="Reload" Margin="8,0,0,0" Click="ProbReload_Click" />
-              </Grid>
-            </Border>
+            <!-- Reread bar — unified via EditorTopBarWithInputs (#743). -->
+            <controls:EditorTopBarWithInputs Name="ProbTopBar"
+                                             AutomationProperties.AutomationId="MonsterItemViewer_Prob_TopBar"
+                                             ReadStartLabel="Read Start:"
+                                             ReadCountLabel="Count:"
+                                             ReadStartMaximum="33554432"
+                                             ReadCountMaximum="512"
+                                             ShowReadSize="False"
+                                             ReadStartAutomationId="MonsterItemViewer_Prob_ReadStart_Input"
+                                             ReadCountAutomationId="MonsterItemViewer_Prob_ReadCount_Input"
+                                             ReloadAutomationId="MonsterItemViewer_Prob_Reload_Button"
+                                             ReloadRequested="OnProbTopBarReloadRequested" />
 
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
               <Grid ColumnDefinitions="120,140,100,100,Auto" RowDefinitions="Auto,Auto">
@@ -240,20 +235,18 @@
           <StackPanel Spacing="8" Margin="8">
             <TextBlock Text="Holdings Table" FontSize="18" FontWeight="Bold" />
 
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-              <Grid ColumnDefinitions="120,140,80,80,Auto" RowDefinitions="Auto">
-                <TextBlock Grid.Column="0" Text="Read Start:" VerticalAlignment="Center" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_ReadStart_Input"
-                               Grid.Column="1" Name="HoldReadStartBox" Minimum="0" Maximum="33554432"
-                               Value="0" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="Count:" VerticalAlignment="Center" Margin="8,0,0,0" />
-                <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Holding_ReadCount_Input"
-                               Grid.Column="3" Name="HoldReadCountBox" Minimum="0" Maximum="512"
-                               Value="0" VerticalAlignment="Center" />
-                <Button AutomationProperties.AutomationId="MonsterItemViewer_Holding_Reload_Button"
-                        Grid.Column="4" Name="HoldReloadButton" Content="Reload" Margin="8,0,0,0" Click="HoldReload_Click" />
-              </Grid>
-            </Border>
+            <!-- Reread bar — unified via EditorTopBarWithInputs (#743). -->
+            <controls:EditorTopBarWithInputs Name="HoldTopBar"
+                                             AutomationProperties.AutomationId="MonsterItemViewer_Holding_TopBar"
+                                             ReadStartLabel="Read Start:"
+                                             ReadCountLabel="Count:"
+                                             ReadStartMaximum="33554432"
+                                             ReadCountMaximum="512"
+                                             ShowReadSize="False"
+                                             ReadStartAutomationId="MonsterItemViewer_Holding_ReadStart_Input"
+                                             ReadCountAutomationId="MonsterItemViewer_Holding_ReadCount_Input"
+                                             ReloadAutomationId="MonsterItemViewer_Holding_Reload_Button"
+                                             ReloadRequested="OnHoldTopBarReloadRequested" />
 
             <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
               <Grid ColumnDefinitions="120,140,100,100,Auto" RowDefinitions="Auto,Auto">

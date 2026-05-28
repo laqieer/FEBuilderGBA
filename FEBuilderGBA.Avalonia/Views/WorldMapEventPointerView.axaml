@@ -21,23 +21,19 @@
       <StackPanel Spacing="8" Margin="8">
         <Label Content="World Map Event Editor" FontSize="18" FontWeight="Bold" />
 
-        <!-- Top read-config bar (mirrors WF panel1) -->
-        <Border BorderBrush="Gray" BorderThickness="1">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_BaseAddr_Input"
-                           FormatString="0" Name="BeforeBaseAddrBox" Width="120"
-                           Minimum="0" Maximum="4294967295"
-                           IsReadOnly="True" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_Before_ReadCount_Input"
-                           FormatString="0" Name="BeforeReadCountBox" Width="80"
-                           Minimum="0" Maximum="512"
-                           IsReadOnly="True" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="WorldMapEventPointer_Before_Reload_Button"
-                    Name="BeforeReloadButton" Content="Reload" Click="ReloadBefore_Click" />
-          </StackPanel>
-        </Border>
+        <!-- Top read-config bar — unified via EditorTopBarWithInputs (#743).
+             InputsEnabled="False" preserves the pre-migration IsReadOnly UX. -->
+        <controls:EditorTopBarWithInputs Name="BeforeTopBar"
+                                         AutomationProperties.AutomationId="WorldMapEventPointer_Before_TopBar"
+                                         ReadStartLabel="Top Address"
+                                         ReadCountLabel="Read Count"
+                                         ReadCountMaximum="512"
+                                         InputsEnabled="False"
+                                         ShowReadSize="False"
+                                         ReadStartAutomationId="WorldMapEventPointer_Before_BaseAddr_Input"
+                                         ReadCountAutomationId="WorldMapEventPointer_Before_ReadCount_Input"
+                                         ReloadAutomationId="WorldMapEventPointer_Before_Reload_Button"
+                                         ReloadRequested="OnBeforeTopBarReloadRequested" />
 
         <!-- Address bar (mirrors WF AddressPanel) -->
         <Border BorderBrush="Gray" BorderThickness="1">
@@ -136,23 +132,18 @@
     <!-- ============ After detail / write panel ============ -->
     <ScrollViewer Grid.Row="1" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
-        <!-- After read-config bar (mirrors WF panel4) -->
-        <Border BorderBrush="Gray" BorderThickness="1">
-          <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-            <Label Content="Top Address" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_BaseAddr_Input"
-                           FormatString="0" Name="AfterBaseAddrBox" Width="120"
-                           Minimum="0" Maximum="4294967295"
-                           IsReadOnly="True" VerticalAlignment="Center" />
-            <Label Content="Read Count" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="WorldMapEventPointer_After_ReadCount_Input"
-                           FormatString="0" Name="AfterReadCountBox" Width="80"
-                           Minimum="0" Maximum="512"
-                           IsReadOnly="True" VerticalAlignment="Center" />
-            <Button AutomationProperties.AutomationId="WorldMapEventPointer_After_Reload_Button"
-                    Name="AfterReloadButton" Content="Reload" Click="ReloadAfter_Click" />
-          </StackPanel>
-        </Border>
+        <!-- After read-config bar — unified via EditorTopBarWithInputs (#743). -->
+        <controls:EditorTopBarWithInputs Name="AfterTopBar"
+                                         AutomationProperties.AutomationId="WorldMapEventPointer_After_TopBar"
+                                         ReadStartLabel="Top Address"
+                                         ReadCountLabel="Read Count"
+                                         ReadCountMaximum="512"
+                                         InputsEnabled="False"
+                                         ShowReadSize="False"
+                                         ReadStartAutomationId="WorldMapEventPointer_After_BaseAddr_Input"
+                                         ReadCountAutomationId="WorldMapEventPointer_After_ReadCount_Input"
+                                         ReloadAutomationId="WorldMapEventPointer_After_Reload_Button"
+                                         ReloadRequested="OnAfterTopBarReloadRequested" />
 
         <!-- After address bar (mirrors WF panel5) -->
         <Border BorderBrush="Gray" BorderThickness="1">

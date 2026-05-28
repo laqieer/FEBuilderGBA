@@ -97,6 +97,10 @@ namespace FEBuilderGBA.Avalonia.Views
         void ReloadBefore_Click(object? sender, RoutedEventArgs e) => ReloadBefore();
         void ReloadAfter_Click(object? sender, RoutedEventArgs e) => ReloadAfter();
 
+        // #743: routed events from the unified EditorTopBarWithInputs Reload buttons.
+        void OnBeforeTopBarReloadRequested(object? sender, RoutedEventArgs e) => ReloadBefore();
+        void OnAfterTopBarReloadRequested(object? sender, RoutedEventArgs e) => ReloadAfter();
+
         void OnBeforeSelected(uint addr)
         {
             // Save/restore the prior IsLoading state instead of forcing
@@ -157,10 +161,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateReadConfigUI()
         {
-            BeforeBaseAddrBox.Value = _vm.BeforeBaseAddr;
-            BeforeReadCountBox.Value = _vm.BeforeReadCount;
-            AfterBaseAddrBox.Value = _vm.AfterBaseAddr;
-            AfterReadCountBox.Value = _vm.AfterReadCount;
+            // #743: unified top-bars surface ReadStart / ReadCount via CLR properties.
+            if (BeforeTopBar != null)
+            {
+                BeforeTopBar.ReadStartAddress = _vm.BeforeBaseAddr;
+                BeforeTopBar.ReadCount = (int)_vm.BeforeReadCount;
+            }
+            if (AfterTopBar != null)
+            {
+                AfterTopBar.ReadStartAddress = _vm.AfterBaseAddr;
+                AfterTopBar.ReadCount = (int)_vm.AfterReadCount;
+            }
         }
 
         // ----------------------------------------------------------------

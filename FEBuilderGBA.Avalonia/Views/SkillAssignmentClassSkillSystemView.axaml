@@ -6,23 +6,18 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <!-- Row 0: top read-config bar (mirrors WF panel3) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Start Address:" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="4294967295"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count:" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="1024"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Row 0: top read-config bar — unified via EditorTopBarWithInputs (#743). -->
+    <controls:EditorTopBarWithInputs Grid.Row="0" Grid.ColumnSpan="2" Name="TopBar"
+                                     AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_TopBar"
+                                     ReadStartLabel="Start Address:"
+                                     ReadCountLabel="Read Count:"
+                                     ReadCountMaximum="1024"
+                                     InputsEnabled="False"
+                                     ShowReadSize="False"
+                                     ReadStartAutomationId="SkillAssignmentClassSkillSystem_ReadStart_Input"
+                                     ReadCountAutomationId="SkillAssignmentClassSkillSystem_ReadCount_Input"
+                                     ReloadAutomationId="SkillAssignmentClassSkillSystem_ReloadList_Button"
+                                     ReloadRequested="OnTopBarReloadRequested" />
 
     <!-- Row 1: master-write bar (mirrors WF panel5) -->
     <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
