@@ -159,17 +159,17 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Use entry 5 to avoid touching commonly-tested entries 0-3.
             uint entryAddr = baseAddr + (uint)(5 * rom.RomInfo.portrait_datasize);
 
-            uint d0Before = rom.p32(entryAddr + 0);
-            uint d8Before = rom.p32(entryAddr + 8);
+            uint d0Before = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET);
+            uint d8Before = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D8_PALETTE);
 
             var undo = new UndoService();
             var outcome = PortraitImportHelper.ImportSimple(rom, entryAddr, loadResult, undo);
             Assert.True(outcome.Success, $"Import failed: {outcome.Error}");
 
-            uint d0After = rom.p32(entryAddr + 0);
-            uint d4After = rom.p32(entryAddr + 4);
-            uint d8After = rom.p32(entryAddr + 8);
-            uint d12After = rom.p32(entryAddr + 12);
+            uint d0After  = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET);
+            uint d4After  = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE);
+            uint d8After  = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D8_PALETTE);
+            uint d12After = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES);
 
             // D0 (sheet) and D8 (palette) must change to new pointers.
             Assert.NotEqual(d0Before, d0After);
@@ -246,14 +246,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             uint entryAddr = baseAddr + (uint)(5 * rom.RomInfo.portrait_datasize);
 
             // Seed D4 with a sentinel pointer so we can prove it was zeroed.
-            rom.write_p32(entryAddr + 4, 0x08AAAAAAu);
+            rom.write_p32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE, 0x08AAAAAAu);
 
             var undo = new UndoService();
             var outcome = PortraitImportHelper.ImportSimple(rom, entryAddr, loadResult, undo);
             Assert.True(outcome.Success, $"Import failed: {outcome.Error}");
 
             // D4 (Mini/Map face pointer on FE6) MUST be zeroed.
-            Assert.Equal((uint)0, rom.p32(entryAddr + 4));
+            Assert.Equal((uint)0, rom.p32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE));
         }
 
         // ------------------------------------------------------------------
@@ -723,8 +723,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
                 uint entryAddr = baseAddr + (uint)(6 * rom.RomInfo.portrait_datasize);
 
-                uint d0Before = rom.p32(entryAddr + 0);
-                uint d8Before = rom.p32(entryAddr + 8);
+                uint d0Before = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET);
+                uint d8Before = rom.p32(entryAddr + PortraitImportHelper.OFFSET_D8_PALETTE);
 
                 // Step 4: import via helper — same code path the wizard uses.
                 var undo = new UndoService();
@@ -732,8 +732,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(outcome.Success, $"Import failed: {outcome.Error}");
 
                 // Step 5: verify ROM was modified — pointer fields changed.
-                Assert.NotEqual(d0Before, rom.p32(entryAddr + 0));
-                Assert.NotEqual(d8Before, rom.p32(entryAddr + 8));
+                Assert.NotEqual(d0Before, rom.p32(entryAddr + PortraitImportHelper.OFFSET_D0_TILE_SHEET));
+                Assert.NotEqual(d8Before, rom.p32(entryAddr + PortraitImportHelper.OFFSET_D8_PALETTE));
 
                 // Step 6: preview should be reconstructable.
                 using var preview = PortraitImportHelper.BuildPreviewImage(loadResult);

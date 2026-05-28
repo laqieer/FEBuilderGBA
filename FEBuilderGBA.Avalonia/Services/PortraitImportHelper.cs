@@ -86,6 +86,10 @@ namespace FEBuilderGBA.Avalonia.Services
         internal const uint OFFSET_D4_MINI_FACE      = 4;   // D4: 32x32 mini face tiles pointer
         internal const uint OFFSET_D8_PALETTE        = 8;   // D8: palette pointer
         internal const uint OFFSET_D12_MOUTH_FRAMES  = 12;  // D12: mouth-frames tiles pointer
+        internal const uint OFFSET_B20_MOUTH_BLOCK_X = 20;  // B20: mouth block X (FE7/8 only)
+        internal const uint OFFSET_B21_MOUTH_BLOCK_Y = 21;  // B21: mouth block Y (FE7/8 only)
+        internal const uint OFFSET_B22_EYE_BLOCK_X   = 22;  // B22: eye block X (FE7/8 only)
+        internal const uint OFFSET_B23_EYE_BLOCK_Y   = 23;  // B23: eye block Y (FE7/8 only)
 
         /// <summary>
         /// FE7 / FE8 portrait entries are 28 bytes (D0 sheet, D4 mini-face,
@@ -178,9 +182,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 case PortraitPaletteMode.SharePalette:
                 {
                     // Critical fix #1: dereference the D8 pointer rather than
-                    // reading bytes directly from entryAddr+8 (those are pointer
+                    // reading bytes directly from entryAddr+D8 (those are pointer
                     // bytes, not palette bytes).
-                    uint palettePtr = rom.p32(entryAddr + 8);
+                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
                     uint paletteOffset = U.toOffset(palettePtr);
                     if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
@@ -234,7 +238,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     return ImportOutcome.Fail("Failed to encode tiles");
                 }
 
-                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, entryAddr + 0);
+                uint tileAddr = ImageImportCore.WriteCompressedToROM(rom, tileData, entryAddr + OFFSET_D0_TILE_SHEET);
                 if (tileAddr == U.NOT_FOUND)
                 {
                     undoService.Rollback();
@@ -245,7 +249,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 // existing palette stays in place at the dereferenced offset.
                 if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + 8);
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
                     if (palAddr == U.NOT_FOUND)
                     {
                         undoService.Rollback();
@@ -360,7 +364,7 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 case PortraitPaletteMode.SharePalette:
                 {
-                    uint palettePtr = rom.p32(entryAddr + 8);
+                    uint palettePtr = rom.p32(entryAddr + OFFSET_D8_PALETTE);
                     uint paletteOffset = U.toOffset(palettePtr);
                     if (paletteOffset == 0 || paletteOffset + 32 > (uint)rom.Data.Length)
                         return ImportOutcome.Fail("Target slot has no valid palette pointer at D8 — pick a different mode.");
@@ -418,7 +422,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (sheetTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode sprite sheet tiles"); }
 
-                uint currentD0 = rom.p32(entryAddr + 0);
+                uint currentD0 = rom.p32(entryAddr + OFFSET_D0_TILE_SHEET);
                 // Use the rom-aware isSafetyOffset overload + reuse the
                 // computed offset (Copilot bot PR #684 inline review:
                 // avoid reaching back through `CoreState.ROM` from helper
@@ -430,14 +434,14 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint sheetAddr;
                 if (isCompressed)
                 {
-                    sheetAddr = ImageImportCore.WriteCompressedToROM(rom, sheetTiles, entryAddr + 0);
+                    sheetAddr = ImageImportCore.WriteCompressedToROM(rom, sheetTiles, entryAddr + OFFSET_D0_TILE_SHEET);
                 }
                 else
                 {
                     byte[] withHeader = new byte[4 + sheetTiles.Length];
                     withHeader[0] = 0x00; withHeader[1] = 0x04; withHeader[2] = 0x10; withHeader[3] = 0x00;
                     Array.Copy(sheetTiles, 0, withHeader, 4, sheetTiles.Length);
-                    sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + 0);
+                    sheetAddr = ImageImportCore.WriteRawToROM(rom, withHeader, entryAddr + OFFSET_D0_TILE_SHEET);
                 }
                 if (sheetAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for sprite sheet"); }
@@ -446,7 +450,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     miniIndexed, parts.MiniW, parts.MiniH);
                 if (miniTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mini face tiles"); }
-                uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + 4);
+                uint miniAddr = ImageImportCore.WriteCompressedToROM(rom, miniTiles, entryAddr + OFFSET_D4_MINI_FACE);
                 if (miniAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mini face"); }
 
@@ -455,7 +459,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 // (#662). Auto / Custom write the effective palette to D8.
                 if (mode != PortraitPaletteMode.SharePalette)
                 {
-                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + 8);
+                    uint palAddr = ImageImportCore.WritePaletteToROM(rom, effectivePalette, entryAddr + OFFSET_D8_PALETTE);
                     if (palAddr == U.NOT_FOUND)
                     { undoService.Rollback(); return ImportOutcome.Fail("No free space for palette"); }
                 }
@@ -464,7 +468,7 @@ namespace FEBuilderGBA.Avalonia.Services
                     mouthIndexed, parts.MouthW, parts.MouthH);
                 if (mouthTiles == null)
                 { undoService.Rollback(); return ImportOutcome.Fail("Failed to encode mouth tiles"); }
-                uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + 12);
+                uint mouthAddr = ImageImportCore.WriteRawToROM(rom, mouthTiles, entryAddr + OFFSET_D12_MOUTH_FRAMES);
                 if (mouthAddr == U.NOT_FOUND)
                 { undoService.Rollback(); return ImportOutcome.Fail("No free space for mouth data"); }
 
@@ -505,10 +509,10 @@ namespace FEBuilderGBA.Avalonia.Services
             // ROM.BeginUndoScope (entered by UndoService.Begin) routes
             // rom.write_u8 through the active undo buffer, so a single
             // rollback after these writes also reverts them.
-            if (mouthBlockX.HasValue) rom.write_u8(entryAddr + 20, mouthBlockX.Value);
-            if (mouthBlockY.HasValue) rom.write_u8(entryAddr + 21, mouthBlockY.Value);
-            if (eyeBlockX.HasValue)   rom.write_u8(entryAddr + 22, eyeBlockX.Value);
-            if (eyeBlockY.HasValue)   rom.write_u8(entryAddr + 23, eyeBlockY.Value);
+            if (mouthBlockX.HasValue) rom.write_u8(entryAddr + OFFSET_B20_MOUTH_BLOCK_X, mouthBlockX.Value);
+            if (mouthBlockY.HasValue) rom.write_u8(entryAddr + OFFSET_B21_MOUTH_BLOCK_Y, mouthBlockY.Value);
+            if (eyeBlockX.HasValue)   rom.write_u8(entryAddr + OFFSET_B22_EYE_BLOCK_X,   eyeBlockX.Value);
+            if (eyeBlockY.HasValue)   rom.write_u8(entryAddr + OFFSET_B23_EYE_BLOCK_Y,   eyeBlockY.Value);
         }
 
         /// <summary>

@@ -314,11 +314,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             uint entryAddr = GetEntryAddr(rom, TestEntryIndex);
 
             // Seed D4 and D12 with non-zero sentinel pointers so the test
-            // can prove the import overwrote them.
-            rom.write_p32(entryAddr + 4, 0x08AAAAAAu);
-            rom.write_p32(entryAddr + 12, 0x08BBBBBBu);
-            Assert.Equal((uint)0x08AAAAAA, rom.u32(entryAddr + 4));
-            Assert.Equal((uint)0x08BBBBBB, rom.u32(entryAddr + 12));
+            // can prove the import overwrote them. Use the shared offset
+            // constants from PortraitImportHelper rather than literals so
+            // this test stays aligned if the layout offsets are ever
+            // refactored (Copilot bot PR #731 review).
+            rom.write_p32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE,     0x08AAAAAAu);
+            rom.write_p32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES, 0x08BBBBBBu);
+            Assert.Equal((uint)0x08AAAAAA, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE));
+            Assert.Equal((uint)0x08BBBBBB, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES));
 
             var loadResult = MakeSimpleLoadResult();
             var undo = new UndoService();
@@ -332,8 +335,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             // D4 and D12 should now read as 0 — the editor will render the
             // mini face and mouth-frame sub-views as blank instead of the
             // garbled old data the user saw.
-            Assert.Equal((uint)0, rom.u32(entryAddr + 4));
-            Assert.Equal((uint)0, rom.u32(entryAddr + 12));
+            Assert.Equal((uint)0, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D4_MINI_FACE));
+            Assert.Equal((uint)0, rom.u32(entryAddr + PortraitImportHelper.OFFSET_D12_MOUTH_FRAMES));
         }
     }
 }
