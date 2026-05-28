@@ -161,21 +161,24 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             uint d0Before = rom.p32(entryAddr + 0);
             uint d8Before = rom.p32(entryAddr + 8);
-            uint d12Before = rom.p32(entryAddr + 12);
 
             var undo = new UndoService();
             var outcome = PortraitImportHelper.ImportSimple(rom, entryAddr, loadResult, undo);
             Assert.True(outcome.Success, $"Import failed: {outcome.Error}");
 
             uint d0After = rom.p32(entryAddr + 0);
+            uint d4After = rom.p32(entryAddr + 4);
             uint d8After = rom.p32(entryAddr + 8);
             uint d12After = rom.p32(entryAddr + 12);
 
             // D0 (sheet) and D8 (palette) must change to new pointers.
             Assert.NotEqual(d0Before, d0After);
             Assert.NotEqual(d8Before, d8After);
-            // D12 (mouth frames) MUST NOT change — simple path only writes D0+D8.
-            Assert.Equal(d12Before, d12After);
+            // #657: D4 (mini face) and D12 (mouth frames) MUST be zeroed
+            // on FE7/FE8 so the editor renders blank for those sub-views
+            // instead of decoding stale tile blocks under the new palette.
+            Assert.Equal((uint)0, d4After);
+            Assert.Equal((uint)0, d12After);
         }
 
         // ------------------------------------------------------------------
@@ -210,8 +213,47 @@ namespace FEBuilderGBA.Avalonia.Tests
 
             byte[] after12 = new byte[4];
             Array.Copy(rom.Data, (int)entryAddr + 12, after12, 0, 4);
-            // FE6 mouth/eye coords must be untouched by the simple-path write.
+            // FE6 mouth/eye coords must be untouched by the simple-path write
+            // — FE6 reuses bytes +12..+15 for u8 mouth-X/mouth-Y/two unused,
+            // so the D12 invalidate that #657 applies on FE7/FE8 is skipped
+            // on FE6 to avoid silently relocating the mouth to (0,0).
             Assert.Equal(before12, after12);
+        }
+
+        // ------------------------------------------------------------------
+        // #657: FE6 D4 invalidate. FE6 layout has +4 u32 Mini/Map face
+        // pointer, which would render under the new D8 palette as garbled
+        // garbage just like FE7/FE8. Zero D4 on FE6 too (Copilot CLI PR
+        // review blocking #1).
+        // ------------------------------------------------------------------
+
+        [Fact]
+        public void ImportSimple_FE6_ZerosD4Issue657()
+        {
+            if (!_fixture.IsAvailable || _fixture.Version != "FE6")
+            {
+                _output.WriteLine($"SKIP: needs FE6 ROM (have {_fixture.Version})");
+                return;
+            }
+
+            using var _ = EnsureImageService();
+            var rom = _fixture.ROM;
+
+            var loadResult = MakeSyntheticLoadResult(16, 16);
+
+            uint portraitPtr = rom.RomInfo.portrait_pointer;
+            uint baseAddr = rom.p32(portraitPtr);
+            uint entryAddr = baseAddr + (uint)(5 * rom.RomInfo.portrait_datasize);
+
+            // Seed D4 with a sentinel pointer so we can prove it was zeroed.
+            rom.write_p32(entryAddr + 4, 0x08AAAAAAu);
+
+            var undo = new UndoService();
+            var outcome = PortraitImportHelper.ImportSimple(rom, entryAddr, loadResult, undo);
+            Assert.True(outcome.Success, $"Import failed: {outcome.Error}");
+
+            // D4 (Mini/Map face pointer on FE6) MUST be zeroed.
+            Assert.Equal((uint)0, rom.p32(entryAddr + 4));
         }
 
         // ------------------------------------------------------------------

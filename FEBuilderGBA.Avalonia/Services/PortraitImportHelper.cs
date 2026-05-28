@@ -266,13 +266,23 @@ namespace FEBuilderGBA.Avalonia.Services
                 // point at the PREVIOUS portrait's tile blocks. The Portrait
                 // Image Editor decodes those blocks under the NEW palette
                 // and renders them as garbled garbage — the user reported a
-                // "total mess". Zero D4 and D12 so the editor renders blank
-                // for those sub-views instead of stale data. FE7/8 only
-                // (FE6 16-byte entries use offsets 12-15 for unrelated
-                // fields, so we keep the existing layout gate).
+                // "total mess".
+                //
+                // D4 (Mini/Map face pointer) is present in BOTH the 16-byte
+                // FE6 entry layout and the 28-byte FE7/FE8 layout, so zero
+                // it unconditionally to avoid garbled mini-face renders on
+                // every ROM version (Copilot CLI PR review blocking #1).
+                //
+                // D12 differs by layout:
+                //   - FE7/FE8 (28-byte): D12 is the mouth-frames pointer →
+                //     same stale-pointer failure as D4; zero it.
+                //   - FE6 (16-byte):     bytes +12..+15 are mouth coords
+                //     (u8 X, u8 Y, two unused bytes) — NOT a pointer.
+                //     Zeroing them would silently move the mouth to
+                //     (0, 0). Leave them alone on FE6.
+                rom.write_p32(entryAddr + OFFSET_D4_MINI_FACE, 0);
                 if (IsFe7Or8EntryLayout(rom))
                 {
-                    rom.write_p32(entryAddr + OFFSET_D4_MINI_FACE, 0);
                     rom.write_p32(entryAddr + OFFSET_D12_MOUTH_FRAMES, 0);
                 }
 
