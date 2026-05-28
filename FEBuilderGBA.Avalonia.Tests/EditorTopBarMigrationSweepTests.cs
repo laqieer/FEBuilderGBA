@@ -61,7 +61,11 @@ public class EditorTopBarMigrationSweepTests
     // they only have Start + Count, not Size.
     // -----------------------------------------------------------------
 
-    public static TheoryData<string> ReadOnlyMigratedViews => new()
+    // Canonical source-of-truth arrays. Every TheoryData / regression-guard
+    // helper below derives from these so adding a new migrated view here
+    // automatically extends every sweep that runs on `AllMigratedViews`
+    // (#741 Copilot CLI review — non-blocking cleanup).
+    static readonly string[] s_readOnlyMigratedViews =
     {
         // Image / demo viewers — 6 from the original audit.
         "ImageBattleBGView.axaml",
@@ -77,7 +81,7 @@ public class EditorTopBarMigrationSweepTests
         "MapExitPointView.axaml",
     };
 
-    public static TheoryData<string> EditableMigratedViews => new()
+    static readonly string[] s_editableMigratedViews =
     {
         "SongTrackView.axaml",
         "SongInstrumentView.axaml",
@@ -85,42 +89,27 @@ public class EditorTopBarMigrationSweepTests
         "SMEPromoListView.axaml",
     };
 
-    public static TheoryData<string> AllMigratedViews
+    public static TheoryData<string> ReadOnlyMigratedViews => ToTheoryData(s_readOnlyMigratedViews);
+    public static TheoryData<string> EditableMigratedViews => ToTheoryData(s_editableMigratedViews);
+    public static TheoryData<string> AllMigratedViews => ToTheoryData(AllMigratedViewNames());
+
+    static TheoryData<string> ToTheoryData(System.Collections.Generic.IEnumerable<string> names)
     {
-        get
-        {
-            var combined = new TheoryData<string>();
-            foreach (string name in AllMigratedViewNames())
-                combined.Add(name);
-            return combined;
-        }
+        var data = new TheoryData<string>();
+        foreach (var name in names) data.Add(name);
+        return data;
     }
 
     /// <summary>
     /// Plain string enumeration of every migrated view's AXAML filename —
     /// usable from regression-guard tests without going through xunit's
-    /// TheoryData indexer.
+    /// TheoryData indexer. Derived from the canonical arrays so adding a
+    /// view in one place extends every sweep.
     /// </summary>
     public static System.Collections.Generic.IEnumerable<string> AllMigratedViewNames()
     {
-        // Keep these literal lists in sync with the two TheoryData
-        // properties above. We duplicate to avoid the TheoryData[i][j]
-        // indexer (which returns object, not string) in plain [Fact]
-        // tests below.
-        yield return "ImageBattleBGView.axaml";
-        yield return "ImageBGView.axaml";
-        yield return "ImageMagicCSACreatorView.axaml";
-        yield return "ImageMagicFEditorView.axaml";
-        yield return "ImageMapActionAnimationView.axaml";
-        yield return "OPClassDemoViewerView.axaml";
-        yield return "ItemUsagePointerViewerView.axaml";
-        yield return "MapTerrainBGLookupTableView.axaml";
-        yield return "MapTerrainFloorLookupTableView.axaml";
-        yield return "MapExitPointView.axaml";
-        yield return "SongTrackView.axaml";
-        yield return "SongInstrumentView.axaml";
-        yield return "AIScriptView.axaml";
-        yield return "SMEPromoListView.axaml";
+        foreach (var name in s_readOnlyMigratedViews) yield return name;
+        foreach (var name in s_editableMigratedViews) yield return name;
     }
 
     // -----------------------------------------------------------------
@@ -184,6 +173,30 @@ public class EditorTopBarMigrationSweepTests
         // control (mirrors UnitEditorView et al.).
         string axaml = ReadView(viewName);
         Assert.Matches(new Regex("AutomationProperties\\.AutomationId=\"[A-Za-z0-9]+_TopBar\""),
+            axaml);
+    }
+
+    [Fact]
+    public void EditorTopBarWithInputs_PinsReloadToRightEdge()
+    {
+        // Regression guard for #741 Copilot review: the editable variant's
+        // AXAML must use a Grid with ColumnDefinitions="*,Auto" so the
+        // Reload button stays pinned to the far-right edge (Column 1),
+        // matching the read-only EditorTopBar contract.
+        string path = Path.Combine(
+            FindRepoRoot(),
+            "FEBuilderGBA.Avalonia",
+            "Controls",
+            "EditorTopBarWithInputs.axaml");
+        Assert.True(File.Exists(path));
+        string axaml = File.ReadAllText(path);
+        Assert.Contains("ColumnDefinitions=\"*,Auto\"", axaml);
+        // Reload button must be placed in Grid.Column="1" so it lives in
+        // the Auto column at the right edge, not at the natural end of a
+        // StackPanel.
+        Assert.Matches(new Regex(
+            "<Button[^>]*Grid\\.Column=\"1\"[^>]*Name=\"ReloadButton\"",
+            RegexOptions.Singleline),
             axaml);
     }
 
