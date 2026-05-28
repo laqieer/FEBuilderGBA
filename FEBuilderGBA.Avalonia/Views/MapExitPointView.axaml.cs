@@ -135,8 +135,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateTopBar()
         {
+            // #649: ReadStart displays via the unified EditorTopBar; ReadCount
+            // lives in the second-row panel-2 ExitPointer bar (legacy
+            // ReadCountBox NumericUpDown).
             if (_vm.ReadStartAddress != U.NOT_FOUND)
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
+                TopBar.StartAddressText = _vm.ReadStartAddress.ToString();
             ReadCountBox.Value = _vm.ReadCount;
         }
 
@@ -216,6 +219,9 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
 
         void ReloadList_Click(object? sender, RoutedEventArgs e) => ReloadMapList();
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => ReloadMapList();
 
         void ReloadExits_Click(object? sender, RoutedEventArgs e)
         {

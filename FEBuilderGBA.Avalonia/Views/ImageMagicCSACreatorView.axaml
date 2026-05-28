@@ -6,23 +6,16 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <!-- Row 0: top read-config bar (mirrors WF panel3) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Top Address" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="4294967295"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="256"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="ImageMagicCSACreator_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Row 0: top read-config bar — unified via EditorTopBar (#649). -->
+    <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                           Name="TopBar"
+                           AutomationProperties.AutomationId="ImageMagicCSACreator_TopBar"
+                           StartAddressLabel="Top Address:"
+                           StartAddressAutomationId="ImageMagicCSACreator_ReadStartAddress_Label"
+                           ReadCountAutomationId="ImageMagicCSACreator_ReadCount_Label"
+                           ReloadAutomationId="ImageMagicCSACreator_ReloadList_Button"
+                           ShowSize="False"
+                           ReloadRequested="OnTopBarReloadRequested" />
 
     <!-- Row 1: selection bar (mirrors WF panel5) -->
     <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">

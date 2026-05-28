@@ -321,9 +321,12 @@ public class ImageBattleBGParityTests
         string content = File.ReadAllText(axamlPath);
 
         // Spot-check the AutomationIds the WU3 spec called out.
+        // #649: ReadStart / ReadCount migrated to EditorTopBar's read-only
+        // TextBlock slots — legacy `_Input` ids were renamed to `_Label` to
+        // reflect the actual UIAutomation control type (Text, not Spinner).
         string[] required = {
-            "ImageBattleBG_ReadStart_Input",
-            "ImageBattleBG_ReadCount_Input",
+            "ImageBattleBG_ReadStartAddress_Label",
+            "ImageBattleBG_ReadCount_Label",
             "ImageBattleBG_ReloadList_Button",
             "ImageBattleBG_BlockSize_Input",
             "ImageBattleBG_SelectedAddr_Input",

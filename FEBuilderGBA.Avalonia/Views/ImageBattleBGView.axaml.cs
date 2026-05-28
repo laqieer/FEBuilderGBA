@@ -103,8 +103,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
                 // Reflect read-config bar values now that the list is loaded.
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #649: ReadStart/ReadCount now display via the unified
+                // EditorTopBar's read-only TextBlock slots.
+                TopBar.StartAddressText = _vm.ReadStartAddress.ToString();
+                TopBar.ReadCountText = _vm.ReadCount.ToString();
                 BlockSizeBox.Text = $"0x{_vm.BlockSize:X}";
             }
             catch (Exception ex)
@@ -283,6 +285,12 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
         // New gap-fix handlers (#434)
         // -----------------------------------------------------------------
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
+        {
+            LoadList();
+        }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
         {

@@ -23665,3 +23665,12 @@ FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑
 
 :Frame (0-10):
 帧 (0-10):
+
+:First Address:
+起始地址:
+
+:Top Address:
+起始地址:
+
+:Address (decimal):
+开始地址 (十进制):

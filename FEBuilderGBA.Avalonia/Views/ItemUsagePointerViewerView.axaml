@@ -6,26 +6,29 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="280,*" RowDefinitions="Auto,Auto,*">
 
-    <!-- Top filter / read-config bar (mirrors WinForms panel3) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Filter:" VerticalAlignment="Center" />
-        <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Filter_Combo"
-                  Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Address (decimal)" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="4294967295"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ItemUsagePointerViewer_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="256"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="ItemUsagePointerViewer_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Top read-config bar — unified via EditorTopBar (#649).
+         FilterComboBox stays outside the unified bar (the bar's own Filter
+         slot is a TextBox, not a ComboBox) so the address/count/reload
+         trio renders consistently with other editors. -->
+    <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+      <Border BorderBrush="Gray" BorderThickness="1" Margin="4,4,4,0">
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+          <Label Content="Filter:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="ItemUsagePointerViewer_Filter_Combo"
+                    Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+      <controls:EditorTopBar Margin="4,4,4,0"
+                             Name="TopBar"
+                             AutomationProperties.AutomationId="ItemUsagePointerViewer_TopBar"
+                             StartAddressLabel="Address (decimal):"
+                             ReadCountLabel="Count:"
+                             StartAddressAutomationId="ItemUsagePointerViewer_ReadStartAddress_Label"
+                             ReadCountAutomationId="ItemUsagePointerViewer_ReadCount_Label"
+                             ReloadAutomationId="ItemUsagePointerViewer_ReloadList_Button"
+                             ShowSize="False"
+                             ReloadRequested="OnTopBarReloadRequested" />
+    </StackPanel>
 
     <!-- Selection bar (mirrors WinForms panel5) -->
     <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">

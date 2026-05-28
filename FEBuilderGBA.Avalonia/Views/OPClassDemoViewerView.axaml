@@ -8,26 +8,23 @@
        Mirrors WF panel1 (top), AddressPanel (mid), panel12+panel2 (bottom). -->
   <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="270,*">
 
-    <!-- ===== Row 0: Top filter / reload bar (mirrors WF panel1) ===== -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Address (decimal)" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="140"
-                       Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="500"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="OPClassDemoViewer_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-        <TextBlock AutomationProperties.AutomationId="OPClassDemoViewer_PatchNotice_Label"
-                   Name="PatchNoticeText" Foreground="DarkOrange"
-                   TextWrapping="Wrap" VerticalAlignment="Center" Margin="12,0,0,0" />
-      </StackPanel>
-    </Border>
+    <!-- ===== Row 0: Top read-config bar — unified via EditorTopBar (#649) =====
+         PatchNoticeText rendered below the unified bar so the EditorTopBar's
+         "Reload pinned to right edge" contract is preserved. -->
+    <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+      <controls:EditorTopBar Margin="4,4,4,0"
+                             Name="TopBar"
+                             AutomationProperties.AutomationId="OPClassDemoViewer_TopBar"
+                             StartAddressLabel="Address (decimal):"
+                             StartAddressAutomationId="OPClassDemoViewer_ReadStartAddress_Label"
+                             ReadCountAutomationId="OPClassDemoViewer_ReadCount_Label"
+                             ReloadAutomationId="OPClassDemoViewer_ReloadList_Button"
+                             ShowSize="False"
+                             ReloadRequested="OnTopBarReloadRequested" />
+      <TextBlock AutomationProperties.AutomationId="OPClassDemoViewer_PatchNotice_Label"
+                 Name="PatchNoticeText" Foreground="DarkOrange"
+                 TextWrapping="Wrap" Margin="8,0,8,4" />
+    </StackPanel>
 
     <!-- ===== Row 1: Main address-write bar (mirrors WF AddressPanel) ===== -->
     <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="4">

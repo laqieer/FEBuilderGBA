@@ -2,7 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="FEBuilderGBA.Avalonia.Controls.EditorTopBarWithInputs">
   <!--
-    Editable variant of EditorTopBar (#701 Slice A foundation).
+    Editable variant of EditorTopBar (#701 Slice A foundation, slot
+    visibility / InputsEnabled added in #649 Slice B).
 
     Whereas EditorTopBar (#649) renders Start Address / Read Count / Size as
     read-only display values, this control surfaces them as user-editable
@@ -11,11 +12,16 @@
     re-read the table from a different address (e.g. table-of-tables editors,
     debug viewers).
 
-    NO editor migrates to this control in the same PR — investigation per
-    Copilot CLI plan review of #701 showed each editor's top strip has unique
-    additional controls (FilterCombo, ChangeType, FilterBox, ListExpandButton,
-    etc.) requiring per-editor decisions. Per-editor migration is tracked as
-    a follow-up issue so this PR establishes the canonical API in isolation.
+    Slot visibility — most editor top-bars only have Read Start + Read Count
+    (no Size). Hosts toggle `ShowReadSize="False"` (or `ShowReadStart`,
+    `ShowReadCount`) to collapse unused slots so the migration doesn't add
+    a phantom field.
+
+    Input editability — when `InputsEnabled="False"`, the three NumericUpDowns
+    render disabled but still report values via the .ReadStartAddress / .ReadCount
+    / .ReadSize CLR properties. Hosts that previously shipped
+    `IsReadOnly="True"` or `IsEnabled="False"` inputs use this to preserve the
+    same UX after migrating to the unified bar.
   -->
   <!--
     AutomationIds are NOT hard-coded here. Code-behind derives them from the
@@ -24,22 +30,37 @@
     selectors. This mirrors EditorTopBar (#649) so multiple instances in the
     same view (e.g. MonsterItemViewer's 3 tabs) don't collide.
   -->
+  <!-- Layout mirrors EditorTopBar (#649): the input slots live in a
+       horizontal StackPanel in column 0 (`*` so it absorbs leftover
+       horizontal space), and the Reload button is pinned to the far
+       right in column 1 (`Auto`). Without this Grid wrapper the StackPanel
+       would arrange Reload immediately after the inputs — breaking the
+       "Reload always pinned to right edge" contract that hosts depend
+       on (Copilot review of #741). -->
   <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
-    <StackPanel Orientation="Horizontal" Spacing="6">
-      <TextBlock Text="Read Start:" VerticalAlignment="Center" />
-      <NumericUpDown Name="ReadStartInput" Width="120" FormatString="0"
-                     Minimum="0" Maximum="4294967295"
-                     VerticalAlignment="Center" />
-      <TextBlock Text="Read Count:" VerticalAlignment="Center" />
-      <NumericUpDown Name="ReadCountInput" Width="80" FormatString="0"
-                     Minimum="0" Maximum="65535"
-                     VerticalAlignment="Center" />
-      <TextBlock Text="Read Size:" VerticalAlignment="Center" />
-      <NumericUpDown Name="ReadSizeInput" Width="80" FormatString="0"
-                     Minimum="0" Maximum="65535"
-                     VerticalAlignment="Center" />
-      <Button Name="ReloadButton" Content="Reload" Click="OnReloadClick"
-              VerticalAlignment="Center" />
-    </StackPanel>
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
+                  VerticalAlignment="Center">
+        <TextBlock Name="ReadStartLabelBlock" Text="Read Start:" VerticalAlignment="Center" />
+        <NumericUpDown Name="ReadStartInput" Width="120" FormatString="0"
+                       Minimum="0" Maximum="4294967295"
+                       VerticalAlignment="Center" />
+        <TextBlock Name="ReadCountLabelBlock" Text="Read Count:" VerticalAlignment="Center"
+                   Margin="6,0,0,0" />
+        <NumericUpDown Name="ReadCountInput" Width="80" FormatString="0"
+                       Minimum="0" Maximum="65535"
+                       VerticalAlignment="Center" />
+        <TextBlock Name="ReadSizeLabelBlock" Text="Read Size:" VerticalAlignment="Center"
+                   Margin="6,0,0,0" />
+        <NumericUpDown Name="ReadSizeInput" Width="80" FormatString="0"
+                       Minimum="0" Maximum="65535"
+                       VerticalAlignment="Center" />
+      </StackPanel>
+      <Button Grid.Column="1" Name="ReloadButton" Content="Reload"
+              Click="OnReloadClick"
+              VerticalAlignment="Center"
+              HorizontalAlignment="Right"
+              Margin="8,0,0,0" />
+    </Grid>
   </Border>
 </UserControl>

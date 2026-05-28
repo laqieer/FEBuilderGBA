@@ -78,8 +78,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // smaller of the cap and the first invalid instrument).
                 // Both fall back to defaults when unset (Copilot review
                 // PR #626 round 2 finding #2 + round 3 finding (b)).
-                uint userBase = (uint)(ReadStartAddressBox?.Value ?? 0);
-                uint userCount = (uint)(ReadCountBox?.Value ?? 0);
+                // #649: editable inputs unified via EditorTopBarWithInputs.
+                uint userBase = TopBar?.ReadStartAddress ?? 0u;
+                uint userCount = (uint)(TopBar?.ReadCount ?? 0);
                 if (userBase != 0)
                 {
                     var explicitItems = _vm.LoadInstrumentList(userBase, userCount);
@@ -101,8 +102,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     // Surface auto-detected base back into the read-config bar
                     // so subsequent Reload clicks have a non-zero starting
                     // value the user can edit.
-                    if (_vm.BaseAddr != 0 && ReadStartAddressBox != null)
-                        ReadStartAddressBox.Value = _vm.BaseAddr;
+                    if (_vm.BaseAddr != 0 && TopBar != null)
+                        TopBar.ReadStartAddress = _vm.BaseAddr;
                 }
                 BlockSizeBox.Text = "12";
 
@@ -170,6 +171,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             LoadList();
         }
+
+        // #649: routed event from the unified EditorTopBarWithInputs Reload
+        // button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void FilterBox_KeyDown(object? sender, global::Avalonia.Input.KeyEventArgs e)
         {

@@ -239,8 +239,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
                 if (CoreState.ROM?.RomInfo != null)
                 {
-                    ReadStartAddressBox.Value = CoreState.ROM.RomInfo.op_class_demo_pointer;
-                    ReadCountBox.Value = items.Count;
+                    // #649: display via the unified EditorTopBar read-only slots.
+                    TopBar.StartAddressText = CoreState.ROM.RomInfo.op_class_demo_pointer.ToString();
+                    TopBar.ReadCountText = items.Count.ToString();
                 }
             }
             catch (Exception ex) { Log.Error($"OPClassDemoViewerView.LoadList: {ex.Message}"); }
@@ -447,6 +448,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            ApplyPatchAwareUI();
+            LoadList();
+        }
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             ApplyPatchAwareUI();
             LoadList();

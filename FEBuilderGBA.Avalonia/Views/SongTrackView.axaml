@@ -6,21 +6,20 @@
         SizeToContent="WidthAndHeight">
   <Grid RowDefinitions="Auto,*">
 
-    <!-- Top read-config bar: mirrors WF panel1 (ReadStartAddress + ReadCount + Reload) -->
-    <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <TextBlock Text="First Address" VerticalAlignment="Center" Width="100" />
-        <NumericUpDown AutomationProperties.AutomationId="SongTrack_ReadStartAddress_Input"
-                       Name="ReadStartAddressBox" Width="120" Minimum="0" Maximum="4294967295"
-                       FormatString="0" VerticalAlignment="Center" />
-        <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
-        <NumericUpDown AutomationProperties.AutomationId="SongTrack_ReadCount_Input"
-                       Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
-                       FormatString="0" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="SongTrack_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Width="80" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Top read-config bar — unified via EditorTopBarWithInputs (#649).
+         Editable First Address + Read Count; no Read Size slot.
+         ReadCountMaximum=4096 matches the pre-migration NumericUpDown limit. -->
+    <controls:EditorTopBarWithInputs Grid.Row="0" Margin="0,0,0,4"
+                                     Name="TopBar"
+                                     AutomationProperties.AutomationId="SongTrack_TopBar"
+                                     ReadStartLabel="First Address:"
+                                     ReadCountLabel="Read Count:"
+                                     ReadCountMaximum="4096"
+                                     ReadStartAutomationId="SongTrack_ReadStartAddress_Input"
+                                     ReadCountAutomationId="SongTrack_ReadCount_Input"
+                                     ReloadAutomationId="SongTrack_ReloadList_Button"
+                                     ShowReadSize="False"
+                                     ReloadRequested="OnTopBarReloadRequested" />
 
     <Grid Grid.Row="1" ColumnDefinitions="250,*">
       <controls:AddressListControl AutomationProperties.AutomationId="SongTrack_Entry_List"

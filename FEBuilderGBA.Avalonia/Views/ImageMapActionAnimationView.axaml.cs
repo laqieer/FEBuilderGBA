@@ -63,8 +63,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.MapActionAnimationLoader(items, i));
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #649: display via the unified EditorTopBar read-only slots.
+                TopBar.StartAddressText = _vm.ReadStartAddress.ToString();
+                TopBar.ReadCountText = _vm.ReadCount.ToString();
 
                 // Reset zoom selection AND explicitly sync `PreviewImage.Stretch`
                 // + `_vm.ShowZoomed` because the SelectionChanged handler is
@@ -92,6 +93,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             LoadList();
         }
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void OnSelected(uint addr)
         {

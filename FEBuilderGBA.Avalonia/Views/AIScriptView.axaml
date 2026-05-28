@@ -7,31 +7,35 @@
   <Grid RowDefinitions="Auto,*">
 
     <!-- ===========================================================
-         Top read-config bar (mirrors WF panel3):
-         Filter combo (AI1/AI2 switch), Top Address, Read Count,
-         Reload.
+         Top read-config bar — unified via EditorTopBarWithInputs (#649).
+         The AI1/AI2 Switch ComboBox stays in its own Border above the
+         unified bar so the bar's "Reload pinned to right edge" contract
+         is preserved across editors.
          =========================================================== -->
-    <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <TextBlock Text="Switch" VerticalAlignment="Center" Width="60" />
-        <!-- ComboBoxItem content is NOT touched by ViewTranslationHelper, so
-             the items are populated via code-behind with R._() lookups.
-             PR #571 Copilot bot review #6. -->
-        <ComboBox AutomationProperties.AutomationId="AIScript_Filter_Combo"
-                  Name="FilterCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
-
-        <TextBlock Text="Top Address" VerticalAlignment="Center" Width="100" />
-        <NumericUpDown AutomationProperties.AutomationId="AIScript_TopAddress_Input"
-                       Name="TopAddressBox" Width="120" Minimum="0" Maximum="4294967295"
-                       FormatString="0" VerticalAlignment="Center" />
-        <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
-        <NumericUpDown AutomationProperties.AutomationId="AIScript_ReadCount_Input"
-                       Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
-                       FormatString="0" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="AIScript_Reload_Button"
-                Name="ReloadButton" Content="Reload" Width="80" Click="Reload_Click" />
-      </StackPanel>
-    </Border>
+    <StackPanel Grid.Row="0" Margin="0,0,0,4">
+      <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="Switch" VerticalAlignment="Center" Width="60" />
+          <!-- ComboBoxItem content is NOT touched by ViewTranslationHelper,
+               so the items are populated via code-behind with R._() lookups.
+               PR #571 Copilot bot review #6. -->
+          <ComboBox AutomationProperties.AutomationId="AIScript_Filter_Combo"
+                    Name="FilterCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
+        </StackPanel>
+      </Border>
+      <!-- ReadCountMaximum=4096 matches the pre-migration NumericUpDown limit. -->
+      <controls:EditorTopBarWithInputs Margin="0,4,0,0"
+                                       Name="TopBar"
+                                       AutomationProperties.AutomationId="AIScript_TopBar"
+                                       ReadStartLabel="Top Address:"
+                                       ReadCountLabel="Read Count:"
+                                       ReadCountMaximum="4096"
+                                       ReadStartAutomationId="AIScript_TopAddress_Input"
+                                       ReadCountAutomationId="AIScript_ReadCount_Input"
+                                       ReloadAutomationId="AIScript_Reload_Button"
+                                       ShowReadSize="False"
+                                       ReloadRequested="OnTopBarReloadRequested" />
+    </StackPanel>
 
     <Grid Grid.Row="1" ColumnDefinitions="280,*">
 
