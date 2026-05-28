@@ -9,6 +9,7 @@ using Xunit;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.SkiaSharp;
 
 namespace FEBuilderGBA.Avalonia.Tests;
@@ -69,6 +70,31 @@ public class MapStyleEditorViewModelObjImportTests
         // Width/height pass but the RGBA buffer is too small.
         byte[] rgba = new byte[10];
         Assert.False(vm.TryImportObjImage(rgba, width: 256, height: 128, out string err));
+        Assert.Contains("Invalid source", err);
+    }
+
+    /// <summary>
+    /// Copilot bot #3 on PR #716: the pre-fix int multiplication
+    /// <c>width * height * 4</c> overflows for large heights, wrapping to a
+    /// negative value that lets a truncated buffer slip past the bounds
+    /// check. With width=256 and height=8_400_000, the int product is
+    /// 8_600_000_000 which wraps past int.MaxValue, so the old check
+    /// (<c>sourceRgba.Length &lt; required</c>) would pass for ANY
+    /// non-empty buffer. The long-arithmetic fix correctly rejects it.
+    /// Passing a 100-byte buffer keeps the test fast and memory-cheap.
+    /// </summary>
+    [Fact]
+    public void TryImportObjImage_RejectsOverflowingDimensions_LongCheck()
+    {
+        var vm = new MapStyleEditorViewModel();
+        // 100-byte buffer that the OLD int-arithmetic length check would
+        // accept (because the required-bytes calculation wrapped past
+        // int.MaxValue).
+        byte[] rgba = new byte[100];
+        // height = 8_400_000 is a multiple of 8 and passes the >=128
+        // floor, so the early dimension gates don't reject it before
+        // the length check fires. width=256 keeps the width gate happy.
+        Assert.False(vm.TryImportObjImage(rgba, width: 256, height: 8_400_000, out string err));
         Assert.Contains("Invalid source", err);
     }
 
@@ -423,6 +449,110 @@ public class MapStyleEditorViewModelObjImportTests
             Assert.False(vm.CanImportObj, "CanImportObj must be false when obj2 is present");
         }
         finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Indexed-image decode guards — Copilot bot #4 on PR #716.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// Guard 1: indexData null or shorter than w*h must be rejected with a
+    /// "shorter than expected" error. Before the fix the View partially
+    /// converted the available bytes and left the rest of the output as
+    /// all-zero RGBA (silently transparent garbage).
+    /// </summary>
+    [Fact]
+    public void ConvertIndexedToRgba_RejectsShortIndexBuffer()
+    {
+        byte[] indexData = new byte[10]; // expected 256*128 = 32768
+        byte[] palRgba = new byte[] { 0xFF, 0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF };
+        var result = MapStyleEditorView.ConvertIndexedToRgba(indexData, palRgba, 256, 128, out string err);
+        Assert.Null(result);
+        Assert.Contains("shorter than expected", err);
+    }
+
+    [Fact]
+    public void ConvertIndexedToRgba_RejectsNullIndexBuffer()
+    {
+        byte[] palRgba = new byte[] { 0xFF, 0x00, 0x00, 0xFF };
+        var result = MapStyleEditorView.ConvertIndexedToRgba(null, palRgba, 256, 128, out string err);
+        Assert.Null(result);
+        Assert.Contains("shorter than expected", err);
+    }
+
+    /// <summary>
+    /// Guard 2: a null / too-short palette buffer must be rejected with
+    /// "no usable palette". Before the fix every pixel silently fell
+    /// through to the `palOff + 3 &lt; palRgba.Length` branch and stayed
+    /// at 0 RGBA.
+    /// </summary>
+    [Fact]
+    public void ConvertIndexedToRgba_RejectsNullPalette()
+    {
+        byte[] indexData = new byte[256 * 128];
+        var result = MapStyleEditorView.ConvertIndexedToRgba(indexData, null, 256, 128, out string err);
+        Assert.Null(result);
+        Assert.Contains("no usable palette", err);
+    }
+
+    [Fact]
+    public void ConvertIndexedToRgba_RejectsTooShortPalette()
+    {
+        byte[] indexData = new byte[256 * 128];
+        byte[] palRgba = new byte[3]; // < 4 bytes ⇒ can't hold even one color
+        var result = MapStyleEditorView.ConvertIndexedToRgba(indexData, palRgba, 256, 128, out string err);
+        Assert.Null(result);
+        Assert.Contains("no usable palette", err);
+    }
+
+    /// <summary>
+    /// Guard 3: a pixel referencing a palette entry beyond the palette
+    /// buffer must be rejected with an actionable error. Before the fix
+    /// such pixels silently stayed at 0 RGBA — the user got an
+    /// apparently-successful import with large transparent regions where
+    /// out-of-range indices appeared.
+    /// </summary>
+    [Fact]
+    public void ConvertIndexedToRgba_RejectsOutOfRangePaletteIndex()
+    {
+        byte[] indexData = new byte[256 * 128];
+        // Seed pixel 5 with index 4 — but the palette only has 2 entries
+        // (8 bytes), so index 4 means palOff = 16 which is past palRgba.Length.
+        indexData[5] = 4;
+        byte[] palRgba = new byte[8]; // 2 colors only
+        var result = MapStyleEditorView.ConvertIndexedToRgba(indexData, palRgba, 256, 128, out string err);
+        Assert.Null(result);
+        // Verify the View-facing error wording: identifies the pixel
+        // index, the palette entry, and the actual palette size.
+        Assert.Contains("uses palette entry 4", err);
+        Assert.Contains("only 2 colors", err);
+    }
+
+    /// <summary>
+    /// Happy path: a sufficient indexData + palette must produce a
+    /// correctly-sized RGBA buffer with pixel 0's data sourced from the
+    /// palette entry it indexes.
+    /// </summary>
+    [Fact]
+    public void ConvertIndexedToRgba_HappyPath_DecodesPixels()
+    {
+        byte[] indexData = new byte[8 * 8];
+        // Pixel 0 → palette index 1 → RGB (0,255,0,255).
+        indexData[0] = 1;
+        byte[] palRgba = new byte[]
+        {
+            0xAA, 0xBB, 0xCC, 0xDD, // index 0
+            0x00, 0xFF, 0x00, 0xFF, // index 1
+        };
+        var result = MapStyleEditorView.ConvertIndexedToRgba(indexData, palRgba, 8, 8, out string err);
+        Assert.NotNull(result);
+        Assert.Equal("", err);
+        Assert.Equal(8 * 8 * 4, result!.Length);
+        // Pixel 0 RGBA should match palette index 1.
+        Assert.Equal(0x00, result[0]);
+        Assert.Equal(0xFF, result[1]);
+        Assert.Equal(0x00, result[2]);
+        Assert.Equal(0xFF, result[3]);
     }
 
     // -----------------------------------------------------------------
