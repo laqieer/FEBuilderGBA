@@ -22,8 +22,15 @@
 // expander: 4 NumericUpDowns (MouthBlockX/Y, EyeBlockX/Y) that map to
 // portrait entry bytes B20-B23 on FE7/FE8 ROMs. FE6 hides the inputs.
 //
+// Crop NUDs + frame selector + WF status label (#707 Slice A) — implemented:
+// 8 crop NumericUpDowns (Eye + Mouth X/Y/W/H), Frame NumericUpDown (0-10),
+// and a status TextBlock that echoes WF mode strings per frame index via
+// FEBuilderGBA.PortraitFrameStrings.GetWfModeString. These are UI-only
+// inputs — the per-frame live preview render pipeline (port of WF
+// GenEye/GenMouth/GenPreview) is deferred to a follow-up issue.
+//
 // Out of scope (tracked under follow-ups):
-//   - Per-frame live preview pane + crop position/size + status label (#707)
+//   - Per-frame live preview render pipeline (follow-up to #707 Slice A)
 using System;
 using System.IO;
 using System.Linq;
@@ -68,6 +75,14 @@ namespace FEBuilderGBA.Avalonia.Views
             DragDrop.SetAllowDrop(this, true);
             AddHandler(DragDrop.DragOverEvent, OnDragOver);
             AddHandler(DragDrop.DropEvent, OnDrop);
+
+            // #707 Slice A: frame selector echoes WF mode strings.
+            // Render pipeline (eye/mouth crop -> live preview) is the
+            // follow-up issue; here we just keep the status label in sync.
+            FrameInput.ValueChanged += (_, _) =>
+                FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(
+                    (int)(FrameInput.Value ?? 0));
+            FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(0);
         }
 
         void LoadList()

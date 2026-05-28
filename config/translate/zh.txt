@@ -23594,8 +23594,8 @@ FE-Repo...
 :4. Write to ROM
 4. 写入 ROM
 
-:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663). Deferred to follow-up #707: per-frame live preview pane (eye crop, mouth crop, full face) and eye/mouth crop position/size NumericUpDowns + WF status label strings.
-说明：此向导支持简单的单图导入（在 D0 写入精灵图，在 D8 写入调色板）。当源是 128x112 合成图时，向导还会写入 mini 脸（D4）和嘴部帧（D12）—— 仅限 FE7/FE8。使用「Pick Folder (batch)...」可一次性导入整个文件夹 —— 每个文件按 0xNN.png 或 NN.png 命名，向导即可识别目标槽位。调色板选项：Auto-quantize 从图像中选取 16 个最佳匹配颜色；Share with target slot 复用 ROM 中目标槽位已有的调色板；Custom palette file 导入 .pal/.act/.gpl 调色板。勾选「Add black outline (Fuchidori)」可在不透明区域周围绘制 1 像素的黑色描边。Detail 展开器（仅限 FE7/FE8）可编辑本切片（#663）随附的口/眼块坐标字节 B20-B23。延期至后续 #707：每帧实时预览面板（眼睛裁剪、嘴部裁剪、完整脸部）以及眼睛/嘴部裁剪位置/尺寸 NumericUpDown 与 WF 状态标签字符串。
+:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663) plus the eye/mouth crop position/size NumericUpDowns and a frame selector (0-10) that echoes the WF status string per frame (#707 Slice A). Deferred to follow-up: per-frame live preview pane (eye crop, mouth crop, full face) — port of WF GenEye/GenMouth/GenPreview.
+说明：此向导支持简单的单图导入（在 D0 写入精灵图，在 D8 写入调色板）。当源是 128x112 合成图时，向导还会写入 mini 脸（D4）和嘴部帧（D12）—— 仅限 FE7/FE8。使用「Pick Folder (batch)...」可一次性导入整个文件夹 —— 每个文件按 0xNN.png 或 NN.png 命名，向导即可识别目标槽位。调色板选项：Auto-quantize 从图像中选取 16 个最佳匹配颜色；Share with target slot 复用 ROM 中目标槽位已有的调色板；Custom palette file 导入 .pal/.act/.gpl 调色板。勾选「Add black outline (Fuchidori)」可在不透明区域周围绘制 1 像素的黑色描边。Detail 展开器（仅限 FE7/FE8）可编辑本切片（#663）随附的口/眼块坐标字节 B20-B23，以及眼/口裁剪位置/尺寸 NumericUpDown 和帧选择器（0-10），后者会按帧回显 WF 状态字符串（#707 切片 A）。延期至后续：每帧实时预览面板（眼睛裁剪、嘴部裁剪、完整脸部）—— WF GenEye/GenMouth/GenPreview 的移植。
 
 :2a. Palette options
 2a. 调色板选项
@@ -23653,3 +23653,12 @@ FE6 头像不支持此功能。
 
 :Per-map difficulty adjustment is not available for FE6. FE6's map setting struct does not have the W20 packed-difficulty word that this editor edits — those bytes are BGM IDs on FE6.
 FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑器所编辑的 W20 难度打包字 —— 那两个字节在 FE6 上是 BGM ID。
+
+:Eye crop
+眼部裁剪
+
+:Mouth crop
+口部裁剪
+
+:Frame (0-10):
+帧 (0-10):

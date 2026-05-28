@@ -9762,8 +9762,8 @@ FE-Repo...
 :4. Write to ROM
 4. ROM に書き込み
 
-:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663). Deferred to follow-up #707: per-frame live preview pane (eye crop, mouth crop, full face) and eye/mouth crop position/size NumericUpDowns + WF status label strings.
-備考: このウィザードはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。「Pick Folder (batch)...」でフォルダ内のファイルを一括インポートできます — 各ファイル名を 0xNN.png または NN.png にすると、ウィザードが書き込み先スロットを判別します。パレットオプション: Auto-quantize は画像から最適な 16 色を選びます; Share with target slot は ROM の対象スロットにある既存パレットを再利用します; Custom palette file は .pal/.act/.gpl パレットをインポートします。「Add black outline (Fuchidori)」をチェックすると、不透明部の周りに 1 ピクセルの黒い縁取りを描きます。Detail エキスパンダ（FE7 / FE8 のみ）では、本スライス（#663）で同梱した口・目ブロック座標バイト B20〜B23 を編集できます。フォローアップ #707 に延期: フレームごとのライブプレビュー（目クロップ、口クロップ、フルフェイス）と、目・口クロップ位置／サイズの NumericUpDown、および WF のステータスラベル文字列。
+:Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663) plus the eye/mouth crop position/size NumericUpDowns and a frame selector (0-10) that echoes the WF status string per frame (#707 Slice A). Deferred to follow-up: per-frame live preview pane (eye crop, mouth crop, full face) — port of WF GenEye/GenMouth/GenPreview.
+備考: このウィザードはシングル画像のインポート（D0 にスプライトシート、D8 にパレットを書き込む）に対応します。128x112 の合成シートの場合は、ミニフェイス（D4）と口アニメ（D12）も書き込みます — FE7 / FE8 のみ。「Pick Folder (batch)...」でフォルダ内のファイルを一括インポートできます — 各ファイル名を 0xNN.png または NN.png にすると、ウィザードが書き込み先スロットを判別します。パレットオプション: Auto-quantize は画像から最適な 16 色を選びます; Share with target slot は ROM の対象スロットにある既存パレットを再利用します; Custom palette file は .pal/.act/.gpl パレットをインポートします。「Add black outline (Fuchidori)」をチェックすると、不透明部の周りに 1 ピクセルの黒い縁取りを描きます。Detail エキスパンダ（FE7 / FE8 のみ）では、本スライス（#663）で同梱した口・目ブロック座標バイト B20〜B23 に加え、目・口クロップ位置／サイズの NumericUpDown とフレームセレクタ（0〜10）を編集できます。フレームごとの WF ステータス文字列が表示されます（#707 スライス A）。フォローアップに延期: フレームごとのライブプレビュー（目クロップ、口クロップ、フルフェイス） — WF GenEye/GenMouth/GenPreview の移植。
 
 :2a. Palette options
 2a. パレットオプション
@@ -9821,3 +9821,12 @@ ROMファイルを開いて難易度設定を編集してください。
 
 :Per-map difficulty adjustment is not available for FE6. FE6's map setting struct does not have the W20 packed-difficulty word that this editor edits — those bytes are BGM IDs on FE6.
 マップごとの難易度調整はFE6では使用できません。FE6のマップ設定構造体には、このエディタが編集するW20難易度パック語がありません — それらのバイトはFE6ではBGMのIDです。
+
+:Eye crop
+目クロップ
+
+:Mouth crop
+口クロップ
+
+:Frame (0-10):
+フレーム (0-10):
