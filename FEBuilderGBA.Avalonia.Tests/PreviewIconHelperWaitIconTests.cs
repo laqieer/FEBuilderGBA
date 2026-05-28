@@ -303,10 +303,23 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             EnsureImageService();
 
-            // 0xFFFF is well past any legitimate wait icon table; the entry
-            // pointer at offset+4 should fail the U.isPointer guard or fall
-            // off the end of ROM.
-            using IImage img = PreviewIconHelper.LoadClassWaitIcon(0xFFFF);
+            // Copilot bot review (PR #739): compute an index guaranteed to
+            // put entryAddr + 8 past rom.Data.Length so the helper takes
+            // the `entryAddr + 8 > rom.Data.Length` early-return branch
+            // deterministically. Naive constants like 0xFFFF compute to
+            // baseAddr + 0xFFFF*8 ≈ 512KiB past the table, still inside a
+            // typical 16MiB FE ROM, so the test outcome depended on
+            // whatever bytes happened to sit there. Avoid uint wraparound
+            // by checking the multiplication fits in uint first; if it
+            // doesn't, the early-return branch is still hit.
+            ROM rom = CoreState.ROM;
+            uint baseAddr = rom.p32(rom.RomInfo.unit_wait_icon_pointer);
+            uint romLen = (uint)rom.Data.Length;
+            // Need (baseAddr + idx*8) > romLen - 8  ⇔  idx > (romLen - 8 - baseAddr) / 8
+            uint safeIdx = ((romLen - baseAddr) / 8) + 1;  // first index past the data
+            _output.WriteLine($"safeIdx=0x{safeIdx:X} baseAddr=0x{baseAddr:X} romLen=0x{romLen:X}");
+
+            using IImage img = PreviewIconHelper.LoadClassWaitIcon(safeIdx);
             Assert.Null(img);
         }
 
