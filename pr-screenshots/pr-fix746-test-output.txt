@@ -1,0 +1,23 @@
+Test run for FEBuilderGBA.Tests\bin\Debug\net9.0-windows\FEBuilderGBA.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+FEBuilderGBA.Tests\bin\Debug\net9.0-windows\FEBuilderGBA.Tests.dll
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (32-bit .NET 9.0.16)
+[xUnit.net 00:00:00.11]   Discovering: FEBuilderGBA.Tests
+[xUnit.net 00:00:00.33]   Discovered:  FEBuilderGBA.Tests
+[xUnit.net 00:00:00.34]   Starting:    FEBuilderGBA.Tests
+[xUnit.net 00:00:00.48]   Finished:    FEBuilderGBA.Tests
+  Passed FEBuilderGBA.Tests.Unit.ToolThreeMargeFormCloseTests.IsAllMethodNotNone_ReturnsTrue_WhenChangeDataListIsNull [64 ms]
+  Passed FEBuilderGBA.Tests.Unit.ToolThreeMargeFormCloseTests.IsAllMethodNone_ReturnsTrue_WhenChangeDataListIsNull [3 ms]
+  Passed FEBuilderGBA.Tests.Unit.ToolThreeMargeFormCloseTests.FormClosing_DoesNotThrow_OnEmptyForm [3 ms]
+
+Test Run Successful.
+Total tests: 3
+     Passed: 3
+ Total time: 1.1876 Seconds
+
+Filter applied: FullyQualifiedName~ToolThreeMargeFormCloseTests
+Fix:  FEBuilderGBA/ToolThreeMargeForm.cs (isAllMethodNone / isAllMethodNotNone null guards)
+Test: FEBuilderGBA.Tests/Unit/ToolThreeMargeFormCloseTests.cs (3 regression tests, #746)
