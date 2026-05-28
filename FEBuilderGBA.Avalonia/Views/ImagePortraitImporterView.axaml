@@ -114,6 +114,67 @@
               <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Detail_Help_Label"
                          TextWrapping="Wrap" Foreground="Gray" FontSize="11"
                          Text="These bytes mark the block coordinates inside the sprite sheet that the engine uses for mouth + eye animation. Values are pre-populated from the selected slot; tweak them to match a re-arranged sheet, then Import to persist." />
+
+              <!-- Crop position + size (#707 Slice A — UI inputs only, no preview render yet).
+                   Min / Max / default values mirror WF ImagePortraitImporterForm.Designer.cs
+                   exactly so the Avalonia wizard opens with the SAME crop boxes WF does and
+                   the future preview-rendering follow-up (#717) doesn't need extra clamping:
+                     Eye   X max 32     default 6     (WF line 156-170)
+                     Eye   Y max 16     default 1     (WF line 183-197)
+                     Eye   W min 1 max 32 default 23  (WF line 230-249)
+                     Eye   H min 1 max 16 default 10  (WF line 298-317)
+                     Mouth X max 32     default 8     (WF line 378-392)
+                     Mouth Y max 16     default 0     (WF line 423-432, no explicit Value)
+                     Mouth W min 1 max 32 default 14  (WF line 454-473)
+                     Mouth H min 1 max 16 default 8   (WF line 486-505) -->
+              <TextBlock Text="Eye crop" FontWeight="SemiBold" Margin="0,8,0,0" />
+              <Grid ColumnDefinitions="60,80,60,80" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropX_Input"
+                               Name="EyeCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="6" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="3"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropY_Input"
+                               Name="EyeCropYInput" Minimum="0" Maximum="16" FormatString="0" Value="1" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="W:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropW_Input"
+                               Name="EyeCropWInput" Minimum="1" Maximum="32" FormatString="0" Value="23" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="3"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_EyeCropH_Input"
+                               Name="EyeCropHInput" Minimum="1" Maximum="16" FormatString="0" Value="10" />
+              </Grid>
+
+              <TextBlock Text="Mouth crop" FontWeight="SemiBold" Margin="0,8,0,0" />
+              <Grid ColumnDefinitions="60,80,60,80" RowDefinitions="Auto,Auto" Margin="8,0,0,0">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="X:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropX_Input"
+                               Name="MouthCropXInput" Minimum="0" Maximum="32" FormatString="0" Value="8" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Y:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="0" Grid.Column="3"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropY_Input"
+                               Name="MouthCropYInput" Minimum="0" Maximum="16" FormatString="0" Value="0" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="W:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropW_Input"
+                               Name="MouthCropWInput" Minimum="1" Maximum="32" FormatString="0" Value="14" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="H:" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Row="1" Grid.Column="3"
+                               AutomationProperties.AutomationId="ImagePortraitImporter_MouthCropH_Input"
+                               Name="MouthCropHInput" Minimum="1" Maximum="16" FormatString="0" Value="8" />
+              </Grid>
+
+              <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                <TextBlock Text="Frame (0-10):" VerticalAlignment="Center" />
+                <NumericUpDown AutomationProperties.AutomationId="ImagePortraitImporter_Frame_Input"
+                               Name="FrameInput" Minimum="0" Maximum="10" FormatString="0" Value="0" Width="80" />
+                <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_FrameStatus_Label"
+                           Name="FrameStatusLabel" VerticalAlignment="Center" FontStyle="Italic"
+                           Foreground="DarkBlue" />
+              </StackPanel>
             </StackPanel>
           </Expander>
         </Border>
@@ -148,7 +209,7 @@
         <!-- Notes -->
         <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_Notes_Label"
                    TextWrapping="Wrap" Foreground="Gray" FontSize="11"
-                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663). Deferred to follow-up #707: per-frame live preview pane (eye crop, mouth crop, full face) and eye/mouth crop position/size NumericUpDowns + WF status label strings." />
+                   Text="Notes: this wizard supports the simple single-image import (writes the sprite sheet at D0 and the palette at D8). When the source is a 128x112 composite sheet, the wizard also writes the mini face (D4) and mouth frames (D12) — FE7/FE8 only. Use 'Pick Folder (batch)...' to import a whole folder at once — name each file 0xNN.png or NN.png so the wizard knows which portrait slot to write. Palette options: Auto-quantize picks 16 best-fit colors from the image; Share with target slot re-uses the existing palette already in ROM at the chosen slot; Custom palette file imports a .pal/.act/.gpl palette. Tick 'Add black outline (Fuchidori)' to draw a 1-pixel outline around opaque areas. The Detail expander (FE7/FE8 only) edits the mouth/eye block coords (bytes B20-B23) that ship in this slice (#663) plus the eye/mouth crop position/size NumericUpDowns and a frame selector (0-10) that echoes the WF status string per frame (#707 Slice A). Deferred to follow-up: per-frame live preview pane (eye crop, mouth crop, full face) — port of WF GenEye/GenMouth/GenPreview." />
 
       </StackPanel>
     </ScrollViewer>
