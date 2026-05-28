@@ -60,14 +60,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 else nullCount = 0;
 
                 string name = $"0x{i:X2}";
+                // #656 — resolve the portrait OWNER's name (scans unit/class tables
+                // for a unit/class with portrait_id == i) instead of treating the
+                // portrait index as a 0-based unit-table row. Mirrors the editor
+                // fix at ImagePortraitViewModel.LoadList (#654/#673) and the
+                // WinForms reference ImagePortraitForm.GetPortraitNameFast.
                 try
                 {
-                    string uname = NameResolver.GetUnitName((uint)i);
-                    if (uname != "???" && uname != $"#{i}") name += $" {uname}";
+                    string pname = NameResolver.GetPortraitName((uint)i);
+                    if (!string.IsNullOrEmpty(pname)) name += $" {pname}";
                 }
                 catch (System.Exception ex)
                 {
-                    Log.Error("ImagePortraitImporterViewModel.LoadList unit name resolve: {0}", ex.Message);
+                    Log.Error("ImagePortraitImporterViewModel.LoadList portrait name resolve: {0}", ex.Message);
                 }
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
