@@ -80,10 +80,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("FrameStatusLabel.Text", source);
         }
 
-        // Regression guard: WF parity for crop NUD min/max/default attributes.
-        // Mirrors ImagePortraitImporterForm.Designer.cs values verbatim — if
-        // someone bumps a NUD bound without updating WF parity in mind, this
-        // test fails immediately (Copilot PR #719 review point).
+        // Regression guard: every Eye/Mouth crop NUD must mirror its
+        // WinForms counterpart's Minimum / Maximum / default Value
+        // attributes (source: WF ImagePortraitImporterForm.Designer.cs).
+        // The invariant is that the Avalonia wizard opens with the SAME
+        // crop boxes WF does, so the future preview-render port can read
+        // these NUDs without re-clamping. If someone widens a NUD bound
+        // or drops a default, this test fails immediately with a clear
+        // pointer to the WF source.
         [Theory]
         [InlineData("EyeCropX",   "Minimum=\"0\"", "Maximum=\"32\"", "Value=\"6\"")]
         [InlineData("EyeCropY",   "Minimum=\"0\"", "Maximum=\"16\"", "Value=\"1\"")]

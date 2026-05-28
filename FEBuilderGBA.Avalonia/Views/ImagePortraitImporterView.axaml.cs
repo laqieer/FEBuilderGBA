@@ -146,11 +146,26 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Disable the NUDs when there's no slot selected or the ROM is
             // FE6 — values are meaningless / dangerous in either case.
+            // Same gating applied to the #707 Slice A crop/frame NUDs so the
+            // entire Detail-expander payload (#663 + #707) is consistent
+            // (Copilot PR review).
             bool enableNuds = isFe7Or8 && addr != 0;
             if (MouthBlockXInput != null) MouthBlockXInput.IsEnabled = enableNuds;
             if (MouthBlockYInput != null) MouthBlockYInput.IsEnabled = enableNuds;
             if (EyeBlockXInput   != null) EyeBlockXInput.IsEnabled   = enableNuds;
             if (EyeBlockYInput   != null) EyeBlockYInput.IsEnabled   = enableNuds;
+            // #707 Slice A: crop NUDs + frame selector + status label
+            // share the same enablement gate as the #663 block-coord NUDs.
+            if (EyeCropXInput    != null) EyeCropXInput.IsEnabled    = enableNuds;
+            if (EyeCropYInput    != null) EyeCropYInput.IsEnabled    = enableNuds;
+            if (EyeCropWInput    != null) EyeCropWInput.IsEnabled    = enableNuds;
+            if (EyeCropHInput    != null) EyeCropHInput.IsEnabled    = enableNuds;
+            if (MouthCropXInput  != null) MouthCropXInput.IsEnabled  = enableNuds;
+            if (MouthCropYInput  != null) MouthCropYInput.IsEnabled  = enableNuds;
+            if (MouthCropWInput  != null) MouthCropWInput.IsEnabled  = enableNuds;
+            if (MouthCropHInput  != null) MouthCropHInput.IsEnabled  = enableNuds;
+            if (FrameInput       != null) FrameInput.IsEnabled       = enableNuds;
+            if (FrameStatusLabel != null) FrameStatusLabel.IsEnabled = enableNuds;
 
             if (!enableNuds) return;
 
