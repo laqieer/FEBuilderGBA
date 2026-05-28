@@ -26,10 +26,13 @@
   <Border Name="OuterBorder"
           BorderBrush="Gray" BorderThickness="0,0,0,1"
           Padding="4,4,4,6" Margin="0,0,0,4">
-    <Grid ColumnDefinitions="Auto,*,Auto">
-      <!-- #723: use WrapPanel so slots wrap to a second line when the host
-           is narrow (e.g. UnitEditor's 250-wide left column) instead of
-           clipping ReadCount/Size values off the right edge. -->
+    <!-- #723: column 0 is now `*` so the WrapPanel inside has a CONSTRAINED
+         finite width (the parent's available width minus the Reload button
+         in column 1). Without this constraint the WrapPanel was measured at
+         its natural one-line width and kept overflowing the host's narrow
+         column. -->
+    <Grid ColumnDefinitions="*,Auto">
+      <!-- WrapPanel: slots flow to a second line when narrow. -->
       <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
                  ItemHeight="22">
         <!-- Filter slot (TextBox; hidden by default) -->
@@ -69,12 +72,10 @@
         </StackPanel>
       </WrapPanel>
 
-      <!-- Reload button — pinned to the far right edge: lives in column 2
-           of the parent "Auto,*,Auto" Grid, while the star ('*') middle
-           column absorbs all leftover horizontal space. HorizontalAlignment
-           ="Right" keeps the button flush with the right edge of its cell
-           even if the cell ends up wider than the button's own Auto size. -->
-      <Button Grid.Column="2" Name="ReloadButton" Content="Reload"
+      <!-- Reload button — pinned to the far right edge: lives in column 1
+           of the parent "*,Auto" Grid (per #723) so the star metadata
+           column gets a constrained width forcing the WrapPanel to wrap. -->
+      <Button Grid.Column="1" Name="ReloadButton" Content="Reload"
               FontSize="11" Padding="6,2" Margin="8,0,0,0"
               VerticalAlignment="Center"
               HorizontalAlignment="Right"
