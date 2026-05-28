@@ -44,23 +44,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void CodeBehind_ContainsExportCsvClickHandler()
         {
-            // Source-text check: locate MapEditorView.axaml.cs relative to repo root.
-            // Test binary lives under FEBuilderGBA.Avalonia.Tests/bin/<config>/net9.0/.
-            string baseDir = AppContext.BaseDirectory;
-            DirectoryInfo? probe = new DirectoryInfo(baseDir);
-            string? viewPath = null;
-            for (int i = 0; i < 8 && probe != null; i++)
-            {
-                string candidate = Path.Combine(probe.FullName, "FEBuilderGBA.Avalonia", "Views", "MapEditorView.axaml.cs");
-                if (File.Exists(candidate))
-                {
-                    viewPath = candidate;
-                    break;
-                }
-                probe = probe.Parent;
-            }
-            Assert.NotNull(viewPath);
-            string src = File.ReadAllText(viewPath!);
+            // Source-text check: locate MapEditorView.axaml.cs via the repo-root walk
+            // shared with other parity tests in this project (e.g.,
+            // DumpStructSelectDialogParityTests.FindRepoRoot).
+            string? repoRoot = FindRepoRoot();
+            if (repoRoot == null) return; // gracefully skip when sln is not reachable
+            string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views", "MapEditorView.axaml.cs");
+            Assert.True(File.Exists(viewPath), $"MapEditorView.axaml.cs missing at {viewPath}");
+            string src = File.ReadAllText(viewPath);
             Assert.Contains("ExportCsv_Click", src);
             Assert.Contains("MapExportCsv.Serialize", src);
         }
@@ -68,23 +59,31 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Axaml_ContainsExportCsvButton()
         {
-            string baseDir = AppContext.BaseDirectory;
-            DirectoryInfo? probe = new DirectoryInfo(baseDir);
-            string? axamlPath = null;
-            for (int i = 0; i < 8 && probe != null; i++)
-            {
-                string candidate = Path.Combine(probe.FullName, "FEBuilderGBA.Avalonia", "Views", "MapEditorView.axaml");
-                if (File.Exists(candidate))
-                {
-                    axamlPath = candidate;
-                    break;
-                }
-                probe = probe.Parent;
-            }
-            Assert.NotNull(axamlPath);
-            string src = File.ReadAllText(axamlPath!);
+            string? repoRoot = FindRepoRoot();
+            if (repoRoot == null) return; // gracefully skip when sln is not reachable
+            string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views", "MapEditorView.axaml");
+            Assert.True(File.Exists(axamlPath), $"MapEditorView.axaml missing at {axamlPath}");
+            string src = File.ReadAllText(axamlPath);
             Assert.Contains("MapEditor_ExportCsv_Button", src);
             Assert.Contains("Export Map (CSV)", src);
+        }
+
+        /// <summary>
+        /// Walk upward from the test assembly's output directory looking for
+        /// <c>FEBuilderGBA.sln</c>. Mirrors the shared idiom used by
+        /// <c>DumpStructSelectDialogParityTests.FindRepoRoot</c> and
+        /// <c>L10nCoverageTest.FindRepoRoot</c> so layout shifts in test
+        /// output don't break this fixture.
+        /// </summary>
+        static string? FindRepoRoot()
+        {
+            string start = AppContext.BaseDirectory;
+            for (DirectoryInfo? dir = new DirectoryInfo(start); dir != null; dir = dir.Parent)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
+            }
+            return null;
         }
     }
 }
