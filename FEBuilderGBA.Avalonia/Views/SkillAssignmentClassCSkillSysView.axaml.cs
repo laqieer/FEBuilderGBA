@@ -102,8 +102,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // ReadStartAddress / ReadCount overrides drive the list walk.
                 // Copilot CLI PR #552 review #2: previously the VM defaults
                 // were copied INTO the boxes, making the controls inert.
-                _vm.ReadStartAddress = (uint)(ReadStartAddressBox.Value ?? 0);
-                _vm.ReadCount = (uint)(ReadCountBox.Value ?? 0);
+                // #743: unified top-bar surfaces ReadStart / ReadCount via CLR properties.
+                _vm.ReadStartAddress = TopBar?.ReadStartAddress ?? 0u;
+                _vm.ReadCount = (uint)(TopBar?.ReadCount ?? 0);
                 _classItems = _vm.LoadClassList();
                 _classDisplayItems.Clear();
                 foreach (var item in _classItems) _classDisplayItems.Add(item.name);
@@ -120,8 +121,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Seed the boxes once on Initialize so the user sees the VM defaults,
             // but subsequent reloads READ from the boxes (not the VM).
-            ReadStartAddressBox.Value = _vm.ReadStartAddress;
-            ReadCountBox.Value = _vm.ReadCount;
+            // #743: unified top-bar surfaces ReadStart / ReadCount via CLR properties.
+            if (TopBar != null)
+            {
+                TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                TopBar.ReadCount = (int)_vm.ReadCount;
+            }
             N1ReadCountBox.Value = _vm.N1ReadCount;
         }
 
@@ -129,6 +134,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             LoadClassList();
         }
+
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadClassList();
 
         void OnClassSelected(AddrResult ar)
         {

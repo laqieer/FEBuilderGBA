@@ -389,9 +389,13 @@ public class SkillConfigSkillSystemParityTests
     [Fact]
     public void View_HasReloadButton_Wired()
     {
+        // #743: top bar migrated to EditorTopBarWithInputs — the Reload
+        // button's AutomationId is preserved via the ReloadAutomationId
+        // override, and its click is wired via the unified bar's
+        // ReloadRequested routed event (not a direct Click= on a Button).
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"SkillConfigSkillSystem_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        Assert.Contains("ReloadRequested=\"OnTopBarReloadRequested\"", axaml);
     }
 
     [Fact]

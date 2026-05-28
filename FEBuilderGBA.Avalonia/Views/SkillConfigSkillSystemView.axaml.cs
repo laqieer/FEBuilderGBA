@@ -63,8 +63,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Copilot bot review on PR #525.
                 uint cachedIconBase = _vm.IconBaseAddress;
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.SkillIconLoader(items, i, cachedIconBase));
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #743: unified top-bar surfaces ReadStart / ReadCount via the
+                // EditorTopBarWithInputs CLR properties; the legacy
+                // ReadStartAddressBox / ReadCountBox names are gone.
+                if (TopBar != null)
+                {
+                    TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                    TopBar.ReadCount = (int)_vm.ReadCount;
+                }
 
                 _suppressZoomChange = true;
                 try
@@ -86,6 +92,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             LoadList();
         }
+
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void OnSelected(uint addr)
         {

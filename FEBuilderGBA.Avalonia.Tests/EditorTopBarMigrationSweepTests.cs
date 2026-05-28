@@ -87,6 +87,15 @@ public class EditorTopBarMigrationSweepTests
         "SongInstrumentView.axaml",
         "AIScriptView.axaml",
         "SMEPromoListView.axaml",
+        // Slice C migrations (#743):
+        "SkillConfigSkillSystemView.axaml",
+        "SkillConfigFE8NVer2SkillView.axaml",
+        "SkillConfigFE8NVer3SkillView.axaml",
+        "SkillConfigFE8UCSkillSys09xView.axaml",
+        "SkillAssignmentClassSkillSystemView.axaml",
+        "SkillAssignmentClassCSkillSysView.axaml",
+        "WorldMapEventPointerView.axaml",
+        "MonsterItemViewerView.axaml",
     };
 
     public static TheoryData<string> ReadOnlyMigratedViews => ToTheoryData(s_readOnlyMigratedViews);
@@ -212,9 +221,14 @@ public class EditorTopBarMigrationSweepTests
     public void MigratedView_HasTopBarAutomationId(string viewName)
     {
         // Every host sets a "..._TopBar" automation id on the unified
-        // control (mirrors UnitEditorView et al.).
+        // control (mirrors UnitEditorView et al.). Multi-bar hosts use
+        // composite ids like "MonsterItemViewer_Item_TopBar" or
+        // "WorldMapEventPointer_BeforeTopBar" (#743), so the prefix
+        // allows underscores. The trailing "_TopBar" stays required so
+        // the assertion can't false-positive on the inner-control ids
+        // (e.g. "..._Reload_Button").
         string axaml = ReadView(viewName);
-        Assert.Matches(new Regex("AutomationProperties\\.AutomationId=\"[A-Za-z0-9]+_TopBar\""),
+        Assert.Matches(new Regex("AutomationProperties\\.AutomationId=\"[A-Za-z0-9_]+_TopBar\""),
             axaml);
     }
 
@@ -261,15 +275,23 @@ public class EditorTopBarMigrationSweepTests
     [Fact]
     public void KnownDeferredEditor_NotInMigratedList()
     {
-        // SkillConfigSkillSystemView is explicitly deferred to Slice C
-        // (patch-detection coupling). It must NOT be claimed as migrated
-        // — if someone accidentally adds it to the AllMigratedViews list
-        // without doing the actual migration, this test catches it.
+        // After Slice C (#743) two formerly-deferred editors moved to the
+        // migrated list (SkillConfigSkillSystemView, MonsterItemViewerView).
+        // The genuinely-deferred remainder must NOT be claimed as migrated
+        // — if someone accidentally adds one of them to the
+        // AllMigratedViews list without doing the actual migration, this
+        // test catches it. ImageUnitPaletteView (2-column Grid topology)
+        // and SkillConfigFE8NSkillView (FilterCombo + ChangeType in the
+        // top bar) stay deferred until a per-editor decision lands; the
+        // Event* / MapTileAnimation2 cluster is tracked separately.
         foreach (string name in AllMigratedViewNames())
         {
-            Assert.NotEqual("SkillConfigSkillSystemView.axaml", name);
-            Assert.NotEqual("MonsterItemViewerView.axaml", name);
             Assert.NotEqual("ImageUnitPaletteView.axaml", name);
+            Assert.NotEqual("SkillConfigFE8NSkillView.axaml", name);
+            Assert.NotEqual("EventCondView.axaml", name);
+            Assert.NotEqual("EventUnitView.axaml", name);
+            Assert.NotEqual("EventUnitFE7View.axaml", name);
+            Assert.NotEqual("MapTileAnimation2View.axaml", name);
         }
     }
 

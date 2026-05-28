@@ -38,11 +38,15 @@ public class SkillAssignmentClassCSkillSysParityTests
     }
 
     [Fact] public void View_HasFilterAndReloadBar() {
+        // #743: top bar migrated to EditorTopBarWithInputs — legacy
+        // AutomationIds are preserved via the *AutomationId overrides on
+        // the unified bar, and the Reload click is wired via the
+        // ReloadRequested routed event (not a direct Click= on a Button).
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ReadStart_Input\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ReadCount_Input\"", axaml);
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        Assert.Contains("ReloadRequested=\"OnTopBarReloadRequested\"", axaml);
     }
 
     [Fact] public void View_HasMasterClassList() {

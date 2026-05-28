@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillAssignmentClassCSkillSysView"
         Title="Skill Assignment - Class (CSkillSys)" Width="1200" Height="900"
         SizeToContent="WidthAndHeight">
@@ -17,23 +18,22 @@
                    Text="Skill Assignment - Class (CSkillSys 3.00).&#10;This editor requires the CSkillSys 3.00+ skill system patch to be installed.&#10;Use the Patch Manager to install the CSkillSys 3.00 patch first." />
       </Border>
 
-      <Border BorderBrush="Gray" BorderThickness="1" Padding="6" CornerRadius="2">
-        <Grid ColumnDefinitions="Auto,150,Auto,90,Auto" Margin="0">
-          <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ReadStartLabel"
-                     Grid.Column="0" Text="Start Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
-          <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ReadStart_Input"
-                         Grid.Column="1" Name="ReadStartAddressBox" FormatString="0"
-                         Minimum="0" Maximum="2147483647" Margin="0,0,12,0" />
-          <TextBlock AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ReadCountLabel"
-                     Grid.Column="2" Text="Read Count:" VerticalAlignment="Center" Margin="0,0,8,0" />
-          <NumericUpDown AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ReadCount_Input"
-                         Grid.Column="3" Name="ReadCountBox" FormatString="0"
-                         Minimum="0" Maximum="256" Margin="0,0,12,0" />
-          <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ReloadList_Button"
-                  Grid.Column="4" Name="ReloadListButton" Content="Reload"
-                  Click="ReloadList_Click" MinWidth="100" />
-        </Grid>
-      </Border>
+      <!-- Top read-config bar — unified via EditorTopBarWithInputs (#743).
+           Inputs stay editable (this view did NOT use the IsEnabled="False"
+           pattern). Pre-migration Maximums preserved via ReadStartMaximum /
+           ReadCountMaximum so the unified bar doesn't widen the accepted
+           range. -->
+      <controls:EditorTopBarWithInputs Name="TopBar"
+                                       AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_TopBar"
+                                       ReadStartLabel="Start Address:"
+                                       ReadCountLabel="Read Count:"
+                                       ReadStartMaximum="2147483647"
+                                       ReadCountMaximum="256"
+                                       ShowReadSize="False"
+                                       ReadStartAutomationId="SkillAssignmentClassCSkillSys_ReadStart_Input"
+                                       ReadCountAutomationId="SkillAssignmentClassCSkillSys_ReadCount_Input"
+                                       ReloadAutomationId="SkillAssignmentClassCSkillSys_ReloadList_Button"
+                                       ReloadRequested="OnTopBarReloadRequested" />
 
       <Grid ColumnDefinitions="260,*">
 
