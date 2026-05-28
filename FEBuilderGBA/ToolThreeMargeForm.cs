@@ -782,6 +782,11 @@ namespace FEBuilderGBA
 
         bool isAllMethodNone()
         {
+            // Guard for screenshot/smoke-mode runs that open the form without
+            // initializing a merge (#746). With no rows there is nothing to
+            // confirm on close, so treat null as "all none" — FormClosing then
+            // exits early without showing the close-alert dialog.
+            if (this.ChangeDataList == null) return true;
             for (int i = 0; i < this.ChangeDataList.Count; i++)
             {
                 if (this.ChangeDataList[i].method != MargeMethod.NONE)
@@ -794,6 +799,8 @@ namespace FEBuilderGBA
 
         bool isAllMethodNotNone()
         {
+            // Guard for screenshot/smoke-mode runs (#746); see isAllMethodNone.
+            if (this.ChangeDataList == null) return true;
             for (int i = 0; i < this.ChangeDataList.Count; i++)
             {
                 if (this.ChangeDataList[i].method == MargeMethod.NONE)
