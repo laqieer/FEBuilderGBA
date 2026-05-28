@@ -7,12 +7,14 @@
   <Grid RowDefinitions="Auto,*">
 
     <!-- Top read-config bar — unified via EditorTopBarWithInputs (#649).
-         Editable First Address + Read Count; no Read Size slot. -->
+         Editable First Address + Read Count; no Read Size slot.
+         ReadCountMaximum=4096 matches the pre-migration NumericUpDown limit. -->
     <controls:EditorTopBarWithInputs Grid.Row="0" Margin="0,0,0,4"
                                      Name="TopBar"
                                      AutomationProperties.AutomationId="SongTrack_TopBar"
                                      ReadStartLabel="First Address:"
                                      ReadCountLabel="Read Count:"
+                                     ReadCountMaximum="4096"
                                      ReadStartAutomationId="SongTrack_ReadStartAddress_Input"
                                      ReadCountAutomationId="SongTrack_ReadCount_Input"
                                      ReloadAutomationId="SongTrack_ReloadList_Button"

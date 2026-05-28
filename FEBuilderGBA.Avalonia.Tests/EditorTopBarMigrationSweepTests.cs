@@ -141,28 +141,60 @@ public class EditorTopBarMigrationSweepTests
     }
 
     [Theory]
-    [MemberData(nameof(AllMigratedViews))]
-    public void MigratedView_DoesNotContainLegacyHandRolledTopBar(string viewName)
+    [MemberData(nameof(ReadOnlyMigratedViews))]
+    public void ReadOnlyMigratedView_DoesNotContainLegacyHandRolledTopBar(string viewName)
     {
-        // Predicate: detect a `<Border ...> <StackPanel ... Orientation="Horizontal"
-        // ...> <Label Content="(Read Start Address|First Address|...)" ...
-        // ... <NumericUpDown ... Reload" Click="ReloadList_Click" ...`.
-        //
-        // We approximate with a tighter regex — the legacy pattern always
-        // includes either `Label Content="Read Start Address"` /
-        // `Label Content="Read Count"` immediately next to a NumericUpDown
-        // with `IsEnabled="False"` (the read-only display pattern). If
-        // both still appear inside a <Border>...<StackPanel>... block,
-        // the view hasn't fully migrated.
+        // The legacy read-only pattern always contains an
+        // `IsEnabled="False"` NumericUpDown for ReadStartAddress (an
+        // editable input being used as a display field). After migrating
+        // to EditorTopBar that NumericUpDown is replaced by a TextBlock
+        // slot, so this regex MUST NOT match.
         string axaml = ReadView(viewName);
-        // Block on either pattern that the read-only migrations were
-        // supposed to remove. The 4 editable migrations should not include
-        // an IsEnabled="False" NumericUpDown for ReadStart/ReadCount.
         var legacyReadOnlyRegex = new Regex(
             "<NumericUpDown[^>]*Name=\"ReadStartAddressBox\"[^>]*IsEnabled=\"False\"",
             RegexOptions.Singleline);
         Assert.False(legacyReadOnlyRegex.IsMatch(axaml),
             $"{viewName}: still contains legacy IsEnabled=\"False\" ReadStartAddressBox NumericUpDown");
+    }
+
+    [Theory]
+    [MemberData(nameof(EditableMigratedViews))]
+    public void EditableMigratedView_DoesNotContainLegacyHandRolledTopBar(string viewName)
+    {
+        // Pre-migration editable top-bar pattern (panel3 / panel1):
+        //   <Border ...> <StackPanel Orientation="Horizontal" ...>
+        //     ... <NumericUpDown ... Name="(ReadStartAddressBox
+        //         |TopAddressBox|NumericUpDown1)" ... Maximum="..." .../>
+        //     ... <NumericUpDown ... Name="(ReadCountBox|NumericUpDown2)" .../>
+        //     ... <Button ... Click="(ReloadList_Click|Reload_Click)" .../>
+        //   </StackPanel> </Border>
+        //
+        // The DISTINGUISHING marker (which the per-entry write bar in
+        // AIScriptView's panel5 lacks) is the *pairing* of a ReadStart-
+        // style NumericUpDown name with a Reload button inside the same
+        // <Border><StackPanel> block.
+        //
+        // After migration the entire block is replaced by
+        // <controls:EditorTopBarWithInputs ... /> so this combined pattern
+        // MUST NOT match.
+        string axaml = ReadView(viewName);
+
+        // The unified control must be present.
+        Assert.Contains("<controls:EditorTopBarWithInputs", axaml);
+
+        // Match the legacy top-bar block: a <Border>/<StackPanel> wrapper
+        // that contains BOTH a ReadStart-style NumericUpDown AND a Reload
+        // button — the combo only existed on the migrated top-bar, not on
+        // any other panel (e.g. AIScript's panel5 per-entry write bar uses
+        // AddressBox + ReadByteCountBox, not ReadStartAddressBox).
+        var legacyEditableRegex = new Regex(
+            "<Border[^>]*>\\s*<StackPanel[^>]*Orientation=\"Horizontal\"[^>]*>" +
+            ".*?<NumericUpDown[^>]*Name=\"(?:ReadStartAddressBox|TopAddressBox|NumericUpDown1)\"" +
+            ".*?<Button[^>]*Click=\"(?:ReloadList_Click|Reload_Click)\"[^>]*/>" +
+            ".*?</StackPanel>\\s*</Border>",
+            RegexOptions.Singleline);
+        Assert.False(legacyEditableRegex.IsMatch(axaml),
+            $"{viewName}: still contains a legacy <Border><StackPanel> top-bar with ReadStart-style NumericUpDown + direct Click=\"Reload*_Click\" button");
     }
 
     [Theory]

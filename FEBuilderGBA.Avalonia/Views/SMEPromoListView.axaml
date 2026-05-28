@@ -11,13 +11,17 @@
     <!-- Top toolbar: Address + Count + Reload — unified via
          EditorTopBarWithInputs (#649). Address/Count remain editable
          (synced to ViewModel by the code-behind on ReloadRequested).
-         ShowReadSize=False because this editor only has Address + Count. -->
+         ShowReadSize=False because this editor only has Address + Count.
+         ReadCountMinimum=1 / ReadCountMaximum=256 match the pre-migration
+         NumericUpDown limits. -->
     <controls:EditorTopBarWithInputs DockPanel.Dock="Top"
                                      Name="TopBar"
                                      Margin="8,4,8,0"
                                      AutomationProperties.AutomationId="SMEPromoList_TopBar"
                                      ReadStartLabel="Address:"
                                      ReadCountLabel="Count:"
+                                     ReadCountMinimum="1"
+                                     ReadCountMaximum="256"
                                      ReadStartAutomationId="SMEPromoList_NumericUpDown1_Input"
                                      ReadCountAutomationId="SMEPromoList_NumericUpDown2_Input"
                                      ReloadAutomationId="SMEPromoList_Reload_Button"

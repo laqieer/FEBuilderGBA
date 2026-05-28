@@ -11,10 +11,12 @@
          button and Filter TextBox stay in a sibling Border underneath so
          the unified bar's "Reload pinned to right edge" contract holds. -->
     <StackPanel Grid.Row="0" Margin="0,0,0,4">
+      <!-- ReadCountMaximum=4096 matches the pre-migration NumericUpDown limit. -->
       <controls:EditorTopBarWithInputs Name="TopBar"
                                        AutomationProperties.AutomationId="SongInstrument_TopBar"
                                        ReadStartLabel="First Address:"
                                        ReadCountLabel="Read Count:"
+                                       ReadCountMaximum="4096"
                                        ReadStartAutomationId="SongInstrument_ReadStartAddress_Input"
                                        ReadCountAutomationId="SongInstrument_ReadCount_Input"
                                        ReloadAutomationId="SongInstrument_ReloadList_Button"

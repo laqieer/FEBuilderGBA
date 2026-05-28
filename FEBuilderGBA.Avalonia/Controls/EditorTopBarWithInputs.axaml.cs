@@ -93,6 +93,77 @@ namespace FEBuilderGBA.Avalonia.Controls
             AvaloniaProperty.Register<EditorTopBarWithInputs, string>(nameof(ReadSizeLabel), defaultValue: "Read Size:");
 
         // -----------------------------------------------------------------
+        // Per-slot Min/Max styled properties (#741 review)
+        //
+        // Pre-migration editors used stricter NumericUpDown limits (e.g.
+        // SongTrack/SongInstrument/AIScript: ReadCount max 4096;
+        // SMEPromoList: ReadCount max 256). Without these properties the
+        // unified bar's hard-coded defaults would WIDEN the accepted range,
+        // letting users type values the legacy UI prevented. Hosts set
+        // these to the same limits the pre-migration NumericUpDowns had.
+        // -----------------------------------------------------------------
+
+        public static readonly StyledProperty<decimal> ReadStartMinimumProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadStartMinimum), defaultValue: 0m);
+
+        public static readonly StyledProperty<decimal> ReadStartMaximumProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadStartMaximum), defaultValue: 4294967295m);
+
+        public static readonly StyledProperty<decimal> ReadCountMinimumProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadCountMinimum), defaultValue: 0m);
+
+        public static readonly StyledProperty<decimal> ReadCountMaximumProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadCountMaximum), defaultValue: 65535m);
+
+        public static readonly StyledProperty<decimal> ReadSizeMinimumProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadSizeMinimum), defaultValue: 0m);
+
+        public static readonly StyledProperty<decimal> ReadSizeMaximumProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadSizeMaximum), defaultValue: 65535m);
+
+        /// <summary>Minimum allowed value for the Read Start input.</summary>
+        public decimal ReadStartMinimum
+        {
+            get => GetValue(ReadStartMinimumProperty);
+            set => SetValue(ReadStartMinimumProperty, value);
+        }
+
+        /// <summary>Maximum allowed value for the Read Start input.</summary>
+        public decimal ReadStartMaximum
+        {
+            get => GetValue(ReadStartMaximumProperty);
+            set => SetValue(ReadStartMaximumProperty, value);
+        }
+
+        /// <summary>Minimum allowed value for the Read Count input.</summary>
+        public decimal ReadCountMinimum
+        {
+            get => GetValue(ReadCountMinimumProperty);
+            set => SetValue(ReadCountMinimumProperty, value);
+        }
+
+        /// <summary>Maximum allowed value for the Read Count input.</summary>
+        public decimal ReadCountMaximum
+        {
+            get => GetValue(ReadCountMaximumProperty);
+            set => SetValue(ReadCountMaximumProperty, value);
+        }
+
+        /// <summary>Minimum allowed value for the Read Size input.</summary>
+        public decimal ReadSizeMinimum
+        {
+            get => GetValue(ReadSizeMinimumProperty);
+            set => SetValue(ReadSizeMinimumProperty, value);
+        }
+
+        /// <summary>Maximum allowed value for the Read Size input.</summary>
+        public decimal ReadSizeMaximum
+        {
+            get => GetValue(ReadSizeMaximumProperty);
+            set => SetValue(ReadSizeMaximumProperty, value);
+        }
+
+        // -----------------------------------------------------------------
         // AutomationId overrides (for back-compat with pre-#701 E2E ids)
         // -----------------------------------------------------------------
 
@@ -230,6 +301,7 @@ namespace FEBuilderGBA.Avalonia.Controls
             ApplyAllVisibility();
             ApplyAllLabels();
             ApplyInputsEnabled();
+            ApplyAllLimits();
 
             AttachedToVisualTree += (_, _) => PropagateInnerAutomationIds();
         }
@@ -272,6 +344,52 @@ namespace FEBuilderGBA.Avalonia.Controls
             else if (change.Property == ReadSizeLabelProperty)
             {
                 if (ReadSizeLabelBlock != null) ReadSizeLabelBlock.Text = ReadSizeLabel;
+            }
+            else if (change.Property == ReadStartMinimumProperty)
+            {
+                if (ReadStartInput != null) ReadStartInput.Minimum = ReadStartMinimum;
+            }
+            else if (change.Property == ReadStartMaximumProperty)
+            {
+                if (ReadStartInput != null) ReadStartInput.Maximum = ReadStartMaximum;
+            }
+            else if (change.Property == ReadCountMinimumProperty)
+            {
+                if (ReadCountInput != null) ReadCountInput.Minimum = ReadCountMinimum;
+            }
+            else if (change.Property == ReadCountMaximumProperty)
+            {
+                if (ReadCountInput != null) ReadCountInput.Maximum = ReadCountMaximum;
+            }
+            else if (change.Property == ReadSizeMinimumProperty)
+            {
+                if (ReadSizeInput != null) ReadSizeInput.Minimum = ReadSizeMinimum;
+            }
+            else if (change.Property == ReadSizeMaximumProperty)
+            {
+                if (ReadSizeInput != null) ReadSizeInput.Maximum = ReadSizeMaximum;
+            }
+        }
+
+        void ApplyAllLimits()
+        {
+            // Push styled-property defaults onto the inner NumericUpDowns so
+            // the initial render matches what XAML defined. Per-host overrides
+            // flow through OnPropertyChanged.
+            if (ReadStartInput != null)
+            {
+                ReadStartInput.Minimum = ReadStartMinimum;
+                ReadStartInput.Maximum = ReadStartMaximum;
+            }
+            if (ReadCountInput != null)
+            {
+                ReadCountInput.Minimum = ReadCountMinimum;
+                ReadCountInput.Maximum = ReadCountMaximum;
+            }
+            if (ReadSizeInput != null)
+            {
+                ReadSizeInput.Minimum = ReadSizeMinimum;
+                ReadSizeInput.Maximum = ReadSizeMaximum;
             }
         }
 

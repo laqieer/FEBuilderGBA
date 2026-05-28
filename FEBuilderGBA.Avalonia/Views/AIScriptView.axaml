@@ -23,11 +23,13 @@
                     Name="FilterCombo" Width="160" VerticalAlignment="Center" SelectedIndex="0" />
         </StackPanel>
       </Border>
+      <!-- ReadCountMaximum=4096 matches the pre-migration NumericUpDown limit. -->
       <controls:EditorTopBarWithInputs Margin="0,4,0,0"
                                        Name="TopBar"
                                        AutomationProperties.AutomationId="AIScript_TopBar"
                                        ReadStartLabel="Top Address:"
                                        ReadCountLabel="Read Count:"
+                                       ReadCountMaximum="4096"
                                        ReadStartAutomationId="AIScript_TopAddress_Input"
                                        ReadCountAutomationId="AIScript_ReadCount_Input"
                                        ReloadAutomationId="AIScript_Reload_Button"
