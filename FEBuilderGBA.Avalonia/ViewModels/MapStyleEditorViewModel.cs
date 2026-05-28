@@ -425,10 +425,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 break;
             }
 
+            // #660: orphan-style fallback. When no map_setting references this
+            // OBJ plist (vanilla FE8U has a number of tilesets used by no
+            // shipped chapter), palettePlist and configPlist would stay 0 and
+            // the editor would show "Palette Address: 0x00000000" / empty
+            // Map Chip Preview. Pick reasonable defaults so something
+            // renders:
+            //   • When PLIST tables are SPLIT (MapChangeCore.IsPlistSplit
+            //     true — each PLIST is independent by convention), pick the
+            //     same index for PAL and CONFIG as we're showing for OBJ.
+            //     That's the WF assumption for split-table ROMs.
+            //   • When tables are SHARED, plist 0 is the only safe fallback.
+            //     Anything else risks dereferencing through the wrong
+            //     index in a co-located table.
+            if (!resolvedFromMapSetting)
+            {
+                bool isSplit = MapChangeCore.IsPlistSplit(rom);
+                byte fallbackIndex = (byte)Math.Min((int)index, 0xFF);
+                palettePlist = isSplit ? fallbackIndex : (byte)0;
+                configPlist  = isSplit ? fallbackIndex : (byte)0;
+                obj2Plist = 0;
+                // Leave resolvedFromMapSetting false — the resolution is
+                // opportunistic, not authoritative; downstream code that
+                // cares (e.g. WriteChipsetConfig) gates on the explicit
+                // CanEditChipsetConfig predicate.
+            }
+
             // Config pointer via PlistToOffsetAddr (configTableBase + configPlist*4).
             // Also retain the resolved configPlist itself so WriteChipsetConfig
             // can rewrite the correct PLIST slot without re-scanning map_setting.
-            if (resolvedFromMapSetting && rom.RomInfo.map_config_pointer != 0)
+            // #660: drop the `resolvedFromMapSetting &&` guard so the fallback
+            // resolved palette/config plists above also get their pointer
+            // dereferenced. WriteChipsetConfig still requires a real plist
+            // (CanEditChipsetConfig gate), so this is a read-only enrichment.
+            if (rom.RomInfo.map_config_pointer != 0)
             {
                 _currentConfigPlist = configPlist;
                 uint configTableBase = rom.p32(rom.RomInfo.map_config_pointer);
@@ -448,7 +478,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // (palTableBase + palettePlist*4). Stored in PaletteBaseAddress
             // so subsequent PaletteCombo/PaletteTypeCombo changes can
             // re-index from this stable origin.
-            if (resolvedFromMapSetting && rom.RomInfo.map_pal_pointer != 0)
+            // #660: drop the `resolvedFromMapSetting &&` guard so the fallback
+            // palette plist (split-table same-index or shared-table 0) gets
+            // dereferenced too. The user-reported "Palette Address: 0x00000000"
+            // on orphan Map Style 0x02 was caused by this guard skipping the
+            // resolution path entirely.
+            if (rom.RomInfo.map_pal_pointer != 0)
             {
                 uint paletteTableBase = rom.p32(rom.RomInfo.map_pal_pointer);
                 if (U.isSafetyOffset(paletteTableBase, rom))
