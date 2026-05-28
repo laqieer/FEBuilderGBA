@@ -19,6 +19,11 @@
           <Button AutomationProperties.AutomationId="MapEditor_ZoomOutBtn_Button" Name="ZoomOutBtn" Content="-" Width="30" />
           <CheckBox AutomationProperties.AutomationId="MapEditor_PaintMode_Check" Name="PaintModeCheck" Content="Paint Mode" VerticalAlignment="Center" Margin="16,0,0,0" />
           <TextBlock Text="(click palette to pick a chipset, then click map to paint)" VerticalAlignment="Center" Foreground="Gray" FontSize="11" />
+          <Button AutomationProperties.AutomationId="MapEditor_ExportCsv_Button"
+                  Name="ExportCsvButton"
+                  Content="Export Map (CSV)"
+                  Margin="16,0,0,0"
+                  VerticalAlignment="Center" />
         </StackPanel>
       </StackPanel>
 
