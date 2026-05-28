@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // throwing, so no try/catch is needed (Copilot review #638).
             // SupportPartner1/2 are 1-based unit IDs (WinForms convention);
             // ResolveUnitTableName takes a 0-based table index, so subtract 1.
-            // Pre-#725 we passed the 1-based ID directly, which off-set the
+            // Pre-#725 we passed the 1-based ID directly, which offset the
             // displayed name (and the Jump target) by one row.
             SupportPartner1Nud.NameText = _vm.SupportPartner1 == 0 ? "" : SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1 - 1);
             SupportPartner2Nud.NameText = _vm.SupportPartner2 == 0 ? "" : SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2 - 1);
