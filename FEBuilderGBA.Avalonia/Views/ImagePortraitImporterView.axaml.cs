@@ -78,11 +78,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // #707 Slice A: frame selector echoes WF mode strings.
             // Render pipeline (eye/mouth crop -> live preview) is the
-            // follow-up issue; here we just keep the status label in sync.
+            // follow-up issue (#717); here we just keep the status label
+            // in sync. The Value="0" default in AXAML guarantees the NUD
+            // is non-null on Open, but we keep the null-coalescing fallback
+            // because Avalonia NumericUpDown can transiently report null
+            // mid-edit (e.g. while the user clears the field to retype).
             FrameInput.ValueChanged += (_, _) =>
                 FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(
                     (int)(FrameInput.Value ?? 0));
-            FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(0);
+            FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(
+                (int)(FrameInput.Value ?? 0));
         }
 
         void LoadList()

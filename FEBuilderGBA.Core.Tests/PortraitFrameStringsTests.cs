@@ -14,7 +14,9 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData(3, "Mouth 1")]
         [InlineData(4, "Mouth 2")]
         [InlineData(5, "Mouth 3")]
-        [InlineData(6, "Mouth 4")]
+        // Frame 6 is intentionally the "Status screen" variant in WF —
+        // see PortraitFrameStrings.cs XML doc.
+        [InlineData(6, "Status screen Mouth 4")]
         [InlineData(7, "Mouth 5")]
         [InlineData(8, "Mouth 6")]
         [InlineData(9, "Mouth 7")]
@@ -34,18 +36,25 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("?", PortraitFrameStrings.GetWfModeString(frame));
         }
 
-        [Fact]
-        public void GetWfModeString_AllFrames_IncludeJapaneseLabel()
+        [Theory]
+        // Maps every frame index (0-10) to the WF Japanese substring
+        // expected inside the returned bilingual label. Ensures the
+        // original WF labels are preserved verbatim and that frame 6
+        // keeps its special "ステータス画面" prefix (WF parity).
+        [InlineData(0, "通常時")]
+        [InlineData(1, "半目")]
+        [InlineData(2, "とじ目")]
+        [InlineData(3, "口1")]
+        [InlineData(4, "口2")]
+        [InlineData(5, "口3")]
+        [InlineData(6, "ステータス画面 口4")]
+        [InlineData(7, "口5")]
+        [InlineData(8, "口6")]
+        [InlineData(9, "口7")]
+        [InlineData(10, "位置確認用")]
+        public void GetWfModeString_EveryFrame_IncludesJapaneseLabel(int frame, string expectedJapaneseSubstring)
         {
-            // Each WF mode string in the wizard includes the original
-            // Japanese label in parens — ensures bilingual labels are
-            // preserved when ported (regression guard).
-            Assert.Contains("通常時", PortraitFrameStrings.GetWfModeString(0));
-            Assert.Contains("半目", PortraitFrameStrings.GetWfModeString(1));
-            Assert.Contains("とじ目", PortraitFrameStrings.GetWfModeString(2));
-            Assert.Contains("口1", PortraitFrameStrings.GetWfModeString(3));
-            Assert.Contains("口7", PortraitFrameStrings.GetWfModeString(9));
-            Assert.Contains("位置確認用", PortraitFrameStrings.GetWfModeString(10));
+            Assert.Contains(expectedJapaneseSubstring, PortraitFrameStrings.GetWfModeString(frame));
         }
     }
 }
