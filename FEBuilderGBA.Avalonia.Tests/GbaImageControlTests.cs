@@ -65,6 +65,46 @@ public class GbaImageControlTests
     }
 
     [AvaloniaFact]
+    public void TryGetSourcePixel_BeforeBitmap_ReturnsFalse()
+    {
+        // Regression for #658: previously the click handler used outer
+        // UserControl coords with no bitmap check, so even an empty control
+        // produced spurious tile coords. The method must safely return false
+        // when there is no bitmap loaded (signature now takes
+        // PointerEventArgs? after Copilot bot review).
+        var control = new GbaImageControl();
+        Assert.False(control.TryGetSourcePixel(null, out int sx, out int sy));
+        Assert.Equal(0, sx);
+        Assert.Equal(0, sy);
+    }
+
+    [Theory]
+    // posX, posY, zoom, bitmapW, bitmapH, expected, expectedSrcX, expectedSrcY
+    [InlineData(0.0, 0.0, 1, 240, 160, true, 0, 0)]             // top-left at zoom 1
+    [InlineData(32.0, 16.0, 1, 240, 160, true, 32, 16)]         // mid at zoom 1
+    [InlineData(64.0, 32.0, 2, 240, 160, true, 32, 16)]         // mid at zoom 2 → /2
+    [InlineData(96.0, 48.0, 3, 240, 160, true, 32, 16)]         // mid at zoom 3 → /3
+    [InlineData(239.0, 159.0, 1, 240, 160, true, 239, 159)]     // bottom-right edge at zoom 1
+    [InlineData(240.0, 160.0, 1, 240, 160, false, 0, 0)]        // just past bottom-right (out of bounds)
+    [InlineData(-0.5, 0.0, 1, 240, 160, false, 0, 0)]           // negative X
+    [InlineData(0.0, -0.5, 1, 240, 160, false, 0, 0)]           // negative Y
+    [InlineData(0.0, 0.0, 0, 240, 160, false, 0, 0)]            // zero zoom
+    [InlineData(0.0, 0.0, 1, 0, 0, false, 0, 0)]                // zero-size bitmap
+    public void TryComputeSourcePixel_ConvertsZoomAndBoundsCorrectly(
+        double posX, double posY, int zoom, int bitmapW, int bitmapH,
+        bool expectedReturn, int expectedSrcX, int expectedSrcY)
+    {
+        // Regression for #658: the actual coord math lives in a pure helper
+        // so we can verify the zoom-aware conversion + bounds-checking without
+        // constructing a real PointerEventArgs (Copilot bot review on PR #726).
+        bool ok = GbaImageControl.TryComputeSourcePixel(
+            posX, posY, zoom, bitmapW, bitmapH, out int srcX, out int srcY);
+        Assert.Equal(expectedReturn, ok);
+        Assert.Equal(expectedSrcX, srcX);
+        Assert.Equal(expectedSrcY, srcY);
+    }
+
+    [AvaloniaFact]
     public void SetRgbaData_UpdatesImageDimensions()
     {
         var control = new GbaImageControl();

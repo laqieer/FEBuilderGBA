@@ -122,6 +122,51 @@ namespace FEBuilderGBA.Avalonia.Controls
         }
 
         /// <summary>
+        /// Convert a pointer event into the displayed bitmap's source-pixel coordinates,
+        /// accounting for the internal ScrollViewer + zoom. The earlier MapEditor click
+        /// handler called <c>e.GetPosition(MapImageControl)</c> on the outer UserControl,
+        /// which gave coordinates that did NOT account for the inner ImageDisplay's
+        /// position inside the DockPanel/ScrollViewer or for the control's zoom — so a
+        /// click landed at the wrong tile (issue #658).
+        /// </summary>
+        public bool TryGetSourcePixel(PointerEventArgs? e, out int srcX, out int srcY)
+        {
+            srcX = 0;
+            srcY = 0;
+            if (e == null || _bitmap == null || ImageDisplay == null) return false;
+            var pos = e.GetPosition(ImageDisplay);
+            // ImageDisplay has explicit Width/Height = pixel * _zoom (UpdateDisplay),
+            // so each source pixel maps to _zoom display pixels. The actual math
+            // lives in TryComputeSourcePixel so it can be unit-tested without
+            // constructing a real PointerEventArgs.
+            return TryComputeSourcePixel(pos.X, pos.Y, _zoom,
+                _bitmap.PixelSize.Width, _bitmap.PixelSize.Height,
+                out srcX, out srcY);
+        }
+
+        /// <summary>
+        /// Pure-math helper: convert a pointer position (in <c>ImageDisplay</c> local
+        /// DIPs) plus a zoom factor + source bitmap dimensions into source-pixel
+        /// coordinates. Extracted so unit tests can validate the conversion at
+        /// different zooms without having to fabricate a real
+        /// <see cref="PointerEventArgs"/> (Copilot bot review on PR #726).
+        /// </summary>
+        internal static bool TryComputeSourcePixel(double posX, double posY, int zoom,
+            int bitmapW, int bitmapH, out int srcX, out int srcY)
+        {
+            srcX = 0;
+            srcY = 0;
+            if (zoom <= 0 || bitmapW <= 0 || bitmapH <= 0) return false;
+            if (posX < 0 || posY < 0) return false;
+            int sx = (int)(posX / zoom);
+            int sy = (int)(posY / zoom);
+            if (sx >= bitmapW || sy >= bitmapH) return false;
+            srcX = sx;
+            srcY = sy;
+            return true;
+        }
+
+        /// <summary>
         /// Mouse wheel zoom centered on cursor position.
         /// Keeps the content point under the cursor stable after zoom.
         /// </summary>
