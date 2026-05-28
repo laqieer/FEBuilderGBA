@@ -129,20 +129,38 @@ namespace FEBuilderGBA.Avalonia.Controls
         /// position inside the DockPanel/ScrollViewer or for the control's zoom — so a
         /// click landed at the wrong tile (issue #658).
         /// </summary>
-        public bool TryGetSourcePixel(PointerEventArgs e, out int srcX, out int srcY)
+        public bool TryGetSourcePixel(PointerEventArgs? e, out int srcX, out int srcY)
         {
             srcX = 0;
             srcY = 0;
             if (e == null || _bitmap == null || ImageDisplay == null) return false;
             var pos = e.GetPosition(ImageDisplay);
-            if (pos.X < 0 || pos.Y < 0) return false;
             // ImageDisplay has explicit Width/Height = pixel * _zoom (UpdateDisplay),
-            // so each source pixel maps to _zoom display pixels.
-            int sx = (int)(pos.X / _zoom);
-            int sy = (int)(pos.Y / _zoom);
-            int w = _bitmap.PixelSize.Width;
-            int h = _bitmap.PixelSize.Height;
-            if (sx < 0 || sy < 0 || sx >= w || sy >= h) return false;
+            // so each source pixel maps to _zoom display pixels. The actual math
+            // lives in TryComputeSourcePixel so it can be unit-tested without
+            // constructing a real PointerEventArgs.
+            return TryComputeSourcePixel(pos.X, pos.Y, _zoom,
+                _bitmap.PixelSize.Width, _bitmap.PixelSize.Height,
+                out srcX, out srcY);
+        }
+
+        /// <summary>
+        /// Pure-math helper: convert a pointer position (in <c>ImageDisplay</c> local
+        /// DIPs) plus a zoom factor + source bitmap dimensions into source-pixel
+        /// coordinates. Extracted so unit tests can validate the conversion at
+        /// different zooms without having to fabricate a real
+        /// <see cref="PointerEventArgs"/> (Copilot bot review on PR #726).
+        /// </summary>
+        internal static bool TryComputeSourcePixel(double posX, double posY, int zoom,
+            int bitmapW, int bitmapH, out int srcX, out int srcY)
+        {
+            srcX = 0;
+            srcY = 0;
+            if (zoom <= 0 || bitmapW <= 0 || bitmapH <= 0) return false;
+            if (posX < 0 || posY < 0) return false;
+            int sx = (int)(posX / zoom);
+            int sy = (int)(posY / zoom);
+            if (sx >= bitmapW || sy >= bitmapH) return false;
             srcX = sx;
             srcY = sy;
             return true;
