@@ -50,6 +50,32 @@ namespace FEBuilderGBA.Avalonia.Views
             // CONFIG cache + plist (Copilot bot v2 inline review on PR #691).
             // Set synchronously now so we don't race the first OnSelected.
             SetChipsetEditingEnabled(false);
+
+            // OBJ Image Import button gating (Copilot bot v2 inline review
+            // item 1 on PR #716). Initially disabled; OnSelected refreshes
+            // it once an entry is loaded and the VM resolves a valid
+            // OBJ PLIST + OBJ palette. Listening to CanImportObj's
+            // OnPropertyChanged keeps the button in sync with both the
+            // entry-level reload (ObjAddress2 / _currentObjPlist updates)
+            // and the per-style ObjAddress2 mutation (FE7 dual-tileset).
+            if (ObjImportButton != null) ObjImportButton.IsEnabled = false;
+            _vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(_vm.CanImportObj))
+                    RefreshObjImportEnabled();
+            };
+        }
+
+        /// <summary>
+        /// Push the VM's current <see cref="MapStyleEditorViewModel.CanImportObj"/>
+        /// value onto the OBJ Image Import button's <c>IsEnabled</c>.
+        /// Called from <see cref="OnSelected"/> after every entry load and
+        /// from the VM <c>PropertyChanged</c> handler so the button reflects
+        /// the latest predicate state.
+        /// </summary>
+        void RefreshObjImportEnabled()
+        {
+            if (ObjImportButton != null) ObjImportButton.IsEnabled = _vm.CanImportObj;
         }
 
         /// <summary>
@@ -165,6 +191,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (chipsetLoaded) ReadSlotsFromVM();
                 else ClearChipsetUI();
                 SetChipsetEditingEnabled(chipsetLoaded);
+                // #710 / Copilot bot v2 item 1: re-evaluate the OBJ Import
+                // button after every entry load so it's disabled on
+                // unsupported entries (FE7 obj2, unresolved plist, ROM-less
+                // state).
+                RefreshObjImportEnabled();
 
                 // Sync the top-bar MapStyleCombo to the same entry without
                 // recursing — block the SelectionChanged handler while we
@@ -1084,10 +1115,34 @@ namespace FEBuilderGBA.Avalonia.Views
         internal static byte[]? ConvertIndexedToRgba(byte[]? indexData, byte[]? palRgba, int w, int h, out string error)
         {
             error = "";
-            int expected = w * h;
-            if (indexData == null || indexData.Length < expected)
+
+            // Negative dimensions are nonsensical and would make every
+            // downstream check unreliable (Copilot bot v2 inline review
+            // on PR #716).
+            if (w < 0 || h < 0)
             {
-                error = $"indexed pixel data is shorter than expected ({indexData?.Length ?? 0} < {expected}).";
+                error = $"negative image dimensions ({w}x{h}).";
+                return null;
+            }
+
+            // Use long arithmetic for the pixel-count + RGBA-buffer size
+            // computations so pathological inputs (e.g. width=256 × height=8M)
+            // can't wrap past int.MaxValue and turn the bounds check into a
+            // false negative (Copilot bot v2 inline review item 2 + 3 on PR
+            // #716). The actual byte[] allocation requires int — bound the
+            // RGBA size to int.MaxValue and fail early when over.
+            long expectedLong = (long)w * (long)h;
+            long rgbaSizeLong = expectedLong * 4L;
+            if (rgbaSizeLong > int.MaxValue)
+            {
+                error = $"image too large to decode (RGBA size {rgbaSizeLong} bytes > int.MaxValue).";
+                return null;
+            }
+            int expected = (int)expectedLong;
+
+            if (indexData == null || indexData.LongLength < expectedLong)
+            {
+                error = $"indexed pixel data is shorter than expected ({indexData?.LongLength ?? 0} < {expectedLong}).";
                 return null;
             }
             if (palRgba == null || palRgba.Length < 4)
@@ -1095,7 +1150,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 error = "indexed image has no usable palette.";
                 return null;
             }
-            byte[] rgba = new byte[expected * 4];
+            byte[] rgba = new byte[(int)rgbaSizeLong];
             for (int i = 0; i < expected; i++)
             {
                 int palIdx = indexData[i];
@@ -1105,10 +1160,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     error = $"indexed pixel {i} uses palette entry {palIdx} but palette has only {palRgba.Length / 4} colors.";
                     return null;
                 }
-                rgba[i * 4 + 0] = palRgba[palOff + 0];
-                rgba[i * 4 + 1] = palRgba[palOff + 1];
-                rgba[i * 4 + 2] = palRgba[palOff + 2];
-                rgba[i * 4 + 3] = palRgba[palOff + 3];
+                int dstOff = i * 4;
+                rgba[dstOff + 0] = palRgba[palOff + 0];
+                rgba[dstOff + 1] = palRgba[palOff + 1];
+                rgba[dstOff + 2] = palRgba[palOff + 2];
+                rgba[dstOff + 3] = palRgba[palOff + 3];
             }
             return rgba;
         }

@@ -421,7 +421,7 @@ namespace FEBuilderGBA.Core.Tests
         /// #710: ResolvePlistSlotAddr accepts <see cref="MapChangeCore.PlistType.OBJECT"/>
         /// and returns the per-entry slot inside the <c>map_obj_pointer</c>
         /// table even when that slot currently holds a null pointer
-        /// (matches WF Write_Plsit's semantics: the dereferenced target
+        /// (matches WF Write_Plsit semantics: the dereferenced target
         /// is not inspected — only the slot's own address matters).
         /// </summary>
         [Fact]

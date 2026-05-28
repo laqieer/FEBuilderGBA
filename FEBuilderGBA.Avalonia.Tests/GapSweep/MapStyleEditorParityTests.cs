@@ -1255,6 +1255,31 @@ public class MapStyleEditorParityTests
     }
 
     /// <summary>
+    /// #710 + Copilot bot v2 review item 1 on PR #716: the OBJ Image
+    /// Import button is gated at runtime by
+    /// <see cref="MapStyleEditorViewModel.CanImportObj"/>. The code-behind
+    /// must subscribe to the VM <c>PropertyChanged</c> event for
+    /// <c>CanImportObj</c> and call <c>RefreshObjImportEnabled</c> so the
+    /// button's <c>IsEnabled</c> stays in sync with the predicate.
+    /// </summary>
+    [Fact]
+    public void View_ObjImport_Click_GatesIsEnabledOnCanImportObj()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // Subscribes to CanImportObj property changes.
+        Assert.Contains("nameof(_vm.CanImportObj)", code);
+        // Calls RefreshObjImportEnabled (declares + at least one call site).
+        Assert.Contains("RefreshObjImportEnabled", code);
+        // The refresh helper pushes _vm.CanImportObj onto IsEnabled.
+        var bodyMatch = Regex.Match(code,
+            @"void RefreshObjImportEnabled[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|async\s|/// |//))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "RefreshObjImportEnabled method not found");
+        Assert.Contains("_vm.CanImportObj", bodyMatch.Value);
+        Assert.Contains("ObjImportButton.IsEnabled", bodyMatch.Value);
+    }
+
+    /// <summary>
     /// #710: the OBJ Image Import button must wire Click to the
     /// ObjImport_Click handler in AXAML AND the handler method must exist
     /// in the code-behind, wrapped in an undo scope.
