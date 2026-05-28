@@ -537,13 +537,40 @@ namespace FEBuilderGBA.Avalonia.Services
 
         /// <summary>
         /// Load a class wait icon (map sprite) for the given wait icon index (B6 field).
-        /// The wait icon table stores compressed 16x16 (2x2 tile) sprites per entry.
-        /// Returns null on failure.
+        /// The wait icon table stores LZ77-compressed sprite strips per entry; the
+        /// animation type (byte at <c>entry+2</c>) determines both the per-frame
+        /// dimensions AND the Y offset of the first frame inside the decompressed
+        /// strip.
+        ///
+        /// <para>
+        /// Mirrors WinForms <c>ImageUnitWaitIconFrom.DrawWaitUnitIcon</c>
+        /// (<c>height16_limit=false</c>, <c>step=0</c>) which crops the first
+        /// frame from the strip at the following rectangles (issue #342):
+        /// </para>
+        /// <list type="bullet">
+        ///   <item><description>animType 0: <c>Rectangle(0, 0, 16, 16)</c></description></item>
+        ///   <item><description>animType 1: <c>Rectangle(0, 8, 16, 24)</c> — Y=8 offset is the bug that issue #342 patches.</description></item>
+        ///   <item><description>animType 2: <c>Rectangle(0, 0, 32, 32)</c></description></item>
+        /// </list>
+        ///
+        /// <para>
+        /// Previously this helper decoded only <c>tilesW × tilesH</c> from
+        /// <c>Y=0</c>, which for animType 1 returned the 8-pixel padding header
+        /// + the top 16 rows of the cavalier sprite, missing the bottom 8 rows.
+        /// User-visible symptom (PR #667 follow-up screenshot): Social Knight
+        /// row only shows the rider's head, no horse legs — the icon looked
+        /// "cut" because the producer-side crop rectangle was wrong.
+        /// </para>
+        ///
+        /// Returns null on any ROM/service failure or when the strip is too
+        /// short to satisfy the per-animType crop rectangle.
         /// </summary>
         public static IImage LoadClassWaitIcon(uint waitIconIndex)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return null;
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
 
             try
             {
@@ -575,19 +602,119 @@ namespace FEBuilderGBA.Avalonia.Services
                 byte[] palette = ImageUtilCore.GetPalette(palAddr, 16);
                 if (palette == null) return null;
 
-                // Determine tile dimensions based on animation type (matches WinForms):
-                // Type 0: 16x16 (2x2 tiles)
-                // Type 1: 16x24 (2x3 tiles)
-                // Type 2: 32x32 (4x4 tiles)
-                int tilesW = animType == 2 ? 4 : 2;
-                int tilesH = animType == 0 ? 2 : animType == 1 ? 3 : 4;
+                // Per-animType strip width and per-frame crop rectangle.
+                // Matches WinForms ImageUnitWaitIconFrom.LoadWaitUnitIcon (strip
+                // width = 32 for animType 2, 16 otherwise) and
+                // DrawWaitUnitIcon's first-frame crop for height16_limit=false.
+                int stripWidth;
+                int cropX, cropY, cropW, cropH;
+                if (animType == 2)
+                {
+                    stripWidth = 32;
+                    cropX = 0; cropY = 0; cropW = 32; cropH = 32;
+                }
+                else if (animType == 1)
+                {
+                    stripWidth = 16;
+                    // The strip starts with an 8-pixel padding tile at Y=0..7;
+                    // the actual 16x24 first frame begins at Y=8 (WinForms
+                    // line 138 + 142 in ImageUnitWaitIconFrom.cs).
+                    cropX = 0; cropY = 8; cropW = 16; cropH = 24;
+                }
+                else
+                {
+                    // animType 0 and any unknown value default to the 16x16
+                    // first-frame contract (WinForms line 165 - the `b2 == 0`
+                    // branch with 2*8 width and (2*8) + (b2*8) = 16 height).
+                    stripWidth = 16;
+                    cropX = 0; cropY = 0; cropW = 16; cropH = 16;
+                }
 
-                return ImageUtilCore.LoadROMTiles4bpp(spriteAddr, palette, tilesW, tilesH, true);
+                // Decompress the LZ77 strip and compute its full pixel height.
+                // Mirrors ImageUtil.CalcHeight(width, image_size, align=8):
+                //   ceil(image_size / (width/2)) aligned UP to a multiple of 8.
+                byte[] stripData = LZ77.decompress(rom.Data, spriteAddr);
+                if (stripData == null || stripData.Length == 0) return null;
+
+                int stripHeight = CalcStripHeight(stripWidth, stripData.Length);
+                if (stripHeight <= 0) return null;
+
+                // Bounds-check the crop rectangle against the actual strip size.
+                // If the strip is too short to satisfy the WF crop, bail rather
+                // than render a partial/corrupt image. Matches the null-safety
+                // contract this helper has on every other failure path.
+                if (cropX + cropW > stripWidth) return null;
+                if (cropY + cropH > stripHeight) return null;
+
+                using IImage strip = svc.Decode4bppTiles(
+                    stripData, 0, stripWidth, stripHeight, palette);
+                if (strip == null) return null;
+
+                return CropIndexedRegion(strip, cropX, cropY, cropW, cropH);
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Compute the rendered strip height from an LZ77-decompressed 4bpp
+        /// byte length. Mirrors WinForms <c>ImageUtil.CalcHeight(width,
+        /// image_size, align=8)</c> exactly so the wait-icon Y=8 crop lines up
+        /// with the WinForms reference even on odd / partial / non-tile-aligned
+        /// decompression lengths.
+        /// </summary>
+        static int CalcStripHeight(int width, int imageSize)
+        {
+            if (width <= 0 || imageSize <= 0) return 0;
+            int half = width / 2;          // 4bpp = 2 pixels/byte
+            if (half <= 0) return 0;
+            int height = imageSize / half;
+            if (imageSize % half != 0) height++;
+            // Align UP to a multiple of 8 rows. WinForms' CalcHeight uses
+            // `if (h % align != 0) h += align;` then `h / align * align` which
+            // is equivalent to ceil(h / align) * align — implement directly.
+            const int align = 8;
+            int remainder = height % align;
+            if (remainder != 0) height += (align - remainder);
+            return height;
+        }
+
+        /// <summary>
+        /// Crop a sub-rectangle out of an indexed strip image, returning a
+        /// fresh indexed <see cref="IImage"/> sharing the strip's palette.
+        /// Used by <see cref="LoadClassWaitIcon"/> to apply the per-animType
+        /// first-frame WF crop rectangle (animType 1's <c>Y=8</c> in
+        /// particular).
+        /// </summary>
+        static IImage CropIndexedRegion(IImage src, int x, int y, int w, int h)
+        {
+            var svc = CoreState.ImageService;
+            if (svc == null) return null;
+            if (src == null) return null;
+            if (!src.IsIndexed) return null;
+
+            byte[] srcIdx = src.GetPixelData();
+            if (srcIdx == null) return null;
+            int srcW = src.Width;
+            int srcH = src.Height;
+            if (x < 0 || y < 0 || w <= 0 || h <= 0) return null;
+            if (x + w > srcW || y + h > srcH) return null;
+            if ((long)srcW * srcH > srcIdx.Length) return null;
+
+            byte[] dstIdx = new byte[w * h];
+            for (int row = 0; row < h; row++)
+            {
+                int srcOff = (y + row) * srcW + x;
+                int dstOff = row * w;
+                Buffer.BlockCopy(srcIdx, srcOff, dstIdx, dstOff, w);
+            }
+
+            IImage outImg = svc.CreateIndexedImage(w, h, src.GetPaletteGBA(), 16);
+            if (outImg == null) return null;
+            outImg.SetPixelData(dstIdx);
+            return outImg;
         }
 
         /// <summary>
