@@ -4,7 +4,9 @@
         x:Class="FEBuilderGBA.Avalonia.Views.SupportTalkView"
         Title="Support Talk" Width="1279" Height="720"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
+  <!-- #724: widened from 250 to 380 so support pair rows like
+       "00 Eirika (0x01) & Seth (0x02)" aren't truncated. -->
+  <Grid ColumnDefinitions="380,*">
     <controls:AddressListControl AutomationProperties.AutomationId="SupportTalk_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
 
     <ScrollViewer Grid.Column="1" Margin="4">
