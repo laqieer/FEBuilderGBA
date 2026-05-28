@@ -64,7 +64,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 // U.atoh helper truncates at the 'x' and returns 0, which made
                 // this button silently do nothing.
                 uint supportPtr = ViewHelpers.ParseHexText(SupportPtrBox.Text);
-                if (supportPtr == 0) return;
+                if (supportPtr == 0)
+                {
+                    // #648: button used to silently do nothing when the unit
+                    // had no support data. Surface a friendly message so the
+                    // user knows why the click had no effect.
+                    CoreState.Services?.ShowInfo("This unit has no support data (support pointer is 0).");
+                    return;
+                }
                 var rom = CoreState.ROM;
                 if (rom?.RomInfo == null) return;
                 if (rom.RomInfo.version == 6)
