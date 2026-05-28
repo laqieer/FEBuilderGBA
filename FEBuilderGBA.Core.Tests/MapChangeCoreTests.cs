@@ -414,6 +414,74 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // -------------------------------------------------------------
+        // OBJECT PlistType — #710 OBJ Image Import slice.
+        // -------------------------------------------------------------
+
+        /// <summary>
+        /// #710: ResolvePlistSlotAddr accepts <see cref="MapChangeCore.PlistType.OBJECT"/>
+        /// and returns the per-entry slot inside the <c>map_obj_pointer</c>
+        /// table even when that slot currently holds a null pointer
+        /// (matches WF Write_Plsit semantics: the dereferenced target
+        /// is not inspected — only the slot's own address matters).
+        /// </summary>
+        [Fact]
+        public void ResolvePlistSlotAddr_OBJECT_AllowsNullSlot()
+        {
+            var rom = MakeFe8uRom();
+            uint objTableAddr = 0x00890000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, objTableAddr | 0x08000000u);
+            // Slot 5 is null — must still resolve to the slot's address.
+            WriteU32(rom.Data, (int)(objTableAddr + 5 * 4u), 0u);
+
+            uint slot = MapChangeCore.ResolvePlistSlotAddr(rom, MapChangeCore.PlistType.OBJECT, 5);
+            Assert.Equal(objTableAddr + 5 * 4u, slot);
+        }
+
+        /// <summary>
+        /// #710: round-trip a compressed OBJ tile sheet through
+        /// WritePlistData(OBJECT, ...) — assert the OBJECT PLIST slot
+        /// now points at the new offset and the new offset contains
+        /// the appended bytes.
+        /// </summary>
+        [Fact]
+        public void WritePlistData_OBJECT_UpdatesPointerAndAppendsCompressed()
+        {
+            var rom = MakeFe8uRom();
+            uint objTableAddr = 0x00890000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, objTableAddr | 0x08000000u);
+
+            byte[] payload = { 0x10, 0x80, 0x00, 0x00, 0xDE, 0xAD, 0xBE, 0xEF };
+            uint addr = MapChangeCore.WritePlistData(
+                rom, MapChangeCore.PlistType.OBJECT, 5, payload, out string err);
+            Assert.NotEqual(U.NOT_FOUND, addr);
+            Assert.Equal("", err);
+            // Slot now points at the new offset.
+            uint slot = objTableAddr + 5 * 4u;
+            Assert.Equal(addr, rom.p32(slot));
+            // Bytes were written at the new offset.
+            for (int i = 0; i < payload.Length; i++)
+                Assert.Equal(payload[i], rom.Data[addr + i]);
+        }
+
+        /// <summary>
+        /// #710 rejection symmetry with the CONFIG path: WritePlistData
+        /// for OBJECT must refuse PLIST 0 (the reserved sentinel slot).
+        /// </summary>
+        [Fact]
+        public void WritePlistData_OBJECT_FailsOn_PlistZero()
+        {
+            var rom = MakeFe8uRom();
+            uint objTableAddr = 0x00100000u;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, objTableAddr | 0x08000000u);
+
+            byte[] payload = { 0x10, 0x00, 0x00, 0x00 };
+            uint addr = MapChangeCore.WritePlistData(
+                rom, MapChangeCore.PlistType.OBJECT, 0, payload, out string err);
+            Assert.Equal(U.NOT_FOUND, addr);
+            Assert.NotEqual("", err);
+        }
+
+        // -------------------------------------------------------------
         // Helpers.
         // -------------------------------------------------------------
 

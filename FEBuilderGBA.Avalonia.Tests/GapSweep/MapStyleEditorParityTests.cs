@@ -192,32 +192,26 @@ public class MapStyleEditorParityTests
     /// </summary>
     static readonly string[] KnownGapButtonIds =
     {
-        // 1 button remains deferred after #704 partial slice. ObjImport
-        // tracks the new follow-up #710 (needs MapStyleEditorImportImageOptionForm
-        // port + 4bpp encoding + FE7 obj2 split handling).
+        // After #710 ImageOnly slice, ALL Map Style Editor buttons are
+        // functional. ObjImport (the last remaining KnownGap entry)
+        // became functional in #710 — see
+        // View_ObjImport_Button_IsEnabled +
+        // View_ObjImport_Click_HandlerWired below.
+        //
         // PaletteExport/Import/Clipboard/ObjExport/Undo became functional
         // in #672 Slice A; Redo and MapChip Export became functional in
-        // #692 partial slice; MapChip Import became functional in #704
-        // (see View_<Name>_Button_IsEnabled +
-        // View_<Name>_Click_HandlerWired tests below).
-        //
-        // PaletteWrite is functional via #660 first slice (tracked positively
-        // by View_FunctionalPaletteWriteButton_IsEnabled); CopyTile / CopyType /
-        // Paste / ConfigWrite became functional in #671 (tracked positively
-        // by View_ChipsetTab_FunctionalControls_AreEnabled_WhenCanEdit).
-        "MapStyleEditor_ObjImport_Button",
+        // #692 partial slice; MapChip Import became functional in #704.
+        // PaletteWrite is functional via #660 first slice; CopyTile /
+        // CopyType / Paste / ConfigWrite became functional in #671.
     };
 
     /// <summary>
     /// Per-button mapping of remaining KnownGap buttons to the follow-up
-    /// issue their tooltip must reference. OBJ Import was promoted to its
-    /// own follow-up #710 in #704 because it needs substantially more work
-    /// (option dialog + 4bpp encoding + FE7 obj2) than the original #692
-    /// bucket assumed.
+    /// issue their tooltip must reference. The dictionary is empty after
+    /// #710 because every button is now functional.
     /// </summary>
     static readonly System.Collections.Generic.Dictionary<string, string> KnownGapTooltipIssue = new()
     {
-        ["MapStyleEditor_ObjImport_Button"] = "#710",
     };
 
     [Fact]
@@ -1227,6 +1221,93 @@ public class MapStyleEditorParityTests
         string body = bodyMatch.Value;
         Assert.Contains("_undoService.Begin", body);
         Assert.Contains("_vm.TryWriteConfigBuffer", body);
+        Assert.Contains("_undoService.Commit()", body);
+        Assert.Contains("_undoService.Rollback()", body);
+    }
+
+    // -----------------------------------------------------------------
+    // #710 — OBJ Image Import button parity tests.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #710: the OBJ Image Import button must NOT carry IsEnabled="False"
+    /// or any stale #374 / #692 / #710 tooltip anymore — it became
+    /// functional via the ImageOnly slice (256-wide × ≥128-tall × multi-
+    /// of-8 height, remap against existing OBJ palette, OBJECT PLIST write).
+    /// </summary>
+    [Fact]
+    public void View_ObjImport_Button_IsEnabled()
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""MapStyleEditor_ObjImport_Button""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, "MapStyleEditor_ObjImport_Button must exist");
+        Assert.False(m.Value.Contains("IsEnabled=\"False\""),
+            "MapStyleEditor_ObjImport_Button must not carry IsEnabled=\"False\" anymore (#710)");
+        Assert.False(m.Value.Contains("#374"),
+            "MapStyleEditor_ObjImport_Button must not advertise the legacy #374 tooltip");
+        Assert.False(m.Value.Contains("#692"),
+            "MapStyleEditor_ObjImport_Button must not advertise the stale #692 tooltip");
+        Assert.False(m.Value.Contains("Pending Core extraction"),
+            "MapStyleEditor_ObjImport_Button must not advertise the stale 'Pending Core extraction' tooltip");
+    }
+
+    /// <summary>
+    /// #710 + Copilot bot v2 review item 1 on PR #716: the OBJ Image
+    /// Import button is gated at runtime by
+    /// <see cref="MapStyleEditorViewModel.CanImportObj"/>. The code-behind
+    /// must subscribe to the VM <c>PropertyChanged</c> event for
+    /// <c>CanImportObj</c> and call <c>RefreshObjImportEnabled</c> so the
+    /// button's <c>IsEnabled</c> stays in sync with the predicate.
+    /// </summary>
+    [Fact]
+    public void View_ObjImport_Click_GatesIsEnabledOnCanImportObj()
+    {
+        string code = File.ReadAllText(CodeBehindPath());
+        // Subscribes to CanImportObj property changes.
+        Assert.Contains("nameof(_vm.CanImportObj)", code);
+        // Calls RefreshObjImportEnabled (declares + at least one call site).
+        Assert.Contains("RefreshObjImportEnabled", code);
+        // The refresh helper pushes _vm.CanImportObj onto IsEnabled.
+        var bodyMatch = Regex.Match(code,
+            @"void RefreshObjImportEnabled[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|async\s|/// |//))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "RefreshObjImportEnabled method not found");
+        Assert.Contains("_vm.CanImportObj", bodyMatch.Value);
+        Assert.Contains("ObjImportButton.IsEnabled", bodyMatch.Value);
+    }
+
+    /// <summary>
+    /// #710: the OBJ Image Import button must wire Click to the
+    /// ObjImport_Click handler in AXAML AND the handler method must exist
+    /// in the code-behind, wrapped in an undo scope.
+    /// </summary>
+    [Fact]
+    public void View_ObjImport_Click_HandlerWired()
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationProperties\.AutomationId=""MapStyleEditor_ObjImport_Button""[^>]*",
+            RegexOptions.None);
+        Match m = pattern.Match(axaml);
+        Assert.True(m.Success, "MapStyleEditor_ObjImport_Button must exist");
+        Assert.Contains("Click=\"ObjImport_Click\"", m.Value);
+
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"void ObjImport_Click\(object\?",
+            RegexOptions.None), code);
+        // Handler must wrap the VM call in an undo scope (Begin / Commit /
+        // Rollback) so a failed write does not leave a half-applied import.
+        var bodyMatch = Regex.Match(code,
+            @"void ObjImport_Click[\s\S]*?(?=\n\s{8}(static\s|public\s|void\s|async\s|/// |//))",
+            RegexOptions.Singleline);
+        Assert.True(bodyMatch.Success, "ObjImport_Click method not found");
+        string body = bodyMatch.Value;
+        Assert.Contains("_undoService.Begin", body);
+        Assert.Contains("_vm.TryImportObjImage", body);
         Assert.Contains("_undoService.Commit()", body);
         Assert.Contains("_undoService.Rollback()", body);
     }

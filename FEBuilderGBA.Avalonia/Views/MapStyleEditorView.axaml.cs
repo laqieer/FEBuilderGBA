@@ -50,6 +50,32 @@ namespace FEBuilderGBA.Avalonia.Views
             // CONFIG cache + plist (Copilot bot v2 inline review on PR #691).
             // Set synchronously now so we don't race the first OnSelected.
             SetChipsetEditingEnabled(false);
+
+            // OBJ Image Import button gating (Copilot bot v2 inline review
+            // item 1 on PR #716). Initially disabled; OnSelected refreshes
+            // it once an entry is loaded and the VM resolves a valid
+            // OBJ PLIST + OBJ palette. Listening to CanImportObj's
+            // OnPropertyChanged keeps the button in sync with both the
+            // entry-level reload (ObjAddress2 / _currentObjPlist updates)
+            // and the per-style ObjAddress2 mutation (FE7 dual-tileset).
+            if (ObjImportButton != null) ObjImportButton.IsEnabled = false;
+            _vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(_vm.CanImportObj))
+                    RefreshObjImportEnabled();
+            };
+        }
+
+        /// <summary>
+        /// Push the VM's current <see cref="MapStyleEditorViewModel.CanImportObj"/>
+        /// value onto the OBJ Image Import button's <c>IsEnabled</c>.
+        /// Called from <see cref="OnSelected"/> after every entry load and
+        /// from the VM <c>PropertyChanged</c> handler so the button reflects
+        /// the latest predicate state.
+        /// </summary>
+        void RefreshObjImportEnabled()
+        {
+            if (ObjImportButton != null) ObjImportButton.IsEnabled = _vm.CanImportObj;
         }
 
         /// <summary>
@@ -165,6 +191,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (chipsetLoaded) ReadSlotsFromVM();
                 else ClearChipsetUI();
                 SetChipsetEditingEnabled(chipsetLoaded);
+                // #710 / Copilot bot v2 item 1: re-evaluate the OBJ Import
+                // button after every entry load so it's disabled on
+                // unsupported entries (FE7 obj2, unresolved plist, ROM-less
+                // state).
+                RefreshObjImportEnabled();
 
                 // Sync the top-bar MapStyleCombo to the same entry without
                 // recursing — block the SelectionChanged handler while we
@@ -1065,15 +1096,214 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Convert indexed pixel data + an RGBA palette into a flat RGBA
+        /// buffer of exactly <paramref name="w"/> × <paramref name="h"/>
+        /// pixels. Returns null + a human-readable <paramref name="error"/>
+        /// when any of the four #710 review-#4 guards fire:
+        ///   - <paramref name="indexData"/> is null or shorter than w*h
+        ///   - <paramref name="palRgba"/> is null or too short to hold a
+        ///     single 4-byte color
+        ///   - a pixel references a palette entry whose offset would
+        ///     run past the end of <paramref name="palRgba"/>.
+        ///
+        /// <para>Extracted out of <c>ObjImport_Click</c> so the indexed-
+        /// image decode guards can be exercised by unit tests without
+        /// driving the full file dialog path (Copilot CLI re-review on
+        /// PR #716).</para>
+        /// </summary>
+        internal static byte[]? ConvertIndexedToRgba(byte[]? indexData, byte[]? palRgba, int w, int h, out string error)
+        {
+            error = "";
+
+            // Negative dimensions are nonsensical and would make every
+            // downstream check unreliable (Copilot bot v2 inline review
+            // on PR #716).
+            if (w < 0 || h < 0)
+            {
+                error = $"negative image dimensions ({w}x{h}).";
+                return null;
+            }
+
+            // Use long arithmetic for the pixel-count + RGBA-buffer size
+            // computations so pathological inputs (e.g. width=256 × height=8M)
+            // can't wrap past int.MaxValue and turn the bounds check into a
+            // false negative (Copilot bot v2 inline review item 2 + 3 on PR
+            // #716). The actual byte[] allocation requires int — bound the
+            // RGBA size to int.MaxValue and fail early when over.
+            long expectedLong = (long)w * (long)h;
+            long rgbaSizeLong = expectedLong * 4L;
+            if (rgbaSizeLong > int.MaxValue)
+            {
+                error = $"image too large to decode (RGBA size {rgbaSizeLong} bytes > int.MaxValue).";
+                return null;
+            }
+            int expected = (int)expectedLong;
+
+            if (indexData == null || indexData.LongLength < expectedLong)
+            {
+                error = $"indexed pixel data is shorter than expected ({indexData?.LongLength ?? 0} < {expectedLong}).";
+                return null;
+            }
+            if (palRgba == null || palRgba.Length < 4)
+            {
+                error = "indexed image has no usable palette.";
+                return null;
+            }
+            byte[] rgba = new byte[(int)rgbaSizeLong];
+            for (int i = 0; i < expected; i++)
+            {
+                int palIdx = indexData[i];
+                int palOff = palIdx * 4;
+                if (palOff + 3 >= palRgba.Length)
+                {
+                    error = $"indexed pixel {i} uses palette entry {palIdx} but palette has only {palRgba.Length / 4} colors.";
+                    return null;
+                }
+                int dstOff = i * 4;
+                rgba[dstOff + 0] = palRgba[palOff + 0];
+                rgba[dstOff + 1] = palRgba[palOff + 1];
+                rgba[dstOff + 2] = palRgba[palOff + 2];
+                rgba[dstOff + 3] = palRgba[palOff + 3];
+            }
+            return rgba;
+        }
+
+        // -----------------------------------------------------------------
+        // #710 — OBJ Image Import (ImageOnly slice): pick image, validate
+        // the WF dimension contract (256 wide × ≥128 tall × multiple-of-8
+        // height), remap against the existing OBJ palette (no palette
+        // change), 4bpp-encode + LZ77 + write via the new OBJECT PLIST
+        // path. FE7 obj2-bearing styles are rejected with an actionable
+        // error (tracked separately for the dual-tileset split path).
+        // -----------------------------------------------------------------
+        async void ObjImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.CanImportObj)
+                {
+                    if (_vm.ObjAddress2 != 0)
+                    {
+                        CoreState.Services.ShowError(
+                            "OBJ image import does not yet support FE7 styles with a secondary obj2 tileset. Tracked separately.");
+                    }
+                    else
+                    {
+                        CoreState.Services.ShowError("OBJ image import requires a Map Style entry with a valid OBJ PLIST.");
+                    }
+                    return;
+                }
+
+                string? path = await FileDialogHelper.OpenImageFile(this);
+                if (string.IsNullOrEmpty(path)) return;
+
+                // Decode the source image through the shared SkiaSharp
+                // service used by every other Avalonia importer. We pull
+                // RGBA bytes (converting indexed → RGBA when needed) and
+                // hand them to the VM, which owns the remap-against-existing-
+                // palette step. This keeps the View thin (no Core-level
+                // import knowledge) and routes ALL color drift through the
+                // VM's remap path so behavior matches the Copilot CLI v1
+                // review item 1 (no quantize, no palette mutation).
+                byte[] rgba;
+                int w, h;
+                try
+                {
+                    var imgService = CoreState.ImageService;
+                    if (imgService == null)
+                    {
+                        CoreState.Services.ShowError("Image service not initialized.");
+                        return;
+                    }
+                    using var image = imgService.LoadImage(path);
+                    w = image.Width;
+                    h = image.Height;
+                    if (image.IsIndexed)
+                    {
+                        // Copilot bot #4 on PR #716: fail early when the
+                        // indexed-image source can't fully cover w*h pixels
+                        // or its palette is too short to dereference any
+                        // valid index. Without this, an incomplete decode
+                        // silently produces large transparent/black regions
+                        // and the user gets a "successful" import full of
+                        // garbage. Logic extracted into ConvertIndexedToRgba
+                        // so it can be unit-tested without driving the full
+                        // dialog path.
+                        byte[] indexData = image.GetPixelData();
+                        byte[] palRgba = image.GetPaletteRGBA();
+                        byte[]? decoded = ConvertIndexedToRgba(indexData, palRgba, w, h, out string decErr);
+                        if (decoded == null)
+                        {
+                            CoreState.Services.ShowError($"Image decode error: {decErr}");
+                            return;
+                        }
+                        rgba = decoded;
+                    }
+                    else
+                    {
+                        rgba = image.GetPixelData();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("MapStyleEditorView.ObjImport_Click decode failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"Image decode error: {ex.Message}");
+                    return;
+                }
+
+                _undoService.Begin("Import OBJ Image");
+                try
+                {
+                    if (!_vm.TryImportObjImage(rgba, w, h, out string err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError($"OBJ image import failed: {err}");
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("MapStyleEditorView.ObjImport_Click write failed: {0}", ex.Message);
+                    CoreState.Services.ShowError($"OBJ image import error: {ex.Message}");
+                    return;
+                }
+
+                // -- Post-commit UI refresh (no rollback path; ROM bytes
+                // are already persisted). Failures here only affect the
+                // visible state, not durability — log + warn but don't roll
+                // back. Mirrors the MapChipImport_Click pattern.
+                try
+                {
+                    ObjAddressLabel.Text = $"0x{_vm.ObjAddress:X08}";
+                    ObjPtrBox.Text = $"0x{_vm.ObjPointer:X08}";
+                    RefreshChipPreview();
+                    CoreState.Services.ShowInfo($"OBJ image imported ({w}x{h}).");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("MapStyleEditorView.ObjImport_Click UI refresh failed: {0}", ex.Message);
+                    CoreState.Services.ShowError(
+                        $"OBJ image imported but UI refresh failed: {ex.Message}. " +
+                        "Re-select the Map Style entry to refresh the view.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapStyleEditorView.ObjImport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"OBJ image import failed: {ex.Message}");
+            }
+        }
+
         // -----------------------------------------------------------------
         // #704 — MapChip Import: read raw .MAPCHIP_CONFIG bytes (no header,
         // ≥ 9216 bytes per WF parity), persist via the CONFIG PLIST write
         // path. Palette bits in TSA words are preserved verbatim because
         // the buffer is written byte-for-byte (the VM's TryWriteConfigBuffer
         // never decodes TSA words during the write).
-        //
-        // OBJ Image Import remains a KnownGap — tracked by follow-up #710
-        // (needs option-dialog port + 4bpp encoding + FE7 obj2 handling).
         // -----------------------------------------------------------------
         async void MapChipImport_Click(object? sender, RoutedEventArgs e)
         {

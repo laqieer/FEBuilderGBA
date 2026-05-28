@@ -20,13 +20,20 @@ namespace FEBuilderGBA
         /// <summary>
         /// Core-local equivalent of <c>MapPointerForm.PLIST_TYPE</c>.
         /// Only the values needed by Core helpers are surfaced; the
-        /// WinForms enum has additional types (ANIMATION, OBJECT, etc.)
-        /// that are not yet exposed to Core.
+        /// WinForms enum has additional types (ANIMATION, etc.) that
+        /// are not yet exposed to Core.
         /// </summary>
         public enum PlistType
         {
             CHANGE,
             CONFIG,
+            /// <summary>
+            /// OBJ tileset PLIST table (<c>map_obj_pointer</c>). Used by
+            /// the Map Style Editor OBJ Image Import path (#710) to
+            /// rewrite the per-style OBJ tileset slot with a newly
+            /// LZ77-compressed 4bpp tile sheet.
+            /// </summary>
+            OBJECT,
         }
 
         /// <summary>
@@ -149,6 +156,7 @@ namespace FEBuilderGBA
             {
                 PlistType.CHANGE => rom.RomInfo.map_mapchange_pointer,
                 PlistType.CONFIG => rom.RomInfo.map_config_pointer,
+                PlistType.OBJECT => rom.RomInfo.map_obj_pointer,
                 _ => 0u,
             };
         }
