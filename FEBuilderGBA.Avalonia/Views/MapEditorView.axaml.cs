@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -28,6 +30,7 @@ namespace FEBuilderGBA.Avalonia.Views
             MapImageControl.PointerPressed += OnMapImageClick;
             WriteTileBtn.Click += OnWriteTile;
             RefreshMapBtn.Click += OnRefreshMap;
+            ExportCsvButton.Click += ExportCsv_Click;
             // Paint Mode defaults to OFF (no regression to existing select behaviour).
             PaintModeCheck.IsChecked = false;
             // Hit-test the outer Border (Background=Transparent) only — clicks on the
@@ -342,6 +345,56 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             TileInfoLabel.Text = string.IsNullOrEmpty(_vm.TileInfo) ? "No tile selected" : _vm.TileInfo;
             TileEditPanel.IsVisible = _vm.HasTileSelected;
+        }
+
+        /// <summary>
+        /// Export the current map's tile data (width/height header + row-major
+        /// u16 MAR values) to a CSV file via the platform file picker. See
+        /// <see cref="MapExportCsv.Serialize"/> for the format. Read-only — does
+        /// not touch the ROM. (#658 slice B)
+        /// </summary>
+        async void ExportCsv_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                byte[] cachedMap = _vm.GetMapDataSnapshot();
+                if (cachedMap == null || cachedMap.Length < 2)
+                {
+                    CoreState.Services?.ShowError(R._("No map data loaded — select a map first."));
+                    return;
+                }
+                if (StorageProvider == null) return;
+                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = R._("Export Map (CSV)"),
+                    DefaultExtension = "csv",
+                    FileTypeChoices = new[]
+                    {
+                        new FilePickerFileType("CSV files") { Patterns = new[] { "*.csv" } },
+                        new FilePickerFileType("All files") { Patterns = new[] { "*" } }
+                    }
+                });
+                if (file == null) return;
+                string csv = MapExportCsv.Serialize(cachedMap);
+                if (string.IsNullOrEmpty(csv))
+                {
+                    CoreState.Services?.ShowError(R._("Map data is invalid or too small."));
+                    return;
+                }
+                string path = file.TryGetLocalPath();
+                if (string.IsNullOrEmpty(path))
+                {
+                    CoreState.Services?.ShowError(R._("Could not resolve a local file path for export."));
+                    return;
+                }
+                File.WriteAllText(path, csv);
+                CoreState.Services?.ShowInfo(string.Format(R._("Exported map to {0} ({1} chars)."), file.Name, csv.Length));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapEditorView.ExportCsv_Click failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(string.Format(R._("Export failed: {0}"), ex.Message));
+            }
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

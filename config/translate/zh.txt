@@ -19043,6 +19043,9 @@ This view allows selecting the instrument set (voicegroup) used when importing M
 :Paint Mode
 绘制模式
 
+:Export Map (CSV)
+导出地图 (CSV)
+
 :No chipset selected
 未选择图块
 

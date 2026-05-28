@@ -3539,6 +3539,9 @@ ID テキスト
 :Paint Mode
 ペイント モード
 
+:Export Map (CSV)
+マップをエクスポート (CSV)
+
 :No chipset selected
 チップセットが選択されていません
 
