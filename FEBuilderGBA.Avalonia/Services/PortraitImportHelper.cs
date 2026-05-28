@@ -251,6 +251,22 @@ namespace FEBuilderGBA.Avalonia.Services
                 WriteEyeMouthBlockCoords(rom, entryAddr, undoService,
                     mouthBlockX, mouthBlockY, eyeBlockX, eyeBlockY);
 
+                // #657: simple imports only touch D0 (tile data) and D8
+                // (palette). The Portrait Image Editor renders sub-views
+                // (mini face, eye frames, mouth frames) by following D4 and
+                // D12, which still pointed at the PREVIOUS portrait's tile
+                // blocks. Those old tile blocks decode under the NEW palette
+                // and render as garbled garbage — the user reported a
+                // "total mess". Zero D4 and D12 so the editor renders blank
+                // for those sub-views instead of stale data. FE7/8 only
+                // (FE6 16-byte entries use offsets 12-15 for unrelated
+                // fields, so we keep the existing layout gate).
+                if (IsFe7Or8EntryLayout(rom))
+                {
+                    rom.write_p32(entryAddr + 4, 0);   // D4 — mini face pointer
+                    rom.write_p32(entryAddr + 12, 0);  // D12 — mouth frames pointer
+                }
+
                 undoService.Commit();
                 return ImportOutcome.Ok();
             }
