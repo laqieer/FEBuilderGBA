@@ -30,22 +30,37 @@
     selectors. This mirrors EditorTopBar (#649) so multiple instances in the
     same view (e.g. MonsterItemViewer's 3 tabs) don't collide.
   -->
+  <!-- Layout mirrors EditorTopBar (#649): the input slots live in a
+       horizontal StackPanel in column 0 (`*` so it absorbs leftover
+       horizontal space), and the Reload button is pinned to the far
+       right in column 1 (`Auto`). Without this Grid wrapper the StackPanel
+       would arrange Reload immediately after the inputs — breaking the
+       "Reload always pinned to right edge" contract that hosts depend
+       on (Copilot review of #741). -->
   <Border BorderBrush="Gray" BorderThickness="1" Padding="4">
-    <StackPanel Orientation="Horizontal" Spacing="6">
-      <TextBlock Name="ReadStartLabelBlock" Text="Read Start:" VerticalAlignment="Center" />
-      <NumericUpDown Name="ReadStartInput" Width="120" FormatString="0"
-                     Minimum="0" Maximum="4294967295"
-                     VerticalAlignment="Center" />
-      <TextBlock Name="ReadCountLabelBlock" Text="Read Count:" VerticalAlignment="Center" />
-      <NumericUpDown Name="ReadCountInput" Width="80" FormatString="0"
-                     Minimum="0" Maximum="65535"
-                     VerticalAlignment="Center" />
-      <TextBlock Name="ReadSizeLabelBlock" Text="Read Size:" VerticalAlignment="Center" />
-      <NumericUpDown Name="ReadSizeInput" Width="80" FormatString="0"
-                     Minimum="0" Maximum="65535"
-                     VerticalAlignment="Center" />
-      <Button Name="ReloadButton" Content="Reload" Click="OnReloadClick"
-              VerticalAlignment="Center" />
-    </StackPanel>
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
+                  VerticalAlignment="Center">
+        <TextBlock Name="ReadStartLabelBlock" Text="Read Start:" VerticalAlignment="Center" />
+        <NumericUpDown Name="ReadStartInput" Width="120" FormatString="0"
+                       Minimum="0" Maximum="4294967295"
+                       VerticalAlignment="Center" />
+        <TextBlock Name="ReadCountLabelBlock" Text="Read Count:" VerticalAlignment="Center"
+                   Margin="6,0,0,0" />
+        <NumericUpDown Name="ReadCountInput" Width="80" FormatString="0"
+                       Minimum="0" Maximum="65535"
+                       VerticalAlignment="Center" />
+        <TextBlock Name="ReadSizeLabelBlock" Text="Read Size:" VerticalAlignment="Center"
+                   Margin="6,0,0,0" />
+        <NumericUpDown Name="ReadSizeInput" Width="80" FormatString="0"
+                       Minimum="0" Maximum="65535"
+                       VerticalAlignment="Center" />
+      </StackPanel>
+      <Button Grid.Column="1" Name="ReloadButton" Content="Reload"
+              Click="OnReloadClick"
+              VerticalAlignment="Center"
+              HorizontalAlignment="Right"
+              Margin="8,0,0,0" />
+    </Grid>
   </Border>
 </UserControl>
