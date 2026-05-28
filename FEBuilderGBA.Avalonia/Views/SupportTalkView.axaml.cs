@@ -76,8 +76,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // Refresh name previews on selection change. ResolveUnitTableName /
             // GetTextById both return fallback strings on failure rather than
             // throwing, so no try/catch is needed (Copilot review #638).
-            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1);
-            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2);
+            // SupportPartner1/2 are 1-based unit IDs (WinForms convention);
+            // ResolveUnitTableName takes a 0-based table index, so subtract 1.
+            // Pre-#725 we passed the 1-based ID directly, which off-set the
+            // displayed name (and the Jump target) by one row.
+            SupportPartner1Nud.NameText = _vm.SupportPartner1 == 0 ? "" : SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1 - 1);
+            SupportPartner2Nud.NameText = _vm.SupportPartner2 == 0 ? "" : SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2 - 1);
             TextIdCNud.NameText = _vm.TextIdC != 0 ? NameResolver.GetTextById(_vm.TextIdC) : "";
             TextIdBNud.NameText = _vm.TextIdB != 0 ? NameResolver.GetTextById(_vm.TextIdB) : "";
             TextIdANud.NameText = _vm.TextIdA != 0 ? NameResolver.GetTextById(_vm.TextIdA) : "";
@@ -141,6 +145,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null) return 0;
+            if (unitId == 0) return 0; // 1-based: 0 is "no unit"
             uint unitPtr = rom.RomInfo.unit_pointer;
             if (unitPtr == 0) return 0;
             uint baseAddr = rom.p32(unitPtr);
@@ -148,7 +153,10 @@ namespace FEBuilderGBA.Avalonia.Views
             uint dataSize = rom.RomInfo.unit_datasize;
             if (dataSize == 0) return 0;
             if (rom.RomInfo.version == 6) baseAddr += dataSize;
-            uint entryAddr = baseAddr + unitId * dataSize;
+            // unitId is 1-based (WinForms convention — see UnitForm.SetSimUnit:
+            // IDToAddr(uid - 1)). The pre-#725 code passed unitId directly,
+            // which jumped to the next character (e.g. ID 1 → 2nd character).
+            uint entryAddr = baseAddr + (unitId - 1) * dataSize;
             if (!U.isSafetyOffset(entryAddr, rom)) return 0;
             if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
             return entryAddr;
@@ -186,14 +194,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint addr = UnitAddrFor(SupportPartner1Nud.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) SupportPartner1Nud.Value = (uint)result.Index;
+                // PickResult.Index is 0-based; SupportPartner is 1-based (#725).
+                if (result != null) SupportPartner1Nud.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error("SupportTalkView.SupportPartner1_Pick failed: {0}", ex.Message); }
         }
 
         void SupportPartner1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
+            // 1-based Unit ID → 0-based table index (#725).
+            SupportPartner1Nud.NameText = e.NewValue == 0 ? "" : SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue - 1);
         }
 
         void SupportPartner2_Jump(object? sender, RoutedEventArgs e)
@@ -208,14 +218,16 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 uint addr = UnitAddrFor(SupportPartner2Nud.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) SupportPartner2Nud.Value = (uint)result.Index;
+                // PickResult.Index is 0-based; SupportPartner is 1-based (#725).
+                if (result != null) SupportPartner2Nud.Value = (uint)result.Index + 1;
             }
             catch (Exception ex) { Log.Error("SupportTalkView.SupportPartner2_Pick failed: {0}", ex.Message); }
         }
 
         void SupportPartner2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
+            // 1-based Unit ID → 0-based table index (#725).
+            SupportPartner2Nud.NameText = e.NewValue == 0 ? "" : SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue - 1);
         }
 
         void TextIdC_Jump(object? sender, RoutedEventArgs e)
