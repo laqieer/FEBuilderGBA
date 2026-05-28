@@ -190,21 +190,21 @@ public class EditorTopBarMigrationSweepTests
         // a Border, so a Border-anchored regex misses it).
         //
         // The match requires BOTH:
-        //  - a NumericUpDown named ReadStartAddressBox / TopAddressBox /
-        //    NumericUpDown1 (the canonical top-bar input names), AND
+        //  - a NumericUpDown carrying one of the legacy top-bar
+        //    AutomationIds (the keys all four editable migrations used:
+        //    *_ReadStartAddress_Input, *_TopAddress_Input, or
+        //    *_NumericUpDown1_Input — the SMEPromoList variant). This
+        //    keys off AutomationId because SMEPromoList's pre-migration
+        //    NumericUpDown had no `Name` attribute, only an AutomationId
+        //    (Copilot review of #741 round 3).
         //  - a Button with Click="ReloadList_Click" OR "Reload_Click"
-        // inside the same <StackPanel Orientation="Horizontal"> block —
-        // the combo only existed on the legacy top-bar; e.g. AIScript's
-        // panel5 per-entry write bar uses AddressBox + ReadByteCountBox,
-        // not ReadStartAddressBox.
-        var legacyEditableRegex = new Regex(
-            "<StackPanel[^>]*Orientation=\"Horizontal\"[^>]*>" +
-            ".*?<NumericUpDown[^>]*Name=\"(?:ReadStartAddressBox|TopAddressBox|NumericUpDown1)\"" +
-            ".*?<Button[^>]*Click=\"(?:ReloadList_Click|Reload_Click)\"[^>]*/>" +
-            ".*?</StackPanel>",
-            RegexOptions.Singleline);
-        Assert.False(legacyEditableRegex.IsMatch(axaml),
-            $"{viewName}: still contains a legacy <StackPanel Orientation=\"Horizontal\"> top-bar with ReadStart-style NumericUpDown + direct Click=\"Reload*_Click\" button");
+        // inside the same <StackPanel Orientation="Horizontal"> block.
+        // The combo only existed on the legacy top-bar; e.g. AIScript's
+        // panel5 per-entry write bar uses AIScript_Address_Input
+        // (not the ReadStart/TopAddress/NumericUpDown1 ids), so it
+        // does not false-positive.
+        Assert.False(s_editableLegacyRegex.IsMatch(axaml),
+            $"{viewName}: still contains a legacy <StackPanel Orientation=\"Horizontal\"> top-bar with a ReadStart/TopAddress/NumericUpDown1 AutomationId + direct Click=\"Reload*_Click\" button");
     }
 
     [Theory]
@@ -297,6 +297,17 @@ public class EditorTopBarMigrationSweepTests
             "The legacy-pattern predicate failed to detect a hand-rolled fixture — refactor the regex.");
     }
 
+    // The editable-legacy regex is shared between the per-view sweep and
+    // the fixture-based predicate tests, so we keep it as a single
+    // constant — a future regex tweak must update one place and is
+    // visible to every test that depends on it.
+    static readonly Regex s_editableLegacyRegex = new Regex(
+        "<StackPanel[^>]*Orientation=\"Horizontal\"[^>]*>" +
+        ".*?<NumericUpDown[^>]*AutomationProperties\\.AutomationId=\"[A-Za-z0-9]+_(?:ReadStartAddress|TopAddress|NumericUpDown1)_Input\"" +
+        ".*?<Button[^>]*Click=\"(?:ReloadList_Click|Reload_Click)\"[^>]*/>" +
+        ".*?</StackPanel>",
+        RegexOptions.Singleline);
+
     [Fact]
     public void EditableLegacyPredicate_DetectsBorderWrappedFixture()
     {
@@ -320,13 +331,7 @@ public class EditorTopBarMigrationSweepTests
           </StackPanel>
         </Border>
         """;
-        var legacyEditableRegex = new Regex(
-            "<StackPanel[^>]*Orientation=\"Horizontal\"[^>]*>" +
-            ".*?<NumericUpDown[^>]*Name=\"(?:ReadStartAddressBox|TopAddressBox|NumericUpDown1)\"" +
-            ".*?<Button[^>]*Click=\"(?:ReloadList_Click|Reload_Click)\"[^>]*/>" +
-            ".*?</StackPanel>",
-            RegexOptions.Singleline);
-        Assert.True(legacyEditableRegex.IsMatch(legacyFixture),
+        Assert.True(s_editableLegacyRegex.IsMatch(legacyFixture),
             "The editable-pattern predicate failed to detect the Border-wrapped SongTrack-style fixture.");
     }
 
@@ -335,16 +340,20 @@ public class EditorTopBarMigrationSweepTests
     {
         // Pre-migration SMEPromoList pattern: a <StackPanel
         // DockPanel.Dock="Top"> top strip WITHOUT a surrounding <Border>.
-        // The earlier editable regex required a <Border> wrapper and
-        // therefore missed this shape (#741 Copilot review round 3).
-        // Locks the borderless-StackPanel detection.
+        //
+        // IMPORTANT: the real pre-migration markup has only an
+        // AutomationProperties.AutomationId on each NumericUpDown — NO
+        // `Name` attribute (Copilot review of #741 round 3, blocking).
+        // This fixture mirrors that markup faithfully so the predicate
+        // we lock in genuinely keys off the AutomationId, not on a
+        // stray `Name="NumericUpDown1"` that never existed.
         const string legacyFixture = """
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
                     Margin="8,4,8,0" Spacing="8">
           <TextBlock Text="Address:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown1_Input"
                          FormatString="0" Value="{Binding ReadStartAddress}" Minimum="0"
-                         Name="NumericUpDown1" Width="130" Height="25" />
+                         Width="130" Height="25" />
           <TextBlock Text="Count:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown2_Input"
                          FormatString="0" Value="{Binding ReadCount}" Minimum="1" Maximum="256"
@@ -353,13 +362,7 @@ public class EditorTopBarMigrationSweepTests
                   Content="Reload" Width="112" Height="30" Click="Reload_Click" />
         </StackPanel>
         """;
-        var legacyEditableRegex = new Regex(
-            "<StackPanel[^>]*Orientation=\"Horizontal\"[^>]*>" +
-            ".*?<NumericUpDown[^>]*Name=\"(?:ReadStartAddressBox|TopAddressBox|NumericUpDown1)\"" +
-            ".*?<Button[^>]*Click=\"(?:ReloadList_Click|Reload_Click)\"[^>]*/>" +
-            ".*?</StackPanel>",
-            RegexOptions.Singleline);
-        Assert.True(legacyEditableRegex.IsMatch(legacyFixture),
-            "The editable-pattern predicate failed to detect the borderless SMEPromoList-style fixture (DockPanel.Dock=\"Top\" StackPanel without <Border> wrapper).");
+        Assert.True(s_editableLegacyRegex.IsMatch(legacyFixture),
+            "The editable-pattern predicate failed to detect the borderless SMEPromoList-style fixture (DockPanel.Dock=\"Top\" StackPanel without <Border> wrapper, AutomationId-only on the NumericUpDown).");
     }
 }
