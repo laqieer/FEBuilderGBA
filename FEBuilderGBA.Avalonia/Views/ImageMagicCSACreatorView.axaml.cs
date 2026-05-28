@@ -56,8 +56,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     readStart = rom.p32(rom.RomInfo.magic_effect_pointer);
                 }
-                ReadStartAddressBox.Value = readStart;
-                ReadCountBox.Value = _vm.SpellDataCount;
+                // #649: display via the unified EditorTopBar read-only slots.
+                TopBar.StartAddressText = readStart.ToString();
+                TopBar.ReadCountText = _vm.SpellDataCount.ToString();
 
                 if (items.Count == 0)
                 {
@@ -94,6 +95,9 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void OnSelected(uint addr)
         {

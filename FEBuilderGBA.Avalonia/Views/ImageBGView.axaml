@@ -6,24 +6,16 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*,Auto">
 
-    <!-- Top read-config bar (mirrors WinForms panel1: Read Start Address /
-         Read Count / Reload List) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Read Start Address" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ImageBG_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="ImageBG_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="256"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="ImageBG_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Top read-config bar — unified via EditorTopBar (#649). -->
+    <controls:EditorTopBar Grid.Row="0" Grid.ColumnSpan="2" Margin="4"
+                           Name="TopBar"
+                           AutomationProperties.AutomationId="ImageBG_TopBar"
+                           StartAddressLabel="Read Start Address:"
+                           StartAddressAutomationId="ImageBG_ReadStartAddress_Label"
+                           ReadCountAutomationId="ImageBG_ReadCount_Label"
+                           ReloadAutomationId="ImageBG_ReloadList_Button"
+                           ShowSize="False"
+                           ReloadRequested="OnTopBarReloadRequested" />
 
     <!-- AddressList + Expand List button (mirrors WinForms panel6) -->
     <Grid Grid.Row="1" Grid.Column="0" Margin="4" RowDefinitions="*,Auto">

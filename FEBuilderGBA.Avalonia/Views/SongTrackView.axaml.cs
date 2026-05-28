@@ -85,8 +85,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadFullList();
                 EntryList.SetItems(items);
                 // Surface auto-detected read-config defaults into the UI.
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #649: editable inputs unified via EditorTopBarWithInputs.
+                TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                TopBar.ReadCount = (int)_vm.ReadCount;
                 BlockSizeBox.Text = "8";
             }
             catch (Exception ex)
@@ -170,15 +171,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
         {
+            // Legacy handler retained for any code-behind invocations; new
+            // EditorTopBarWithInputs routes to OnTopBarReloadRequested.
+            OnTopBarReloadRequested(sender, e);
+        }
+
+        // #649: routed event from the unified EditorTopBarWithInputs Reload
+        // button. Push the bar's editable values into the VM then re-load.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
+        {
             try
             {
-                _vm.ReadStartAddress = (uint)(ReadStartAddressBox.Value ?? 0);
-                _vm.ReadCount = (uint)(ReadCountBox.Value ?? 0);
+                _vm.ReadStartAddress = TopBar.ReadStartAddress;
+                _vm.ReadCount = (uint)TopBar.ReadCount;
                 LoadList();
             }
             catch (Exception ex)
             {
-                Log.Error("SongTrackView.ReloadList_Click failed: {0}", ex.Message);
+                Log.Error("SongTrackView.OnTopBarReloadRequested failed: {0}", ex.Message);
             }
         }
 

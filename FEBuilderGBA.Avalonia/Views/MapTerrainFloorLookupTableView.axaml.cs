@@ -67,8 +67,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList(filterIndex);
                 EntryList.SetItems(items);
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #649: display via the unified EditorTopBar read-only slots.
+                TopBar.StartAddressText = _vm.ReadStartAddress.ToString();
+                TopBar.ReadCountText = _vm.ReadCount.ToString();
                 // The patch-install button stays visible when the patch is
                 // installed AND the current slot has no allocated data.
                 PatchInstallButton.IsVisible = _vm.IsExtendsPatchInstalled && !_vm.IsAllocated;
@@ -92,6 +93,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            int idx = Math.Max(0, FilterComboBox.SelectedIndex);
+            LoadListForFilter(idx);
+        }
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             int idx = Math.Max(0, FilterComboBox.SelectedIndex);
             LoadListForFilter(idx);

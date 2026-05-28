@@ -53,8 +53,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #649: display via the unified EditorTopBar read-only slots.
+                TopBar.StartAddressText = _vm.ReadStartAddress.ToString();
+                TopBar.ReadCountText = _vm.ReadCount.ToString();
                 UpdatePatchNotice();
                 UpdateListExpandVisibility();
                 UpdateWriteControlsEnabled();
@@ -114,6 +115,9 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void OnSelected(uint addr)
         {

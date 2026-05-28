@@ -62,10 +62,15 @@ public class OPClassDemoParityTests
     public void View_HasFilterAndReloadBar()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"OPClassDemoViewer_ReadStart_Input\"", axaml);
-        Assert.Contains("AutomationId=\"OPClassDemoViewer_ReadCount_Input\"", axaml);
-        Assert.Contains("AutomationId=\"OPClassDemoViewer_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        // #649: ReadStart / ReadCount migrated to EditorTopBar's read-only
+        // TextBlock slots — `_Input` renamed to `_Label` to reflect the
+        // actual UIAutomation control type (Text, not Spinner). The reload
+        // button now fires via the unified EditorTopBar's ReloadRequested
+        // routed event (OnTopBarReloadRequested in the code-behind).
+        Assert.Contains("StartAddressAutomationId=\"OPClassDemoViewer_ReadStartAddress_Label\"", axaml);
+        Assert.Contains("ReadCountAutomationId=\"OPClassDemoViewer_ReadCount_Label\"", axaml);
+        Assert.Contains("ReloadAutomationId=\"OPClassDemoViewer_ReloadList_Button\"", axaml);
+        Assert.Contains("OnTopBarReloadRequested", axaml);
     }
 
     [Fact]

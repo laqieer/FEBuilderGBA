@@ -6,29 +6,33 @@
         SizeToContent="WidthAndHeight">
   <Grid RowDefinitions="Auto,*">
 
-    <!-- Top read-config bar mirrors WF panel1 (ReadStartAddress + ReadCount + Reload) -->
-    <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4">
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <TextBlock Text="First Address" VerticalAlignment="Center" Width="100" />
-        <NumericUpDown AutomationProperties.AutomationId="SongInstrument_ReadStartAddress_Input"
-                       Name="ReadStartAddressBox" Width="120" Minimum="0" Maximum="4294967295"
-                       FormatString="0" Value="0" VerticalAlignment="Center" />
-        <TextBlock Text="Read Count" VerticalAlignment="Center" Width="80" />
-        <NumericUpDown AutomationProperties.AutomationId="SongInstrument_ReadCount_Input"
-                       Name="ReadCountBox" Width="80" Minimum="0" Maximum="4096"
-                       FormatString="0" Value="0" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="SongInstrument_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Width="80" Click="ReloadList_Click" />
-        <Button AutomationProperties.AutomationId="SongInstrument_ListExpand_Button"
-                Name="ListExpandButton" Content="Expand List" Width="100" IsEnabled="False"
-                ToolTip.Tip="Pending Core extraction (list expansion is WinForms-only)." />
-        <TextBlock Text="Filter" VerticalAlignment="Center" Width="50" />
-        <TextBox AutomationProperties.AutomationId="SongInstrument_Filter_Input"
-                 Name="FilterBox" Width="150" VerticalAlignment="Center"
-                 KeyDown="FilterBox_KeyDown"
-                 ToolTip.Tip="Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior." />
-      </StackPanel>
-    </Border>
+    <!-- Top read-config bar — unified via EditorTopBarWithInputs (#649).
+         Editable First Address + Read Count + Reload. The extra Expand List
+         button and Filter TextBox stay in a sibling Border underneath so
+         the unified bar's "Reload pinned to right edge" contract holds. -->
+    <StackPanel Grid.Row="0" Margin="0,0,0,4">
+      <controls:EditorTopBarWithInputs Name="TopBar"
+                                       AutomationProperties.AutomationId="SongInstrument_TopBar"
+                                       ReadStartLabel="First Address:"
+                                       ReadCountLabel="Read Count:"
+                                       ReadStartAutomationId="SongInstrument_ReadStartAddress_Input"
+                                       ReadCountAutomationId="SongInstrument_ReadCount_Input"
+                                       ReloadAutomationId="SongInstrument_ReloadList_Button"
+                                       ShowReadSize="False"
+                                       ReloadRequested="OnTopBarReloadRequested" />
+      <Border BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,4,0,0">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Button AutomationProperties.AutomationId="SongInstrument_ListExpand_Button"
+                  Name="ListExpandButton" Content="Expand List" Width="100" IsEnabled="False"
+                  ToolTip.Tip="Pending Core extraction (list expansion is WinForms-only)." />
+          <TextBlock Text="Filter" VerticalAlignment="Center" Width="50" />
+          <TextBox AutomationProperties.AutomationId="SongInstrument_Filter_Input"
+                   Name="FilterBox" Width="150" VerticalAlignment="Center"
+                   KeyDown="FilterBox_KeyDown"
+                   ToolTip.Tip="Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior." />
+        </StackPanel>
+      </Border>
+    </StackPanel>
 
     <Grid Grid.Row="1" ColumnDefinitions="280,*">
       <controls:AddressListControl AutomationProperties.AutomationId="SongInstrument_Entry_List"

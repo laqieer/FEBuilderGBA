@@ -463,8 +463,11 @@ public class ImageBGParityTests
         string content = File.ReadAllText(axamlPath);
 
         string[] required = {
-            "ImageBG_ReadStart_Input",
-            "ImageBG_ReadCount_Input",
+            // #649: ReadStart / ReadCount migrated to EditorTopBar's read-only
+            // TextBlock slots — `_Input` renamed to `_Label` to reflect actual
+            // UIAutomation control type (Text, not Spinner).
+            "ImageBG_ReadStartAddress_Label",
+            "ImageBG_ReadCount_Label",
             "ImageBG_ReloadList_Button",
             "ImageBG_BlockSize_Input",
             "ImageBG_SelectedAddr_Input",

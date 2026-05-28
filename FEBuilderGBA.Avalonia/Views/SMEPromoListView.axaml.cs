@@ -18,10 +18,32 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             DataContext = _vm;
             _vm.Initialize();
+            // #649: seed the unified EditorTopBar inputs from the VM so the
+            // initial render shows the same values the legacy {Binding}
+            // approach would have shown.
+            TopBar.ReadStartAddress = (uint)_vm.ReadStartAddress;
+            TopBar.ReadCount = _vm.ReadCount;
+            _vm.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(SMEPromoListViewModel.ReadStartAddress))
+                    TopBar.ReadStartAddress = (uint)_vm.ReadStartAddress;
+                else if (e.PropertyName == nameof(SMEPromoListViewModel.ReadCount))
+                    TopBar.ReadCount = _vm.ReadCount;
+            };
         }
 
         void Reload_Click(object? sender, RoutedEventArgs e)
         {
+            _vm.Reload();
+        }
+
+        // #649: routed event from the unified EditorTopBarWithInputs Reload
+        // button. Push the bar's editable values back into the VM, then
+        // reload — matches the legacy two-way binding behavior.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
+        {
+            _vm.ReadStartAddress = (int)TopBar.ReadStartAddress;
+            _vm.ReadCount = TopBar.ReadCount;
             _vm.Reload();
         }
 

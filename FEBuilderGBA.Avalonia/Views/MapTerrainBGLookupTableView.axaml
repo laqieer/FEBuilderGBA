@@ -6,26 +6,27 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
 
-    <!-- Top filter / read-config bar (mirrors the WinForms panel3) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Condition:" VerticalAlignment="Center" />
-        <ComboBox AutomationProperties.AutomationId="MapTerrainBGLookupTable_Filter_Combo"
-                  Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Address (decimal)" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="MapTerrainBGLookupTable_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="MapTerrainBGLookupTable_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="256"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="MapTerrainBGLookupTable_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Top filter / read-config bar — unified via EditorTopBar (#649).
+         Condition ComboBox stays in its own Border above the unified bar. -->
+    <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+      <Border BorderBrush="Gray" BorderThickness="1" Margin="4,4,4,0">
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+          <Label Content="Condition:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="MapTerrainBGLookupTable_Filter_Combo"
+                    Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+      <controls:EditorTopBar Margin="4,4,4,0"
+                             Name="TopBar"
+                             AutomationProperties.AutomationId="MapTerrainBGLookupTable_TopBar"
+                             StartAddressLabel="Address (decimal):"
+                             ReadCountLabel="Count:"
+                             StartAddressAutomationId="MapTerrainBGLookupTable_ReadStartAddress_Label"
+                             ReadCountAutomationId="MapTerrainBGLookupTable_ReadCount_Label"
+                             ReloadAutomationId="MapTerrainBGLookupTable_ReloadList_Button"
+                             ShowSize="False"
+                             ReloadRequested="OnTopBarReloadRequested" />
+    </StackPanel>
 
     <controls:AddressListControl AutomationProperties.AutomationId="MapTerrainBGLookupTable_Entry_List"
                                  Grid.Row="1" Grid.Column="0" Name="EntryList" Margin="4" />

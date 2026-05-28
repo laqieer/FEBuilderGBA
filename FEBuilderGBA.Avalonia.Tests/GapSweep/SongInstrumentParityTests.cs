@@ -74,10 +74,13 @@ public class SongInstrumentParityTests
     public void View_HasReadConfigBar()
     {
         // WF panel1: ReadStartAddress / ReadCount / ReloadListButton.
+        // #649: migrated to EditorTopBarWithInputs; legacy AutomationIds
+        // are preserved via *AutomationId override styled-properties so the
+        // ids still appear in the AXAML text and runtime tree.
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"SongInstrument_ReadStartAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"SongInstrument_ReadCount_Input\"", axaml);
-        Assert.Contains("AutomationId=\"SongInstrument_ReloadList_Button\"", axaml);
+        Assert.Contains("SongInstrument_ReadStartAddress_Input", axaml);
+        Assert.Contains("SongInstrument_ReadCount_Input", axaml);
+        Assert.Contains("SongInstrument_ReloadList_Button", axaml);
     }
 
     [Fact]

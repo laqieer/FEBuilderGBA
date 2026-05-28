@@ -79,11 +79,14 @@ public class AIScriptParityTests
     public void View_HasReadConfigBar()
     {
         // WF panel3: FilterComboBox / ReadStartAddress / ReadCount / ReloadListButton.
+        // #649: TopAddress / ReadCount / Reload migrated to
+        // EditorTopBarWithInputs; legacy AutomationIds are preserved via
+        // *AutomationId override styled-properties.
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"AIScript_Filter_Combo\"", axaml);
-        Assert.Contains("AutomationId=\"AIScript_TopAddress_Input\"", axaml);
-        Assert.Contains("AutomationId=\"AIScript_ReadCount_Input\"", axaml);
-        Assert.Contains("AutomationId=\"AIScript_Reload_Button\"", axaml);
+        Assert.Contains("AIScript_TopAddress_Input", axaml);
+        Assert.Contains("AIScript_ReadCount_Input", axaml);
+        Assert.Contains("AIScript_Reload_Button", axaml);
     }
 
     [Fact]

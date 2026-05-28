@@ -63,10 +63,16 @@ public class ImageMagicFEditorParityTests
     public void View_HasTopReadConfigBar()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("ImageMagicFEditor_ReadStart_Input", axaml);
-        Assert.Contains("ImageMagicFEditor_ReadCount_Input", axaml);
+        // #649: ReadStart / ReadCount migrated to EditorTopBar's read-only
+        // TextBlock slots — `_Input` renamed to `_Label` to reflect the
+        // actual UIAutomation control type (Text, not Spinner). The reload
+        // button now fires via the unified EditorTopBar's ReloadRequested
+        // routed event (OnTopBarReloadRequested in the code-behind) instead
+        // of the legacy direct Click binding.
+        Assert.Contains("ImageMagicFEditor_ReadStartAddress_Label", axaml);
+        Assert.Contains("ImageMagicFEditor_ReadCount_Label", axaml);
         Assert.Contains("ImageMagicFEditor_ReloadList_Button", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        Assert.Contains("OnTopBarReloadRequested", axaml);
     }
 
     [Fact]

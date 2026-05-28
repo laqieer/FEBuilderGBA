@@ -45,6 +45,54 @@ namespace FEBuilderGBA.Avalonia.Controls
     public partial class EditorTopBarWithInputs : UserControl
     {
         // -----------------------------------------------------------------
+        // Slot-visibility styled properties (#649 Slice B)
+        //
+        // Most editors that migrate to this control have ReadStart +
+        // ReadCount (no Size). Without these gates the unified bar
+        // introduces a phantom "Read Size:" slot into views that never
+        // had one before — a UX regression. Hosts set ShowReadSize="False"
+        // (etc.) to keep their original field set.
+        // -----------------------------------------------------------------
+
+        public static readonly StyledProperty<bool> ShowReadStartProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, bool>(nameof(ShowReadStart), defaultValue: true);
+
+        public static readonly StyledProperty<bool> ShowReadCountProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, bool>(nameof(ShowReadCount), defaultValue: true);
+
+        public static readonly StyledProperty<bool> ShowReadSizeProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, bool>(nameof(ShowReadSize), defaultValue: true);
+
+        // -----------------------------------------------------------------
+        // Input editability (#649 Slice B)
+        //
+        // Pre-migration editors often shipped `IsReadOnly="True"` or
+        // `IsEnabled="False"` NumericUpDowns acting as labels. Setting
+        // InputsEnabled=false on the unified bar disables the three
+        // NumericUpDowns at once so the migrated view keeps that UX.
+        // -----------------------------------------------------------------
+
+        public static readonly StyledProperty<bool> InputsEnabledProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, bool>(nameof(InputsEnabled), defaultValue: true);
+
+        // -----------------------------------------------------------------
+        // Label-text styled properties (#649 Slice B)
+        //
+        // Lets i18n / per-editor overrides retitle the slots without
+        // re-templating the control. Defaults match the original AXAML
+        // text so unmigrated hosts see no change.
+        // -----------------------------------------------------------------
+
+        public static readonly StyledProperty<string> ReadStartLabelProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, string>(nameof(ReadStartLabel), defaultValue: "Read Start:");
+
+        public static readonly StyledProperty<string> ReadCountLabelProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, string>(nameof(ReadCountLabel), defaultValue: "Read Count:");
+
+        public static readonly StyledProperty<string> ReadSizeLabelProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, string>(nameof(ReadSizeLabel), defaultValue: "Read Size:");
+
+        // -----------------------------------------------------------------
         // AutomationId overrides (for back-compat with pre-#701 E2E ids)
         // -----------------------------------------------------------------
 
@@ -59,6 +107,64 @@ namespace FEBuilderGBA.Avalonia.Controls
 
         public static readonly StyledProperty<string> ReloadAutomationIdProperty =
             AvaloniaProperty.Register<EditorTopBarWithInputs, string>(nameof(ReloadAutomationId), defaultValue: "");
+
+        // -----------------------------------------------------------------
+        // CLR accessors for the new styled properties.
+        // -----------------------------------------------------------------
+
+        /// <summary>Whether the Read Start slot (label + input) is visible.</summary>
+        public bool ShowReadStart
+        {
+            get => GetValue(ShowReadStartProperty);
+            set => SetValue(ShowReadStartProperty, value);
+        }
+
+        /// <summary>Whether the Read Count slot (label + input) is visible.</summary>
+        public bool ShowReadCount
+        {
+            get => GetValue(ShowReadCountProperty);
+            set => SetValue(ShowReadCountProperty, value);
+        }
+
+        /// <summary>Whether the Read Size slot (label + input) is visible.</summary>
+        public bool ShowReadSize
+        {
+            get => GetValue(ShowReadSizeProperty);
+            set => SetValue(ShowReadSizeProperty, value);
+        }
+
+        /// <summary>
+        /// When false, the three NumericUpDown inputs render disabled
+        /// (IsEnabled=false). Mirrors the pre-migration IsReadOnly /
+        /// IsEnabled="False" pattern many editors shipped on their hand-rolled
+        /// top-bar.
+        /// </summary>
+        public bool InputsEnabled
+        {
+            get => GetValue(InputsEnabledProperty);
+            set => SetValue(InputsEnabledProperty, value);
+        }
+
+        /// <summary>Label text rendered to the left of the Read Start input.</summary>
+        public string ReadStartLabel
+        {
+            get => GetValue(ReadStartLabelProperty);
+            set => SetValue(ReadStartLabelProperty, value);
+        }
+
+        /// <summary>Label text rendered to the left of the Read Count input.</summary>
+        public string ReadCountLabel
+        {
+            get => GetValue(ReadCountLabelProperty);
+            set => SetValue(ReadCountLabelProperty, value);
+        }
+
+        /// <summary>Label text rendered to the left of the Read Size input.</summary>
+        public string ReadSizeLabel
+        {
+            get => GetValue(ReadSizeLabelProperty);
+            set => SetValue(ReadSizeLabelProperty, value);
+        }
 
         /// <summary>
         /// Optional explicit AutomationId override for the Read Start input.
@@ -121,6 +227,10 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             InitializeComponent();
 
+            ApplyAllVisibility();
+            ApplyAllLabels();
+            ApplyInputsEnabled();
+
             AttachedToVisualTree += (_, _) => PropagateInnerAutomationIds();
         }
 
@@ -135,6 +245,66 @@ namespace FEBuilderGBA.Avalonia.Controls
             {
                 PropagateInnerAutomationIds();
             }
+            else if (change.Property == ShowReadStartProperty)
+            {
+                ApplySlotVisibility(ReadStartLabelBlock, ReadStartInput, ShowReadStart);
+            }
+            else if (change.Property == ShowReadCountProperty)
+            {
+                ApplySlotVisibility(ReadCountLabelBlock, ReadCountInput, ShowReadCount);
+            }
+            else if (change.Property == ShowReadSizeProperty)
+            {
+                ApplySlotVisibility(ReadSizeLabelBlock, ReadSizeInput, ShowReadSize);
+            }
+            else if (change.Property == InputsEnabledProperty)
+            {
+                ApplyInputsEnabled();
+            }
+            else if (change.Property == ReadStartLabelProperty)
+            {
+                if (ReadStartLabelBlock != null) ReadStartLabelBlock.Text = ReadStartLabel;
+            }
+            else if (change.Property == ReadCountLabelProperty)
+            {
+                if (ReadCountLabelBlock != null) ReadCountLabelBlock.Text = ReadCountLabel;
+            }
+            else if (change.Property == ReadSizeLabelProperty)
+            {
+                if (ReadSizeLabelBlock != null) ReadSizeLabelBlock.Text = ReadSizeLabel;
+            }
+        }
+
+        void ApplyAllVisibility()
+        {
+            ApplySlotVisibility(ReadStartLabelBlock, ReadStartInput, ShowReadStart);
+            ApplySlotVisibility(ReadCountLabelBlock, ReadCountInput, ShowReadCount);
+            ApplySlotVisibility(ReadSizeLabelBlock, ReadSizeInput, ShowReadSize);
+        }
+
+        void ApplyAllLabels()
+        {
+            if (ReadStartLabelBlock != null) ReadStartLabelBlock.Text = ReadStartLabel;
+            if (ReadCountLabelBlock != null) ReadCountLabelBlock.Text = ReadCountLabel;
+            if (ReadSizeLabelBlock != null) ReadSizeLabelBlock.Text = ReadSizeLabel;
+        }
+
+        void ApplyInputsEnabled()
+        {
+            // Mirrors pre-migration `IsEnabled="False"` UX — the inputs render
+            // disabled but the slot stays visible (use ShowReadX to fully hide).
+            if (ReadStartInput != null) ReadStartInput.IsEnabled = InputsEnabled;
+            if (ReadCountInput != null) ReadCountInput.IsEnabled = InputsEnabled;
+            if (ReadSizeInput != null) ReadSizeInput.IsEnabled = InputsEnabled;
+        }
+
+        static void ApplySlotVisibility(Control? labelBlock, Control? inputBlock, bool visible)
+        {
+            // A slot is one label + one input. Hide both so the StackPanel
+            // collapses them together (otherwise the orphaned partner leaves
+            // a gap).
+            if (labelBlock != null) labelBlock.IsVisible = visible;
+            if (inputBlock != null) inputBlock.IsVisible = visible;
         }
 
         /// <summary>

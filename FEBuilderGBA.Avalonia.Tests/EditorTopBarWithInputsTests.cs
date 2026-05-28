@@ -250,6 +250,160 @@ public class EditorTopBarWithInputsTests
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Slot visibility + InputsEnabled + label-override tests (#649 Slice B)
+    //
+    // The migrated editors (e.g. SongTrack / AIScript / SongInstrument)
+    // only have ReadStart + ReadCount slots — no ReadSize. Without these
+    // tests, a regression that drops ShowReadSize would silently add a
+    // phantom "Read Size:" field to every migrated view.
+    // ---------------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void ShowReadStart_False_HidesStartSlot()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.ShowReadStart = false;
+        var label = ctrl.FindControl<TextBlock>("ReadStartLabelBlock");
+        var input = ctrl.FindControl<NumericUpDown>("ReadStartInput");
+        Assert.NotNull(label);
+        Assert.NotNull(input);
+        Assert.False(label!.IsVisible);
+        Assert.False(input!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void ShowReadCount_False_HidesCountSlot()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.ShowReadCount = false;
+        var label = ctrl.FindControl<TextBlock>("ReadCountLabelBlock");
+        var input = ctrl.FindControl<NumericUpDown>("ReadCountInput");
+        Assert.NotNull(label);
+        Assert.NotNull(input);
+        Assert.False(label!.IsVisible);
+        Assert.False(input!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void ShowReadSize_False_HidesSizeSlot()
+    {
+        // Critical for SongTrack/SongInstrument/AIScript migration: these
+        // editors only had Read Start + Read Count, no Size. Hosts must be
+        // able to hide the Size slot.
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.ShowReadSize = false;
+        var label = ctrl.FindControl<TextBlock>("ReadSizeLabelBlock");
+        var input = ctrl.FindControl<NumericUpDown>("ReadSizeInput");
+        Assert.NotNull(label);
+        Assert.NotNull(input);
+        Assert.False(label!.IsVisible);
+        Assert.False(input!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void AllSlots_VisibleByDefault()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        Assert.True(ctrl.ShowReadStart);
+        Assert.True(ctrl.ShowReadCount);
+        Assert.True(ctrl.ShowReadSize);
+        Assert.True(ctrl.FindControl<TextBlock>("ReadStartLabelBlock")!.IsVisible);
+        Assert.True(ctrl.FindControl<TextBlock>("ReadCountLabelBlock")!.IsVisible);
+        Assert.True(ctrl.FindControl<TextBlock>("ReadSizeLabelBlock")!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void InputsEnabled_False_DisablesAllThreeInputs()
+    {
+        // Mirrors pre-migration `IsEnabled="False"` UX on read-only top-bars
+        // (e.g. EventCondView / EventUnitView). Slot stays visible but
+        // user can't edit the value.
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.InputsEnabled = false;
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsEnabled);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadCountInput")!.IsEnabled);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadSizeInput")!.IsEnabled);
+        // Reload button stays enabled — the host still wants to trigger reload.
+        Assert.True(ctrl.FindControl<Button>("ReloadButton")!.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public void InputsEnabled_True_EnablesAllThreeInputs()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.InputsEnabled = false;
+        ctrl.InputsEnabled = true;
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsEnabled);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadCountInput")!.IsEnabled);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadSizeInput")!.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public void ReadStartLabel_DefaultsAndOverrideWorks()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        // Default matches AXAML so unmigrated hosts see no change.
+        Assert.Equal("Read Start:", ctrl.ReadStartLabel);
+        Assert.Equal("Read Start:", ctrl.FindControl<TextBlock>("ReadStartLabelBlock")!.Text);
+        // Override propagates to the inner TextBlock.
+        ctrl.ReadStartLabel = "First Address";
+        Assert.Equal("First Address", ctrl.FindControl<TextBlock>("ReadStartLabelBlock")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void ReadCountLabel_OverrideWorks()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.ReadCountLabel = "Entries";
+        Assert.Equal("Entries", ctrl.FindControl<TextBlock>("ReadCountLabelBlock")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void ReadSizeLabel_OverrideWorks()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.ReadSizeLabel = "Bytes";
+        Assert.Equal("Bytes", ctrl.FindControl<TextBlock>("ReadSizeLabelBlock")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void SongTrackLikeConfiguration_HidesSizeAndKeepsInputsEnabled()
+    {
+        // Integration scenario: a SongTrack-style migration sets
+        // ShowReadSize=False (no size field), InputsEnabled=true (the
+        // address/count are editable so the user can re-read a different
+        // table), and a custom Read Start label ("First Address").
+        var ctrl = new EditorTopBarWithInputs
+        {
+            ShowReadSize = false,
+            InputsEnabled = true,
+            ReadStartLabel = "First Address",
+        };
+        Assert.False(ctrl.FindControl<TextBlock>("ReadSizeLabelBlock")!.IsVisible);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadSizeInput")!.IsVisible);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsVisible);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsEnabled);
+        Assert.Equal("First Address", ctrl.FindControl<TextBlock>("ReadStartLabelBlock")!.Text);
+    }
+
+    [AvaloniaFact]
+    public void EventCondLikeConfiguration_DisablesInputs()
+    {
+        // Integration scenario: an EventCond-style migration has read-only
+        // input fields (IsReadOnly/IsEnabled=false originally). The bar shows
+        // both slots but the user can't edit them.
+        var ctrl = new EditorTopBarWithInputs
+        {
+            ShowReadSize = false,
+            InputsEnabled = false,
+        };
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsVisible);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsEnabled);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadCountInput")!.IsVisible);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadCountInput")!.IsEnabled);
+    }
+
     [AvaloniaFact]
     public void NoHostAutomationId_LeavesInnerIdsEmpty()
     {

@@ -70,8 +70,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 else
                 {
                     // Honor the user-edited Top Address / Read Count.
-                    _vm.TopAddress = (uint)(TopAddressBox.Value ?? 0);
-                    _vm.ReadCount = (uint)(ReadCountBox.Value ?? 0);
+                    // #649: editable inputs unified via EditorTopBarWithInputs.
+                    _vm.TopAddress = TopBar.ReadStartAddress;
+                    _vm.ReadCount = (uint)TopBar.ReadCount;
                 }
 
                 var items = _vm.LoadList();
@@ -89,10 +90,10 @@ namespace FEBuilderGBA.Avalonia.Views
                             ? rom.RomInfo.ai2_pointer
                             : rom.RomInfo.ai1_pointer;
                         uint resolvedBase = rom.p32(tablePtr);
-                        TopAddressBox.Value = resolvedBase;
+                        TopBar.ReadStartAddress = resolvedBase;
                         _vm.TopAddress = resolvedBase;
                     }
-                    ReadCountBox.Value = (decimal)items.Count;
+                    TopBar.ReadCount = items.Count;
                     _vm.ReadCount = (uint)items.Count;
                 }
             }
@@ -136,6 +137,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("AIScriptView.Reload_Click failed: {0}", ex.Message);
             }
+        }
+
+        // #649: routed event from the unified EditorTopBarWithInputs Reload
+        // button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
+        {
+            Reload_Click(sender, e);
         }
 
         // -----------------------------------------------------------------

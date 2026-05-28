@@ -6,21 +6,29 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*,Auto">
 
-    <!-- Top filter / read-config bar (mirrors WinForms panel1) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Cond:" VerticalAlignment="Center" />
-        <ComboBox AutomationProperties.AutomationId="MapExitPoint_Filter_Combo"
-                  Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
-        <Label Content="Address (decimal)" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="MapExitPoint_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="140"
-                       Minimum="0" Maximum="65535999"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="MapExitPoint_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-      </StackPanel>
-    </Border>
+    <!-- Top filter / read-config bar — unified via EditorTopBar (#649).
+         The Cond filter ComboBox stays in its own Border above the bar
+         (the unified bar's Filter slot is a TextBox, not a ComboBox).
+         ReadCount lives in the second row (panel-2 ExitPointer bar), so
+         ShowReadCount=False on the EditorTopBar. -->
+    <StackPanel Grid.Row="0" Grid.ColumnSpan="2">
+      <Border BorderBrush="Gray" BorderThickness="1" Margin="4,4,4,0">
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+          <Label Content="Cond:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="MapExitPoint_Filter_Combo"
+                    Name="FilterComboBox" Width="320" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+      <controls:EditorTopBar Margin="4,4,4,0"
+                             Name="TopBar"
+                             AutomationProperties.AutomationId="MapExitPoint_TopBar"
+                             StartAddressLabel="Address (decimal):"
+                             StartAddressAutomationId="MapExitPoint_ReadStartAddress_Label"
+                             ReloadAutomationId="MapExitPoint_ReloadList_Button"
+                             ShowReadCount="False"
+                             ShowSize="False"
+                             ReloadRequested="OnTopBarReloadRequested" />
+    </StackPanel>
 
     <!-- Pointer-write bar across the address area (mirrors WF AddressPanel) -->
     <Border Grid.Row="1" Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="4">

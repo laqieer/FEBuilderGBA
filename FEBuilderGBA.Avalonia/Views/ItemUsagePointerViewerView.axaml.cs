@@ -73,8 +73,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
 
                 // Refresh the read-only top/select bar indicators from VM state.
-                ReadStartAddressBox.Value = (decimal)_vm.ReadStartAddress;
-                ReadCountBox.Value = (decimal)_vm.ReadCount;
+                // #649: display via the unified EditorTopBar read-only slots.
+                TopBar.StartAddressText = _vm.ReadStartAddress.ToString();
+                TopBar.ReadCountText = _vm.ReadCount.ToString();
                 AsmSwitchBox.Text = _vm.AsmSwitchText;
                 BlockSizeBox.Text = _vm.BlockSize.ToString();
                 ItemAddressBox.Value = (decimal)_vm.CurrentArrayAddr;
@@ -158,6 +159,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
+        {
+            int idx = Math.Max(0, FilterComboBox.SelectedIndex);
+            LoadListForFilter(idx);
+        }
+
+        // #649: routed event from the unified EditorTopBar Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e)
         {
             int idx = Math.Max(0, FilterComboBox.SelectedIndex);
             LoadListForFilter(idx);

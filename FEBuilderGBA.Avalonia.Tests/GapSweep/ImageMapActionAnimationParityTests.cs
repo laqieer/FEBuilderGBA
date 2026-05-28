@@ -342,9 +342,13 @@ public class ImageMapActionAnimationParityTests
     [Fact]
     public void View_HasReloadButton_Wired()
     {
+        // #649: Reload button now lives inside EditorTopBar; its
+        // AutomationId is preserved via the ReloadAutomationId override.
+        // The hand-rolled Click=\"ReloadList_Click\" handler was replaced
+        // by the unified bar's ReloadRequested routed event.
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ImageMapActionAnimation_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        Assert.Contains("ImageMapActionAnimation_ReloadList_Button", axaml);
+        Assert.Contains("OnTopBarReloadRequested", axaml);
     }
 
     [Fact]

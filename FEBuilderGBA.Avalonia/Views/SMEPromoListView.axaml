@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SMEPromoListView"
         Title="SME Promo List"
         Width="1155" Height="655"
@@ -7,17 +8,21 @@
         SizeToContent="WidthAndHeight">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
   <DockPanel>
-    <!-- Top toolbar: Address + Count + Reload -->
-    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Height="34"
-                Margin="8,4,8,0" Spacing="8">
-      <TextBlock Text="Address:" VerticalAlignment="Center" />
-      <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown1_Input" FormatString="0" Value="{Binding ReadStartAddress}" Minimum="0"
-                     Width="130" Height="25" />
-      <TextBlock Text="Count:" VerticalAlignment="Center" />
-      <NumericUpDown AutomationProperties.AutomationId="SMEPromoList_NumericUpDown2_Input" FormatString="0" Value="{Binding ReadCount}" Minimum="1" Maximum="256"
-                     Width="78" Height="25" />
-      <Button AutomationProperties.AutomationId="SMEPromoList_Reload_Button" Content="Reload" Width="112" Height="30" Click="Reload_Click" />
-    </StackPanel>
+    <!-- Top toolbar: Address + Count + Reload — unified via
+         EditorTopBarWithInputs (#649). Address/Count remain editable
+         (synced to ViewModel by the code-behind on ReloadRequested).
+         ShowReadSize=False because this editor only has Address + Count. -->
+    <controls:EditorTopBarWithInputs DockPanel.Dock="Top"
+                                     Name="TopBar"
+                                     Margin="8,4,8,0"
+                                     AutomationProperties.AutomationId="SMEPromoList_TopBar"
+                                     ReadStartLabel="Address:"
+                                     ReadCountLabel="Count:"
+                                     ReadStartAutomationId="SMEPromoList_NumericUpDown1_Input"
+                                     ReadCountAutomationId="SMEPromoList_NumericUpDown2_Input"
+                                     ReloadAutomationId="SMEPromoList_Reload_Button"
+                                     ShowReadSize="False"
+                                     ReloadRequested="OnTopBarReloadRequested" />
 
     <Grid ColumnDefinitions="245,*">
       <!-- Left: Address list -->
