@@ -232,14 +232,32 @@ namespace FEBuilderGBA
         /// bases to <paramref name="result"/>, de-duplicated against the
         /// direct-cond-slot entries already there. Mirrors the script-scan
         /// half of WF <c>EventCondForm.MakeUnitPointer</c>.
-        /// Requires <c>CoreState.EventScript</c> to be loaded and
-        /// <c>CoreState.ROM == rom</c> (the Core EventScript disassembler's
-        /// <c>IsExitCode</c>/FE8-dummy-end checks read <c>CoreState.ROM</c>).
+        ///
+        /// IMPORTANT — the Core EventScript disassembly path
+        /// (<see cref="EventScript.DisAseemble"/>,
+        /// <see cref="EventScript.IsExitCode"/> / FE8 dummy-end check, and the
+        /// per-command <c>CommentCache</c> lookup) is **bound to the static
+        /// <c>CoreState.ROM</c> / <c>CoreState.CommentCache</c>**, NOT to the
+        /// <paramref name="rom"/> parameter. To avoid mis-scanning or throwing
+        /// when <see cref="GetUnitGroupsForMap"/> is called with a ROM that is
+        /// not the active <c>CoreState.ROM</c> (or when it is null), the
+        /// script scan is **skipped** unless the passed ROM IS the active
+        /// <c>CoreState.ROM</c>. When skipped, <see cref="GetUnitGroupsForMap"/>
+        /// still returns the direct unit-placement cond-slot results — the
+        /// editor (Avalonia <c>EventUnitViewModel.LoadUnitGroups</c> / WF) only
+        /// ever calls this with the active ROM, so the script scan runs there.
+        /// This is a read-path scan, so it never pins/swaps the global state.
         /// </summary>
         static void ScanEventScriptSlots(ROM rom, uint eventAddr, List<CondSlot> slots, uint mapId, List<AddrResult> result)
         {
             var es = CoreState.EventScript;
             if (es == null) return;
+
+            // The EventScript disasm path dereferences the static CoreState.ROM
+            // (+ RomInfo/Data/CommentCache) rather than `rom`; only run the scan
+            // when they are the same instance so headless/multi-ROM callers can
+            // never mis-scan or NullRef (#786 review on #776).
+            if (CoreState.ROM == null || !ReferenceEquals(CoreState.ROM, rom)) return;
 
             uint romLen = (uint)rom.Data.Length;
             var tracelist = new List<uint>();

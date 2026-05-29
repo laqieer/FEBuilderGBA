@@ -472,9 +472,142 @@ public class MapEventUnitCoreNewAllocTests
         }
     }
 
+    [Fact]
+    public void GetUnitGroupsForMap_RomNotMatchingCoreStateRom_SkipsScriptScan_NoThrow()
+    {
+        // Regression for #786 review: the EventScript disasm path is bound to
+        // the static CoreState.ROM (+ RomInfo/Data/CommentCache). When
+        // GetUnitGroupsForMap is called with a ROM that is NOT CoreState.ROM
+        // (or CoreState.ROM is null), the POINTER_UNIT script scan must be
+        // SKIPPED — no throw, no mis-scan — while still returning the direct
+        // unit-placement cond-slot results.
+        var loadScript = EventScript.ParseScriptLine("12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]");
+        var endScript = EventScript.ParseScriptLine("0A000000\tENDA [TERM]");
+        Assert.NotNull(loadScript);
+        Assert.NotNull(endScript);
+
+        // `rom` is a standalone ROM instance, deliberately NOT assigned to
+        // CoreState.ROM. We build the full map chain in it (direct cond-slot
+        // list + a START_EVENT script referencing a unit list).
+        ROM rom = MakeFe8uRom();
+        uint directUnitList;
+        uint scriptUnitList;
+        BuildMapWithDirectAndScriptUnitLists(rom, mapId: 0, out directUnitList, out scriptUnitList);
+
+        var prevRom = CoreState.ROM;
+        var prevEs = CoreState.EventScript;
+        try
+        {
+            // CoreState.ROM is null (a different instance would behave the same).
+            CoreState.ROM = null;
+            // EventScript loaded but the script scan must still be skipped.
+            CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
+
+            // Must NOT throw even though CoreState.ROM != rom / is null.
+            var groups = MapEventUnitCore.GetUnitGroupsForMap(rom, 0);
+
+            // Direct cond-slot list is still returned (no script scan needed).
+            Assert.Contains(groups, g => g.addr == directUnitList);
+            // The script-referenced list is NOT discovered (scan skipped).
+            Assert.DoesNotContain(groups, g => g.addr == scriptUnitList);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.EventScript = prevEs;
+        }
+    }
+
+    [Fact]
+    public void GetUnitGroupsForMap_RomIsDifferentInstanceFromCoreStateRom_SkipsScriptScan()
+    {
+        // Same #786 guard, but with CoreState.ROM set to a DIFFERENT non-null
+        // ROM instance than the one passed in — the ReferenceEquals guard must
+        // still skip the script scan (and not consult the wrong ROM's bytes).
+        var loadScript = EventScript.ParseScriptLine("12000000XXXXXXXX\tLOADUNIT [XXXX:POINTER_UNIT:Units]");
+        var endScript = EventScript.ParseScriptLine("0A000000\tENDA [TERM]");
+        Assert.NotNull(loadScript);
+        Assert.NotNull(endScript);
+
+        ROM target = MakeFe8uRom();
+        uint directUnitList;
+        uint scriptUnitList;
+        BuildMapWithDirectAndScriptUnitLists(target, mapId: 0, out directUnitList, out scriptUnitList);
+
+        ROM other = MakeFe8uRom(); // a different instance
+
+        var prevRom = CoreState.ROM;
+        var prevEs = CoreState.EventScript;
+        var prevComment = CoreState.CommentCache;
+        try
+        {
+            CoreState.ROM = other; // != target
+            CoreState.EventScript = BuildEventScript(loadScript!, endScript!);
+            CoreState.CommentCache ??= new HeadlessEtcCache();
+
+            var groups = MapEventUnitCore.GetUnitGroupsForMap(target, 0);
+
+            Assert.Contains(groups, g => g.addr == directUnitList);
+            Assert.DoesNotContain(groups, g => g.addr == scriptUnitList);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.EventScript = prevEs;
+            CoreState.CommentCache = prevComment;
+        }
+    }
+
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
+
+    /// <summary>
+    /// Build the full FE8 map -> PLIST -> event-cond-block chain in
+    /// <paramref name="rom"/> for <paramref name="mapId"/>, with (a) a direct
+    /// PlayerUnit cond-slot unit list and (b) a START_EVENT script that LOADs
+    /// a separate unit list via a POINTER_UNIT arg. Returns both list bases.
+    /// </summary>
+    static void BuildMapWithDirectAndScriptUnitLists(ROM rom, uint mapId, out uint directUnitList, out uint scriptUnitList)
+    {
+        uint mapTableBase = 0x00800000u;
+        uint mapSize = rom.RomInfo.map_setting_datasize;
+        Write32(rom, rom.RomInfo.map_setting_pointer, mapTableBase | 0x08000000u);
+        uint mapRecord = mapTableBase + mapId * mapSize;
+        Write32(rom, mapRecord + 0, 0x08123456u);
+        const byte eventPlist = 7;
+        rom.Data[mapRecord + rom.RomInfo.map_setting_event_plist_pos] = eventPlist;
+
+        uint eventTableBase = 0x00810000u;
+        Write32(rom, rom.RomInfo.map_event_pointer, eventTableBase | 0x08000000u);
+        uint eventCondBlock = 0x00820000u;
+        Write32(rom, eventTableBase + eventPlist * 4u, eventCondBlock | 0x08000000u);
+
+        var slots = MapEventUnitCore.GetCondSlots(rom);
+        int playerSlotIdx = -1, startEventIdx = -1;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            if (playerSlotIdx < 0 && slots[i].Type == MapEventUnitCore.CondType.PlayerUnit)
+                playerSlotIdx = i;
+            if (startEventIdx < 0 && slots[i].Type == MapEventUnitCore.CondType.StartEvent)
+                startEventIdx = i;
+        }
+
+        directUnitList = 0x00830000u;
+        rom.Data[directUnitList + 0] = 0x10;
+        Write32(rom, eventCondBlock + (uint)playerSlotIdx * 4u, directUnitList | 0x08000000u);
+
+        uint scriptAddr = 0x00840000u;
+        Write32(rom, eventCondBlock + (uint)startEventIdx * 4u, scriptAddr | 0x08000000u);
+        scriptUnitList = 0x00850000u;
+        rom.Data[scriptUnitList + 0] = 0x20;
+        rom.Data[scriptAddr + 0] = 0x12;
+        rom.Data[scriptAddr + 1] = 0x00;
+        rom.Data[scriptAddr + 2] = 0x00;
+        rom.Data[scriptAddr + 3] = 0x00;
+        Write32(rom, scriptAddr + 4, scriptUnitList | 0x08000000u);
+        rom.Data[scriptAddr + 8] = 0x0A; // ENDA terminator
+    }
 
     static EventScript BuildEventScript(params EventScript.Script[] scripts)
     {
