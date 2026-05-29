@@ -94,8 +94,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Wire the AddressList using the FE8N v1 icon loader (W0-driven).
                 EntryList.SetItemsWithIcons(items, i => FE8NVer1IconLoader(items, i));
 
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #743: route through the unified EditorTopBarWithInputs (TopBar).
+                TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                TopBar.ReadCount = (int)_vm.ReadCount;
                 BlockSizeBox.Value = _vm.BlockSize;
 
                 _suppressChangeTypeChange = true;
@@ -129,10 +130,8 @@ namespace FEBuilderGBA.Avalonia.Views
             catch { return null; }
         }
 
-        void ReloadList_Click(object? sender, RoutedEventArgs e)
-        {
-            LoadList();
-        }
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         void FilterComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
@@ -144,8 +143,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.SelectPointer(idx);
                 EntryList.SetItemsWithIcons(items, i => FE8NVer1IconLoader(items, i));
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #743: route through the unified EditorTopBarWithInputs (TopBar).
+                TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                TopBar.ReadCount = (int)_vm.ReadCount;
             }
             catch (Exception ex)
             {

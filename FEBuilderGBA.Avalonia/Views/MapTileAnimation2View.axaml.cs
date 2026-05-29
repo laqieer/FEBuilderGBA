@@ -70,8 +70,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     // empty result) doesn't leave the old list visible
                     // (Copilot bot review on PR #535).
                     EntryList.SetItemsWithIcons(new List<AddrResult>(), _ => null);
-                    ReadStartAddressBox.Value = 0;
-                    ReadCountBox.Value = 0;
+                    // #743: route through the unified EditorTopBarWithInputs (TopBar).
+                    TopBar.ReadStartAddress = 0;
+                    TopBar.ReadCount = 0;
                     ClearDetailPanel();
                     UpdateUI();
                 }
@@ -109,7 +110,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.PaletteGba = 0;
         }
 
-        void ReloadList_Click(object? sender, RoutedEventArgs e) => LoadList();
+        // #743: routed event from the unified EditorTopBarWithInputs Reload button.
+        void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
         static List<string> MakeFilterItems(List<MapTileAnimation2Core.PlistRow> rows)
         {
@@ -146,8 +148,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (row.IsBroken)
                 {
                     EntryList.SetItemsWithIcons(new List<AddrResult>(), _ => null);
-                    ReadStartAddressBox.Value = 0;
-                    ReadCountBox.Value = 0;
+                    // #743: route through the unified EditorTopBarWithInputs (TopBar).
+                    TopBar.ReadStartAddress = 0;
+                    TopBar.ReadCount = 0;
                     // Reset the right-hand detail panel - including the
                     // main entry fields (PaletteDataPointer / AnimInterval
                     // / DataCount / StartPaletteIndex / Unknown7) - so a
@@ -163,8 +166,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // existing ListIconWiringTests.View_UsesColorSwatchLoader
                 // test asserts this wiring stays in place.
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ColorSwatchLoader(items, i));
-                ReadStartAddressBox.Value = _vm.ReadStartAddress;
-                ReadCountBox.Value = _vm.ReadCount;
+                // #743: route through the unified EditorTopBarWithInputs (TopBar).
+                TopBar.ReadStartAddress = _vm.ReadStartAddress;
+                TopBar.ReadCount = (int)_vm.ReadCount;
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }

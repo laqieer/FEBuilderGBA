@@ -6,27 +6,32 @@
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="260,*" RowDefinitions="Auto,Auto,*">
 
-    <!-- Row 0: Top read-config bar (mirrors WF panel3) -->
-    <Border Grid.Row="0" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
-      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
-        <Label Content="Top Address" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_ReadStart_Input"
-                       FormatString="0" Name="ReadStartAddressBox" Width="120"
-                       Minimum="0" Maximum="4294967295"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Label Content="Read Count" VerticalAlignment="Center" />
-        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation2_ReadCount_Input"
-                       FormatString="0" Name="ReadCountBox" Width="80"
-                       Minimum="0" Maximum="1024"
-                       IsEnabled="False" VerticalAlignment="Center" />
-        <Button AutomationProperties.AutomationId="MapTileAnimation2_ReloadList_Button"
-                Name="ReloadListButton" Content="Reload" Click="ReloadList_Click" />
-        <Label Content="Filter" VerticalAlignment="Center" />
-        <ComboBox AutomationProperties.AutomationId="MapTileAnimation2_Filter_Combo"
-                  Name="FilterComboBox" Width="280"
-                  SelectionChanged="FilterCombo_SelectionChanged" />
-      </StackPanel>
-    </Border>
+    <!-- Row 0: Top read-config bar — unified via EditorTopBarWithInputs (#743 round 2).
+         The Filter ComboBox lives in the `TrailingContent` slot between the
+         inputs and the Reload button. NOTE: legacy ordering placed Filter AFTER
+         Reload (inputs → Reload → Filter); the unified ordering moves Filter
+         BEFORE Reload to honour the "Reload pinned right" contract. This is a
+         deliberate UX change documented in the migrating PR. -->
+    <controls:EditorTopBarWithInputs Grid.Row="0" Grid.ColumnSpan="2" Name="TopBar"
+                                     AutomationProperties.AutomationId="MapTileAnimation2_TopBar"
+                                     ReadStartLabel="Top Address"
+                                     ReadCountLabel="Read Count"
+                                     ReadCountMaximum="1024"
+                                     InputsEnabled="False"
+                                     ShowReadSize="False"
+                                     ReadStartAutomationId="MapTileAnimation2_ReadStart_Input"
+                                     ReadCountAutomationId="MapTileAnimation2_ReadCount_Input"
+                                     ReloadAutomationId="MapTileAnimation2_ReloadList_Button"
+                                     ReloadRequested="OnTopBarReloadRequested">
+      <controls:EditorTopBarWithInputs.TrailingContent>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Label Content="Filter" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="MapTileAnimation2_Filter_Combo"
+                    Name="FilterComboBox" Width="280"
+                    SelectionChanged="FilterCombo_SelectionChanged" />
+        </StackPanel>
+      </controls:EditorTopBarWithInputs.TrailingContent>
+    </controls:EditorTopBarWithInputs>
 
     <!-- Row 1: selection bar (mirrors WF panel5) -->
     <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">

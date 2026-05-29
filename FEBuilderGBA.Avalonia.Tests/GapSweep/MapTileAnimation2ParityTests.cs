@@ -55,9 +55,13 @@ public class MapTileAnimation2ParityTests
     [Fact]
     public void View_HasReloadButton_Wired()
     {
+        // #743 round 2: top bar migrated to EditorTopBarWithInputs — the
+        // Reload button's AutomationId is preserved via the
+        // ReloadAutomationId override, and its click is wired via the
+        // unified bar's ReloadRequested routed event (not a direct Click=).
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"MapTileAnimation2_ReloadList_Button\"", axaml);
-        Assert.Contains("Click=\"ReloadList_Click\"", axaml);
+        Assert.Contains("ReloadRequested=\"OnTopBarReloadRequested\"", axaml);
     }
 
     [Fact]
