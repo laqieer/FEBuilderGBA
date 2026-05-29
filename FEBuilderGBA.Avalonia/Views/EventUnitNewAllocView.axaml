@@ -10,10 +10,12 @@
        count is returned from ShowDialog<uint?> (null on Cancel/close). -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
     <StackPanel Margin="16" Spacing="12" MinWidth="280">
-      <TextBlock Name="PromptLabel" Text="How many units?"
+      <TextBlock AutomationProperties.AutomationId="EventUnitNewAlloc_Prompt_Label"
+                 Name="PromptLabel" Text="How many units?"
                  FontWeight="Bold" VerticalAlignment="Center" />
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <TextBlock Name="CountLabel" Text="Count:" Width="90"
+        <TextBlock AutomationProperties.AutomationId="EventUnitNewAlloc_CountText_Label"
+                   Name="CountLabel" Text="Count:" Width="90"
                    VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="EventUnitNewAlloc_Count_Input"
                        x:Name="AllocCountBox" Width="160"
