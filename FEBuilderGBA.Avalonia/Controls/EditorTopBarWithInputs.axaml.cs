@@ -76,6 +76,22 @@ namespace FEBuilderGBA.Avalonia.Controls
             AvaloniaProperty.Register<EditorTopBarWithInputs, bool>(nameof(InputsEnabled), defaultValue: true);
 
         // -----------------------------------------------------------------
+        // InputsReadOnly (#743 round 2 Copilot review)
+        //
+        // Distinct from InputsEnabled — `IsReadOnly=true` on NumericUpDown
+        // keeps the control focusable + visually normal but blocks edits.
+        // Pre-migration editors that shipped `IsReadOnly="True"` text/numeric
+        // controls (EventCond / EventUnit / EventUnitFE7 / WorldMapEventPointer)
+        // used this UX, which differs from `IsEnabled=false` (greyed out,
+        // unfocusable). Hosts pick one or the other based on which legacy
+        // semantics they're preserving. Defaults to false so existing
+        // migrations are unaffected.
+        // -----------------------------------------------------------------
+
+        public static readonly StyledProperty<bool> InputsReadOnlyProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, bool>(nameof(InputsReadOnly), defaultValue: false);
+
+        // -----------------------------------------------------------------
         // Label-text styled properties (#649 Slice B)
         //
         // Lets i18n / per-editor overrides retitle the slots without
@@ -121,6 +137,24 @@ namespace FEBuilderGBA.Avalonia.Controls
         public static readonly StyledProperty<decimal> ReadSizeMaximumProperty =
             AvaloniaProperty.Register<EditorTopBarWithInputs, decimal>(nameof(ReadSizeMaximum), defaultValue: 65535m);
 
+        // -----------------------------------------------------------------
+        // TrailingContent styled property (#743 round 2)
+        //
+        // ContentPresenter slot positioned BETWEEN the inputs StackPanel and
+        // the Reload button. Lets hosts whose legacy top bar carried extra
+        // strip controls (FilterCombo, ChangeType combos, etc.) inject them
+        // into the unified bar while Reload stays right-pinned. Defaults to
+        // null — when null, the trailing column's `Auto` width collapses to
+        // 0 and the visual result is identical to the pre-#743 two-column
+        // (`*,Auto`) layout, so existing migrations render unchanged.
+        //
+        // The slot accepts a single child. Hosts that need multiple controls
+        // wrap them in their own `<StackPanel>` / `<Grid>` etc.
+        // -----------------------------------------------------------------
+
+        public static readonly StyledProperty<object?> TrailingContentProperty =
+            AvaloniaProperty.Register<EditorTopBarWithInputs, object?>(nameof(TrailingContent), defaultValue: null);
+
         /// <summary>Minimum allowed value for the Read Start input.</summary>
         public decimal ReadStartMinimum
         {
@@ -161,6 +195,20 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             get => GetValue(ReadSizeMaximumProperty);
             set => SetValue(ReadSizeMaximumProperty, value);
+        }
+
+        /// <summary>
+        /// Optional content placed BETWEEN the inputs and the Reload button.
+        /// Hosts whose legacy top bar carried extra strip controls (Filter
+        /// combos, ChangeType selectors, etc.) inject them via this slot
+        /// while Reload stays right-pinned. When <c>null</c> the trailing
+        /// column collapses, so the visual result matches the pre-#743
+        /// two-column layout exactly.
+        /// </summary>
+        public object? TrailingContent
+        {
+            get => GetValue(TrailingContentProperty);
+            set => SetValue(TrailingContentProperty, value);
         }
 
         // -----------------------------------------------------------------
@@ -214,6 +262,21 @@ namespace FEBuilderGBA.Avalonia.Controls
         {
             get => GetValue(InputsEnabledProperty);
             set => SetValue(InputsEnabledProperty, value);
+        }
+
+        /// <summary>
+        /// When true, the three NumericUpDown inputs render with
+        /// <c>IsReadOnly=true</c> — focusable and visually normal but the
+        /// user can't change the value. Differs from <see cref="InputsEnabled"/>
+        /// (which sets <c>IsEnabled=false</c>, greying the control and
+        /// removing focusability). Migrating hosts that previously shipped
+        /// <c>IsReadOnly="True"</c> NumericUpDown / TextBox controls pick
+        /// this option to preserve those UIA semantics.
+        /// </summary>
+        public bool InputsReadOnly
+        {
+            get => GetValue(InputsReadOnlyProperty);
+            set => SetValue(InputsReadOnlyProperty, value);
         }
 
         /// <summary>Label text rendered to the left of the Read Start input.</summary>
@@ -301,7 +364,9 @@ namespace FEBuilderGBA.Avalonia.Controls
             ApplyAllVisibility();
             ApplyAllLabels();
             ApplyInputsEnabled();
+            ApplyInputsReadOnly();
             ApplyAllLimits();
+            ApplyTrailingContent();
 
             AttachedToVisualTree += (_, _) => PropagateInnerAutomationIds();
         }
@@ -332,6 +397,10 @@ namespace FEBuilderGBA.Avalonia.Controls
             else if (change.Property == InputsEnabledProperty)
             {
                 ApplyInputsEnabled();
+            }
+            else if (change.Property == InputsReadOnlyProperty)
+            {
+                ApplyInputsReadOnly();
             }
             else if (change.Property == ReadStartLabelProperty)
             {
@@ -368,6 +437,10 @@ namespace FEBuilderGBA.Avalonia.Controls
             else if (change.Property == ReadSizeMaximumProperty)
             {
                 if (ReadSizeInput != null) ReadSizeInput.Maximum = ReadSizeMaximum;
+            }
+            else if (change.Property == TrailingContentProperty)
+            {
+                ApplyTrailingContent();
             }
         }
 
@@ -407,6 +480,19 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (ReadSizeLabelBlock != null) ReadSizeLabelBlock.Text = ReadSizeLabel;
         }
 
+        void ApplyTrailingContent()
+        {
+            // ContentPresenter.Content is forwarded from the styled-property.
+            // Collapse the presenter when no content is set so the trailing
+            // `Auto` column width snaps to 0 — that preserves the pre-#743
+            // (`*,Auto`) visual layout exactly for hosts that don't use the
+            // slot. Hosts that DO populate it set `IsVisible=true` (the
+            // default) and the column expands naturally to fit the child.
+            if (TrailingContentPresenter == null) return;
+            TrailingContentPresenter.Content = TrailingContent;
+            TrailingContentPresenter.IsVisible = TrailingContent != null;
+        }
+
         void ApplyInputsEnabled()
         {
             // Mirrors pre-migration `IsEnabled="False"` UX — the inputs render
@@ -414,6 +500,17 @@ namespace FEBuilderGBA.Avalonia.Controls
             if (ReadStartInput != null) ReadStartInput.IsEnabled = InputsEnabled;
             if (ReadCountInput != null) ReadCountInput.IsEnabled = InputsEnabled;
             if (ReadSizeInput != null) ReadSizeInput.IsEnabled = InputsEnabled;
+        }
+
+        void ApplyInputsReadOnly()
+        {
+            // Mirrors pre-migration `IsReadOnly="True"` UX — the inputs stay
+            // focusable + visually normal but block edits. Distinct from
+            // IsEnabled=false (greyed out, unfocusable). Hosts pick whichever
+            // matches the pre-migration semantics they're preserving.
+            if (ReadStartInput != null) ReadStartInput.IsReadOnly = InputsReadOnly;
+            if (ReadCountInput != null) ReadCountInput.IsReadOnly = InputsReadOnly;
+            if (ReadSizeInput != null) ReadSizeInput.IsReadOnly = InputsReadOnly;
         }
 
         static void ApplySlotVisibility(Control? labelBlock, Control? inputBlock, bool visible)

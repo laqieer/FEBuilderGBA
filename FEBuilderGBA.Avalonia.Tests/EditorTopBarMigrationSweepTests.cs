@@ -87,7 +87,7 @@ public class EditorTopBarMigrationSweepTests
         "SongInstrumentView.axaml",
         "AIScriptView.axaml",
         "SMEPromoListView.axaml",
-        // Slice C migrations (#743):
+        // Slice C round 1 migrations (#743 / PR #745):
         "SkillConfigSkillSystemView.axaml",
         "SkillConfigFE8NVer2SkillView.axaml",
         "SkillConfigFE8NVer3SkillView.axaml",
@@ -96,6 +96,49 @@ public class EditorTopBarMigrationSweepTests
         "SkillAssignmentClassCSkillSysView.axaml",
         "WorldMapEventPointerView.axaml",
         "MonsterItemViewerView.axaml",
+        // Slice C round 2 migrations (#743 round 2): both use the new
+        // TrailingContent slot to hold extra strip controls (combos)
+        // between the inputs and the Reload button.
+        "SkillConfigFE8NSkillView.axaml",
+        "MapTileAnimation2View.axaml",
+    };
+
+    /// <summary>
+    /// Editor views that are PERMANENTLY deferred — keep their hand-rolled
+    /// top bars and do NOT migrate to the unified controls. Each entry has
+    /// a documented technical reason; the corresponding test below asserts
+    /// the view still contains its custom top bar so a future agent can't
+    /// silently sneak it into the migrated list without making an actual
+    /// migration decision.
+    /// </summary>
+    static readonly (string view, string reason)[] s_permanentlyDeferredViews =
+    {
+        ("EventCondView.axaml",
+         "Avalonia NumericUpDown.FormatString=\"X*\" throws FormatException " +
+         "(#253 / NumericUpDownFormatStringTests). The legacy top-bar uses " +
+         "TextBox+\"0x{addr:X08}\" for the address display; migrating to a " +
+         "NumericUpDown loses the hex visual (a UX regression) or risks the " +
+         "FormatException. Pending a 'display-as-text' mode on the unified " +
+         "control under a separate issue."),
+        ("EventUnitView.axaml",
+         "Same hex-display drift as EventCondView — TextBox-backed TopAddr " +
+         "with \"0x{addr:X08}\" format. NumericUpDown cannot reproduce this " +
+         "without a hex FormatString (which throws FormatException, #253)."),
+        ("EventUnitFE7View.axaml",
+         "Same hex-display drift as EventCondView — TextBox-backed TopAddr " +
+         "with \"0x{addr:X08}\" format. NumericUpDown cannot reproduce this " +
+         "without a hex FormatString (which throws FormatException, #253)."),
+        ("ImageUnitPaletteView.axaml",
+         "The read-config fields live inside the Search Tools tab in a " +
+         "2-column vertical Grid (not a horizontal strip), and each field " +
+         "is a <TextBox IsReadOnly> rather than a NumericUpDown. The " +
+         "TrailingContent slot doesn't resolve this — the fundamental " +
+         "topology is incompatible with the horizontal-strip contract."),
+        ("TextViewerView.axaml",
+         "Per the issue body: TextViewer's Edit tab carries a content-search " +
+         "bar (not address bar), and its Search Tools tab has filter fields " +
+         "in a 2-column vertical Grid. Two different incompatible " +
+         "topologies — out of scope for the unified-bar migration."),
     };
 
     public static TheoryData<string> ReadOnlyMigratedViews => ToTheoryData(s_readOnlyMigratedViews);
@@ -235,10 +278,19 @@ public class EditorTopBarMigrationSweepTests
     [Fact]
     public void EditorTopBarWithInputs_PinsReloadToRightEdge()
     {
-        // Regression guard for #741 Copilot review: the editable variant's
-        // AXAML must use a Grid with ColumnDefinitions="*,Auto" so the
-        // Reload button stays pinned to the far-right edge (Column 1),
-        // matching the read-only EditorTopBar contract.
+        // Regression guard for #741 / #743 Copilot review: the editable
+        // variant's AXAML must use a Grid where the Reload button stays
+        // pinned to the far-right edge, matching the read-only EditorTopBar
+        // contract.
+        //
+        // After #743 round 2 the layout switched from `*,Auto` to
+        // `*,Auto,Auto` to add an optional `TrailingContent` ContentPresenter
+        // BETWEEN the inputs and the Reload button. The trailing column
+        // collapses to 0 width when no content is set, so the rendered
+        // result for unmigrated hosts matches the pre-#743 two-column
+        // layout exactly. This test accepts either schema so both pre- and
+        // post-#743 layouts pass — Reload must be in the LAST column either
+        // way.
         string path = Path.Combine(
             FindRepoRoot(),
             "FEBuilderGBA.Avalonia",
@@ -246,14 +298,35 @@ public class EditorTopBarMigrationSweepTests
             "EditorTopBarWithInputs.axaml");
         Assert.True(File.Exists(path));
         string axaml = File.ReadAllText(path);
-        Assert.Contains("ColumnDefinitions=\"*,Auto\"", axaml);
-        // Reload button must be placed in Grid.Column="1" so it lives in
-        // the Auto column at the right edge, not at the natural end of a
-        // StackPanel.
+        // Accept either the pre-#743 (`*,Auto`) or post-#743
+        // (`*,Auto,Auto`) layout.
         Assert.Matches(new Regex(
-            "<Button[^>]*Grid\\.Column=\"1\"[^>]*Name=\"ReloadButton\"",
+            "ColumnDefinitions=\"\\*,Auto(?:,Auto)?\""),
+            axaml);
+        // Reload button must be placed in the last column so it lives at
+        // the right edge, not at the natural end of a StackPanel. The post-
+        // #743 layout uses Grid.Column="2"; the pre-#743 layout used
+        // Grid.Column="1". Accept either.
+        Assert.Matches(new Regex(
+            "<Button[^>]*Grid\\.Column=\"(?:1|2)\"[^>]*Name=\"ReloadButton\"",
             RegexOptions.Singleline),
             axaml);
+        // The TrailingContent ContentPresenter (when present) must sit in
+        // the column BEFORE Reload — never after. This locks in the
+        // before-reload slot position so an accidental refactor can't
+        // silently swap them.
+        if (axaml.Contains("TrailingContentPresenter"))
+        {
+            Assert.Matches(new Regex(
+                "<ContentPresenter[^>]*Grid\\.Column=\"1\"[^>]*Name=\"TrailingContentPresenter\"",
+                RegexOptions.Singleline),
+                axaml);
+            // And Reload in column 2 (after the trailing slot).
+            Assert.Matches(new Regex(
+                "<Button[^>]*Grid\\.Column=\"2\"[^>]*Name=\"ReloadButton\"",
+                RegexOptions.Singleline),
+                axaml);
+        }
     }
 
     // -----------------------------------------------------------------
@@ -275,24 +348,43 @@ public class EditorTopBarMigrationSweepTests
     [Fact]
     public void KnownDeferredEditor_NotInMigratedList()
     {
-        // After Slice C (#743) two formerly-deferred editors moved to the
-        // migrated list (SkillConfigSkillSystemView, MonsterItemViewerView).
-        // The genuinely-deferred remainder must NOT be claimed as migrated
-        // — if someone accidentally adds one of them to the
-        // AllMigratedViews list without doing the actual migration, this
-        // test catches it. ImageUnitPaletteView (2-column Grid topology)
-        // and SkillConfigFE8NSkillView (FilterCombo + ChangeType in the
-        // top bar) stay deferred until a per-editor decision lands; the
-        // Event* / MapTileAnimation2 cluster is tracked separately.
-        foreach (string name in AllMigratedViewNames())
+        // After Slice C round 2 (#743), SkillConfigFE8NSkillView and
+        // MapTileAnimation2View joined the migrated list (round 1's 8 +
+        // round 2's 2 = 10 total). The 5 PERMANENT deferrals listed in
+        // s_permanentlyDeferredViews must NOT be claimed as migrated — each
+        // has a documented technical reason (see the array initialiser).
+        var migrated = new System.Collections.Generic.HashSet<string>(AllMigratedViewNames());
+        foreach (var (view, _) in s_permanentlyDeferredViews)
         {
-            Assert.NotEqual("ImageUnitPaletteView.axaml", name);
-            Assert.NotEqual("SkillConfigFE8NSkillView.axaml", name);
-            Assert.NotEqual("EventCondView.axaml", name);
-            Assert.NotEqual("EventUnitView.axaml", name);
-            Assert.NotEqual("EventUnitFE7View.axaml", name);
-            Assert.NotEqual("MapTileAnimation2View.axaml", name);
+            Assert.DoesNotContain(view, migrated);
         }
+    }
+
+    public static TheoryData<string, string> PermanentlyDeferredViews
+    {
+        get
+        {
+            var data = new TheoryData<string, string>();
+            foreach (var (view, reason) in s_permanentlyDeferredViews) data.Add(view, reason);
+            return data;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(PermanentlyDeferredViews))]
+    public void PermanentlyDeferredView_DoesNotUseUnifiedBar(string viewName, string reason)
+    {
+        // Round-2 (#743) closure check: each permanently-deferred view
+        // must NOT contain `<controls:EditorTopBarWithInputs ` in its AXAML
+        // — that's what marks it as still hand-rolled. If a future agent
+        // partially migrates one without updating the deferred list, this
+        // test catches the inconsistency. The `reason` parameter is the
+        // documented technical rationale (visible in xunit test name) so
+        // the deferral can't degrade into "we forgot to migrate this".
+        Assert.NotNull(reason); // suppress unused-parameter warning
+        Assert.NotEmpty(reason);
+        string axaml = ReadView(viewName);
+        Assert.DoesNotContain("<controls:EditorTopBarWithInputs", axaml);
     }
 
     [Fact]

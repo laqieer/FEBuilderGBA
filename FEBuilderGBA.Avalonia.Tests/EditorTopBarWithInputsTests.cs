@@ -19,6 +19,7 @@ using System.Linq;
 using FEBuilderGBA.Avalonia.Controls;
 using global::Avalonia.Automation;
 using global::Avalonia.Controls;
+using global::Avalonia.Controls.Presenters;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Interactivity;
 using global::Avalonia.LogicalTree;
@@ -499,6 +500,187 @@ public class EditorTopBarWithInputsTests
         Assert.NotNull(box);
         Assert.Equal(1m, box!.Minimum);
         Assert.Equal(256m, box.Maximum);
+    }
+
+    // ---------------------------------------------------------------------
+    // InputsReadOnly tests (#743 round 2)
+    //
+    // Distinct from InputsEnabled — pre-#743 editors that shipped
+    // `IsReadOnly="True"` controls (EventCond / EventUnit / EventUnitFE7)
+    // need the focusable-but-blocked UX rather than the disabled-and-greyed
+    // UX. InputsReadOnly sets `IsReadOnly` on the three inner NumericUpDowns
+    // without touching `IsEnabled`, so the controls retain focus and stay
+    // visually normal — matching the WF-equivalent IsReadOnly semantics.
+    // ---------------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void InputsReadOnly_DefaultsFalse_AllowsEdits()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        Assert.False(ctrl.InputsReadOnly);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsReadOnly);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadCountInput")!.IsReadOnly);
+        Assert.False(ctrl.FindControl<NumericUpDown>("ReadSizeInput")!.IsReadOnly);
+    }
+
+    [AvaloniaFact]
+    public void InputsReadOnly_True_SetsIsReadOnlyOnAllInputs()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.InputsReadOnly = true;
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsReadOnly);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadCountInput")!.IsReadOnly);
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadSizeInput")!.IsReadOnly);
+        // IsEnabled MUST remain true — that's the entire point of distinguishing
+        // ReadOnly from Disabled: the control stays focusable.
+        Assert.True(ctrl.FindControl<NumericUpDown>("ReadStartInput")!.IsEnabled);
+    }
+
+    [AvaloniaFact]
+    public void InputsReadOnly_AndInputsEnabled_AreIndependent()
+    {
+        // Hosts can stack the two: ReadOnly+Enabled = focusable but blocked;
+        // ReadOnly+Disabled = greyed AND blocked. Verify both flags propagate
+        // independently rather than overwriting each other.
+        var ctrl = new EditorTopBarWithInputs
+        {
+            InputsReadOnly = true,
+            InputsEnabled = false,
+        };
+        var box = ctrl.FindControl<NumericUpDown>("ReadStartInput");
+        Assert.NotNull(box);
+        Assert.True(box!.IsReadOnly);
+        Assert.False(box.IsEnabled);
+    }
+
+    // ---------------------------------------------------------------------
+    // TrailingContent tests (#743 round 2)
+    //
+    // Optional content slot between the inputs and the Reload button. Lets
+    // hosts inject extra strip controls (FilterCombo, ChangeType, etc.) into
+    // the unified bar while Reload stays right-pinned. When null the
+    // trailing column collapses so the visual is identical to the pre-#743
+    // (`*,Auto`) two-column layout.
+    // ---------------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void TrailingContent_NullByDefault_PresenterCollapsed()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        Assert.Null(ctrl.TrailingContent);
+        var presenter = ctrl.FindControl<ContentPresenter>("TrailingContentPresenter");
+        Assert.NotNull(presenter);
+        // When TrailingContent is null the presenter is collapsed
+        // (IsVisible=false) so the trailing `Auto` column shrinks to 0 and
+        // the visual matches the pre-#743 two-column layout.
+        Assert.False(presenter!.IsVisible);
+    }
+
+    [AvaloniaFact]
+    public void TrailingContent_Populated_PresenterVisible()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        var child = new TextBlock { Text = "Filter" };
+        ctrl.TrailingContent = child;
+        var presenter = ctrl.FindControl<ContentPresenter>("TrailingContentPresenter");
+        Assert.NotNull(presenter);
+        Assert.True(presenter!.IsVisible);
+        Assert.Equal(child, presenter.Content);
+    }
+
+    [AvaloniaFact]
+    public void TrailingContent_PopulatedThenNulled_ReturnsToCollapsed()
+    {
+        // Setter must round-trip through the visibility — populating then
+        // clearing must collapse the trailing column again, not leave the
+        // presenter visible with stale content.
+        var ctrl = new EditorTopBarWithInputs();
+        var child = new TextBlock { Text = "Filter" };
+        ctrl.TrailingContent = child;
+        ctrl.TrailingContent = null;
+        var presenter = ctrl.FindControl<ContentPresenter>("TrailingContentPresenter");
+        Assert.NotNull(presenter);
+        Assert.False(presenter!.IsVisible);
+        Assert.Null(presenter.Content);
+    }
+
+    [AvaloniaFact]
+    public void TrailingContent_AcceptsStackPanelWithMultipleChildren()
+    {
+        // The slot accepts a single child — hosts that need to inject
+        // multiple controls (e.g. SkillConfigFE8N: FE8N Page + ChangeType)
+        // wrap them in their own StackPanel. Verify the StackPanel is
+        // accepted as the slot's single child and visible.
+        var ctrl = new EditorTopBarWithInputs();
+        var stack = new StackPanel { Orientation = global::Avalonia.Layout.Orientation.Horizontal };
+        stack.Children.Add(new TextBlock { Text = "FE8N Page:" });
+        stack.Children.Add(new ComboBox());
+        stack.Children.Add(new TextBlock { Text = "Change Type:" });
+        stack.Children.Add(new ComboBox());
+        ctrl.TrailingContent = stack;
+        var presenter = ctrl.FindControl<ContentPresenter>("TrailingContentPresenter");
+        Assert.NotNull(presenter);
+        Assert.True(presenter!.IsVisible);
+        Assert.Equal(stack, presenter.Content);
+    }
+
+    [AvaloniaFact]
+    public void TrailingContent_NullDefault_ReloadStillPinnedToRightEdge()
+    {
+        // Regression guard for #741 / #743: with null TrailingContent the
+        // Reload button must STILL be pinned to the right-edge column. The
+        // post-#743 layout puts Reload in column 2; the pre-#743 layout had
+        // it in column 1. Either way it's the LAST column, which is what
+        // makes it right-pinned.
+        var window = new Window { Width = 400, Height = 100 };
+        var ctrl = new EditorTopBarWithInputs();
+        window.Content = ctrl;
+        window.Show();
+        try
+        {
+            var reload = ctrl.FindControl<Button>("ReloadButton");
+            Assert.NotNull(reload);
+            // Reload sits in the LAST column of its parent Grid; assert via
+            // the actual Grid.Column attached property rather than re-reading
+            // the AXAML.
+            int col = global::Avalonia.Controls.Grid.GetColumn(reload!);
+            Assert.Equal(2, col);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public void TrailingContent_Populated_ReloadStillPinnedToRightEdge()
+    {
+        // Same right-edge contract when TrailingContent is populated. The
+        // presenter expands its `Auto` column; Reload must still be in the
+        // rightmost column (column 2). If a future refactor accidentally
+        // re-orders the columns or moves Reload, this catches it.
+        var window = new Window { Width = 600, Height = 100 };
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.TrailingContent = new TextBlock { Text = "Filter" };
+        window.Content = ctrl;
+        window.Show();
+        try
+        {
+            var reload = ctrl.FindControl<Button>("ReloadButton");
+            Assert.NotNull(reload);
+            int col = global::Avalonia.Controls.Grid.GetColumn(reload!);
+            Assert.Equal(2, col);
+
+            // And the presenter is in the column BEFORE Reload (column 1).
+            var presenter = ctrl.FindControl<ContentPresenter>("TrailingContentPresenter");
+            Assert.NotNull(presenter);
+            int presenterCol = global::Avalonia.Controls.Grid.GetColumn(presenter!);
+            Assert.Equal(1, presenterCol);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [AvaloniaFact]
