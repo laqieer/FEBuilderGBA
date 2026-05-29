@@ -341,11 +341,18 @@ namespace FEBuilderGBA.Avalonia.Tests
         readonly string? _prevBaseDir;
 
         readonly ROM _rom;
+        EventScript? _ai;
 
         /// <summary>The synthetic FE8U ROM backing this environment (#760
         /// edit/write tests inspect rom.Data directly to verify in-place
         /// writes / undo).</summary>
         public ROM Rom => _rom;
+
+        /// <summary>The fresh width-16 FE8 AI EventScript this env loaded (#763
+        /// realloc tests re-assert it as CoreState.AIScript before decoding so
+        /// a cross-test stale-but-populated script in the shared collection
+        /// cannot break DisassembleScript's lazy-load guard).</summary>
+        public EventScript? AiScript => _ai;
 
         /// <summary>Copy a [addr, addr+length) slice of the ROM, for
         /// before/after byte comparisons in the #760 write tests.</summary>
@@ -382,6 +389,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var ai = new EventScript(16);
             ai.Load(EventScript.EventScriptType.AI);
             CoreState.AIScript = ai;
+            _ai = ai;
         }
 
         /// <summary>

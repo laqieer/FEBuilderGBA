@@ -169,13 +169,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             string? line = vm.UpdateRow(0, "05 32 FF");
             Assert.NotNull(line);
 
+            // SerializeScript now appends a WF-parity EXIT terminator because
+            // the single Attack05 row does not end in 0x03 (#763), so the
+            // serialized length is 32 = 16 (padded Attack05) + 16 (EXIT).
             byte[] serialized = vm.SerializeScript();
-            Assert.Equal(16, serialized.Length);
+            Assert.Equal(32, serialized.Length);
+            // The edited row occupies the FIRST 16-byte slot, right-padded.
             Assert.Equal(0x05, serialized[0]);
             Assert.Equal(0x32, serialized[1]);
             Assert.Equal(0xFF, serialized[2]);
             for (int i = 3; i < 16; i++)
                 Assert.Equal(0x00, serialized[i]);
+            // The appended EXIT occupies the second slot.
+            Assert.Equal(0x03, serialized[16]);
         }
 
         // ----------------------------------------------------------------
@@ -229,13 +235,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var env = new AiDisasmEnv();
             using var undo = new UndoScope();
 
-            var vm = env.LoadVmAt(Attack05(0x64));
+            // Fixture MUST end in EXIT so SerializeScript does NOT append a
+            // terminator — keeping serialized length == ReadByteCount (32) and
+            // forcing the SAME-SIZE in-place path, so this test exercises the
+            // intended out-of-range ROM-bounds guard (not the size-changed
+            // undoData==null short-circuit).
+            var body = new System.Collections.Generic.List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
             vm.DisassembleScript();
             Assert.NotNull(vm.UpdateRow(0, HexLine(0x05, 0x32, 0xFF)));
+            Assert.Equal((int)vm.ReadByteCount, vm.SerializeScript().Length); // same-size
 
-            // Point CurrentAddr so the 16-byte slice runs off the ROM end.
-            // ReadByteCount stays 16 (matches serialized) so only the
-            // bounds guard fires.
+            // Point CurrentAddr so the 32-byte slice runs off the ROM end →
+            // the bounds guard rejects.
             vm.CurrentAddr = (uint)env.Rom.Data.Length - 8;
             Assert.False(vm.WriteScript());
         }
@@ -395,6 +409,532 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(2, lines.Count);
             Assert.True(lines[0].Contains("0x32") || lines[0].Contains("50"),
                 $"GetDisplayLines must show the in-memory edit, got: {lines[0]}");
+        }
+
+        // ================================================================
+        // #763 — New/Remove opcode editing + any-size Write (realloc + repoint)
+        // ================================================================
+
+        // ----------------------------------------------------------------
+        // 763.1 SerializeScript appends EXIT when the last opcode != 0x03;
+        //       no double-append when the script already ends in EXIT.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void SerializeScript_AppendsExit_WhenLastOpcodeNotExit()
+        {
+            using var env = new AiDisasmEnv();
+
+            // Single Attack05 (first byte 0x05 != 0x03) -> serialize must add a
+            // 16-byte EXIT terminator (WF parity).
+            var vm = env.LoadVmAt(Attack05(0x64));
+            vm.DisassembleScript();
+
+            byte[] serialized = vm.SerializeScript();
+            Assert.Equal(32, serialized.Length);          // 16 (Attack05) + 16 (EXIT)
+            Assert.Equal(0x05, serialized[0]);
+            Assert.Equal(0x03, serialized[16]);            // appended EXIT opcode
+            Assert.Equal(0xFF, serialized[18]);            // EXIT FIXED byte
+        }
+
+        [Fact]
+        public void SerializeScript_NoDoubleAppend_WhenAlreadyEndsInExit()
+        {
+            using var env = new AiDisasmEnv();
+
+            // Attack05 + EXIT: last opcode IS 0x03 -> no extra terminator.
+            var body = new List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
+            vm.DisassembleScript();
+
+            byte[] serialized = vm.SerializeScript();
+            Assert.Equal(32, serialized.Length);           // unchanged — no double EXIT
+            Assert.Equal(0x05, serialized[0]);
+            Assert.Equal(0x03, serialized[16]);
+        }
+
+        // ----------------------------------------------------------------
+        // 763.2 InsertRow grows by one; decoded opcode placed AFTER index;
+        //       JisageReorder applied (row offsets re-laid contiguously).
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void InsertRow_AddsDecodedOpcodeAfterIndex_AndRebuildsOffsets()
+        {
+            using var env = new AiDisasmEnv();
+
+            var body = new List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
+            vm.DisassembleScript();
+            Assert.Equal(2, vm.RowCount);
+
+            // Insert a DoNothing (06 00 FF) AFTER row 0.
+            string? line = vm.InsertRow(0, HexLine(0x06, 0x00, 0xFF));
+            Assert.NotNull(line);
+            Assert.Contains("DoNothing", line!);
+            Assert.Equal(3, vm.RowCount);
+
+            // The new row is index 1 (after index 0); the EXIT shifted to 2.
+            IReadOnlyList<string> rows = vm.GetDisplayLines();
+            Assert.Contains("Attack05", rows[0]);
+            Assert.Contains("DoNothing", rows[1]);
+            Assert.Contains("EXIT", rows[2]);
+
+            // Offsets are re-laid contiguously at CurrentAddr + i*16.
+            Assert.Contains($"0x{vm.CurrentAddr:X06}", rows[0]);
+            Assert.Contains($"0x{vm.CurrentAddr + 16:X06}", rows[1]);
+            Assert.Contains($"0x{vm.CurrentAddr + 32:X06}", rows[2]);
+        }
+
+        [Fact]
+        public void InsertRow_NegativeIndex_AppendsAtEnd()
+        {
+            using var env = new AiDisasmEnv();
+
+            var vm = env.LoadVmAt(Attack05(0x64));
+            vm.DisassembleScript();
+            Assert.Equal(1, vm.RowCount);
+
+            // SelectedIndex < 0 -> Add at the end (WF parity).
+            string? line = vm.InsertRow(-1, HexLine(0x06, 0x00, 0xFF));
+            Assert.NotNull(line);
+            Assert.Contains("DoNothing", line!);
+            Assert.Equal(2, vm.RowCount);
+            Assert.Contains("DoNothing", vm.GetDisplayLines()[1]);
+        }
+
+        [Fact]
+        public void InsertRow_InvalidBytes_ReturnsNullAndLeavesModelUnchanged()
+        {
+            using var env = new AiDisasmEnv();
+
+            var vm = env.LoadVmAt(Attack05(0x64));
+            vm.DisassembleScript();
+            int before = vm.RowCount;
+
+            Assert.Null(vm.InsertRow(0, ""));                 // empty
+            Assert.Null(vm.InsertRow(0, "zz"));               // non-hex
+            Assert.Null(vm.InsertRow(0,                       // over one instruction
+                string.Join(" ", Enumerable.Range(0, 17).Select(_ => "00"))));
+            Assert.Equal(before, vm.RowCount);
+        }
+
+        // ----------------------------------------------------------------
+        // 763.3 RemoveRow shrinks by one; refuses when only one opcode left.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void RemoveRow_ShrinksByOne_AndRefusesLastInstruction()
+        {
+            using var env = new AiDisasmEnv();
+
+            var body = new List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
+            vm.DisassembleScript();
+            Assert.Equal(2, vm.RowCount);
+
+            // Remove row 0 -> only EXIT remains.
+            Assert.True(vm.RemoveRow(0));
+            Assert.Equal(1, vm.RowCount);
+            Assert.Contains("EXIT", vm.GetDisplayLines()[0]);
+
+            // Refuse to remove the last remaining instruction (never empty).
+            Assert.False(vm.RemoveRow(0));
+            Assert.Equal(1, vm.RowCount);
+
+            // Out-of-range index is also refused.
+            Assert.False(vm.RemoveRow(99));
+        }
+
+        // ----------------------------------------------------------------
+        // 763.4 Write after Insert (size grew) with a real UndoData → bytes
+        //       appended at a safe addr; rom.p32(BaseAddr) == newAddr;
+        //       CurrentAddr / ReadByteCount updated.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteScript_AfterInsert_RelocatesAndRepointsSlot()
+        {
+            using var env = new AiDisasmEnv();
+
+            Undo? prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                AIScriptViewModel vm = LoadViaPointerSlot(env,
+                    Concat(Attack05(0x64), ExitOpcode(0x00)), out uint baseAddr);
+                vm.DisassembleScript();
+
+                uint origCurrent = vm.CurrentAddr;
+                uint origByteCount = vm.ReadByteCount; // 32
+
+                // Insert a DoNothing after row 0: 3 opcodes, still ends in EXIT
+                // -> serialized length = 48 (grew from 32).
+                Assert.NotNull(vm.InsertRow(0, HexLine(0x06, 0x00, 0xFF)));
+
+                var ud = CoreState.Undo!.NewUndoData("ins");
+                bool ok;
+                using (ROM.BeginUndoScope(ud))
+                {
+                    ok = vm.WriteScript(ud);
+                }
+                CoreState.Undo.Push(ud);
+
+                Assert.True(ok);
+                // Relocated: CurrentAddr moved off the original slot.
+                Assert.NotEqual(origCurrent, vm.CurrentAddr);
+                Assert.True(U.isSafetyOffset(vm.CurrentAddr));
+                Assert.Equal(48u, vm.ReadByteCount);
+                Assert.NotEqual(origByteCount, vm.ReadByteCount);
+
+                // The AI pointer slot now points at the new script location.
+                Assert.Equal(vm.CurrentAddr, env.Rom.p32(baseAddr));
+
+                // The relocated body carries the inserted DoNothing + EXIT.
+                Assert.Equal(0x05, env.Rom.Data[vm.CurrentAddr + 0]);
+                Assert.Equal(0x06, env.Rom.Data[vm.CurrentAddr + 16]);
+                Assert.Equal(0x03, env.Rom.Data[vm.CurrentAddr + 32]);
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 763.5 Write after Remove (size shrank) → relocates + repoints.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteScript_AfterRemove_RelocatesAndRepointsSlot()
+        {
+            using var env = new AiDisasmEnv();
+
+            Undo? prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                // Three opcodes ending in EXIT (48 bytes).
+                byte[] body = Concat(Attack05(0x64), DoNothingBody(), ExitOpcode(0x00));
+                AIScriptViewModel vm = LoadViaPointerSlot(env, body, out uint baseAddr);
+                vm.DisassembleScript();
+                Assert.Equal(3, vm.RowCount);
+                uint origByteCount = vm.ReadByteCount; // 48
+
+                // Remove the middle DoNothing -> 2 opcodes ending in EXIT = 32.
+                Assert.True(vm.RemoveRow(1));
+
+                var ud = CoreState.Undo!.NewUndoData("rem");
+                bool ok;
+                using (ROM.BeginUndoScope(ud))
+                {
+                    ok = vm.WriteScript(ud);
+                }
+                CoreState.Undo.Push(ud);
+
+                Assert.True(ok);
+                Assert.Equal(32u, vm.ReadByteCount);
+                Assert.NotEqual(origByteCount, vm.ReadByteCount);
+                Assert.True(U.isSafetyOffset(vm.CurrentAddr));
+                Assert.Equal(vm.CurrentAddr, env.Rom.p32(baseAddr));
+
+                // Relocated body: Attack05 then EXIT (DoNothing gone).
+                Assert.Equal(0x05, env.Rom.Data[vm.CurrentAddr + 0]);
+                Assert.Equal(0x03, env.Rom.Data[vm.CurrentAddr + 16]);
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 763.6 Undo: a realloc Write under a Core undo scope → RunUndo()
+        //       restores rom.p32(BaseAddr) to the ORIGINAL slot value.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteScript_Realloc_IsUndoable_RestoresOriginalSlot()
+        {
+            using var env = new AiDisasmEnv();
+
+            Undo? prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                AIScriptViewModel vm = LoadViaPointerSlot(env,
+                    Concat(Attack05(0x64), ExitOpcode(0x00)), out uint baseAddr);
+                vm.DisassembleScript();
+
+                uint origSlotValue = env.Rom.p32(baseAddr); // points at original script
+
+                Assert.NotNull(vm.InsertRow(0, HexLine(0x06, 0x00, 0xFF)));
+
+                var ud = CoreState.Undo!.NewUndoData("ins");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    Assert.True(vm.WriteScript(ud));
+                }
+                CoreState.Undo.Push(ud);
+
+                // The slot was repointed away from the original.
+                Assert.NotEqual(origSlotValue, env.Rom.p32(baseAddr));
+
+                // Undo: the AI pointer slot returns to the ORIGINAL value.
+                CoreState.Undo.RunUndo();
+                Assert.Equal(origSlotValue, env.Rom.p32(baseAddr));
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 763.7 Same-size Write (no structural edit) still in-place: no
+        //       relocation, CurrentAddr unchanged.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteScript_SameSizeNoStructuralEdit_StaysInPlace()
+        {
+            using var env = new AiDisasmEnv();
+
+            Undo? prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                AIScriptViewModel vm = LoadViaPointerSlot(env,
+                    Concat(Attack05(0x64), ExitOpcode(0x00)), out uint baseAddr);
+                vm.DisassembleScript();
+
+                uint origCurrent = vm.CurrentAddr;
+                uint origByteCount = vm.ReadByteCount;
+                uint origSlotValue = env.Rom.p32(baseAddr);
+
+                // Value-only edit keeps the row count (ends in EXIT -> 32 bytes).
+                Assert.NotNull(vm.UpdateRow(0, HexLine(0x05, 0x32, 0xFF)));
+
+                var ud = CoreState.Undo!.NewUndoData("same");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    Assert.True(vm.WriteScript(ud));
+                }
+                CoreState.Undo.Push(ud);
+
+                // Strictly in-place: no relocation, slot untouched.
+                Assert.Equal(origCurrent, vm.CurrentAddr);
+                Assert.Equal(origByteCount, vm.ReadByteCount);
+                Assert.Equal(origSlotValue, env.Rom.p32(baseAddr));
+                // The edited byte landed in place.
+                Assert.Equal(0x32, env.Rom.Data[origCurrent + 1]);
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 763.8 Size-changed Write with undoData == null → false, no mutation.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteScript_SizeChanged_NullUndoData_RefusesNoMutation()
+        {
+            using var env = new AiDisasmEnv();
+
+            AIScriptViewModel vm = LoadViaPointerSlot(env,
+                Concat(Attack05(0x64), ExitOpcode(0x00)), out uint baseAddr);
+            vm.DisassembleScript();
+
+            uint origSlotValue = env.Rom.p32(baseAddr);
+            uint origLength = (uint)env.Rom.Data.Length;
+
+            // Grow the script (Insert) then attempt a Write with NO undoData.
+            Assert.NotNull(vm.InsertRow(0, HexLine(0x06, 0x00, 0xFF)));
+
+            Assert.False(vm.WriteScript(null));
+
+            // Nothing relocated, repointed, or grown.
+            Assert.Equal(origSlotValue, env.Rom.p32(baseAddr));
+            Assert.Equal(origLength, (uint)env.Rom.Data.Length);
+        }
+
+        // ----------------------------------------------------------------
+        // Copilot review (stale-model data-loss): LoadEntry must reset the
+        // editable model, so opcodes from a previously-loaded entry cannot be
+        // serialized into / repointed onto the newly-selected entry.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void LoadEntry_ResetsEditableModel_PreventingStaleWrite()
+        {
+            using var env = new AiDisasmEnv();
+            CoreState.ROM = env.Rom;
+            CoreState.AIScript = env.AiScript;
+
+            // Load + disassemble an entry: the editable model is populated.
+            var body = new System.Collections.Generic.List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
+            vm.DisassembleScript();
+            Assert.True(vm.HasDisassembly);
+
+            // Select a different entry via LoadEntry (as OnSelected does). The
+            // model must reset so a Write cannot carry the old opcodes over.
+            env.PlantBody(body.ToArray(), out uint slot);
+            vm.LoadEntry(slot);
+
+            Assert.False(vm.HasDisassembly);          // model cleared
+            Assert.Empty(vm.SerializeScript());        // nothing stale to write
+            Assert.False(vm.WriteScript(CoreState.Undo?.NewUndoData("x"))); // Write blocked
+        }
+
+        // ----------------------------------------------------------------
+        // Copilot review: New on an UN-loaded model (no Re-read) must NOT
+        // insert — otherwise a later Write would serialize just the new opcode
+        // and repoint the AI slot, dropping all existing opcodes.
+        // ----------------------------------------------------------------
+
+        [AvaloniaFact]
+        public void View_New_WithoutReadList_DoesNotInsert()
+        {
+            using var env = new AiDisasmEnv();
+            CoreState.ROM = env.Rom;
+            CoreState.AIScript = env.AiScript;
+
+            var view = new AIScriptView();
+            var list = view.FindControl<ListBox>("DisassemblyList");
+            var asmBox = view.FindControl<TextBox>("AsmBox");
+            Assert.NotNull(list);
+            Assert.NotNull(asmBox);
+
+            // No Re-read: the model is empty. Provide a valid opcode anyway.
+            asmBox!.Text = HexLine(0x05, 0x32, 0xFF);
+            Invoke(view, "New_Click");
+
+            // Guard fired: nothing was inserted.
+            var items = list!.ItemsSource as System.Collections.IEnumerable;
+            int count = 0;
+            if (items != null) foreach (var _ in items) count++;
+            Assert.Equal(0, count);
+        }
+
+        // ----------------------------------------------------------------
+        // 763.9 [AvaloniaFact] View New -> Write persists a relocated script:
+        //       rom.p32(BaseAddr) changed + the list grew by one row.
+        // ----------------------------------------------------------------
+
+        [AvaloniaFact]
+        public void View_New_ThenWrite_RelocatesAndGrowsList()
+        {
+            using var env = new AiDisasmEnv();
+
+            Undo? prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                var body = new List<byte>();
+                body.AddRange(Attack05(0x64));
+                body.AddRange(ExitOpcode(0x00));
+                env.PlantBody(body.ToArray(), out uint pointerSlotAddr);
+
+                var view = new AIScriptView();
+                var asmBox = view.FindControl<TextBox>("AsmBox");
+                var list = view.FindControl<ListBox>("DisassemblyList");
+                Assert.NotNull(asmBox);
+                Assert.NotNull(list);
+
+                var vmField = typeof(AIScriptView).GetField(
+                    "_vm",
+                    System.Reflection.BindingFlags.Instance |
+                    System.Reflection.BindingFlags.NonPublic);
+                Assert.NotNull(vmField);
+                var vm = (AIScriptViewModel)vmField!.GetValue(view)!;
+
+                // Re-assert env's ROM as active (defensive vs shared-collection churn).
+                CoreState.ROM = env.Rom;
+                vm.LoadEntry(pointerSlotAddr);
+                Assert.True(vm.IsLoaded);
+
+                var addressBox = view.FindControl<NumericUpDown>("AddressBox");
+                var byteCountBox = view.FindControl<NumericUpDown>("ReadByteCountBox");
+                addressBox!.Value = vm.CurrentAddr;
+                byteCountBox!.Value = vm.ReadByteCount;
+
+                // Re-read populates the list + model.
+                Invoke(view, "ReloadList_Click");
+                int rowsBefore = (list!.ItemsSource as IEnumerable<string>)?.Count() ?? 0;
+                Assert.Equal(2, rowsBefore);
+
+                uint origSlotValue = env.Rom.p32(vm.BaseAddr);
+
+                // Select row 0, type a new 16-byte instruction, New -> Write.
+                list.SelectedIndex = 0;
+                asmBox!.Text = HexLine(0x06, 0x00, 0xFF); // DoNothing
+                Invoke(view, "New_Click");
+                Invoke(view, "Write_Click");
+
+                // The list grew by one row (Attack05 + DoNothing + EXIT = 3).
+                int rowsAfter = (list.ItemsSource as IEnumerable<string>)?.Count() ?? 0;
+                Assert.Equal(3, rowsAfter);
+
+                // The AI pointer slot was repointed to the relocated script.
+                Assert.NotEqual(origSlotValue, env.Rom.p32(vm.BaseAddr));
+                Assert.Equal(vm.CurrentAddr, env.Rom.p32(vm.BaseAddr));
+            }
+            finally
+            {
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Helpers for the #763 realloc tests.
+        // ----------------------------------------------------------------
+
+        // DoNothing 16-byte body (06 00 FF ...), distinct from ExitOpcode.
+        static byte[] DoNothingBody()
+        {
+            var b = new byte[16];
+            b[0] = 0x06; b[1] = 0x00; b[2] = 0xFF;
+            return b;
+        }
+
+        static byte[] Concat(params byte[][] parts)
+        {
+            var list = new List<byte>();
+            foreach (var p in parts) list.AddRange(p);
+            return list.ToArray();
+        }
+
+        // Plant a body + pointer slot, follow the slot via LoadEntry (sets
+        // BaseAddr / CurrentAddr / ReadByteCount / IsLoaded) and return the VM.
+        // The realloc Write path needs a real BaseAddr (the AI pointer slot),
+        // which LoadVmAt does NOT set.
+        static AIScriptViewModel LoadViaPointerSlot(AiDisasmEnv env, byte[] body, out uint baseAddr)
+        {
+            env.PlantBody(body, out uint pointerSlotAddr);
+            baseAddr = pointerSlotAddr;
+            // Defensive (matches the AvaloniaFact below): re-assert the env's
+            // ROM + fresh width-16 AI script as the active ones before LoadEntry
+            // / DisassembleScript, so the pointer-slot follow and opcode decode
+            // resolve deterministically regardless of any cross-test CoreState
+            // churn in the shared [Collection("SharedState")] (the full-suite
+            // run interleaves classes that reassign CoreState.ROM / AIScript).
+            CoreState.ROM = env.Rom;
+            CoreState.AIScript = env.AiScript;
+            var vm = new AIScriptViewModel();
+            vm.LoadEntry(pointerSlotAddr);
+            return vm;
         }
 
         // ----------------------------------------------------------------

@@ -220,6 +220,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
+            // Loading a (possibly different) entry invalidates the editable
+            // model: clear it so a stale disassembly from a previously-loaded
+            // entry can't be serialized into / repointed onto this one (Copilot
+            // review — stale-model data-loss path). The View re-disassembles for
+            // the newly-loaded entry immediately after; until then HasDisassembly
+            // is false and Write/New/Remove are blocked.
+            _disassembled.Clear();
+            _rowOffsets.Clear();
+
             BaseAddr = pointerSlotAddr;
             if (!U.isSafetyOffset(pointerSlotAddr + 3))
             {
@@ -549,55 +558,188 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         // ----------------------------------------------------------------
-        // Serialize + write-back (#760, mirrors WF AllWriteButton_Click).
+        // Structural edits (#763): insert / remove a 16-byte AI instruction.
+        // Mirror WF AIScriptForm.NewButton_Click / RemoveButton_Click — both
+        // mutate the in-memory list then run EventScriptUtil.JisageReorder.
+        // These change the script length, so a subsequent WriteScript() takes
+        // the free-space realloc + pointer-repoint path rather than the
+        // same-size in-place path.
         // ----------------------------------------------------------------
 
         /// <summary>
-        /// Exact concatenation of every decoded instruction's ByteData, in
-        /// row order. This is a SAME-SIZE, in-place serialization: NO EXIT
-        /// terminator is appended and NO normalization is performed — the
-        /// loaded ReadByteCount already includes the trailing EXIT because
-        /// CalcScriptLength reads through it. (EXIT normalization + free-space
-        /// realloc + New/Remove are deferred, see #760 follow-up.) Returns an
-        /// empty array when nothing has been disassembled.
+        /// Insert a hand-typed 16-byte instruction AFTER the row at
+        /// <paramref name="index"/> (mirrors WF NewButton_Click:
+        /// AIAsm.Insert(SelectedIndex + 1, code), or Add when nothing is
+        /// selected). The bytes are parsed via the same width rule as the
+        /// per-row hex edit (one 16-byte instruction; short input is
+        /// zero-padded). After inserting, EventScriptUtil.JisageReorder is run
+        /// (WF parity) and _rowOffsets is rebuilt as CurrentAddr + i*16 so the
+        /// display lines carry the right per-row addresses.
+        ///
+        /// Returns the formatted display line for the newly-inserted row on
+        /// success (non-null = success), or null (leaving the model untouched)
+        /// on empty / non-hex / over-length input or a decode failure.
+        /// </summary>
+        public string? InsertRow(int index, string hexText)
+        {
+            byte[]? bytes = ParseInstructionHex(hexText);
+            if (bytes == null) return null;
+
+            EventScript es = CoreState.AIScript;
+            if (es == null) return null;
+
+            EventScript.OneCode code;
+            try
+            {
+                code = es.DisAseemble(bytes, 0);
+            }
+            catch
+            {
+                return null;
+            }
+            if (code == null || code.ByteData == null) return null;
+
+            int insertAt;
+            if (index < 0 || index >= _disassembled.Count)
+            {
+                _disassembled.Add(code);
+                insertAt = _disassembled.Count - 1;
+            }
+            else
+            {
+                insertAt = index + 1;
+                _disassembled.Insert(insertAt, code);
+            }
+
+            // WF parity: re-run the auto-indent / label reorder pass.
+            EventScriptUtil.JisageReorder(_disassembled);
+            RebuildRowOffsets();
+
+            uint off = insertAt < _rowOffsets.Count ? _rowOffsets[insertAt] : CurrentAddr;
+            return FormatAiRow(_disassembled[insertAt], off);
+        }
+
+        /// <summary>
+        /// Remove the instruction at <paramref name="index"/> (mirrors WF
+        /// RemoveButton_Click: AIAsm.RemoveAt(SelectedIndex)). Refuses to
+        /// remove the LAST remaining instruction so the script never becomes
+        /// empty (an empty script has no EXIT terminator and cannot be
+        /// written safely). After removal, EventScriptUtil.JisageReorder is run
+        /// and _rowOffsets is rebuilt. Returns true when a row was removed,
+        /// false on an out-of-range index or when only one row remains.
+        /// </summary>
+        public bool RemoveRow(int index)
+        {
+            if (index < 0 || index >= _disassembled.Count) return false;
+            if (_disassembled.Count <= 1) return false; // never empty
+
+            _disassembled.RemoveAt(index);
+            EventScriptUtil.JisageReorder(_disassembled);
+            RebuildRowOffsets();
+            return true;
+        }
+
+        /// <summary>
+        /// Recompute the per-row offsets as CurrentAddr + i*16 for the current
+        /// row count. AI is a FIXED 16-byte grid, so after a structural edit the
+        /// rows are simply re-laid-out contiguously from CurrentAddr. (The real
+        /// ROM offsets only matter once WriteScript relocates the script; until
+        /// then these drive the display-line addresses.)
+        /// </summary>
+        void RebuildRowOffsets()
+        {
+            _rowOffsets.Clear();
+            for (int i = 0; i < _disassembled.Count; i++)
+                _rowOffsets.Add(CurrentAddr + (uint)i * 16);
+        }
+
+        // ----------------------------------------------------------------
+        // Serialize + write-back (#760/#763, mirrors WF AllWriteButton_Click).
+        // ----------------------------------------------------------------
+
+        /// <summary>16-byte AI EXIT terminator (opcode 0x03). Appended by
+        /// SerializeScript when the script does not already end in EXIT,
+        /// matching WF AllWriteButton_Click's terminal-code append.</summary>
+        static readonly byte[] ExitTerminator = new byte[16]
+        {
+            0x03, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        };
+
+        /// <summary>
+        /// Concatenate every decoded instruction's ByteData, in row order,
+        /// then guarantee the script ends in an EXIT (0x03) terminator —
+        /// mirroring WF AIScriptForm.AllWriteButton_Click, which appends a
+        /// 16-byte EXIT when the last opcode's first byte is not 0x03. This
+        /// keeps the New/Remove realloc path from writing a script that runs
+        /// off its end into whatever follows in free space. No double-append:
+        /// when the model already ends in EXIT, nothing extra is added.
+        /// Returns an empty array when nothing has been disassembled.
         /// </summary>
         public byte[] SerializeScript()
         {
             int total = 0;
+            byte lastFirstByte = 0;
+            bool any = false;
             for (int i = 0; i < _disassembled.Count; i++)
             {
                 byte[] b = _disassembled[i].ByteData;
-                if (b != null) total += b.Length;
+                if (b == null || b.Length == 0) continue;
+                total += b.Length;
+                lastFirstByte = b[0];
+                any = true;
             }
+
+            // WF parity: append a 16-byte EXIT when the script is non-empty and
+            // does not already terminate with opcode 0x03.
+            bool appendExit = any && lastFirstByte != 0x03;
+            if (appendExit) total += ExitTerminator.Length;
 
             byte[] result = new byte[total];
             int pos = 0;
             for (int i = 0; i < _disassembled.Count; i++)
             {
                 byte[] b = _disassembled[i].ByteData;
-                if (b == null) continue;
+                if (b == null || b.Length == 0) continue;
                 Array.Copy(b, 0, result, pos, b.Length);
                 pos += b.Length;
             }
+            if (appendExit)
+                Array.Copy(ExitTerminator, 0, result, pos, ExitTerminator.Length);
             return result;
         }
 
         /// <summary>
-        /// Write the serialized instruction bytes back to the ROM at
-        /// CurrentAddr. Callers MUST wrap this call in a UndoService.Begin /
-        /// Commit block — the single rom.write_range call registers into the
-        /// ambient undo scope the View opens.
+        /// Write the serialized instruction bytes back to the ROM. Callers MUST
+        /// wrap this call in a UndoService.Begin / Commit block so the writes
+        /// register into the ambient undo scope the View opens.
         ///
-        /// This is a strict SAME-SIZE in-place write: it refuses to write
-        /// (returns false, mutating nothing) when the serialized length does
-        /// not equal the loaded ReadByteCount, when the target is not a safe
-        /// ROM offset (rejects header / out-of-range addresses a mistyped
-        /// Address box could supply), or when the write would run off the end
-        /// of the ROM. A length change means New/Remove territory, which needs
-        /// free-space reallocation (out of scope, #760 follow-up). Returns true
-        /// only when the full slice was written.
+        /// Two paths, chosen by the serialized length vs the loaded
+        /// ReadByteCount (mirrors WF AIScriptForm.AllWriteButton_Click, whose
+        /// WriteBinaryData reuses the slot in place when the size matches and
+        /// reallocates to free space otherwise):
+        ///
+        /// • SAME-SIZE (bytes.Length == ReadByteCount): a strict in-place write
+        ///   at CurrentAddr via rom.write_range. Refuses (returns false,
+        ///   mutating nothing) when the target is not a safe ROM offset (rejects
+        ///   header / out-of-range addresses a mistyped Address box could
+        ///   supply) or when the slice would run off the end of the ROM. No
+        ///   relocation — CurrentAddr / ReadByteCount are unchanged.
+        ///
+        /// • SIZE-CHANGED (New/Remove edited the row count, so SerializeScript
+        ///   now appends/omits the EXIT terminator): the script is appended to
+        ///   free space (AppendBinaryDataHeadless) and the AI pointer slot
+        ///   (BaseAddr) is repointed via rom.write_p32 — both signed against the
+        ///   SAME undoData so the realloc + repoint commit (and roll back) as one
+        ///   transaction. Requires a non-null undoData (the realloc must be
+        ///   undo-tracked) and a BaseAddr that is itself a safe 4-byte pointer
+        ///   slot, validated BEFORE the allocation so we never allocate then fail
+        ///   to repoint. On success CurrentAddr / ReadByteCount are updated to the
+        ///   new location / length.
+        ///
+        /// Returns true only when the write fully succeeded.
         /// </summary>
-        public bool WriteScript()
+        public bool WriteScript(Undo.UndoData? undoData = null)
         {
             if (_disassembled.Count == 0) return false;
 
@@ -606,30 +748,102 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             byte[] bytes = SerializeScript();
 
-            // No-partial-write guard: only a same-size, fully in-bounds slice
-            // is allowed. (ulong) arithmetic so a near-uint.MaxValue CurrentAddr
-            // cannot wrap past the ROM length.
-            if (bytes.Length != ReadByteCount) return false;
-            if ((ulong)CurrentAddr + (ulong)bytes.Length > (ulong)rom.Data.Length) return false;
-            // Safety-offset guard: refuse header / low / out-of-range targets so a
-            // mistyped Address box cannot mutate the ROM header under undo. Check
-            // both the start and the last byte of the slice.
-            if (bytes.Length > 0
-                && (!U.isSafetyOffset(CurrentAddr)
-                    || !U.isSafetyOffset(CurrentAddr + (uint)bytes.Length - 1)))
+            if (bytes.Length == ReadByteCount)
+            {
+                // ---- SAME-SIZE in-place path (strictly no relocation) ----
+                // (ulong) arithmetic so a near-uint.MaxValue CurrentAddr cannot
+                // wrap past the ROM length.
+                if ((ulong)CurrentAddr + (ulong)bytes.Length > (ulong)rom.Data.Length) return false;
+                // Safety-offset guard: refuse header / low / out-of-range targets
+                // so a mistyped Address box cannot mutate the ROM header under
+                // undo. Check both the start and the last byte of the slice.
+                if (bytes.Length > 0
+                    && (!U.isSafetyOffset(CurrentAddr)
+                        || !U.isSafetyOffset(CurrentAddr + (uint)bytes.Length - 1)))
+                    return false;
+
+                // Single-range write → one undo entry (registers into the ambient
+                // UndoService scope opened by the View).
+                rom.write_range(CurrentAddr, bytes);
+                return true;
+            }
+
+            // ---- SIZE-CHANGED realloc + repoint path ----
+            // The realloc MUST be undo-tracked: a null undoData means the caller
+            // is not inside an undo transaction, so refuse rather than allocate
+            // an orphan region with no way to roll it back.
+            if (undoData == null) return false;
+
+            // Validate the pointer slot BEFORE appending so we never allocate
+            // free space and then fail to repoint it (leaking the allocation).
+            if (!U.isSafetyOffset(BaseAddr)
+                || (ulong)BaseAddr + 4 > (ulong)rom.Data.Length)
                 return false;
 
-            // Single-range write → one undo entry (registers into the ambient
-            // UndoService scope opened by the View), rather than one UndoPosition
-            // per byte.
-            rom.write_range(CurrentAddr, bytes);
+            uint oldAddr = CurrentAddr;
+            uint oldSize = ReadByteCount;
+
+            uint newAddr = AppendBinaryDataHeadless(rom, bytes, undoData);
+            if (!U.isSafetyOffset(newAddr)) return false;
+
+            // Repoint the AI table slot at the new script location — same
+            // undoData/transaction as the append so RunUndo reverses both.
+            rom.write_p32(BaseAddr, newAddr, undoData);
+
+            // Move the per-row comment / lint annotations to the new location so
+            // a relocate does not orphan them at the old offset (mirrors WF
+            // AllWriteButton's CommentCache update; same RepointEtcData pattern
+            // DataExpansionCore.ExpandTableTo uses on table relocation).
+            CoreState.CommentCache?.RepointEtcData(oldAddr, oldSize, newAddr);
+            CoreState.LintCache?.RepointEtcData(oldAddr, oldSize, newAddr);
+
+            CurrentAddr = newAddr;
+            ReadByteCount = (uint)bytes.Length;
             return true;
+        }
+
+        /// <summary>
+        /// Headless equivalent of InputFormRef.AppendBinaryData. Routes through
+        /// the registered CoreState.AppendBinaryData delegate when wired
+        /// (WinForms registers InputFormRef.AppendBinaryData → free-space
+        /// search). When no delegate is wired (Avalonia today / headless tests),
+        /// falls back to appending at the current ROM end, growing rom.Data to
+        /// fit, and signing the appended range into <paramref name="undoData"/>.
+        /// Returns the new data OFFSET (not a GBA pointer) — write_p32 applies
+        /// the toPointer conversion — or U.NOT_FOUND on failure.
+        /// </summary>
+        static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer, Undo.UndoData undoData)
+        {
+            if (buffer == null || buffer.Length == 0) return U.NOT_FOUND;
+
+            // Prefer the wired allocator (free-space search) when present.
+            var allocator = CoreState.AppendBinaryData;
+            if (allocator != null)
+                return allocator(buffer, undoData);
+
+            // ROM-end fallback: grow rom.Data and append at the old end. The
+            // undoData captured the pre-grow file size at NewUndoData time, so
+            // RunUndo resizes the ROM back (discarding the appended bytes). We
+            // still record the written range for parity.
+            uint appendAt = (uint)rom.Data.Length;
+            if (!rom.write_resize_data((uint)(appendAt + buffer.Length)))
+                return U.NOT_FOUND;
+
+            // Sign the appended range into the same transaction (after the grow,
+            // so the offset is in-bounds for the UndoPostion before-image read).
+            rom.write_range(appendAt, buffer, undoData);
+            return appendAt;
         }
 
         /// <summary>True once a script has been disassembled into the editable
         /// model (i.e. Re-read has run). The View guards Write on this so an
         /// empty/never-loaded model does not attempt a (misleading) write.</summary>
         public bool HasDisassembly => _disassembled.Count > 0;
+
+        /// <summary>Number of instruction rows currently in the editable model.
+        /// The View uses this to pick a post-edit selection after New/Remove
+        /// without re-materializing the display lines.</summary>
+        public int RowCount => _disassembled.Count;
 
         // ----------------------------------------------------------------
         // Legacy header-only commit (kept for the stable VM surface). The

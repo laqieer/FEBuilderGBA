@@ -268,12 +268,12 @@ public class AIScriptParityTests
     [Fact]
     public void View_WriteHandler_WrapsUndoScopeAndWritesInPlace()
     {
-        // #760: AI script opcode write-back is now implemented as a
-        // SAME-SIZE in-place write. The Write_Click handler must wrap the
+        // #760/#763: AI script opcode write-back drives the VM's WriteScript,
+        // which now handles BOTH a same-size in-place write AND a New/Remove
+        // realloc + pointer-repoint. The Write_Click handler must wrap the
         // write in a UndoService.Begin / Commit block (rolling back on a
-        // refused / failed write) and call the VM's WriteScript() — parity
-        // with SongTrack / EDView. This replaces the prior "honestly
-        // deferred" assertion (PR #571) per that test's own follow-up note.
+        // refused / failed write) and pass the active undoData so the realloc
+        // path is undo-tracked — parity with SongTrack / EDView.
         string codeBehindPath = CodeBehindPath();
         Assert.True(File.Exists(codeBehindPath), $"Code-behind not found at {codeBehindPath}");
         string code = File.ReadAllText(codeBehindPath);
@@ -283,7 +283,8 @@ public class AIScriptParityTests
         Assert.Contains("_undoService.Begin(", code);
         Assert.Contains("_undoService.Commit(", code);
         Assert.Contains("_undoService.Rollback(", code);
-        Assert.Contains("WriteScript()", code);
+        // The realloc path requires the active undoData (#763).
+        Assert.Contains("WriteScript(_undoService.GetActiveUndoData())", code);
 
         // The old "not yet implemented" Write message must be gone.
         Assert.DoesNotContain("AI script Write is not yet implemented in Avalonia", code);
