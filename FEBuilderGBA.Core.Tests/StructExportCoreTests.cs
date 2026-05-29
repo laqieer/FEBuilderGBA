@@ -597,5 +597,25 @@ namespace FEBuilderGBA.Core.Tests
                 }
             });
         }
+
+        // ResolveTableAt normalizes the input address with U.toOffset, then does
+        // an exact end-EXCLUSIVE range check (start <= off < base + count*size).
+        // This locks the load-bearing assumption that toOffset only strips the
+        // GBA-pointer base (0x08000000) and NEVER rounds to a word boundary —
+        // otherwise a non-word-aligned exclusive end could be padded back inside
+        // a small/odd-count table and resolve incorrectly. (All registered
+        // tables happen to be word-aligned, so this pure check is the only place
+        // the non-aligned boundary is provably covered.)
+        [Fact]
+        public void ToOffset_NonWordAlignedValue_IsNotRoundedDown()
+        {
+            // Raw offsets (below the GBA-pointer range) pass through byte-exact.
+            Assert.Equal(0x1235u, U.toOffset(0x1235u)); // odd
+            Assert.Equal(0x1236u, U.toOffset(0x1236u)); // 2-aligned, not 4-aligned
+            Assert.Equal(0x1237u, U.toOffset(0x1237u));
+            // GBA-pointer form: strip the base, preserve the low (non-aligned) bits.
+            Assert.Equal(0x1235u, U.toOffset(0x08001235u));
+            Assert.Equal(0x1237u, U.toOffset(0x08001237u));
+        }
     }
 }
