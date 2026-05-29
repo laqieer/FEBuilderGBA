@@ -107,6 +107,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Select_Click(object? sender, RoutedEventArgs e)
         {
+            // Clear any prior selection so SelectedScript / the returned result is
+            // null unless THIS confirmation succeeds (Copilot review: no stale
+            // result observable after a failed Select or Cancel).
+            _selectedScript = null;
             bool ok = false;
             if (_aiVm != null)
             {
@@ -120,7 +124,19 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             if (ok)
+            {
+                // Typed modal return (#766): hand the chosen Script back to the
+                // caller's ShowDialog<EventScript.Script?>. The AI Script editor's
+                // "Script Change" button copies the result's Data bytes into its
+                // Binary Code box.
                 Close(_selectedScript);
+            }
+            else
+            {
+                // No command selected — show an inline hint and stay open
+                // (do NOT return a result). VM is untouched (#766 WU2).
+                InfoLabel.Text = R._("Select a command from the list first.");
+            }
         }
 
         void Cancel_Click(object? sender, RoutedEventArgs e)

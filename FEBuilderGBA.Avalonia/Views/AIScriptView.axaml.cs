@@ -421,15 +421,52 @@ namespace FEBuilderGBA.Avalonia.Views
             ScriptCodeNameLabel.Text = "";
         }
 
-        void ScriptChange_Click(object? sender, RoutedEventArgs e)
+        // -----------------------------------------------------------------
+        // Script Change (#766): mirror WF AIScriptForm.ScriptChangeButton_Click.
+        // Open the category-based AI opcode picker modally; on a confirmed
+        // selection, copy the chosen command's DEFAULT bytes into the Binary
+        // Code box (and its mnemonic into the Description label) so the user can
+        // then Update/New it into the script. The picker
+        // (ScriptCommandPickerView, backed by AIScriptCategorySelectViewModel)
+        // is the FUNCTIONAL category browser; this is a read/UI-only copy — no
+        // ROM write happens here (the existing Update/New/Write path persists).
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Copy a picked command's default bytes into the Binary Code box and its
+        /// name into the Description label — the WF parity for
+        /// <c>ASMTextBox.Text = U.convertByteToStringDump(script.Data)</c> +
+        /// <c>ScriptCodeName.Text = makeCommandComboText(script,false)</c>.
+        /// Factored out (internal) so headless tests can exercise the
+        /// apply-path without a live modal. The Binary Code text is the shared
+        /// <see cref="AIScriptViewModel.FormatInstructionHex"/> form that
+        /// Update/New parse.
+        /// </summary>
+        internal void ApplyPickedScript(EventScript.Script? script)
         {
-            // The WF flow opens AIScriptCategorySelectForm modally and writes
-            // the chosen opcode bytes back into ASMTextBox. The Avalonia
-            // AIScriptCategorySelectView is a stub today; we surface the
-            // affordance without navigating to avoid putting the user on a
-            // dead-end screen. Per Copilot v2 #1 this jump deliberately stays
-            // OUT of the manifest (MissingAvManifest in the scanner output).
-            CoreState.Services.ShowInfo("Script category picker is not yet wired in Avalonia. Use the WinForms editor for category-based opcode selection.");
+            if (script == null) return;
+            AsmBox.Text = AIScriptViewModel.FormatInstructionHex(script.Data);
+            ScriptCodeNameLabel.Text = EventScript.makeCommandComboText(script, false);
+        }
+
+        async void ScriptChange_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var picker = new ScriptCommandPickerView(EventScript.EventScriptType.AI);
+
+                // AIScriptView IS a Window (TranslatedWindow : Window), so it can
+                // own the modal directly.
+                EventScript.Script? result = await picker.ShowDialog<EventScript.Script?>(this);
+
+                if (result != null)
+                    ApplyPickedScript(result);
+                // Cancel / no selection -> leave the Binary Code box unchanged.
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIScriptView.ScriptChange_Click failed: {0}", ex.Message);
+            }
         }
 
         // -----------------------------------------------------------------
