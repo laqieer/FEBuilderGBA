@@ -447,6 +447,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // ----------------------------------------------------------------
 
         /// <summary>
+        /// Space-separated 2-digit upper-hex dump of an instruction's bytes —
+        /// the exact "Binary Code" format the Disassembly list rows show
+        /// (between the "[..]") and the form <see cref="ParseInstructionHex"/> /
+        /// Update / New round-trip. Shared by <see cref="GetRowHex"/> and the AI
+        /// Script "Script Change" opcode picker (#766), which copies a chosen
+        /// command's default <see cref="EventScript.Script.Data"/> bytes into the
+        /// Binary Code box via this same formatter so they re-decode identically.
+        /// </summary>
+        public static string FormatInstructionHex(byte[] bytes)
+        {
+            if (bytes == null) return "";
+            return U.HexDumpLiner(bytes).Trim();
+        }
+
+        /// <summary>
         /// Space-separated 2-digit hex dump of the instruction bytes at the
         /// given row (matching the "[..]" hex in the Disassembly list rows).
         /// Returns null on an out-of-range index.
@@ -456,7 +471,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (index < 0 || index >= _disassembled.Count) return null;
             byte[] data = _disassembled[index].ByteData;
             if (data == null) return null;
-            return U.HexDumpLiner(data).Trim();
+            return FormatInstructionHex(data);
         }
 
         /// <summary>
