@@ -23713,3 +23713,9 @@ FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑
 
 :Import palette failed: {0}
 导入调色板失败: {0}
+
+:Selected Instrument Set
+选择的乐器组
+
+:No instrument set selected
+未选择乐器组

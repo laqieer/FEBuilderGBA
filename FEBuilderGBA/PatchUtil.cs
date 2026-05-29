@@ -61,7 +61,7 @@ namespace FEBuilderGBA
             g_Cache_FixGenerateBestMovementScriptPatch = FixGenerateBestMovementScriptENUN.NoCache;
             g_Cache_IconReworkPatch = ICONReworkENUN.NoCache;
             g_WeaponLockArrayTableAddr = U.NOT_FOUND;
-            g_InstrumentSet = null;
+            InstrumentSetCore.ClearCache(); // #787 — instrument-set memo now lives in Core
         }
 
         public const uint NO_CACHE = 0xFF;
@@ -1695,83 +1695,13 @@ namespace FEBuilderGBA
             return addr;
         }
 
-        static List<AddrResult> g_InstrumentSet = null;
+        // Delegates to the cross-platform InstrumentSetCore so there is a
+        // single source of truth shared with the Avalonia SongTrack
+        // instrument-set browser. The memoised cache lives in
+        // InstrumentSetCore; ClearCache() above invalidates it. (#787)
         public static List<AddrResult> SearchInstrumentSet(uint currentData)
         {
-            if (g_InstrumentSet == null)
-            {
-                g_InstrumentSet = SearchInstrumentSetLow(U.ConfigDataFilename("song_instrumentset_"), currentData);
-            }
-            return g_InstrumentSet;
-        }
-
-        static List<AddrResult> SearchInstrumentSetLow(string filename, uint currentData)
-        {
-            List<AddrResult> iset = new List<AddrResult>();
-            iset.Add(new AddrResult(currentData, U.ToHexString(U.toPointer(currentData)) + "=Current"));
-
-            bool hasNimap2 = false;
-
-            string[] lines = File.ReadAllLines(filename);
-            string version = Program.ROM.RomInfo.VersionToFilename;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                if (U.IsComment(lines[i]))
-                {
-                    continue;
-                }
-                string line = U.ClipComment(lines[i]);
-                string[] sp = line.Split('\t');
-                if (sp.Length < 3)
-                {
-                    continue;
-                }
-                if (sp[1] != version)
-                {
-                    if (sp[1] != "ALL")
-                    {
-                        continue;
-                    }
-                }
-                string[] hexStrings = sp[2].Split(' ');
-                byte[] need = new byte[hexStrings.Length];
-                for (int n = 0; n < hexStrings.Length; n++)
-                {
-                    need[n] = (byte)U.atoh(hexStrings[n]);
-                }
-
-                //Grepして調べる 結構重い.
-                uint v = U.Grep(Program.ROM.Data, need, Program.ROM.RomInfo.compress_image_borderline_address, 0, 4);
-                if (v == U.NOT_FOUND)
-                {
-                    continue;
-                }
-
-                if (sp[0] == "AllInstrument")
-                {//All Instrumentは、マルチトラックしかないので、データのポインタでサンプルを取ります。
-                    v = U.GrepPointer(Program.ROM.Data, v, Program.ROM.RomInfo.compress_image_borderline_address);
-                    if (v == U.NOT_FOUND)
-                    {
-                        continue;
-                    }
-                    v -= 8;
-                }
-                else if (sp[0] == "NatveInstrumentMap2")
-                {
-                    hasNimap2 = true;
-                }
-                else if (sp[0] == "NatveInstrumentMap")
-                {
-                    if (hasNimap2)
-                    {
-                        continue;
-                    }
-                }
-
-                v = U.toPointer(v);
-                iset.Add(new AddrResult(v, U.ToHexString(v) + "=" + sp[0]));
-            }
-            return iset;
+            return InstrumentSetCore.SearchInstrumentSet(Program.ROM, currentData);
         }
 
         //VennouWeaponLockArray
