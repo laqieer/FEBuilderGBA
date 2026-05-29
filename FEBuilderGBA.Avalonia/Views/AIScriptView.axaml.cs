@@ -157,6 +157,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                // Re-disassemble for the newly-selected entry. LoadEntry cleared
+                // the editable model; this repopulates it for THIS entry so the
+                // list shows the right opcodes and a later New/Remove/Write
+                // operates on the loaded entry (not a stale one).
+                DisassemblyList.ItemsSource = _vm.DisassembleScript();
             }
             catch (Exception ex)
             {

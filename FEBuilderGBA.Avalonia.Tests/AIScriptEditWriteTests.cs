@@ -760,6 +760,37 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ----------------------------------------------------------------
+        // Copilot review (stale-model data-loss): LoadEntry must reset the
+        // editable model, so opcodes from a previously-loaded entry cannot be
+        // serialized into / repointed onto the newly-selected entry.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void LoadEntry_ResetsEditableModel_PreventingStaleWrite()
+        {
+            using var env = new AiDisasmEnv();
+            CoreState.ROM = env.Rom;
+            CoreState.AIScript = env.AiScript;
+
+            // Load + disassemble an entry: the editable model is populated.
+            var body = new System.Collections.Generic.List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
+            vm.DisassembleScript();
+            Assert.True(vm.HasDisassembly);
+
+            // Select a different entry via LoadEntry (as OnSelected does). The
+            // model must reset so a Write cannot carry the old opcodes over.
+            env.PlantBody(body.ToArray(), out uint slot);
+            vm.LoadEntry(slot);
+
+            Assert.False(vm.HasDisassembly);          // model cleared
+            Assert.Empty(vm.SerializeScript());        // nothing stale to write
+            Assert.False(vm.WriteScript(CoreState.Undo?.NewUndoData("x"))); // Write blocked
+        }
+
+        // ----------------------------------------------------------------
         // Copilot review: New on an UN-loaded model (no Re-read) must NOT
         // insert — otherwise a later Write would serialize just the new opcode
         // and repoint the AI slot, dropping all existing opcodes.

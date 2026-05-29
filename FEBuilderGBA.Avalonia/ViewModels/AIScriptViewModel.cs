@@ -220,6 +220,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
+            // Loading a (possibly different) entry invalidates the editable
+            // model: clear it so a stale disassembly from a previously-loaded
+            // entry can't be serialized into / repointed onto this one (Copilot
+            // review — stale-model data-loss path). The View re-disassembles for
+            // the newly-loaded entry immediately after; until then HasDisassembly
+            // is false and Write/New/Remove are blocked.
+            _disassembled.Clear();
+            _rowOffsets.Clear();
+
             BaseAddr = pointerSlotAddr;
             if (!U.isSafetyOffset(pointerSlotAddr + 3))
             {
