@@ -262,6 +262,53 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.Empty(U.GrepPointerAllOnLDR(null, OldPtr));
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // #782 review regression: a reference whose SLOT lands in the
+        // danger zone (< 0x200, inside the cartridge header) must be
+        // INCLUDED-BUT-SKIPPED — never written — while a normal in-range
+        // reference (>= 0x200) in the same ROM is still repointed + counted.
+        // ─────────────────────────────────────────────────────────────
+
+        [Fact]
+        public void RepointAllReferences_DangerZoneSlot_SkippedNotWritten_InRangeStillRepointed()
+        {
+            var rom = MakeRom();
+
+            // (a) Raw pointer to OldPtr at a DANGER-ZONE slot 0x104 (< 0x200).
+            // GrepPointerAll's default start is 0x100, so this slot IS found by
+            // the scanner — proving the per-slot gate (not the scan floor) is
+            // what skips it.
+            uint dangerRawSlot = 0x104;
+            WriteWord(rom, dangerRawSlot, OldPtr);
+
+            // (b) An LDR whose literal-pool slot ALSO computes into the danger
+            // zone: ldr r0,[pc,#0] at instr 0x100 -> slot Padding4(0x100+2)=0x104.
+            // (Same slot as (a); written here for an explicit LDR-path danger
+            // hit. The literal at 0x104 already holds OldPtr from (a).)
+            WriteLdrPcZero(rom, 0x100);
+
+            // (c) A NORMAL in-range raw pointer (>= 0x200) that MUST be repointed.
+            uint inRangeSlot = 0x4000;
+            WriteWord(rom, inRangeSlot, OldPtr);
+
+            // Sanity: the scanners DO surface the danger-zone slot (so the gate,
+            // not the scan, is responsible for skipping it).
+            Assert.Contains(dangerRawSlot, U.GrepPointerAll(rom.Data, OldPtr));
+            Assert.Contains(dangerRawSlot, U.GrepPointerAllOnLDR(rom.Data, OldPtr));
+            Assert.Contains(inRangeSlot, U.GrepPointerAll(rom.Data, OldPtr));
+
+            int count = DataExpansionCore.RepointAllReferences(rom, OldPtr, NewPtr, null);
+
+            // Only the in-range slot was written -> count == 1 (danger slot excluded).
+            Assert.Equal(1, count);
+
+            // The danger-zone header slot is UNCHANGED (still the original OldPtr).
+            Assert.Equal(OldPtr, rom.u32(dangerRawSlot));
+
+            // The in-range slot WAS repointed.
+            Assert.Equal(NewPtr, rom.u32(inRangeSlot));
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
