@@ -124,11 +124,12 @@ namespace FEBuilderGBA.Avalonia.Views
         // ===================================================================
         // Data Export group — WinForms label1
         //
-        // The WF MakeTSV/MakeEA/MakNMM family relies on the source editor's
-        // InputFormRef widget tree to discover the struct schema (which
-        // NumericUpDown fields exist, what type each is). The Avalonia
-        // dispatcher is opened standalone, so we fall back to an honest stub
-        // hex dump labelled with a banner. Tracking issue: follow-up to #439.
+        // CSV/TSV/EA now produce struct-aware output via StructExportCore when
+        // the focused address resolves to a known ROM data table — the VM's
+        // MakeExportText resolves the table from the address alone, so the
+        // dispatcher no longer needs the source editor's InputFormRef widget
+        // tree (#770, closing the gap tracked from #439). STRUCT/NMM and any
+        // unresolved address still fall back to the honest hex-dump banner.
         // ===================================================================
 
         void CSVButton_Click(object? sender, RoutedEventArgs e)
@@ -151,8 +152,16 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.SelectedFunc = func;
-                string filename = "DumpStructSelectDialog_" + U.ToHexString8(_vm.CurrentAddr) + ext;
-                string text = _vm.MakeStubExportText(formatName);
+                // Fold the resolved struct-table name (if any) into the preview
+                // filename so the user sees which table the export came from.
+                // The table name is NEVER injected into `text` — the export body
+                // is the raw struct-aware formatter output (or hex fallback).
+                string? tableName = _vm.ResolvedTableName();
+                string baseName = string.IsNullOrEmpty(tableName)
+                    ? "DumpStructSelectDialog_" + U.ToHexString8(_vm.CurrentAddr)
+                    : "DumpStructSelectDialog_" + tableName + "_" + U.ToHexString8(_vm.CurrentAddr);
+                string filename = baseName + ext;
+                string text = _vm.MakeExportText(formatName);
                 var dialog = new DumpStructSelectToTextDialogView();
                 dialog.SetContent(filename, text);
                 // ShowDialog with this as owner so the preview is modal and

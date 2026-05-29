@@ -127,5 +127,88 @@ namespace FEBuilderGBA.Core.Tests
                 File.Delete(path);
             }
         }
+
+        // ====================================================================
+        // FormatX / ExportToX byte-identity (#770). The string formatters were
+        // extracted from the file writers; these synthetic-entry tests prove the
+        // extraction is behavior-preserving without needing a real ROM.
+        // ====================================================================
+
+        [Fact]
+        public void FormatTSV_MatchesExportToTSV_ByteForByte()
+        {
+            var def = MakeTestDef();
+            var entries = MakeTestEntries();
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.tsv");
+            try
+            {
+                StructExportCore.ExportToTSV(entries, def, path);
+                Assert.Equal(File.ReadAllText(path, System.Text.Encoding.UTF8),
+                    StructExportCore.FormatTSV(entries, def));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void FormatCSV_MatchesExportToCSV_ByteForByte()
+        {
+            var def = MakeTestDef();
+            var entries = MakeTestEntries();
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.csv");
+            try
+            {
+                StructExportCore.ExportToCSV(entries, def, path);
+                Assert.Equal(File.ReadAllText(path, System.Text.Encoding.UTF8),
+                    StructExportCore.FormatCSV(entries, def));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void FormatEA_MatchesExportToEA_ByteForByte()
+        {
+            var def = MakeTestDef();
+            var entries = MakeTestEntries();
+            string path = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.ea");
+            try
+            {
+                StructExportCore.ExportToEA(entries, def, path);
+                Assert.Equal(File.ReadAllText(path, System.Text.Encoding.UTF8),
+                    StructExportCore.FormatEA(entries, def));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Fact]
+        public void FormatTSV_FirstLineIsHeader_NoBanner()
+        {
+            var def = MakeTestDef();
+            var entries = MakeTestEntries();
+            string text = StructExportCore.FormatTSV(entries, def);
+            string firstLine = text.Split('\n')[0].TrimEnd('\r');
+            Assert.Equal("Index\tLevel\tHP\tClassPtr", firstLine);
+            Assert.DoesNotContain("Avalonia stub", text);
+            Assert.DoesNotContain("#", firstLine);
+        }
+
+        [Fact]
+        public void FormatCSV_FirstLineIsHeader_NoBanner()
+        {
+            var def = MakeTestDef();
+            var entries = MakeTestEntries();
+            string text = StructExportCore.FormatCSV(entries, def);
+            string firstLine = text.Split('\n')[0].TrimEnd('\r');
+            Assert.Equal("Index,Level,HP,ClassPtr", firstLine);
+            Assert.DoesNotContain("Avalonia stub", text);
+        }
     }
 }

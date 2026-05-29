@@ -121,4 +121,129 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains(DumpStructSelectDialogViewModel.Func.Func_Import, values);
         }
     }
+
+    /// <summary>
+    /// VM tests for the struct-aware export path (#770). These need a real ROM
+    /// in CoreState so StructExportCore.ResolveTableAt + ExportTable run, hence
+    /// [Collection("SharedState")] and RomTestHelper.WithRom (which saves and
+    /// restores CoreState and skips cleanly when no ROM is available). No
+    /// UndoService.Commit is invoked — these are read-only export paths.
+    /// </summary>
+    [Collection("SharedState")]
+    public class DumpStructSelectDialogViewModelExportTests
+    {
+        /// <summary>Address inside the units table (entry 1) for the loaded ROM.</summary>
+        static uint UnitsEntryAddr()
+        {
+            var unitsDef = StructExportCore.GetTable("units");
+            var rom = CoreState.ROM;
+            uint baseAddr = unitsDef.GetBaseAddress(rom);
+            uint entrySize = unitsDef.GetDataSize(rom);
+            return baseAddr + entrySize;
+        }
+
+        [Fact]
+        public void MakeExportText_CSV_AtUnitTable_StartsWithRealHeader()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(UnitsEntryAddr());
+                string text = vm.MakeExportText("CSV");
+                // Real struct-aware CSV header is line 1, NO stub banner.
+                Assert.StartsWith("Index,", text);
+                Assert.DoesNotContain("Avalonia stub", text);
+                Assert.DoesNotContain("# CSV export", text);
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_TSV_AtUnitTable_StartsWithRealHeader()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(UnitsEntryAddr());
+                string text = vm.MakeExportText("TSV");
+                Assert.StartsWith("Index\t", text);
+                Assert.DoesNotContain("Avalonia stub", text);
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_EA_AtUnitTable_ProducesDefines()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(UnitsEntryAddr());
+                string text = vm.MakeExportText("EA");
+                Assert.Contains("Event Assembler definitions", text);
+                Assert.Contains("#define", text);
+                Assert.DoesNotContain("Avalonia stub", text);
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_CSV_AtHeaderAddress_FallsBackToHexBanner()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(0x100); // GBA header — no struct table
+                string text = vm.MakeExportText("CSV");
+                // No table → honest hex fallback (banner present).
+                Assert.Contains("# CSV export", text);
+                Assert.Contains("Address:", text);
+                Assert.False(text.StartsWith("Index,"), "fallback must not be the real CSV header");
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_STRUCT_AlwaysFallsBackToHexBanner()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(UnitsEntryAddr()); // even over a known table
+                string text = vm.MakeExportText("STRUCT");
+                Assert.Contains("# STRUCT export", text);
+                Assert.False(text.StartsWith("Index"), "STRUCT must use the hex fallback, not the struct header");
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_NMM_AlwaysFallsBackToHexBanner()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(UnitsEntryAddr());
+                string text = vm.MakeExportText("NMM");
+                Assert.Contains("# NMM export", text);
+            });
+        }
+
+        [Fact]
+        public void ResolvedTableName_AtUnitTable_ReturnsUnits()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(UnitsEntryAddr());
+                Assert.Equal("units", vm.ResolvedTableName());
+            });
+        }
+
+        [Fact]
+        public void ResolvedTableName_AtHeaderAddress_ReturnsNull()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(0x100);
+                Assert.Null(vm.ResolvedTableName());
+            });
+        }
+    }
 }
