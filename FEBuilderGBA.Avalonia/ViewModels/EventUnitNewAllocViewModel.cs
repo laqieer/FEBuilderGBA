@@ -1,33 +1,20 @@
-using System;
-using System.Collections.Generic;
-
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// ViewModel for the EventUnit New(Alloc) modal count-picker (#776).
+    /// Holds the chosen allocation count (Min=1, Max=50, Value=1 — WF
+    /// <c>EventUnitNewAllocForm</c> parity). The picker returns the count via
+    /// <c>ShowDialog&lt;uint?&gt;</c>; the actual block allocation is done by
+    /// <see cref="FEBuilderGBA.MapEventUnitCore.AllocNewUnitList"/>.
+    /// </summary>
     public class EventUnitNewAllocViewModel : ViewModelBase
     {
-        uint _currentAddr;
+        uint _allocCount = 1;
         bool _isLoaded;
 
-        public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        /// <summary>Chosen number of unit rows to allocate (default 1).</summary>
+        public uint AllocCount { get => _allocCount; set => SetField(ref _allocCount, value); }
+
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
-
-        public List<AddrResult> LoadList()
-        {
-            ROM rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "Unit Allocation Editor", 0));
-            return result;
-        }
-
-        public void LoadEntry(uint addr)
-        {
-            ROM rom = CoreState.ROM;
-            if (rom == null) return;
-
-            CurrentAddr = addr;
-            IsLoaded = true;
-        }
     }
 }

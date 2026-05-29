@@ -355,6 +355,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return newBase;
         }
 
+        /// <summary>
+        /// Allocate a NEW, currently-unlinked event-unit list block of
+        /// <paramref name="count"/> rows (each row B0=1, trailing 0x00
+        /// terminator). Mirrors WF <c>EventUnitForm.CreateNewData</c>
+        /// allocation: it writes NO map/event-condition pointer (WF never
+        /// writes one — the block is referenced later from the event script,
+        /// where the Core <c>GetUnitGroupsForMap</c> POINTER_UNIT scan then
+        /// discovers it). The caller MUST open an ambient undo scope first and
+        /// pass its active <see cref="Undo.UndoData"/>.
+        /// Returns the new base ROM offset or <see cref="U.NOT_FOUND"/> on
+        /// failure.
+        /// </summary>
+        public uint NewAllocUnitList(uint count, Undo.UndoData? undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return U.NOT_FOUND;
+            return MapEventUnitCore.AllocNewUnitList(rom, count, undo);
+        }
+
         /// <summary>IDataVerifiable fallback: returns the map list (Level 1) when no specific group is selected.</summary>
         public List<AddrResult> LoadList()
         {

@@ -519,6 +519,175 @@ public class EventUnitParityTests
     }
 
     // -----------------------------------------------------------------
+    // New(Alloc) — #776 WF-parity reserved-NEW block + modal count-picker.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_NewAllocUnitList_AllocatesEditableBlock()
+    {
+        // VM NewAllocUnitList(count, undo) must allocate a real block via the
+        // shared Core seam (freespace fallback in headless tests) and return a
+        // valid base whose first row is a valid (B0=1) starter row.
+        var vm = new EventUnitViewModel();
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        var prevDelegate = CoreState.AppendBinaryData;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.AppendBinaryData = null; // headless freespace fallback
+
+            uint newBase = vm.NewAllocUnitList(3, null);
+            Assert.NotEqual(U.NOT_FOUND, newBase);
+            // 3 rows, each B0 == 1; trailing terminator byte == 0.
+            Assert.Equal((byte)0x01, rom.Data[newBase + 0]);
+            Assert.Equal((byte)0x01, rom.Data[newBase + 20]);
+            Assert.Equal((byte)0x01, rom.Data[newBase + 40]);
+            Assert.Equal((byte)0x00, rom.Data[newBase + 60]);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.AppendBinaryData = prevDelegate;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_NewAllocUnitList_CountZero_IsNoOp()
+    {
+        // Cancel / count==0 path: the VM helper must not allocate.
+        var vm = new EventUnitViewModel();
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        var prevDelegate = CoreState.AppendBinaryData;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.AppendBinaryData = null;
+
+            uint searchStart = (uint)(rom.Data.Length / 2);
+            byte[] before = rom.getBinaryData(searchStart, 256);
+
+            uint result = vm.NewAllocUnitList(0, null);
+            Assert.Equal(U.NOT_FOUND, result);
+
+            byte[] after = rom.getBinaryData(searchStart, 256);
+            Assert.Equal(before, after);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.AppendBinaryData = prevDelegate;
+        }
+    }
+
+    [Fact]
+    public void View_NewAllocClick_OpensModalPicker_AndGuardsCancelCountZero()
+    {
+        // The View's NewAlloc_Click must open the modal count-picker via
+        // ShowDialog<uint?> and early-return on Cancel (null) or count==0.
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        // Opens the modal picker and awaits a uint? count.
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?new\s+EventUnitNewAllocView\(\)[\s\S]*?ShowDialog<uint\?>", RegexOptions.Singleline),
+            source);
+        // Cancel / count==0 no-op guard.
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?count\s*==\s*null\s*\|\|\s*count\.Value\s*==\s*0[\s\S]*?return", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_NewAllocClick_WrapsInUndoScope_AndCallsVmAllocator()
+    {
+        // NewAlloc_Click must open an undo scope, call the VM allocator,
+        // rollback on U.NOT_FOUND, and commit on success (mirrors WF + the
+        // ExpandList_Click discipline).
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?_undoService\.Begin\(", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?_vm\.NewAllocUnitList\(", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?U\.NOT_FOUND[\s\S]*?_undoService\.Rollback\(\)", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?_undoService\.Commit\(\)", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void View_NewAllocClick_AddsNewEntryThatSurvivesMapRefresh()
+    {
+        // In-RAM NEW tracking (WF NewAllocData parity): the View must keep a
+        // session list (_newAllocData), add a "NEW" AddrResult to it on alloc,
+        // and re-merge it on map/group refresh in MapListBox_SelectionChanged
+        // (the AppendNoWriteNewData survival contract).
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        // A session list field exists.
+        Assert.Matches(new Regex(@"_newAllocData"), source);
+        // NewAlloc adds a "NEW" AddrResult to the session list.
+        Assert.Matches(
+            new Regex(@"NewAlloc_Click[\s\S]*?new\s+AddrResult\([^)]*""NEW""[^)]*\)[\s\S]*?_newAllocData\.Add", RegexOptions.Singleline),
+            source);
+        // Map selection re-merges the session NEW allocations.
+        Assert.Matches(
+            new Regex(@"MapListBox_SelectionChanged[\s\S]*?MergeNewAllocData\(", RegexOptions.Singleline),
+            source);
+    }
+
+    [Fact]
+    public void NewAllocView_IsModalCountPicker_WithFiftyCap()
+    {
+        // The restructured EventUnitNewAllocView must be a modal count-picker
+        // (NumericUpDown Min=1/Max=50/Value=1 + OK/Cancel), NOT the old
+        // address-list viewer.
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitNewAllocView.axaml");
+        string content = File.ReadAllText(axamlPath);
+
+        Assert.Contains("EventUnitNewAlloc_Count_Input", content);
+        Assert.Contains("Maximum=\"50\"", content);
+        Assert.Contains("Minimum=\"1\"", content);
+        Assert.Contains("EventUnitNewAlloc_OK_Button", content);
+        Assert.Contains("EventUnitNewAlloc_Cancel_Button", content);
+        // The old display-only address list must be gone.
+        Assert.DoesNotContain("AddressListControl", content);
+    }
+
+    [Fact]
+    public void NewAllocView_CodeBehind_ClosesWithCountOrNull()
+    {
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitNewAllocView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        // OK closes with the chosen count; Cancel closes with null.
+        Assert.Matches(
+            new Regex(@"OK_Click[\s\S]*?Close\(\(uint\?\)", RegexOptions.Singleline),
+            source);
+        Assert.Matches(
+            new Regex(@"Cancel_Click[\s\S]*?Close\(\(uint\?\)null\)", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

@@ -1,21 +1,33 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.EventUnitNewAllocView"
-        Title="Unit Allocation Editor" Width="472" Height="393"
+        Title="Unit Allocation Editor"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventUnitNewAlloc_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
-
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Unit Allocation Editor" FontSize="18" FontWeight="Bold" />
-
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventUnitNewAlloc_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
+  <!-- Modal count-picker (mirrors WF EventUnitNewAllocForm:
+       NumericUpDown Min=1/Max=50/Value=1 + OK/Cancel). The chosen
+       count is returned from ShowDialog<uint?> (null on Cancel/close). -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="12" MinWidth="280">
+      <TextBlock Name="PromptLabel" Text="How many units?"
+                 FontWeight="Bold" VerticalAlignment="Center" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Name="CountLabel" Text="Count:" Width="90"
+                   VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="EventUnitNewAlloc_Count_Input"
+                       x:Name="AllocCountBox" Width="160"
+                       Minimum="1" Maximum="50" Value="1" Increment="1"
+                       FormatString="0" />
       </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button AutomationProperties.AutomationId="EventUnitNewAlloc_OK_Button"
+                Name="OKButton" Content="OK" Width="90" Click="OK_Click"
+                IsDefault="True" />
+        <Button AutomationProperties.AutomationId="EventUnitNewAlloc_Cancel_Button"
+                Name="CancelButton" Content="Cancel" Width="90" Click="Cancel_Click"
+                IsCancel="True" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
 </Window>

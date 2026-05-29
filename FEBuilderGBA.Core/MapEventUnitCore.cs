@@ -209,7 +209,139 @@ namespace FEBuilderGBA
                 result.Add(new AddrResult(unitListAddr, slots[i].Name, mapId));
             }
 
+            // Event-script POINTER_UNIT scan (#776). The direct cond-slot
+            // loop above only finds unit lists wired into a raw placement
+            // slot. WF EventCondForm.MakeUnitPointer ALSO discovers unit
+            // lists referenced from the event SCRIPT (the way a WF
+            // "NEW"-allocated block becomes "booked" — the user references
+            // it from a LOAD/placement command in the Event Script editor).
+            // We mirror that here so the same script-referenced lists show
+            // up in the Avalonia group list (EventUnitViewModel.LoadUnitGroups
+            // calls this). The START_EVENT and END_EVENT cond slots hold a
+            // direct event-script pointer (WF EventCondForm.cs:1730-1736), so
+            // we disassemble each and collect POINTER_UNIT arg targets.
+            ScanEventScriptSlots(rom, eventAddr, slots, mapId, result);
+
             return result;
+        }
+
+        /// <summary>
+        /// Walk the START_EVENT / END_EVENT cond slots (each a direct
+        /// event-script pointer) and append any
+        /// <see cref="EventScript.ArgType.POINTER_UNIT"/>-referenced unit-list
+        /// bases to <paramref name="result"/>, de-duplicated against the
+        /// direct-cond-slot entries already there. Mirrors the script-scan
+        /// half of WF <c>EventCondForm.MakeUnitPointer</c>.
+        /// Requires <c>CoreState.EventScript</c> to be loaded and
+        /// <c>CoreState.ROM == rom</c> (the Core EventScript disassembler's
+        /// <c>IsExitCode</c>/FE8-dummy-end checks read <c>CoreState.ROM</c>).
+        /// </summary>
+        static void ScanEventScriptSlots(ROM rom, uint eventAddr, List<CondSlot> slots, uint mapId, List<AddrResult> result)
+        {
+            var es = CoreState.EventScript;
+            if (es == null) return;
+
+            uint romLen = (uint)rom.Data.Length;
+            var tracelist = new List<uint>();
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (slots[i].Type != CondType.StartEvent && slots[i].Type != CondType.EndEvent)
+                    continue;
+
+                uint slotAddr = (uint)(eventAddr + i * 4);
+                if (slotAddr + 4 > romLen) break;
+
+                uint scriptAddr = rom.p32(slotAddr);
+                if (!U.isSafetyOffset(scriptAddr, rom)) continue;
+
+                ScanScriptForUnitPointers(rom, es, scriptAddr, slots[i].Name, mapId, tracelist, result);
+            }
+        }
+
+        /// <summary>
+        /// Disassemble the event script starting at <paramref name="scriptAddr"/>
+        /// and collect <see cref="EventScript.ArgType.POINTER_UNIT"/> arg
+        /// targets into <paramref name="result"/> (de-duped). Recurses through
+        /// <see cref="EventScript.ArgType.POINTER_EVENT"/> args (with a
+        /// trace-list cycle guard) the same way WF
+        /// <c>EventCondForm.MakeUnitPointerEventScan</c> does. The scan stops
+        /// on a real terminator (<see cref="EventScript.IsExitCode"/>) or after
+        /// 10 consecutive UNKNOWN commands (the WF cutoff for corrupt events).
+        /// </summary>
+        static void ScanScriptForUnitPointers(ROM rom, EventScript es, uint scriptAddr, string name, uint mapId, List<uint> tracelist, List<AddrResult> result)
+        {
+            // WF INVALIDATE_UNIT_POINTER (EventUnitForm.cs:2517): a deliberate
+            // "no unit specified" placeholder pointer that must not be listed.
+            const uint INVALIDATE_UNIT_POINTER = 0xFFFFFF;
+
+            uint addr = scriptAddr;
+            uint lastBranchAddr = 0;
+            int unknownCount = 0;
+
+            // Bound the walk defensively (matches WF's reliance on exit/unknown
+            // cutoffs but guarantees termination even on a pathological ROM).
+            for (int guard = 0; guard < 4096; guard++)
+            {
+                uint romLen = (uint)rom.Data.Length;
+                if (U.toOffset(addr) + 4 > romLen) break;
+
+                EventScript.OneCode code = es.DisAseemble(rom.Data, addr);
+                if (code?.Script == null) break;
+
+                if (EventScript.IsExitCode(code, addr, lastBranchAddr))
+                    break;
+
+                if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
+                {
+                    unknownCount++;
+                    if (unknownCount > 10) break;
+                }
+                else
+                {
+                    unknownCount = 0;
+
+                    if (code.Script.Has == EventScript.ScriptHas.IF_CONDITIONAL)
+                    {
+                        lastBranchAddr = addr;
+                    }
+                    else if (code.Script.Has == EventScript.ScriptHas.LABEL_CONDITIONAL)
+                    {
+                        lastBranchAddr = 0;
+                    }
+                    else if (code.Script.Has == EventScript.ScriptHas.POINTER_UNIT_OR_EVENT)
+                    {
+                        for (int a = 0; a < code.Script.Args.Length; a++)
+                        {
+                            EventScript.Arg arg = code.Script.Args[a];
+                            if (arg.Type == EventScript.ArgType.POINTER_EVENT)
+                            {
+                                uint v = U.toOffset(EventScript.GetArgValue(code, arg));
+                                if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                                {
+                                    tracelist.Add(v);
+                                    ScanScriptForUnitPointers(rom, es, v, name, mapId, tracelist, result);
+                                }
+                            }
+                            else if (arg.Type == EventScript.ArgType.POINTER_UNIT)
+                            {
+                                uint v = EventScript.GetArgValue(code, arg);
+                                if (!U.isPointer(v)) continue;
+                                v = U.toOffset(v);
+                                if (v == INVALIDATE_UNIT_POINTER) continue;
+                                if (U.isSafetyOffset(v, rom) && U.FindList(result, v) == U.NOT_FOUND)
+                                {
+                                    result.Add(new AddrResult(v, name, mapId));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                int step = code.Script.Size;
+                if (step <= 0) break; // guard against a zero-size match loop
+                addr += (uint)step;
+            }
         }
 
         /// <summary>
@@ -547,6 +679,129 @@ namespace FEBuilderGBA
             rom.write_p32(eventPointerSlot, newBase);
 
             return newBase;
+        }
+
+        // ---------------------------------------------------------------
+        // New-allocation of an unlinked event-unit list block
+        // (#776 — Avalonia EventUnit New(Alloc) WF-parity)
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Hard cap on the New-Allocation count picker — mirrors WF
+        /// <c>EventUnitNewAllocForm.Designer.cs</c> (NumericUpDown
+        /// Minimum=1, Maximum=50, Value=1).
+        /// </summary>
+        public const uint AllocCountMax = 50;
+
+        /// <summary>
+        /// Allocate a NEW, currently-unlinked event-unit list block of
+        /// <paramref name="count"/> rows. Mirrors WF
+        /// <c>EventUnitForm.CreateNewData</c> (EventUnitForm.cs:1665-1698)
+        /// byte-for-byte:
+        /// <list type="bullet">
+        ///   <item>Builds <c>count * eventunit_data_size + 1</c> bytes — the
+        ///     trailing <c>+1</c> byte stays <c>0x00</c> (terminator).</item>
+        ///   <item>Plants <c>B0=0x01</c> in each of the <paramref name="count"/>
+        ///     rows so they read as valid (non-terminator) list entries; all
+        ///     other bytes stay <c>0x00</c>.</item>
+        ///   <item>Allocates via the same dual path
+        ///     <see cref="MapExitPointCore.NewAlloc"/> uses: the registered
+        ///     <see cref="CoreState.AppendBinaryData"/> seam (production) when
+        ///     wired alongside an ambient undo, else a headless
+        ///     <see cref="ROM.FindFreeSpace"/> + <see cref="ROM.write_range"/>
+        ///     fallback (so this is testable with no allocator wired).</item>
+        /// </list>
+        ///
+        /// IMPORTANT — this writes NO map/event-condition pointer. WF
+        /// <c>CreateNewData</c> never writes one either: the NEW block is a
+        /// reserved editing convenience whose pointer the user references
+        /// later from an event command. It becomes reachable through the
+        /// event-script <see cref="EventScript.ArgType.POINTER_UNIT"/> scan
+        /// in <see cref="GetUnitGroupsForMap"/>, not via a cond-slot write.
+        ///
+        /// Undo tracking is recorded through the ROM's ambient undo scope
+        /// when the caller has opened one (the same discipline as
+        /// <see cref="MapExitPointCore.NewAlloc"/>); passing a null
+        /// <paramref name="undodata"/> is safe but the allocation will not be
+        /// rollback-able through the explicit-undodata path.
+        /// </summary>
+        /// <param name="rom">Target ROM. Must be non-null with a valid
+        ///   <c>RomInfo.eventunit_data_size</c>.</param>
+        /// <param name="count">Number of rows to allocate. Must be in
+        ///   <c>[1, <see cref="AllocCountMax"/>]</c>; anything outside that
+        ///   range returns <see cref="U.NOT_FOUND"/> with no write.</param>
+        /// <param name="undodata">Active undo group, or null to skip the
+        ///   explicit-undodata allocation path.</param>
+        /// <returns>The new block's ROM offset, or <see cref="U.NOT_FOUND"/>
+        ///   on any failure (no partial writes).</returns>
+        public static uint AllocNewUnitList(ROM rom, uint count, Undo.UndoData? undodata)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (count == 0 || count > AllocCountMax) return U.NOT_FOUND;
+
+            uint size = rom.RomInfo.eventunit_data_size;
+            if (size == 0) return U.NOT_FOUND;
+
+            // WF payload: count * size + 1 bytes; B0 of each row = 0x01;
+            // trailing terminator byte stays 0x00 (EventUnitForm.cs:1679-1683).
+            byte[] data = new byte[count * size + 1];
+            for (uint i = 0; i < count; i++)
+            {
+                data[i * size + 0] = 1;
+            }
+
+            uint newaddr = AppendBinaryDataHeadless(rom, data, undodata);
+            if (newaddr == U.NOT_FOUND || newaddr == 0) return U.NOT_FOUND;
+            return newaddr;
+        }
+
+        /// <summary>
+        /// Headless equivalent of <c>InputFormRef.AppendBinaryData</c>,
+        /// shared so all editors route through one tested allocation seam
+        /// (extracted from the private copy that used to live in the Avalonia
+        /// <c>EventCondViewModel</c>). Mirrors the dual path in
+        /// <see cref="MapExitPointCore.NewAlloc"/>:
+        /// <list type="number">
+        ///   <item>When <see cref="CoreState.AppendBinaryData"/> is wired AND
+        ///     an ambient undo is available, route through the delegate
+        ///     (production — WinForms registers it via
+        ///     <c>InputFormRef.AppendBinaryData</c>).</item>
+        ///   <item>Otherwise fall back to a direct
+        ///     <see cref="ROM.FindFreeSpace"/> (upper half, then lower half)
+        ///     + <see cref="ROM.write_range"/> append, so headless callers /
+        ///     tests work without a registered allocator.</item>
+        /// </list>
+        /// </summary>
+        /// <param name="rom">Target ROM.</param>
+        /// <param name="buffer">Bytes to append.</param>
+        /// <param name="undodata">Active undo group; when wired alongside the
+        ///   delegate the delegate path is preferred.</param>
+        /// <returns>The new ROM offset, or <see cref="U.NOT_FOUND"/> on
+        ///   failure.</returns>
+        public static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer, Undo.UndoData? undodata)
+        {
+            if (rom == null) return U.NOT_FOUND;
+            if (buffer == null || buffer.Length == 0) return U.NOT_FOUND;
+
+            var allocator = CoreState.AppendBinaryData;
+            if (allocator != null && undodata != null)
+            {
+                return allocator(buffer, undodata);
+            }
+
+            // Headless fallback: find free space in the upper half, fall back
+            // to the lower half (same pattern as MapExitPointCore.NewAlloc /
+            // ExpandUnitList). Captures undo through the ambient scope when
+            // one is open via ROM.BeginUndoScope.
+            uint searchStart = (uint)(rom.Data.Length / 2);
+            uint newaddr = rom.FindFreeSpace(searchStart, (uint)buffer.Length);
+            if (newaddr == U.NOT_FOUND)
+            {
+                newaddr = rom.FindFreeSpace(0x100u, (uint)buffer.Length);
+            }
+            if (newaddr == U.NOT_FOUND) return U.NOT_FOUND;
+            rom.write_range(newaddr, buffer);
+            return newaddr;
         }
 
         // ---------------------------------------------------------------
