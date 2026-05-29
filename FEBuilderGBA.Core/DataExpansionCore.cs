@@ -263,10 +263,17 @@ namespace FEBuilderGBA
         /// This matches WF's <c>MoveToFreeSapceForm.RepointEtcData</c> behavior
         /// (also forward-only). KnownGap — no follow-up issue filed.</para>
         ///
-        /// <para><b>Out-of-scope KnownGaps</b> (no follow-up issues — see #501):
-        /// LDR-pointer rescan (WF <c>MoveToFreeSapceForm.SearchPointer</c>)
-        /// and freed-space reuse (WF <c>SearchFreeSpace</c> match-reuse
-        /// branch).</para>
+        /// <para><b>Single-slot repoint by design:</b> this helper updates ONLY
+        /// the one pointer at <c>pointerAddr</c>. That is correct for an
+        /// unshared table. When a table base may be referenced from multiple
+        /// raw pointers AND/OR ARM LDR literal-pool loads, use the opt-in
+        /// <see cref="RepointAllReferences(ROM, uint, uint, Undo.UndoData)"/>
+        /// helper, which rescans the whole ROM (raw +
+        /// <c>U.GrepPointerAllOnLDR</c>) and repoints every unique slot — this
+        /// closes the former LDR-rescan gap (#781).</para>
+        ///
+        /// <para><b>Out-of-scope KnownGap</b> (no follow-up issue — see #501):
+        /// freed-space reuse (WF <c>SearchFreeSpace</c> match-reuse branch).</para>
         /// </summary>
         /// <param name="rom">ROM to modify.</param>
         /// <param name="pointerAddr">Address of the GBA pointer that references the table base.</param>
@@ -405,6 +412,119 @@ namespace FEBuilderGBA
                 NewBaseAddress = newBase,
                 NewCount = newCount,
             };
+        }
+
+        /// <summary>
+        /// Repoint EVERY reference to <paramref name="oldBase"/> &#8594;
+        /// <paramref name="newBase"/>: raw 32-bit pointers
+        /// (<see cref="U.GrepPointerAll(byte[], uint, uint, uint)"/>) AND ARM
+        /// Thumb LDR literal-pool loads
+        /// (<see cref="U.GrepPointerAllOnLDR(byte[], uint)"/>). Mirrors WF
+        /// <c>MoveToFreeSapceForm.SearchPointer</c>'s repoint (minus the
+        /// WinForms UI dialogs, the event-aware
+        /// <c>GrepPointerAllOnEvent</c> pass, and the <c>IsFixedASM</c> ASM-code
+        /// guard — those depend on <c>InputFormRef</c> / the WinForms ASM cache
+        /// and are out of scope). Returns the count of slots actually repointed.
+        ///
+        /// <para>Both scanners already normalise <paramref name="oldBase"/> to a
+        /// GBA pointer internally (<c>U.toPointer</c> is idempotent), so the
+        /// helper accepts either a pointer (<c>0x08xxxxxx</c>) or a raw offset
+        /// and is robust to either form. The combined hit list is de-duplicated
+        /// with a <see cref="System.Collections.Generic.HashSet{T}"/> because a
+        /// valid LDR literal-pool slot is ALSO a raw pointer hit — each unique
+        /// slot is written exactly once.</para>
+        ///
+        /// <para><b>Writes only literal/pointer SLOTS</b> via
+        /// <c>rom.write_p32(slot, newBase)</c> — never an instruction. The write
+        /// respects the ambient undo scope opened by the caller
+        /// (<c>ROM.BeginUndoScope</c>); pass a non-null <paramref name="undo"/>
+        /// to have the helper open one for the duration of the call.</para>
+        ///
+        /// <para><b>Per-slot danger-zone gate (#782 review):</b> each candidate
+        /// slot is itself gated with
+        /// <see cref="U.isSafetyOffset(uint, ROM)"/> (+ an explicit
+        /// <c>slot + 4 &lt;= Length</c> bounds check) BEFORE writing. A
+        /// false-positive raw/LDR hit whose slot lands in the 0x0–0x200 header
+        /// danger zone (or out of ROM) is skipped — never written — so the
+        /// cartridge header can never be corrupted. The returned count reflects
+        /// only the slots actually repointed (skipped hits are excluded).</para>
+        ///
+        /// <para><b>Refuses safely:</b> if <paramref name="oldBase"/> resolves to
+        /// the 0x0–0x200 danger zone or is otherwise not a safe ROM offset
+        /// (<see cref="U.isSafetyOffset(uint, ROM)"/>), returns 0 without
+        /// touching the ROM — mirroring the scanners' own <c>start = 0x100</c>
+        /// floor and WF <c>SearchPointer</c>'s <c>isSafetyOffset</c> gate. A
+        /// no-reference ROM also returns 0 (no throw).</para>
+        ///
+        /// <para>This is a NEW opt-in helper. <see cref="ExpandTable"/> /
+        /// <see cref="ExpandTableTo"/> are intentionally left alone — their
+        /// single-slot repoint is correct for unshared tables.</para>
+        /// </summary>
+        /// <param name="rom">ROM to modify.</param>
+        /// <param name="oldBase">Old table base — pointer (<c>0x08xxxxxx</c>) or offset.</param>
+        /// <param name="newBase">New table base — pointer (<c>0x08xxxxxx</c>) or offset.</param>
+        /// <param name="undo">Optional undo buffer. When non-null the helper
+        /// opens a <c>ROM.BeginUndoScope(undo)</c> for the duration so every
+        /// slot write is recorded; when null the helper relies on whatever
+        /// ambient undo scope the caller already opened.</param>
+        /// <returns>The number of slots actually repointed — excludes any
+        /// danger-zone / out-of-ROM hits that were skipped (0 if none / refused).</returns>
+        public static int RepointAllReferences(ROM rom, uint oldBase, uint newBase, Undo.UndoData? undo)
+        {
+            if (rom == null || rom.Data == null)
+                return 0;
+
+            // Refuse safely on the 0x0–0x200 danger zone / out-of-ROM offsets.
+            // Mirrors WF SearchPointer's isSafetyOffset(toOffset(moveAddress))
+            // gate and the scanners' own start=0x100 floor.
+            uint oldOffset = U.toOffset(oldBase);
+            if (!U.isSafetyOffset(oldOffset, rom))
+                return 0;
+
+            // Pass the pointer form to both scanners. They each call
+            // U.toPointer(need) internally (idempotent), so either form works;
+            // we normalise here for clarity and to match WF SearchPointer which
+            // does `moveAddress = U.toPointer(moveAddress)` before scanning.
+            uint oldPtr = U.toPointer(oldBase);
+
+            // Collect raw 32-bit pointer hits AND ARM LDR literal-pool hits,
+            // then de-dup: a valid LDR slot is also a raw hit.
+            var slots = new System.Collections.Generic.HashSet<uint>();
+            foreach (uint slot in U.GrepPointerAll(rom.Data, oldPtr))
+                slots.Add(slot);
+            foreach (uint slot in U.GrepPointerAllOnLDR(rom.Data, oldPtr))
+                slots.Add(slot);
+
+            if (slots.Count == 0)
+                return 0;
+
+            int written = 0;
+            IDisposable scope = (undo != null) ? ROM.BeginUndoScope(undo) : null;
+            try
+            {
+                foreach (uint slot in slots)
+                {
+                    // #782 review: skip danger-zone (0x0–0x200) + out-of-ROM
+                    // slots — repointing a false-positive raw/LDR hit whose slot
+                    // lands inside the cartridge header would corrupt it. Use
+                    // the explicit-ROM isSafetyOffset overload (NOT CoreState.ROM)
+                    // so the gate honours the ROM being modified. isSafetyOffset
+                    // only checks `slot < Length`; keep the explicit
+                    // `slot + 4 > Length` check as defense for a slot at Length-1.
+                    if (!U.isSafetyOffset(slot, rom) || slot + 4 > (uint)rom.Data.Length)
+                        continue;
+                    rom.write_p32(slot, newBase);
+                    written++;
+                }
+            }
+            finally
+            {
+                scope?.Dispose();
+            }
+
+            // Return only the slots actually repointed (skipped danger-zone /
+            // out-of-ROM hits are excluded from the count). (#782 review.)
+            return written;
         }
 
         /// <summary>

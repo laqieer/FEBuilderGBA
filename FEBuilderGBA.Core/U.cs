@@ -719,6 +719,26 @@ namespace FEBuilderGBA
             }
             return ret;
         }
+        /// <summary>
+        /// Scan <paramref name="romdata"/> for ARM Thumb <c>ldr rX,[pc,#imm]</c>
+        /// literal-pool loads whose loaded 32-bit word equals
+        /// <paramref name="needaddr"/>, and return the ROM offsets of the
+        /// matching literal-pool slots (NOT the instruction addresses).
+        ///
+        /// <para>Ported to Core from the WinForms <c>U</c> shadow (#781) so the
+        /// cross-platform <see cref="DataExpansionCore.RepointAllReferences"/>
+        /// helper can rescan LDR references without a WinForms dependency. The
+        /// actual disassembly loop lives in
+        /// <see cref="DisassemblerTrumb.GrepLDRData(byte[], uint, uint, uint)"/>,
+        /// which is EOF-hardened (it never reads past the array — a
+        /// no-reference ROM or one with LDR-like bytes in its final few bytes
+        /// returns an empty/partial list WITHOUT throwing).</para>
+        /// </summary>
+        public static List<uint> GrepPointerAllOnLDR(byte[] romdata, uint needaddr)
+        {
+            if (romdata == null) return new List<uint>();
+            return DisassemblerTrumb.GrepLDRData(romdata, needaddr);
+        }
         public static uint GrepEnablePointer(byte[] data, uint start = 0x100, uint end = 0)
         {
             if (end == 0 || end == U.NOT_FOUND) end = (uint)data.Length;
