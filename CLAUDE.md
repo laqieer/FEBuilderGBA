@@ -409,10 +409,23 @@ Cross-platform helpers for growing pointer-based ROM tables:
   wipes the old region with `0x00`, repoints `CoreState.CommentCache` +
   `LintCache` entries via `IEtcCache.RepointEtcData`. Used by Avalonia
   `ImageMapActionAnimationViewModel.ExpandList` (#501).
+- `RepointAllReferences(rom, oldBase, newBase, undo)` — opt-in, all-reference
+  rescan that repoints EVERY reference to a moved table base: raw 32-bit
+  pointers (`U.GrepPointerAll`) **and** ARM Thumb LDR literal-pool loads
+  (`U.GrepPointerAllOnLDR`, ported to Core with EOF-safety guards in #781).
+  De-duplicates the combined slot list via a `HashSet` (a valid LDR slot is
+  also a raw hit), writes only literal/pointer slots via `rom.write_p32`
+  (ambient-undo or the passed `undo`), and refuses safely (returns 0, no throw)
+  on a no-reference ROM or a danger-zone (0x0–0x200) base. Mirrors WF
+  `MoveToFreeSapceForm.SearchPointer`'s repoint minus the WinForms UI dialogs /
+  event-aware `GrepPointerAllOnEvent` pass / `IsFixedASM` ASM-code guard
+  (`InputFormRef`-dependent — out of scope). `ExpandTable`/`ExpandTableTo` keep
+  their correct single-slot repoint for unshared tables.
 
-Known WF parity gaps in both helpers (documented in XML doc, no follow-up
-issues filed): LDR-pointer rescan (`MoveToFreeSapceForm.SearchPointer`),
-forward-only cache repoint (rollback does NOT reverse it — matches WF).
+Known WF parity gap in `ExpandTable`/`ExpandTableTo` (documented in XML doc, no
+follow-up issue filed): forward-only cache repoint (rollback does NOT reverse it
+— matches WF). The LDR-pointer rescan gap is now closed via the opt-in
+`RepointAllReferences` helper (#781).
 
 ## File Organization
 

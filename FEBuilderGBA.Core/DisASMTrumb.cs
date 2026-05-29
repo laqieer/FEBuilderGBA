@@ -1641,15 +1641,40 @@ namespace FEBuilderGBA
 
             List<uint> ret = new List<uint>();
 
+            // EOF-safety: a ROM shorter than 4 bytes cannot hold any 32-bit
+            // pointer, and `(uint)romdata.Length - 4` would underflow to a huge
+            // value. Bail out early. (#781 — Core port + EOF guards.)
+            if (romdata == null || romdata.Length < 4)
+            {
+                return ret;
+            }
+
             uint addr = U.Padding2(start);
             if (limit == 0)
             {
                 limit = (uint)romdata.Length - 4;
             }
             limit = U.Padding2(limit);
+            // EOF-safety: clamp the scan limit so the u16 instruction read
+            // below can never index past the array even when a caller passes a
+            // `limit` larger than the ROM. `Padding2` of `Length-4` may round
+            // up to `Length-3`; keep the clamp at `Length-2` so `addr+1 <
+            // Length` always holds for even `addr`. (#781.)
+            uint instrLimit = (uint)romdata.Length >= 2 ? (uint)romdata.Length - 2 : 0;
+            if (limit > instrLimit)
+            {
+                limit = instrLimit;
+            }
 
             while (addr < limit)
             {
+                // EOF-safety: explicit guard before the 16-bit instruction read
+                // so a no-reference / truncated ROM returns a partial-or-empty
+                // list WITHOUT throwing IndexOutOfRangeException. (#781.)
+                if (addr + 1 >= (uint)romdata.Length)
+                {
+                    break;
+                }
                 uint a = U.u16(romdata, addr);
                 switch (a & 0xF800)
                 {//上位5ビットで命令分岐
@@ -1669,7 +1694,11 @@ namespace FEBuilderGBA
                             uint pointer = ParseLDRPointer(addr, a);
                             pointer = U.toOffset(pointer);
                             pointer = U.Padding4(pointer);
-                            if (pointer < limit)
+                            // EOF-safety: validate the computed literal-pool slot
+                            // is fully in-bounds (slot + 4 <= Length) before the
+                            // 32-bit read, so an LDR near EOF whose literal target
+                            // lies past the array is skipped, not thrown. (#781.)
+                            if (pointer < limit && pointer + 4 <= (uint)romdata.Length)
                             {
                                 uint d = U.u32(romdata, pointer);
                                 if (need == d)

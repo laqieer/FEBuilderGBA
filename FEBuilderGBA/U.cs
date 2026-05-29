@@ -2396,8 +2396,19 @@ namespace FEBuilderGBA
             }
             return ret;
         }
+        // #781: GrepPointerAllOnLDR was also ported to FEBuilderGBA.Core/U.cs so
+        // the cross-platform DataExpansionCore.RepointAllReferences helper can
+        // reuse it. This WinForms shadow copy is RETAINED (matching the
+        // GrepPointerAll / GrepEnablePointer duplication pattern) because the
+        // CS0436 U shadow does NOT fall back to Core's U for missing members —
+        // the WinForms caller (MoveToFreeSapceForm.SearchPointer) resolves to
+        // THIS method. Both wrappers are thin and delegate to the single
+        // source of truth for the scan + EOF guards:
+        // DisassemblerTrumb.GrepLDRData (Core-only — FEBuilderGBA\DisASMTrumb.cs
+        // is <Compile Remove>'d from this project).
         public static List<uint> GrepPointerAllOnLDR(byte[] romdata, uint needaddr)
         {
+            if (romdata == null) return new List<uint>();
             return DisassemblerTrumb.GrepLDRData(romdata, needaddr);
         }
         public static List<Address> MakeAllStructPointersList(bool isPointerOnly)
