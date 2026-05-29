@@ -197,7 +197,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 96 | EventUnitSimView | EventUnitSimViewModel | Simplified event unit editor |
 | 97 | EventUnitColorView | EventUnitColorViewModel | Event unit color/team editor |
 | 98 | EventUnitItemDropView | EventUnitItemDropViewModel | Event unit item drop editor |
-| 99 | EventUnitNewAllocView | EventUnitNewAllocViewModel | Event unit new allocation editor |
+| 99 | EventUnitNewAllocView | EventUnitNewAllocViewModel | Event unit New Allocation modal count-picker (NumericUpDown Min=1/Max=50/Value=1 + OK/Cancel; returns the count via `ShowDialog<uint?>`) — #776 |
 | 100 | EventBattleTalkView | EventBattleTalkViewModel | Battle conversation editor |
 | 101 | EventBattleTalkMainView | EventBattleTalkMainViewModel | Nested sub-view for battle talk |
 | 102 | EventBattleTalkFE6View | EventBattleTalkFE6ViewModel | Battle conversation (FE6) |

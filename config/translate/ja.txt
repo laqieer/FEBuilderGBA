@@ -6720,6 +6720,18 @@ TSA
 :New Allocation
 新規領域の確保
 
+:How many units?
+ユニットの数を指定してください
+
+:Count:
+数:
+
+:Failed to allocate new event-unit block.
+新規ユニット配置領域の確保に失敗しました。
+
+:Allocated new event-unit block ({0} units) at 0x{1:X08}.
+新規ユニット配置領域({0}体)を 0x{1:X08} に確保しました。
+
 :Allegiance:
 所属:
 

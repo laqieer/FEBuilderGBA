@@ -21,6 +21,14 @@ namespace FEBuilderGBA.Avalonia.Views
         List<AddrResult> _groupItems = new();
         List<AddrResult> _unitItems = new();
 
+        // Session-scoped NEW allocations (Avalonia equivalent of WF
+        // EventUnitForm.NewAllocData, #776). Each holds an AddrResult
+        // (newBase, "NEW", mapId). These are unlinked blocks (WF writes no
+        // cond pointer); they survive map/group refresh until the user
+        // references the block from the event script and the Core
+        // GetUnitGroupsForMap POINTER_UNIT scan "books" it.
+        readonly List<AddrResult> _newAllocData = new();
+
         public string ViewTitle => "Event Unit Placement";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -104,6 +112,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 uint mapId = _mapItems[idx].tag;
                 _groupItems = _vm.LoadUnitGroups(mapId);
+                // Re-merge any session NEW allocations for this map that the
+                // group scan has not yet "booked" (mirrors WF
+                // EventUnitForm.AppendNoWriteNewData: drop a NEW entry once it
+                // shows up in the script-scan list, else keep it visible).
+                MergeNewAllocData(mapId);
                 _groupDisplayItems.Clear();
                 foreach (var item in _groupItems)
                     _groupDisplayItems.Add(item.name);
@@ -543,20 +556,85 @@ namespace FEBuilderGBA.Avalonia.Views
         // partial failures roll back cleanly.
         // ---------------------------------------------------------------
 
-        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        async void NewAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            // Soft handoff to the existing Avalonia EventUnitNewAllocView
-            // stub — same precedent as FE7 PR #522. The full WF
-            // AllocEvent state machine is tracked as a follow-up to keep
-            // this gap-sweep PR focused on label/jump coverage.
-            Log.Notify("EventUnitView.NewAlloc_Click: opening Unit Allocation editor stub.");
             try
             {
-                WindowManager.Instance.Open<EventUnitNewAllocView>();
+                int mapIdx = MapListBox.SelectedIndex;
+                if (mapIdx < 0 || mapIdx >= _mapItems.Count) return; // WF guards mapid<0
+                uint mapId = _mapItems[mapIdx].tag;
+
+                // Modal count-picker (WF EventUnitNewAllocForm parity).
+                var dlg = new EventUnitNewAllocView();
+                uint? count = await dlg.ShowDialog<uint?>(this);
+                if (count == null || count.Value == 0) return; // Cancel / count=0 no-op
+
+                _undoService.Begin("EventUnit NEW");
+                try
+                {
+                    uint newBase = _vm.NewAllocUnitList(count.Value, _undoService.GetActiveUndoData());
+                    if (newBase == U.NOT_FOUND)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(R._("Failed to allocate new event-unit block."));
+                        return;
+                    }
+                    _undoService.Commit();
+
+                    // Session-scoped NEW tracking (mirrors WF NewAllocData):
+                    // the block is unlinked — WF writes no cond pointer; the
+                    // user references it from the event script, after which
+                    // the Core GetUnitGroupsForMap POINTER_UNIT scan finds it.
+                    var newEntry = new AddrResult(newBase, "NEW", mapId);
+                    _newAllocData.Add(newEntry);
+                    _groupItems.Add(newEntry);
+                    _groupDisplayItems.Add("NEW");
+                    // Select it so the editable starter rows load.
+                    GroupListBox.SelectedIndex = _groupDisplayItems.Count - 1;
+
+                    CoreState.Services?.ShowInfo(
+                        string.Format(R._("Allocated new event-unit block ({0} units) at 0x{1:X08}."),
+                            count.Value, newBase));
+                }
+                catch
+                {
+                    _undoService.Rollback();
+                    throw;
+                }
             }
             catch (Exception ex)
             {
                 Log.Error("EventUnitView.NewAlloc_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-append any session NEW allocations for <paramref name="mapId"/>
+        /// that the group scan has not already discovered, and drop those that
+        /// it has (they are now "booked" via the script POINTER_UNIT scan).
+        /// Avalonia port of WF <c>EventUnitForm.AppendNoWriteNewData</c>.
+        /// </summary>
+        void MergeNewAllocData(uint mapId)
+        {
+            for (int i = _newAllocData.Count - 1; i >= 0; i--)
+            {
+                AddrResult entry = _newAllocData[i];
+                if (entry.tag != mapId) continue;
+
+                bool alreadyListed = false;
+                foreach (var g in _groupItems)
+                {
+                    if (g.addr == entry.addr) { alreadyListed = true; break; }
+                }
+                if (alreadyListed)
+                {
+                    // Booked by the script scan — stop tracking it as NEW.
+                    _newAllocData.RemoveAt(i);
+                }
+                else
+                {
+                    _groupItems.Add(entry);
+                }
             }
         }
 

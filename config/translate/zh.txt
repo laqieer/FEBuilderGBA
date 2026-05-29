@@ -20655,6 +20655,18 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :New Allocation
 新建分配
 
+:How many units?
+分配多少个单位？
+
+:Count:
+数量：
+
+:Failed to allocate new event-unit block.
+分配新的事件单位区块失败。
+
+:Allocated new event-unit block ({0} units) at 0x{1:X08}.
+已在 0x{1:X08} 分配新的事件单位区块（{0} 个单位）。
+
 :Allegiance:
 所属:
 

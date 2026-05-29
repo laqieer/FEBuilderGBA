@@ -1174,28 +1174,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Headless equivalent of InputFormRef.AppendBinaryData. Routes through
-        /// the registered CoreState.AppendBinaryData delegate when available
-        /// (WinForms registers it via InputFormRef); returns U.NOT_FOUND when
-        /// no allocator is wired (e.g. in headless tests).
+        /// Headless equivalent of InputFormRef.AppendBinaryData. Delegates to
+        /// the shared Core seam <see cref="MapEventUnitCore.AppendBinaryDataHeadless"/>
+        /// (#776) so the CoreState.AppendBinaryData + ambient-undo allocation
+        /// path lives in exactly one place. Routes through the registered
+        /// CoreState.AppendBinaryData delegate when available (WinForms
+        /// registers it via InputFormRef), else falls back to a free-space
+        /// append so headless callers/tests still allocate. The callers here
+        /// (ExpandRecordList / AllocateNewEvent) always run under an active
+        /// undo scope (they throw otherwise), so the ambient undo is non-null.
         /// </summary>
         static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer)
         {
-            // WinForms wires the real allocator via CoreState.AppendBinaryData;
-            // the Avalonia editor relies on the same delegate (resolved through
-            // ROM-end appending or freespace search depending on what's
-            // registered). When the delegate isn't wired (headless tests),
-            // return U.NOT_FOUND so callers handle the gracefully.
-            var allocator = CoreState.AppendBinaryData;
-            if (allocator == null) return U.NOT_FOUND;
-
-            // We need an UndoData to satisfy the signature; we recover the
-            // ambient one (the caller is required to be in an undo scope per
-            // the throw-if-not-active enforcement).
+            // The caller is required to be in an undo scope per the
+            // throw-if-not-active enforcement, so the ambient UndoData is
+            // available to satisfy the delegate signature.
             var ambient = ROM.GetAmbientUndoData();
-            if (ambient == null) return U.NOT_FOUND;
-
-            return allocator(buffer, ambient);
+            return MapEventUnitCore.AppendBinaryDataHeadless(rom, buffer, ambient);
         }
 
         /// <summary>
