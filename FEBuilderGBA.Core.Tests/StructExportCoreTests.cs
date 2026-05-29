@@ -403,5 +403,219 @@ namespace FEBuilderGBA.Core.Tests
                 }
             };
         }
+
+        // ====================================================================
+        // ResolveTableAt + FormatX byte-identity — real-ROM tests (#770).
+        // These load a real ROM from roms/ and verify the address→table
+        // resolver and the extracted string formatters. They skip cleanly when
+        // no ROM is available (CI without roms.zip).
+        // ====================================================================
+
+        /// <summary>Locate a preferred test ROM by walking up to the repo root.</summary>
+        static string FindTestRom()
+        {
+            string dir = AppContext.BaseDirectory;
+            for (int i = 0; i < 10 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                {
+                    string romsDir = Path.Combine(dir, "roms");
+                    if (Directory.Exists(romsDir))
+                    {
+                        string[] preferred = { "FE8U.gba", "FE7U.gba", "FE8J.gba", "FE7J.gba", "FE6.gba" };
+                        foreach (string name in preferred)
+                        {
+                            string path = Path.Combine(romsDir, name);
+                            if (File.Exists(path)) return path;
+                        }
+                        string[] gbaFiles = Directory.GetFiles(romsDir, "*.gba");
+                        if (gbaFiles.Length > 0) return gbaFiles[0];
+                    }
+                    break;
+                }
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Load a real ROM into CoreState, set BaseDirectory so struct metadata
+        /// loads, run the action, then restore previous CoreState. The action is
+        /// skipped (no-op) if no ROM is available.
+        /// </summary>
+        static void WithRealRom(Action<ROM> action)
+        {
+            string romPath = FindTestRom();
+            if (romPath == null) return; // skip — no ROM
+
+            EnsureBaseDirectory();
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+                action(rom);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        [Fact]
+        public void ResolveTableAt_UnitsBaseAddress_ResolvesUnitsTable()
+        {
+            WithRealRom(rom =>
+            {
+                var unitsDef = StructExportCore.GetTable("units");
+                uint baseAddr = unitsDef.GetBaseAddress(rom);
+                Assert.True(baseAddr != 0 && baseAddr != U.NOT_FOUND, "units base must resolve");
+
+                // A small positive offset into the units table (entry 1) should
+                // resolve to the units table.
+                uint entrySize = unitsDef.GetDataSize(rom);
+                var resolved = StructExportCore.ResolveTableAt(rom, baseAddr + entrySize);
+                Assert.NotNull(resolved);
+                Assert.Equal("units", resolved.Name);
+            });
+        }
+
+        [Fact]
+        public void ResolveTableAt_ClassEntryAddress_ResolvesClassesTable()
+        {
+            WithRealRom(rom =>
+            {
+                var classesDef = StructExportCore.GetTable("classes");
+                uint baseAddr = classesDef.GetBaseAddress(rom);
+                Assert.True(baseAddr != 0 && baseAddr != U.NOT_FOUND, "classes base must resolve");
+
+                uint entrySize = classesDef.GetDataSize(rom);
+                var resolved = StructExportCore.ResolveTableAt(rom, baseAddr + entrySize);
+                Assert.NotNull(resolved);
+                Assert.Equal("classes", resolved.Name);
+            });
+        }
+
+        [Fact]
+        public void ResolveTableAt_GbaPointerForm_ResolvesSameAsOffsetForm()
+        {
+            WithRealRom(rom =>
+            {
+                var unitsDef = StructExportCore.GetTable("units");
+                uint baseAddr = unitsDef.GetBaseAddress(rom);
+                Assert.True(baseAddr != 0 && baseAddr != U.NOT_FOUND);
+                uint entrySize = unitsDef.GetDataSize(rom);
+
+                uint offsetForm = baseAddr + entrySize;
+                uint pointerForm = offsetForm + 0x08000000; // GBA-pointer form
+
+                var byOffset = StructExportCore.ResolveTableAt(rom, offsetForm);
+                var byPointer = StructExportCore.ResolveTableAt(rom, pointerForm);
+
+                Assert.NotNull(byOffset);
+                Assert.NotNull(byPointer);
+                Assert.Equal(byOffset.Name, byPointer.Name);
+                Assert.Equal("units", byPointer.Name);
+            });
+        }
+
+        [Fact]
+        public void ResolveTableAt_EndBoundary_IsExclusive()
+        {
+            WithRealRom(rom =>
+            {
+                var unitsDef = StructExportCore.GetTable("units");
+                uint baseAddr = unitsDef.GetBaseAddress(rom);
+                uint size = unitsDef.GetDataSize(rom);
+                uint count = unitsDef.GetEntryCount(rom);
+                Assert.True(baseAddr != 0 && baseAddr != U.NOT_FOUND && size != 0 && count != 0);
+
+                // base + count*size is the end-exclusive boundary: it must NOT
+                // resolve back to units (either null or a different table).
+                uint endAddr = baseAddr + count * size;
+                var resolved = StructExportCore.ResolveTableAt(rom, endAddr);
+                if (resolved != null)
+                    Assert.NotEqual("units", resolved.Name);
+            });
+        }
+
+        [Fact]
+        public void ResolveTableAt_HeaderAddress_ReturnsNull()
+        {
+            WithRealRom(rom =>
+            {
+                // 0x100 is inside the GBA cartridge header — no struct table
+                // lives there.
+                var resolved = StructExportCore.ResolveTableAt(rom, 0x100);
+                Assert.Null(resolved);
+            });
+        }
+
+        [Fact]
+        public void ResolveTableAt_NullRom_ReturnsNull()
+        {
+            Assert.Null(StructExportCore.ResolveTableAt(null, 0x1000));
+        }
+
+        [Theory]
+        [InlineData("units")]
+        [InlineData("classes")]
+        public void FormatX_MatchesExportToX_ByteForByte(string tableName)
+        {
+            WithRealRom(rom =>
+            {
+                var table = StructExportCore.GetTable(tableName);
+                var sd = StructExportCore.LoadStructDef(rom, table);
+                Assert.NotNull(sd);
+                var entries = StructExportCore.ExportTable(rom, table, sd);
+                Assert.NotEmpty(entries);
+
+                string tsvTmp = Path.GetTempFileName();
+                string csvTmp = Path.GetTempFileName();
+                string eaTmp = Path.GetTempFileName();
+                try
+                {
+                    StructExportCore.ExportToTSV(entries, sd, tsvTmp);
+                    StructExportCore.ExportToCSV(entries, sd, csvTmp);
+                    StructExportCore.ExportToEA(entries, sd, eaTmp);
+
+                    // The file writers use Encoding.UTF8; read back as UTF-8 and
+                    // compare the decoded string to the formatter output.
+                    Assert.Equal(File.ReadAllText(tsvTmp, System.Text.Encoding.UTF8),
+                        StructExportCore.FormatTSV(entries, sd));
+                    Assert.Equal(File.ReadAllText(csvTmp, System.Text.Encoding.UTF8),
+                        StructExportCore.FormatCSV(entries, sd));
+                    Assert.Equal(File.ReadAllText(eaTmp, System.Text.Encoding.UTF8),
+                        StructExportCore.FormatEA(entries, sd));
+                }
+                finally
+                {
+                    File.Delete(tsvTmp);
+                    File.Delete(csvTmp);
+                    File.Delete(eaTmp);
+                }
+            });
+        }
+
+        // ResolveTableAt normalizes the input address with U.toOffset, then does
+        // an exact end-EXCLUSIVE range check (start <= off < base + count*size).
+        // This locks the load-bearing assumption that toOffset only strips the
+        // GBA-pointer base (0x08000000) and NEVER rounds to a word boundary —
+        // otherwise a non-word-aligned exclusive end could be padded back inside
+        // a small/odd-count table and resolve incorrectly. (All registered
+        // tables happen to be word-aligned, so this pure check is the only place
+        // the non-aligned boundary is provably covered.)
+        [Fact]
+        public void ToOffset_NonWordAlignedValue_IsNotRoundedDown()
+        {
+            // Raw offsets (below the GBA-pointer range) pass through byte-exact.
+            Assert.Equal(0x1235u, U.toOffset(0x1235u)); // odd
+            Assert.Equal(0x1236u, U.toOffset(0x1236u)); // 2-aligned, not 4-aligned
+            Assert.Equal(0x1237u, U.toOffset(0x1237u));
+            // GBA-pointer form: strip the base, preserve the low (non-aligned) bits.
+            Assert.Equal(0x1235u, U.toOffset(0x08001235u));
+            Assert.Equal(0x1237u, U.toOffset(0x08001237u));
+        }
     }
 }

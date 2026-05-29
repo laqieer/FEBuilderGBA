@@ -1036,6 +1036,64 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Find the registered table whose data range contains the given address.
+        /// <paramref name="addr"/> may be a ROM file offset or a GBA pointer
+        /// (0x08000000+offset) — both are normalised via <see cref="U.toOffset"/>.
+        /// A table matches when its data range [base, base + count*size) contains
+        /// the offset (end-EXCLUSIVE). Tables that resolve to an empty/invalid
+        /// range (base 0 / NOT_FOUND, size 0, or count 0) are skipped, and any
+        /// per-table resolution exception is swallowed so one bad table does not
+        /// abort the scan. When multiple tables overlap the address, the one with
+        /// the narrowest data range (smallest count*size) wins. Returns null if no
+        /// table contains the address.
+        /// </summary>
+        public static TableDef ResolveTableAt(ROM rom, uint addr)
+        {
+            if (rom?.RomInfo == null) return null;
+
+            uint off = U.toOffset(addr);
+
+            TableDef best = null;
+            ulong bestSpan = ulong.MaxValue;
+
+            foreach (var name in GetTableNames())
+            {
+                var table = GetTable(name);
+                if (table == null) continue;
+
+                try
+                {
+                    uint baseAddr = table.GetBaseAddress(rom);
+                    uint size = table.GetDataSize(rom);
+                    uint count = table.GetEntryCount(rom);
+
+                    if (baseAddr == 0 || baseAddr == U.NOT_FOUND || size == 0 || count == 0)
+                        continue;
+
+                    ulong span = (ulong)count * (ulong)size;
+                    ulong start = (ulong)baseAddr;
+                    ulong end = start + span; // end-exclusive
+
+                    if (start <= (ulong)off && (ulong)off < end)
+                    {
+                        if (span < bestSpan)
+                        {
+                            bestSpan = span;
+                            best = table;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Skip tables that throw during resolution (missing pointer,
+                    // out-of-range read, etc.) — they simply don't match.
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>
         /// Load the appropriate StructDef for a table based on ROM version.
         /// </summary>
         public static StructMetadata.StructDef LoadStructDef(ROM rom, TableDef table)
@@ -1109,9 +1167,11 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Export table data to a TSV file.
+        /// Format table data as a TSV string. The header ("Index" + field names)
+        /// is line 1; there is NO banner/prefix. <see cref="ExportToTSV"/> writes
+        /// exactly this string to disk.
         /// </summary>
-        public static void ExportToTSV(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        public static string FormatTSV(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef)
         {
             var sb = new StringBuilder();
 
@@ -1136,13 +1196,15 @@ namespace FEBuilderGBA
                 sb.AppendLine();
             }
 
-            File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
+            return sb.ToString();
         }
 
         /// <summary>
-        /// Export table data to a CSV file (RFC 4180 compliant).
+        /// Format table data as an RFC 4180 compliant CSV string. The header
+        /// ("Index" + field names) is line 1; there is NO banner/prefix.
+        /// <see cref="ExportToCSV"/> writes exactly this string to disk.
         /// </summary>
-        public static void ExportToCSV(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        public static string FormatCSV(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef)
         {
             var sb = new StringBuilder();
 
@@ -1167,14 +1229,17 @@ namespace FEBuilderGBA
                 sb.AppendLine();
             }
 
-            File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
+            return sb.ToString();
         }
 
         /// <summary>
-        /// Export table data to EA (Event Assembler) #define format.
-        /// Each field becomes: #define {TableName}_{HexIndex}_{FieldName} 0xVALUE
+        /// Format table data as EA (Event Assembler) #define text. The first line
+        /// is the standard "// Event Assembler definitions for {struct}" header
+        /// comment (not a stub banner). Each field becomes:
+        /// #define {TableName}_{HexIndex}_{FieldName} 0xVALUE.
+        /// <see cref="ExportToEA"/> writes exactly this string to disk.
         /// </summary>
-        public static void ExportToEA(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        public static string FormatEA(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef)
         {
             var sb = new StringBuilder();
             sb.AppendLine($"// Event Assembler definitions for {structDef.Name}");
@@ -1195,7 +1260,35 @@ namespace FEBuilderGBA
                 sb.AppendLine();
             }
 
-            File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Export table data to a TSV file. Output is byte-identical to
+        /// <see cref="FormatTSV"/>.
+        /// </summary>
+        public static void ExportToTSV(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        {
+            File.WriteAllText(outputPath, FormatTSV(entries, structDef), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// Export table data to a CSV file (RFC 4180 compliant). Output is
+        /// byte-identical to <see cref="FormatCSV"/>.
+        /// </summary>
+        public static void ExportToCSV(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        {
+            File.WriteAllText(outputPath, FormatCSV(entries, structDef), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// Export table data to EA (Event Assembler) #define format.
+        /// Each field becomes: #define {TableName}_{HexIndex}_{FieldName} 0xVALUE.
+        /// Output is byte-identical to <see cref="FormatEA"/>.
+        /// </summary>
+        public static void ExportToEA(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
+        {
+            File.WriteAllText(outputPath, FormatEA(entries, structDef), Encoding.UTF8);
         }
 
         /// <summary>RFC 4180 CSV quoting: double-quote fields containing commas, quotes, or newlines.</summary>

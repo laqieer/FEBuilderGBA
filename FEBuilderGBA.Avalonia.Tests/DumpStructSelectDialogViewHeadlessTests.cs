@@ -15,6 +15,9 @@ using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests
 {
+    // [Collection("SharedState")] because View_StructAwareExport_* mutate
+    // CoreState.ROM via RomTestHelper.WithRom.
+    [Collection("SharedState")]
     public class DumpStructSelectDialogViewHeadlessTests
     {
         static List<(Control Control, string AutomationId)> CollectAutomationIds(Control root)
@@ -124,6 +127,30 @@ namespace FEBuilderGBA.Avalonia.Tests
             // De-dup and assert the named-control count.
             int distinct = ids.Distinct().Count();
             Assert.InRange(distinct, 18, int.MaxValue);
+        }
+
+        // ====================================================================
+        // Struct-aware export (#770). Construct the dialog, point it at a known
+        // struct-table address via Init(addr), and drive the VM's MakeExportText
+        // through the View's ViewModel accessor. Skips cleanly when no ROM.
+        // ====================================================================
+
+        [AvaloniaFact]
+        public void View_StructAwareExport_CSV_AtUnitTable_HasRealHeader()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var unitsDef = StructExportCore.GetTable("units");
+                var rom = CoreState.ROM;
+                uint addr = unitsDef.GetBaseAddress(rom) + unitsDef.GetDataSize(rom);
+
+                var view = new DumpStructSelectDialogView();
+                view.Init(addr);
+                string text = view.ViewModel.MakeExportText("CSV");
+
+                Assert.StartsWith("Index,", text);
+                Assert.DoesNotContain("Avalonia stub", text);
+            });
         }
     }
 }
