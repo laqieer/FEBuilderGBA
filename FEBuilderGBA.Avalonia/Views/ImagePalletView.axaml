@@ -267,23 +267,22 @@
         </Grid>
 
         <!-- Bottom button row (mirrors WF ImportButton + ExportButton +
-             PALETTE_TO_CLIPBOARD_BUTTON). All deferred to #500 - real
-             Bitmap import/export needs the WF ImageFormRef path. -->
+             PALETTE_TO_CLIPBOARD_BUTTON). Wired to PaletteCore +
+             PaletteFormatConverter for palette-file import/export and a
+             clipboard copy (#777), mirroring ImageBGView. Live Bitmap
+             image import/export stays out of scope. -->
         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
           <Button AutomationProperties.AutomationId="ImagePallet_Import_Button"
-                  Name="ImportButton" Content="Import Image"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Name="ImportButton" Content="Import Palette"
+                  ToolTip.Tip="Import a palette file (.pal/.act/.gpl/.txt) into the current 16-color block."
                   Click="Import_Click" />
           <Button AutomationProperties.AutomationId="ImagePallet_Export_Button"
-                  Name="ExportButton" Content="Export Image"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  Name="ExportButton" Content="Export Palette"
+                  ToolTip.Tip="Export the current 16 colors to a palette file (.pal/.act/.gpl/.txt)."
                   Click="Export_Click" />
           <Button AutomationProperties.AutomationId="ImagePallet_Clipboard_Button"
                   Name="ClipboardButton" Content="Clipboard"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  ToolTip.Tip="Copy the current 16 colors to the clipboard as RRGGBB,RRGGBB,..."
                   Click="Clipboard_Click" />
         </StackPanel>
 

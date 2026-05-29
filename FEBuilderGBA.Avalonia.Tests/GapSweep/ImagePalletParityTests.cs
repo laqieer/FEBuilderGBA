@@ -125,15 +125,13 @@ public class ImagePalletParityTests
     }
 
     /// <summary>
-    /// Deferred affordances (Import/Export/Clipboard + Redo per plan
-    /// review #5) must be disabled and reference the open follow-up
-    /// issue #500. NOTE: Undo is intentionally NOT in this list - the
-    /// plan review-5 decision was Undo enabled, Redo deferred.
+    /// Redo is the sole remaining deferred affordance (Core has no
+    /// RunRedo() API yet); it must stay disabled. NOTE: Import / Export /
+    /// Clipboard were wired to PaletteCore + PaletteFormatConverter in
+    /// #777 and are now enabled (see
+    /// <see cref="View_PaletteIoButtons_AreEnabled"/>).
     /// </summary>
     [Theory]
-    [InlineData("ImagePallet_Import_Button")]
-    [InlineData("ImagePallet_Export_Button")]
-    [InlineData("ImagePallet_Clipboard_Button")]
     [InlineData("ImagePallet_Redo_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string automationId)
     {
@@ -149,6 +147,29 @@ public class ImagePalletParityTests
 
         Assert.Contains("IsEnabled=\"False\"", element);
         Assert.Contains("#500", element);
+    }
+
+    /// <summary>
+    /// Import / Export / Clipboard buttons were wired to the Core palette
+    /// helpers in #777 and must no longer carry the `IsEnabled="False"`
+    /// deferral attribute. Their click handlers stay wired.
+    /// </summary>
+    [Theory]
+    [InlineData("ImagePallet_Import_Button", "Import_Click")]
+    [InlineData("ImagePallet_Export_Button", "Export_Click")]
+    [InlineData("ImagePallet_Clipboard_Button", "Clipboard_Click")]
+    public void View_PaletteIoButtons_AreEnabled(string automationId, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("#500", element);
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
     }
 
     /// <summary>
