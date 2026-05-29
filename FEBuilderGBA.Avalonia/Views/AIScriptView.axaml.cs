@@ -199,10 +199,13 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
         // Re-read mirrors WF N_ReloadListButton_Click: read `bytecount`
         // bytes starting at `Address` and disassemble them into the
-        // Disassembly list. The actual opcode disassembly path is
-        // WinForms-coupled today; we surface the raw byte dump in the list
-        // so the user has SOMETHING populated and the button does real work
-        // (per PR #571 Copilot bot review #2 — no no-op "re-read").
+        // Disassembly list. The VM's DisassembleScript() walks the FIXED
+        // 16-byte AI instruction grid and renders each opcode as a real
+        // mnemonic + decoded args + comment (parity with the WinForms
+        // AIScriptForm opcode list), replacing the previous raw byte dump
+        // (#757). The byte range comes from the VM's CurrentAddr /
+        // ReadByteCount; the ROM-bounds / safety guard lives inside
+        // DisassembleScript().
         // -----------------------------------------------------------------
 
         void ReloadList_Click(object? sender, RoutedEventArgs e)
@@ -212,32 +215,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.CurrentAddr = (uint)(AddressBox.Value ?? 0);
                 _vm.ReadByteCount = (uint)(ReadByteCountBox.Value ?? 0);
 
-                // Read the bytes from ROM at CurrentAddr (size = ReadByteCount)
-                // and populate the Disassembly list with 16-byte chunks.
-                // Range check uses inclusive end (<= rom.Data.Length) and
-                // overflow-safe arithmetic so a range that ends EXACTLY at
-                // the ROM boundary still scans correctly (PR #571 Copilot
-                // bot review on follow-up commit thread #3 — `isSafetyOffset`
-                // is strictly `< Data.Length` and would silently no-op at
-                // the boundary).
-                var rom = CoreState.ROM;
-                var items = new System.Collections.Generic.List<string>();
-                if (rom != null && U.isSafetyOffset(_vm.CurrentAddr)
-                    && (ulong)_vm.CurrentAddr + (ulong)_vm.ReadByteCount
-                        <= (ulong)rom.Data.Length)
-                {
-                    uint end = System.Math.Min(_vm.CurrentAddr + _vm.ReadByteCount,
-                                               (uint)rom.Data.Length);
-                    for (uint a = _vm.CurrentAddr; a + 16 <= end; a += 16)
-                    {
-                        var sb = new System.Text.StringBuilder();
-                        sb.Append($"0x{a:X06}: ");
-                        for (uint i = 0; i < 16; i++)
-                            sb.Append($"{rom.u8(a + i):X02} ");
-                        items.Add(sb.ToString());
-                    }
-                }
-                DisassemblyList.ItemsSource = items;
+                DisassemblyList.ItemsSource = _vm.DisassembleScript();
                 UpdateUI();
             }
             catch (Exception ex)

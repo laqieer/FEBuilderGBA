@@ -29,6 +29,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         bool _isLoading;
 
+        // Display-only disassembly backing state (#757). Populated by
+        // DisassembleScript() and kept around for possible future row
+        // selection. NO edit/write state lives here — opcode write-back is
+        // still deferred (see Write()/Write_Click).
+        readonly List<EventScript.OneCode> _disassembled = new();
+        readonly List<uint> _rowOffsets = new();
+
         // ----------------------------------------------------------------
         // Public observable properties
         // ----------------------------------------------------------------
@@ -265,6 +272,143 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
             }
             return addr - start;
+        }
+
+        // ----------------------------------------------------------------
+        // Disassembly (display-only, #757)
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Disassemble the currently-loaded AI script into human-readable
+        /// display lines (mnemonic + decoded args + comment), replacing the
+        /// raw hex dump the Avalonia editor used to show. Mirrors the
+        /// EventScriptViewModel.DisassembleAt rendering loop, but walks the
+        /// FIXED 16-byte AI instruction grid: WinForms AIScriptForm.CalcLength
+        /// steps by 16 and the shared CoreState.AIScript is built with
+        /// `new EventScript(16)` so an unrecognized opcode decodes as ONE
+        /// 16-byte WORD row (not four 4-byte rows).
+        ///
+        /// This is display-only: it populates the backing _disassembled /
+        /// _rowOffsets lists for possible future row selection but does NOT
+        /// touch any edit/write state. The byte range to walk is the
+        /// [CurrentAddr, CurrentAddr + ReadByteCount) window computed by
+        /// CalcScriptLength, which already encodes the EXIT / continuation
+        /// semantics — so we deliberately do NOT early-break on
+        /// ScriptHas.TERM and always advance by the 16-byte grid step.
+        /// </summary>
+        public IReadOnlyList<string> DisassembleScript()
+        {
+            _disassembled.Clear();
+            _rowOffsets.Clear();
+
+            var lines = new List<string>();
+
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null || !IsLoaded || CurrentAddr == 0)
+                return lines;
+
+            // Ensure the shared AI EventScript is loaded. Mirror
+            // EventScriptViewModel's lazy-load guard, but with the AI
+            // unknown-opcode width of 16 (#757).
+            EventScript es = CoreState.AIScript;
+            if (es == null || es.Scripts == null || es.Scripts.Length == 0)
+            {
+                try
+                {
+                    es = new EventScript(16);
+                    es.Load(EventScript.EventScriptType.AI);
+                    CoreState.AIScript = es;
+                }
+                catch (Exception ex)
+                {
+                    lines.Add($"[Error loading AI script definitions: {ex.Message}]");
+                    return lines;
+                }
+            }
+
+            // Clamp the end to the ROM length with overflow-safe (ulong)
+            // arithmetic — a hand-typed CurrentAddr + ReadByteCount near
+            // uint.MaxValue must NOT wrap (mirrors the old view guard's
+            // (ulong) cast that this method subsumes).
+            uint end = (uint)Math.Min(
+                (ulong)CurrentAddr + ReadByteCount, (ulong)rom.Data.Length);
+
+            // Walk COMPLETE 16-byte slots only. `stopped` tracks an early bail
+            // (disassembly error / decode failure) so we don't tack a bogus
+            // "partial" row onto a run we terminated mid-stream. The loop
+            // bound uses (ulong) so `off + 16` can't wrap past end.
+            uint off = CurrentAddr;
+            bool stopped = false;
+            for (; (ulong)off + 16 <= end; off += 16)
+            {
+                EventScript.OneCode code;
+                try
+                {
+                    code = es.DisAseemble(rom.Data, off);
+                }
+                catch
+                {
+                    lines.Add($"0x{off:X06}: [Disassembly error]");
+                    stopped = true;
+                    break;
+                }
+
+                if (code == null || code.ByteData == null)
+                {
+                    lines.Add($"0x{off:X06}: [Failed to decode]");
+                    stopped = true;
+                    break;
+                }
+
+                _disassembled.Add(code);
+                _rowOffsets.Add(off);
+                lines.Add(FormatAiRow(code, off));
+            }
+
+            // Trailing partial remainder: a ReadByteCount that is not a
+            // multiple of 16 leaves 1..15 bytes that can't form a full
+            // instruction. Only surfaced when the slot walk ran to completion
+            // (not after an early error/decode-failure break).
+            if (!stopped && off < end)
+            {
+                uint n = end - off;
+                lines.Add($"0x{off:X06}: [partial 16-byte instruction — {n} bytes]");
+            }
+
+            return lines;
+        }
+
+        /// <summary>
+        /// Render a single decoded AI opcode as a display line:
+        /// "0xADDR: MNEMONIC  [hex bytes]  argName=value, ...  // comment".
+        /// Mirrors the EventScriptViewModel row format. AI-specific only in
+        /// that it is fed 16-byte instruction slots.
+        /// </summary>
+        static string FormatAiRow(EventScript.OneCode code, uint off)
+        {
+            string cmdName = EventScript.makeCommandComboText(code.Script, false);
+            string hexBytes = U.HexDumpLiner(code.ByteData).Trim();
+            string line = $"0x{off:X06}: {cmdName}  [{hexBytes}]";
+
+            if (code.Script != null && code.Script.Args != null && code.Script.Args.Length > 0)
+            {
+                var argParts = new List<string>();
+                for (int i = 0; i < code.Script.Args.Length; i++)
+                {
+                    var arg = code.Script.Args[i];
+                    if (arg.Type == EventScript.ArgType.FIXED) continue;
+                    string argStr = EventScript.GetArg(code, i, out _);
+                    string name = arg.Name ?? arg.Symbol.ToString();
+                    argParts.Add($"{name}={argStr}");
+                }
+                if (argParts.Count > 0)
+                    line += "  " + string.Join(", ", argParts);
+            }
+
+            if (!string.IsNullOrEmpty(code.Comment))
+                line += $"  // {code.Comment}";
+
+            return line;
         }
 
         // ----------------------------------------------------------------
