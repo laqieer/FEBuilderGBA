@@ -26,7 +26,8 @@
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Button AutomationProperties.AutomationId="SongInstrument_ListExpand_Button"
                   Name="ListExpandButton" Content="Expand List" Width="100" IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction (list expansion is WinForms-only)." />
+                  Click="ListExpand_Click"
+                  ToolTip.Tip="Grow this song's voicegroup (instrument set) to the full 128 records: relocate to free space, copy the existing instruments and fill the rest from instrument 0, then repoint every song that shares this voicegroup (#780)." />
           <TextBlock Text="Filter" VerticalAlignment="Center" Width="50" />
           <TextBox AutomationProperties.AutomationId="SongInstrument_Filter_Input"
                    Name="FilterBox" Width="150" VerticalAlignment="Center"

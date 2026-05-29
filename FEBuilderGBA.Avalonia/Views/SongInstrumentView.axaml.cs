@@ -112,6 +112,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? filter = FilterBox?.Text;
                 if (!string.IsNullOrWhiteSpace(filter))
                     EntryList.ApplySearchFilter(filter);
+
+                // Enable Expand List only when a song-context voicegroup with
+                // a defined-prefix < 128 is loaded (#780).
+                UpdateExpandButtonState();
             }
             catch (Exception ex)
             {
@@ -136,6 +140,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItems(items);
                 if (items.Count > 0)
                     EntryList.SelectFirst();
+                UpdateExpandButtonState();
             }
             catch (Exception ex)
             {
@@ -175,6 +180,65 @@ namespace FEBuilderGBA.Avalonia.Views
         // #649: routed event from the unified EditorTopBarWithInputs Reload
         // button.
         void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
+
+        /// <summary>
+        /// Enable the Expand List button only when a song-context voicegroup
+        /// with a defined-prefix instrument count &lt; 128 is loaded (#780).
+        /// Other states (no song context / already 128 / no ROM) keep it
+        /// disabled — mirrors how the other editors gate Expand/NewAlloc on
+        /// the current selection.
+        /// </summary>
+        void UpdateExpandButtonState()
+        {
+            if (ListExpandButton != null)
+                ListExpandButton.IsEnabled = _vm.CanExpandVoicegroup;
+        }
+
+        /// <summary>
+        /// Grow the loaded voicegroup to 128 instruments (#780). Mirrors
+        /// <c>MapExitPointView.ExpandList_Click</c>: open an undo scope, call
+        /// the VM, roll back + notify on refusal, otherwise commit, reload the
+        /// instrument list so all 128 rows show, and report the new base.
+        /// </summary>
+        void ListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanExpandVoicegroup) return;
+
+            _undoService.Begin("SongInstrument ExpandVoicegroup");
+            try
+            {
+                if (!_vm.ExpandVoicegroupTo128(_undoService.GetActiveUndoData()))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(
+                        "Could not expand this voicegroup to 128 instruments " +
+                        "(no song context, already full, or no free space).");
+                    return;
+                }
+                uint newBase = _vm.BaseAddr;
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Re-resolve + re-read so the 128 rows show. The VM re-anchored
+                // its song context (and BaseAddr) onto the relocated base. The
+                // read-config bar's First Address still holds the OLD base
+                // (surfaced during the initial LoadList), and LoadList prefers
+                // that explicit value — so sync it to the new base first,
+                // otherwise we would re-list the now-wiped old block.
+                if (TopBar != null)
+                    TopBar.ReadStartAddress = newBase;
+                LoadList();
+                UpdateExpandButtonState();
+
+                CoreState.Services?.ShowInfo(
+                    $"Expanded voicegroup to 128 instruments at 0x{newBase:X08}.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongInstrumentView.ListExpand_Click failed: {0}", ex.Message);
+            }
+        }
 
         void FilterBox_KeyDown(object? sender, global::Avalonia.Input.KeyEventArgs e)
         {
