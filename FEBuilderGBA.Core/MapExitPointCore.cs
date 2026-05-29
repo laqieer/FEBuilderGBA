@@ -156,6 +156,30 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Count the exit rows in the per-map block at <paramref name="exitPointAddr"/>,
+        /// returning true ONLY when a B0==0xFF terminator row is found within the safe
+        /// ROM range / 0x100 row cap. <paramref name="count"/> = rows before the
+        /// terminator. Returns false (count=0) for unsafe, blank, or unterminated/corrupt
+        /// blocks — callers must NOT expand those.
+        /// </summary>
+        public static bool TryCountExitRows(ROM rom, uint exitPointAddr, out uint count)
+        {
+            count = 0;
+            if (rom?.RomInfo == null) return false;
+            if (!U.isSafetyOffset(exitPointAddr, rom)) return false;
+            if (IsBlankPointer(rom, exitPointAddr)) return false;
+            const uint MAX_ROWS = 0x100;
+            for (uint i = 0; i < MAX_ROWS; i++)
+            {
+                uint rowAddr = exitPointAddr + i * ROW_SIZE;
+                if (rowAddr + ROW_SIZE > (uint)rom.Data.Length) return false; // ran off ROM, no terminator
+                if (!U.isSafetyOffset(rowAddr, rom)) return false;
+                if (rom.u8(rowAddr) == 0xFFu) { count = i; return true; }      // terminator found
+            }
+            return false; // hit MAX_ROWS without a terminator → corrupt
+        }
+
+        /// <summary>
         /// True iff <paramref name="addr"/> equals the version-specific
         /// <c>map_exit_point_blank</c> marker (the universal NULL pointer
         /// shared across all versions — see ROMFE6JP / ROMFE7U / ROMFE8U).

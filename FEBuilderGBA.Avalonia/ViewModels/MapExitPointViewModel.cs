@@ -224,6 +224,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return MapExitPointCore.NewAlloc(rom, SelectedMapSlotAddr, undodata);
         }
 
+        /// <summary>Grow the selected map's exit-point block by one blank row (mirrors WF list-expand).</summary>
+        /// <remarks>
+        /// <paramref name="undodata"/> is accepted for signature parity with
+        /// <see cref="NewAlloc"/> and to make the ambient-undo intent explicit;
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> writes through the
+        /// ambient <c>ROM.BeginUndoScope</c> opened by the View's UndoService
+        /// (the same shape used by <c>ImageMapActionAnimationViewModel.ExpandList</c>,
+        /// which calls ExpandTableTo with no explicit undo arg).
+        /// </remarks>
+        public DataExpansionCore.ExpandResult ExpandExitList(Undo.UndoData? undodata)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "No ROM loaded." };
+            if (SelectedMapSlotAddr == 0 || !U.isSafetyOffset(SelectedMapSlotAddr, rom))
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "No map selected." };
+            if (IsBlank)
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "This map has no exit-point block yet — use New to allocate one." };
+            if (CurrentExitPointAddr == U.NOT_FOUND)
+                // Not the allocatable blank-marker state: the slot holds an invalid/unset
+                // pointer (see LoadExitListForMap), where NewAlloc is hidden. Don't suggest New.
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "This map's exit-point pointer is invalid or unset; cannot expand." };
+            if (!MapExitPointCore.TryCountExitRows(rom, CurrentExitPointAddr, out uint currentCount))
+                return new DataExpansionCore.ExpandResult { Success = false, Error = "Exit-point block has no valid terminator (corrupt/unterminated); refusing to expand." };
+            return DataExpansionCore.ExpandTableTo(rom, SelectedMapSlotAddr, 4, currentCount, currentCount + 1);
+        }
+
         // -----------------------------------------------------------------
         // IDataVerifiable — diagnostic reports
         // -----------------------------------------------------------------

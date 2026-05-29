@@ -323,6 +323,85 @@ public class MapExitPointCoreTests
         Assert.Equal(U.NOT_FOUND, MapExitPointCore.NewAlloc(null!, 0x100u, undodata: null));
     }
 
+    // -----------------------------------------------------------------
+    // TryCountExitRows — terminator-aware row count for list-expand (#773)
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void TryCountExitRows_TerminatedBlock_ReturnsTrueAndRowCount()
+    {
+        // Per-map block 0 at 0x00810000 has rowsPerMap rows then a B0=0xFF
+        // terminator — the count must equal rowsPerMap (rows BEFORE the
+        // terminator).
+        ROM rom = MakeFe8uWithExitTable(rowsPerMap: 3);
+        uint perMap = 0x00810000u;
+        Assert.True(MapExitPointCore.TryCountExitRows(rom, perMap, out uint count));
+        Assert.Equal(3u, count);
+    }
+
+    [Fact]
+    public void TryCountExitRows_BlankPointer_ReturnsFalseZero()
+    {
+        // The version-specific blank marker is the "no exits" state and must
+        // be refused (callers must NOT expand it).
+        ROM rom = MakeFe8uWithExitTable();
+        uint blank = rom.RomInfo.map_exit_point_blank;
+        Assert.False(MapExitPointCore.TryCountExitRows(rom, blank, out uint count));
+        Assert.Equal(0u, count);
+    }
+
+    [Fact]
+    public void TryCountExitRows_NoTerminatorWithinCap_ReturnsFalseZero()
+    {
+        // Synthesize an in-memory block of non-0xFF bytes long enough to blow
+        // past the 0x100 row cap (0x100 rows * 4 bytes = 0x400 bytes). With no
+        // B0==0xFF terminator the helper must return false + count 0 so the
+        // corrupt/unterminated block is never expanded.
+        var bytes = new byte[0x1100000];
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        uint blockAddr = 0x00820000u;
+        // Fill 0x100 rows worth of bytes with a non-0xFF value (0x01) so every
+        // row's B0 byte is 0x01, never the terminator.
+        for (uint i = 0; i < 0x100u * 4u; i++)
+        {
+            bytes[blockAddr + i] = 0x01;
+        }
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        Assert.False(MapExitPointCore.TryCountExitRows(rom, blockAddr, out uint count));
+        Assert.Equal(0u, count);
+    }
+
+    [Fact]
+    public void TryCountExitRows_UnsafeOrNullArgs_ReturnFalseZero()
+    {
+        ROM rom = MakeFe8uWithExitTable();
+        // Out-of-range / unsafe offset.
+        Assert.False(MapExitPointCore.TryCountExitRows(rom, 0xFFFFFFFFu, out uint c1));
+        Assert.Equal(0u, c1);
+        // Null ROM.
+        Assert.False(MapExitPointCore.TryCountExitRows(null!, 0x00810000u, out uint c2));
+        Assert.Equal(0u, c2);
+    }
+
+    [Fact]
+    public void TryCountExitRows_ImmediateTerminator_ReturnsTrueZero()
+    {
+        // A block whose very first row is the terminator (empty list) counts
+        // as zero rows but is still a VALID, terminated block.
+        var bytes = new byte[0x1100000];
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+        uint blockAddr = 0x00830000u;
+        bytes[blockAddr] = 0xFF; // immediate terminator
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        Assert.True(MapExitPointCore.TryCountExitRows(rom, blockAddr, out uint count));
+        Assert.Equal(0u, count);
+    }
+
     [Fact]
     public void NewAlloc_RolledBackByUndoScope_RestoresOriginalPointer()
     {

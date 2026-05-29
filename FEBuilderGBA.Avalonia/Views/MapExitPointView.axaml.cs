@@ -306,12 +306,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void ExpandList_Click(object? sender, RoutedEventArgs e)
         {
-            // List-expansion is patch-aware (mirrors WF
-            // N_AddressListExpandsButton); the Core helper is deferred to a
-            // follow-up gap-fix (same pattern as #438 PointerTool). Surface
-            // a notice so the user knows the affordance exists.
-            CoreState.Services?.ShowInfo(
-                "List expansion requires the freespace-aware repointer (deferred to a follow-up PR; see #425 known limitations).");
+            if (_vm.SelectedMapSlotAddr == 0) return;
+            _undoService.Begin("MapExit ExpandList");
+            try
+            {
+                var r = _vm.ExpandExitList(_undoService.GetActiveUndoData());
+                if (!r.Success) { _undoService.Rollback(); CoreState.Services?.ShowError(r.Error); return; }
+                _undoService.Commit();
+                _vm.MarkClean();
+                OnMapSelected(_vm.SelectedMapSlotAddr);
+                CoreState.Services?.ShowInfo($"Expanded exit-point block to {r.NewCount} rows at 0x{r.NewBaseAddress:X08}.");
+            }
+            catch (Exception ex) { _undoService.Rollback(); Log.Error("MapExitPointView.ExpandList: {0}", ex.Message); }
         }
 
         // -----------------------------------------------------------------

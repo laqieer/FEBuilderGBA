@@ -241,6 +241,24 @@ public class MapExitPointParityTests
         Assert.Matches(new Regex(@"void\s+NewAlloc_Click[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
     }
 
+    [Fact]
+    public void View_ExpandListHandler_UsesUndoService_AndCallsExpandExitList()
+    {
+        // #773: the ExpandList_Click handler must wrap _vm.ExpandExitList(...)
+        // in an _undoService.Begin/Commit scope (Rollback on failure/exception),
+        // mirroring the NewAlloc handler. Guards the gap-fix against regressing
+        // back to the old inert "deferred" stub.
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "Views", "MapExitPointView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        Assert.Matches(new Regex(@"void\s+ExpandList_Click[\s\S]*?_undoService\.Begin", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+ExpandList_Click[\s\S]*?_vm\.ExpandExitList", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+ExpandList_Click[\s\S]*?_undoService\.Commit", RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(@"void\s+ExpandList_Click[\s\S]*?_undoService\.Rollback", RegexOptions.Compiled), source);
+    }
+
     // -----------------------------------------------------------------
     // EscapeMethod combo round-trip
     // -----------------------------------------------------------------
