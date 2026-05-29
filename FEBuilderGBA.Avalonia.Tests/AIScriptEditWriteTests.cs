@@ -404,6 +404,12 @@ namespace FEBuilderGBA.Avalonia.Tests
                     System.Reflection.BindingFlags.NonPublic);
                 Assert.NotNull(vmField);
                 var vm = (AIScriptViewModel)vmField!.GetValue(view)!;
+                // Defensive: constructing the View re-enters list/VM init (the
+                // FilterCombo SelectionChanged fires LoadList). Re-assert the
+                // env's ROM as the active one before LoadEntry so the pointer
+                // slot follow resolves deterministically regardless of any
+                // cross-test CoreState churn in the shared collection.
+                CoreState.ROM = env.Rom;
                 vm.LoadEntry(pointerSlotAddr);
                 Assert.True(vm.IsLoaded);
 
