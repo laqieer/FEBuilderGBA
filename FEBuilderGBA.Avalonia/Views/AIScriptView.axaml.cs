@@ -193,6 +193,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            // Guard an empty/never-loaded model BEFORE opening the undo scope so
+            // we never produce a ghost undo entry or the misleading "length
+            // changed" error when the user hasn't pressed Re-read yet.
+            if (!_vm.HasDisassembly)
+            {
+                CoreState.Services.ShowInfo("Re-read the AI script before writing.");
+                return;
+            }
             _undoService.Begin("Edit AI Script");
             try
             {

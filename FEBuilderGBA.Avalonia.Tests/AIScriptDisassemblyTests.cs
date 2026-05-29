@@ -351,7 +351,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// before/after byte comparisons in the #760 write tests.</summary>
         public byte[] RomSlice(uint addr, uint length)
         {
-            var slice = new byte[length];
+            var slice = new byte[(int)length];
             Array.Copy(_rom.Data, (int)addr, slice, 0, (int)length);
             return slice;
         }

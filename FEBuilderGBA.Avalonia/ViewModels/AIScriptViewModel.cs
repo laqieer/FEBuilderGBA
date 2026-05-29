@@ -484,6 +484,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             EventScript es = CoreState.AIScript;
             if (es == null) return null;
 
+            // Preserve the row's existing comment. DisAseemble(bytes, 0) would
+            // populate OneCode.Comment from CommentCache.At(0) (offset 0, wrong),
+            // dropping the row's real per-offset comment. The comment is keyed by
+            // ROM offset, which a same-size hex edit does not change.
+            string origComment = _disassembled[index].Comment;
             EventScript.OneCode code;
             try
             {
@@ -494,6 +499,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return null;
             }
             if (code == null || code.ByteData == null) return null;
+            code.Comment = origComment;
 
             _disassembled[index] = code;
             uint off = index < _rowOffsets.Count ? _rowOffsets[index] : 0;
@@ -604,12 +610,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (bytes.Length != ReadByteCount) return false;
             if ((ulong)CurrentAddr + (ulong)bytes.Length > (ulong)rom.Data.Length) return false;
 
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                rom.write_u8(CurrentAddr + (uint)i, bytes[i]);
-            }
+            // Single-range write → one undo entry (registers into the ambient
+            // UndoService scope opened by the View), rather than one UndoPosition
+            // per byte.
+            rom.write_range(CurrentAddr, bytes);
             return true;
         }
+
+        /// <summary>True once a script has been disassembled into the editable
+        /// model (i.e. Re-read has run). The View guards Write on this so an
+        /// empty/never-loaded model does not attempt a (misleading) write.</summary>
+        public bool HasDisassembly => _disassembled.Count > 0;
 
         // ----------------------------------------------------------------
         // Legacy header-only commit (kept for the stable VM surface). The
