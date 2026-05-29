@@ -342,6 +342,20 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         readonly ROM _rom;
 
+        /// <summary>The synthetic FE8U ROM backing this environment (#760
+        /// edit/write tests inspect rom.Data directly to verify in-place
+        /// writes / undo).</summary>
+        public ROM Rom => _rom;
+
+        /// <summary>Copy a [addr, addr+length) slice of the ROM, for
+        /// before/after byte comparisons in the #760 write tests.</summary>
+        public byte[] RomSlice(uint addr, uint length)
+        {
+            var slice = new byte[length];
+            Array.Copy(_rom.Data, (int)addr, slice, 0, (int)length);
+            return slice;
+        }
+
         public AiDisasmEnv()
         {
             _prevRom = CoreState.ROM;

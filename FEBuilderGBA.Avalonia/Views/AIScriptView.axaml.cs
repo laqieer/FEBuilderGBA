@@ -181,19 +181,37 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // Write-back. WF AllWriteButton_Click writes the full disassembled
-        // opcode list back; that path is WinForms-coupled via EventScript.
-        // DisAssemble + EventScriptUtil.JisageReorder. Without that, an
-        // Avalonia "Write" can't honestly mutate the ROM, so we tell the
-        // user and short-circuit BEFORE allocating an undo scope (per
-        // PR #571 Copilot bot review #1 — no ghost undo entry, no
-        // misleading "success" toast).
+        // Write-back (#760). Serializes the in-memory disassembled model
+        // (exact concatenation of each instruction's bytes — no EXIT
+        // normalization) and writes it back in-place under a UndoService
+        // scope. This is strictly SAME-SIZE: WriteScript() refuses (and we
+        // roll the scope back) if the length changed or the slice runs off
+        // the ROM, since a length change needs the New/Remove + free-space
+        // realloc path that stays deferred. Mirrors WF AllWriteButton_Click's
+        // concatenate-and-write core (minus the WinForms terminator append).
         // -----------------------------------------------------------------
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            CoreState.Services.ShowInfo(
-                "AI script Write is not yet implemented in Avalonia. The full opcode write-back requires the WinForms EventScript.DisAssemble pipeline, which is still WinForms-coupled. Use the WinForms editor for AI script writes.");
+            _undoService.Begin("Edit AI Script");
+            try
+            {
+                if (!_vm.WriteScript())
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(
+                        "Could not write (length changed or out of range — New/Remove not yet supported).");
+                    return;
+                }
+                _undoService.Commit();
+                CoreState.Services.ShowInfo("AI script written.");
+                ReloadList_Click(sender, e);
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("AIScriptView.Write: {0}", ex.Message);
+            }
         }
 
         // -----------------------------------------------------------------
@@ -239,26 +257,76 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // Detail-row action buttons (no-op host parity placeholders).
-        // The fully functional Update / Remove / New flows require the WF
-        // EventScript.DisAssemble + EventScriptUtil.JisageReorder pipeline
-        // (WinForms-coupled). We emit informational dialogs so the surface
-        // matches the WF affordance set without misleading the user.
+        // Disassembly row selection (#760): mirror the selected instruction's
+        // bytes into the Binary Code box and its mnemonic into the Description
+        // label so the user can hand-edit the hex and re-decode via Update.
+        // -----------------------------------------------------------------
+
+        void DisassemblyList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                int idx = DisassemblyList.SelectedIndex;
+                AsmBox.Text = _vm.GetRowHex(idx) ?? "";
+                ScriptCodeNameLabel.Text = _vm.GetRowOpcodeName(idx) ?? "";
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIScriptView.DisassemblyList_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // Update (#760): re-decode the hand-edited Binary Code hex for the
+        // selected row back into the model and refresh the Disassembly list
+        // from the in-memory model (NOT a ROM re-read, so the pending edit is
+        // reflected). Mirrors WF AIScriptForm.OneLineDisassembler. New /
+        // Remove stay deferred (explicit informational stubs below).
         // -----------------------------------------------------------------
 
         void Update_Click(object? sender, RoutedEventArgs e)
         {
-            CoreState.Services.ShowInfo("AI opcode editing is not yet fully implemented in Avalonia. Use the WinForms editor for opcode-level changes.");
+            try
+            {
+                int idx = DisassemblyList.SelectedIndex;
+                if (idx < 0)
+                {
+                    CoreState.Services.ShowInfo("Select an instruction first.");
+                    return;
+                }
+
+                string? line = _vm.UpdateRow(idx, AsmBox.Text);
+                if (line == null)
+                {
+                    CoreState.Services.ShowError(
+                        "Invalid instruction bytes (must be one 16-byte hex instruction).");
+                    return;
+                }
+
+                // Refresh from the in-memory model so the edit is visible
+                // before any Write (DisassembleScript would re-read the
+                // unmodified ROM and discard the pending edit).
+                DisassemblyList.ItemsSource = _vm.GetDisplayLines();
+                DisassemblyList.SelectedIndex = idx;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIScriptView.Update_Click failed: {0}", ex.Message);
+            }
         }
 
+        // New / Remove stay deferred (#760 follow-up): inserting or deleting an
+        // instruction changes the script length, which needs the WF New/Remove
+        // + free-space reallocation path. Opcode-level VALUE edits go through
+        // Update_Click / Write_Click (same-size in-place) instead.
         void New_Click(object? sender, RoutedEventArgs e)
         {
-            CoreState.Services.ShowInfo("AI opcode editing is not yet fully implemented in Avalonia. Use the WinForms editor for opcode-level changes.");
+            CoreState.Services.ShowInfo("Inserting AI instructions is not yet supported in Avalonia (changes script length). Use the WinForms editor to add instructions; use Update to edit an existing instruction in place.");
         }
 
         void Remove_Click(object? sender, RoutedEventArgs e)
         {
-            CoreState.Services.ShowInfo("AI opcode editing is not yet fully implemented in Avalonia. Use the WinForms editor for opcode-level changes.");
+            CoreState.Services.ShowInfo("Removing AI instructions is not yet supported in Avalonia (changes script length). Use the WinForms editor to delete instructions; use Update to edit an existing instruction in place.");
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)

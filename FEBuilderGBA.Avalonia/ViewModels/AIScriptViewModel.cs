@@ -411,24 +411,217 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return line;
         }
 
+        /// <summary>
+        /// Re-render the current _disassembled model into display lines WITHOUT
+        /// re-reading the ROM. Used by the View after UpdateRow so an in-memory
+        /// edit is reflected immediately (DisassembleScript() would re-read the
+        /// unmodified ROM bytes and discard the edit). Reuses the same row
+        /// formatter DisassembleScript() uses.
+        /// </summary>
+        public IReadOnlyList<string> GetDisplayLines()
+        {
+            var lines = new List<string>(_disassembled.Count);
+            for (int i = 0; i < _disassembled.Count; i++)
+            {
+                EventScript.OneCode code = _disassembled[i];
+                uint off = i < _rowOffsets.Count ? _rowOffsets[i] : 0;
+                lines.Add(FormatAiRow(code, off));
+            }
+            return lines;
+        }
+
         // ----------------------------------------------------------------
-        // Write-back (mirrors WF AIScriptForm.AllWriteButton_Click)
+        // Per-row edit accessors (#760). The View binds the Disassembly
+        // list selection to the Binary Code / Description boxes through
+        // these helpers, then re-decodes a hand-edited 16-byte instruction
+        // back into the model with UpdateRow.
         // ----------------------------------------------------------------
 
         /// <summary>
-        /// Write the current ScriptBytes back to the ROM at CurrentAddr.
-        /// Callers MUST wrap this call in a UndoService.Begin / Commit block.
-        /// Mirrors WF AIScriptForm.AllWriteButton_Click — the full byte
-        /// list write path lives in the view code-behind because it needs
-        /// AIScript.DisAssemble / EventScriptUtil.JisageReorder which are
-        /// WinForms-coupled. The VM exposes Write() only as the no-op header
-        /// commit so the test surface is stable.
+        /// Space-separated 2-digit hex dump of the instruction bytes at the
+        /// given row (matching the "[..]" hex in the Disassembly list rows).
+        /// Returns null on an out-of-range index.
+        /// </summary>
+        public string? GetRowHex(int index)
+        {
+            if (index < 0 || index >= _disassembled.Count) return null;
+            byte[] data = _disassembled[index].ByteData;
+            if (data == null) return null;
+            return U.HexDumpLiner(data).Trim();
+        }
+
+        /// <summary>
+        /// Human-readable script command name for the given row (the WF
+        /// "ScriptCodeName" hint). Returns null on an out-of-range index.
+        /// </summary>
+        public string? GetRowOpcodeName(int index)
+        {
+            if (index < 0 || index >= _disassembled.Count) return null;
+            return EventScript.makeCommandComboText(_disassembled[index].Script, false);
+        }
+
+        /// <summary>
+        /// Re-decode a hand-edited instruction at <paramref name="index"/> from
+        /// <paramref name="hexText"/> and replace the model row. Mirrors WF
+        /// AIScriptForm.OneLineDisassembler: parse the hex dump, pad a short
+        /// instruction with zero bytes up to the fixed 16-byte width, reject an
+        /// over-length / non-hex entry, then run AIScript.DisAseemble over the
+        /// 16 bytes. AI is a FIXED 16-byte grid, so exactly ONE instruction is
+        /// accepted (length &gt; 16 is rejected — multi-instruction edits and
+        /// EXIT normalization are out of scope, see #760 follow-up).
+        ///
+        /// Returns the refreshed display line on success, or null (leaving the
+        /// model untouched) on a bad index, empty / non-hex input, an
+        /// over-length entry, or a decode failure.
+        /// </summary>
+        public string? UpdateRow(int index, string hexText)
+        {
+            if (index < 0 || index >= _disassembled.Count) return null;
+
+            byte[]? bytes = ParseInstructionHex(hexText);
+            if (bytes == null) return null;
+
+            EventScript es = CoreState.AIScript;
+            if (es == null) return null;
+
+            EventScript.OneCode code;
+            try
+            {
+                code = es.DisAseemble(bytes, 0);
+            }
+            catch
+            {
+                return null;
+            }
+            if (code == null || code.ByteData == null) return null;
+
+            _disassembled[index] = code;
+            uint off = index < _rowOffsets.Count ? _rowOffsets[index] : 0;
+            return FormatAiRow(code, off);
+        }
+
+        /// <summary>
+        /// Parse a hex dump (with or without separating whitespace) into a
+        /// single AI instruction. Mirrors the WF OneLineDisassembler width
+        /// rule: short instructions are right-padded with zero bytes up to the
+        /// fixed 16-byte width; an instruction longer than 16 bytes, an empty
+        /// string, or any non-hex / odd-nibble content yields null. AI's fixed
+        /// grid is exactly one 16-byte instruction (CoreState.AIScript is
+        /// `new EventScript(16)`).
+        /// </summary>
+        static byte[]? ParseInstructionHex(string hexText)
+        {
+            if (hexText == null) return null;
+
+            // Strip ALL whitespace so the space-separated form emitted by
+            // GetRowHex ("05 32 FF ..") parses the same as a continuous dump.
+            var sb = new System.Text.StringBuilder(hexText.Length);
+            foreach (char c in hexText)
+            {
+                if (char.IsWhiteSpace(c)) continue;
+                bool isHex = (c >= '0' && c <= '9')
+                          || (c >= 'a' && c <= 'f')
+                          || (c >= 'A' && c <= 'F');
+                if (!isHex) return null; // non-hex content
+                sb.Append(c);
+            }
+
+            string cleaned = sb.ToString();
+            if (cleaned.Length == 0) return null;          // empty
+            if ((cleaned.Length & 1) != 0) return null;    // odd nibble count
+
+            int byteCount = cleaned.Length / 2;
+            if (byteCount > 16) return null;               // over one instruction
+
+            byte[] parsed = U.convertStringDumpToByte(cleaned);
+            if (parsed.Length == 16) return parsed;
+
+            // Right-pad a short instruction to the fixed 16-byte width.
+            byte[] padded = new byte[16];
+            Array.Copy(parsed, padded, parsed.Length);
+            return padded;
+        }
+
+        // ----------------------------------------------------------------
+        // Serialize + write-back (#760, mirrors WF AllWriteButton_Click).
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Exact concatenation of every decoded instruction's ByteData, in
+        /// row order. This is a SAME-SIZE, in-place serialization: NO EXIT
+        /// terminator is appended and NO normalization is performed — the
+        /// loaded ReadByteCount already includes the trailing EXIT because
+        /// CalcScriptLength reads through it. (EXIT normalization + free-space
+        /// realloc + New/Remove are deferred, see #760 follow-up.) Returns an
+        /// empty array when nothing has been disassembled.
+        /// </summary>
+        public byte[] SerializeScript()
+        {
+            int total = 0;
+            for (int i = 0; i < _disassembled.Count; i++)
+            {
+                byte[] b = _disassembled[i].ByteData;
+                if (b != null) total += b.Length;
+            }
+
+            byte[] result = new byte[total];
+            int pos = 0;
+            for (int i = 0; i < _disassembled.Count; i++)
+            {
+                byte[] b = _disassembled[i].ByteData;
+                if (b == null) continue;
+                Array.Copy(b, 0, result, pos, b.Length);
+                pos += b.Length;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Write the serialized instruction bytes back to the ROM at
+        /// CurrentAddr. Callers MUST wrap this call in a UndoService.Begin /
+        /// Commit block — the per-byte rom.write_u8 calls register into the
+        /// ambient undo scope the View opens.
+        ///
+        /// This is a strict SAME-SIZE in-place write: it refuses to write
+        /// (returns false, mutating nothing) when the serialized length does
+        /// not equal the loaded ReadByteCount, or when the write would run off
+        /// the end of the ROM. A length change means New/Remove territory,
+        /// which needs free-space reallocation (out of scope, #760 follow-up).
+        /// Returns true only when the full slice was written.
+        /// </summary>
+        public bool WriteScript()
+        {
+            if (_disassembled.Count == 0) return false;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return false;
+
+            byte[] bytes = SerializeScript();
+
+            // No-partial-write guard: only a same-size, fully in-bounds slice
+            // is allowed. (ulong) arithmetic so a near-uint.MaxValue CurrentAddr
+            // cannot wrap past the ROM length.
+            if (bytes.Length != ReadByteCount) return false;
+            if ((ulong)CurrentAddr + (ulong)bytes.Length > (ulong)rom.Data.Length) return false;
+
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                rom.write_u8(CurrentAddr + (uint)i, bytes[i]);
+            }
+            return true;
+        }
+
+        // ----------------------------------------------------------------
+        // Legacy header-only commit (kept for the stable VM surface). The
+        // real opcode write-back now lives in WriteScript() (#760).
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Header-only commit retained for backward compatibility. Use
+        /// WriteScript() for the actual same-size in-place opcode write.
         /// </summary>
         public void Write()
         {
-            // Header-only commit: scope-level write tracking happens in the
-            // view code-behind. The VM marks IsLoaded so the next reload
-            // picks up persisted state.
             IsLoaded = true;
         }
     }
