@@ -311,7 +311,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var r = _vm.ExpandExitList(_undoService.GetActiveUndoData());
-                if (!r.Success) { _undoService.Rollback(); CoreState.Services?.ShowInfo(r.Error); return; }
+                if (!r.Success) { _undoService.Rollback(); CoreState.Services?.ShowError(r.Error); return; }
                 _undoService.Commit();
                 _vm.MarkClean();
                 OnMapSelected(_vm.SelectedMapSlotAddr);

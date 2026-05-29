@@ -83,7 +83,7 @@ public class MapExitPointExpandTests
             bytes[rowBase + 2] = 0x03;
             bytes[rowBase + 3] = 0x00;
         }
-        bytes[PerMapBase + rows * 4] = 0xFF; // terminator
+        bytes[(int)(PerMapBase + rows * 4)] = 0xFF; // terminator (explicit cast, matches rowBase above)
 
         // Explicit 0xFF free-space region so FindFreeSpace lands here.
         for (uint i = 0; i < 0x40000u; i++)
