@@ -217,11 +217,16 @@ namespace FEBuilderGBA
             string orignal_romfile;
             using (InputFormRef.AutoPleaseWait pleaseWait = new InputFormRef.AutoPleaseWait(null))
             {
-                if (Program.ROM.Data.Length 
+                if (Program.ROM.Data.Length
                     <= U.toOffset(Program.ROM.RomInfo.extends_address))
                 {
                     R.ShowStopError("このROMは拡張領域を利用していないので、リビルドできません。");
-                    this.Close();
+                    // #747/#748/#751/#752: skip Close() in --screenshot-all/CLI
+                    // mode so DrawToBitmap can still render an empty form.
+                    if (!Program.IsCommandLine)
+                    {
+                        this.Close();
+                    }
                     return;
                 }
 
@@ -232,7 +237,11 @@ namespace FEBuilderGBA
                         R.ShowNoYes("警告\r\nこのROMにはシステムエラーがあるので、リビルドを実行するべきではありません。\r\n危険を承知した上でも、それでも実行しますか？");
                     if (dr != System.Windows.Forms.DialogResult.Yes)
                     {
-                        this.Close();
+                        // #747/#748/#751/#752: same as above.
+                        if (!Program.IsCommandLine)
+                        {
+                            this.Close();
+                        }
                         return;
                     }
                 }

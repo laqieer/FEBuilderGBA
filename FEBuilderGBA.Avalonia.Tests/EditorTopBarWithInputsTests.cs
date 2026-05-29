@@ -709,4 +709,53 @@ public class EditorTopBarWithInputsTests
             window.Close();
         }
     }
+
+    /// <summary>
+    /// Regression for #747/#748/#751/#752 — the daily Avalonia DATAVERIFY E2E
+    /// asserts <c>stdout DoesNotContain "UI_EMPTY"</c>. Pre-fix the inner
+    /// NumericUpDowns shipped with <c>Value=null</c> until the host explicitly
+    /// pre-seeded a value (which <c>SongInstrumentView</c> does not), and
+    /// <c>MainWindow.CheckNumericUpDownsDisplayValues</c> flagged any visible
+    /// NUD with null Value as <c>UI_EMPTY</c>. The fix initialises
+    /// <c>ReadStartInput.Value ??= 0m</c> (and likewise for the other two)
+    /// in <c>ApplyAllLimits()</c>, so the inner NUDs are never null at
+    /// construction time.
+    /// </summary>
+    [AvaloniaFact]
+    public void InnerNumericUpDowns_HaveNonNullValue_AfterConstruction()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+
+        var start = ctrl.FindControl<NumericUpDown>("ReadStartInput");
+        var count = ctrl.FindControl<NumericUpDown>("ReadCountInput");
+        var size = ctrl.FindControl<NumericUpDown>("ReadSizeInput");
+
+        Assert.NotNull(start);
+        Assert.NotNull(count);
+        Assert.NotNull(size);
+
+        Assert.NotNull(start!.Value);
+        Assert.NotNull(count!.Value);
+        Assert.NotNull(size!.Value);
+    }
+
+    /// <summary>
+    /// Companion to <see cref="InnerNumericUpDowns_HaveNonNullValue_AfterConstruction"/>:
+    /// the <c>??=</c> guard must not stomp a host-set value. This pins that
+    /// any explicit programmatic Set still survives the next
+    /// <c>ApplyAllLimits</c> pass (which fires on every styled-property
+    /// change, e.g. <c>ReadCountMaximum</c>).
+    /// </summary>
+    [AvaloniaFact]
+    public void InnerNumericUpDowns_DoNotOverwrite_HostSetValue()
+    {
+        var ctrl = new EditorTopBarWithInputs();
+        ctrl.ReadCount = 99;
+
+        // Trigger another ApplyAllLimits pass — the Maximum setter funnels
+        // through OnPropertyChanged which re-applies limits.
+        ctrl.ReadCountMaximum = 1000;
+
+        Assert.Equal(99, ctrl.ReadCount);
+    }
 }

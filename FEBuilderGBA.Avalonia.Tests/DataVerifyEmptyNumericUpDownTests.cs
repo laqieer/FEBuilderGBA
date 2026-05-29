@@ -260,4 +260,34 @@ public class DataVerifyEmptyNumericUpDownTests
                 $"SongInstrumentView (FE7U) has empty NUDs: {string.Join(", ", empty)}");
         });
     }
+
+    // -----------------------------------------------------------------
+    // #747 / #748: extend the regression matrix to FE7J and FE8J so all
+    // four daily-failing ROMs are pinned by the headless suite, not just
+    // the FE7U/FE8U pair that originally shipped.
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void SongInstrumentView_NoEmptyNumericUpDowns_FE7J()
+    {
+        if (!RomAvailable("FE7J")) return;
+        RomTestHelper.WithRom("FE7J", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<SongInstrumentView>();
+            Assert.True(empty.Count == 0,
+                $"SongInstrumentView (FE7J) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
+
+    [AvaloniaFact]
+    public void SongInstrumentView_NoEmptyNumericUpDowns_FE8J()
+    {
+        if (!RomAvailable("FE8J")) return;
+        RomTestHelper.WithRom("FE8J", () =>
+        {
+            var empty = OpenAndCollectEmptyNuds<SongInstrumentView>();
+            Assert.True(empty.Count == 0,
+                $"SongInstrumentView (FE8J) has empty NUDs: {string.Join(", ", empty)}");
+        });
+    }
 }

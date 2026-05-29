@@ -56,7 +56,12 @@ namespace FEBuilderGBA
             if (assignLevelUpP == U.NOT_FOUND)
             {
                 R.ShowStopError("FE8SpellMagic: GaidenStyleパッチがインストールされていません。");
-                this.Close();
+                // #747/#748/#751/#752: skip Close() in --screenshot-all/CLI
+                // mode so DrawToBitmap can still render an empty form.
+                if (!Program.IsCommandLine)
+                {
+                    this.Close();
+                }
                 return;
             }
         }

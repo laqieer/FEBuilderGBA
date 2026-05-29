@@ -363,7 +363,12 @@ namespace FEBuilderGBA
         {
             if (Program.ROM.RomInfo.version != 8)
             {
-                this.Close();
+                // #747/#748/#751/#752: skip Close() in --screenshot-all/CLI
+                // mode so DrawToBitmap can still render an empty form.
+                if (!Program.IsCommandLine)
+                {
+                    this.Close();
+                }
                 return;
             }
             PatchUtil.skill_system_enum skill_system = PatchUtil.SearchSkillSystem();
@@ -371,7 +376,12 @@ namespace FEBuilderGBA
             {
                 R.ShowStopError("SkillSystemsがインストールされていません。");
 
-                this.Close();
+                // #747/#748/#751/#752: skip Close() in --screenshot-all/CLI
+                // mode so DrawToBitmap can still render an empty form.
+                if (!Program.IsCommandLine)
+                {
+                    this.Close();
+                }
                 return;
             }
 

@@ -29,14 +29,30 @@ namespace FEBuilderGBA
                 return;
             }
 
+            // #747/#748/#751/#752: Even when the patch-pointer scan finds a
+            // valid pointer slot, the value stored there may not resolve to a
+            // safe ROM offset (e.g. on a ROM without the SkillSystem patch
+            // installed, or one where the patch points into RAM). Without
+            // these guards the subsequent InputFormRef.Init scans the table
+            // by reading Program.ROM.u8(addr) on a junk base address, which
+            // throws IndexOutOfRangeException ("Max length:...(0x01000000)
+            // Access:...") deep inside the screenshot E2E run.
+            uint assignClassAddr = Program.ROM.p32(assignClassP);
+            uint assignLevelUpAddr = Program.ROM.p32(assignLevelUpP);
+            if (!U.isSafetyOffset(assignClassAddr) || !U.isSafetyOffset(assignLevelUpAddr))
+            {
+                R.ShowStopError("スキル拡張 SkillSystem の、ポインタ({0}/{1})が壊れています。", U.To0xHexString(assignClassAddr), U.To0xHexString(assignLevelUpAddr));
+                return;
+            }
+
             this.SkillNames = new Dictionary<uint, string>(); // SkillConfigSkillSystemForm.LoadSkillNames();
             for (uint i = 0; i < 0x400; i = i + 1)
             {
                 this.SkillNames[i] = SkillConfigCSkillSystem09xForm.GetSkillName(i);
             }
 
-            this.AssignClassBaseAddress = Program.ROM.p32(assignClassP);
-            this.AssignLevelUpBaseAddress = Program.ROM.p32(assignLevelUpP);
+            this.AssignClassBaseAddress = assignClassAddr;
+            this.AssignLevelUpBaseAddress = assignLevelUpAddr;
 
             this.N1_AddressList.OwnerDraw(DrawSkillAndText, DrawMode.OwnerDrawFixed);
             InputFormRef.markupJumpLabel(this.N1_J_1_SKILLASSIGNMENT);

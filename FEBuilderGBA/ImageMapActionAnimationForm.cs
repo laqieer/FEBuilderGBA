@@ -481,7 +481,12 @@ namespace FEBuilderGBA
             if (AnimeP == U.NOT_FOUND)
             {
                 R.ShowStopError("攻撃モーションの、アニメーションテーブルを取得できません。\r\nパッチがインストールされていない可能性があります。");
-                this.Close();
+                // #747/#748/#751/#752: skip Close() in --screenshot-all/CLI
+                // mode so DrawToBitmap can still render an empty form.
+                if (!Program.IsCommandLine)
+                {
+                    this.Close();
+                }
                 return;
             }
         }

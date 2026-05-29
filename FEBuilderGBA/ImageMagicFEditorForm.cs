@@ -111,7 +111,17 @@ namespace FEBuilderGBA
         {
             if (ImageUtilMagic.SearchMagicSystem() != ImageUtilMagic.magic_system_enum.FEDITOR_ADV)
             {
-                this.Close();
+                // #747/#748/#751/#752: in --screenshot-all/CLI mode the runner
+                // calls OnLoad via reflection and then DrawToBitmap. Closing
+                // here disposes the form and DrawToBitmap throws
+                // "Cannot access a disposed object." Skip the close so the
+                // form can still render (it stays empty, which is correct
+                // behavior on a ROM without the FEDITOR_ADV magic patch).
+                if (!Program.IsCommandLine)
+                {
+                    this.Close();
+                }
+                return;
             }
             uint csaSpellTable = ImageUtilMagic.GetCSASpellTableAddr();
             if (csaSpellTable == U.NOT_FOUND)
