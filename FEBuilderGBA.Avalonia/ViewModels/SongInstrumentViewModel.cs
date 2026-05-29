@@ -308,6 +308,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 uint songHeader = rom.p32(entryAddr);
                 if (!U.isSafetyOffset(songHeader)) continue;
+                // EOF guard: isSafetyOffset(songHeader) only proves songHeader
+                // itself is in range — NOT that songHeader+8 (the +4 dword) is.
+                // rom.u32/p32 throw on a truncated / EOF-adjacent / corrupt
+                // header, so bounds-check the full +4 read first (#784 review).
+                if (songHeader + 8 > (uint)rom.Data.Length) continue;
 
                 // Song header offset +4 = voicegroup pointer
                 uint vocaPtr = rom.u32(songHeader + 4);
@@ -346,8 +351,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(songTableBase)) return false;
 
             const int SongEntrySize = 8;
-            // Walk the whole table (terminated by an invalid header pointer).
-            // Cap defensively so a corrupt table can never spin forever.
+            // The song table is terminated by a null / invalid header pointer:
+            // BREAK at the terminator rather than continue, so we never scan
+            // past the real table end (wasted work + false-positive risk) —
+            // #784 review. Cap defensively so a corrupt table can never spin
+            // forever.
             const int MaxSongsToCheck = 0x1000;
             for (int i = 0; i < MaxSongsToCheck; i++)
             {
@@ -355,9 +363,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (entryAddr + SongEntrySize > (uint)rom.Data.Length) break;
 
                 uint songHeaderPtr = rom.u32(entryAddr);
-                if (!U.isPointer(songHeaderPtr)) continue;
+                if (!U.isPointer(songHeaderPtr)) break;     // terminator
                 uint songHeader = rom.p32(entryAddr);
-                if (!U.isSafetyOffset(songHeader)) continue;
+                if (!U.isSafetyOffset(songHeader)) break;   // terminator
+                // EOF guard before dereferencing songHeader+4 (#784 review):
+                // a near-EOF header would otherwise throw in rom.u32/p32.
+                if (songHeader + 8 > (uint)rom.Data.Length) break;
 
                 uint vocaPtr = rom.u32(songHeader + 4);
                 if (!U.isPointer(vocaPtr)) continue;
@@ -874,19 +885,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // (3) CLI refinement — no valid template row to copy.
             if (currentCount == 0) return false;
 
-            // (4) Already full.
+            // (4) Already full — including a previously-expanded voicegroup.
+            // After one expand all 128 records are valid (see below), so
+            // CountDefinedPrefix returns 128 and this guard makes a second
+            // expand a no-op (idempotency — #784 review). No session flag is
+            // needed: the allocated-128 state IS the full state.
             if (currentCount >= MaxInstruments) return false;
 
-            // Bounds: the existing prefix must fit in ROM.
+            // Bounds: the existing prefix + the trailing stop row must fit.
             uint definedSize = (uint)(currentCount * BlockSize);
-            if (oldBase + definedSize > (uint)rom.Data.Length) return false;
+            if (oldBase + definedSize + BlockSize > (uint)rom.Data.Length) return false;
 
-            // (5) Build the 128×12 block. Copy the defined prefix verbatim,
-            // then fill rows [currentCount..127) from the row-0 template. Row
-            // 127 (the last) is left zero — WF ExpandsArea(FIRST) explicitly
-            // does NOT fill the tail row ("末尾は埋めてはいけない").
+            // (5) Build the 128×12 block, mirroring WF
+            // MoveToFreeSapceForm.RunButton_Click (the path SongInstrument's
+            // AddressListExpandsButton_128 actually runs — NOT the
+            // ExpandsArea(FIRST) tail-zero path used by other forms):
+            //   * copy the defined prefix verbatim;
+            //   * fill EVERY added row [currentCount..128) from the row-0
+            //     template (WF line 862-864: `for i in [dataCount..newDataCount)`
+            //     — it fills the last row too, there is NO tail-zero rule here);
+            //   * the original stop row (the invalid/zero row that terminated
+            //     the scan at oldBase + currentCount*BlockSize) is moved to
+            //     position 128 (WF line 833+870 `term_onedata` ->
+            //     newDataAddr + newDataCount*blockSize) so the next scan stops
+            //     exactly at 128. A voicegroup is a fixed-size instrument set
+            //     (max 128, no terminator convention — WF SongInstrumentForm
+            //     line 139/219), so filling all 128 records is correct and
+            //     makes the result read as a full 128-record set (idempotent).
             const int FullSize = MaxInstruments * BlockSize; // 1536
-            byte[] block = new byte[FullSize];
+            byte[] block = new byte[FullSize + BlockSize];    // +1 trailing stop row
             byte[] prefix = rom.getBinaryData(oldBase, definedSize);
             Array.Copy(prefix, 0, block, 0, (int)definedSize);
 
@@ -895,10 +922,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             byte[] template = new byte[BlockSize];
             Array.Copy(block, 0, template, 0, BlockSize);
 
-            // Fill the gap rows [currentCount .. 127) — stop BEFORE the last
-            // row so row 127 stays zero (WF tail rule).
-            for (int r = currentCount; r < MaxInstruments - 1; r++)
+            // Fill the added rows [currentCount .. 128) from the template —
+            // ALL of them, including the last (row 127).
+            for (int r = currentCount; r < MaxInstruments; r++)
                 Array.Copy(template, 0, block, r * BlockSize, BlockSize);
+
+            // Move the original stop row to position 128 so the scan stops
+            // there (the row at oldBase + currentCount*BlockSize is the
+            // invalid/zero row that terminated the defined prefix).
+            byte[] stopRow = rom.getBinaryData(oldBase + definedSize, (uint)BlockSize);
+            Array.Copy(stopRow, 0, block, FullSize, BlockSize);
 
             // (6) Allocate the new block in free space.
             uint newAddr = AppendBinaryDataHeadless(rom, block);

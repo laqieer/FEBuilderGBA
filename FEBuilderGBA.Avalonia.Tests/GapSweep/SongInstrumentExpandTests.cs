@@ -132,19 +132,24 @@ public class SongInstrumentExpandTests
     /// <summary>
     /// Install a simple free-space allocator at <see cref="FreeRegion"/> that
     /// writes the block through the ambient undo and returns the OFFSET.
-    /// Mirrors the ItemUsagePointerCoreTests appender.
+    /// Mirrors the ItemUsagePointerCoreTests appender. Returns a single-element
+    /// array whose [0] counts how many times the allocator was invoked (so a
+    /// test can assert a refused expand performed NO allocation).
     /// </summary>
-    static void InstallAllocator(ROM rom)
+    static int[] InstallAllocator(ROM rom)
     {
         uint nextFree = FreeRegion;
+        var calls = new int[1];
         CoreState.AppendBinaryData = (data, undo) =>
         {
+            calls[0]++;
             uint dst = nextFree;
             for (int i = 0; i < data.Length; i++)
                 rom.write_u8(dst + (uint)i, data[i], undo);
             nextFree += (uint)(((data.Length + 3) / 4) * 4);
             return dst;
         };
+        return calls;
     }
 
     // -----------------------------------------------------------------
@@ -210,22 +215,30 @@ public class SongInstrumentExpandTests
                 Assert.Equal((uint)(0xC0 + i), rom.u8(a + 3));
             }
 
-            // Gap rows [3..126] == row-0 template (NOT zero).
-            for (int r = 3; r < MaxInstruments - 1; r++)
+            // ALL added rows [3..128) == row-0 template (NOT zero) — including
+            // the last row (127). WF MoveToFreeSapceForm.RunButton_Click fills
+            // every added row from row 0; there is no tail-zero rule for this
+            // fixed-size voicegroup table (#784 review).
+            for (int r = 3; r < MaxInstruments; r++)
             {
                 byte[] got = rom.getBinaryData(newBase + (uint)(r * BlockSize), BlockSize);
                 Assert.Equal(row0, got);
             }
 
-            // The LAST row (127) is left zero (WF tail rule).
-            byte[] last = rom.getBinaryData(newBase + (uint)((MaxInstruments - 1) * BlockSize), BlockSize);
-            Assert.All(last, b => Assert.Equal(0, b));
+            // The original stop row (the invalid/zero row that terminated the
+            // 3-record prefix) is moved to position 128 so the next scan stops
+            // there. In MakeFe8uRom the stop row is a DirectSound header with a
+            // zero +4 pointer -> its first byte is 0x00 and +4 == 0.
+            uint stopAddr = newBase + (uint)(MaxInstruments * BlockSize);
+            Assert.Equal(0x00u, rom.u8(stopAddr));
+            Assert.Equal(0x00000000u, rom.u32(stopAddr + 4));
 
-            // The expanded set now reports 128 defined rows (row 127 is a valid
-            // DirectSound row only if its +4 is a safety pointer — it's zero, so
-            // GetListCount stops at 127). The fill from row 0 keeps rows 3..126
-            // valid; the full master list therefore shows >= 127 rows.
-            Assert.Equal(127, vm.GetListCount());
+            // The expanded set now reports the FULL 128 records — all 128 rows
+            // are valid DirectSound (filled from row 0), and the scan stops at
+            // the moved stop row at position 128. This is what makes a second
+            // expand a no-op (idempotency).
+            Assert.Equal(128, vm.GetListCount());
+            Assert.False(vm.CanExpandVoicegroup);
         }
         finally { Restore(prev); }
     }
@@ -301,6 +314,115 @@ public class SongInstrumentExpandTests
             // SongHeader1 dangling at the (now-wiped) old base.
             Assert.Equal(newBase, rom.p32(SongHeader0 + 4));
             Assert.Equal(newBase, rom.p32(SongHeader1 + 4));
+        }
+        finally { Restore(prev); }
+    }
+
+    // -----------------------------------------------------------------
+    // #784 review: a second expand after a successful first one is a no-op.
+    // The freshly-expanded voicegroup reads as 128 valid records (all rows
+    // filled from row 0), so CanExpandVoicegroup is false and a second
+    // ExpandVoicegroupTo128 returns false with NO new allocation / NO repoint.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ExpandVoicegroupTo128_SecondExpand_IsNoOp_NoAllocNoRepoint()
+    {
+        ROM rom = MakeFe8uRom(definedInstruments: 3);
+        var prev = Swap(rom);
+        try
+        {
+            int[] allocCalls = InstallAllocator(rom);
+            var vm = new SongInstrumentViewModel();
+            vm.LoadList();
+            Assert.True(vm.CanExpandVoicegroup);
+
+            // ---- first expand: succeeds ----
+            var undo1 = CoreState.Undo.NewUndoData("expand 1");
+            bool ok1;
+            using (ROM.BeginUndoScope(undo1)) ok1 = vm.ExpandVoicegroupTo128(undo1);
+            CoreState.Undo.Push(undo1);
+            Assert.True(ok1);
+            Assert.Equal(1, allocCalls[0]);
+
+            uint baseAfterFirst = U.toOffset(vm.BaseAddr);
+            uint slotAfterFirst = rom.p32(SongHeader0 + 4);
+            byte[] blockAfterFirst = rom.getBinaryData(baseAfterFirst, (uint)(MaxInstruments * BlockSize));
+
+            // Now full -> button disabled.
+            Assert.False(vm.CanExpandVoicegroup);
+
+            // ---- second expand: refused, no mutation ----
+            var undo2 = CoreState.Undo.NewUndoData("expand 2");
+            bool ok2;
+            using (ROM.BeginUndoScope(undo2)) ok2 = vm.ExpandVoicegroupTo128(undo2);
+
+            Assert.False(ok2);
+            // No new allocation happened.
+            Assert.Equal(1, allocCalls[0]);
+            // The base did not move again.
+            Assert.Equal(baseAfterFirst, U.toOffset(vm.BaseAddr));
+            // The slot still points at the first relocation (no second repoint).
+            Assert.Equal(slotAfterFirst, rom.p32(SongHeader0 + 4));
+            // The 128-record block is byte-identical (no second relocate/fill).
+            Assert.Equal(blockAfterFirst, rom.getBinaryData(baseAfterFirst, (uint)(MaxInstruments * BlockSize)));
+        }
+        finally { Restore(prev); }
+    }
+
+    // -----------------------------------------------------------------
+    // #784 review: EOF / terminator guards. A song table with a null
+    // terminator AND a near-EOF song header must not throw — the scan stops
+    // at the terminator, and the near-EOF header's +4 read is bounds-guarded.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void IsSongReferencedVoicegroup_NullTerminator_AndNearEofHeader_NoThrow()
+    {
+        // Build a custom ROM: song table entry 0 -> a header at the VERY end of
+        // the ROM (songHeader + 8 would read past EOF), entry 1 -> null
+        // terminator. The resolver / IsSongReferencedVoicegroup walk must skip
+        // the near-EOF header (bounds guard) and stop at the terminator without
+        // throwing IndexOutOfRangeException.
+        var bytes = new byte[0x1000000];
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        uint soundTablePointer = rom.RomInfo.sound_table_pointer;
+        WritePtr(bytes, soundTablePointer, SongTableBase);
+
+        // Entry 0 -> a song header whose +4 dword would straddle EOF.
+        uint nearEofHeader = (uint)bytes.Length - 4; // +8 reads past EOF
+        WritePtr(bytes, SongTableBase + 0 * 8, nearEofHeader);
+        // Entry 1 -> null terminator (0 is not a pointer).
+        WriteRaw(bytes, SongTableBase + 1 * 8, 0x00000000u);
+
+        rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
+
+        var prev = Swap(rom);
+        try
+        {
+            InstallAllocator(rom);
+            var vm = new SongInstrumentViewModel();
+
+            // LoadList -> ResolveFirstSongVoicegroup walks the table; the
+            // near-EOF header is skipped by the +8 bounds guard, the terminator
+            // stops the walk. No throw, no resolved voicegroup -> standalone
+            // "Instrument Editor" fallback row.
+            var ex = Record.Exception(() =>
+            {
+                var items = vm.LoadList();
+                Assert.NotNull(items);
+                // No song context resolved.
+                Assert.False(vm.HasSongContext);
+                Assert.False(vm.CanExpandVoicegroup);
+
+                // IsSongReferencedVoicegroup must also not throw on an arbitrary
+                // probe base (it walks the same table + stops at the terminator).
+                vm.LoadInstrumentList(0x00500000u);
+                Assert.False(vm.HasSongContext);
+            });
+            Assert.Null(ex);
         }
         finally { Restore(prev); }
     }
@@ -486,10 +608,15 @@ public class SongInstrumentExpandTests
 
             Invoke(view, "ListExpand_Click");
 
-            // After expand: rows 0..126 are valid (3 originals + row-0 fill);
-            // row 127 stays zero so the master-list scan stops at 127.
+            // After expand: all 128 rows are valid (3 originals + row-0 fill
+            // through row 127); the moved stop row at position 128 terminates
+            // the scan. The master list therefore shows the full 128 records.
             int rowsAfter = entryList.ItemCount;
-            Assert.Equal(127, rowsAfter);
+            Assert.Equal(128, rowsAfter);
+
+            // Idempotency: the button is now disabled (the voicegroup is full)
+            // and a second click is a no-op.
+            Assert.False(expandButton.IsEnabled);
         }
         finally { Restore(prev); }
     }
