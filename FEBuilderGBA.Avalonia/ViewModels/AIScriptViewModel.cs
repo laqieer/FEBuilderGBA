@@ -780,12 +780,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 || (ulong)BaseAddr + 4 > (ulong)rom.Data.Length)
                 return false;
 
+            uint oldAddr = CurrentAddr;
+            uint oldSize = ReadByteCount;
+
             uint newAddr = AppendBinaryDataHeadless(rom, bytes, undoData);
             if (!U.isSafetyOffset(newAddr)) return false;
 
             // Repoint the AI table slot at the new script location — same
             // undoData/transaction as the append so RunUndo reverses both.
             rom.write_p32(BaseAddr, newAddr, undoData);
+
+            // Move the per-row comment / lint annotations to the new location so
+            // a relocate does not orphan them at the old offset (mirrors WF
+            // AllWriteButton's CommentCache update; same RepointEtcData pattern
+            // DataExpansionCore.ExpandTableTo uses on table relocation).
+            CoreState.CommentCache?.RepointEtcData(oldAddr, oldSize, newAddr);
+            CoreState.LintCache?.RepointEtcData(oldAddr, oldSize, newAddr);
 
             CurrentAddr = newAddr;
             ReadByteCount = (uint)bytes.Length;

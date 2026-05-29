@@ -235,13 +235,21 @@ namespace FEBuilderGBA.Avalonia.Tests
             using var env = new AiDisasmEnv();
             using var undo = new UndoScope();
 
-            var vm = env.LoadVmAt(Attack05(0x64));
+            // Fixture MUST end in EXIT so SerializeScript does NOT append a
+            // terminator — keeping serialized length == ReadByteCount (32) and
+            // forcing the SAME-SIZE in-place path, so this test exercises the
+            // intended out-of-range ROM-bounds guard (not the size-changed
+            // undoData==null short-circuit).
+            var body = new System.Collections.Generic.List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray());
             vm.DisassembleScript();
             Assert.NotNull(vm.UpdateRow(0, HexLine(0x05, 0x32, 0xFF)));
+            Assert.Equal((int)vm.ReadByteCount, vm.SerializeScript().Length); // same-size
 
-            // Point CurrentAddr so the 16-byte slice runs off the ROM end.
-            // ReadByteCount stays 16 (matches serialized) so only the
-            // bounds guard fires.
+            // Point CurrentAddr so the 32-byte slice runs off the ROM end →
+            // the bounds guard rejects.
             vm.CurrentAddr = (uint)env.Rom.Data.Length - 8;
             Assert.False(vm.WriteScript());
         }
