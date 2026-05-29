@@ -539,6 +539,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     first = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
                     Array.Copy(palData, first, PaletteCore.PALETTE_BLOCK_SIZE);
                 }
+                // Snapshot the current grid so a failed import can restore the
+                // prior display — Rollback() only restores ROM bytes, not the
+                // NUD grid (Copilot review on PR #779).
+                byte[] prevBytes = ComputeExportBytes();
                 // Reflect the imported colors in the grid before writing.
                 ApplyGbaBytesToNuds(first);
 
@@ -550,6 +554,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (off == U.NOT_FOUND)
                     {
                         _undoService.Rollback();
+                        ApplyGbaBytesToNuds(prevBytes); // restore the pre-import grid
+                        RefreshSwatches();
                         CoreState.Services?.ShowError(R._("Write failed: {0}", R._("Invalid palette address")));
                         return;
                     }
@@ -561,6 +567,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
+                    ApplyGbaBytesToNuds(prevBytes); // restore the pre-import grid
+                    RefreshSwatches();
                     Log.Error("ImagePalletView.Import_Click inner failed: {0}", ex.Message);
                     CoreState.Services?.ShowError(R._("Import palette failed: {0}", ex.Message));
                 }

@@ -272,6 +272,48 @@ public class ImagePalletImportExportTests
     }
 
     /// <summary>
+    /// A failed import (write rejected / exception) must restore the prior
+    /// grid: Import_Click snapshots the grid via ComputeExportBytes() before
+    /// ApplyGbaBytesToNuds(), and re-applies that snapshot on every failure
+    /// path so the display is never left showing an unwritten palette
+    /// (Copilot review on PR #779). This pins that snapshot/restore pair.
+    /// </summary>
+    [AvaloniaFact]
+    public void Import_FailureRestoresPriorGrid()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = MakeMinimalRomWithWhiteSlot0(PaletteOffset);
+            var view = new ImagePalletView();
+            view.JumpTo(PaletteOffset, 1, 0, null);
+            view.Show();
+            try
+            {
+                // Known prior grid (slot 1 = red) + snapshot, exactly as
+                // Import_Click does before applying the imported palette.
+                SetNud(view, "ImagePallet_R1_Input", 0xF8);
+                SetNud(view, "ImagePallet_G1_Input", 0x00);
+                SetNud(view, "ImagePallet_B1_Input", 0x00);
+                byte[] prevBytes = view.ComputeExportBytes();
+
+                // Import display hop: apply a different palette (all blue).
+                var blue = new (byte r, byte g, byte b)[16];
+                for (int i = 0; i < 16; i++) blue[i] = (0x00, 0x00, 0xF8);
+                byte[] imported = PaletteCore.PackToBytes(blue);
+                view.ApplyGbaBytesToNuds(imported);
+                Assert.NotEqual(prevBytes, view.ComputeExportBytes()); // grid changed
+
+                // Failure path: re-apply the snapshot → grid restored.
+                view.ApplyGbaBytesToNuds(prevBytes);
+                Assert.Equal(prevBytes, view.ComputeExportBytes());
+            }
+            finally { view.Hide(); }
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
     /// ApplyGbaBytesToNuds (the import-to-grid hop) pushes the unpacked
     /// 16 colors into the NUDs so the grid shows them before Write.
     /// </summary>
