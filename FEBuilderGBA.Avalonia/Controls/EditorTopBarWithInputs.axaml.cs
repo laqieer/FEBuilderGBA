@@ -449,20 +449,31 @@ namespace FEBuilderGBA.Avalonia.Controls
             // Push styled-property defaults onto the inner NumericUpDowns so
             // the initial render matches what XAML defined. Per-host overrides
             // flow through OnPropertyChanged.
+            //
+            // #747/#748/#751/#752: Avalonia NumericUpDown.Value defaults to
+            // null, which the DATAVERIFY E2E test treats as UI_EMPTY (the
+            // failing assertion is "stdout DoesNotContain 'UI_EMPTY'"). The
+            // SongInstrumentView host (and any other host that doesn't
+            // pre-seed a Value) needs a concrete 0m so the editor doesn't
+            // render with an empty NUD. Use ??= so an explicit host-set
+            // Value is not overwritten by the default.
             if (ReadStartInput != null)
             {
                 ReadStartInput.Minimum = ReadStartMinimum;
                 ReadStartInput.Maximum = ReadStartMaximum;
+                ReadStartInput.Value ??= 0m;
             }
             if (ReadCountInput != null)
             {
                 ReadCountInput.Minimum = ReadCountMinimum;
                 ReadCountInput.Maximum = ReadCountMaximum;
+                ReadCountInput.Value ??= 0m;
             }
             if (ReadSizeInput != null)
             {
                 ReadSizeInput.Minimum = ReadSizeMinimum;
                 ReadSizeInput.Maximum = ReadSizeMaximum;
+                ReadSizeInput.Value ??= 0m;
             }
         }
 

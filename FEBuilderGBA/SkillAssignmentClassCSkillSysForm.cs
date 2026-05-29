@@ -29,14 +29,42 @@ namespace FEBuilderGBA
                 return;
             }
 
+            // #747/#748/#751/#752: Even when the patch-pointer scan finds a
+            // valid pointer slot, the value stored there may not resolve to a
+            // safe ROM offset (e.g. on a ROM without the SkillSystem patch
+            // installed, or one where the patch points into RAM). Without
+            // these guards the subsequent InputFormRef.Init scans the table
+            // by reading Program.ROM.u8(addr) on a junk base address, which
+            // throws IndexOutOfRangeException ("Max length:...(0x01000000)
+            // Access:...") deep inside the screenshot E2E run.
+            //
+            // The table scan callbacks read at least 4 bytes per row at the
+            // base address (Program.ROM.u8 for the class table, Program.ROM.u16
+            // for the level-up table; AddressList_SelectedIndexChanged then
+            // reads u32 off AssignLevelUpBaseAddress + idx*4). isSafetyOffset
+            // alone only proves `addr < ROM.Length`, so a junk pointer near
+            // the end of the ROM would still crash the u32/u16 reads. Add an
+            // explicit room-for-one-entry check on top of the safety check.
+            uint assignClassAddr = Program.ROM.p32(assignClassP);
+            uint assignLevelUpAddr = Program.ROM.p32(assignLevelUpP);
+            const uint MinEntryBytes = 4; // u32 read by AddressList_SelectedIndexChanged
+            if (!U.isSafetyOffset(assignClassAddr)
+                || !U.isSafetyOffset(assignLevelUpAddr)
+                || assignClassAddr + MinEntryBytes > Program.ROM.Data.Length
+                || assignLevelUpAddr + MinEntryBytes > Program.ROM.Data.Length)
+            {
+                R.ShowStopError("スキル拡張 SkillSystem の、ポインタ({0}/{1})が壊れています。", U.To0xHexString(assignClassAddr), U.To0xHexString(assignLevelUpAddr));
+                return;
+            }
+
             this.SkillNames = new Dictionary<uint, string>(); // SkillConfigSkillSystemForm.LoadSkillNames();
             for (uint i = 0; i < 0x400; i = i + 1)
             {
                 this.SkillNames[i] = SkillConfigCSkillSystem09xForm.GetSkillName(i);
             }
 
-            this.AssignClassBaseAddress = Program.ROM.p32(assignClassP);
-            this.AssignLevelUpBaseAddress = Program.ROM.p32(assignLevelUpP);
+            this.AssignClassBaseAddress = assignClassAddr;
+            this.AssignLevelUpBaseAddress = assignLevelUpAddr;
 
             this.N1_AddressList.OwnerDraw(DrawSkillAndText, DrawMode.OwnerDrawFixed);
             InputFormRef.markupJumpLabel(this.N1_J_1_SKILLASSIGNMENT);

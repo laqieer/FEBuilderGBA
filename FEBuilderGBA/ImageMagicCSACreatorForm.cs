@@ -110,10 +110,16 @@ namespace FEBuilderGBA
         {
             if (ImageUtilMagic.SearchMagicSystem() != ImageUtilMagic.magic_system_enum.CSA_CREATOR)
             {
-                this.Close();
+                // #747/#748/#751/#752: see ImageMagicFEditorForm. Skip Close()
+                // in --screenshot-all/CLI mode so DrawToBitmap can still render.
+                if (!Program.IsCommandLine)
+                {
+                    this.Close();
+                }
+                return;
             }
 
-            uint csaSpellTable = ImageUtilMagic.GetCSASpellTableAddr(); 
+            uint csaSpellTable = ImageUtilMagic.GetCSASpellTableAddr();
             if (csaSpellTable == U.NOT_FOUND)
             {
                 this.MagicListExpandsButton.PerformClick();

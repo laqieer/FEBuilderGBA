@@ -20,12 +20,20 @@ namespace FEBuilderGBA
             this.InputFormRef = Init(this);
             this.N1_InputFormRef = N1_Init(this);
 
+            // Issue #747/#748/#751/#752: g_TSAAnime is only preloaded for FE8
+            // (Program.cs guards Program.ROM.RomInfo.version == 8). The E2E
+            // screenshot runner constructs every form against every ROM,
+            // including FE6/FE7 where g_TSAAnime stays null. Treat null as an
+            // empty list so the form constructs without throwing NullReferenceException.
             this.TSAANime2List.BeginUpdate();
             this.TSAANime2List.Items.Clear();
-            foreach (var pair in g_TSAAnime)
+            if (g_TSAAnime != null)
             {
-                string name = U.ToHexString(pair.Key) + " " + U.at(pair.Value, 0);
-                this.TSAANime2List.Items.Add(name);
+                foreach (var pair in g_TSAAnime)
+                {
+                    string name = U.ToHexString(pair.Key) + " " + U.at(pair.Value, 0);
+                    this.TSAANime2List.Items.Add(name);
+                }
             }
             this.TSAANime2List.EndUpdate();
             U.SelectedIndexSafety(this.TSAANime2List, 0, true);
@@ -154,6 +162,11 @@ namespace FEBuilderGBA
         {
             InputFormRef InputFormRef = Init(null);
             InputFormRef N1_InputFormRef = N1_Init(null);
+            // #747/#748/#751/#752: g_TSAAnime is FE8-only; tolerate null on FE6/FE7.
+            if (g_TSAAnime == null)
+            {
+                return;
+            }
             foreach (var pair in g_TSAAnime)
             {
                 uint pointer = pair.Key;
