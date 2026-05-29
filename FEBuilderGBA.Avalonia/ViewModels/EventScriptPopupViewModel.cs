@@ -320,7 +320,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 try
                 {
-                    es = new EventScript();
+                    // AI scripts use a FIXED 16-byte instruction grid, so the
+                    // unknown-opcode width must be 16 for the AI case only
+                    // (parity with WinForms Program.cs `new EventScript(16)`).
+                    // Event/Procs keep the default 4-byte width. Without this,
+                    // an unrecognized AI opcode would decode as four 4-byte
+                    // rows instead of one 16-byte WORD row (#757).
+                    es = ScriptType == EventScript.EventScriptType.AI
+                        ? new EventScript(16)
+                        : new EventScript();
                     es.Load(ScriptType);
                     // Cache for future use
                     switch (ScriptType)

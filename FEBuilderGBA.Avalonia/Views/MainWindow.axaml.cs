@@ -719,7 +719,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 if (CoreState.AIScript == null)
                 {
-                    CoreState.AIScript = new EventScript();
+                    // AI scripts use a FIXED 16-byte instruction grid, so the
+                    // unknown-opcode width must be 16 (mirrors WinForms
+                    // Program.cs `new EventScript(16)`). With the default width
+                    // of 4, an unrecognized opcode would wrongly decode as four
+                    // 4-byte rows instead of one 16-byte WORD row (#757).
+                    CoreState.AIScript = new EventScript(16);
                     CoreState.AIScript.Load(EventScript.EventScriptType.AI);
                 }
             }
