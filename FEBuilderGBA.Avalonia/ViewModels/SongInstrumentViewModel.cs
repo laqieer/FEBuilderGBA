@@ -36,6 +36,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         bool _isLoaded;
 
+        // Song-context tracking for the "Expand List" (voicegroup → 128)
+        // affordance (#780). A voicegroup is a *shared* instrument set
+        // referenced per-song via songHeader+4. We only enable / perform the
+        // expand when the currently-loaded base is a real voicegroup reachable
+        // from at least one song header (so the all-reference repoint via
+        // DataExpansionCore.RepointAllReferences is meaningful and we never
+        // relocate an arbitrary user-typed address). _hasSongContext is set by
+        // LoadInstrumentList / LoadList whenever the loaded base resolves to a
+        // song's voicegroup; _songContextBase records that voicegroup base
+        // (== BaseAddr for the resolved case).
+        bool _hasSongContext;
+        uint _songContextBase;
+
         // Common: byte 0
         byte _headerByte;
         InstrumentCategory _category;
@@ -194,6 +207,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
             BaseAddr = baseAddr;
+            // Record whether this base is a real song-referenced voicegroup so
+            // the "Expand List" (→ 128) affordance can gate on it (#780). An
+            // explicit base (SongTrack jump / user-typed) only counts as song
+            // context when at least one song header points at it.
+            SetSongContext(IsSongReferencedVoicegroup(rom, baseAddr), baseAddr);
             var result = new List<AddrResult>();
 
             uint capUInt = maxCount == 0 ? MaxInstruments : maxCount;
@@ -253,7 +271,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Returns 0 if no valid voicegroup found.
         /// </summary>
         static uint ResolveFirstSongVoicegroup(ROM rom)
+            => ResolveFirstSongVoicegroup(rom, out _);
+
+        /// <summary>
+        /// Resolve a valid voicegroup address from the song table, also
+        /// returning the song-header <c>+4</c> slot that points at it
+        /// (<paramref name="songHeaderVocaSlot"/>). Returns 0 (and slot 0) if
+        /// no valid voicegroup is found.
+        /// </summary>
+        static uint ResolveFirstSongVoicegroup(ROM rom, out uint songHeaderVocaSlot)
         {
+            songHeaderVocaSlot = 0;
+
             uint songTablePointer = rom.RomInfo.sound_table_pointer;
             if (songTablePointer == 0) return 0;
 
@@ -287,10 +316,55 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint voca = rom.p32(songHeader + 4);
                 if (!U.isSafetyOffset(voca)) continue;
 
+                songHeaderVocaSlot = songHeader + 4;
                 return voca;
             }
 
             return 0;
+        }
+
+        /// <summary>
+        /// Decide whether <paramref name="baseAddr"/> is a voicegroup
+        /// referenced from at least one song header (<c>songHeader+4</c>). Used
+        /// to qualify the SongTrack-supplied / user-typed base for the
+        /// "Expand List" affordance (#780). Mirrors the song-table walk of
+        /// <see cref="ResolveFirstSongVoicegroup(ROM, out uint)"/> but scans
+        /// every song looking for one whose voicegroup equals
+        /// <paramref name="baseAddr"/> (as an offset).
+        /// </summary>
+        static bool IsSongReferencedVoicegroup(ROM rom, uint baseAddr)
+        {
+            if (rom?.RomInfo == null) return false;
+            uint baseOffset = U.toOffset(baseAddr);
+            if (!U.isSafetyOffset(baseOffset, rom)) return false;
+
+            uint songTablePointer = rom.RomInfo.sound_table_pointer;
+            if (songTablePointer == 0) return false;
+            uint songTablePointerVal = rom.u32(songTablePointer);
+            if (!U.isSafetyPointer(songTablePointerVal)) return false;
+            uint songTableBase = rom.p32(songTablePointer);
+            if (!U.isSafetyOffset(songTableBase)) return false;
+
+            const int SongEntrySize = 8;
+            // Walk the whole table (terminated by an invalid header pointer).
+            // Cap defensively so a corrupt table can never spin forever.
+            const int MaxSongsToCheck = 0x1000;
+            for (int i = 0; i < MaxSongsToCheck; i++)
+            {
+                uint entryAddr = songTableBase + (uint)(i * SongEntrySize);
+                if (entryAddr + SongEntrySize > (uint)rom.Data.Length) break;
+
+                uint songHeaderPtr = rom.u32(entryAddr);
+                if (!U.isPointer(songHeaderPtr)) continue;
+                uint songHeader = rom.p32(entryAddr);
+                if (!U.isSafetyOffset(songHeader)) continue;
+
+                uint vocaPtr = rom.u32(songHeader + 4);
+                if (!U.isPointer(vocaPtr)) continue;
+                uint voca = rom.p32(songHeader + 4);
+                if (voca == baseOffset) return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -304,10 +378,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (BaseAddr != 0) return LoadInstrumentList(BaseAddr);
 
-            // Auto-resolve first song's voicegroup for standalone mode
+            // Auto-resolve first song's voicegroup for standalone mode.
+            // The resolved voca is by definition song-referenced, so
+            // LoadInstrumentList(voca) -> IsSongReferencedVoicegroup records
+            // the song context for the Expand List affordance (#780).
             uint voca = ResolveFirstSongVoicegroup(rom);
             if (voca != 0) return LoadInstrumentList(voca);
 
+            // No voicegroup found — clear any stale song context so Expand
+            // List stays disabled.
+            SetSongContext(false, 0);
             var result = new List<AddrResult>();
             result.Add(new AddrResult(0, "Instrument Editor", 0));
             return result;
@@ -679,17 +759,182 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 effectiveBase = ResolveFirstSongVoicegroup(rom);
             if (effectiveBase == 0) return 0;
 
-            // Count valid instruments up to MaxInstruments
+            return CountDefinedPrefix(rom, effectiveBase);
+        }
+
+        /// <summary>
+        /// Count the defined-prefix instrument rows starting at
+        /// <paramref name="baseAddr"/>: walk 12-byte blocks (max 128) and stop
+        /// at the first row that fails <see cref="IsValidInstrument"/> — the
+        /// SAME validity predicate the master list (<see cref="LoadInstrumentList"/>)
+        /// and WF <c>SongInstrumentForm</c>'s read-loop use to decide a row is a
+        /// real instrument. Used by both <see cref="GetListCount"/> and the
+        /// "Expand List" (→ 128) operation (#780).
+        /// </summary>
+        static int CountDefinedPrefix(ROM rom, uint baseAddr)
+        {
             int count = 0;
             for (int i = 0; i < MaxInstruments; i++)
             {
-                uint addr = effectiveBase + (uint)(i * BlockSize);
+                uint addr = baseAddr + (uint)(i * BlockSize);
                 if (addr + BlockSize > (uint)rom.Data.Length) break;
                 byte type = (byte)rom.u8(addr);
                 if (!IsValidInstrument(rom, addr, type)) break;
                 count++;
             }
             return count;
+        }
+
+        // -----------------------------------------------------------------
+        // "Expand List" — grow the voicegroup (instrument set) to 128 records
+        // (#780). Mirrors WF SongInstrumentForm AddressListExpandsButton_128 /
+        // InputFormRef.ExpandsArea(FIRST, ...): relocate the block to free
+        // space, copy the defined prefix verbatim, fill the gap rows from the
+        // row-0 template (last row left zero — WF "末尾は埋めてはいけない"),
+        // then repoint EVERY song-header reference via
+        // DataExpansionCore.RepointAllReferences (the #782 shared-voicegroup
+        // win — single-slot repoint would corrupt the other songs).
+        // -----------------------------------------------------------------
+
+        /// <summary>Record whether the loaded base is a song-referenced voicegroup.</summary>
+        void SetSongContext(bool hasContext, uint baseAddr)
+        {
+            _hasSongContext = hasContext;
+            _songContextBase = hasContext ? U.toOffset(baseAddr) : 0;
+            OnPropertyChanged(nameof(HasSongContext));
+            OnPropertyChanged(nameof(CanExpandVoicegroup));
+        }
+
+        /// <summary>
+        /// True when the currently-loaded base is a real voicegroup reachable
+        /// from a song header (so Expand List is meaningful). The View gates
+        /// the Expand List button on <see cref="CanExpandVoicegroup"/>.
+        /// </summary>
+        public bool HasSongContext => _hasSongContext;
+
+        /// <summary>
+        /// True when Expand List should be enabled: a song-context voicegroup
+        /// is loaded AND its defined-prefix instrument count is &lt; 128
+        /// (already-full sets cannot grow).
+        /// </summary>
+        public bool CanExpandVoicegroup
+        {
+            get
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return false;
+                if (!_hasSongContext || _songContextBase == 0) return false;
+                if (!U.isSafetyOffset(_songContextBase, rom)) return false;
+                int defined = CountDefinedPrefix(rom, _songContextBase);
+                return defined >= 1 && defined < MaxInstruments;
+            }
+        }
+
+        /// <summary>
+        /// Grow the current song's voicegroup (instrument set) to the full 128
+        /// 12-byte records. Returns true on success. All ROM writes happen
+        /// under the ambient undo scope opened by the caller (the View's
+        /// UndoService) or the passed <paramref name="undo"/>; on any refusal
+        /// the method makes NO mutation and returns false so the caller rolls
+        /// back cleanly.
+        ///
+        /// <para>Steps (accepted v3 plan + CLI refinement):</para>
+        /// <list type="number">
+        ///   <item>Resolve <c>oldBase</c> = the song-context voicegroup base.
+        ///         No song context → false (no mutation).</item>
+        ///   <item><c>currentCount</c> = defined prefix via
+        ///         <see cref="CountDefinedPrefix"/> (same validity predicate as
+        ///         the master list).</item>
+        ///   <item><c>currentCount == 0</c> → false (no template row to copy —
+        ///         CLI refinement; never synthesize zero rows).</item>
+        ///   <item><c>currentCount &gt;= 128</c> → false (already full).</item>
+        ///   <item>Build the 1536-byte (128×12) block: copy the prefix verbatim,
+        ///         fill rows <c>[currentCount..127)</c> from the row-0 template
+        ///         (NOT zero), leave row 127 zero — mirrors WF
+        ///         <c>ExpandsArea(FIRST)</c> "tail must not be filled".</item>
+        ///   <item>Allocate the block in free space → <c>newBase</c>. Alloc
+        ///         failure (<see cref="U.NOT_FOUND"/>) → false.</item>
+        ///   <item><c>RepointAllReferences(oldBase → newBase)</c>. Repointed
+        ///         &lt; 1 → false (don't leave an orphan).</item>
+        /// </list>
+        /// </summary>
+        public bool ExpandVoicegroupTo128(Undo.UndoData? undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return false;
+
+            // (1) Require a real song-context voicegroup slot.
+            if (!_hasSongContext || _songContextBase == 0) return false;
+            uint oldBase = _songContextBase; // offset form
+            if (!U.isSafetyOffset(oldBase, rom)) return false;
+
+            // (2) Defined-prefix count (same predicate as the master list).
+            int currentCount = CountDefinedPrefix(rom, oldBase);
+
+            // (3) CLI refinement — no valid template row to copy.
+            if (currentCount == 0) return false;
+
+            // (4) Already full.
+            if (currentCount >= MaxInstruments) return false;
+
+            // Bounds: the existing prefix must fit in ROM.
+            uint definedSize = (uint)(currentCount * BlockSize);
+            if (oldBase + definedSize > (uint)rom.Data.Length) return false;
+
+            // (5) Build the 128×12 block. Copy the defined prefix verbatim,
+            // then fill rows [currentCount..127) from the row-0 template. Row
+            // 127 (the last) is left zero — WF ExpandsArea(FIRST) explicitly
+            // does NOT fill the tail row ("末尾は埋めてはいけない").
+            const int FullSize = MaxInstruments * BlockSize; // 1536
+            byte[] block = new byte[FullSize];
+            byte[] prefix = rom.getBinaryData(oldBase, definedSize);
+            Array.Copy(prefix, 0, block, 0, (int)definedSize);
+
+            // Row-0 template (always valid: it's the first row of the defined
+            // prefix, currentCount >= 1).
+            byte[] template = new byte[BlockSize];
+            Array.Copy(block, 0, template, 0, BlockSize);
+
+            // Fill the gap rows [currentCount .. 127) — stop BEFORE the last
+            // row so row 127 stays zero (WF tail rule).
+            for (int r = currentCount; r < MaxInstruments - 1; r++)
+                Array.Copy(template, 0, block, r * BlockSize, BlockSize);
+
+            // (6) Allocate the new block in free space.
+            uint newAddr = AppendBinaryDataHeadless(rom, block);
+            if (newAddr == U.NOT_FOUND) return false;
+
+            // (7) Repoint EVERY song-header (+LDR) reference to the shared
+            // voicegroup. < 1 slot → orphan; refuse so the caller rolls back.
+            int n = DataExpansionCore.RepointAllReferences(rom, oldBase, newAddr, undo);
+            if (n < 1) return false;
+
+            // Re-anchor onto the relocated base so a subsequent reload /
+            // re-expand sees the new address. BaseAddr is the voicegroup base
+            // (offset form, as set by LoadInstrumentList / ResolveFirst…), and
+            // after relocation it genuinely IS newAddr — update it so the
+            // View's LoadList() explicit-base path lists the new 128-row block.
+            BaseAddr = newAddr;
+            SetSongContext(true, newAddr);
+            return true;
+        }
+
+        /// <summary>
+        /// Headless equivalent of <c>InputFormRef.AppendBinaryData</c>. Routes
+        /// through the registered <see cref="CoreState.AppendBinaryData"/>
+        /// delegate (WinForms wires the real freespace allocator; the same
+        /// delegate serves the Avalonia editor). Returns <see cref="U.NOT_FOUND"/>
+        /// when no allocator is wired (headless tests) or no ambient undo scope
+        /// is active. Mirrors the EventCondViewModel.AppendBinaryDataHeadless
+        /// pattern.
+        /// </summary>
+        static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer)
+        {
+            var allocator = CoreState.AppendBinaryData;
+            if (allocator == null) return U.NOT_FOUND;
+            var ambient = ROM.GetAmbientUndoData();
+            if (ambient == null) return U.NOT_FOUND;
+            return allocator(buffer, ambient);
         }
 
         public Dictionary<string, string> GetDataReport()

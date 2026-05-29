@@ -23564,6 +23564,9 @@ DirectSound 固定频率反向
 :Type a substring and press Enter (or click Reload) to filter the instrument list. Mirrors WF SongInstrumentForm Filter behavior.
 输入子字符串并按 Enter（或单击 Reload）以筛选乐器列表。镜像 WF SongInstrumentForm Filter 行为。
 
+:Grow this song's voicegroup (instrument set) to the full 128 records: relocate to free space, copy the existing instruments and fill the rest from instrument 0, then repoint every song that shares this voicegroup (#780).
+将此曲目的乐器组（音色集）扩展到完整的 128 条记录：重新定位到空闲空间，复制现有乐器并用乐器 0 填充其余部分，然后重新指向共享此乐器组的每一首曲目 (#780)。
+
 :Expand the map action animation list to a specified entry count (max 255).
 将地图动作动画列表扩展到指定的条目数（最大 255）。
 
