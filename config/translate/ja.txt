@@ -9842,3 +9842,27 @@ ROMファイルを開いて難易度設定を編集してください。
 
 :Address (decimal):
 先頭アドレス (10進):
+
+:Import a palette file (.pal/.act/.gpl/.txt) into the current 16-color block.
+パレットファイル(.pal/.act/.gpl/.txt)を現在の16色ブロックに読み込みます。
+
+:Export the current 16 colors to a palette file (.pal/.act/.gpl/.txt).
+現在の16色をパレットファイル(.pal/.act/.gpl/.txt)に書き出します。
+
+:Copy the current 16 colors to the clipboard as RRGGBB,RRGGBB,...
+現在の16色をRRGGBB,RRGGBB,...形式でクリップボードにコピーします。
+
+:Palette exported.
+パレットを書き出しました。
+
+:Palette imported.
+パレットを読み込みました。
+
+:Palette too small (need >= 32 bytes)
+パレットが小さすぎます(32バイト以上必要)
+
+:Export palette failed: {0}
+パレットの書き出しに失敗しました: {0}
+
+:Import palette failed: {0}
+パレットの読み込みに失敗しました: {0}

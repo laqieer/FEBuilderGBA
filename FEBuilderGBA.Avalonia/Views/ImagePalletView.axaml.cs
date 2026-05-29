@@ -9,10 +9,12 @@
 // deferred behind #500 (Core has no RunRedo() API).
 
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
 using global::Avalonia.Media.Imaging;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -412,17 +414,186 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Deferred affordances (all surface as disabled buttons with #500
-        // tooltip; the click handlers exist so AXAML wiring stays valid).
+        // ---- palette file Import / Export / Clipboard (#777) ----
+        //
+        // Mirrors the already-merged ImageBGView palette import/export
+        // (ExportPal_Click / ImportPal_Click). Uses the shared Core
+        // helpers: PaletteCore.PackToBytes / ReadPalette for the BGR15
+        // pack/unpack and PaletteFormatConverter for the file-format
+        // (de)serialization. The single 16-color block currently
+        // displayed (PaletteAddress + PaletteIndex*0x20) is the unit of
+        // export/import — multi-palette spans stay out of scope per the
+        // accepted v2 plan.
 
-        void Import_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImagePalletView.Import_Click invoked - disabled until #500 lands");
+        /// <summary>
+        /// Pack the 16 currently displayed colors into a 32-byte BGR15
+        /// blob for export. Syncs the (possibly unsaved) NUD edits into
+        /// the VM first via <see cref="ReadNudsIntoVm"/> so an export
+        /// reflects what the user sees, not just the last Write. Exposed
+        /// internal so the #777 regression tests can exercise the pack
+        /// path without driving the file dialog.
+        /// </summary>
+        internal byte[] ComputeExportBytes()
+        {
+            ReadNudsIntoVm();
+            return PaletteCore.PackToBytes(_vm.GetSlots());
+        }
 
-        void Export_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImagePalletView.Export_Click invoked - disabled until #500 lands");
+        /// <summary>
+        /// Build the "RRGGBB,RRGGBB,..." clipboard line for the 16
+        /// displayed colors (uppercase hex, comma-separated). Matches
+        /// the ImageBattleAnimePalletView / ImageBattleScreenView
+        /// clipboard format. Internal so tests can assert the string.
+        /// </summary>
+        internal string BuildClipboardCsv()
+        {
+            ReadNudsIntoVm();
+            return BuildClipboardCsv(_vm.GetSlots());
+        }
 
-        void Clipboard_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImagePalletView.Clipboard_Click invoked - disabled until #500 lands");
+        internal static string BuildClipboardCsv((byte r, byte g, byte b)[] colors)
+        {
+            var sb = new System.Text.StringBuilder();
+            int count = System.Math.Min(colors?.Length ?? 0, 16);
+            for (int i = 0; i < count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.AppendFormat(System.Globalization.CultureInfo.InvariantCulture,
+                    "{0:X2}{1:X2}{2:X2}", colors[i].r, colors[i].g, colors[i].b);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Unpack a 32-byte BGR15 block and push the first 16 colors into
+        /// the VM + NUD controls (mirrors the read path in
+        /// ApplyPaletteFromRom -> SetSlot, but for an imported blob).
+        /// Internal so the #777 tests can verify the import-to-grid hop.
+        /// </summary>
+        internal void ApplyGbaBytesToNuds(byte[] gbaBytes)
+        {
+            var colors = new (byte r, byte g, byte b)[16];
+            for (int i = 0; i < 16; i++)
+            {
+                int cur = i * 2;
+                ushort gba = (ushort)(gbaBytes[cur] | (gbaBytes[cur + 1] << 8));
+                PaletteFormatConverter.GbaToRgb(gba, out byte r, out byte g, out byte b);
+                colors[i] = (r, g, b);
+            }
+            ApplyColorsToNuds(colors);
+        }
+
+        void ApplyColorsToNuds((byte r, byte g, byte b)[] colors)
+        {
+            // Push into the VM (so GetSlots/Write see them) AND mirror
+            // onto the NUDs/swatches so the grid updates immediately.
+            for (int i = 0; i < 16; i++)
+                _vm.SetSlot(i, colors[i].r, colors[i].g, colors[i].b);
+            UpdateUI();
+        }
+
+        async void Export_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded) return;
+                // Pack the 16 displayed colors (incl. unsaved NUD edits).
+                byte[] gbaBytes = ComputeExportBytes();
+                string? path = await FileDialogHelper.SavePaletteFile(this, "palette.pal");
+                if (string.IsNullOrEmpty(path)) return;
+                PaletteFormat fmt = PaletteFormatConverter.FormatFromExtension(Path.GetExtension(path));
+                File.WriteAllBytes(path, PaletteFormatConverter.ExportToFormat(gbaBytes, fmt));
+                CoreState.Services?.ShowInfo(R._("Palette exported."));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePalletView.Export_Click failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Export palette failed: {0}", ex.Message));
+            }
+        }
+
+        async void Import_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // No raw isSafetyOffset check on PaletteAddress — it is a
+                // GBA pointer; PaletteCore.WritePalette normalizes + range
+                // checks it. The IsLoaded gate alone refuses imports when
+                // no entry has been opened.
+                if (!_vm.IsLoaded) return;
+                string? path = await FileDialogHelper.OpenPaletteFile(this);
+                if (string.IsNullOrEmpty(path)) return; // cancel = no change
+                byte[] fileData = File.ReadAllBytes(path);
+                PaletteFormat fmt = PaletteFormatConverter.DetectFormat(fileData, Path.GetExtension(path));
+                byte[] palData = (fmt == PaletteFormat.GbaRaw) ? fileData : PaletteFormatConverter.ImportFromFormat(fileData, fmt);
+                if (palData.Length < PaletteCore.PALETTE_BLOCK_SIZE)
+                {
+                    CoreState.Services?.ShowError(R._("Palette too small (need >= 32 bytes)"));
+                    return;
+                }
+                // Take only the first 16 colors (first 32 bytes); a longer
+                // file is truncated to this editor's single-block scope.
+                byte[] first = palData;
+                if (first.Length > PaletteCore.PALETTE_BLOCK_SIZE)
+                {
+                    first = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
+                    Array.Copy(palData, first, PaletteCore.PALETTE_BLOCK_SIZE);
+                }
+                // Snapshot the current grid so a failed import can restore the
+                // prior display — Rollback() only restores ROM bytes, not the
+                // NUD grid (Copilot review on PR #779).
+                byte[] prevBytes = ComputeExportBytes();
+                // Reflect the imported colors in the grid before writing.
+                ApplyGbaBytesToNuds(first);
+
+                _undoService.Begin(R._("Import Palette"));
+                try
+                {
+                    ReadNudsIntoVm();
+                    uint off = _vm.Write();
+                    if (off == U.NOT_FOUND)
+                    {
+                        _undoService.Rollback();
+                        ApplyGbaBytesToNuds(prevBytes); // restore the pre-import grid
+                        RefreshSwatches();
+                        CoreState.Services?.ShowError(R._("Write failed: {0}", R._("Invalid palette address")));
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    RefreshSwatches();
+                    CoreState.Services?.ShowInfo(R._("Palette imported."));
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    ApplyGbaBytesToNuds(prevBytes); // restore the pre-import grid
+                    RefreshSwatches();
+                    Log.Error("ImagePalletView.Import_Click inner failed: {0}", ex.Message);
+                    CoreState.Services?.ShowError(R._("Import palette failed: {0}", ex.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePalletView.Import_Click failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Import palette failed: {0}", ex.Message));
+            }
+        }
+
+        async void Clipboard_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded) return;
+                string csv = BuildClipboardCsv();
+                var cb = TopLevel.GetTopLevel(this)?.Clipboard;
+                if (cb != null) await cb.SetTextAsync(csv);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePalletView.Clipboard_Click failed: {0}", ex.Message);
+            }
+        }
 
         // ---- IEditorView ----
 

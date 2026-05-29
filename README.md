@@ -150,6 +150,9 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-i
 # Validate palette roundtrip (export palette→import palette→re-export→binary compare)
 # Tests all pointer-based palette editors (BattleBG, ImageCG, ImageBG, TSAAnime,
 # OPPrologue, BigCG, BattleTerrain, Portrait).
+# The standalone Palette Editor (ImagePalletView) also supports palette-file
+# Import/Export plus a "Clipboard" copy (RRGGBB,RRGGBB,... of the 16 displayed
+# colors), mirroring ImageBG's palette path via PaletteCore + PaletteFormatConverter.
 # Also validates roundtrip through each supported palette format:
 #   - JASC-PAL (.pal) — Aseprite, GIMP, Paint Shop Pro (text: "JASC-PAL\n0100\nN\nR G B\n...")
 #   - Adobe ACT (.act) — Photoshop (binary: 256×3B RGB, optional 4B footer)
