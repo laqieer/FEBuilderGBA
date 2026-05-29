@@ -455,7 +455,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// command's default <see cref="EventScript.Script.Data"/> bytes into the
         /// Binary Code box via this same formatter so they re-decode identically.
         /// </summary>
-        public static string FormatInstructionHex(byte[] bytes)
+        public static string FormatInstructionHex(byte[]? bytes)
         {
             if (bytes == null) return "";
             return U.HexDumpLiner(bytes).Trim();

@@ -107,6 +107,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Select_Click(object? sender, RoutedEventArgs e)
         {
+            // Clear any prior selection so SelectedScript / the returned result is
+            // null unless THIS confirmation succeeds (Copilot review: no stale
+            // result observable after a failed Select or Cancel).
+            _selectedScript = null;
             bool ok = false;
             if (_aiVm != null)
             {

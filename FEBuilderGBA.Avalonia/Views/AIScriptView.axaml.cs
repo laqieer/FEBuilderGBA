@@ -442,7 +442,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <see cref="AIScriptViewModel.FormatInstructionHex"/> form that
         /// Update/New parse.
         /// </summary>
-        internal void ApplyPickedScript(EventScript.Script script)
+        internal void ApplyPickedScript(EventScript.Script? script)
         {
             if (script == null) return;
             AsmBox.Text = AIScriptViewModel.FormatInstructionHex(script.Data);
@@ -455,12 +455,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var picker = new ScriptCommandPickerView(EventScript.EventScriptType.AI);
 
-                // AIScriptView IS a Window, so it can own the modal. Guard the
-                // (theoretical) detached-window case to avoid a ShowDialog on a
-                // window with no toplevel.
-                EventScript.Script? result = (this as Window) != null
-                    ? await picker.ShowDialog<EventScript.Script?>(this)
-                    : null;
+                // AIScriptView IS a Window (TranslatedWindow : Window), so it can
+                // own the modal directly.
+                EventScript.Script? result = await picker.ShowDialog<EventScript.Script?>(this);
 
                 if (result != null)
                     ApplyPickedScript(result);
