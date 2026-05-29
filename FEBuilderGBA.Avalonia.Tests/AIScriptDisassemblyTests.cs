@@ -405,10 +405,12 @@ namespace FEBuilderGBA.Avalonia.Tests
             Array.Copy(body, 0, _rom.Data, (int)ScriptBase, body.Length);
             // Plant the pointer slot -> 0x08000000 + ScriptBase.
             uint gbaPtr = 0x08000000u + ScriptBase;
-            _rom.Data[PointerSlot + 0] = (byte)(gbaPtr & 0xFF);
-            _rom.Data[PointerSlot + 1] = (byte)((gbaPtr >> 8) & 0xFF);
-            _rom.Data[PointerSlot + 2] = (byte)((gbaPtr >> 16) & 0xFF);
-            _rom.Data[PointerSlot + 3] = (byte)((gbaPtr >> 24) & 0xFF);
+            // PointerSlot is uint; index with explicit (int) for clarity and to
+            // match the (int)ScriptBase cast used elsewhere in this file.
+            _rom.Data[(int)PointerSlot + 0] = (byte)(gbaPtr & 0xFF);
+            _rom.Data[(int)PointerSlot + 1] = (byte)((gbaPtr >> 8) & 0xFF);
+            _rom.Data[(int)PointerSlot + 2] = (byte)((gbaPtr >> 16) & 0xFF);
+            _rom.Data[(int)PointerSlot + 3] = (byte)((gbaPtr >> 24) & 0xFF);
             pointerSlotAddr = PointerSlot;
         }
 
@@ -417,8 +419,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.ROM = _prevRom;
             CoreState.AIScript = _prevAi;
             CoreState.CommentCache = _prevComment;
-            if (_prevBaseDir != null)
-                CoreState.BaseDirectory = _prevBaseDir;
+            // Restore unconditionally (including null) so a null prior value is
+            // not leaked as the overridden test dir into later tests.
+            CoreState.BaseDirectory = _prevBaseDir;
         }
     }
 }
