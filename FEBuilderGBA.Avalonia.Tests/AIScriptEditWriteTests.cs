@@ -9,9 +9,9 @@
 //   - UpdateRow() re-decodes a hand-edited 16-byte instruction, mutating only
 //     the targeted row, and rejects over-length / non-hex input without
 //     touching the model;
-//   - WriteScript() writes the same-size slice through rom.write_u8 (so the
-//     surrounding UndoService scope tracks it), and refuses any length change
-//     or out-of-range slice;
+//   - WriteScript() writes the same-size slice through rom.write_range (so the
+//     surrounding UndoService scope tracks it as one entry), and refuses any
+//     length change, unsafe/header offset, or out-of-range slice;
 //   - an empty model never writes;
 //   - the write is undoable via CoreState.Undo.RunUndo();
 //   - DisassembleScript() re-read after a committed write reflects the
@@ -262,6 +262,32 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ----------------------------------------------------------------
+        // 5b. A header / low (unsafe) CurrentAddr is refused with no mutation.
+        // ----------------------------------------------------------------
+
+        [Fact]
+        public void WriteScript_UnsafeHeaderOffset_RefusesAndDoesNotMutate()
+        {
+            using var env = new AiDisasmEnv();
+
+            var body = new List<byte>();
+            body.AddRange(Attack05(0x64));
+            body.AddRange(ExitOpcode(0x00));
+            var vm = env.LoadVmAt(body.ToArray()); // loaded at the safe ScriptBase
+            vm.DisassembleScript();
+
+            // Redirect the write target to a header/low offset below the
+            // U.isSafetyOffset floor (a mistyped Address box). Length stays equal
+            // to ReadByteCount, so only the safety-offset guard can reject it.
+            const uint unsafeAddr = 0x100;
+            vm.CurrentAddr = unsafeAddr;
+            byte[] before = env.RomSlice(unsafeAddr, vm.ReadByteCount);
+
+            Assert.False(vm.WriteScript());
+            Assert.Equal(before, env.RomSlice(unsafeAddr, vm.ReadByteCount));
+        }
+
+        // ----------------------------------------------------------------
         // 6. Undo restores the original bytes.
         // ----------------------------------------------------------------
 
@@ -453,8 +479,8 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// <summary>
         /// Sets a fresh CoreState.Undo for the duration of a write test and
         /// restores the prior value on Dispose. WriteScript itself does not
-        /// require an undo (rom.write_u8 no-ops the ambient scope when none is
-        /// open), but tests that want a clean undo buffer use this.
+        /// require an undo (rom.write_range no-ops the ambient scope when none
+        /// is open), but tests that want a clean undo buffer use this.
         /// </summary>
         sealed class UndoScope : IDisposable
         {

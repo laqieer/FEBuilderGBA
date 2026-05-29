@@ -585,15 +585,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Write the serialized instruction bytes back to the ROM at
         /// CurrentAddr. Callers MUST wrap this call in a UndoService.Begin /
-        /// Commit block — the per-byte rom.write_u8 calls register into the
+        /// Commit block — the single rom.write_range call registers into the
         /// ambient undo scope the View opens.
         ///
         /// This is a strict SAME-SIZE in-place write: it refuses to write
         /// (returns false, mutating nothing) when the serialized length does
-        /// not equal the loaded ReadByteCount, or when the write would run off
-        /// the end of the ROM. A length change means New/Remove territory,
-        /// which needs free-space reallocation (out of scope, #760 follow-up).
-        /// Returns true only when the full slice was written.
+        /// not equal the loaded ReadByteCount, when the target is not a safe
+        /// ROM offset (rejects header / out-of-range addresses a mistyped
+        /// Address box could supply), or when the write would run off the end
+        /// of the ROM. A length change means New/Remove territory, which needs
+        /// free-space reallocation (out of scope, #760 follow-up). Returns true
+        /// only when the full slice was written.
         /// </summary>
         public bool WriteScript()
         {
@@ -609,6 +611,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // cannot wrap past the ROM length.
             if (bytes.Length != ReadByteCount) return false;
             if ((ulong)CurrentAddr + (ulong)bytes.Length > (ulong)rom.Data.Length) return false;
+            // Safety-offset guard: refuse header / low / out-of-range targets so a
+            // mistyped Address box cannot mutate the ROM header under undo. Check
+            // both the start and the last byte of the slice.
+            if (bytes.Length > 0
+                && (!U.isSafetyOffset(CurrentAddr)
+                    || !U.isSafetyOffset(CurrentAddr + (uint)bytes.Length - 1)))
+                return false;
 
             // Single-range write → one undo entry (registers into the ambient
             // UndoService scope opened by the View), rather than one UndoPosition
