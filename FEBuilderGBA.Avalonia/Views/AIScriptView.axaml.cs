@@ -340,6 +340,16 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Require a loaded script first (mirror the Write guard). Without
+                // this, New on an empty model would create a 1-opcode script with
+                // no CurrentAddr/BaseAddr loaded, and a subsequent Write would
+                // serialize only that opcode + EXIT and repoint the AI slot —
+                // silently dropping all existing opcodes.
+                if (!_vm.HasDisassembly)
+                {
+                    CoreState.Services.ShowInfo("Re-read the AI script before inserting an instruction.");
+                    return;
+                }
                 if (string.IsNullOrWhiteSpace(AsmBox.Text))
                 {
                     CoreState.Services.ShowInfo("Enter instruction bytes in Binary Code first.");

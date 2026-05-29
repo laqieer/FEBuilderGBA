@@ -760,6 +760,36 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // ----------------------------------------------------------------
+        // Copilot review: New on an UN-loaded model (no Re-read) must NOT
+        // insert — otherwise a later Write would serialize just the new opcode
+        // and repoint the AI slot, dropping all existing opcodes.
+        // ----------------------------------------------------------------
+
+        [AvaloniaFact]
+        public void View_New_WithoutReadList_DoesNotInsert()
+        {
+            using var env = new AiDisasmEnv();
+            CoreState.ROM = env.Rom;
+            CoreState.AIScript = env.AiScript;
+
+            var view = new AIScriptView();
+            var list = view.FindControl<ListBox>("DisassemblyList");
+            var asmBox = view.FindControl<TextBox>("AsmBox");
+            Assert.NotNull(list);
+            Assert.NotNull(asmBox);
+
+            // No Re-read: the model is empty. Provide a valid opcode anyway.
+            asmBox!.Text = HexLine(0x05, 0x32, 0xFF);
+            Invoke(view, "New_Click");
+
+            // Guard fired: nothing was inserted.
+            var items = list!.ItemsSource as System.Collections.IEnumerable;
+            int count = 0;
+            if (items != null) foreach (var _ in items) count++;
+            Assert.Equal(0, count);
+        }
+
+        // ----------------------------------------------------------------
         // 763.9 [AvaloniaFact] View New -> Write persists a relocated script:
         //       rom.p32(BaseAddr) changed + the list grew by one row.
         // ----------------------------------------------------------------
