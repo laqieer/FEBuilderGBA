@@ -71,6 +71,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>Notify the main window of the current unsaved-changes state.</summary>
         static void NotifyUnsavedChanges()
         {
+            // The dirty indicator lives on the MainWindow (an Avalonia UI object).
+            // Commit()/Rollback() are public and may run off the UI thread (e.g.
+            // headless tests, future async callers); touching the Window off the
+            // UI thread throws "Call from invalid thread". Marshal to the UI
+            // thread when we are not already on it.
+            var dispatcher = global::Avalonia.Threading.Dispatcher.UIThread;
+            if (!dispatcher.CheckAccess())
+            {
+                dispatcher.Post(NotifyUnsavedChanges);
+                return;
+            }
             if (WindowManager.Instance.MainWindow?.DataContext is ViewModels.MainWindowViewModel vm)
                 vm.HasUnsavedChanges = CoreState.Undo?.IsModified ?? false;
         }

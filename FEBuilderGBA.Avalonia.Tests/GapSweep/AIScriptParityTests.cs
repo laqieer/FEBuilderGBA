@@ -266,32 +266,27 @@ public class AIScriptParityTests
     // -----------------------------------------------------------------
 
     [Fact]
-    public void View_WriteHandler_IsHonestlyDeferred()
+    public void View_WriteHandler_WrapsUndoScopeAndWritesInPlace()
     {
-        // PR #571 Copilot bot review #1: AI script write-back is
-        // WinForms-coupled today (EventScript.DisAssemble +
-        // EventScriptUtil.JisageReorder live in the WinForms assembly).
-        // The Write_Click handler must NOT allocate an undo scope and
-        // emit a false "success" toast; instead it surfaces a clear
-        // "not yet implemented" message so users aren't misled. This
-        // test pins that honest state — when the WinForms write path is
-        // ported to Core, this test should change to assert
-        // `_undoService.Begin( / Commit(` wrap (parity with SongTrack /
-        // EDView).
+        // #760: AI script opcode write-back is now implemented as a
+        // SAME-SIZE in-place write. The Write_Click handler must wrap the
+        // write in a UndoService.Begin / Commit block (rolling back on a
+        // refused / failed write) and call the VM's WriteScript() — parity
+        // with SongTrack / EDView. This replaces the prior "honestly
+        // deferred" assertion (PR #571) per that test's own follow-up note.
         string codeBehindPath = CodeBehindPath();
         Assert.True(File.Exists(codeBehindPath), $"Code-behind not found at {codeBehindPath}");
         string code = File.ReadAllText(codeBehindPath);
 
-        // Write_Click must exist
+        // Write_Click must exist and drive the real write path.
         Assert.Contains("Write_Click", code);
-        // The undo scope helper exists in the file (e.g. for future use)
-        // but the Write_Click body must NOT call Begin without doing a
-        // real ROM mutation. Sanity: the code-behind owns an UndoService
-        // for future opcode editing, so the field reference is present
-        // but the handler short-circuits.
-        Assert.Contains("UndoService", code);
-        // The honest "not yet implemented" message must be present.
-        Assert.Contains("AI script Write is not yet implemented in Avalonia", code);
+        Assert.Contains("_undoService.Begin(", code);
+        Assert.Contains("_undoService.Commit(", code);
+        Assert.Contains("_undoService.Rollback(", code);
+        Assert.Contains("WriteScript()", code);
+
+        // The old "not yet implemented" Write message must be gone.
+        Assert.DoesNotContain("AI script Write is not yet implemented in Avalonia", code);
     }
 
     [Fact]
