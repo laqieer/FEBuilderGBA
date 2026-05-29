@@ -181,21 +181,21 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // Write-back (#760). Serializes the in-memory disassembled model
-        // (exact concatenation of each instruction's bytes — no EXIT
-        // normalization) and writes it back in-place under a UndoService
-        // scope. This is strictly SAME-SIZE: WriteScript() refuses (and we
-        // roll the scope back) if the length changed or the slice runs off
-        // the ROM, since a length change needs the New/Remove + free-space
-        // realloc path that stays deferred. Mirrors WF AllWriteButton_Click's
-        // concatenate-and-write core (minus the WinForms terminator append).
+        // Write-back (#760/#763). Serializes the in-memory disassembled model
+        // (with a WF-parity EXIT terminator append) and writes it back under a
+        // UndoService scope. Same-size edits write in place at CurrentAddr; a
+        // length change from New/Remove reallocates to free space and repoints
+        // the AI pointer slot — both signed against the active undoData so the
+        // whole operation commits / rolls back as one transaction. Mirrors WF
+        // AllWriteButton_Click. The Rollback-on-false path discards any orphan
+        // free-space allocation.
         // -----------------------------------------------------------------
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             // Guard an empty/never-loaded model BEFORE opening the undo scope so
-            // we never produce a ghost undo entry or the misleading "length
-            // changed" error when the user hasn't pressed Re-read yet.
+            // we never produce a ghost undo entry or the misleading error when
+            // the user hasn't pressed Re-read yet.
             if (!_vm.HasDisassembly)
             {
                 CoreState.Services.ShowInfo("Re-read the AI script before writing.");
@@ -204,15 +204,22 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit AI Script");
             try
             {
-                if (!_vm.WriteScript())
+                if (!_vm.WriteScript(_undoService.GetActiveUndoData()))
                 {
                     _undoService.Rollback();
                     CoreState.Services.ShowError(
-                        "Could not write (length changed or out of range — New/Remove not yet supported).");
+                        "Could not write (out of range or the AI pointer slot is unsafe).");
                     return;
                 }
                 _undoService.Commit();
                 CoreState.Services.ShowInfo("AI script written.");
+                // Sync the Address / byte-count boxes to the VM FIRST: a
+                // realloc Write moves CurrentAddr / ReadByteCount, and
+                // ReloadList_Click re-reads from those boxes — so without this
+                // the re-read would disassemble the OLD (pre-relocation)
+                // location. UpdateUI() pushes the VM's new address/length back
+                // into the boxes before the re-read.
+                UpdateUI();
                 ReloadList_Click(sender, e);
             }
             catch (Exception ex)
@@ -323,18 +330,70 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // New / Remove stay deferred (#760 follow-up): inserting or deleting an
-        // instruction changes the script length, which needs the WF New/Remove
-        // + free-space reallocation path. Opcode-level VALUE edits go through
-        // Update_Click / Write_Click (same-size in-place) instead.
+        // New / Remove (#763): insert / delete a 16-byte AI instruction in the
+        // in-memory model (mirrors WF NewButton_Click / RemoveButton_Click).
+        // These change the script length, so the next Write takes the
+        // realloc + pointer-repoint path. The list is refreshed from the model
+        // (GetDisplayLines), NOT a ROM re-read, so the pending structural edit
+        // stays visible until Write persists it.
         void New_Click(object? sender, RoutedEventArgs e)
         {
-            CoreState.Services.ShowInfo("Inserting AI instructions is not yet supported in Avalonia (changes script length). Use the WinForms editor to add instructions; use Update to edit an existing instruction in place.");
+            try
+            {
+                if (string.IsNullOrWhiteSpace(AsmBox.Text))
+                {
+                    CoreState.Services.ShowInfo("Enter instruction bytes in Binary Code first.");
+                    return;
+                }
+
+                string? line = _vm.InsertRow(DisassemblyList.SelectedIndex, AsmBox.Text);
+                if (line == null)
+                {
+                    CoreState.Services.ShowError(
+                        "Invalid instruction bytes (one 16-byte hex instruction).");
+                    return;
+                }
+
+                // Refresh from the in-memory model and select the inserted row.
+                int insertedAt = DisassemblyList.SelectedIndex < 0
+                    ? _vm.RowCount - 1
+                    : DisassemblyList.SelectedIndex + 1;
+                DisassemblyList.ItemsSource = _vm.GetDisplayLines();
+                if (insertedAt >= 0 && insertedAt < _vm.RowCount)
+                    DisassemblyList.SelectedIndex = insertedAt;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIScriptView.New_Click failed: {0}", ex.Message);
+            }
         }
 
         void Remove_Click(object? sender, RoutedEventArgs e)
         {
-            CoreState.Services.ShowInfo("Removing AI instructions is not yet supported in Avalonia (changes script length). Use the WinForms editor to delete instructions; use Update to edit an existing instruction in place.");
+            try
+            {
+                int idx = DisassemblyList.SelectedIndex;
+                if (idx < 0)
+                {
+                    CoreState.Services.ShowInfo("Select an instruction to remove.");
+                    return;
+                }
+                if (!_vm.RemoveRow(idx))
+                {
+                    CoreState.Services.ShowInfo("Cannot remove the last instruction.");
+                    return;
+                }
+
+                DisassemblyList.ItemsSource = _vm.GetDisplayLines();
+                // Re-select a sensible neighbour (the row that shifted up into idx).
+                int next = idx < _vm.RowCount ? idx : _vm.RowCount - 1;
+                if (next >= 0)
+                    DisassemblyList.SelectedIndex = next;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIScriptView.Remove_Click failed: {0}", ex.Message);
+            }
         }
 
         void Close_Click(object? sender, RoutedEventArgs e)
