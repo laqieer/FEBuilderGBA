@@ -57,9 +57,13 @@ namespace FEBuilderGBA.SkiaSharp
                 using var skFont = new SKFont(typeface, font.Size <= 0 ? 12f : font.Size)
                 {
                     // Pinned-deterministic settings so the same character renders
-                    // identically across Windows / Linux / macOS CI.
+                    // identically across Windows / Linux / macOS CI. Hinting=None
+                    // uses Skia's own geometric rasterizer (no OS FreeType / GDI
+                    // hinting), keeping the GOLDEN exact-byte output identical on
+                    // every platform under the uniform native libSkiaSharp
+                    // (#796 / #798: aligned to Avalonia's bundled SkiaSharp 2.88).
                     Edging = SKFontEdging.Antialias,
-                    Hinting = SKFontHinting.Full,
+                    Hinting = SKFontHinting.None,
                     Subpixel = false,
                 };
                 using var paint = new SKPaint
