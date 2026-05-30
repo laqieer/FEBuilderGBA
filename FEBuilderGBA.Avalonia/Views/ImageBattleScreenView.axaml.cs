@@ -172,10 +172,49 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry();
                 PopulateUI();
+                RefreshBattlePreview();
             }
             catch (Exception ex)
             {
                 Log.Error("ImageBattleScreenView.OnSelected failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Render the live battle-screen preview (#802) into the
+        /// <c>BattlePreview</c> GbaImageControl. Null-safe: a corrupt/missing
+        /// required source returns <c>null</c> from the Core helper, which
+        /// <c>SetImage(null)</c> turns into a blank surface (no crash).
+        /// </summary>
+        void RefreshBattlePreview()
+        {
+            try
+            {
+                BattlePreview.SetImage(_vm.RenderBattlePreview());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.RefreshBattlePreview failed: {0}", ex.Message);
+                BattlePreview.SetImage(null);
+            }
+        }
+
+        /// <summary>
+        /// Drive the live preview's zoom from the top-bar Zoom combo
+        /// (1x..4x). The GbaImageControl also supports its own
+        /// toolbar/mouse-wheel zoom; this keeps the combo in sync (#802).
+        /// </summary>
+        void Zoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                int idx = ZoomCombo.SelectedIndex;
+                if (idx < 0) return;
+                BattlePreview.Zoom = idx + 1; // combo 0..3 -> zoom 1..4
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.Zoom_SelectionChanged failed: {0}", ex.Message);
             }
         }
 
@@ -230,6 +269,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             _undoService.Commit();
+            // Re-render the live preview from the freshly-written ROM (#802).
+            RefreshBattlePreview();
         }
 
         void PaletteWrite_Click(object sender, RoutedEventArgs e)
@@ -267,6 +308,8 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             _undoService.Commit();
+            // Palette edits change the rendered colors -- refresh preview (#802).
+            RefreshBattlePreview();
         }
 
         void PaletteIndex_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -346,6 +389,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Reload so the spinners reflect the rolled-back palette.
                 _vm.LoadEntry();
                 PopulateUI();
+                RefreshBattlePreview();
             }
             catch (Exception ex)
             {
@@ -360,6 +404,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Undo?.RunUndo();
                 _vm.LoadEntry();
                 PopulateUI();
+                RefreshBattlePreview();
             }
             catch (Exception ex)
             {

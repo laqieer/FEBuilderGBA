@@ -112,13 +112,27 @@ public class ImageBattleScreenParityTests
         Assert.Matches(new Regex(@"if\s*\(\s*!_vm\.IsLoaded", RegexOptions.Singleline), match.Value);
     }
 
+    /// <summary>
+    /// #802: the Battle preview is now rendered LIVE via a GbaImageControl
+    /// (ImageBattleScreenCore.RenderBattleScreenPreview), replacing the old
+    /// deferred KnownGap placeholder label. The Chipset thumbnail remains
+    /// deferred (verified separately by View_HasChipsetPreviewKnownGapPlaceholder).
+    /// </summary>
     [Fact]
-    public void View_HasBattlePreviewKnownGapPlaceholder()
+    public void View_HasLiveBattlePreviewImage()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ImageBattleScreen_BattlePreview_Label\"", axaml);
-        // The placeholder text must explain the deferral honestly.
-        Assert.Contains("deferred", axaml, StringComparison.OrdinalIgnoreCase);
+        // The live preview control carries the BattlePreview AutomationId and
+        // is a GbaImageControl (Image suffix per AutomationId convention).
+        Assert.Contains("AutomationId=\"ImageBattleScreen_BattlePreview_Image\"", axaml);
+        Assert.Contains("controls:GbaImageControl", axaml);
+        // The old deferred placeholder label must be gone.
+        Assert.DoesNotContain("AutomationId=\"ImageBattleScreen_BattlePreview_Label\"", axaml);
+        // The code-behind must wire the render into the control.
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"BattlePreview\.SetImage\(\s*_vm\.RenderBattlePreview\(\)\s*\)",
+            RegexOptions.Singleline), code);
     }
 
     [Fact]
@@ -237,17 +251,27 @@ public class ImageBattleScreenParityTests
     }
 
     /// <summary>
-    /// Per Copilot bot PR #594 review round 2 #5: ZoomCombo only affects
-    /// the deferred Battle/Chipset preview rendering. Until that rendering
-    /// lands, the combo is disabled with an explanatory tooltip.
+    /// #802: now that the live Battle preview is rendered, the ZoomCombo is
+    /// re-enabled and wired to drive the GbaImageControl's zoom. The earlier
+    /// IsEnabled="False" KnownGap deferral is gone.
     /// </summary>
     [Fact]
-    public void View_ZoomCombo_IsHonestlyDeferredKnownGap()
+    public void View_ZoomCombo_IsEnabledAndDrivesPreviewZoom()
     {
         string axaml = ReadAxaml();
-        Assert.Matches(new Regex(
+        // The combo must NOT carry the disabled-KnownGap marker any more.
+        Assert.DoesNotMatch(new Regex(
             @"AutomationId=""ImageBattleScreen_Zoom_Combo""[\s\S]{0,400}IsEnabled=""False""",
             RegexOptions.Singleline), axaml);
+        // It must wire a SelectionChanged handler.
+        Assert.Matches(new Regex(
+            @"AutomationId=""ImageBattleScreen_Zoom_Combo""[\s\S]{0,400}SelectionChanged=""Zoom_SelectionChanged""",
+            RegexOptions.Singleline), axaml);
+        // And the handler must drive the live preview's zoom.
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"void\s+Zoom_SelectionChanged[\s\S]*?BattlePreview\.Zoom\s*=",
+            RegexOptions.Singleline), code);
     }
 
     [Fact]

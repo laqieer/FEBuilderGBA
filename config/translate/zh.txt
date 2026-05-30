@@ -22425,8 +22425,8 @@ Tile5
 :Edit Battle Screen Palette
 编辑战斗画面调色板
 
-:KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
-已知缺口：缩放仅影响已延期的战斗/图块集预览渲染（WinForms 依赖，#393）。实时预览实现后将重新启用。
+:Zoom factor for the live battle-screen preview (#802).
+实时战斗画面预览的缩放倍数 (#802)。
 
 :Skill Detail
 技能详情
