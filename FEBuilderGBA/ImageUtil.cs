@@ -4667,26 +4667,14 @@ namespace FEBuilderGBA
 
         const int BG224StartPaletteIndex = 2;
 
+        // Single source of truth: the 255->224 index remap lives in
+        // FEBuilderGBA.Core (ImageBG256ColorCore) so the Avalonia/CLI BG255
+        // import and the WinForms ImageBGForm.ImportButton255 path stay
+        // byte-identical (#799). This forwards to the Core port; behavior is
+        // unchanged (keep <32; >=224 -> 0; else += 32).
         public static void Convert255ColorTo224Color(byte[] image)
         {
-            for (int i = 0; i < image.Length; i += 1)
-            {
-                byte a = image[i];
-                if (a < BG224StartPaletteIndex * 16)
-                {
-                    continue;
-                }
-
-                if (a >= (16 - 2) * 16)
-                {
-                    a = 0;
-                }
-                else
-                {
-                    a += 16 * 2;
-                }
-                image[i] = a;
-            }
+            FEBuilderGBA.ImageBG256ColorCore.Convert255ColorTo224Color(image);
         }
 
     }
