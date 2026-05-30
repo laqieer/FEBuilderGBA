@@ -1029,7 +1029,10 @@ namespace FEBuilderGBA
                 }
             }
 
-            // Step 4: Font copy from TO ROM (auto-gen stays WinForms-only).
+            // Step 4: Font copy from TO ROM (ROM-port only here; cross-platform
+            // auto-generation is available via ImportFonts but is driven from
+            // the dedicated "Import Font" action so SimpleFire stays
+            // rasterizer-free / deterministic).
             if (File.Exists(opts.ToRomPath))
             {
                 progressCallback?.Invoke("Copying missing fonts from TO ROM...");
@@ -1041,156 +1044,210 @@ namespace FEBuilderGBA
         }
 
         // ============================================================
-        // ImportFontFromROMs - copy missing fonts from a source ROM (#536)
+        // ImportFonts / ImportFontFromROMs - copy + auto-generate missing
+        // fonts (#536 ported glyphs, #796 cross-platform auto-gen)
         // ============================================================
 
         /// <summary>
+        /// Result of <see cref="ImportFonts"/>: how many glyphs were ported
+        /// from a source ROM versus rasterized fresh by the
+        /// <see cref="IFontRasterizer"/>. Each count tracks per-(char, variant)
+        /// appends, matching WF <c>ToolTranslateROMFont</c> which processes the
+        /// text and item variant of every character independently.
+        /// </summary>
+        public readonly struct ImportFontResult
+        {
+            /// <summary>Glyphs copied from the Font ROM / Extra Font ROM.</summary>
+            public int Ported { get; init; }
+
+            /// <summary>Glyphs rasterized fresh via the font rasterizer.</summary>
+            public int Generated { get; init; }
+        }
+
+        /// <summary>
         /// Copy fonts that the current ROM is missing from the fonts in the
-        /// source ROM (and optionally an extra-font ROM). Iterates every text
+        /// source ROM (and optionally an extra-font ROM), and — when
+        /// <paramref name="autoGenEnabled"/> is set and a
+        /// <paramref name="rasterizer"/> is supplied — auto-generate any glyph
+        /// that is still missing after the port attempt. Iterates every text
         /// glyph present in the current ROM (TextForm + multibyte menu /
-        /// terrain / sound-room / other-text), and for each missing glyph,
-        /// looks it up in the source ROM and appends the bitmap data via
-        /// RecycleAddress.Write.
+        /// terrain / sound-room / other-text); for each missing glyph it first
+        /// looks it up in the source ROM(s), and failing that rasterizes both
+        /// the text and item variant via the rasterizer and appends them.
         ///
-        /// This is the System.Drawing-free portion of WF
-        /// ToolTranslateROMFont.ImportFont. The bitmap auto-generation path
-        /// (`ImageUtil.AutoGenerateFont`) is NOT exercised here - that stays
-        /// WinForms-only (see #536 Known Limitations).
+        /// This is the cross-platform port of WF
+        /// <c>ToolTranslateROMFont.ImportFont</c>. The bitmap auto-generation
+        /// path that used to be WinForms-only (<c>ImageUtil.AutoGenerateFont</c>)
+        /// is now driven through the platform-neutral
+        /// <see cref="IFontRasterizer"/> seam (#796); the SkiaSharp
+        /// implementation reproduces the WF GDI algorithm byte-for-byte.
         ///
-        /// Returns the number of font glyphs successfully ported. Returns 0
-        /// when no source ROM is available.
+        /// Returns the number of glyphs ported and generated. Returns
+        /// <c>default</c> (both counts 0) only when there is nothing to do —
+        /// i.e. no source ROM AND auto-generation is off.
+        /// </summary>
+        public static ImportFontResult ImportFonts(ROM rom, string fontRomPath,
+            string extraFontRomPath, IFontRasterizer rasterizer, FontSpec autoGenFont,
+            bool autoGenEnabled, RecycleAddress recycle, Undo.UndoData undo,
+            Action<string> progressCallback)
+        {
+            if (rom?.RomInfo == null) return default;
+
+            ROM fontRom = null;
+            ROM extraFontRom = null;
+
+            if (!string.IsNullOrEmpty(fontRomPath) && File.Exists(fontRomPath))
+            {
+                fontRom = new ROM();
+                string version;
+                if (!fontRom.Load(fontRomPath, out version)) fontRom = null;
+            }
+            if (!string.IsNullOrEmpty(extraFontRomPath) && File.Exists(extraFontRomPath))
+            {
+                extraFontRom = new ROM();
+                string version;
+                if (!extraFontRom.Load(extraFontRomPath, out version)) extraFontRom = null;
+            }
+
+            // Narrowed early-exit (#796): the auto-gen path needs no source
+            // ROM, so only bail when there is BOTH no source ROM AND no
+            // enabled rasterizer.
+            bool autoGenActive = autoGenEnabled && rasterizer != null;
+            if (fontRom == null && extraFontRom == null && !autoGenActive) return default;
+
+            PRIORITY_CODE myPriority = PriorityCodeUtil.SearchPriorityCode(rom);
+            PRIORITY_CODE fontRomPriority = fontRom != null
+                ? PriorityCodeUtil.SearchPriorityCode(fontRom) : myPriority;
+            PRIORITY_CODE extraFontRomPriority = extraFontRom != null
+                ? PriorityCodeUtil.SearchPriorityCode(extraFontRom) : myPriority;
+
+            var processed = new HashSet<string>();
+            var ctx = new FontPortContext
+            {
+                Rom = rom,
+                FontRom = fontRom,
+                ExtraFontRom = extraFontRom,
+                Processed = processed,
+                MyPriority = myPriority,
+                FontRomPriority = fontRomPriority,
+                ExtraFontRomPriority = extraFontRomPriority,
+                Recycle = recycle,
+                Undo = undo,
+                Rasterizer = autoGenActive ? rasterizer : null,
+                AutoGenFont = autoGenFont,
+            };
+
+            // Pass 1: text-ID glyphs (Huffman / UnHuffman dictionary).
+            var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
+            uint textCount = TranslateCore.GetTextCount(rom);
+            if (textCount > 0xFFFF) textCount = 0xFFFF;
+            for (uint id = 0; id < textCount; id++)
+            {
+                string text;
+                try { text = decoder.Decode(id) ?? string.Empty; }
+                catch { continue; }
+
+                progressCallback?.Invoke($"FontScan:{U.To0xHexString(id)}");
+                PortMissingGlyphs(ctx, text);
+            }
+
+            // Pass 2: multibyte menu / terrain / sound-room / other-text
+            // pointer-backed entries (matches WF ToolTranslateROMFont).
+            if (rom.RomInfo.is_multibyte)
+            {
+                foreach (var menuDef in TextSourceListCore.MakeMenuDefinitionList(rom))
+                {
+                    if (!U.isSafetyOffset(menuDef.addr + 8, rom)) continue;
+                    uint p = menuDef.addr + 8;
+                    if (!U.isSafetyOffset(rom.p32(p), rom)) continue;
+                    foreach (var cmd in TextSourceListCore.MakeMenuCommandList(rom, p))
+                    {
+                        if (!U.isSafetyOffset(cmd.addr, rom)) continue;
+                        uint textid = rom.u32(cmd.addr + 0);
+                        string str = FETextDecode.Direct(textid);
+                        if (string.IsNullOrEmpty(str)) continue;
+                        progressCallback?.Invoke($"MenuFontScan:{U.To0xHexString(textid)}");
+                        PortMissingGlyphs(ctx, str);
+                    }
+                }
+
+                // This font-scan loop sits inside the multibyte guard
+                // above, so MakeMapTerrainNameList's 4-byte path applies
+                // and rom.u32 is correct here. English terrain font-port
+                // is out of scope for #671 — tracked separately.
+                foreach (var terrain in TextSourceListCore.MakeMapTerrainNameList(rom))
+                {
+                    if (!U.isSafetyOffset(terrain.addr, rom)) continue;
+                    uint textid = rom.u32(terrain.addr);
+                    string str = FETextDecode.Direct(textid);
+                    if (string.IsNullOrEmpty(str)) continue;
+                    progressCallback?.Invoke($"TerrainFontScan:{U.To0xHexString(textid)}");
+                    PortMissingGlyphs(ctx, str);
+                }
+
+                if (rom.RomInfo.version == 7)
+                {
+                    foreach (var sr in TextSourceListCore.MakeSoundRoomList(rom))
+                    {
+                        if (!U.isSafetyOffset(sr.addr, rom)) continue;
+                        uint textid = rom.u32(sr.addr + 12);
+                        string str = FETextDecode.Direct(textid);
+                        if (string.IsNullOrEmpty(str)) continue;
+                        progressCallback?.Invoke($"SoundRoomFontScan:{U.To0xHexString(textid)}");
+                        PortMissingGlyphs(ctx, str);
+                    }
+                }
+            }
+
+            // Other-text entries (all ROMs).
+            foreach (var o in TextSourceListCore.MakeOtherTextList(rom))
+            {
+                if (!U.isSafetyOffset(o.addr, rom)) continue;
+                uint pStr = rom.p32(o.addr);
+                string str = U.isSafetyOffset(pStr, rom) ? rom.getString(pStr) : string.Empty;
+                if (string.IsNullOrEmpty(str)) continue;
+                progressCallback?.Invoke($"OtherFontScan:{U.To0xHexString(pStr)}");
+                PortMissingGlyphs(ctx, str);
+            }
+
+            return new ImportFontResult { Ported = ctx.Ported, Generated = ctx.Generated };
+        }
+
+        /// <summary>
+        /// Copy fonts that the current ROM is missing from the fonts in the
+        /// source ROM (and optionally an extra-font ROM). Binary-compatible
+        /// shim retained for #536 callers — delegates to
+        /// <see cref="ImportFonts"/> with auto-generation disabled and returns
+        /// only the ported count.
         /// </summary>
         public static int ImportFontFromROMs(ROM rom, string fontRomPath,
             string extraFontRomPath, RecycleAddress recycle, Undo.UndoData undo,
             Action<string> progressCallback)
+            => ImportFonts(rom, fontRomPath, extraFontRomPath, null, default, false,
+                recycle, undo, progressCallback).Ported;
+
+        // Mutable context threaded through the per-string / per-glyph helpers
+        // so the Ported / Generated counters accumulate across passes without a
+        // long argument list.
+        sealed class FontPortContext
         {
-            if (rom?.RomInfo == null) return 0;
-
-            ROM fontRom = null;
-            ROM extraFontRom = null;
-            try
-            {
-                if (!string.IsNullOrEmpty(fontRomPath) && File.Exists(fontRomPath))
-                {
-                    fontRom = new ROM();
-                    string version;
-                    if (!fontRom.Load(fontRomPath, out version)) fontRom = null;
-                }
-                if (!string.IsNullOrEmpty(extraFontRomPath) && File.Exists(extraFontRomPath))
-                {
-                    extraFontRom = new ROM();
-                    string version;
-                    if (!extraFontRom.Load(extraFontRomPath, out version)) extraFontRom = null;
-                }
-
-                if (fontRom == null && extraFontRom == null) return 0;
-
-                PRIORITY_CODE myPriority = PriorityCodeUtil.SearchPriorityCode(rom);
-                PRIORITY_CODE fontRomPriority = fontRom != null
-                    ? PriorityCodeUtil.SearchPriorityCode(fontRom) : myPriority;
-                PRIORITY_CODE extraFontRomPriority = extraFontRom != null
-                    ? PriorityCodeUtil.SearchPriorityCode(extraFontRom) : myPriority;
-
-                var processed = new HashSet<string>();
-                int ported = 0;
-
-                // Pass 1: text-ID glyphs (Huffman / UnHuffman dictionary).
-                var decoder = new FETextDecode(rom, CoreState.SystemTextEncoder);
-                uint textCount = TranslateCore.GetTextCount(rom);
-                if (textCount > 0xFFFF) textCount = 0xFFFF;
-                for (uint id = 0; id < textCount; id++)
-                {
-                    string text;
-                    try { text = decoder.Decode(id) ?? string.Empty; }
-                    catch { continue; }
-
-                    progressCallback?.Invoke($"FontScan:{U.To0xHexString(id)}");
-                    ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
-                        text, processed, myPriority, fontRomPriority, extraFontRomPriority,
-                        recycle, undo);
-                }
-
-                // Pass 2: multibyte menu / terrain / sound-room / other-text
-                // pointer-backed entries (matches WF ToolTranslateROMFont).
-                if (rom.RomInfo.is_multibyte)
-                {
-                    foreach (var menuDef in TextSourceListCore.MakeMenuDefinitionList(rom))
-                    {
-                        if (!U.isSafetyOffset(menuDef.addr + 8, rom)) continue;
-                        uint p = menuDef.addr + 8;
-                        if (!U.isSafetyOffset(rom.p32(p), rom)) continue;
-                        foreach (var cmd in TextSourceListCore.MakeMenuCommandList(rom, p))
-                        {
-                            if (!U.isSafetyOffset(cmd.addr, rom)) continue;
-                            uint textid = rom.u32(cmd.addr + 0);
-                            string str = FETextDecode.Direct(textid);
-                            if (string.IsNullOrEmpty(str)) continue;
-                            progressCallback?.Invoke($"MenuFontScan:{U.To0xHexString(textid)}");
-                            ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
-                                str, processed, myPriority, fontRomPriority,
-                                extraFontRomPriority, recycle, undo);
-                        }
-                    }
-
-                    // This font-scan loop sits inside the multibyte guard
-                    // above, so MakeMapTerrainNameList's 4-byte path applies
-                    // and rom.u32 is correct here. English terrain font-port
-                    // is out of scope for #671 — tracked separately.
-                    foreach (var terrain in TextSourceListCore.MakeMapTerrainNameList(rom))
-                    {
-                        if (!U.isSafetyOffset(terrain.addr, rom)) continue;
-                        uint textid = rom.u32(terrain.addr);
-                        string str = FETextDecode.Direct(textid);
-                        if (string.IsNullOrEmpty(str)) continue;
-                        progressCallback?.Invoke($"TerrainFontScan:{U.To0xHexString(textid)}");
-                        ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
-                            str, processed, myPriority, fontRomPriority,
-                            extraFontRomPriority, recycle, undo);
-                    }
-
-                    if (rom.RomInfo.version == 7)
-                    {
-                        foreach (var sr in TextSourceListCore.MakeSoundRoomList(rom))
-                        {
-                            if (!U.isSafetyOffset(sr.addr, rom)) continue;
-                            uint textid = rom.u32(sr.addr + 12);
-                            string str = FETextDecode.Direct(textid);
-                            if (string.IsNullOrEmpty(str)) continue;
-                            progressCallback?.Invoke($"SoundRoomFontScan:{U.To0xHexString(textid)}");
-                            ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
-                                str, processed, myPriority, fontRomPriority,
-                                extraFontRomPriority, recycle, undo);
-                        }
-                    }
-                }
-
-                // Other-text entries (all ROMs).
-                foreach (var o in TextSourceListCore.MakeOtherTextList(rom))
-                {
-                    if (!U.isSafetyOffset(o.addr, rom)) continue;
-                    uint pStr = rom.p32(o.addr);
-                    string str = U.isSafetyOffset(pStr, rom) ? rom.getString(pStr) : string.Empty;
-                    if (string.IsNullOrEmpty(str)) continue;
-                    progressCallback?.Invoke($"OtherFontScan:{U.To0xHexString(pStr)}");
-                    ported += PortMissingGlyphs(rom, fontRom, extraFontRom,
-                        str, processed, myPriority, fontRomPriority,
-                        extraFontRomPriority, recycle, undo);
-                }
-
-                return ported;
-            }
-            finally
-            {
-                // ROM doesn't implement IDisposable; nothing to clean up here.
-            }
+            public ROM Rom;
+            public ROM FontRom;
+            public ROM ExtraFontRom;
+            public HashSet<string> Processed;
+            public PRIORITY_CODE MyPriority;
+            public PRIORITY_CODE FontRomPriority;
+            public PRIORITY_CODE ExtraFontRomPriority;
+            public RecycleAddress Recycle;
+            public Undo.UndoData Undo;
+            public IFontRasterizer Rasterizer; // null = auto-gen disabled
+            public FontSpec AutoGenFont;
+            public int Ported;
+            public int Generated;
         }
 
-        static int PortMissingGlyphs(ROM rom, ROM fontRom, ROM extraFontRom,
-            string text, HashSet<string> processed,
-            PRIORITY_CODE myPriority, PRIORITY_CODE fontRomPriority, PRIORITY_CODE extraFontRomPriority,
-            RecycleAddress recycle, Undo.UndoData undo)
+        static void PortMissingGlyphs(FontPortContext ctx, string text)
         {
-            int ported = 0;
             for (int n = 0; n < text.Length; n++)
             {
                 if (text[n] == '@') { n += 4; continue; }     // @XXXX escape
@@ -1198,64 +1255,85 @@ namespace FEBuilderGBA
                 if (text[n] == '\n') { continue; }
 
                 string one = text.Substring(n, 1);
-                if (processed.Contains(one)) continue;
-                processed.Add(one);
+                if (ctx.Processed.Contains(one)) continue;
+                ctx.Processed.Add(one);
 
-                // Try both isItemFont = false (text font) and true (item font).
+                // Try both isItemFont = false (text font) and true (item font),
+                // matching WF FontImporter's two FontImporterOne calls per char.
                 for (int kind = 0; kind < 2; kind++)
                 {
                     bool isItemFont = (kind == 1);
-                    if (TryPortOneGlyph(rom, fontRom, extraFontRom, one, isItemFont,
-                        myPriority, fontRomPriority, extraFontRomPriority,
-                        recycle, undo))
-                    {
-                        ported++;
-                    }
+                    TryPortOrGenerateOneGlyph(ctx, one, isItemFont);
                 }
             }
-            return ported;
         }
 
-        static bool TryPortOneGlyph(ROM rom, ROM fontRom, ROM extraFontRom,
-            string one, bool isItemFont,
-            PRIORITY_CODE myPriority, PRIORITY_CODE fontRomPriority, PRIORITY_CODE extraFontRomPriority,
-            RecycleAddress recycle, Undo.UndoData undo)
+        static void TryPortOrGenerateOneGlyph(FontPortContext ctx, string one, bool isItemFont)
         {
-            uint myMoji = ConvertMojiCharToUnit(one, myPriority);
-            if (myMoji < 0x20 || myMoji == 0x80) return false;
+            ROM rom = ctx.Rom;
+            uint myMoji = ConvertMojiCharToUnit(one, ctx.MyPriority);
+            if (myMoji < 0x20 || myMoji == 0x80) return;
 
             uint topaddress = FontCore.GetFontPointer(isItemFont, rom);
             uint myFontAddr = FontCore.FindFontData(topaddress, myMoji, out uint myPrevAddr,
-                rom, myPriority);
-            if (myFontAddr != U.NOT_FOUND) return false; // Already present.
-            if (myPrevAddr == U.NOT_FOUND) return false; // No slot to append.
+                rom, ctx.MyPriority);
+            if (myFontAddr != U.NOT_FOUND) return; // Already present.
+            if (myPrevAddr == U.NOT_FOUND) return; // No slot to append.
 
-            // Try fontRom first, then extraFontRom.
-            byte[] glyphData = TryReadGlyphFromROM(fontRom, fontRomPriority, isItemFont, myMoji);
-            if (glyphData == null)
+            // Step 1: try to port from fontRom, then extraFontRom.
+            byte[] glyphData = TryReadGlyphFromROM(ctx.FontRom, ctx.FontRomPriority, isItemFont, myMoji);
+            bool generated = false;
+            if (glyphData != null)
             {
-                glyphData = TryReadGlyphFromROM(extraFontRom, extraFontRomPriority, isItemFont, myMoji);
-                if (glyphData != null)
-                {
-                    FontCore.TransportFontStruct(glyphData, myMoji, myPriority, extraFontRomPriority);
-                }
+                FontCore.TransportFontStruct(glyphData, myMoji, ctx.MyPriority, ctx.FontRomPriority);
             }
             else
             {
-                FontCore.TransportFontStruct(glyphData, myMoji, myPriority, fontRomPriority);
+                glyphData = TryReadGlyphFromROM(ctx.ExtraFontRom, ctx.ExtraFontRomPriority, isItemFont, myMoji);
+                if (glyphData != null)
+                {
+                    FontCore.TransportFontStruct(glyphData, myMoji, ctx.MyPriority, ctx.ExtraFontRomPriority);
+                }
             }
 
-            if (glyphData == null) return false;
+            // Step 2: not in any source ROM -> rasterize a fresh glyph (#796).
+            // Mirrors WF FontImporterOne: verticalOffset 0, isSquareFont false
+            // (the 5-arg AutoGenerateFont overload that defaults verticalOffset
+            // to 0). Builds the 72-byte struct via FontCore.MakeNewFontData with
+            // this ROM's own priority code.
+            if (glyphData == null && ctx.Rasterizer != null)
+            {
+                byte[] fontImage;
+                int width;
+                try
+                {
+                    fontImage = ctx.Rasterizer.RasterizeGlyph(ctx.AutoGenFont, one,
+                        isItemFont, verticalOffset: 0, out width);
+                }
+                catch
+                {
+                    return; // a rasterizer fault must never abort the whole run
+                }
+                if (fontImage == null) return;
 
-            // Zero the next-pointer (list tail).
+                glyphData = FontCore.MakeNewFontData(myMoji, (uint)width, fontImage,
+                    rom, ctx.MyPriority);
+                generated = true;
+            }
+
+            if (glyphData == null) return;
+
+            // Zero the next-pointer (list tail), append, and re-link the chain.
             U.write_u32(glyphData, 0, 0);
 
-            uint newAddr = recycle.Write(glyphData, undo);
-            if (newAddr == U.NOT_FOUND) return false;
+            uint newAddr = ctx.Recycle.Write(glyphData, ctx.Undo);
+            if (newAddr == U.NOT_FOUND) return;
 
-            if (undo != null) rom.write_u32(myPrevAddr, U.toPointer(newAddr), undo);
+            if (ctx.Undo != null) rom.write_u32(myPrevAddr, U.toPointer(newAddr), ctx.Undo);
             else rom.write_u32(myPrevAddr, U.toPointer(newAddr));
-            return true;
+
+            if (generated) ctx.Generated++;
+            else ctx.Ported++;
         }
 
         static byte[] TryReadGlyphFromROM(ROM sourceRom, PRIORITY_CODE sourcePriority,

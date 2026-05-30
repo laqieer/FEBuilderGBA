@@ -123,6 +123,16 @@ namespace FEBuilderGBA.Avalonia
             // image-import views to record source-file paths.
             CoreState.ResourceCache ??= new FEBuilderGBA.EtcCacheResource();
 
+            // #796: wire the headless free-space allocator that RecycleAddress
+            // falls back to when no recycled region fits. WinForms wires this to
+            // InputFormRef.AppendBinaryData (Program.cs); the Avalonia runtime
+            // had it UNSET, so any RecycleAddress.Write with an empty recycle
+            // list silently returned U.NOT_FOUND — e.g. the font auto-generator
+            // (ImportFonts -> FontCore.MakeNewFontData -> RecycleAddress.Write)
+            // would fail to append a freshly rasterized glyph. Shared with the
+            // CLI + tests via the Core helper.
+            CoreState.WireHeadlessAppendBinaryData();
+
             // Load config
             string configPath = Path.Combine(baseDir, "config", "config.xml");
             if (File.Exists(configPath))

@@ -189,6 +189,43 @@ namespace FEBuilderGBA
         public static Func<byte[], Undo.UndoData, uint> AppendBinaryData { get; set; }
 
         /// <summary>
+        /// Wire <see cref="AppendBinaryData"/> to a headless free-space allocator
+        /// (only if not already set) so RecycleAddress's "no recycled region fits"
+        /// fallback works outside WinForms. WinForms sets AppendBinaryData to
+        /// InputFormRef.AppendBinaryData; the Avalonia app (App.axaml.cs) and the
+        /// CLI (RomLoader.InitFull) call this instead, and tests call it to
+        /// exercise the EXACT production allocator (#796).
+        ///
+        /// Mirrors the proven per-feature headless pattern
+        /// (MapExitPointCore.NewAlloc / MapEventUnitCore.ExpandUnitList):
+        /// FindFreeSpace in the upper half, fall back to the lower half, then
+        /// write the payload (recording into the passed undo when non-null).
+        /// Operates on <see cref="ROM"/>; returns the write offset or
+        /// <c>U.NOT_FOUND</c> on failure (never throws).
+        /// </summary>
+        public static void WireHeadlessAppendBinaryData()
+        {
+            if (AppendBinaryData != null) return;
+            AppendBinaryData = (data, undo) =>
+            {
+                var rom = ROM;
+                if (rom?.RomInfo == null || data == null) return U.NOT_FOUND;
+
+                uint needsize = (uint)data.Length;
+                uint addr = rom.FindFreeSpace((uint)(rom.Data.Length / 2), needsize);
+                if (addr == U.NOT_FOUND)
+                {
+                    addr = rom.FindFreeSpace(0x100u, needsize);
+                }
+                if (addr == U.NOT_FOUND) return U.NOT_FOUND;
+
+                if (undo != null) rom.write_range(addr, data, undo);
+                else rom.write_range(addr, data);
+                return addr;
+            };
+        }
+
+        /// <summary>
         /// Callback to load patch-provided event scripts (wraps PatchForm.MakeEventScript).
         /// Called during EventScript.Load() for Event type scripts.
         /// </summary>

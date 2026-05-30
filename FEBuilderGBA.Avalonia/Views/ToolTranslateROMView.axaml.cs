@@ -20,11 +20,12 @@ namespace FEBuilderGBA.Avalonia.Views
     /// `FontAutoGenelateCheckBox`, and the multibyte-only visibility rule on
     /// the JP-font override checkboxes.
     ///
-    /// The action buttons (`Start Translation`, `Export All Texts`,
-    /// `Import All Texts`, `Import Font`, `Change` font name) render with
-    /// `IsEnabled="False"` plus a ToolTip referencing #536. They become
-    /// real handlers once the Core extraction of `ToolTranslateROM` +
-    /// `FETextDecode` + `RecycleAddress` + `FindOrignalROMByLang` lands.
+    /// All action buttons (`Start Translation`, `Export All Texts`,
+    /// `Import All Texts`, `Import Font`, `Change` font name) are fully wired to
+    /// the Core orchestration (#536). As of #796 the `Import Font` handler also
+    /// auto-generates missing glyphs cross-platform via
+    /// <see cref="FEBuilderGBA.SkiaSharp.SkiaFontRasterizer"/>, so the former
+    /// WinForms-only System.Drawing.Bitmap dependency is gone.
     /// </summary>
     public partial class ToolTranslateROMView : TranslatedWindow, IEditorView
     {
@@ -122,13 +123,14 @@ namespace FEBuilderGBA.Avalonia.Views
         // ToolTranslateROMParityTests.UndoService_* assert the call sequence
         // on success and on simulated exception.
         //
-        // Known limitations (KnownGap per #536 scope discipline):
-        //  - Bitmap font auto-generation requires System.Drawing.Bitmap and
-        //    therefore stays WinForms-only. The Avalonia ImportFont handler
-        //    surfaces a status dialog instead of silently no-oping.
-        //  - The full WipeJP* flow needs WF HowDoYouLikePatchForm popup
+        // Cross-platform note:
+        //  - Bitmap font auto-generation is now cross-platform via
+        //    SkiaFontRasterizer (#796) — the ImportFont handler rasterizes
+        //    missing glyphs through the IFontRasterizer seam, no longer
+        //    WinForms-only.
+        //  - The full WipeJP* flow still needs WF HowDoYouLikePatchForm popup
         //    orchestration; Avalonia SimpleFire skips the OverrideJpFont
-        //    branch and notes this in the user-facing message.
+        //    branch and notes this in the user-facing message (KnownGap).
 
         async void SimpleFire_Click(object? sender, RoutedEventArgs e)
         {
@@ -288,12 +290,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void ImportFont_Click(object? sender, RoutedEventArgs e)
         {
-            // Avalonia ImportFont calls the Core ImportFontFromROMs orchestration
-            // which uses FontCore (in Core) + TextSourceListCore (in Core) to
-            // port missing glyphs from a source Font ROM (+ optional Extra Font
-            // ROM) into the current ROM. The bitmap auto-generation branch
-            // (System.Drawing.Bitmap) is NOT exercised - that stays WinForms-only
-            // (see #536 Known Limitations / FontAutoGenerate-checked banner below).
+            // Avalonia ImportFont calls the Core ImportFonts orchestration which
+            // uses FontCore + TextSourceListCore (both in Core) to port missing
+            // glyphs from a source Font ROM (+ optional Extra Font ROM), and —
+            // when "Auto-Generate Missing Fonts" is checked — rasterizes any
+            // still-missing glyph cross-platform via SkiaFontRasterizer (#796),
+            // replacing the old WinForms-only System.Drawing.Bitmap path.
 
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null)
@@ -307,33 +309,41 @@ namespace FEBuilderGBA.Avalonia.Views
             bool extraFontExists = !string.IsNullOrEmpty(_vm.ExtraFontRomPath) &&
                 File.Exists(_vm.ExtraFontRomPath);
 
-            if (!fontRomExists && !extraFontExists)
+            // With auto-generation on we no longer need a source ROM — the
+            // rasterizer can synthesize every missing glyph. Only reject when
+            // there is neither a source ROM nor auto-generation.
+            if (!fontRomExists && !extraFontExists && !_vm.FontAutoGenerate)
             {
-                await ShowInfo("No font source ROM specified. Set Font ROM (or Extra Font ROM) " +
-                    "and try again.");
+                await ShowInfo("No font source ROM specified and auto-generation is off. " +
+                    "Set Font ROM (or Extra Font ROM), or enable " +
+                    "\"Auto-Generate Missing Fonts\", and try again.");
                 return;
             }
 
+            var fontSpec = _vm.BuildAutoGenFontSpec();
             _vm.UndoService.Begin("Import Font");
             try
             {
-                int ported = 0;
+                ToolTranslateROMCore.ImportFontResult result = default;
                 await Task.Run(() =>
                 {
                     var recycle = new RecycleAddress();
-                    ported = ToolTranslateROMCore.ImportFontFromROMs(rom,
+                    var rasterizer = new FEBuilderGBA.SkiaSharp.SkiaFontRasterizer();
+                    result = ToolTranslateROMCore.ImportFonts(rom,
                         _vm.FontRomPath, _vm.ExtraFontRomPath,
+                        rasterizer, fontSpec, _vm.FontAutoGenerate,
                         recycle, _vm.UndoService.GetActiveUndoData(), null);
                 });
                 _vm.UndoService.Commit();
 
-                string msg = $"Imported {ported} font glyph(s) from source ROM(s).";
+                string msg = $"Font import complete: {result.Generated} generated, " +
+                    $"{result.Ported} ported from source ROM(s).";
                 if (_vm.FontAutoGenerate)
                 {
-                    msg += "\n\nNote: Font auto-generation is enabled but requires " +
-                        "System.Drawing.Bitmap (WinForms-only, #536 KnownGap). " +
-                        "Missing fonts that aren't in any source ROM remain unimported. " +
-                        "Use the WinForms tool to auto-generate them from a TrueType font.";
+                    msg += $"\n\nAuto-generated glyphs were rasterized cross-platform " +
+                        $"(SkiaSharp) from the \"{fontSpec.FamilyName}\" family at " +
+                        $"{fontSpec.Size:0.#}pt. Any character the font cannot render " +
+                        $"(e.g. an unsupported codepoint) is skipped.";
                 }
                 await ShowInfo(msg);
             }

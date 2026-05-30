@@ -7134,6 +7134,12 @@ to:
 :Use Font Name
 利用フォント
 
+:Font Size
+フォントサイズ
+
+:Copies missing glyphs from Font ROM, then auto-generates any still-missing glyph cross-platform via SkiaSharp (#796)
+Font ROM から不足グリフをコピーし、まだ足りないグリフを SkiaSharp でクロスプラットフォーム自動生成します (#796)
+
 :Change
 変更
 
