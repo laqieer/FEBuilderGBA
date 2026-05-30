@@ -153,31 +153,51 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.InRange(width, 1, 16);
         }
 
-        // ---------- GOLDEN: exact Skia-path regression lock ----------
+        // ---------- GOLDEN: Skia-path regression lock (pixel tolerance) ----------
+        //
+        // The baseline golden bytes below are the Windows/Linux (x64) render.
+        // We compare with a small PER-PIXEL tolerance instead of exact byte
+        // equality because Apple-Silicon (arm64) Skia performs floating-point
+        // antialiasing slightly differently than x64: a glyph-edge pixel can
+        // land marginally on the other side of the `R < 0xA0` foreground
+        // threshold, flipping ~1-2 of the 256 pixels (CI on macos-latest/arm64
+        // observed exactly one extra foreground pixel per glyph: text byte
+        // 0x00->0x0C, item byte 0x00->0x30). With Hinting=None there is no OS
+        // hinting variance — only this sub-pixel AA-threshold drift — so a tiny
+        // tolerance keeps the test a meaningful regression lock (a broken
+        // threshold / scale / offset / pack flips tens of pixels) while staying
+        // green on x64 AND arm64. Exact-equality is intentionally NOT used.
+        const int GoldenPixelTolerance = 6;
 
         [Fact]
-        public void Golden_TextGlyph_A_ExactBytes()
+        public void Golden_TextGlyph_A_WithinPixelTolerance()
         {
             var r = new SkiaFontRasterizer();
             byte[] tile = r.RasterizeGlyph(TuffySpec(), "A", isItemFont: false, 0, out int width);
-            Assert.Equal(GoldenTextA, tile);
+            int diff = CountDifferingPixels(GoldenTextA, tile);
+            Assert.True(diff <= GoldenPixelTolerance,
+                $"text glyph 'A' differs from baseline golden by {diff} pixels (tolerance {GoldenPixelTolerance})");
             Assert.Equal(GoldenTextAWidth, width);
         }
 
         [Fact]
-        public void Golden_ItemGlyph_A_ExactBytes()
+        public void Golden_ItemGlyph_A_WithinPixelTolerance()
         {
             var r = new SkiaFontRasterizer();
             byte[] tile = r.RasterizeGlyph(TuffySpec(), "A", isItemFont: true, 0, out int width);
-            Assert.Equal(GoldenItemA, tile);
+            int diff = CountDifferingPixels(GoldenItemA, tile);
+            Assert.True(diff <= GoldenPixelTolerance,
+                $"item glyph 'A' differs from baseline golden by {diff} pixels (tolerance {GoldenPixelTolerance})");
             Assert.Equal(GoldenItemAWidth, width);
         }
 
-        // Golden bytes captured from the SkiaSharp render of Tuffy 'A' at 12pt.
-        // Loaded via FontSpec.FontFileData with Hinting=None (Skia geometric
-        // rasterizer, no OS hinting) under the uniform native libSkiaSharp 2.88
-        // (aligned to Avalonia 11.2.3) -> identical bytes on win/ubuntu/macOS.
-        // Regenerate only on an intentional rasterizer change.
+        // Baseline golden bytes: the Windows/Linux (x64) SkiaSharp render of
+        // Tuffy 'A' at 12pt, loaded via FontSpec.FontFileData with Hinting=None
+        // (Skia geometric rasterizer, no OS hinting) under native libSkiaSharp
+        // 2.88 (aligned to Avalonia 11.2.3). Identical on win + ubuntu (x64);
+        // arm64 (macOS) drifts ~1-2 px via AA-threshold rounding, absorbed by
+        // the GoldenPixelTolerance compare above. Regenerate only on an
+        // intentional rasterizer change.
         static readonly byte[] GoldenTextA =
         {
             0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
@@ -196,6 +216,25 @@ namespace FEBuilderGBA.Avalonia.Tests
         const int GoldenItemAWidth = 6;
 
         // ---------- helpers ----------
+
+        /// <summary>
+        /// Decode two 64-byte tiles into their 256 2-bit palette indices
+        /// (reverse of the Image4ToByte pack: per byte, 4 pixels =
+        /// (b&gt;&gt;0)&amp;3, (b&gt;&gt;2)&amp;3, (b&gt;&gt;4)&amp;3, (b&gt;&gt;6)&amp;3) and
+        /// count how many of the 256 pixels differ. Used by the golden tests to
+        /// tolerate the small x64-vs-arm64 antialiasing drift.
+        /// </summary>
+        static int CountDifferingPixels(byte[] expected, byte[] actual)
+        {
+            byte[] e = UnpackIndices(expected);
+            byte[] a = UnpackIndices(actual);
+            int diff = 0;
+            for (int i = 0; i < e.Length; i++)
+            {
+                if (e[i] != a[i]) diff++;
+            }
+            return diff;
+        }
 
         static byte[] UnpackIndices(byte[] tile)
         {
