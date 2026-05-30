@@ -309,7 +309,10 @@
                    Name="UnitTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
 
             <!-- 4x4 grid of the 16 ext-bytes B16..B31, each label + NumericUpDown.
-                 Two-way bound to the VM's Ext0..Ext15; offset shown = 16 + index. -->
+                 These are x:Name-only (no AXAML binding): the values are pushed
+                 from the VM's Ext0..Ext15 in code-behind UpdateUI() and pulled
+                 back in WriteButton_Click() — same mechanism as the editor's
+                 other fields. Offset = 16 + index. -->
             <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtByteHeader_Label"
                    Content="Ext Bytes" FontWeight="SemiBold" Margin="0,8,0,0" />
             <!-- NOTE: Avalonia 11.2.3 Grid has no ColumnSpacing/RowSpacing —

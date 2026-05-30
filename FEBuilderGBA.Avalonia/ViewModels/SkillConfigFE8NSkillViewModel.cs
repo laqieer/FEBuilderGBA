@@ -354,8 +354,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CondItem4 = rom.u8(addr + 15);
 
             // Ext-tab bytes B16..B31 (#790 — now editable via Ext0..Ext15).
-            // Assign through the properties so PropertyChanged fires for any
-            // bound NumericUpDowns (IsLoading suppresses dirty marking).
+            // Assign through the properties (not the backing array) for
+            // consistency with the other fields above, so IsLoading dirty-
+            // tracking suppression applies uniformly. The View's UpdateUI()
+            // pushes these into the NumericUpDowns — there is no AXAML binding.
             Ext0 = rom.u8(addr + 16u);
             Ext1 = rom.u8(addr + 17u);
             Ext2 = rom.u8(addr + 18u);
@@ -420,7 +422,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // the +31 bound is already covered by the RowStride-1 guard above.
             for (uint i = 0; i < 16; i++)
             {
-                rom.write_u8(addr + 16u + i, (byte)_ext[i]);
+                rom.write_u8(addr + 16u + i, _ext[i]);
             }
         }
 
