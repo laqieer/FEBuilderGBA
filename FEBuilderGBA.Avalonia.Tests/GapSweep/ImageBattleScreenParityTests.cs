@@ -115,8 +115,8 @@ public class ImageBattleScreenParityTests
     /// <summary>
     /// #802: the Battle preview is now rendered LIVE via a GbaImageControl
     /// (ImageBattleScreenCore.RenderBattleScreenPreview), replacing the old
-    /// deferred KnownGap placeholder label. The Chipset thumbnail remains
-    /// deferred (verified separately by View_HasChipsetPreviewKnownGapPlaceholder).
+    /// deferred KnownGap placeholder label. #805: the Chipset chip list is now
+    /// ALSO rendered live (verified by View_HasLiveChipsetPreviewImage).
     /// </summary>
     [Fact]
     public void View_HasLiveBattlePreviewImage()
@@ -135,11 +135,27 @@ public class ImageBattleScreenParityTests
             RegexOptions.Singleline), code);
     }
 
+    /// <summary>
+    /// #805: the Chipset chip list is now rendered LIVE via a GbaImageControl
+    /// (ImageBattleScreenCore.RenderChipsetPreview, mirroring WF MakeCHIPLIST),
+    /// replacing the old deferred KnownGap placeholder label. The new control
+    /// carries the ChipsetPreview_Image AutomationId; the old _Label is gone.
+    /// </summary>
     [Fact]
-    public void View_HasChipsetPreviewKnownGapPlaceholder()
+    public void View_HasLiveChipsetPreviewImage()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ImageBattleScreen_ChipsetPreview_Label\"", axaml);
+        // The live chip-list control carries the ChipsetPreview AutomationId and
+        // is a GbaImageControl (Image suffix per AutomationId convention).
+        Assert.Contains("AutomationId=\"ImageBattleScreen_ChipsetPreview_Image\"", axaml);
+        Assert.Contains("Name=\"ChipsetPreview\"", axaml);
+        // The old deferred placeholder label must be gone.
+        Assert.DoesNotContain("AutomationId=\"ImageBattleScreen_ChipsetPreview_Label\"", axaml);
+        // The code-behind must wire the render into the control.
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"ChipsetPreview\.SetImage\(\s*_vm\.RenderChipsetPreview\(\)\s*\)",
+            RegexOptions.Singleline), code);
     }
 
     [Fact]

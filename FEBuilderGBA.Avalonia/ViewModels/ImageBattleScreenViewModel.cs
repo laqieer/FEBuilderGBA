@@ -169,6 +169,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Render the chipset chip-list preview (#805, follow-up to #802).
+        /// Delegates to <see cref="ImageBattleScreenCore.RenderChipsetPreview"/>
+        /// which mirrors the WF <c>MakeCHIPLIST()</c> 8-column flip/palette-bank
+        /// permutation grid (canvas <c>ChipCache.Width*4*2</c> x
+        /// <c>ChipCache.Height</c>). Returns <c>null</c> (caller shows a blank
+        /// surface) if any required source is missing/corrupt.
+        /// </summary>
+        public IImage RenderChipsetPreview()
+        {
+            return ImageBattleScreenCore.RenderChipsetPreview(CoreState.ROM);
+        }
+
+        /// <summary>
         /// Bulk-write the TSA grid + 5 image pointers to ROM. Caller MUST
         /// wrap this in <c>UndoService.Begin/Commit/Rollback</c>. Returns
         /// <c>true</c> on success.
