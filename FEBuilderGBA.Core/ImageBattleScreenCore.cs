@@ -186,7 +186,11 @@ namespace FEBuilderGBA
         ///     directly at <c>battle_screen_palette_pointer</c> -- NOT LZ77
         ///     (WF passes the palette offset straight to ByteToImage16Tile).
         ///   * Tiles (Blocker 2): LZ77-decompress image1..image5, each 8px
-        ///     wide, concatenated vertically in order into one tileset.
+        ///     wide, concatenated vertically in order into one tileset. Each
+        ///     stream is validated with <c>LZ77.getCompressedSize</c> first so a
+        ///     truncated-but-header-valid chunk (which <c>LZ77.decompress</c>
+        ///     would otherwise return as a zero-filled buffer) fails the whole
+        ///     render instead of rendering a misleading blank chunk.
         ///   * TSA (Blocker 3): <see cref="LoadBattleScreen"/> returns RAW GBA
         ///     TSA u16 cells. WF MakeBattleScreen reads tile=m&amp;0xff,
         ///     flip=(m&gt;&gt;8)&amp;0x0f, pal=m&gt;&gt;12 with flip mapping
@@ -232,6 +236,22 @@ namespace FEBuilderGBA
                 // Each image1..5 is REQUIRED (WF blits all five): a bad pointer
                 // or LZ77 failure must fail the whole render, not skip a chunk.
                 if (!U.isSafetyOffset(imageAddr, rom)) return null;
+
+                // Validate the compressed stream BEFORE decompressing.
+                // LZ77.decompress does NOT distinguish a truncated stream: when
+                // the input ends early it breaks out and returns a ZERO-FILLED
+                // buffer of the advertised (header) size, which would silently
+                // render as a blank-but-plausible chunk and violate the
+                // "any corrupt REQUIRED source fails the whole render" contract
+                // (#802 PR #804 review fix). LZ77.getCompressedSize returns the
+                // ACTUAL consumed compressed length only when the full stream
+                // decodes within the ROM bounds, and 0 on any corruption /
+                // truncation / bad header. A defensive end-of-ROM bound check
+                // on (imageAddr + compressedSize) additionally guards an overrun.
+                uint compressedSize = LZ77.getCompressedSize(rom.Data, imageAddr);
+                if (compressedSize == 0) return null;
+                if ((ulong)imageAddr + (ulong)compressedSize > (ulong)rom.Data.Length) return null;
+
                 byte[] chunk = LZ77.decompress(rom.Data, imageAddr);
                 if (chunk == null || chunk.Length == 0) return null;
                 chunks[i] = chunk;

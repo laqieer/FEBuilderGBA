@@ -46,6 +46,12 @@ namespace FEBuilderGBA.Avalonia.Views
             ZoomCombo.Items.Add(R._("2x Zoom"));
             ZoomCombo.Items.Add(R._("3x Zoom"));
             ZoomCombo.Items.Add(R._("4x Zoom"));
+            // Set the default 2x selection HERE (not in AXAML) so the
+            // Zoom_SelectionChanged handler fires now -- with BattlePreview
+            // already constructed -- and applies zoom=2 to the live preview.
+            // An AXAML SelectedIndex="1" would run before BattlePreview exists
+            // (no-op zoom), leaving the combo at 2x but the preview at 1x
+            // (#802 PR #804 review fix).
             ZoomCombo.SelectedIndex = 1;
 
             CachePaletteCells();
@@ -208,6 +214,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
+                // Defensive: the handler can be reached during XAML init before
+                // the BattlePreview field is assigned. Guard so we never NRE;
+                // the constructor sets the initial selection AFTER all named
+                // controls exist, so the real zoom-apply runs then (#802).
+                if (BattlePreview == null || ZoomCombo == null) return;
                 int idx = ZoomCombo.SelectedIndex;
                 if (idx < 0) return;
                 BattlePreview.Zoom = idx + 1; // combo 0..3 -> zoom 1..4

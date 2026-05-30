@@ -28,8 +28,13 @@
                   Name="WriteButton" Content="Write" Width="140"
                   Click="WriteButton_Click" />
           <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" />
+          <!-- Initial selection is set in the constructor AFTER
+               InitializeComponent() (NOT via SelectedIndex here) so the
+               Zoom_SelectionChanged handler runs once BattlePreview exists,
+               keeping the combo selection and the live preview's zoom in sync
+               on startup (#802 PR #804 review fix). -->
           <ComboBox AutomationProperties.AutomationId="ImageBattleScreen_Zoom_Combo"
-                    Name="ZoomCombo" Width="120" VerticalAlignment="Center" SelectedIndex="1"
+                    Name="ZoomCombo" Width="120" VerticalAlignment="Center"
                     SelectionChanged="Zoom_SelectionChanged"
                     ToolTip.Tip="Zoom factor for the live battle-screen preview (#802)." />
           <!-- TSAInfo split into separate TextBlocks so each fragment goes

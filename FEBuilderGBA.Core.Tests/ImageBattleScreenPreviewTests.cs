@@ -338,6 +338,50 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(rom));
         }
 
+        // PR #804 review fix: LZ77.decompress does NOT distinguish a truncated
+        // stream -- when the compressed input ends early it breaks out and
+        // returns a ZERO-FILLED buffer of the advertised (header) uncompressed
+        // size. Without the getCompressedSize pre-validation, such a chunk would
+        // be silently accepted (chunk.Length != 0) and render as a misleading
+        // blank strip. RenderBattleScreenPreview must instead return null.
+        [Fact]
+        public void RenderBattleScreenPreview_TruncatedImageStream_ReturnsNull()
+        {
+            using var _ = EnsureImageService();
+            var rom = MakeRom();
+            ushort[] map = new ushort[MAP_X * MAP_Y];
+            PlantMap(rom, map);
+
+            // Plant a TRUNCATED LZ77 stream for image3 right at the end of ROM:
+            // a valid header (0x10 + a 0x1000-byte advertised uncompressed size)
+            // but only a handful of bytes before Data.Length, so the stream can
+            // never reach 0x1000 output bytes and runs off the end of input.
+            //   * isSafetyOffset(imageAddr) is TRUE (offset is in-bounds).
+            //   * LZ77.decompress returns a zero-filled 0x1000 buffer (the bug).
+            //   * LZ77.getCompressedSize returns 0 (truncation) -> our guard nulls.
+            uint imageAddr = (uint)rom.Data.Length - 8;
+            // Header: marker 0x10, uncompressed size = 0x001000 (little-endian).
+            rom.Data[imageAddr + 0] = 0x10;
+            rom.Data[imageAddr + 1] = 0x00;
+            rom.Data[imageAddr + 2] = 0x10;
+            rom.Data[imageAddr + 3] = 0x00;
+            // One control byte (all-literal) + a couple literal bytes, then ROM
+            // ends well before 0x1000 output bytes can be produced.
+            rom.Data[imageAddr + 4] = 0x00; // control: next 8 blocks are literals
+            rom.Data[imageAddr + 5] = 0xAA;
+            rom.Data[imageAddr + 6] = 0xBB;
+            rom.Data[imageAddr + 7] = 0xCC;
+            U.write_u32(rom.Data, rom.RomInfo.battle_screen_image3_pointer, U.toPointer(imageAddr));
+
+            // Sanity: confirm the truncation is real at the LZ77 level so the
+            // test fails loudly if the synthetic stream is misconstructed.
+            Assert.Equal(0u, LZ77.getCompressedSize(rom.Data, imageAddr));
+            byte[] bugBuffer = LZ77.decompress(rom.Data, imageAddr);
+            Assert.NotEmpty(bugBuffer); // decompress would silently accept this
+
+            Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(rom));
+        }
+
         // ----------------------------------------------------------------
         // Helpers
         // ----------------------------------------------------------------
