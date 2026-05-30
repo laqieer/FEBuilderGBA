@@ -99,6 +99,14 @@ namespace FEBuilderGBA.CLI
             if (CoreState.WorkSupportCache == null)
                 CoreState.WorkSupportCache = new HeadlessEtcCache();
 
+            // #796: wire the headless free-space allocator that RecycleAddress
+            // falls back to when no recycled region fits (WinForms wires this to
+            // InputFormRef.AppendBinaryData in Program.cs). Headless CLI write
+            // commands (--translate import, font import, etc.) build an empty
+            // RecycleAddress, so without this any append would silently return
+            // U.NOT_FOUND. Shared with the Avalonia app + tests via the Core helper.
+            CoreState.WireHeadlessAppendBinaryData();
+
             // Wire text encoder
             if (CoreState.SystemTextEncoder == null || CoreState.SystemTextEncoder is HeadlessSystemTextEncoder)
             {

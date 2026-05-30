@@ -581,6 +581,75 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // Reproduce the Avalonia/CLI runtime FAITHFULLY: set CoreState.ROM +
+        // encoder but leave CoreState.AppendBinaryData UNSET (null) — the exact
+        // state the app was in before #796's wiring fix. RecycleAddress.Write
+        // with an empty recycle + null AppendBinaryData returns U.NOT_FOUND, so
+        // a missing glyph cannot be appended. The earlier tests' InstallAppender
+        // masked this by setting a custom allocator; this helper does NOT.
+        static IDisposable InstallRuntimeWithoutAppender(ROM rom)
+        {
+            var prev = new RestoreState(CoreState.ROM, CoreState.AppendBinaryData,
+                CoreState.SystemTextEncoder);
+            CoreState.ROM = rom;
+            CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder();
+            CoreState.AppendBinaryData = null; // <-- the unwired runtime
+            return prev;
+        }
+
+        [Fact]
+        public void ImportFonts_UnwiredAppend_NoOps_ThenWired_Generates()
+        {
+            // A genuinely-missing glyph in a zero-filled FE8U (plenty of free
+            // space for FindFreeSpace to satisfy the append once wired).
+            ROM rom = MakeRomWithOneAsciiText('A', out _);
+            using (InstallRuntimeWithoutAppender(rom))
+            {
+                var recycle = new RecycleAddress();
+
+                // BEFORE: AppendBinaryData unset -> RecycleAddress.Write returns
+                // U.NOT_FOUND, so the rasterized glyph cannot be appended and
+                // Generated stays 0 (this is the bug the Avalonia app shipped
+                // with — auto-gen silently no-ops).
+                var before = ToolTranslateROMCore.ImportFonts(rom,
+                    fontRomPath: string.Empty, extraFontRomPath: string.Empty,
+                    rasterizer: new FakeFontRasterizer(0x5A), autoGenFont: default,
+                    autoGenEnabled: true, recycle: recycle, undo: null,
+                    progressCallback: null);
+                Assert.Equal(0, before.Generated);
+                Assert.False(FindSentinelTile(rom, 0x5A),
+                    "no bytes should land while AppendBinaryData is unwired");
+
+                // AFTER: call the EXACT production wiring the Avalonia app +
+                // CLI use (CoreState.WireHeadlessAppendBinaryData). Now the
+                // append succeeds and the rasterized glyph is written.
+                CoreState.WireHeadlessAppendBinaryData();
+                Assert.NotNull(CoreState.AppendBinaryData);
+
+                var fresh = new RecycleAddress();
+                var after = ToolTranslateROMCore.ImportFonts(rom,
+                    fontRomPath: string.Empty, extraFontRomPath: string.Empty,
+                    rasterizer: new FakeFontRasterizer(0x5A), autoGenFont: default,
+                    autoGenEnabled: true, recycle: fresh, undo: null,
+                    progressCallback: null);
+
+                // 'A' has a text + item variant, both missing -> 2 generated.
+                Assert.Equal(0, after.Ported);
+                Assert.Equal(2, after.Generated);
+
+                // The sentinel 64-byte tile actually landed in free space.
+                Assert.True(FindSentinelTile(rom, 0x5A),
+                    "generated sentinel tile must land once AppendBinaryData is wired");
+
+                // And it sits at a real free-space offset the wired allocator
+                // chose (>= the lower-half search floor, within the ROM).
+                uint at = FindSentinelOffset(rom, 0x5A);
+                Assert.NotEqual(U.NOT_FOUND, at);
+                Assert.True(at >= 0x100u && at + 64 <= (uint)rom.Data.Length,
+                    $"sentinel offset {at:X} not in a valid free-space range");
+            }
+        }
+
         [Fact]
         public void ImportFonts_MixedSourcePortAndAutoGenResidue_CountsBoth()
         {
@@ -693,7 +762,13 @@ namespace FEBuilderGBA.Core.Tests
 
         // Scan the ROM for a run of 64 consecutive `fill` bytes (the sentinel
         // tile written into a font struct's bitmap region).
-        static bool FindSentinelTile(ROM rom, byte fill)
+        static bool FindSentinelTile(ROM rom, byte fill) =>
+            FindSentinelOffset(rom, fill) != U.NOT_FOUND;
+
+        // Return the start offset of the first run of >= 64 consecutive `fill`
+        // bytes, or U.NOT_FOUND if none. Used to assert the rasterized tile
+        // actually landed at a free-space offset.
+        static uint FindSentinelOffset(ROM rom, byte fill)
         {
             byte[] data = rom.Data;
             int run = 0;
@@ -702,14 +777,14 @@ namespace FEBuilderGBA.Core.Tests
                 if (data[i] == fill)
                 {
                     run++;
-                    if (run >= 64) return true;
+                    if (run >= 64) return (uint)(i - 63);
                 }
                 else
                 {
                     run = 0;
                 }
             }
-            return false;
+            return U.NOT_FOUND;
         }
     }
 }
