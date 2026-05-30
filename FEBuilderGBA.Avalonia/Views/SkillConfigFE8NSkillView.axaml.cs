@@ -107,6 +107,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     ChangeTypeComboBox.SelectedIndex = 0;
                 }
                 finally { _suppressChangeTypeChange = false; }
+
+                // A fresh list (Open / Reload) has no row selected yet — clear
+                // any stale unit-name previews until OnSelected re-populates
+                // them (#793 refinement: CLEAR when no entry is loaded).
+                ClearExtNames();
             }
             catch (Exception ex)
             {
@@ -296,6 +301,13 @@ namespace FEBuilderGBA.Avalonia.Views
             ExtB30Box.Value = _vm.Ext14;
             ExtB31Box.Value = _vm.Ext15;
 
+            // Refresh the 16 read-only unit-name previews (#793 — WF N00
+            // decoration). Each name is derived from the BOX's CURRENT value
+            // (not the VM prop), which is the value we just pushed above. The
+            // per-NUD ValueChanged handler keeps them live while the user
+            // edits; this initial sweep covers the row-load path.
+            RefreshAllExtNames();
+
             // Icon image render.
             try
             {
@@ -366,6 +378,99 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             _currentIconBitmap = bmp;
             IconImage.Source = bmp;
+        }
+
+        // -----------------------------------------------------------
+        // Ext-byte unit-name preview (#793 — WF N00 decoration parity).
+        //
+        // Each B16..B31 ext-byte is treated as a one-based unit ID; WF's N00
+        // (Unit) sub-list shows that unit's name, so the Avalonia Unit tab
+        // decorates each byte with a READ-ONLY resolved unit-name TextBlock.
+        // Read-only: this NEVER writes to the ROM and does NOT touch the
+        // #790 write path (WriteButton_Click / _vm.Write).
+        //
+        // CRITICAL (#793 refinement): the preview is derived from the BOX's
+        // CURRENT value, NOT the VM's Ext{i} prop. The VM props are only
+        // re-synced from the boxes in WriteButton_Click, so a handler reading
+        // _vm.Ext{i} would show the OLD name while the user is mid-edit.
+        // Reading box.Value keeps the preview live.
+        // -----------------------------------------------------------
+
+        // Lazily-built box -> name-label pairing for the 16 ext-bytes. Cached
+        // after the first build (the named controls are created in XAML and
+        // never replaced).
+        (NumericUpDown Box, TextBlock Label)[]? _extNamePairs;
+
+        (NumericUpDown Box, TextBlock Label)[] ExtNamePairs => _extNamePairs ??= new[]
+        {
+            (ExtB16Box, ExtB16NameLabel), (ExtB17Box, ExtB17NameLabel),
+            (ExtB18Box, ExtB18NameLabel), (ExtB19Box, ExtB19NameLabel),
+            (ExtB20Box, ExtB20NameLabel), (ExtB21Box, ExtB21NameLabel),
+            (ExtB22Box, ExtB22NameLabel), (ExtB23Box, ExtB23NameLabel),
+            (ExtB24Box, ExtB24NameLabel), (ExtB25Box, ExtB25NameLabel),
+            (ExtB26Box, ExtB26NameLabel), (ExtB27Box, ExtB27NameLabel),
+            (ExtB28Box, ExtB28NameLabel), (ExtB29Box, ExtB29NameLabel),
+            (ExtB30Box, ExtB30NameLabel), (ExtB31Box, ExtB31NameLabel),
+        };
+
+        /// <summary>
+        /// Resolve the read-only unit-name preview for a single ext-byte value.
+        /// WF N00 decoration: the byte is a one-based unit ID. A value of 0
+        /// renders empty (no unit), NOT "???". Static + pure so the resolver
+        /// contract can be unit-tested directly (#793).
+        /// </summary>
+        internal static string FormatExtUnitName(uint value)
+        {
+            // Explicit 0-guard: 0 means "no unit" → empty preview (the resolver
+            // already returns "" for 0, but the guard makes the contract local
+            // and independent of NameResolver's internals).
+            if (value == 0) return "";
+            try { return NameResolver.GetUnitNameByOneBasedId(value) ?? ""; }
+            catch { return ""; }
+        }
+
+        /// <summary>Refresh one preview label from its paired NUD's current value.</summary>
+        static void RefreshExtName(NumericUpDown box, TextBlock label)
+        {
+            label.Text = FormatExtUnitName((uint)(box.Value ?? 0));
+        }
+
+        /// <summary>Refresh all 16 ext-byte unit-name previews from the box values.</summary>
+        void RefreshAllExtNames()
+        {
+            foreach (var (box, label) in ExtNamePairs)
+            {
+                RefreshExtName(box, label);
+            }
+        }
+
+        /// <summary>Clear all 16 ext-byte unit-name previews (no entry loaded).</summary>
+        void ClearExtNames()
+        {
+            foreach (var (_, label) in ExtNamePairs)
+            {
+                label.Text = "";
+            }
+        }
+
+        /// <summary>
+        /// Live-refresh the paired unit-name preview whenever an ext-byte NUD
+        /// changes. Reads the BOX value (not the VM prop) so the name tracks
+        /// the in-progress edit. Skipped while UpdateUI() is bulk-pushing
+        /// values (the explicit RefreshAllExtNames() sweep there covers load).
+        /// </summary>
+        void ExtByteBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            if (sender is not NumericUpDown box) return;
+            foreach (var (b, label) in ExtNamePairs)
+            {
+                if (ReferenceEquals(b, box))
+                {
+                    RefreshExtName(box, label);
+                    return;
+                }
+            }
         }
 
         // -----------------------------------------------------------

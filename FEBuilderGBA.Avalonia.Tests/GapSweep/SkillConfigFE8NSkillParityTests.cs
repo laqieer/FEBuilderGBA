@@ -790,6 +790,166 @@ public class SkillConfigFE8NSkillParityTests
         Assert.Contains("AutomationId=\"SkillConfigFE8NSkill_ExtByteHeader_Label\"", axaml);
     }
 
+    /// <summary>
+    /// The Unit Skill List tab must expose all 16 READ-ONLY unit-name preview
+    /// labels (B16..B31) next to the ext-byte inputs, each wired to refresh
+    /// live via the NUD's ValueChanged handler (#793 — WF N00 decoration).
+    /// </summary>
+    [Fact]
+    public void View_UnitTab_HasExtByteNamePreviews()
+    {
+        string axaml = ReadAxaml();
+        for (int b = 16; b <= 31; b++)
+        {
+            // Each ext-byte has a paired read-only name TextBlock with the
+            // canonical "_Label" suffix.
+            Assert.Contains($"AutomationId=\"SkillConfigFE8NSkill_ExtB{b}Name_Label\"", axaml);
+        }
+        // All 16 NUDs must wire the live-refresh handler so the preview tracks
+        // the box value (not the stale VM prop).
+        int handlerCount = CountOccurrences(axaml, "ValueChanged=\"ExtByteBox_ValueChanged\"");
+        Assert.Equal(16, handlerCount);
+        // The added status line documenting the WF N00 decoration must exist.
+        Assert.Contains("AutomationId=\"SkillConfigFE8NSkill_UnitTab_StatusL3_Label\"", axaml);
+    }
+
+    /// <summary>
+    /// The code-behind exposes a pure, static <c>FormatExtUnitName</c> helper
+    /// (read-only decoration; never writes ROM) — assert its presence so the
+    /// resolver-contract unit tests below have a stable seam (#793).
+    /// </summary>
+    [Fact]
+    public void View_Codebehind_HasFormatExtUnitNameHelper()
+    {
+        string repoRoot = FindRepoRoot();
+        string source = File.ReadAllText(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "Views", "SkillConfigFE8NSkillView.axaml.cs"));
+        Assert.Contains("internal static string FormatExtUnitName(uint value)", source);
+        // It must delegate to the existing Core resolver — NO new Core code.
+        Assert.Contains("NameResolver.GetUnitNameByOneBasedId(value)", source);
+    }
+
+    // -----------------------------------------------------------------
+    // FormatExtUnitName — read-only unit-name preview resolver contract (#793).
+    //
+    // We target the helper's CONTRACT (not pixel-rendered names) because unit
+    // names decode as "???"/"" in a bare synthetic ROM. The dedicated builder
+    // MakeRomWithUnitTable() plants a unit-table pointer so the resolver yields
+    // a deterministic "#0" for uid 1 (the textId == 0 fallback path). Every
+    // test that swaps CoreState.ROM calls NameResolver.ClearCache() because the
+    // resolver caches under ("unit1", uid) GLOBALLY (not per-ROM).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// A 0 ext-byte means "no unit" → empty preview (NOT "???"), independent of
+    /// the loaded ROM. This is the explicit 0-guard from #793 refinement #3.
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_ZeroValue_RendersEmpty()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            // Even with a populated unit table, 0 must short-circuit to "".
+            CoreState.ROM = MakeRomWithUnitTable();
+            Assert.Equal("", SkillConfigFE8NSkillView.FormatExtUnitName(0));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// A valid in-range ext-byte resolves to exactly the string
+    /// NameResolver.GetUnitNameByOneBasedId returns. With the planted unit
+    /// table that is the deterministic "#0" (textId == 0 fallback for row 0),
+    /// proving the preview faithfully decorates the byte (#793 refinement #4).
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_ValidValue_MatchesResolverContract()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            CoreState.ROM = MakeRomWithUnitTable();
+
+            // Ground-truth from the Core resolver itself.
+            string expected = NameResolver.GetUnitNameByOneBasedId(1);
+            Assert.Equal("#0", expected); // deterministic for the planted table
+
+            // The preview helper must return the SAME string.
+            Assert.Equal(expected, SkillConfigFE8NSkillView.FormatExtUnitName(1));
+            Assert.NotEqual("", SkillConfigFE8NSkillView.FormatExtUnitName(1));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// An out-of-range ext-byte (uid &gt; unit_maxcount) must NOT crash and must
+    /// return exactly whatever the resolver returns (empty per the bounds-check
+    /// in NameResolver.ResolveUnitNameByOneBasedId) (#793 refinement #4).
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_OutOfRangeValue_MatchesResolver_NoCrash()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            CoreState.ROM = MakeRomWithUnitTable();
+
+            // 255 is the max single-byte value; unit_maxcount for FE8U is 255,
+            // so a uid strictly above maxcount is unreachable from a u8 — assert
+            // the in-band boundary (255) still delegates faithfully and that the
+            // helper never throws.
+            string expected255 = NameResolver.GetUnitNameByOneBasedId(255);
+            Assert.Equal(expected255, SkillConfigFE8NSkillView.FormatExtUnitName(255));
+
+            // A clearly out-of-range id (the helper accepts uint) returns "" and
+            // does not throw — guards the bounds-check path explicitly.
+            string expectedHigh = NameResolver.GetUnitNameByOneBasedId(1000);
+            Assert.Equal("", expectedHigh);
+            Assert.Equal("", SkillConfigFE8NSkillView.FormatExtUnitName(1000));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// With NO ROM loaded the resolver returns "???" for a non-zero uid; the
+    /// preview helper must mirror that (and still short-circuit 0 → "") without
+    /// throwing. Confirms the helper is null-ROM safe.
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_NoRom_MatchesResolver_NoCrash()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            CoreState.ROM = null;
+            Assert.Equal("", SkillConfigFE8NSkillView.FormatExtUnitName(0));
+            string expected = NameResolver.GetUnitNameByOneBasedId(1);
+            Assert.Equal(expected, SkillConfigFE8NSkillView.FormatExtUnitName(1));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
     [Fact]
     public void View_HasReloadButton_Wired()
     {
@@ -872,6 +1032,53 @@ public class SkillConfigFE8NSkillParityTests
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
+
+    /// <summary>Count non-overlapping occurrences of <paramref name="needle"/>.</summary>
+    static int CountOccurrences(string haystack, string needle)
+    {
+        int count = 0, idx = 0;
+        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            idx += needle.Length;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Build a 16MB synthetic FE8U ROM that plants ONLY a valid unit-table
+    /// pointer (no FE8N skill data needed) so
+    /// <see cref="NameResolver.GetUnitNameByOneBasedId(uint)"/> resolves
+    /// deterministically. FE8U resolves <c>unit_pointer</c> via
+    /// <c>U.FindROMPointer(rom, 0x2c, [0x10108, ...])</c>: we plant a safe
+    /// pointer at the first candidate (0x10108) to a unit base at 0xD00000,
+    /// plus a second safe pointer at base+0x2c so the 3-arg overload accepts
+    /// the slot. Row 0's u16 text-id is left 0, so
+    /// <c>SupportUnitNavigation.ResolveUnitTableName(rom, 0)</c> returns the
+    /// deterministic "#0" fallback — a KNOWN string for the resolver-contract
+    /// tests (#793).
+    /// </summary>
+    static ROM MakeRomWithUnitTable()
+    {
+        var bytes = new byte[0x1000000];
+
+        const uint unitBase = 0x00D00000u;
+        // Candidate slot 0x10108 → GBA pointer to the unit base.
+        WriteU32(bytes, 0x10108, unitBase | 0x08000000u);
+        // base + 0x2c must itself be a safe pointer for the 3-arg FindROMPointer
+        // overload to accept the slot (checkPointer = 0x2c).
+        WriteU32(bytes, unitBase + 0x2Cu, 0x08001000u);
+        // Row 0's text-id (u16 @ offset 0) is left 0 → "#0" fallback. (Bytes are
+        // already zero-initialised, so this is implicit; written for clarity.)
+        WriteU16(bytes, unitBase + 0u, 0x0000);
+
+        // Race-condition guard (matches the other synthetic builders).
+        bytes[0x6E0] = 0xFF;
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-unit-table.gba", bytes, "BE8E01");
+        return rom;
+    }
 
     static string AxamlPath()
     {

@@ -22473,6 +22473,9 @@ Tile5
 :Edit a value, then press Write to persist it (in-place, undoable). The N00..N03 sub-tabs in WinForms all map to these same 16 bytes.
 编辑数值后按写入即可保存（原地写入，可撤销）。WinForms 中的 N00..N03 子标签页都对应这相同的16个字节。
 
+:Each byte is treated as a one-based unit ID and shows the resolved unit name next to it, mirroring the WinForms N00 (Unit) decoration. A value of 0 shows no name. Class/Item/Other decorations are deferred.
+每个字节都被视为从1开始的角色ID，并在其旁边显示解析出的角色名称，与 WinForms 的 N00（角色）装饰一致。数值为0时不显示名称。职业/物品/其他装饰暂缓实现。
+
 :Class Skill Sub-list
 职业技能子列表
 
