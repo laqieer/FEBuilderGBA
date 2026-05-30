@@ -2201,8 +2201,12 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var axaml = File.ReadAllText(Path.Combine(AvaloniaDir, "Views", "SongTrackImportSelectInstrumentView.axaml"));
             Assert.Contains("InstrumentInfoLabel", axaml);
-            Assert.Contains("Not Yet Implemented", axaml);
             Assert.Contains("About Instrument Selection", axaml);
+            // #787: the instrument-set browser is now implemented (populated from
+            // InstrumentSetCore), so the "Not Yet Implemented" banner is gone and
+            // the panel reflects the selected set.
+            Assert.DoesNotContain("Not Yet Implemented", axaml);
+            Assert.Contains("Selected Instrument Set", axaml);
         }
 
         [Fact]

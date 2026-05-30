@@ -26,6 +26,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
+                // Mirror WinForms PickupInstrument(): default to the first
+                // discovered instrument set (index 1) rather than the "Current"
+                // seed, falling back to the first row. (#787)
+                if (!EntryList.SelectByIndex(_vm.DefaultSelectionIndex))
+                {
+                    EntryList.SelectFirst();
+                }
             }
             catch (Exception ex)
             {

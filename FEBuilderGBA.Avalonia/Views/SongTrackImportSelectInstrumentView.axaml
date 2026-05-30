@@ -26,21 +26,11 @@
           </StackPanel>
         </Border>
 
-        <!-- Current instrument address display -->
+        <!-- Selected instrument-set display -->
         <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,8,0,0">
           <StackPanel Spacing="4">
-            <TextBlock Text="Current Instrument Set" FontSize="14" FontWeight="SemiBold" />
-            <TextBlock AutomationProperties.AutomationId="SongTrackImportSelectInstrument_InstrumentInfo_Label" Name="InstrumentInfoLabel" Text="No song selected" FontFamily="Consolas,Courier New,monospace" />
-          </StackPanel>
-        </Border>
-
-        <!-- Not yet implemented warning -->
-        <Border Background="{DynamicResource WarningBackgroundBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1"
-                CornerRadius="4" Padding="12" Margin="0,8,0,0">
-          <StackPanel Spacing="4">
-            <TextBlock Text="Not Yet Implemented" FontWeight="Bold" Foreground="{DynamicResource WarningTextBrush}" />
-            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource WarningTextBrush}"
-                       Text="Instrument set selection is not yet available in the Avalonia UI. To select a different instrument set for MIDI import, please use the WinForms version. This feature requires porting PatchUtil.SearchInstrumentSet to the cross-platform Core library." />
+            <TextBlock Text="Selected Instrument Set" FontSize="14" FontWeight="SemiBold" />
+            <TextBlock AutomationProperties.AutomationId="SongTrackImportSelectInstrument_InstrumentInfo_Label" Name="InstrumentInfoLabel" Text="No instrument set selected" FontFamily="Consolas,Courier New,monospace" />
           </StackPanel>
         </Border>
       </StackPanel>

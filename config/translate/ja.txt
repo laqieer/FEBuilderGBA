@@ -9881,3 +9881,9 @@ ROMファイルを開いて難易度設定を編集してください。
 
 :Import palette failed: {0}
 パレットの読み込みに失敗しました: {0}
+
+:Selected Instrument Set
+選択した楽器セット
+
+:No instrument set selected
+楽器セットが選択されていません
