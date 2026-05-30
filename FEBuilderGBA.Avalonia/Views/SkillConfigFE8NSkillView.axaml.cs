@@ -93,6 +93,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 finally { _suppressPointerChange = false; }
 
+                // CLEAR the unit-name previews BEFORE populating the list (#795
+                // review fix). SetItemsWithIcons() → SelectFirst() → OnSelected()
+                // → UpdateUI() repopulates the 16 previews for the freshly
+                // selected first row, so the clear MUST run first — otherwise it
+                // would clobber the just-loaded row's names and the first row
+                // would show blank previews. With an empty list no row is
+                // selected, so the previews stay cleared (#793 refinement:
+                // refresh-on-row-load PLUS clear-when-no-entry).
+                ClearExtNames();
+
                 // Wire the AddressList using the FE8N v1 icon loader (W0-driven).
                 EntryList.SetItemsWithIcons(items, i => FE8NVer1IconLoader(items, i));
 
@@ -107,11 +117,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     ChangeTypeComboBox.SelectedIndex = 0;
                 }
                 finally { _suppressChangeTypeChange = false; }
-
-                // A fresh list (Open / Reload) has no row selected yet — clear
-                // any stale unit-name previews until OnSelected re-populates
-                // them (#793 refinement: CLEAR when no entry is loaded).
-                ClearExtNames();
             }
             catch (Exception ex)
             {
@@ -149,6 +154,13 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.SelectPointer(idx);
+                // CLEAR previews BEFORE repopulating so a switch to an empty page
+                // doesn't leave stale unit-name labels from the previous page
+                // (#795 review fix). When the new page is non-empty,
+                // SetItemsWithIcons() → SelectFirst() → OnSelected() → UpdateUI()
+                // repopulates them for the new first row, so the clear (running
+                // first) is preserved only when there is no entry to select.
+                ClearExtNames();
                 EntryList.SetItemsWithIcons(items, i => FE8NVer1IconLoader(items, i));
                 // #743: route through the unified EditorTopBarWithInputs (TopBar).
                 TopBar.ReadStartAddress = _vm.ReadStartAddress;
