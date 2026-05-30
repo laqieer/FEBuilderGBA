@@ -22,6 +22,8 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
+using global::Avalonia.Controls;
+using global::Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -790,6 +792,318 @@ public class SkillConfigFE8NSkillParityTests
         Assert.Contains("AutomationId=\"SkillConfigFE8NSkill_ExtByteHeader_Label\"", axaml);
     }
 
+    /// <summary>
+    /// The Unit Skill List tab must expose all 16 READ-ONLY unit-name preview
+    /// labels (B16..B31) next to the ext-byte inputs, each wired to refresh
+    /// live via the NUD's ValueChanged handler (#793 — WF N00 decoration).
+    /// </summary>
+    [Fact]
+    public void View_UnitTab_HasExtByteNamePreviews()
+    {
+        string axaml = ReadAxaml();
+        for (int b = 16; b <= 31; b++)
+        {
+            // Each ext-byte has a paired read-only name TextBlock with the
+            // canonical "_Label" suffix.
+            Assert.Contains($"AutomationId=\"SkillConfigFE8NSkill_ExtB{b}Name_Label\"", axaml);
+        }
+        // All 16 NUDs must wire the live-refresh handler so the preview tracks
+        // the box value (not the stale VM prop).
+        int handlerCount = CountOccurrences(axaml, "ValueChanged=\"ExtByteBox_ValueChanged\"");
+        Assert.Equal(16, handlerCount);
+        // The added status line documenting the WF N00 decoration must exist.
+        Assert.Contains("AutomationId=\"SkillConfigFE8NSkill_UnitTab_StatusL3_Label\"", axaml);
+    }
+
+    /// <summary>
+    /// The code-behind exposes a pure, static <c>FormatExtUnitName</c> helper
+    /// (read-only decoration; never writes ROM) — assert its presence so the
+    /// resolver-contract unit tests below have a stable seam (#793).
+    /// </summary>
+    [Fact]
+    public void View_Codebehind_HasFormatExtUnitNameHelper()
+    {
+        string repoRoot = FindRepoRoot();
+        string source = File.ReadAllText(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "Views", "SkillConfigFE8NSkillView.axaml.cs"));
+        Assert.Contains("internal static string FormatExtUnitName(uint value)", source);
+        // It must delegate to the existing Core resolver — NO new Core code.
+        Assert.Contains("NameResolver.GetUnitNameByOneBasedId(value)", source);
+    }
+
+    // -----------------------------------------------------------------
+    // FormatExtUnitName — read-only unit-name preview resolver contract (#793).
+    //
+    // We target the helper's CONTRACT (not pixel-rendered names) because unit
+    // names decode as "???"/"" in a bare synthetic ROM. The dedicated builder
+    // MakeRomWithUnitTable() plants a unit-table pointer so the resolver yields
+    // a deterministic "#0" for uid 1 (the textId == 0 fallback path). Every
+    // test that swaps CoreState.ROM calls NameResolver.ClearCache() because the
+    // resolver caches under ("unit1", uid) GLOBALLY (not per-ROM).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// A 0 ext-byte means "no unit" → empty preview (NOT "???"), independent of
+    /// the loaded ROM. This is the explicit 0-guard from #793 refinement #3.
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_ZeroValue_RendersEmpty()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            // Even with a populated unit table, 0 must short-circuit to "".
+            CoreState.ROM = MakeRomWithUnitTable();
+            Assert.Equal("", SkillConfigFE8NSkillView.FormatExtUnitName(0));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// A valid in-range ext-byte resolves to exactly the string
+    /// NameResolver.GetUnitNameByOneBasedId returns. With the planted unit
+    /// table that is the deterministic "#0" (textId == 0 fallback for row 0),
+    /// proving the preview faithfully decorates the byte (#793 refinement #4).
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_ValidValue_MatchesResolverContract()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            CoreState.ROM = MakeRomWithUnitTable();
+
+            // Ground-truth from the Core resolver itself.
+            string expected = NameResolver.GetUnitNameByOneBasedId(1);
+            Assert.Equal("#0", expected); // deterministic for the planted table
+
+            // The preview helper must return the SAME string.
+            Assert.Equal(expected, SkillConfigFE8NSkillView.FormatExtUnitName(1));
+            Assert.NotEqual("", SkillConfigFE8NSkillView.FormatExtUnitName(1));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// An out-of-range ext-byte (uid &gt; unit_maxcount) must NOT crash and must
+    /// return exactly whatever the resolver returns (empty per the bounds-check
+    /// in NameResolver.ResolveUnitNameByOneBasedId) (#793 refinement #4).
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_OutOfRangeValue_MatchesResolver_NoCrash()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            CoreState.ROM = MakeRomWithUnitTable();
+
+            // 255 is the max single-byte value; unit_maxcount for FE8U is 255,
+            // so a uid strictly above maxcount is unreachable from a u8 — assert
+            // the in-band boundary (255) still delegates faithfully and that the
+            // helper never throws.
+            string expected255 = NameResolver.GetUnitNameByOneBasedId(255);
+            Assert.Equal(expected255, SkillConfigFE8NSkillView.FormatExtUnitName(255));
+
+            // A clearly out-of-range id (the helper accepts uint) returns "" and
+            // does not throw — guards the bounds-check path explicitly.
+            string expectedHigh = NameResolver.GetUnitNameByOneBasedId(1000);
+            Assert.Equal("", expectedHigh);
+            Assert.Equal("", SkillConfigFE8NSkillView.FormatExtUnitName(1000));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// With NO ROM loaded the resolver returns "???" for a non-zero uid; the
+    /// preview helper must mirror that (and still short-circuit 0 → "") without
+    /// throwing. Confirms the helper is null-ROM safe.
+    /// </summary>
+    [Fact]
+    public void FormatExtUnitName_NoRom_MatchesResolver_NoCrash()
+    {
+        var prevRom = CoreState.ROM;
+        NameResolver.ClearCache();
+        try
+        {
+            CoreState.ROM = null;
+            Assert.Equal("", SkillConfigFE8NSkillView.FormatExtUnitName(0));
+            string expected = NameResolver.GetUnitNameByOneBasedId(1);
+            Assert.Equal(expected, SkillConfigFE8NSkillView.FormatExtUnitName(1));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            NameResolver.ClearCache();
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // LoadList() / page-switch ordering — the #795 review regression.
+    //
+    // These are HEADLESS [AvaloniaFact] tests that drive the REAL view load
+    // path: SetItemsWithIcons() → SelectFirst() → OnSelected() → UpdateUI()
+    // repopulates the 16 previews, so ClearExtNames() must run BEFORE list
+    // population (not after) or it would wipe the first loaded row's names.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #795 regression: after LoadList() auto-selects the first skill row, that
+    /// row's unit-name preview must be POPULATED (not blanked by a post-
+    /// population ClearExtNames()). The synthetic ROM plants page 0 row 0 B16 =
+    /// unit ID 1, which resolves to the deterministic "#0".
+    /// </summary>
+    [AvaloniaFact]
+    public void View_LoadList_FirstRowPreview_IsPopulated_NotBlank()
+    {
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        NameResolver.ClearCache();
+        try
+        {
+            ROM rom = MakeFE8NVer1RomWithUnitNames();
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+
+            // Ground-truth: B16 = 1 must resolve to "#0".
+            Assert.Equal("#0", NameResolver.GetUnitNameByOneBasedId(1));
+
+            var view = new SkillConfigFE8NSkillView();
+            view.Show(); // fires Opened → LoadList → SelectFirst → OnSelected → UpdateUI
+            try
+            {
+                var b16 = view.FindControl<TextBlock>("ExtB16NameLabel");
+                Assert.NotNull(b16);
+                // The first row's B16 preview must be POPULATED — this is the
+                // exact symptom the #795 fix addresses (it was blank before).
+                Assert.False(string.IsNullOrEmpty(b16!.Text),
+                    "First loaded row's B16 unit-name preview must be populated after LoadList(), not blanked by ClearExtNames().");
+                Assert.Equal("#0", b16.Text);
+
+                // B17 (= 0 on row 0) must render empty (0 → no unit).
+                var b17 = view.FindControl<TextBlock>("ExtB17NameLabel");
+                Assert.NotNull(b17);
+                Assert.True(string.IsNullOrEmpty(b17!.Text),
+                    "B17 (value 0) must render an empty preview.");
+            }
+            finally { view.Close(); }
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.SystemTextEncoder = prevEnc;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// #795 / #793 refinement: loading a list with NO entries (no FE8N patch →
+    /// empty list → no row selected) must leave all 16 previews CLEARED, not
+    /// stale. Exercises the clear-when-no-entry half of the invariant. (The
+    /// sibling populated test proves the labels CAN be set, so an empty result
+    /// here is a genuine clear, not a never-set.)
+    /// </summary>
+    [AvaloniaFact]
+    public void View_LoadList_EmptyList_ClearsPreviews()
+    {
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        NameResolver.ClearCache();
+        try
+        {
+            ROM rom = MakeEmptyRom(); // no FE8N v1 markers → LoadList returns empty
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+
+            var view = new SkillConfigFE8NSkillView();
+            view.Show(); // fires Opened → LoadList → ClearExtNames() → empty SetItemsWithIcons (no selection)
+            try
+            {
+                for (int b = 16; b <= 31; b++)
+                {
+                    var lbl = view.FindControl<TextBlock>($"ExtB{b}NameLabel");
+                    Assert.NotNull(lbl);
+                    Assert.True(string.IsNullOrEmpty(lbl!.Text),
+                        $"ExtB{b}NameLabel must be empty after loading an empty list (no entry selected).");
+                }
+            }
+            finally { view.Close(); }
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.SystemTextEncoder = prevEnc;
+            NameResolver.ClearCache();
+        }
+    }
+
+    /// <summary>
+    /// #795 review: switching FE8N pages must REFRESH the previews to the new
+    /// page's first row — the clear-before-populate fix must NOT blank a
+    /// non-empty new page. Page 0 row 0 B16 = 1 ("#0"); page 1 row 0 B16 = 2
+    /// ("#1"). After switching to page 1 the B16 preview must read "#1".
+    /// </summary>
+    [AvaloniaFact]
+    public void View_PageSwitch_RefreshesPreviews_NotBlanked()
+    {
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        NameResolver.ClearCache();
+        try
+        {
+            ROM rom = MakeFE8NVer1RomWithUnitNames();
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+
+            // Ground-truth for both pages.
+            Assert.Equal("#0", NameResolver.GetUnitNameByOneBasedId(1));
+            Assert.Equal("#1", NameResolver.GetUnitNameByOneBasedId(2));
+
+            var view = new SkillConfigFE8NSkillView();
+            view.Show();
+            try
+            {
+                var combo = view.FindControl<ComboBox>("FilterComboBox");
+                var b16 = view.FindControl<TextBlock>("ExtB16NameLabel");
+                Assert.NotNull(combo);
+                Assert.NotNull(b16);
+                Assert.True(combo!.ItemCount >= 2,
+                    "Synthetic multi-page ROM must expose at least 2 FE8N pages for the switch test.");
+
+                // Page 0 first row → "#0".
+                Assert.Equal("#0", b16!.Text);
+
+                // Switch to page 1 → fires FilterComboBox_SelectionChanged →
+                // clear-before-populate → new first row selected → "#1".
+                combo.SelectedIndex = 1;
+                Assert.False(string.IsNullOrEmpty(b16.Text),
+                    "After switching to a non-empty page, the B16 preview must be repopulated (not blanked by the page-switch ClearExtNames()).");
+                Assert.Equal("#1", b16.Text);
+            }
+            finally { view.Close(); }
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.SystemTextEncoder = prevEnc;
+            NameResolver.ClearCache();
+        }
+    }
+
     [Fact]
     public void View_HasReloadButton_Wired()
     {
@@ -873,6 +1187,53 @@ public class SkillConfigFE8NSkillParityTests
     // Helpers
     // -----------------------------------------------------------------
 
+    /// <summary>Count non-overlapping occurrences of <paramref name="needle"/>.</summary>
+    static int CountOccurrences(string haystack, string needle)
+    {
+        int count = 0, idx = 0;
+        while ((idx = haystack.IndexOf(needle, idx, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            idx += needle.Length;
+        }
+        return count;
+    }
+
+    /// <summary>
+    /// Build a 16MB synthetic FE8U ROM that plants ONLY a valid unit-table
+    /// pointer (no FE8N skill data needed) so
+    /// <see cref="NameResolver.GetUnitNameByOneBasedId(uint)"/> resolves
+    /// deterministically. FE8U resolves <c>unit_pointer</c> via
+    /// <c>U.FindROMPointer(rom, 0x2c, [0x10108, ...])</c>: we plant a safe
+    /// pointer at the first candidate (0x10108) to a unit base at 0xD00000,
+    /// plus a second safe pointer at base+0x2c so the 3-arg overload accepts
+    /// the slot. Row 0's u16 text-id is left 0, so
+    /// <c>SupportUnitNavigation.ResolveUnitTableName(rom, 0)</c> returns the
+    /// deterministic "#0" fallback — a KNOWN string for the resolver-contract
+    /// tests (#793).
+    /// </summary>
+    static ROM MakeRomWithUnitTable()
+    {
+        var bytes = new byte[0x1000000];
+
+        const uint unitBase = 0x00D00000u;
+        // Candidate slot 0x10108 → GBA pointer to the unit base.
+        WriteU32(bytes, 0x10108, unitBase | 0x08000000u);
+        // base + 0x2c must itself be a safe pointer for the 3-arg FindROMPointer
+        // overload to accept the slot (checkPointer = 0x2c).
+        WriteU32(bytes, unitBase + 0x2Cu, 0x08001000u);
+        // Row 0's text-id (u16 @ offset 0) is left 0 → "#0" fallback. (Bytes are
+        // already zero-initialised, so this is implicit; written for clarity.)
+        WriteU16(bytes, unitBase + 0u, 0x0000);
+
+        // Race-condition guard (matches the other synthetic builders).
+        bytes[0x6E0] = 0xFF;
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-unit-table.gba", bytes, "BE8E01");
+        return rom;
+    }
+
     static string AxamlPath()
     {
         string repoRoot = FindRepoRoot();
@@ -904,7 +1265,64 @@ public class SkillConfigFE8NSkillParityTests
     }
 
     /// <summary>
-    /// Build a synthetic FE8U ROM that mimics the FE8N v1 skill layout:
+    /// Build a synthetic FE8U ROM that mimics the FE8N v1 skill layout. See
+    /// <see cref="PopulateMinimalFE8NVer1Bytes"/> for the exact planted layout.
+    /// </summary>
+    static ROM MakeMinimalFE8NVer1Rom()
+    {
+        var bytes = new byte[0x1000000];
+        PopulateMinimalFE8NVer1Bytes(bytes);
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8nver1.gba", bytes, "BE8E01");
+        return rom;
+    }
+
+    /// <summary>
+    /// Like <see cref="MakeMinimalFE8NVer1Rom"/> but ALSO plants a valid unit
+    /// table (so <see cref="NameResolver.GetUnitNameByOneBasedId(uint)"/>
+    /// resolves) and a NON-ZERO ext-byte (B16 = unit ID 1) on the FIRST skill
+    /// row (row 0). This lets a headless view test assert that after
+    /// <c>LoadList()</c> auto-selects the first row, the row's B16 unit-name
+    /// preview is POPULATED (not blank) — the #795 ordering regression guard.
+    /// Row 0's B16 resolves to the deterministic "#0" (textId == 0 fallback).
+    /// </summary>
+    static ROM MakeFE8NVer1RomWithUnitNames()
+    {
+        var bytes = new byte[0x1000000];
+        PopulateMinimalFE8NVer1Bytes(bytes);
+
+        // Plant a valid unit-table pointer so GetUnitNameByOneBasedId resolves.
+        // FE8U: unit_pointer = FindROMPointer(rom, 0x2c, [0x10108, ...]); plant
+        // the first candidate → unit base 0xD00000, plus base+0x2c pointer so
+        // the 3-arg overload accepts the slot. (Mirrors MakeRomWithUnitTable.)
+        const uint unitBase = 0x00D00000u;
+        WriteU32(bytes, 0x10108, unitBase | 0x08000000u);
+        WriteU32(bytes, unitBase + 0x2Cu, 0x08001000u);
+        // Row 0's unit text-id (u16 @ offset 0) left 0 → "#0" fallback.
+        WriteU16(bytes, unitBase + 0u, 0x0000);
+
+        // Plant row 0's B16 (= first ext-byte) = unit ID 1 so the FIRST selected
+        // row has a resolvable, NON-ZERO unit-name preview. (Row 0 was otherwise
+        // left with zero ext-bytes by PopulateMinimalFE8NVer1Bytes.)
+        const uint page0Base = 0x00E20000u;
+        bytes[(int)(page0Base + 0u * 32u + 16u)] = 0x01; // page 0, row 0, B16 = uid 1
+
+        // Also plant page 1's row 0 B16 = unit ID 2 so a page SWITCH shows a
+        // different non-blank preview (proves the page-switch clear-before-
+        // populate preserves the new page's selection — #795 review).
+        const uint page1Base = 0x00E40000u;
+        bytes[(int)(page1Base + 0u * 32u + 16u)] = 0x02; // page 1, row 0, B16 = uid 2
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8nver1-unitnames.gba", bytes, "BE8E01");
+        return rom;
+    }
+
+    /// <summary>
+    /// Shared byte-planting for the synthetic FE8N v1 skill ROM (extracted so
+    /// <see cref="MakeMinimalFE8NVer1Rom"/> and
+    /// <see cref="MakeFE8NVer1RomWithUnitNames"/> stay byte-identical for the
+    /// skill layout). Layout:
     /// <list type="bullet">
     ///   <item><description>0x89268+4 holds a safe iconExPointer.</description></item>
     ///   <item><description>At 0xE10000 plant the FE8N v1 marker pattern
@@ -919,10 +1337,8 @@ public class SkillConfigFE8NSkillParityTests
     ///     rows (sizeof-32 stride) + a terminator row (u16 = 0x0).</description></item>
     /// </list>
     /// </summary>
-    static ROM MakeMinimalFE8NVer1Rom()
+    static void PopulateMinimalFE8NVer1Bytes(byte[] bytes)
     {
-        var bytes = new byte[0x1000000];
-
         // 0. iconExPointer at 0x8926C must be a safe pointer.
         WriteU32(bytes, 0x8926C, 0x08001000u);
 
@@ -1005,10 +1421,6 @@ public class SkillConfigFE8NSkillParityTests
 
         // 10. Race-condition guard.
         bytes[0x6E0] = 0xFF;
-
-        var rom = new ROM();
-        rom.LoadLow("synthetic-fe8nver1.gba", bytes, "BE8E01");
-        return rom;
     }
 
     static void WriteU32(byte[] bytes, uint offset, uint value)

@@ -8638,6 +8638,9 @@ KnownGap: ズームは延期された戦闘/チップセットプレビュー描
 :Edit a value, then press Write to persist it (in-place, undoable). The N00..N03 sub-tabs in WinForms all map to these same 16 bytes.
 値を編集して書き込みを押すと保存されます (その場で書き込み、取り消し可能)。WinForms の N00..N03 サブタブはすべてこの同じ16バイトに対応します。
 
+:Each byte is treated as a one-based unit ID and shows the resolved unit name next to it, mirroring the WinForms N00 (Unit) decoration. A value of 0 shows no name. Class/Item/Other decorations are deferred.
+各バイトは1始まりのユニットIDとして扱われ、その横に解決したユニット名を表示します。これは WinForms の N00 (ユニット) 装飾を再現したものです。値が0の場合は名前を表示しません。クラス/アイテム/その他の装飾は先送りです。
+
 :Class Skill Sub-list
 クラススキルサブリスト
 
