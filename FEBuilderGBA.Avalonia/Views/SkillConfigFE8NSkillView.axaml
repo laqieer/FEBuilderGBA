@@ -282,31 +282,114 @@
         </ScrollViewer>
       </TabItem>
 
-      <!-- Tab 2: Unit Skill List placeholder (N00 - KnownGap #374). -->
+      <!-- Tab 2: Unit Skill List — editable ext-bytes B16..B31 (#790).
+           FE8N v1's N00..N03 sub-tabs all union onto the SAME 16 row bytes
+           (offsets 16..31); editing this one tab is faithful + complete. -->
       <TabItem AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitSkillList_Tab"
                Header="Unit Skill List">
-        <StackPanel Margin="16" Spacing="8">
-          <Label Content="Unit Skill Sub-list" FontSize="16" FontWeight="Bold" />
-          <Border Background="{DynamicResource WarningBackgroundBrush}"
-                  BorderBrush="{DynamicResource WarningBorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Padding="12">
-            <StackPanel Spacing="8">
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_StatusL1_Label"
-                         Text="Per-skill unit sub-list editing is not yet implemented in Avalonia." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_StatusL2_Label"
-                         Text="Use the WinForms editor to assign units to a skill." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_StatusL3_Label"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
-            </StackPanel>
-          </Border>
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_BaseAddr_Label"
-                 Name="UnitTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_Count_Label"
-                 Name="UnitTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
-        </StackPanel>
+        <ScrollViewer>
+          <StackPanel Margin="16" Spacing="8">
+            <Label Content="Unit Skill Sub-list — Ext Bytes (B16..B31)"
+                   FontSize="16" FontWeight="Bold" />
+            <Border Background="{DynamicResource WarningBackgroundBrush}"
+                    BorderBrush="{DynamicResource WarningBorderBrush}"
+                    BorderThickness="1" CornerRadius="4" Padding="12">
+              <StackPanel Spacing="8">
+                <TextBlock TextWrapping="Wrap"
+                           AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_StatusL1_Label"
+                           Text="The 16 ext-bytes B16..B31 are an additional per-skill data block whose meaning varies by FE8N patch flavour." />
+                <TextBlock TextWrapping="Wrap"
+                           AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_StatusL2_Label"
+                           Text="Edit a value, then press Write to persist it (in-place, undoable). The N00..N03 sub-tabs in WinForms all map to these same 16 bytes." />
+              </StackPanel>
+            </Border>
+            <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_BaseAddr_Label"
+                   Name="UnitTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
+            <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_UnitTab_Count_Label"
+                   Name="UnitTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
+
+            <!-- 4x4 grid of the 16 ext-bytes B16..B31, each label + NumericUpDown.
+                 These are x:Name-only (no AXAML binding): the values are pushed
+                 from the VM's Ext0..Ext15 in code-behind UpdateUI() and pulled
+                 back in WriteButton_Click() — same mechanism as the editor's
+                 other fields. Offset = 16 + index. -->
+            <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtByteHeader_Label"
+                   Content="Ext Bytes" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <!-- NOTE: Avalonia 11.2.3 Grid has no ColumnSpacing/RowSpacing —
+                 gaps are applied via per-cell Margin instead. -->
+            <Grid ColumnDefinitions="Auto,80,Auto,80,Auto,80,Auto,80"
+                  RowDefinitions="Auto,Auto,Auto,Auto">
+              <!-- Row 0: B16 B17 B18 B19 -->
+              <Label Grid.Row="0" Grid.Column="0" Content="B16" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="0" Grid.Column="1" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB16_Input"
+                             FormatString="0" Name="ExtB16Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="0" Grid.Column="2" Content="B17" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="0" Grid.Column="3" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB17_Input"
+                             FormatString="0" Name="ExtB17Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="0" Grid.Column="4" Content="B18" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="0" Grid.Column="5" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB18_Input"
+                             FormatString="0" Name="ExtB18Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="0" Grid.Column="6" Content="B19" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="0" Grid.Column="7" Margin="0,0,0,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB19_Input"
+                             FormatString="0" Name="ExtB19Box" Minimum="0" Maximum="255" />
+              <!-- Row 1: B20 B21 B22 B23 -->
+              <Label Grid.Row="1" Grid.Column="0" Content="B20" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="1" Grid.Column="1" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB20_Input"
+                             FormatString="0" Name="ExtB20Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="1" Grid.Column="2" Content="B21" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="1" Grid.Column="3" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB21_Input"
+                             FormatString="0" Name="ExtB21Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="1" Grid.Column="4" Content="B22" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="1" Grid.Column="5" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB22_Input"
+                             FormatString="0" Name="ExtB22Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="1" Grid.Column="6" Content="B23" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="1" Grid.Column="7" Margin="0,0,0,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB23_Input"
+                             FormatString="0" Name="ExtB23Box" Minimum="0" Maximum="255" />
+              <!-- Row 2: B24 B25 B26 B27 -->
+              <Label Grid.Row="2" Grid.Column="0" Content="B24" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="2" Grid.Column="1" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB24_Input"
+                             FormatString="0" Name="ExtB24Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="2" Grid.Column="2" Content="B25" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="2" Grid.Column="3" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB25_Input"
+                             FormatString="0" Name="ExtB25Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="2" Grid.Column="4" Content="B26" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="2" Grid.Column="5" Margin="0,0,12,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB26_Input"
+                             FormatString="0" Name="ExtB26Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="2" Grid.Column="6" Content="B27" VerticalAlignment="Center" Margin="0,0,4,6" />
+              <NumericUpDown Grid.Row="2" Grid.Column="7" Margin="0,0,0,6"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB27_Input"
+                             FormatString="0" Name="ExtB27Box" Minimum="0" Maximum="255" />
+              <!-- Row 3: B28 B29 B30 B31 -->
+              <Label Grid.Row="3" Grid.Column="0" Content="B28" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <NumericUpDown Grid.Row="3" Grid.Column="1" Margin="0,0,12,0"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB28_Input"
+                             FormatString="0" Name="ExtB28Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="3" Grid.Column="2" Content="B29" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <NumericUpDown Grid.Row="3" Grid.Column="3" Margin="0,0,12,0"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB29_Input"
+                             FormatString="0" Name="ExtB29Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="3" Grid.Column="4" Content="B30" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <NumericUpDown Grid.Row="3" Grid.Column="5" Margin="0,0,12,0"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB30_Input"
+                             FormatString="0" Name="ExtB30Box" Minimum="0" Maximum="255" />
+              <Label Grid.Row="3" Grid.Column="6" Content="B31" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <NumericUpDown Grid.Row="3" Grid.Column="7" Margin="0,0,0,0"
+                             AutomationProperties.AutomationId="SkillConfigFE8NSkill_ExtB31_Input"
+                             FormatString="0" Name="ExtB31Box" Minimum="0" Maximum="255" />
+            </Grid>
+          </StackPanel>
+        </ScrollViewer>
       </TabItem>
 
       <!-- Tab 3: Class Skill List placeholder (N01 - KnownGap #374). -->
