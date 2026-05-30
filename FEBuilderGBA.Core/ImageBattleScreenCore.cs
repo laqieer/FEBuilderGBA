@@ -166,6 +166,141 @@ namespace FEBuilderGBA
             return map;
         }
 
+        // Battle-screen image-pointer slots in WF GetChipImage order
+        // (image1..image5). They are LZ77-compressed 8px-wide tile strips
+        // stacked vertically into one tileset (#802 Blocker 2).
+        const int BATTLE_SCREEN_WIDTH_TILES = 32;   // 256 px
+        const int BATTLE_SCREEN_HEIGHT_TILES = 20;  // 160 px
+        const int BATTLE_SCREEN_PALETTE_BYTES = 16 * 16 * 2; // 16 banks * 16 colors * 2 bytes = 512
+
+        /// <summary>
+        /// Render a live preview of the battle screen (256 x 160) by mirroring
+        /// the WinForms <c>ImageBattleScreenForm.GetChipImage</c> +
+        /// <c>MakeBattleScreen</c> pipeline cross-platform (#802). Returns an
+        /// <see cref="IImage"/> on success, or <c>null</c> (no crash) if any
+        /// REQUIRED source is missing/corrupt so we never partial-render a
+        /// corrupt ROM.
+        ///
+        /// Pipeline:
+        ///   * Palette (Blocker 1): RAW 16-bank GBA palette (512 bytes) read
+        ///     directly at <c>battle_screen_palette_pointer</c> -- NOT LZ77
+        ///     (WF passes the palette offset straight to ByteToImage16Tile).
+        ///   * Tiles (Blocker 2): LZ77-decompress image1..image5, each 8px
+        ///     wide, concatenated vertically in order into one tileset. Each
+        ///     stream is validated with <c>LZ77.getCompressedSize</c> first so a
+        ///     truncated-but-header-valid chunk (which <c>LZ77.decompress</c>
+        ///     would otherwise return as a zero-filled buffer) fails the whole
+        ///     render instead of rendering a misleading blank chunk.
+        ///   * TSA (Blocker 3): <see cref="LoadBattleScreen"/> returns RAW GBA
+        ///     TSA u16 cells. WF MakeBattleScreen reads tile=m&amp;0xff,
+        ///     flip=(m&gt;&gt;8)&amp;0x0f, pal=m&gt;&gt;12 with flip mapping
+        ///     0=none / 4=hflip / 8=vflip / any-other-nonzero=both. We
+        ///     re-encode each cell into the GBA-standard layout DecodeTSA reads
+        ///     (tile bits0-9, hFlip bit10, vFlip bit11, pal bits12-15).
+        ///   * Alpha (Blocker 4): palette index 0 renders OPAQUE to match WF
+        ///     BitBlt (transparent_index = 0xFF never matches a 0..15 index).
+        /// </summary>
+        public static IImage RenderBattleScreenPreview(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null) return null;
+            if (rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            // --- Blocker 3: TSA grid (RAW GBA u16 cells) ---
+            ushort[] map = LoadBattleScreen(rom);
+            if (map == null) return null;
+
+            // --- Blocker 1: RAW 16-bank palette (512 bytes, NO LZ77) ---
+            uint palAddr = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+            if (!U.isSafetyOffset(palAddr, rom)) return null;
+            ulong palLast = (ulong)palAddr + (ulong)BATTLE_SCREEN_PALETTE_BYTES - 1UL;
+            if (palLast >= (ulong)rom.Data.Length) return null;
+            byte[] gbaPalette = new byte[BATTLE_SCREEN_PALETTE_BYTES];
+            Array.Copy(rom.Data, palAddr, gbaPalette, 0, BATTLE_SCREEN_PALETTE_BYTES);
+
+            // --- Blocker 2: LZ77 image1..image5 concatenated vertically ---
+            uint[] imagePointerSlots = new uint[]
+            {
+                rom.RomInfo.battle_screen_image1_pointer,
+                rom.RomInfo.battle_screen_image2_pointer,
+                rom.RomInfo.battle_screen_image3_pointer,
+                rom.RomInfo.battle_screen_image4_pointer,
+                rom.RomInfo.battle_screen_image5_pointer,
+            };
+
+            int totalLength = 0;
+            byte[][] chunks = new byte[imagePointerSlots.Length][];
+            for (int i = 0; i < imagePointerSlots.Length; i++)
+            {
+                uint imageAddr = rom.p32(imagePointerSlots[i]);
+                // Each image1..5 is REQUIRED (WF blits all five): a bad pointer
+                // or LZ77 failure must fail the whole render, not skip a chunk.
+                if (!U.isSafetyOffset(imageAddr, rom)) return null;
+
+                // Validate the compressed stream BEFORE decompressing.
+                // LZ77.decompress does NOT distinguish a truncated stream: when
+                // the input ends early it breaks out and returns a ZERO-FILLED
+                // buffer of the advertised (header) size, which would silently
+                // render as a blank-but-plausible chunk and violate the
+                // "any corrupt REQUIRED source fails the whole render" contract
+                // (#802 PR #804 review fix). LZ77.getCompressedSize returns the
+                // ACTUAL consumed compressed length only when the full stream
+                // decodes within the ROM bounds, and 0 on any corruption /
+                // truncation / bad header. A defensive end-of-ROM bound check
+                // on (imageAddr + compressedSize) additionally guards an overrun.
+                uint compressedSize = LZ77.getCompressedSize(rom.Data, imageAddr);
+                if (compressedSize == 0) return null;
+                if ((ulong)imageAddr + (ulong)compressedSize > (ulong)rom.Data.Length) return null;
+
+                byte[] chunk = LZ77.decompress(rom.Data, imageAddr);
+                if (chunk == null || chunk.Length == 0) return null;
+                chunks[i] = chunk;
+                totalLength += chunk.Length;
+            }
+            if (totalLength == 0) return null;
+
+            byte[] tileData = new byte[totalLength];
+            int writePos = 0;
+            for (int i = 0; i < chunks.Length; i++)
+            {
+                Array.Copy(chunks[i], 0, tileData, writePos, chunks[i].Length);
+                writePos += chunks[i].Length;
+            }
+
+            // --- Blocker 3 (cont.): normalize RAW WF cells -> GBA-standard TSA ---
+            // WF MakeBattleScreen: tile = m & 0xff, flip = (m >> 8) & 0x0f,
+            // pal = m >> 12. flip mapping: 0=none, 4=hflip, 8=vflip,
+            // any-other-nonzero=both. Re-encode into DecodeTSA's layout.
+            byte[] tsaData = new byte[map.Length * 2];
+            for (int i = 0; i < map.Length; i++)
+            {
+                ushort m = map[i];
+                int tile = m & 0xff;
+                int flip = (m >> 8) & 0x0f;
+                int pal = (m >> 12) & 0x0f;
+
+                bool h, v;
+                if (flip == 0) { h = false; v = false; }
+                else if (flip == 4) { h = true; v = false; }
+                else if (flip == 8) { h = false; v = true; }
+                else { h = true; v = true; } // any other nonzero -> both (WF)
+
+                ushort norm = (ushort)((tile & 0x3ff)
+                    | (h ? (1 << 10) : 0)
+                    | (v ? (1 << 11) : 0)
+                    | (pal << 12));
+
+                tsaData[i * 2] = (byte)(norm & 0xff);
+                tsaData[i * 2 + 1] = (byte)((norm >> 8) & 0xff);
+            }
+
+            // --- Blocker 4: opaque index 0 (match WF BitBlt) ---
+            return ImageUtilCore.DecodeTSA(
+                tileData, tsaData, gbaPalette,
+                BATTLE_SCREEN_WIDTH_TILES, BATTLE_SCREEN_HEIGHT_TILES,
+                is4bpp: true, tsaOffset: 0, opaqueIndex0: true);
+        }
+
         /// <summary>
         /// Write the 32 x 20 TSA map back to the 5 TSA regions in
         /// <paramref name="rom"/>. Writes go through <c>rom.write_u16</c>

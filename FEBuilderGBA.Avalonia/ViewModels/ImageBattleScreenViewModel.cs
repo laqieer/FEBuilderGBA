@@ -157,6 +157,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Render the live 256x160 battle-screen preview (#802). Delegates to
+        /// <see cref="ImageBattleScreenCore.RenderBattleScreenPreview"/> which
+        /// composites the 5 LZ77 image strips + RAW 16-bank palette + the
+        /// normalized TSA grid. Returns <c>null</c> (caller shows a blank
+        /// surface) if any required source is missing/corrupt.
+        /// </summary>
+        public IImage RenderBattlePreview()
+        {
+            return ImageBattleScreenCore.RenderBattleScreenPreview(CoreState.ROM);
+        }
+
+        /// <summary>
         /// Bulk-write the TSA grid + 5 image pointers to ROM. Caller MUST
         /// wrap this in <c>UndoService.Begin/Commit/Rollback</c>. Returns
         /// <c>true</c> on success.

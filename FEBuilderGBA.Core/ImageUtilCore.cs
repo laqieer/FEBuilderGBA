@@ -112,8 +112,19 @@ namespace FEBuilderGBA
         /// Decode TSA (Tile Screen Arrangement) data to produce a tile map.
         /// TSA entries are 16-bit: bits 0-9 = tile index, bits 10-11 = flip, bits 12-15 = palette.
         /// </summary>
+        /// <param name="opaqueIndex0">
+        /// When <c>false</c> (default), palette index 0 renders as transparent
+        /// (alpha 0) -- the standard sprite/TSA convention. When <c>true</c>,
+        /// index 0 renders OPAQUE (alpha 255). The battle-screen preview
+        /// (#802) needs this because WinForms <c>ImageUtil.BitBlt</c> blits the
+        /// battle screen with <c>transparent_index = 0xFF</c> which (since 4bpp
+        /// color indices are 0..15) never matches -- so index 0 is opaque in
+        /// the WF battle screen. This trailing optional param keeps all existing
+        /// callers default-preserving (they pass &lt;= 7 positional args).
+        /// </param>
         public static IImage DecodeTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
-            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true, int tsaOffset = 0)
+            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true, int tsaOffset = 0,
+            bool opaqueIndex0 = false)
         {
             if (CoreState.ImageService == null) return null;
 
@@ -140,7 +151,7 @@ namespace FEBuilderGBA
                 int tileY = (i / screenWidthTiles) * 8;
 
                 DecodeTileToPixels(tileData, tileIndex, gbaPalette, palIndex,
-                    pixels, width, tileX, tileY, hFlip, vFlip, is4bpp);
+                    pixels, width, tileX, tileY, hFlip, vFlip, is4bpp, opaqueIndex0);
             }
 
             image.SetPixelData(pixels);
@@ -367,7 +378,8 @@ namespace FEBuilderGBA
         }
 
         static void DecodeTileToPixels(byte[] tileData, int tileIndex, byte[] gbaPalette, int palIndex,
-            byte[] pixels, int imageWidth, int tileX, int tileY, bool hFlip, bool vFlip, bool is4bpp)
+            byte[] pixels, int imageWidth, int tileX, int tileY, bool hFlip, bool vFlip, bool is4bpp,
+            bool opaqueIndex0 = false)
         {
             if (CoreState.ImageService == null) return;
 
@@ -416,7 +428,10 @@ namespace FEBuilderGBA
                     pixels[idx + 0] = r;
                     pixels[idx + 1] = g;
                     pixels[idx + 2] = b2;
-                    pixels[idx + 3] = (byte)(colorIndex == 0 ? 0 : 255); // index 0 = transparent
+                    // index 0 = transparent (default) unless opaqueIndex0 forces
+                    // alpha 255 -- the battle-screen preview (#802) blits index 0
+                    // opaque to match WinForms BitBlt (transparent_index = 0xFF).
+                    pixels[idx + 3] = (byte)((colorIndex == 0 && !opaqueIndex0) ? 0 : 255);
                 }
             }
         }
