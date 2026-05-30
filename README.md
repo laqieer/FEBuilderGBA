@@ -148,8 +148,9 @@ FEBuilderGBA.exe --rom path/to/rom.gba --export-editor-images --screenshot-dir=.
 # BG255/BG224 (255-color cutscene backgrounds): on ROMs with the BG256Color patch,
 # the Avalonia ImageBG editor imports and previews 255/224-color backgrounds (8bpp
 # LZ77 tiles + 512-byte palette + P4 mode flag), mirroring WinForms ImportButton255
-# via the cross-platform ImageBG256ColorCore (224-color mode rejects >224 colors
-# rather than silently blacking them out).
+# via the cross-platform ImageBG256ColorCore (224-color mode rejects any pre-remap
+# pixel index >= 224 — indices must be 0..223 — rather than silently blacking them
+# out; the import is fixed to 256x160).
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-import
 
 # Validate palette roundtrip (export palette→import palette→re-export→binary compare)

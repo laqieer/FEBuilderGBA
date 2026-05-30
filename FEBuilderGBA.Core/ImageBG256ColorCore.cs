@@ -179,14 +179,27 @@ namespace FEBuilderGBA
             if (rom == null) return ImportResult.Fail("ROM is null");
             if (indexed8bpp == null) return ImportResult.Fail("Indexed pixel data is null");
             if (svc == null) return ImportResult.Fail("Image service is not available");
-            if (w <= 0 || h <= 0 || w % 8 != 0 || h % 8 != 0)
-                return ImportResult.Fail("Width/height must be positive multiples of 8");
+            // BG255/BG224 entries are a fixed 256x160 (32x20 tiles) — Decode255ColorBG
+            // always decodes with those constants, so a different size could never
+            // round-trip. Reject up front (Copilot review on PR #801).
+            if (w != Width || h != Height)
+                return ImportResult.Fail($"BG255/BG224 must be {Width}x{Height}");
             if (indexed8bpp.Length != w * h)
                 return ImportResult.Fail($"Indexed pixel count ({indexed8bpp.Length}) does not match width*height ({w * h})");
 
-            // Reuse an already-open ambient scope (Avalonia path) or open one
-            // so every helper write below is undo-captured.
-            bool ownsScope = undo != null && ROM.GetAmbientUndoData() != undo;
+            // Undo capture must be nest-safe (Copilot review on PR #801):
+            // ROM.BeginUndoScope is NOT stacked — its IDisposable.Dispose() clears
+            // the ambient scope to null rather than restoring the previous one. So
+            // we save the caller's prior ambient scope, set our own only when it
+            // differs, and on exit RESTORE the prior scope (re-opening it) instead
+            // of nulling it. The invariant: after this method returns, any
+            // pre-existing ambient scope from the caller is intact, AND the
+            // P0/P4/P8 writes were captured by `undo`.
+            //   - prior == undo  → reuse the existing scope (do not re-open).
+            //   - prior == null  → open our scope; restore to null (dispose) on exit.
+            //   - prior != undo  → open our scope; restore the prior scope on exit.
+            Undo.UndoData priorAmbient = ROM.GetAmbientUndoData();
+            bool ownsScope = undo != null && priorAmbient != undo;
             IDisposable scope = ownsScope ? ROM.BeginUndoScope(undo) : null;
             try
             {
@@ -240,7 +253,18 @@ namespace FEBuilderGBA
             }
             finally
             {
-                scope?.Dispose();
+                if (ownsScope)
+                {
+                    // Dispose our scope (sets ambient to null), then re-open the
+                    // caller's prior scope if there was one so their undo tracking
+                    // survives. ROM.BeginUndoScope is not stacked, so a plain
+                    // Dispose() would otherwise wipe a different outer scope.
+                    scope.Dispose();
+                    if (priorAmbient != null)
+                    {
+                        ROM.BeginUndoScope(priorAmbient);
+                    }
+                }
             }
         }
 
@@ -267,7 +291,11 @@ namespace FEBuilderGBA
 
             uint imgOff = U.toOffset(p0Addr);
             uint palOff = U.toOffset(p8Addr);
-            if (!U.isSafetyOffset(imgOff) || !U.isSafetyOffset(palOff)) return null;
+            // Bind the safety check to the PASSED rom (2-arg overload). The
+            // single-arg U.isSafetyOffset reads CoreState.ROM, which would make
+            // this depend on global state and could NRE when CoreState.ROM is null
+            // (Copilot review on PR #801).
+            if (!U.isSafetyOffset(imgOff, rom) || !U.isSafetyOffset(palOff, rom)) return null;
 
             byte[] tiles = LZ77.decompress(rom.Data, imgOff);
             if (tiles == null || tiles.Length == 0) return null;

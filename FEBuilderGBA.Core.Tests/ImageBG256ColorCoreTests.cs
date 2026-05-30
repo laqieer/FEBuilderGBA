@@ -381,6 +381,104 @@ public class ImageBG256ColorCoreTests
         finally { CoreState.ROM = prevRom; }
     }
 
+    [Fact]
+    public void Import255_NestSafe_OuterAmbientScopeWithDifferentUndo_StaysIntact()
+    {
+        // ROM.BeginUndoScope is NOT stacked. If a DIFFERENT outer ambient scope
+        // is already active, Import255ColorBG must NOT clobber it: after the call,
+        // the outer scope must still be active and recording, AND the import's own
+        // writes must have been captured by the passed inner `undo` (Copilot
+        // review #801, blocker 2).
+        ROM rom = MakeFreeSpaceRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var svc = new Bg8bppImageService();
+            byte[] indexed = MakeIndexedImage(255);
+            byte[] pal = Make512Palette();
+
+            var undoMgr = new Undo();
+            var outerUndo = undoMgr.NewUndoData("outer");
+            var innerUndo = undoMgr.NewUndoData("inner");
+
+            uint p0 = 0x000100, p4 = 0x000104, p8 = 0x000108;
+            // A sentinel slot the OUTER scope will write after the import to prove
+            // the outer scope is still recording.
+            uint sentinelAddr = 0x000200;
+            uint sentinelBefore = rom.u32(sentinelAddr);
+
+            using (ROM.BeginUndoScope(outerUndo))
+            {
+                Assert.Same(outerUndo, ROM.GetAmbientUndoData());
+
+                var result = ImageBG256ColorCore.Import255ColorBG(
+                    rom, indexed, pal, W, H, p0, p4, p8, is224: false, svc, innerUndo);
+                Assert.True(result.Success, result.Error);
+
+                // 1) Outer scope is restored exactly (same instance) after the call.
+                Assert.Same(outerUndo, ROM.GetAmbientUndoData());
+
+                // 2) The import's writes went to the INNER undo, not the outer.
+                Assert.True(innerUndo.list.Count >= 3);
+                Assert.Empty(outerUndo.list);
+
+                // 3) The outer scope is still recording: a write here lands in it.
+                rom.write_u32(sentinelAddr, 0xABCD1234u);
+                Assert.Single(outerUndo.list);
+            }
+
+            // The import's writes actually landed.
+            Assert.NotEqual(0u, rom.u32(p0));
+            Assert.Equal(0u, rom.u32(p4));
+
+            // Rolling back the inner undo restores P0/P4/P8 (but leaves the
+            // sentinel, which belongs to the outer scope).
+            undoMgr.Rollback(innerUndo);
+            Assert.Equal(0xABCD1234u, rom.u32(sentinelAddr)); // sentinel untouched by inner rollback
+
+            // Rolling back the outer undo restores the sentinel.
+            undoMgr.Rollback(outerUndo);
+            Assert.Equal(sentinelBefore, rom.u32(sentinelAddr));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void Import255_ReusesActiveAmbientScope_WhenSameUndoAlreadyOpen()
+    {
+        // When the caller already opened an ambient scope for the SAME UndoData
+        // (the Avalonia UndoService path), Import255ColorBG must reuse it and
+        // leave it open afterward (it does not own/close it).
+        ROM rom = MakeFreeSpaceRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var svc = new Bg8bppImageService();
+            byte[] indexed = MakeIndexedImage(255);
+            byte[] pal = Make512Palette();
+
+            var undoMgr = new Undo();
+            var sharedUndo = undoMgr.NewUndoData("shared");
+
+            using (ROM.BeginUndoScope(sharedUndo))
+            {
+                var result = ImageBG256ColorCore.Import255ColorBG(
+                    rom, indexed, pal, W, H, 0x100, 0x104, 0x108, is224: false, svc, sharedUndo);
+                Assert.True(result.Success, result.Error);
+
+                // The shared scope is still active (we did not close the caller's scope).
+                Assert.Same(sharedUndo, ROM.GetAmbientUndoData());
+                // The writes were captured by the shared undo.
+                Assert.True(sharedUndo.list.Count >= 3);
+            }
+            // After the using-scope closes, ambient is null again.
+            Assert.Null(ROM.GetAmbientUndoData());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     // =================================================================
     // Import255ColorBG — 224-color (P4 = 1)
     // =================================================================
@@ -501,6 +599,40 @@ public class ImageBG256ColorCoreTests
         Assert.False(result.Success);
     }
 
+    [Theory]
+    [InlineData(240, 160)] // wrong width (30 tiles)
+    [InlineData(256, 144)] // wrong height (18 tiles)
+    [InlineData(512, 320)] // 2x — multiple of 8 but not the fixed size
+    [InlineData(8, 8)]     // tiny
+    public void Import255_WrongSize_ReturnsError_NoWrites(int w, int h)
+    {
+        // BG255/BG224 is fixed 256x160 — any other size can never round-trip
+        // through Decode255ColorBG (Copilot review #801).
+        ROM rom = MakeFreeSpaceRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var svc = new Bg8bppImageService();
+            byte[] indexed = new byte[w * h]; // matches w*h so size is the only fault
+            byte[] pal = Make512Palette();
+
+            uint p0 = 0x000100, p4 = 0x000104, p8 = 0x000108;
+            uint origP4 = rom.u32(p4);
+
+            var undo = NewUndo();
+            var result = ImageBG256ColorCore.Import255ColorBG(
+                rom, indexed, pal, w, h, p0, p4, p8, is224: false, svc, undo);
+
+            Assert.False(result.Success);
+            Assert.Contains("256x160", result.Error);
+            // Rejected before any ROM write.
+            Assert.Equal(origP4, rom.u32(p4));
+            Assert.Empty(undo.list);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     // =================================================================
     // Decode255ColorBG — preview parity for P4=0 and P4=1
     // =================================================================
@@ -512,7 +644,7 @@ public class ImageBG256ColorCoreTests
         var prevRom = CoreState.ROM;
         try
         {
-            CoreState.ROM = rom; // Decode255ColorBG uses single-arg U.isSafetyOffset
+            CoreState.ROM = rom; // only for the import's undo capture
             var svc = new Bg8bppImageService();
             byte[] indexed = MakeIndexedImage(255);
             byte[] pal = Make512Palette();
@@ -522,6 +654,9 @@ public class ImageBG256ColorCoreTests
                 rom, indexed, pal, W, H, p0, p4, p8, is224: false, svc, NewUndo());
             Assert.True(result.Success, result.Error);
 
+            // Decode255ColorBG must use only the passed rom — clear CoreState.ROM
+            // to prove it does not depend on global state (Copilot review #801).
+            CoreState.ROM = null;
             IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, rom.u32(p0), rom.u32(p8), is224: false, svc);
             Assert.NotNull(decoded);
             Assert.Equal(W, decoded.Width);
@@ -539,7 +674,7 @@ public class ImageBG256ColorCoreTests
         var prevRom = CoreState.ROM;
         try
         {
-            CoreState.ROM = rom; // Decode255ColorBG uses single-arg U.isSafetyOffset
+            CoreState.ROM = rom; // only for the import's undo capture
             var svc = new Bg8bppImageService();
             byte[] indexed = MakeIndexedImage(223); // <= 224-color contract
             byte[] pal = Make512Palette();
@@ -549,6 +684,9 @@ public class ImageBG256ColorCoreTests
                 rom, indexed, pal, W, H, p0, p4, p8, is224: true, svc, NewUndo());
             Assert.True(result.Success, result.Error);
 
+            // Decode255ColorBG must use only the passed rom — clear CoreState.ROM
+            // to prove it does not depend on global state (Copilot review #801).
+            CoreState.ROM = null;
             IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, rom.u32(p0), rom.u32(p8), is224: true, svc);
             Assert.NotNull(decoded);
 
@@ -563,6 +701,41 @@ public class ImageBG256ColorCoreTests
 
             // And because forward/inverse round-trips on 0..223, the decoded
             // image reproduces the ORIGINAL indexed image exactly.
+            Assert.Equal(indexed, decoded.GetPixelData());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void Decode255_WorksWithDifferentCoreStateRom()
+    {
+        // Stronger variant of the global-state guard: import into `rom`, then
+        // point CoreState.ROM at a SMALL, unrelated ROM and decode. If decode
+        // used the single-arg U.isSafetyOffset (CoreState.ROM) the offsets would
+        // be rejected against the tiny ROM and the decode would wrongly return
+        // null. The 2-arg overload bound to `rom` keeps it correct.
+        ROM rom = MakeFreeSpaceRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var svc = new Bg8bppImageService();
+            byte[] indexed = MakeIndexedImage(255);
+            byte[] pal = Make512Palette();
+
+            uint p0 = 0x000100, p4 = 0x000104, p8 = 0x000108;
+            var result = ImageBG256ColorCore.Import255ColorBG(
+                rom, indexed, pal, W, H, p0, p4, p8, is224: false, svc, NewUndo());
+            Assert.True(result.Success, result.Error);
+            uint imgPtr = rom.u32(p0), palPtr = rom.u32(p8);
+
+            // A different, much smaller ROM whose length would reject the offsets.
+            var otherRom = new ROM();
+            otherRom.SwapNewROMDataDirect(new byte[0x1000]);
+            CoreState.ROM = otherRom;
+
+            IImage decoded = ImageBG256ColorCore.Decode255ColorBG(rom, imgPtr, palPtr, is224: false, svc);
+            Assert.NotNull(decoded);
             Assert.Equal(indexed, decoded.GetPixelData());
         }
         finally { CoreState.ROM = prevRom; }
