@@ -230,6 +230,27 @@ public class ImageTSAEditorParityTests
         Assert.Contains("IsEnabled=\"False\"", m.Value);
     }
 
+    /// <summary>
+    /// #808: the read-only Battle "Export PNG" button must use a DISTINCT
+    /// AutomationId (not the inert MainImage Export button), be wired to a
+    /// Click handler, and gate IsEnabled on CanExportBattle (a successful
+    /// render) — NOT IsContextLoaded. Mirrors View_WriteButton_IsContextGated.
+    /// </summary>
+    [Fact]
+    public void View_ExportPngButton_IsRenderGated()
+    {
+        string axaml = ReadAxaml();
+        var rx = new Regex(
+            "AutomationId=\"ImageTSAEditor_Battle_ExportPng_Button\"[\\s\\S]*?/>",
+            RegexOptions.Compiled);
+        Match m = rx.Match(axaml);
+        Assert.True(m.Success, "Battle Export PNG button tag not found");
+        Assert.Contains("Click=\"BattleExportPng_Click\"", m.Value);
+        Assert.Contains("IsEnabled=\"{Binding CanExportBattle}\"", m.Value);
+        // Must be a different id than the inert MainImage Export button.
+        Assert.DoesNotContain("ImageTSAEditor_MainImage_Export_Button", m.Value);
+    }
+
     // -----------------------------------------------------------------
     // Roslyn-lite checks — Write / PaletteWrite handlers use UndoService.
     // -----------------------------------------------------------------
@@ -422,10 +443,10 @@ public class ImageTSAEditorParityTests
         var rx = new Regex(@"KnownGap:\s*(\S+(?:\s+\S+)*?)\s+reason=(.+?)\s*-->",
             RegexOptions.Compiled);
         var matches = rx.Matches(axaml);
-        Assert.True(matches.Count >= 5,
-            $"AXAML must contain at least 5 KnownGap markers (BattleCanvasRender, " +
-            $"ChipsetListRender, TSAByteWrite, PaletteToClipboard, MainImageImportExport); " +
-            $"found {matches.Count}.");
+        Assert.True(matches.Count >= 4,
+            $"AXAML must contain at least 4 KnownGap markers (ChipsetListRender, " +
+            $"TSAByteWrite, PaletteToClipboard, MainImageImportExport); " +
+            $"found {matches.Count}. (BattleCanvasRender was resolved in #808.)");
         foreach (Match m in matches)
         {
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[1].Value),
@@ -462,6 +483,34 @@ public class ImageTSAEditorParityTests
         Assert.False(vm.IsHeaderTSA);
         Assert.True(vm.IsLZ77TSA);
         Assert.Equal(1, vm.PaletteCount);
+    }
+
+    /// <summary>
+    /// #808 review #4: RenderMainImage must return null (no throw) when the
+    /// image or TSA pointer slots are NOT_FOUND, even with a loaded context.
+    /// A NOT_FOUND palette pointer is the EXPECTED raw-address fallback and
+    /// must NOT by itself fail the render.
+    /// </summary>
+    [Fact]
+    public void ViewModel_RenderMainImage_AllNotFoundPointers_ReturnsNull()
+    {
+        var vm = new ImageTSAEditorViewModel();
+        // No context yet -> null.
+        Assert.Null(vm.RenderMainImage());
+
+        vm.Init(
+            width8: 32u,
+            height8: 20u,
+            zimgPointer: U.NOT_FOUND,
+            isHeaderTSA: false,
+            isLZ77TSA: true,
+            tsaPointer: U.NOT_FOUND,
+            palettePointer: U.NOT_FOUND,
+            paletteAddress: 0u,
+            paletteCount: 1);
+
+        // Image / TSA slots are NOT_FOUND -> render is skipped without throwing.
+        Assert.Null(vm.RenderMainImage());
     }
 
     [Fact]

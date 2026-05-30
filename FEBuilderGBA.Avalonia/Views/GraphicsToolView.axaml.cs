@@ -10,6 +10,15 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly GraphicsToolViewViewModel _vm = new();
 
+        // Captured from the last Jump(...) call so the "TSA Editor" button can
+        // open ImageTSAEditorView with the same image/TSA/palette context. The
+        // WinForms equivalent reads these straight off the GraphicsToolForm
+        // controls in TSAEditorButton_Click; the Avalonia preview path keeps
+        // them here because the VM does not own a TSA field.
+        bool _tsaNavReady;
+        int _navWidth, _navHeight, _navPaletteCount, _navTsaType;
+        uint _navImageAddr, _navTsaAddr, _navPaletteAddr;
+
         public string ViewTitle => "Graphics Tool";
         public bool IsLoaded => _vm.IsLoaded;
         public ViewModelBase? DataViewModel => _vm;
@@ -39,6 +48,56 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void Close_Click(object? sender, RoutedEventArgs e) => Close();
+
+        /// <summary>
+        /// Open the TSA Tile Editor pre-populated with the last Jump(...)
+        /// image/TSA/palette context. Mirrors WinForms
+        /// <c>GraphicsToolForm.TSAEditorButton_Click</c>: convert the direct
+        /// data addresses to pointer slots via <c>U.GrepPointer</c> (the WF
+        /// <c>refPointer</c> equivalent, which returns <c>U.NOT_FOUND</c> when
+        /// no slot references the address), map the TSA option index to the
+        /// header/LZ77 flags, then call <c>ImageTSAEditorView.Init</c>.
+        /// </summary>
+        void TSAEditor_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_tsaNavReady) return;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            try
+            {
+                uint width8 = (uint)System.Math.Max(1, _navWidth / 8);
+                uint height8 = (uint)System.Math.Max(1, _navHeight / 8);
+
+                // refPointer(addr): find the pointer slot that references the
+                // data address, or U.NOT_FOUND when none does.
+                uint zimgPointer = U.GrepPointer(rom.Data, U.toPointer(_navImageAddr));
+                uint tsaPointer = U.GrepPointer(rom.Data, U.toPointer(_navTsaAddr));
+
+                // Mirror WF TSAOption.SelectedIndex mapping:
+                //   1 = LZ77; 2 = LZ77 + header; 3 = raw header; else raw.
+                bool isHeaderTSA = false;
+                bool isLZ77TSA = false;
+                if (_navTsaType == 1) { isLZ77TSA = true; }
+                else if (_navTsaType == 2) { isLZ77TSA = true; isHeaderTSA = true; }
+                else if (_navTsaType == 3) { isHeaderTSA = true; }
+
+                uint paletteOffset = U.toOffset(_navPaletteAddr);
+                uint palettePointer = U.GrepPointer(rom.Data, U.toPointer(_navPaletteAddr));
+
+                int paletteCount = _navPaletteCount;
+                if (paletteCount <= 0) paletteCount = 1;
+
+                var f = WindowManager.Instance.Open<ImageTSAEditorView>();
+                f.Init(width8, height8, zimgPointer, isHeaderTSA, isLZ77TSA,
+                       tsaPointer, palettePointer, paletteOffset, paletteCount);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("GraphicsToolView.TSAEditor_Click failed: {0}", ex.Message);
+            }
+        }
 
         public void NavigateTo(uint address) { }
         public void SelectFirstItem() { }
@@ -117,6 +176,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.IsCompressed = IsCompressedImageType(imageType);
                 // Battle-BG graphics are 4bpp.
                 _vm.Is4bpp = true;
+
+                // Snapshot the full TSA context for the "TSA Editor" button.
+                _navWidth = width;
+                _navHeight = height;
+                _navImageAddr = image;
+                _navTsaAddr = tsa;
+                _navTsaType = tsaType;
+                _navPaletteAddr = palette;
+                _navPaletteCount = paletteCount;
+                _tsaNavReady = true;
             }
             finally
             {
@@ -136,6 +205,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
             catch { /* keep the view usable even if Draw fails */ }
+            TSAEditorButton.IsEnabled = _tsaNavReady;
         }
 
         /// <summary>
