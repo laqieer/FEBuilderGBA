@@ -51,6 +51,7 @@
     <!-- Buttons -->
     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
       <Button AutomationProperties.AutomationId="GraphicsTool_Draw_Button" Content="Draw" Width="80" Click="Draw_Click" />
+      <Button AutomationProperties.AutomationId="GraphicsTool_TSAEditor_Button" x:Name="TSAEditorButton" Content="TSA Editor" Width="100" Click="TSAEditor_Click" IsEnabled="False" />
       <Button AutomationProperties.AutomationId="GraphicsTool_Close_Button" Content="Close" Width="80" Click="Close_Click" />
       <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="Gray" />
     </StackPanel>

@@ -60,6 +60,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public bool IsContextLoaded { get => _isContextLoaded; set => SetField(ref _isContextLoaded, value); }
 
+        bool _canExportBattle;
+        /// <summary>
+        /// True only when the TSA-composited main image rendered successfully
+        /// (set by the View's RefreshBattleCanvas). The Export PNG button binds
+        /// IsEnabled to this -- a loaded context whose render failed must stay
+        /// disabled, so this is intentionally NOT just <see cref="IsContextLoaded"/>.
+        /// </summary>
+        public bool CanExportBattle { get => _canExportBattle; set => SetField(ref _canExportBattle, value); }
+
         // Caller-context, read by the view's Write_Click / PaletteWrite_Click
         // handlers and the static unit tests. Settable via Init only.
 
@@ -145,6 +154,40 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return U.toOffset(_paletteAddress);
             }
             return rom.p32(_palettePointer);
+        }
+
+        /// <summary>
+        /// Render the TSA-composited main image (read-only) for the
+        /// <c>BattlePreview</c> control and PNG export (#808). Resolves the
+        /// pointer slots to data addresses exactly like WinForms
+        /// ImageTSAEditorForm, then delegates to
+        /// <see cref="ImageTSAEditorCore.TryRenderMainImage"/>.
+        ///
+        /// Returns null (no throw) when there is no context, when the image or
+        /// TSA pointer slots are unset (U.NOT_FOUND), or when the underlying
+        /// render fails. A NOT_FOUND palette pointer is NOT a failure -- it is
+        /// the expected raw-address fallback handled by
+        /// <see cref="ResolveActivePaletteAddress"/>.
+        /// </summary>
+        public IImage RenderMainImage()
+        {
+            if (!IsContextLoaded) return null;
+
+            // The image and TSA pointer slots must be real before we follow
+            // them with p32; only the palette pointer has a raw-address fallback.
+            if (_zimgPointer == U.NOT_FOUND) return null;
+            if (_tsaPointer == U.NOT_FOUND) return null;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return null;
+
+            uint imageAddr = rom.p32(_zimgPointer);
+            uint tsaAddr = rom.p32(_tsaPointer);
+            uint paletteAddr = ResolveActivePaletteAddress();
+
+            return ImageTSAEditorCore.TryRenderMainImage(
+                rom, _width8, _height8, imageAddr,
+                _isHeaderTSA, _isLZ77TSA, tsaAddr, paletteAddr);
         }
 
         /// <summary>

@@ -112,6 +112,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ReloadPaletteIntoGrid();
 
             UpdateInfoLabel();
+            RefreshBattleCanvas();
         }
 
         /// <summary>
@@ -218,6 +219,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(addr);
                 UpdateInfoLabel();
+                RefreshBattleCanvas();
             }
             catch (Exception ex)
             {
@@ -235,6 +237,29 @@ namespace FEBuilderGBA.Avalonia.Views
             else
             {
                 InfoBox.Text = string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Render the TSA-composited main image (#808) into the BattlePreview
+        /// control and gate the Export PNG button. On a successful render the
+        /// image is shown and <c>CanExportBattle</c> is set true; on any failure
+        /// (no context, unset pointers, corrupt data) the preview is cleared and
+        /// the Export button stays disabled. Never throws.
+        /// </summary>
+        void RefreshBattleCanvas()
+        {
+            try
+            {
+                IImage img = _vm.RenderMainImage();
+                BattlePreview.SetImage(img);
+                _vm.CanExportBattle = img != null;
+            }
+            catch (Exception ex)
+            {
+                BattlePreview.SetImage(null);
+                _vm.CanExportBattle = false;
+                Log.Error("ImageTSAEditorView.RefreshBattleCanvas failed: {0}", ex.Message);
             }
         }
 
@@ -419,6 +444,23 @@ namespace FEBuilderGBA.Avalonia.Views
         void MainImageExport_Click(object? sender, RoutedEventArgs e)
         {
             Log.Notify("ImageTSAEditor MainImageExport - deferred (KnownGap: MainImageImportExport)");
+        }
+
+        /// <summary>
+        /// Read-only Export PNG of the TSA-composited main image (#808). Saves
+        /// the BattlePreview image via the shared GbaImageControl save-file
+        /// dialog. Enabled only when CanExportBattle (a successful render).
+        /// </summary>
+        async void BattleExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await BattlePreview.ExportPng(this, "tsa_main_image");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageTSAEditorView.BattleExportPng failed: {0}", ex.Message);
+            }
         }
     }
 }
