@@ -377,7 +377,11 @@ namespace FEBuilderGBA
             return bestIndex;
         }
 
-        static void DecodeTileToPixels(byte[] tileData, int tileIndex, byte[] gbaPalette, int palIndex,
+        // internal (not private) so cross-platform editor helpers in the same
+        // assembly -- e.g. ImageBattleScreenCore.RenderChipsetPreview (#805) --
+        // can render a single tile with explicit flip + palette-bank +
+        // opaque-index-0 control WITHOUT duplicating the 4bpp/8bpp decode loop.
+        internal static void DecodeTileToPixels(byte[] tileData, int tileIndex, byte[] gbaPalette, int palIndex,
             byte[] pixels, int imageWidth, int tileX, int tileY, bool hFlip, bool vFlip, bool is4bpp,
             bool opaqueIndex0 = false)
         {

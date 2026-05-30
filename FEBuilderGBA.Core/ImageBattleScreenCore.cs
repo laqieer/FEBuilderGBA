@@ -210,62 +210,13 @@ namespace FEBuilderGBA
             ushort[] map = LoadBattleScreen(rom);
             if (map == null) return null;
 
-            // --- Blocker 1: RAW 16-bank palette (512 bytes, NO LZ77) ---
-            uint palAddr = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
-            if (!U.isSafetyOffset(palAddr, rom)) return null;
-            ulong palLast = (ulong)palAddr + (ulong)BATTLE_SCREEN_PALETTE_BYTES - 1UL;
-            if (palLast >= (ulong)rom.Data.Length) return null;
-            byte[] gbaPalette = new byte[BATTLE_SCREEN_PALETTE_BYTES];
-            Array.Copy(rom.Data, palAddr, gbaPalette, 0, BATTLE_SCREEN_PALETTE_BYTES);
-
-            // --- Blocker 2: LZ77 image1..image5 concatenated vertically ---
-            uint[] imagePointerSlots = new uint[]
-            {
-                rom.RomInfo.battle_screen_image1_pointer,
-                rom.RomInfo.battle_screen_image2_pointer,
-                rom.RomInfo.battle_screen_image3_pointer,
-                rom.RomInfo.battle_screen_image4_pointer,
-                rom.RomInfo.battle_screen_image5_pointer,
-            };
-
-            int totalLength = 0;
-            byte[][] chunks = new byte[imagePointerSlots.Length][];
-            for (int i = 0; i < imagePointerSlots.Length; i++)
-            {
-                uint imageAddr = rom.p32(imagePointerSlots[i]);
-                // Each image1..5 is REQUIRED (WF blits all five): a bad pointer
-                // or LZ77 failure must fail the whole render, not skip a chunk.
-                if (!U.isSafetyOffset(imageAddr, rom)) return null;
-
-                // Validate the compressed stream BEFORE decompressing.
-                // LZ77.decompress does NOT distinguish a truncated stream: when
-                // the input ends early it breaks out and returns a ZERO-FILLED
-                // buffer of the advertised (header) size, which would silently
-                // render as a blank-but-plausible chunk and violate the
-                // "any corrupt REQUIRED source fails the whole render" contract
-                // (#802 PR #804 review fix). LZ77.getCompressedSize returns the
-                // ACTUAL consumed compressed length only when the full stream
-                // decodes within the ROM bounds, and 0 on any corruption /
-                // truncation / bad header. A defensive end-of-ROM bound check
-                // on (imageAddr + compressedSize) additionally guards an overrun.
-                uint compressedSize = LZ77.getCompressedSize(rom.Data, imageAddr);
-                if (compressedSize == 0) return null;
-                if ((ulong)imageAddr + (ulong)compressedSize > (ulong)rom.Data.Length) return null;
-
-                byte[] chunk = LZ77.decompress(rom.Data, imageAddr);
-                if (chunk == null || chunk.Length == 0) return null;
-                chunks[i] = chunk;
-                totalLength += chunk.Length;
-            }
-            if (totalLength == 0) return null;
-
-            byte[] tileData = new byte[totalLength];
-            int writePos = 0;
-            for (int i = 0; i < chunks.Length; i++)
-            {
-                Array.Copy(chunks[i], 0, tileData, writePos, chunks[i].Length);
-                writePos += chunks[i].Length;
-            }
+            // --- Blocker 1 + 2: RAW 16-bank palette + concatenated tileset ---
+            // Extracted into the shared TryLoadChipsetAndPalette helper (#805)
+            // so the chipset preview can reuse the EXACT same load path. A null
+            // return (any corrupt/missing REQUIRED source) fails the whole
+            // render -- no partial-render of a corrupt ROM.
+            if (!TryLoadChipsetAndPalette(rom, out byte[] tileData, out byte[] gbaPalette))
+                return null;
 
             // --- Blocker 3 (cont.): normalize RAW WF cells -> GBA-standard TSA ---
             // WF MakeBattleScreen: tile = m & 0xff, flip = (m >> 8) & 0x0f,
@@ -299,6 +250,176 @@ namespace FEBuilderGBA
                 tileData, tsaData, gbaPalette,
                 BATTLE_SCREEN_WIDTH_TILES, BATTLE_SCREEN_HEIGHT_TILES,
                 is4bpp: true, tsaOffset: 0, opaqueIndex0: true);
+        }
+
+        /// <summary>
+        /// Shared loader (#805) for the battle-screen tileset + palette. Pulled
+        /// verbatim out of <see cref="RenderBattleScreenPreview"/> (#802) so the
+        /// chipset preview (<see cref="RenderChipsetPreview"/>) reuses the EXACT
+        /// same load path: behavior is preserved, not re-implemented.
+        ///
+        /// Outputs on success:
+        ///   * <paramref name="tileData"/> -- image1..image5 LZ77-decompressed
+        ///     (each 8px wide), concatenated vertically in order into one
+        ///     4bpp tileset.
+        ///   * <paramref name="palette"/> -- the RAW 16-bank GBA palette
+        ///     (512 bytes) read directly at <c>battle_screen_palette_pointer</c>
+        ///     (NOT LZ77 -- WF passes the palette offset straight to
+        ///     ByteToImage16Tile).
+        ///
+        /// Returns <c>false</c> (and null outputs) if ANY of the five REQUIRED
+        /// image strips or the palette is missing / out-of-bounds / corrupt /
+        /// truncated. Each LZ77 stream is validated with
+        /// <c>LZ77.getCompressedSize</c> BEFORE decompressing: a truncated but
+        /// header-valid chunk (which <c>LZ77.decompress</c> would otherwise
+        /// return as a zero-filled buffer) fails the whole load instead of
+        /// silently yielding a blank chunk (#802 PR #804 review contract).
+        /// </summary>
+        static bool TryLoadChipsetAndPalette(ROM rom, out byte[] tileData, out byte[] palette)
+        {
+            tileData = null;
+            palette = null;
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+
+            // --- Blocker 1: RAW 16-bank palette (512 bytes, NO LZ77) ---
+            uint palAddr = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+            if (!U.isSafetyOffset(palAddr, rom)) return false;
+            ulong palLast = (ulong)palAddr + (ulong)BATTLE_SCREEN_PALETTE_BYTES - 1UL;
+            if (palLast >= (ulong)rom.Data.Length) return false;
+            byte[] gbaPalette = new byte[BATTLE_SCREEN_PALETTE_BYTES];
+            Array.Copy(rom.Data, palAddr, gbaPalette, 0, BATTLE_SCREEN_PALETTE_BYTES);
+
+            // --- Blocker 2: LZ77 image1..image5 concatenated vertically ---
+            uint[] imagePointerSlots = new uint[]
+            {
+                rom.RomInfo.battle_screen_image1_pointer,
+                rom.RomInfo.battle_screen_image2_pointer,
+                rom.RomInfo.battle_screen_image3_pointer,
+                rom.RomInfo.battle_screen_image4_pointer,
+                rom.RomInfo.battle_screen_image5_pointer,
+            };
+
+            int totalLength = 0;
+            byte[][] chunks = new byte[imagePointerSlots.Length][];
+            for (int i = 0; i < imagePointerSlots.Length; i++)
+            {
+                uint imageAddr = rom.p32(imagePointerSlots[i]);
+                // Each image1..5 is REQUIRED (WF blits all five): a bad pointer
+                // or LZ77 failure must fail the whole render, not skip a chunk.
+                if (!U.isSafetyOffset(imageAddr, rom)) return false;
+
+                // Validate the compressed stream BEFORE decompressing.
+                // LZ77.decompress does NOT distinguish a truncated stream: when
+                // the input ends early it breaks out and returns a ZERO-FILLED
+                // buffer of the advertised (header) size, which would silently
+                // render as a blank-but-plausible chunk and violate the
+                // "any corrupt REQUIRED source fails the whole render" contract
+                // (#802 PR #804 review fix). LZ77.getCompressedSize returns the
+                // ACTUAL consumed compressed length only when the full stream
+                // decodes within the ROM bounds, and 0 on any corruption /
+                // truncation / bad header. A defensive end-of-ROM bound check
+                // on (imageAddr + compressedSize) additionally guards an overrun.
+                uint compressedSize = LZ77.getCompressedSize(rom.Data, imageAddr);
+                if (compressedSize == 0) return false;
+                if ((ulong)imageAddr + (ulong)compressedSize > (ulong)rom.Data.Length) return false;
+
+                byte[] chunk = LZ77.decompress(rom.Data, imageAddr);
+                if (chunk == null || chunk.Length == 0) return false;
+                chunks[i] = chunk;
+                totalLength += chunk.Length;
+            }
+            if (totalLength == 0) return false;
+
+            byte[] tiles = new byte[totalLength];
+            int writePos = 0;
+            for (int i = 0; i < chunks.Length; i++)
+            {
+                Array.Copy(chunks[i], 0, tiles, writePos, chunks[i].Length);
+                writePos += chunks[i].Length;
+            }
+
+            tileData = tiles;
+            palette = gbaPalette;
+            return true;
+        }
+
+        /// <summary>
+        /// Render the WinForms <c>ImageBattleScreenForm.MakeCHIPLIST()</c> chip
+        /// list cross-platform (#805, follow-up to #802). The chip list shows
+        /// every 8x8 tile of the concatenated battle-screen tileset in 8
+        /// adjacent columns of flip/palette-bank permutations -- the reference
+        /// grid the WF editor draws above the TSA paint area.
+        ///
+        /// Mirrors WF MakeCHIPLIST EXACTLY:
+        ///   * Canvas = <c>ChipCache.Width * 4 * 2</c> wide x
+        ///     <c>ChipCache.Height</c> tall, where <c>ChipCache</c> is the 8px
+        ///     wide tile sheet (one tile per 8px row). So width = 8*4*2 = 64,
+        ///     height = (tile count) * 8.
+        ///   * For each tile row y, 8 columns at x = 8*0 .. 8*7:
+        ///       col 0: original  (bank 0)   col 4: original  (bank 1)
+        ///       col 1: H-flip    (bank 0)   col 5: H-flip    (bank 1)
+        ///       col 2: V-flip    (bank 0)   col 6: V-flip    (bank 1)
+        ///       col 3: HV-flip   (bank 0)   col 7: HV-flip   (bank 1)
+        ///   * index 0 renders OPAQUE -- WF MakeCHIPLIST blits with
+        ///     <c>transparent_index = 0xFF</c> (never matches a 0..15 index),
+        ///     same as the battle-screen preview (#802 Blocker 4).
+        ///
+        /// Returns <c>null</c> (no crash) if <see cref="TryLoadChipsetAndPalette"/>
+        /// fails (missing/corrupt required source) or no ImageService is set.
+        /// Deterministic; no <c>Program.*</c> / System.Drawing dependency.
+        /// </summary>
+        public static IImage RenderChipsetPreview(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            if (!TryLoadChipsetAndPalette(rom, out byte[] tileData, out byte[] gbaPalette))
+                return null;
+
+            // ChipCache (WF) is an 8px-wide tile sheet: one 8x8 tile per 8px
+            // row. tile count = tileData.Length / 32 (4bpp = 32 bytes/tile).
+            const int bytesPerTile = 32;
+            int tileCount = tileData.Length / bytesPerTile;
+            if (tileCount <= 0) return null;
+
+            // ChipCache.Width = 8, ChipCache.Height = tileCount * 8.
+            // Chip-list canvas = ChipCache.Width * 4 * 2 (= 64) x ChipCache.Height.
+            int width = 8 * 4 * 2;        // 8 columns of 8px
+            int height = tileCount * 8;
+
+            var image = CoreState.ImageService.CreateImage(width, height);
+            byte[] pixels = new byte[width * height * 4]; // RGBA
+
+            // Column layout: {orig, Hflip, Vflip, HVflip} for bank 0, then the
+            // same 4 for bank 1 -- exactly WF MakeCHIPLIST's blit order.
+            // (hFlip, vFlip, palBank)
+            (bool h, bool v, int bank)[] columns =
+            {
+                (false, false, 0), // col 0
+                (true,  false, 0), // col 1
+                (false, true,  0), // col 2
+                (true,  true,  0), // col 3
+                (false, false, 1), // col 4
+                (true,  false, 1), // col 5
+                (false, true,  1), // col 6
+                (true,  true,  1), // col 7
+            };
+
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                int tileY = tile * 8;
+                for (int col = 0; col < columns.Length; col++)
+                {
+                    var (h, v, bank) = columns[col];
+                    ImageUtilCore.DecodeTileToPixels(
+                        tileData, tile, gbaPalette, bank,
+                        pixels, width, col * 8, tileY,
+                        h, v, is4bpp: true, opaqueIndex0: true);
+                }
+            }
+
+            image.SetPixelData(pixels);
+            return image;
         }
 
         /// <summary>

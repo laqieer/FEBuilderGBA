@@ -179,6 +179,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry();
                 PopulateUI();
                 RefreshBattlePreview();
+                RefreshChipsetPreview();
             }
             catch (Exception ex)
             {
@@ -202,6 +203,27 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageBattleScreenView.RefreshBattlePreview failed: {0}", ex.Message);
                 BattlePreview.SetImage(null);
+            }
+        }
+
+        /// <summary>
+        /// Render the chipset chip-list preview (#805) into the
+        /// <c>ChipsetPreview</c> GbaImageControl. Mirrors the WF
+        /// <c>MakeCHIPLIST()</c> flip/palette-bank permutation grid. Null-safe:
+        /// a corrupt/missing required source returns <c>null</c> from the Core
+        /// helper, which <c>SetImage(null)</c> turns into a blank surface
+        /// (no crash) -- same pattern as <see cref="RefreshBattlePreview"/>.
+        /// </summary>
+        void RefreshChipsetPreview()
+        {
+            try
+            {
+                ChipsetPreview.SetImage(_vm.RenderChipsetPreview());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.RefreshChipsetPreview failed: {0}", ex.Message);
+                ChipsetPreview.SetImage(null);
             }
         }
 
@@ -280,8 +302,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             _undoService.Commit();
-            // Re-render the live preview from the freshly-written ROM (#802).
+            // Re-render BOTH live previews from the freshly-written ROM
+            // (#802 battle preview + #805 chipset chip list -- image pointer
+            // edits change the tileset the chip list renders).
             RefreshBattlePreview();
+            RefreshChipsetPreview();
         }
 
         void PaletteWrite_Click(object sender, RoutedEventArgs e)
@@ -319,8 +344,11 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             _undoService.Commit();
-            // Palette edits change the rendered colors -- refresh preview (#802).
+            // Palette edits change the rendered colors in BOTH previews --
+            // refresh battle preview (#802) and chipset chip list (#805,
+            // both palette banks are shown in the chip-list columns).
             RefreshBattlePreview();
+            RefreshChipsetPreview();
         }
 
         void PaletteIndex_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -401,6 +429,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry();
                 PopulateUI();
                 RefreshBattlePreview();
+                RefreshChipsetPreview();
             }
             catch (Exception ex)
             {
@@ -416,6 +445,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry();
                 PopulateUI();
                 RefreshBattlePreview();
+                RefreshChipsetPreview();
             }
             catch (Exception ex)
             {

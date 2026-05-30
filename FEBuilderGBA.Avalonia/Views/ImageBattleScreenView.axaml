@@ -51,21 +51,27 @@
       </Border>
 
       <!-- ===========================================================
-           Battle preview row. The Battle preview is now rendered live via
-           ImageBattleScreenCore.RenderBattleScreenPreview (#802): a 256x160
-           IImage composited from the 5 LZ77 image strips + RAW 16-bank
-           palette + normalized TSA grid, displayed in a GbaImageControl.
-           The Chipset thumbnail (flip-permutation chip list) is still
-           deferred (WF-coupled ImageUtil.BitBlt): honest KnownGap (#393).
+           Preview row. BOTH previews are now rendered live cross-platform:
+             * Chipset chip-list (#805): the WF MakeCHIPLIST() flip/palette-bank
+               permutation grid. Canvas ChipCache.Width*4*2 (64px) wide x
+               ChipCache.Height tall IImage from
+               ImageBattleScreenCore.RenderChipsetPreview, in a GbaImageControl.
+               8 columns per tile row: orig/Hflip/Vflip/HVflip for palette bank 0,
+               then the same 4 for bank 1; palette index 0 opaque.
+             * Battle preview (#802): a 256x160 IImage composited from the 5
+               LZ77 image strips + RAW 16-bank palette + normalized TSA grid.
            =========================================================== -->
       <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4"
               MinHeight="80">
         <StackPanel Orientation="Horizontal" Spacing="6">
-          <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_ChipsetPreview_Label"
-                     Name="ChipsetPreviewLabel"
-                     Text="Chipset Preview (deferred KnownGap): live LZ77 decode + flip permutations are WinForms-coupled (ImageUtil.BitBlt). Use the WinForms editor to paint TSA cells."
-                     TextWrapping="Wrap" Foreground="Gray" Width="280" VerticalAlignment="Center"
-                     ToolTip.Tip="KnownGap: chipset thumbnail rendering is WinForms-coupled (#393)." />
+          <!-- No ToolTip.Tip here: the BattlePreview (#802) carries none either,
+               and an English ToolTip literal would trip the L10n coverage gate.
+               The AutomationId + the comment above document the chip list. -->
+          <Border BorderBrush="DarkGray" BorderThickness="1" MinWidth="160" MinHeight="180"
+                  MaxHeight="360" Background="Black">
+            <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_ChipsetPreview_Image"
+                                      Name="ChipsetPreview" />
+          </Border>
           <Border BorderBrush="DarkGray" BorderThickness="1" MinWidth="280" MinHeight="180"
                   MaxHeight="360" Background="Black">
             <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_BattlePreview_Image"
