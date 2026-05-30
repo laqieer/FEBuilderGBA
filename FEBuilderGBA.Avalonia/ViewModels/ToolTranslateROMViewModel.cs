@@ -11,10 +11,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// view reproduces the same panel layout, default-checked controls, and
     /// multibyte-only visibility rules.
     ///
-    /// The actual ROM-translation execution paths (ImportAllText / ExportallText
-    /// / ImportFont / SimpleFireButton) remain WinForms-coupled until the Core
-    /// extraction follow-up #536 lands. Until then the action buttons render
-    /// with <c>IsEnabled="False"</c> and a tooltip referencing #536.
+    /// The ROM-translation execution paths (ImportAllText / ExportAllText /
+    /// ImportFont / SimpleFireButton) are wired to the Core orchestration
+    /// (#536). ImportFont additionally auto-generates missing glyphs
+    /// cross-platform via SkiaFontRasterizer (#796), driven by the
+    /// <see cref="UseFontName"/> + <see cref="AutoGenFontSize"/> selection.
     /// </summary>
     public class ToolTranslateROMViewModel : ViewModelBase
     {
@@ -24,14 +25,39 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _translateDataPath = string.Empty;
         string _extraFontRomPath = string.Empty;
         string _fontRomPath = string.Empty;
-        string _useFontName = string.Empty;
+        string _useFontName = "Arial";    // sane cross-platform-ish default for auto-gen
+        double _autoGenFontSize = 12;     // matches WF FontForm default em size
 
         public string FromRomPath { get => _fromRomPath; set => SetField(ref _fromRomPath, value); }
         public string ToRomPath { get => _toRomPath; set => SetField(ref _toRomPath, value); }
         public string TranslateDataPath { get => _translateDataPath; set => SetField(ref _translateDataPath, value); }
         public string ExtraFontRomPath { get => _extraFontRomPath; set => SetField(ref _extraFontRomPath, value); }
         public string FontRomPath { get => _fontRomPath; set => SetField(ref _fontRomPath, value); }
+
+        /// <summary>
+        /// Family name fed to the auto-generation rasterizer (#796). Mirrors
+        /// the WF "Use Font Name" picker — the SkiaFontRasterizer resolves it
+        /// via SKTypeface.FromFamilyName, falling back to the platform default
+        /// when the family is unavailable.
+        /// </summary>
         public string UseFontName { get => _useFontName; set => SetField(ref _useFontName, value); }
+
+        /// <summary>
+        /// Em size (points) for auto-generated glyphs (#796). Default 12 matches
+        /// the WF FontForm font size used by ImageUtil.AutoGenerateFont.
+        /// </summary>
+        public double AutoGenFontSize { get => _autoGenFontSize; set => SetField(ref _autoGenFontSize, value); }
+
+        /// <summary>
+        /// Build the cross-platform <see cref="FontSpec"/> the
+        /// <see cref="FEBuilderGBA.IFontRasterizer"/> consumes from the current
+        /// auto-gen family + size selection.
+        /// </summary>
+        public FontSpec BuildAutoGenFontSpec() => new FontSpec
+        {
+            FamilyName = string.IsNullOrWhiteSpace(UseFontName) ? "Arial" : UseFontName,
+            Size = (float)(AutoGenFontSize <= 0 ? 12 : AutoGenFontSize),
+        };
 
         // --- Checkbox state (defaults mirror WF Designer/CheckedChanged behavior) ---
         bool _simpleOverrideJpFont;           // SIMPLE_OVERRAIDE_JPFONT - WF default unchecked

@@ -5,10 +5,17 @@
 //   FontForm.GetFontPointer / FindFontData (SJIS+UTF8+LAT1) / MakeNewFontData /
 //   TransportFontStruct.
 //
-// The bitmap-rendering parts of FontForm (DrawFont / DrawFontString /
-// ImageUtil.AutoGenerateFont) stay in WinForms because they depend on
-// System.Drawing.Bitmap. The math/lookup portion - which is what
-// ToolTranslateROMCore needs - is system-encoding-agnostic and lives here.
+// The on-screen FontForm preview parts (DrawFont / DrawFontString) stay in
+// WinForms because they depend on System.Drawing.Bitmap. The math/lookup
+// portion - which is what ToolTranslateROMCore needs - is
+// system-encoding-agnostic and lives here.
+//
+// Glyph RASTERIZATION for auto-generated fonts (formerly WinForms-only via
+// ImageUtil.AutoGenerateFont) is now cross-platform through the
+// IFontRasterizer seam (#796); FEBuilderGBA.SkiaSharp.SkiaFontRasterizer
+// reproduces the WF GDI algorithm byte-for-byte and feeds the 64-byte tile
+// into MakeNewFontData below, so ToolTranslateROMCore.ImportFonts can
+// auto-generate fonts on Windows, Linux and macOS.
 using System;
 
 namespace FEBuilderGBA

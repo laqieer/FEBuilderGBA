@@ -21069,6 +21069,12 @@ to:
 :Use Font Name
 使用字体
 
+:Font Size
+字体大小
+
+:Copies missing glyphs from Font ROM, then auto-generates any still-missing glyph cross-platform via SkiaSharp (#796)
+从 Font ROM 复制缺失字形，然后通过 SkiaSharp 跨平台自动生成仍然缺失的字形 (#796)
+
 :Change
 更改
 

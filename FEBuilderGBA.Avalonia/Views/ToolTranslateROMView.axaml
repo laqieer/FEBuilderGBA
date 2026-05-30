@@ -254,10 +254,23 @@
                         Click="UseFontName_Click" />
               </Grid>
 
+              <!-- Font Size row (visible only when FontAutoGenerate is on) -->
+              <Grid ColumnDefinitions="200,*" IsVisible="{Binding FontAutoGenerate}">
+                <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="4">
+                  <TextBlock AutomationProperties.AutomationId="ToolTranslateROM_FontSize_Label"
+                             Text="Font Size"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <NumericUpDown AutomationProperties.AutomationId="ToolTranslateROM_FontSize_Input"
+                               Grid.Column="1" Margin="4,0"
+                               Minimum="6" Maximum="32" Increment="1"
+                               Value="{Binding AutoGenFontSize}" />
+              </Grid>
+
               <Button AutomationProperties.AutomationId="ToolTranslateROM_ImportFont_Button"
                       Content="Import Font"
                       Click="ImportFont_Click"
-                      ToolTip.Tip="Copies missing glyphs from Font ROM - bitmap auto-gen stays WinForms-only (#536 KnownGap)"
+                      ToolTip.Tip="Copies missing glyphs from Font ROM, then auto-generates any still-missing glyph cross-platform via SkiaSharp (#796)"
                       HorizontalAlignment="Stretch" Height="36"
                       Margin="0,4,0,0" />
             </StackPanel>

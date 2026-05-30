@@ -24,6 +24,13 @@
   <ItemGroup>
     <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" />
   </ItemGroup>
+  <!-- Bundle the license-clean Tuffy font (SIL OFL 1.1) + its license for the
+       SkiaFontRasterizer determinism / golden-byte tests (#796). Loaded via
+       FontSpec.FontFileData so glyphs render identically across CI OSes. -->
+  <ItemGroup>
+    <None Include="Fonts\Tuffy-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fonts\OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
   <!-- Copy config/ directory to output for ROM-based tests -->
   <ItemGroup>
     <Content Include="..\config\**\*.*"
