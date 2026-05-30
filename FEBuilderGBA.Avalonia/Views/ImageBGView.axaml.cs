@@ -73,11 +73,13 @@ namespace FEBuilderGBA.Avalonia.Views
         ///      refuse if no entry is selected / loaded yet. Writing to
         ///      `CurrentAddr == 0` would corrupt the ROM header.
         ///   2. Reserve-BG confirmation (system black / random slots).
-        ///   3. BG255/BG224 explicit refusal: if the BG256Color patch is
-        ///      installed AND the current entry's P4 is &lt;= 1 (the
-        ///      255/224 mode flag), refuse the 16-color import path
-        ///      before any ROM write. Mirrors WF
-        ///      `ImageBGSelectPopupForm` "VanillaTSA only" gate.
+        ///
+        /// BG255/BG224 entries are no longer refused here (#799): when the
+        /// BG256Color patch is installed AND the entry's P4 is &lt;= 1 (the
+        /// 255/224 mode flag), the import is routed to the 8bpp 255/224 path
+        /// (<see cref="IsBG256ColorEntry"/> + <see cref="RunBG256Import"/>)
+        /// instead of the 16-color header-TSA path. Both import handlers
+        /// branch on <see cref="IsBG256ColorEntry"/> after this gate passes.
         /// </summary>
         /// <returns>true if import should proceed; false if cancelled
         ///   or refused.</returns>
@@ -109,19 +111,67 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!proceed) return false;
             }
 
-            // Gate 2: BG256-patched + P4 flag (0 or 1) means this entry
-            // is a 255/224-color cutscene background. Refuse 16-color
-            // import here — silent 16-color writes would corrupt the
-            // entry (Copilot CLI v3 review on PR #517).
-            if (_vm.IsBG256Patched && _vm.P4 <= 1)
-            {
-                CoreState.Services?.ShowError(
-                    "BG255/BG224 import is not yet supported in the Avalonia editor. " +
-                    "Use the WinForms editor for 255/224-color cutscene backgrounds.");
-                return false;
-            }
-
             return true;
+        }
+
+        /// <summary>
+        /// True when the current entry is a 255/224-color cutscene background:
+        /// the BG256Color patch is installed AND P4 is the raw mode flag
+        /// (0 = 255-color, 1 = 224-color), not a TSA pointer. Such entries use
+        /// the 8bpp <see cref="RunBG256Import"/> path instead of the 16-color
+        /// header-TSA path (#799). The 255-vs-224 mode is preserved from the
+        /// entry's current P4 (no popup — mirrors WF defaulting to the
+        /// existing mode).
+        /// </summary>
+        bool IsBG256ColorEntry() => _vm.IsBG256Patched && _vm.P4 <= 1;
+
+        /// <summary>
+        /// Import an 8bpp 255/224-color background (already quantized) into the
+        /// current entry, under the shared <see cref="UndoService"/> scope.
+        /// Mirrors WF <c>ImageBGForm.ImportButton255</c>: P0 = LZ77 8bpp tiles,
+        /// P4 = raw mode flag, P8 = raw 512-byte palette. The 255-vs-224 mode
+        /// is taken from the entry's current P4 (preserve).
+        /// </summary>
+        void RunBG256Import(ImageImportService.LoadResult loadResult, string sourcePath, string undoLabel)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            bool is224 = _vm.P4 == 1;
+            uint addr = _vm.CurrentAddr;
+            _undoService.Begin(undoLabel);
+            try
+            {
+                // Begin() already opened ROM.BeginUndoScope(undo); pass the
+                // same UndoData so Import255ColorBG reuses the ambient scope
+                // (no double-snapshot) and all P0/P4/P8 writes are captured.
+                var undo = _undoService.GetActiveUndoData();
+                var importResult = FEBuilderGBA.ImageBG256ColorCore.Import255ColorBG(
+                    rom, loadResult.IndexedPixels, loadResult.GBAPalette,
+                    loadResult.Width, loadResult.Height,
+                    addr + 0, addr + 4, addr + 8, is224,
+                    CoreState.ImageService, undo);
+
+                if (!importResult.Success)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(importResult.Error);
+                    return;
+                }
+
+                _undoService.Commit();
+                _vm.LoadEntry(addr);
+                if (!string.IsNullOrEmpty(sourcePath)) _vm.RecordSourceFile(sourcePath);
+                UpdateUI();
+                LoadImage();
+                _vm.MarkClean();
+                CoreState.Services.ShowInfo("Image imported successfully.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                CoreState.Services.ShowError($"Import failed: {ex.Message}");
+            }
         }
 
         void ImportImageFromFile(string filePath)
@@ -129,6 +179,17 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 if (!PreImportGate()) return;
+
+                // BG255/BG224 entries take the 8bpp 255/224 path (#799).
+                if (IsBG256ColorEntry())
+                {
+                    int maxColors = _vm.P4 == 1 ? 224 : 256;
+                    var bg256Load = ImageImportService.LoadAndQuantizeFromFile(filePath, 256, 160, maxColors, strictSize: true);
+                    if (bg256Load == null) return;
+                    if (!bg256Load.Success) { CoreState.Services.ShowError(bg256Load.Error); return; }
+                    RunBG256Import(bg256Load, filePath, "Import BG255 Image (Drop)");
+                    return;
+                }
 
                 // strictSize=true mirrors WF's 256x160 expectation (see
                 // ImportPng_Click comment for rationale).
@@ -290,12 +351,25 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // Both safety gates (reserve-BG confirmation + BG256
-                // P4-flag refusal) live in `PreImportGate` so the
-                // drag-drop import path applies them too. Copilot CLI
-                // v3 review (#517) flagged the drop-import bypassing
-                // the BG256 guard — sharing the gate eliminates that.
+                // The reserve-BG confirmation + entry-loaded guards live in
+                // `PreImportGate` so the drag-drop import path applies them
+                // too. Copilot CLI v3 review (#517) flagged the drop-import
+                // bypassing the gate — sharing it eliminates that.
                 if (!PreImportGate()) return;
+
+                // BG255/BG224 entries take the 8bpp 255/224 path (#799):
+                // quantize to 256 (255-color) or 224 (224-color) colors and
+                // write P0 = LZ77 8bpp tiles, P4 = raw mode flag, P8 = raw
+                // 512-byte palette. The mode is preserved from the entry's P4.
+                if (IsBG256ColorEntry())
+                {
+                    int maxColors = _vm.P4 == 1 ? 224 : 256;
+                    var bg256Load = await ImageImportService.LoadAndQuantize(this, 256, 160, maxColors, strictSize: true);
+                    if (bg256Load == null) return;
+                    if (!bg256Load.Success) { CoreState.Services.ShowError(bg256Load.Error); return; }
+                    RunBG256Import(bg256Load, bg256Load.SourcePath, "Import BG255 Image");
+                    return;
+                }
 
                 // Single-sub-palette quantization. WF uses palette_count=8
                 // for normal BG (8 × 16-color sub-palettes, addressed by

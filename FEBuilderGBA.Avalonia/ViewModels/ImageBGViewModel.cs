@@ -295,6 +295,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palAddr = U.toOffset(P8);
                 if (!U.isSafetyOffset(imgAddr) || !U.isSafetyOffset(palAddr)) return null;
 
+                // BG255/BG224 cutscene background: under the BG256Color
+                // patch, P4 is a RAW mode flag (0 = 255-color, 1 = 224-color),
+                // NOT a TSA pointer. Decode via the 8bpp path that mirrors WF
+                // ImageBGForm.DrawBG (ByteToImage256Tile / ByteToImage224BGTile),
+                // NOT Decode4bppTiles. This must run before the P4-pointer
+                // branch below (#799). Previously these entries fell through to
+                // the 4bpp fallback and rendered garbage.
+                if (IsBG256Patched && P4 <= 1 && CoreState.ImageService != null)
+                {
+                    return ImageBG256ColorCore.Decode255ColorBG(
+                        rom, P0, P8, is224: P4 == 1, CoreState.ImageService);
+                }
+
                 byte[] tileData = LZ77.decompress(rom.Data, imgAddr);
                 if (tileData == null || tileData.Length == 0) return null;
 

@@ -360,20 +360,21 @@ public class ImageBGParityTests
     }
 
     /// <summary>
-    /// Per Copilot CLI v3 review (#517): a BG256-patched ROM entry
-    /// with P4 &lt;= 1 (255/224-color mode flag) MUST NOT accept a
-    /// 16-color import via either the file-picker or drag-drop path.
-    /// The Avalonia View now refuses such imports before any ROM
-    /// write with an explicit "use the WinForms editor" error. We
-    /// verify the underlying decision predicate here, since the
-    /// actual View handlers run modally and are out of headless reach.
+    /// A BG256-patched ROM entry with P4 &lt;= 1 (255/224-color mode flag)
+    /// is treated as a 255/224-color cutscene background, NOT a 16-color
+    /// header-TSA entry. The Avalonia View routes such entries to the 8bpp
+    /// 255/224 import path (<c>IsBG256ColorEntry</c> → <c>RunBG256Import</c>
+    /// → <c>ImageBG256ColorCore.Import255ColorBG</c>) instead of the 16-color
+    /// path (#799 — previously refused outright per #517). We verify the
+    /// underlying decision predicate here, since the actual View handlers run
+    /// modally and are out of headless reach.
     /// </summary>
     [Fact]
     public void ViewModel_BG256Patched_WithP4Flag_IsTreatedAs255_224Mode()
     {
         // Build a BG256-patched ROM and verify ImageBGCore.Is255BG +
         // the IsBG256Patched flag the VM exposes drive the View's
-        // pre-import gate correctly.
+        // import routing correctly.
         var bytes = new byte[0x1100000];
         var rom = new ROM();
         rom.LoadLow("bg256-fe8u.gba", bytes, "BE8E01");
@@ -392,7 +393,7 @@ public class ImageBGParityTests
             vm.P4 = 0u;
             vm.IsBG256Patched = FEBuilderGBA.PatchDetection.HasBG256ColorPatch(rom);
 
-            // The View's `PreImportGate` refuses when
+            // The View routes to the 255/224 path when
             // `IsBG256Patched && P4 <= 1`. Verify both halves:
             Assert.True(vm.IsBG256Patched, "BG256 patch must be detected");
             Assert.True(vm.P4 <= 1, "P4 must be a mode flag");
@@ -401,6 +402,78 @@ public class ImageBGParityTests
             Assert.True(FEBuilderGBA.ImageBGCore.Is255BG(rom, vm.P0, vm.P4));
         }
         finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// End-to-end #799 preview check: write a real BG255 (P4=0) entry into a
+    /// BG256-patched ROM via the Core import path, then load it through the
+    /// ViewModel and confirm <c>TryLoadImage</c> decodes the 8bpp BG (via
+    /// <c>ImageBG256ColorCore.Decode255ColorBG</c>) rather than falling back
+    /// to the 4bpp path. Uses the real SkiaImageService so the encode/decode
+    /// round-trip is exercised end to end.
+    /// </summary>
+    [Fact]
+    public void ViewModel_TryLoadImage_BG255Entry_DecodesVia8bppPath()
+    {
+        var bytes = new byte[0x1100000];
+        // Fill the high half with 0xFF so the importer finds free space.
+        for (int i = bytes.Length / 2; i < bytes.Length; i++) bytes[i] = 0xFF;
+        var rom = new ROM();
+        rom.LoadLow("bg256-fe8u.gba", bytes, "BE8E01");
+        // Plant the BG256Color signature for FE8U.
+        bytes[0xE2DA] = 0xC0; bytes[0xE2DB] = 0x46;
+        bytes[0xE2DC] = 0xC0; bytes[0xE2DD] = 0x46;
+        rom.LoadLow("bg256-fe8u.gba", bytes, "BE8E01");
+
+        var prevRom = CoreState.ROM;
+        var prevSvc = CoreState.ImageService;
+        try
+        {
+            CoreState.ROM = rom;
+            if (CoreState.ImageService == null)
+                CoreState.ImageService = new FEBuilderGBA.SkiaSharp.SkiaImageService();
+
+            int w = FEBuilderGBA.ImageBG256ColorCore.Width;
+            int h = FEBuilderGBA.ImageBG256ColorCore.Height;
+
+            // Deterministic 256-color indexed image + 512-byte palette.
+            byte[] indexed = new byte[w * h];
+            for (int i = 0; i < indexed.Length; i++) indexed[i] = (byte)(i % 256);
+            byte[] pal = new byte[512];
+            for (int i = 0; i < 256; i++)
+            {
+                ushort c = (ushort)((i * 7 + 1) & 0x7FFF);
+                pal[i * 2] = (byte)(c & 0xFF);
+                pal[i * 2 + 1] = (byte)((c >> 8) & 0xFF);
+            }
+
+            // A BG entry triple lives at a safe ROM offset. Write a real
+            // BG255 entry: P0=image, P4=0 flag, P8=palette.
+            uint addr = 0x000200;
+            var undo = new Undo();
+            var result = FEBuilderGBA.ImageBG256ColorCore.Import255ColorBG(
+                rom, indexed, pal, w, h, addr + 0, addr + 4, addr + 8,
+                is224: false, CoreState.ImageService, undo.NewUndoData("bg255"));
+            Assert.True(result.Success, result.Error);
+
+            // Load the entry into the VM and decode the preview.
+            var vm = new ImageBGViewModel();
+            vm.LoadEntry(addr);
+            Assert.True(vm.IsBG256Patched);
+            Assert.Equal(0u, vm.P4);
+
+            IImage preview = vm.TryLoadImage();
+            Assert.NotNull(preview);
+            Assert.Equal(w, preview.Width);
+            Assert.Equal(h, preview.Height);
+            // 8bpp decode is deterministic — pixels reproduce the source image.
+            Assert.Equal(indexed, preview.GetPixelData());
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.ImageService = prevSvc;
+        }
     }
 
     [Fact]

@@ -145,6 +145,11 @@ FEBuilderGBA.exe --rom path/to/rom.gba --export-editor-images --screenshot-dir=.
 # Shared palette detection: If a palette pointer is referenced by multiple entries,
 # the import remaps pixel indices to the existing palette instead of overwriting it,
 # preserving visual consistency for all entries sharing that palette.
+# BG255/BG224 (255-color cutscene backgrounds): on ROMs with the BG256Color patch,
+# the Avalonia ImageBG editor imports and previews 255/224-color backgrounds (8bpp
+# LZ77 tiles + 512-byte palette + P4 mode flag), mirroring WinForms ImportButton255
+# via the cross-platform ImageBG256ColorCore (224-color mode rejects >224 colors
+# rather than silently blacking them out).
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --validate-import
 
 # Validate palette roundtrip (export palette→import palette→re-export→binary compare)
