@@ -22461,6 +22461,18 @@ Tile5
 :Unit Skill Sub-list
 角色技能子列表
 
+:Unit Skill Sub-list — Ext Bytes (B16..B31)
+角色技能子列表 — 扩展字节 (B16..B31)
+
+:Ext Bytes
+扩展字节
+
+:The 16 ext-bytes B16..B31 are an additional per-skill data block whose meaning varies by FE8N patch flavour.
+这16个扩展字节 B16..B31 是每个技能的附加数据块，其含义因 FE8N 补丁版本而异。
+
+:Edit a value, then press Write to persist it (in-place, undoable). The N00..N03 sub-tabs in WinForms all map to these same 16 bytes.
+编辑数值后按写入即可保存（原地写入，可撤销）。WinForms 中的 N00..N03 子标签页都对应这相同的16个字节。
+
 :Class Skill Sub-list
 职业技能子列表
 

@@ -57,7 +57,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _condClass1, _condClass2, _condClass3, _condClass4;   // B8..B11
         uint _condItem1, _condItem2, _condItem3, _condItem4;       // B12..B15
 
-        // Per-row read-only ext-tab values (B16..B31; KnownGap #374).
+        // Per-row editable ext-tab values (B16..B31). Surfaced as 16 two-way
+        // Ext0..Ext15 properties below (#790). Stored in a fixed 16-element
+        // backing array so the read loop + ExtValues stay zero-copy.
         readonly uint[] _ext = new uint[16];
 
         // Status banner rendered when the patch is missing.
@@ -111,11 +113,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CondItem4 { get => _condItem4; set => SetField(ref _condItem4, value); }
 
         /// <summary>
-        /// Read-only per-row ext-tab values (B16..B31). Surfaced to the View
-        /// for KnownGap base-addr/count display. Editing is tracked by #374
-        /// (InputFormRef auto-wiring).
+        /// Read-only view over the per-row ext-tab values (B16..B31). Kept for
+        /// callers that enumerate all 16 bytes; the editable surface is the
+        /// <see cref="Ext0"/>..<see cref="Ext15"/> two-way properties below
+        /// (#790). All share the same <c>_ext</c> backing array.
         /// </summary>
         public IReadOnlyList<uint> ExtValues => _ext;
+
+        // Editable per-row ext-tab bytes B16..B31 (#790). Each is a two-way
+        // u8 (0..255) backed by _ext[i]; offset = 16 + i. Naming mirrors the
+        // existing CondUnit1..CondItem4 style so the View binding stays trivial.
+        public uint Ext0 { get => _ext[0]; set => SetField(ref _ext[0], value); }
+        public uint Ext1 { get => _ext[1]; set => SetField(ref _ext[1], value); }
+        public uint Ext2 { get => _ext[2]; set => SetField(ref _ext[2], value); }
+        public uint Ext3 { get => _ext[3]; set => SetField(ref _ext[3], value); }
+        public uint Ext4 { get => _ext[4]; set => SetField(ref _ext[4], value); }
+        public uint Ext5 { get => _ext[5]; set => SetField(ref _ext[5], value); }
+        public uint Ext6 { get => _ext[6]; set => SetField(ref _ext[6], value); }
+        public uint Ext7 { get => _ext[7]; set => SetField(ref _ext[7], value); }
+        public uint Ext8 { get => _ext[8]; set => SetField(ref _ext[8], value); }
+        public uint Ext9 { get => _ext[9]; set => SetField(ref _ext[9], value); }
+        public uint Ext10 { get => _ext[10]; set => SetField(ref _ext[10], value); }
+        public uint Ext11 { get => _ext[11]; set => SetField(ref _ext[11], value); }
+        public uint Ext12 { get => _ext[12]; set => SetField(ref _ext[12], value); }
+        public uint Ext13 { get => _ext[13]; set => SetField(ref _ext[13], value); }
+        public uint Ext14 { get => _ext[14]; set => SetField(ref _ext[14], value); }
+        public uint Ext15 { get => _ext[15]; set => SetField(ref _ext[15], value); }
 
         public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
 
@@ -330,11 +353,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CondItem3 = rom.u8(addr + 14);
             CondItem4 = rom.u8(addr + 15);
 
-            // Read-only ext-tab bytes (KnownGap #374).
-            for (uint i = 0; i < 16; i++)
-            {
-                _ext[i] = rom.u8(addr + 16u + i);
-            }
+            // Ext-tab bytes B16..B31 (#790 — now editable via Ext0..Ext15).
+            // Assign through the properties so PropertyChanged fires for any
+            // bound NumericUpDowns (IsLoading suppresses dirty marking).
+            Ext0 = rom.u8(addr + 16u);
+            Ext1 = rom.u8(addr + 17u);
+            Ext2 = rom.u8(addr + 18u);
+            Ext3 = rom.u8(addr + 19u);
+            Ext4 = rom.u8(addr + 20u);
+            Ext5 = rom.u8(addr + 21u);
+            Ext6 = rom.u8(addr + 22u);
+            Ext7 = rom.u8(addr + 23u);
+            Ext8 = rom.u8(addr + 24u);
+            Ext9 = rom.u8(addr + 25u);
+            Ext10 = rom.u8(addr + 26u);
+            Ext11 = rom.u8(addr + 27u);
+            Ext12 = rom.u8(addr + 28u);
+            Ext13 = rom.u8(addr + 29u);
+            Ext14 = rom.u8(addr + 30u);
+            Ext15 = rom.u8(addr + 31u);
 
             IsLoaded = true;
             CanWrite = true;
@@ -348,8 +385,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///   - u8 condUnit1..4 @ +4..+7
         ///   - u8 condClass1..4 @ +8..+11
         ///   - u8 condItem1..4 @ +12..+15
-        /// The B16..B31 ext-tab bytes are KnownGap #374 (no edit yet — same
-        /// pattern as Ver2 sub-list tabs).
+        ///   - u8 ext0..15 @ +16..+31 (B16..B31; #790)
+        /// The B16..B31 ext-tab bytes are a fixed sub-region of the already
+        /// allocated 32-byte row, so this is a PURE in-place write — no table
+        /// relocation, no <c>DataExpansionCore</c>, no <c>RepointAllReferences</c>.
         ///
         /// Caller (the View) is expected to wrap this in a single
         /// <c>_undoService.Begin/Commit</c> scope.
@@ -376,6 +415,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 13, CondItem2);
             rom.write_u8(addr + 14, CondItem3);
             rom.write_u8(addr + 15, CondItem4);
+
+            // Ext-tab bytes B16..B31 (#790). PURE in-place write at addr+16..+31;
+            // the +31 bound is already covered by the RowStride-1 guard above.
+            for (uint i = 0; i < 16; i++)
+            {
+                rom.write_u8(addr + 16u + i, (byte)_ext[i]);
+            }
         }
 
         public void Initialize() { IsLoaded = true; }

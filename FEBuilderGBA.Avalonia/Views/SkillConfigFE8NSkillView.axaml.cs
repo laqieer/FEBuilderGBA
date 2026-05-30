@@ -19,8 +19,10 @@ namespace FEBuilderGBA.Avalonia.Views
     /// so the density verdict moves, but their click handlers are intentional
     /// no-ops with a tooltip until the Core seam lands (mirrors PR #598).
     ///
-    /// The 4 sub-list tabs (Unit/Class/Item/Other) are placeholders with
-    /// KnownGap comments tracked by #374 (InputFormRef auto-wiring).
+    /// The Unit sub-list tab is an editable B16..B31 ext-byte editor (#790) —
+    /// FE8N v1's N00..N03 sub-tabs all union onto the SAME 16 row bytes, so the
+    /// one editable tab is faithful + complete. The Class/Item/Other tabs remain
+    /// informational placeholders (same 16 bytes; KnownGap #374).
     /// </summary>
     public partial class SkillConfigFE8NSkillView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
@@ -261,10 +263,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // Animation pointer (KnownGap #500 - read-only display only).
             AnimationPointerBox.Value = 0;
 
-            // Sub-list tab base addresses (informational only - actual sub-list
-            // editing is a KnownGap tracked by #374). FE8N v1's N00..N03 tabs
-            // hold raw bytes B16..B31 without their own pointer table, so we
-            // surface the row's own offset + 16 as the "sub-list base".
+            // Sub-list tab base addresses. FE8N v1's N00..N03 tabs all union
+            // onto the SAME raw bytes B16..B31 of the row (no separate pointer
+            // table), so we surface the row's own offset + 16 as the "sub-list
+            // base". The Unit tab is now an editable B16..B31 editor (#790);
+            // the Class/Item/Other tabs remain informational (same 16 bytes).
             uint subBase = _vm.CurrentAddr + 16u;
             UnitTabBaseAddrLabel.Content = $"Sub-list base: 0x{subBase:X08}";
             UnitTabCountLabel.Content = "Entry count: 16 bytes (B16..B31)";
@@ -274,6 +277,24 @@ namespace FEBuilderGBA.Avalonia.Views
             ItemTabCountLabel.Content = "Entry count: 16 bytes (B16..B31)";
             OtherTabBaseAddrLabel.Content = $"Sub-list base: 0x{subBase:X08}";
             OtherTabCountLabel.Content = "Entry count: 16 bytes (B16..B31)";
+
+            // Push the 16 editable ext-bytes B16..B31 into the Unit tab inputs (#790).
+            ExtB16Box.Value = _vm.Ext0;
+            ExtB17Box.Value = _vm.Ext1;
+            ExtB18Box.Value = _vm.Ext2;
+            ExtB19Box.Value = _vm.Ext3;
+            ExtB20Box.Value = _vm.Ext4;
+            ExtB21Box.Value = _vm.Ext5;
+            ExtB22Box.Value = _vm.Ext6;
+            ExtB23Box.Value = _vm.Ext7;
+            ExtB24Box.Value = _vm.Ext8;
+            ExtB25Box.Value = _vm.Ext9;
+            ExtB26Box.Value = _vm.Ext10;
+            ExtB27Box.Value = _vm.Ext11;
+            ExtB28Box.Value = _vm.Ext12;
+            ExtB29Box.Value = _vm.Ext13;
+            ExtB30Box.Value = _vm.Ext14;
+            ExtB31Box.Value = _vm.Ext15;
 
             // Icon image render.
             try
@@ -308,6 +329,24 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.CondItem2 = (uint)(CondItem2Box.Value ?? 0);
                 _vm.CondItem3 = (uint)(CondItem3Box.Value ?? 0);
                 _vm.CondItem4 = (uint)(CondItem4Box.Value ?? 0);
+
+                // Ext-bytes B16..B31 (#790).
+                _vm.Ext0 = (uint)(ExtB16Box.Value ?? 0);
+                _vm.Ext1 = (uint)(ExtB17Box.Value ?? 0);
+                _vm.Ext2 = (uint)(ExtB18Box.Value ?? 0);
+                _vm.Ext3 = (uint)(ExtB19Box.Value ?? 0);
+                _vm.Ext4 = (uint)(ExtB20Box.Value ?? 0);
+                _vm.Ext5 = (uint)(ExtB21Box.Value ?? 0);
+                _vm.Ext6 = (uint)(ExtB22Box.Value ?? 0);
+                _vm.Ext7 = (uint)(ExtB23Box.Value ?? 0);
+                _vm.Ext8 = (uint)(ExtB24Box.Value ?? 0);
+                _vm.Ext9 = (uint)(ExtB25Box.Value ?? 0);
+                _vm.Ext10 = (uint)(ExtB26Box.Value ?? 0);
+                _vm.Ext11 = (uint)(ExtB27Box.Value ?? 0);
+                _vm.Ext12 = (uint)(ExtB28Box.Value ?? 0);
+                _vm.Ext13 = (uint)(ExtB29Box.Value ?? 0);
+                _vm.Ext14 = (uint)(ExtB30Box.Value ?? 0);
+                _vm.Ext15 = (uint)(ExtB31Box.Value ?? 0);
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();

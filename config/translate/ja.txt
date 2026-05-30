@@ -8626,6 +8626,18 @@ KnownGap: ズームは延期された戦闘/チップセットプレビュー描
 :Unit Skill Sub-list
 ユニットスキルサブリスト
 
+:Unit Skill Sub-list — Ext Bytes (B16..B31)
+ユニットスキルサブリスト — 拡張バイト (B16..B31)
+
+:Ext Bytes
+拡張バイト
+
+:The 16 ext-bytes B16..B31 are an additional per-skill data block whose meaning varies by FE8N patch flavour.
+16個の拡張バイト B16..B31 はスキルごとの追加データブロックで、その意味は FE8N パッチの種類によって異なります。
+
+:Edit a value, then press Write to persist it (in-place, undoable). The N00..N03 sub-tabs in WinForms all map to these same 16 bytes.
+値を編集して書き込みを押すと保存されます (その場で書き込み、取り消し可能)。WinForms の N00..N03 サブタブはすべてこの同じ16バイトに対応します。
+
 :Class Skill Sub-list
 クラススキルサブリスト
 

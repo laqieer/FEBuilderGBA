@@ -527,8 +527,268 @@ public class SkillConfigFE8NSkillParityTests
     }
 
     // -----------------------------------------------------------------
+    // Ext-bytes B16..B31 editable tab (#790).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// LoadEntry must populate Ext0..Ext15 from rom.u8(addr + 16 + i). The
+    /// synthetic builder plants ascending 0x10..0x1F at row 1's B16..B31.
+    /// </summary>
+    [Fact]
+    public void ViewModel_LoadEntry_PopulatesExtBytes()
+    {
+        ROM rom = MakeMinimalFE8NVer1Rom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            var vm = new SkillConfigFE8NSkillViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+
+            // Property surface (Ext0..Ext15) must equal the planted bytes AND
+            // the raw rom.u8 read for each of the 16 offsets.
+            uint[] ext =
+            {
+                vm.Ext0, vm.Ext1, vm.Ext2, vm.Ext3, vm.Ext4, vm.Ext5, vm.Ext6, vm.Ext7,
+                vm.Ext8, vm.Ext9, vm.Ext10, vm.Ext11, vm.Ext12, vm.Ext13, vm.Ext14, vm.Ext15,
+            };
+            for (uint i = 0; i < 16; i++)
+            {
+                Assert.Equal((uint)(0x10u + i), ext[i]);
+                Assert.Equal((uint)rom.u8(addr + 16u + i), ext[i]);
+            }
+            // ExtValues (read-only view) must mirror the same backing array.
+            Assert.Equal(16, vm.ExtValues.Count);
+            for (int i = 0; i < 16; i++)
+                Assert.Equal(ext[i], vm.ExtValues[i]);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
+    }
+
+    /// <summary>
+    /// Write must persist Ext0..Ext15 to rom.u8(addr + 16 + i) — PURE in-place
+    /// (no relocation). Covers boundary Ext0/Ext15 with 0x00 and 0xFF, plus a
+    /// distinct value per remaining byte.
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_PersistsExtBytes()
+    {
+        ROM rom = MakeMinimalFE8NVer1Rom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            var vm = new SkillConfigFE8NSkillViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+
+            // Boundary: Ext0 = 0x00 (min), Ext15 = 0xFF (max).
+            vm.Ext0 = 0x00u;
+            vm.Ext1 = 0xA1u;
+            vm.Ext2 = 0xA2u;
+            vm.Ext3 = 0xA3u;
+            vm.Ext4 = 0xA4u;
+            vm.Ext5 = 0xA5u;
+            vm.Ext6 = 0xA6u;
+            vm.Ext7 = 0xA7u;
+            vm.Ext8 = 0xA8u;
+            vm.Ext9 = 0xA9u;
+            vm.Ext10 = 0xAAu;
+            vm.Ext11 = 0xABu;
+            vm.Ext12 = 0xACu;
+            vm.Ext13 = 0xADu;
+            vm.Ext14 = 0xAEu;
+            vm.Ext15 = 0xFFu;
+
+            vm.Write();
+
+            uint[] expected =
+            {
+                0x00u, 0xA1u, 0xA2u, 0xA3u, 0xA4u, 0xA5u, 0xA6u, 0xA7u,
+                0xA8u, 0xA9u, 0xAAu, 0xABu, 0xACu, 0xADu, 0xAEu, 0xFFu,
+            };
+            for (uint i = 0; i < 16; i++)
+            {
+                Assert.Equal(expected[i], (uint)rom.u8(addr + 16u + i));
+            }
+
+            // The cond block B4..B15 must be untouched by the ext write (no
+            // off-by-one into the neighbouring region).
+            Assert.Equal(0x01u, (uint)rom.u8(addr + 4));
+            Assert.Equal(0x0Cu, (uint)rom.u8(addr + 15));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
+    }
+
+    /// <summary>
+    /// Round-trip: LoadEntry -> mutate -> Write -> LoadEntry returns the
+    /// mutated B16..B31, proving the read offset matches the write offset.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExtBytes_RoundTrip()
+    {
+        ROM rom = MakeMinimalFE8NVer1Rom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            var vm = new SkillConfigFE8NSkillViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+
+            // Descending 0xFE..0xEF distinguishes the result from both the
+            // planted 0x10..0x1F and the B4..B15 cond block.
+            for (uint i = 0; i < 16; i++)
+            {
+                SetExt(vm, (int)i, 0xFEu - i);
+            }
+            vm.Write();
+
+            // Reset the VM's in-memory state, then re-read from ROM.
+            vm.LoadEntry(addr);
+            uint[] roundTripped =
+            {
+                vm.Ext0, vm.Ext1, vm.Ext2, vm.Ext3, vm.Ext4, vm.Ext5, vm.Ext6, vm.Ext7,
+                vm.Ext8, vm.Ext9, vm.Ext10, vm.Ext11, vm.Ext12, vm.Ext13, vm.Ext14, vm.Ext15,
+            };
+            for (uint i = 0; i < 16; i++)
+            {
+                Assert.Equal(0xFEu - i, roundTripped[i]);
+            }
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+        }
+    }
+
+    /// <summary>
+    /// A write of B16..B31 under a Core undo scope (the same scope
+    /// <c>UndoService.Begin/Commit</c> opens) must be fully reversible via
+    /// <c>CoreState.Undo.RunUndo()</c>.
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_ExtBytes_IsUndoable()
+    {
+        ROM rom = MakeMinimalFE8NVer1Rom();
+        var prevRom = CoreState.ROM;
+        var prevEnc = CoreState.SystemTextEncoder;
+        Undo? prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            EnsureSystemTextEncoder(rom);
+            CoreState.Undo = new Undo();
+
+            var vm = new SkillConfigFE8NSkillViewModel();
+            var items = vm.LoadList();
+            Assert.NotEmpty(items);
+
+            uint addr = items[1].addr;
+            vm.LoadEntry(addr);
+
+            // Snapshot the original 16 bytes (planted 0x10..0x1F).
+            byte[] original = new byte[16];
+            for (uint i = 0; i < 16; i++) original[i] = (byte)rom.u8(addr + 16u + i);
+
+            // Mutate + write inside a Core undo scope (mirrors UndoService).
+            for (uint i = 0; i < 16; i++) SetExt(vm, (int)i, 0x80u + i);
+            var ud = CoreState.Undo!.NewUndoData("Edit Skill Config (FE8N)");
+            using (ROM.BeginUndoScope(ud))
+            {
+                vm.Write();
+            }
+            CoreState.Undo.Push(ud);
+
+            // Confirm the write landed.
+            for (uint i = 0; i < 16; i++)
+                Assert.Equal((uint)(0x80u + i), (uint)rom.u8(addr + 16u + i));
+
+            // Undo must restore every original byte.
+            CoreState.Undo.RunUndo();
+            for (uint i = 0; i < 16; i++)
+                Assert.Equal((uint)original[i], (uint)rom.u8(addr + 16u + i));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    /// <summary>
+    /// Helper: assign the i-th ext byte (0..15) through the corresponding
+    /// Ext{i} property so PropertyChanged/dirty semantics are exercised.
+    /// </summary>
+    static void SetExt(SkillConfigFE8NSkillViewModel vm, int i, uint v)
+    {
+        switch (i)
+        {
+            case 0: vm.Ext0 = v; break;
+            case 1: vm.Ext1 = v; break;
+            case 2: vm.Ext2 = v; break;
+            case 3: vm.Ext3 = v; break;
+            case 4: vm.Ext4 = v; break;
+            case 5: vm.Ext5 = v; break;
+            case 6: vm.Ext6 = v; break;
+            case 7: vm.Ext7 = v; break;
+            case 8: vm.Ext8 = v; break;
+            case 9: vm.Ext9 = v; break;
+            case 10: vm.Ext10 = v; break;
+            case 11: vm.Ext11 = v; break;
+            case 12: vm.Ext12 = v; break;
+            case 13: vm.Ext13 = v; break;
+            case 14: vm.Ext14 = v; break;
+            case 15: vm.Ext15 = v; break;
+            default: throw new ArgumentOutOfRangeException(nameof(i));
+        }
+    }
+
+    // -----------------------------------------------------------------
     // View - control surface assertions (Roslyn-static).
     // -----------------------------------------------------------------
+
+    /// <summary>
+    /// The Unit Skill List tab must expose all 16 editable ext-byte inputs
+    /// (B16..B31) with the canonical AutomationIds (#790).
+    /// </summary>
+    [Fact]
+    public void View_UnitTab_HasExtByteInputs()
+    {
+        string axaml = ReadAxaml();
+        for (int b = 16; b <= 31; b++)
+        {
+            Assert.Contains($"AutomationId=\"SkillConfigFE8NSkill_ExtB{b}_Input\"", axaml);
+        }
+        // The header label must also be present + carry a valid _Label suffix.
+        Assert.Contains("AutomationId=\"SkillConfigFE8NSkill_ExtByteHeader_Label\"", axaml);
+    }
 
     [Fact]
     public void View_HasReloadButton_Wired()
@@ -704,7 +964,7 @@ public class SkillConfigFE8NSkillParityTests
 
         // 7. Plant page 0's skill table at 0xE20000 (sizeof-32 stride).
         //    Row 0: W0=0x0101, W2=0x0001 (sentinel/header).
-        //    Row 1: W0=0x0102, W2=0x00AB, B4..B15 = 0x01..0x0C.
+        //    Row 1: W0=0x0102, W2=0x00AB, B4..B15 = 0x01..0x0C, B16..B31 = 0x10..0x1F.
         //    Row 2: W0=0x0103, W2=0x00CD.
         //    Row 3: W0=0x0104, W2=0x00EF.
         //    Row 4: W0=0x0000 (terminator).
@@ -716,6 +976,12 @@ public class SkillConfigFE8NSkillParityTests
         for (uint i = 0; i < 12; i++)
         {
             bytes[(int)(page0Base + 1u * 32u + 4u + i)] = (byte)(i + 1u);
+        }
+        // Plant B16..B31 ext-bytes (#790) at row 1: ascending 0x10..0x1F so
+        // tests can distinguish them from the B4..B15 0x01..0x0C cond block.
+        for (uint i = 0; i < 16; i++)
+        {
+            bytes[(int)(page0Base + 1u * 32u + 16u + i)] = (byte)(0x10u + i);
         }
 
         WriteU16(bytes, page0Base + 2u * 32u + 0u, 0x0103);
