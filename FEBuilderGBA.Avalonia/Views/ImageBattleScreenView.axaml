@@ -27,6 +27,14 @@
           <Button AutomationProperties.AutomationId="ImageBattleScreen_AllWrite_Button"
                   Name="WriteButton" Content="Write" Width="140"
                   Click="WriteButton_Click" />
+          <!-- Read-only Export PNG of the composited battle screen (#769 item 1,
+               mirrors WF ImageBattleScreenForm.ExportButton_Click which exports the
+               full DrawBitmap). Driven by code-behind (this view has no DataContext),
+               so IsEnabled is toggled in RefreshBattlePreview from BattlePreview.HasImage
+               — NOT a XAML binding. Starts disabled until a render succeeds. -->
+          <Button AutomationProperties.AutomationId="ImageBattleScreen_BattleExportPng_Button"
+                  Name="BattleExportPngButton" Content="Export PNG" Width="140"
+                  IsEnabled="False" Click="BattleExportPng_Click" />
           <TextBlock Text="Zoom" VerticalAlignment="Center" Width="50" />
           <!-- Initial selection is set in the constructor AFTER
                InitializeComponent() (NOT via SelectedIndex here) so the

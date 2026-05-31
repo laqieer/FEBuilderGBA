@@ -29,6 +29,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _image4Pointer;
         uint _image5Pointer;
         bool _isLoaded;
+        bool _canExportBattle;
 
         // 16 R/G/B value cells (0..255) -- packed into BGR15 5-bit channels on write.
         readonly byte[] _r = new byte[16];
@@ -52,6 +53,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Image4Pointer { get => _image4Pointer; set => SetField(ref _image4Pointer, value); }
         public uint Image5Pointer { get => _image5Pointer; set => SetField(ref _image5Pointer, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
+        /// <summary>
+        /// True only when the composited battle-screen preview rendered
+        /// successfully (see <c>RenderBattlePreview</c>). Gates the read-only
+        /// Export PNG button. Default false until the first successful render.
+        /// </summary>
+        public bool CanExportBattle { get => _canExportBattle; set => SetField(ref _canExportBattle, value); }
 
         public byte GetR(int index) => _r[index];
         public byte GetG(int index) => _g[index];

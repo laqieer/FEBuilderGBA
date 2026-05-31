@@ -136,6 +136,58 @@ public class ImageBattleScreenParityTests
     }
 
     /// <summary>
+    /// #769 item 1: the composited battle-screen preview can be exported to PNG
+    /// (read-only, mirrors WF ImageBattleScreenForm.ExportButton_Click). The
+    /// toolbar carries a distinct Export PNG button wired to a Click handler,
+    /// starts disabled (gated until a render succeeds), and the code-behind
+    /// drives both the gate flag and the button IsEnabled from BattlePreview.
+    /// </summary>
+    [Fact]
+    public void View_HasBattleExportPngButton_WiredAndGated()
+    {
+        string axaml = ReadAxaml();
+        // Distinct id — must NOT reuse the inert per-image export buttons.
+        Assert.Contains("AutomationId=\"ImageBattleScreen_BattleExportPng_Button\"", axaml);
+        Assert.Contains("Click=\"BattleExportPng_Click\"", axaml);
+        // Starts disabled until a render succeeds.
+        Assert.Matches(new Regex(
+            "ImageBattleScreen_BattleExportPng_Button\"[\\s\\S]*?IsEnabled=\"False\"",
+            RegexOptions.Singleline), axaml);
+
+        string code = File.ReadAllText(CodeBehindPath());
+        // Handler exports the live preview surface (no ROM write).
+        Assert.Matches(new Regex(
+            @"BattlePreview\.ExportPng\(\s*this", RegexOptions.Singleline), code);
+        // Gate is driven from HasImage and applied to the button (no DataContext).
+        Assert.Matches(new Regex(
+            @"_vm\.CanExportBattle\s*=\s*BattlePreview\.HasImage", RegexOptions.Singleline), code);
+        Assert.Matches(new Regex(
+            @"BattleExportPngButton\.IsEnabled\s*=\s*_vm\.CanExportBattle", RegexOptions.Singleline), code);
+        // Failure path resets the gate so a throwing reselect can't leave it enabled.
+        Assert.Matches(new Regex(
+            @"catch[\s\S]*?_vm\.CanExportBattle\s*=\s*false", RegexOptions.Singleline), code);
+    }
+
+    /// <summary>
+    /// The export gate defaults to false on a fresh VM (no render yet), and the
+    /// preview render — its data source — returns null when no ROM is loaded, so
+    /// the gate stays closed (HasImage would be false). Locks the gating contract.
+    /// </summary>
+    [Fact]
+    public void VM_CanExportBattle_DefaultsFalse_AndNoRomRenderIsNull()
+    {
+        ROM prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            var vm = new ImageBattleScreenViewModel();
+            Assert.False(vm.CanExportBattle);
+            Assert.Null(vm.RenderBattlePreview());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
     /// #805: the Chipset chip list is now rendered LIVE via a GbaImageControl
     /// (ImageBattleScreenCore.RenderChipsetPreview, mirroring WF MakeCHIPLIST),
     /// replacing the old deferred KnownGap placeholder label. The new control
