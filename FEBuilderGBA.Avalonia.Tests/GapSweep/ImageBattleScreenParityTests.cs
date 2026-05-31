@@ -187,7 +187,8 @@ public class ImageBattleScreenParityTests
         finally { CoreState.ROM = prevRom; }
     }
 
-
+    /// <summary>
+    /// #805: the Chipset chip list is now rendered LIVE via a GbaImageControl
     /// (ImageBattleScreenCore.RenderChipsetPreview, mirroring WF MakeCHIPLIST),
     /// replacing the old deferred KnownGap placeholder label. The new control
     /// carries the ChipsetPreview_Image AutomationId; the old _Label is gone.
