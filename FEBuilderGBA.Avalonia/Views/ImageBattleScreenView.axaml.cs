@@ -198,11 +198,40 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 BattlePreview.SetImage(_vm.RenderBattlePreview());
+                // Export PNG is gated on a successful render: HasImage is true
+                // only when SetImage received a non-null IImage. CanExportBattle
+                // is the VM-level source of truth (for headless tests); the
+                // button IsEnabled mirrors it (no DataContext on this view).
+                _vm.CanExportBattle = BattlePreview.HasImage;
             }
             catch (Exception ex)
             {
                 Log.Error("ImageBattleScreenView.RefreshBattlePreview failed: {0}", ex.Message);
                 BattlePreview.SetImage(null);
+                _vm.CanExportBattle = false;
+            }
+            if (BattleExportPngButton != null)
+            {
+                BattleExportPngButton.IsEnabled = _vm.CanExportBattle;
+            }
+        }
+
+        /// <summary>
+        /// Export the composited battle-screen preview to a PNG file via a save
+        /// dialog. Mirrors WF <c>ImageBattleScreenForm.ExportButton_Click</c>
+        /// (which exports the full <c>DrawBitmap</c>). Read-only — no ROM write.
+        /// Enabled only when a render succeeded (<see cref="RefreshBattlePreview"/>
+        /// set <c>CanExportBattle</c>/<c>HasImage</c>).
+        /// </summary>
+        async void BattleExportPng_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            try
+            {
+                await BattlePreview.ExportPng(this, "battle_screen");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.BattleExportPng failed: {0}", ex.Message);
             }
         }
 
