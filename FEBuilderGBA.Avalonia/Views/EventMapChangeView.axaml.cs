@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -262,12 +263,103 @@ namespace FEBuilderGBA.Avalonia.Views
             CoreState.Services?.ShowError("Pointer import is not yet implemented in the Avalonia editor.");
         }
 
-        void ListExpands_Click(object? sender, RoutedEventArgs e)
+        // #862 — wire the List Expand button to grow the 12-byte map-change
+        // record list via DataExpansionCore.ExpandTableTo + RepointAllReferences,
+        // mirroring WorldMapImageView.BorderListExpand_Click (NV1a all-reference
+        // pattern).
+        async void ListExpands_Click(object? sender, RoutedEventArgs e)
         {
-            // List-expansion (mirrors WF `AddressListExpandsButton`) is
-            // not yet implemented in the Avalonia editor. Same follow-up
-            // status as PointerImport above.
-            CoreState.Services?.ShowError("List expansion is not yet implemented in the Avalonia editor.");
+            try
+            {
+                if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Select a map with change-data before expanding."));
+                    return;
+                }
+                if (_vm.ReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: change list is empty."));
+                    return;
+                }
+
+                // Default = current + 1, max 255 (mirrors WF
+                // AddressListExpandsButton_255 convention).
+                uint current = (uint)_vm.ReadCount;
+                uint defaultCount = current + 1;
+                if (defaultCount > 255) defaultCount = 255;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the event map-change list (current: {0}, max: 255).", current),
+                    R._("List Expansion"),
+                    defaultCount,
+                    current,
+                    255);
+                if (chosen == null) return; // cancelled
+                uint newCount = chosen.Value;
+                if (newCount == current)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                _undoService.Begin("Expand Event Map Change List");
+                try
+                {
+                    string err = _vm.ExpandEventMapChangeList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // NOTE B: render the grown list directly from the new base +
+                    // new count (the VM already set ReadStartAddress/ReadCount from
+                    // the ExpandResult). Re-scanning would still be correct here
+                    // (zero-filled rows have firstByte==0 != 0xFF) but using the
+                    // result directly is cleaner.
+                    RefreshChangeListFromReadConfig();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded event map-change list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"EventMapChangeView.ListExpands inner failed: {inner.Message}");
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"EventMapChangeView.ListExpands failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Refresh the EntryList from the VM's post-expand read-config
+        /// (ReadStartAddress = new base offset; ReadCount = new row count)
+        /// WITHOUT re-scanning (NOTE B). Mirrors
+        /// WorldMapImageView.RefreshBorderListFromReadConfig.
+        /// </summary>
+        void RefreshChangeListFromReadConfig()
+        {
+            try
+            {
+                uint baseAddr = _vm.ReadStartAddress;
+                var items = _vm.BuildChangeListForCount(baseAddr, _vm.ReadCount);
+                EntryList.SetItems(items);
+                if (TopBar != null)
+                {
+                    TopBar.StartAddressText = $"0x{baseAddr:X08}";
+                    TopBar.ReadCountText = _vm.ReadCount.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"EventMapChangeView.RefreshChangeListFromReadConfig failed: {ex.Message}");
+            }
         }
 
         static uint ParseHexText(string? text)

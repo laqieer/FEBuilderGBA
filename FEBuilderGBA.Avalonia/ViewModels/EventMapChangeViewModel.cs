@@ -251,6 +251,151 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Count map-change records starting at <paramref name="startAddr"/>
+        /// until the 0xFF terminator byte, with an explicit termination flag.
+        /// Returns true when a real 0xFF terminator was found within the 256-row
+        /// cap; false when the scan hit the cap without finding one (unterminated
+        /// list guard — CORRECTION G2a-4).
+        /// </summary>
+        static int CountChangeRecordsTerminated(ROM rom, uint startAddr, out bool terminated)
+        {
+            terminated = false;
+            if (rom == null) return 0;
+            uint romLen = (uint)rom.Data.Length;
+            int count = 0;
+            for (uint i = 0; i < 256; i++)
+            {
+                uint a = startAddr + i * SIZE;
+                if (a + SIZE > romLen) break;
+                if (rom.u8(a) == 0xFF)
+                {
+                    terminated = true;
+                    break;
+                }
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Expand the event map-change list for the currently selected map to
+        /// <paramref name="newCount"/> rows, using
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> for the single-slot
+        /// move + copy + wipe + canonical-pointer repoint, then
+        /// <see cref="DataExpansionCore.RepointAllReferences"/> for all other
+        /// raw-pointer / ARM LDR references (NV1a all-reference pattern —
+        /// mirrors <c>WorldMapImageViewModel.ExpandTableHelper</c>).
+        ///
+        /// <para><b>Refusal conditions (CORRECTION G2a-4):</b> no map selected;
+        /// change address not found; empty list (first byte == 0xFF); count == 0;
+        /// or the list scan hit the 256-row cap without a real 0xFF terminator
+        /// (unterminated-list guard).</para>
+        ///
+        /// <para><b>NOTE A:</b> <see cref="DataExpansionCore.RepointAllReferences"/>
+        /// returning 0 is SUCCESS — <c>ExpandTableTo</c> already repointed the
+        /// canonical PLIST slot. Do NOT roll back on 0.</para>
+        ///
+        /// <para><b>NOTE B:</b> sets <see cref="ReadStartAddress"/> and
+        /// <see cref="ReadCount"/> from the <see cref="DataExpansionCore.ExpandResult"/>
+        /// directly (not by re-scanning), because zero-filled rows satisfy the
+        /// <c>firstByte != 0xFF</c> predicate and a rescan would continue to the
+        /// new terminator, correctly giving newCount — but using result.NewCount
+        /// is cleaner and avoids the ambiguity.</para>
+        ///
+        /// <para>The caller MUST open ONE ambient undo scope via
+        /// <c>UndoService.Begin</c> before invoking this method and pass the
+        /// active <see cref="Undo.UndoData"/> so both <c>ExpandTableTo</c> (ambient)
+        /// and <c>RepointAllReferences</c> (explicit) record into the same
+        /// transaction.</para>
+        /// </summary>
+        /// <param name="newCount">Target row count (must be &gt;= current count).</param>
+        /// <param name="undo">The active undo buffer from
+        /// <c>UndoService.GetActiveUndoData()</c>.</param>
+        /// <returns>Empty string on success; human-readable error otherwise.</returns>
+        public string ExpandEventMapChangeList(uint newCount, Undo.UndoData? undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return R._("ROM not loaded.");
+
+            // CORRECTION G2a-4: no map selected.
+            if (_currentMapId == uint.MaxValue) return R._("No map selected.");
+
+            // CORRECTION G2a-1: capture BOTH changeAddr AND pointerSlot from
+            // GetMapChangeAddrWhereMapID (previously discarded as out _).
+            uint changeAddr = MapChangeCore.GetMapChangeAddrWhereMapID(rom, _currentMapId, out uint pointerSlot);
+            if (changeAddr == U.NOT_FOUND || !U.isSafetyOffset(changeAddr, rom))
+                return R._("No change-data for the selected map (plist 0/0xFF or resolution failed).");
+
+            // CORRECTION G2a-4: empty list guard (first byte == 0xFF).
+            if (rom.u8(changeAddr) == 0xFF)
+                return R._("Cannot expand: change list is empty (first byte is 0xFF).");
+
+            // CORRECTION G2a-4: also guard the resolved pointerSlot.
+            if (pointerSlot == U.NOT_FOUND)
+                return R._("Cannot expand: the CHANGE PLIST slot could not be resolved.");
+
+            // CORRECTION G2a-4: unterminated-list guard — if the scan reaches
+            // the 256-row cap without finding a 0xFF terminator, the list is
+            // corrupt or unbounded. Refuse rather than expanding from bogus 256.
+            int currentCount = CountChangeRecordsTerminated(rom, changeAddr, out bool terminated);
+            if (!terminated)
+                return R._("Cannot expand: the change list appears unterminated (no 0xFF within 256 rows). " +
+                            "Expanding an unterminated list may corrupt the ROM.");
+
+            if (currentCount == 0)
+                return R._("Cannot expand: change list has 0 records.");
+
+            if (newCount < (uint)currentCount)
+                return R._("New count ({0}) must be >= current count ({1}).", newCount, currentCount);
+
+            if (newCount == (uint)currentCount) return ""; // no-op success
+
+            // CORRECTION G2a-1: capture the old base BEFORE the move.
+            uint oldBase = changeAddr;
+
+            // CORRECTION G2a-2 (ALL-REFERENCE — mandatory, mirrors WorldMapImageViewModel):
+            // Step 1: ExpandTableTo uses the PLIST slot (pointerSlot) as the pointer address
+            // so it repoints the canonical PLIST entry to the new base.
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerSlot, SIZE, (uint)currentCount, newCount);
+            if (!result.Success)
+                return result.Error ?? R._("Table expansion failed.");
+
+            uint newBase = result.NewBaseAddress;
+
+            // Step 2: Repoint EVERY other raw-pointer / LDR reference to the old base.
+            // NOTE A: RepointAllReferences returning 0 is SUCCESS (canonical already
+            // repointed by ExpandTableTo). Do NOT roll back on 0.
+            DataExpansionCore.RepointAllReferences(rom, oldBase, newBase, undo);
+
+            // NOTE B: set the editor's read-state from the ExpandResult directly,
+            // not by re-scanning.
+            ReadStartAddress = newBase;
+            ReadCount = (int)result.NewCount;
+
+            return "";
+        }
+
+        /// <summary>
+        /// Build the change AddressList for exactly <paramref name="count"/>
+        /// rows starting at <paramref name="baseAddr"/> (an offset). Used after
+        /// an expand to render the grown list WITHOUT re-scanning past the
+        /// zero-filled new rows (NOTE B). Mirrors WorldMapImageViewModel.BuildBorderListForCount.
+        /// </summary>
+        public List<AddrResult> BuildChangeListForCount(uint baseAddr, int count)
+        {
+            var result = new List<AddrResult>();
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null || count <= 0) return result;
+            uint addr = baseAddr;
+            for (int i = 0; i < count && i < 256; i++, addr += SIZE)
+            {
+                if (addr + SIZE > (uint)rom.Data.Length) break;
+                result.Add(new AddrResult(addr, U.ToHexString(i), (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Write the current B0-B7 + P8 fields back to ROM at
         /// <see cref="CurrentAddr"/>. The caller MUST have opened an
         /// ambient <see cref="UndoService"/> scope (the View's
