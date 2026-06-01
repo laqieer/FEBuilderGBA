@@ -385,16 +385,20 @@
       </Border>
 
       <!-- ===========================================================
-           Sample preview placeholder (mirrors WF X_PIC + AutoScrollPanel).
-           Real DrawBattleAnime rendering is WinForms-coupled (#399); placeholder
-           label states the deferred status honestly.
+           Sample preview (mirrors WF X_PIC + AutoScrollPanel +
+           DrawSample's 12-frame 360x290 grid). #822: the
+           BattleAnimeRendererCore.RenderSampleBattleAnime cross-platform
+           render (LZ77 palette decompress + paletteIndex sub-palette +
+           RenderSingleFrame + SCALE_90 crop) closes the #399 KnownGap.
+           Phase 1 uses the SAVED ROM palette (WF parity); live-spinner
+           preview is a separate follow-up (WF also previews the ROM palette).
            =========================================================== -->
       <Border Grid.Row="5" BorderBrush="Gray" BorderThickness="1" Padding="4" Margin="0,0,0,4"
               MinHeight="60">
-        <TextBlock AutomationProperties.AutomationId="ImageBattleAnimePallet_SamplePreview_Label"
-                   Name="SamplePreviewLabel"
-                   Text="Sample Preview (deferred): real battle-animation sample rendering is WinForms-coupled (DrawBattleAnime). Use the WinForms editor to preview palette changes against animated frames."
-                   TextWrapping="Wrap" Foreground="Gray" VerticalAlignment="Center" />
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleAnimePallet_SamplePreview_Image"
+                                    Name="SamplePreview" HorizontalAlignment="Left" />
+        </ScrollViewer>
       </Border>
     </Grid>
   </Grid>

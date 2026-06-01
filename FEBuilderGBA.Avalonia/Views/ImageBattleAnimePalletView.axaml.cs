@@ -185,10 +185,30 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint sourceSlot = selected != null ? selected.tag : 0;
                 _vm.LoadEntry(addr, sourceSlot, _vm.PaletteTypeIndex);
                 PopulateAllSpinnersAndSwatches();
+                RefreshSamplePreview();
             }
             catch (Exception ex)
             {
                 Log.Error("ImageBattleAnimePalletView.OnSelectedEntry failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Re-render the battle-animation sample-preview grid for the current
+        /// entry + active palette type and push it into the GbaImageControl.
+        /// Mirrors WF DrawSample being re-invoked on load + on PaletteIndex
+        /// change. Null-safe: a null render clears the preview (SetImage(null)).
+        /// </summary>
+        void RefreshSamplePreview()
+        {
+            try
+            {
+                SamplePreview.SetImage(_vm.RenderSampleBattleAnime());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimePalletView.RefreshSamplePreview failed: {0}", ex.Message);
+                SamplePreview.SetImage(null);
             }
         }
 
@@ -234,6 +254,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _vm.LoadEntry(U.toOffset(_vm.PaletteAddress), 0, _vm.PaletteTypeIndex);
                     PopulateAllSpinnersAndSwatches();
+                    RefreshSamplePreview();
                 }
                 return;
             }
@@ -242,13 +263,20 @@ namespace FEBuilderGBA.Avalonia.Views
             if (authoritativePaletteOffset == 0) return;
             _vm.LoadEntry(authoritativePaletteOffset, slot, _vm.PaletteTypeIndex);
             PopulateAllSpinnersAndSwatches();
+            // Re-render the sample preview so a palette-type (PaletteIndex)
+            // change immediately re-tints the grid with the new sub-palette
+            // (the cross-platform equivalent of WF DrawSample being re-invoked
+            // from PaletteIndexComboBox_SelectedIndexChanged → DrawSample).
+            RefreshSamplePreview();
         }
 
         void Zoom_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _vm.ZoomIndex = ZoomCombo.SelectedIndex;
-            // Sample preview rendering is honestly deferred — no actual
-            // bitmap to scale. See SamplePreviewLabel for the deferred note.
+            // The sample preview now renders (#822). It is hosted in a
+            // ScrollViewer at native size; zoom-scaling the GbaImageControl
+            // is not part of the Phase-1 parity render (WF's zoom combo only
+            // scales the editor's own X_PIC, which is a separate follow-up).
         }
 
         // -----------------------------------------------------------------

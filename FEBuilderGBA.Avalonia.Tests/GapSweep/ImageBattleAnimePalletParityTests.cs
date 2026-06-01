@@ -19,6 +19,7 @@ using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
+using FEBuilderGBA.SkiaSharp;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
@@ -121,12 +122,33 @@ public class ImageBattleAnimePalletParityTests
     }
 
     [Fact]
-    public void View_SamplePreview_IsHonestlyDeferredPlaceholder()
+    public void View_SamplePreview_IsRenderedGbaImageControl()
     {
+        // #822: the deferred placeholder label is replaced by a real
+        // GbaImageControl that hosts the cross-platform DrawSample render.
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"ImageBattleAnimePallet_SamplePreview_Label\"", axaml);
-        // The placeholder text must explain the deferral honestly.
-        Assert.Contains("deferred", axaml);
+        Assert.Contains("AutomationId=\"ImageBattleAnimePallet_SamplePreview_Image\"", axaml);
+        Assert.Contains("<controls:GbaImageControl", axaml);
+        // The old deferred placeholder label must be gone.
+        Assert.DoesNotContain("ImageBattleAnimePallet_SamplePreview_Label", axaml);
+    }
+
+    [Fact]
+    public void View_CodeBehind_WiresSamplePreviewOnLoadAndPaletteChange()
+    {
+        // The code-behind must push the rendered sample into the control on
+        // entry-load (OnSelectedEntry) and on palette-type change
+        // (ReloadFromAuthoritativeSlot), via RenderSampleBattleAnime().
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Contains("SamplePreview.SetImage(_vm.RenderSampleBattleAnime())", code);
+        // RefreshSamplePreview is invoked from OnSelectedEntry (load).
+        Assert.Matches(new Regex(
+            @"OnSelectedEntry[\s\S]*?RefreshSamplePreview\(\)",
+            RegexOptions.Singleline), code);
+        // ...and from the palette-type reload path.
+        Assert.Matches(new Regex(
+            @"ReloadFromAuthoritativeSlot[\s\S]*?RefreshSamplePreview\(\)",
+            RegexOptions.Singleline), code);
     }
 
     [Fact]
@@ -511,6 +533,92 @@ public class ImageBattleAnimePalletParityTests
     }
 
     // -----------------------------------------------------------------
+    // #822 — RenderSampleBattleAnime() threading + null-safety.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_RenderSample_NoEntryLoaded_ReturnsNull()
+    {
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, _, _) = MakeRomWithSingleSlotPalette(new ushort[16]);
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            // No LoadEntry => _sourcePointerSlot is 0 => null, no crash.
+            Assert.Null(vm.RenderSampleBattleAnime());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_RenderSample_NullRom_ReturnsNull()
+    {
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            var vm = new ImageBattleAnimePalletViewModel();
+            Assert.Null(vm.RenderSampleBattleAnime());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_RenderSample_PaletteOnlyRecord_ReturnsNull()
+    {
+        // The single-slot helper plants ONLY a palette pointer (no section /
+        // frame / OAM), so the record is unresolvable => null (no crash). This
+        // also proves the VM derives the record offset from the source slot and
+        // hands it to the Core path without throwing.
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithSingleSlotPalette(new ushort[16]);
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+            Assert.Null(vm.RenderSampleBattleAnime());
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_RenderSample_FullRecord_ThreadsRecordOffset_Returns360x290()
+    {
+        // A complete synthetic anime record. The VM must derive the record
+        // offset from the loaded entry's source pointer slot
+        // (sourceSlot - 0x1C) and produce the 360x290 grid — proving the
+        // anime-ID/record threading is correct (no WF id-1).
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithFullAnimeRecord();
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+
+            IImage grid = vm.RenderSampleBattleAnime();
+            Assert.NotNull(grid);
+            Assert.Equal(360, grid.Width);
+            Assert.Equal(290, grid.Height);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    static void EnsureImageService()
+    {
+        // Use the real SkiaImageService (idempotent) so 4bpp/RGBA decode works
+        // — matches the pattern in ClassEditorListPreviewTests.
+        if (CoreState.ImageService == null)
+            CoreState.ImageService = new SkiaImageService();
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
@@ -632,5 +740,80 @@ public class ImageBattleAnimePalletParityTests
         data[offset + 1] = (byte)((value >> 8) & 0xFF);
         data[offset + 2] = (byte)((value >> 16) & 0xFF);
         data[offset + 3] = (byte)((value >> 24) & 0xFF);
+    }
+
+    /// <summary>
+    /// Build a synthetic ROM with ONE complete battle-animation record
+    /// (section + frame + OAM + multi-block palette + solid graphics), enough
+    /// for RenderSampleBattleAnime to produce a non-blank 360x290 grid. The
+    /// geometry mirrors BattleAnimeSamplePreviewTests.MakeAnimeRom (a solid
+    /// green 8x8 sprite centered to crop (0,0)). Returns the palette offset
+    /// and the source pointer slot (record + 0x1C) the VM loads.
+    /// </summary>
+    static (ROM rom, uint paletteOffset, uint sourceSlot) MakeRomWithFullAnimeRecord()
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x2000000], "BE8E01");
+
+        const uint listBase     = 0x140000; // animation list base (record 0 here)
+        const uint sectionOff   = 0x141000;
+        const uint frameOff     = 0x142000; // LZ77 frame stream
+        const uint oamOff       = 0x143000; // LZ77 OAM
+        const uint paletteOff   = 0x150000; // LZ77 multi-block palette
+        const uint gfxGreen     = 0x160000; // LZ77 solid index-5 tile
+        const uint sourceSlot   = listBase + 28;
+
+        WriteU32(rom.Data, (int)rom.RomInfo.image_battle_animelist_pointer, U.toPointer(listBase));
+
+        // ---- record at listBase ----
+        WriteU32(rom.Data, (int)(listBase + 12), U.toPointer(sectionOff));
+        WriteU32(rom.Data, (int)(listBase + 16), U.toPointer(frameOff));
+        WriteU32(rom.Data, (int)(listBase + 20), U.toPointer(oamOff));
+        WriteU32(rom.Data, (int)(listBase + 24), U.toPointer(oamOff)); // L-to-R (unused)
+        WriteU32(rom.Data, (int)sourceSlot,      U.toPointer(paletteOff));
+
+        // ---- frame stream: section 0 = one frame (gfxGreen, OAM offset 0) ----
+        byte[] frameStream = new byte[12];
+        frameStream[3] = 0x86;
+        U.write_u32(frameStream, 4, U.toPointer(gfxGreen));
+        U.write_u32(frameStream, 8, 0);
+        PlantLZ77(rom, frameOff, frameStream);
+
+        // ---- section array: section 0 = [0,12); rest empty (start = 12) ----
+        for (int s = 0; s < 12; s++)
+        {
+            uint start = s == 0 ? 0u : 12u;
+            WriteU32(rom.Data, (int)(sectionOff + s * 4), start);
+        }
+
+        // ---- OAM: one square 1x1 sprite, centered to crop (0,0) ----
+        // imgX = vramX + 0x94 = 100 => vramX = -48; imgY = vramY + 0x58 = 30 => vramY = -58.
+        byte[] oam = new byte[24];
+        oam[0] = 0x00; oam[1] = 0x00; oam[2] = 0x00; oam[3] = 0x00;
+        oam[4] = 0x00; oam[5] = 0x00;
+        oam[6] = unchecked((byte)(-48 & 0xFF)); oam[7] = unchecked((byte)((-48 >> 8) & 0xFF));
+        oam[8] = unchecked((byte)(-58 & 0xFF)); oam[9] = unchecked((byte)((-58 >> 8) & 0xFF));
+        oam[12] = 0x01; // terminator
+        PlantLZ77(rom, oamOff, oam);
+
+        // ---- graphics: solid 8x8 tile of color index 5 (64 opaque px) ----
+        byte packed = (byte)((5 << 4) | 5);
+        byte[] tile = new byte[32];
+        for (int i = 0; i < 32; i++) tile[i] = packed;
+        PlantLZ77(rom, gfxGreen, tile);
+
+        // ---- palette: 2 blocks; block 0 idx 5 = green (0x03E0) ----
+        byte[] pal = new byte[64];
+        U.write_u16(pal, (0 * 16 + 5) * 2, 0x03E0);
+        U.write_u16(pal, (1 * 16 + 5) * 2, 0x7C00);
+        PlantLZ77(rom, paletteOff, pal);
+
+        return (rom, paletteOff, sourceSlot);
+    }
+
+    static void PlantLZ77(ROM rom, uint offset, byte[] raw)
+    {
+        byte[] comp = LZ77.compress(raw);
+        for (int i = 0; i < comp.Length; i++) rom.Data[offset + i] = comp[i];
     }
 }
