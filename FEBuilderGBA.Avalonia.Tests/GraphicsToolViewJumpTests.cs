@@ -248,15 +248,34 @@ namespace FEBuilderGBA.Avalonia.Tests
                 csSource,
                 System.StringComparison.Ordinal);
 
-            // 2. The axaml must have the button starting as False (not True).
-            Assert.Contains(
-                "TSAEditorButton",
+            // 2. The TSAEditorButton element must carry IsEnabled="False".
+            //    Use a scoped regex so attribute order / whitespace / x:Name vs Name
+            //    differences don't matter, and we get a POSITIVE assertion rather
+            //    than a brittle exact-string absence check.
+            //
+            //    Pattern: match the opening <Button ... > (or self-closing />) tag
+            //    that contains either  x:Name="TSAEditorButton"  or  Name="TSAEditorButton",
+            //    then assert that same tag also contains  IsEnabled\s*=\s*"False".
+            var buttonTagMatch = System.Text.RegularExpressions.Regex.Match(
                 axamlSource,
-                System.StringComparison.Ordinal);
-            Assert.DoesNotContain(
-                "x:Name=\"TSAEditorButton\" Content=\"TSA Editor\" Width=\"100\" Click=\"TSAEditor_Click\" IsEnabled=\"True\"",
-                axamlSource,
-                System.StringComparison.Ordinal);
+                @"<Button\b[^/\>]*?(?:x:)?Name\s*=\s*""TSAEditorButton""[^/\>]*?/?>",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+
+            Assert.True(
+                buttonTagMatch.Success,
+                "GraphicsToolView.axaml must contain a <Button> element with " +
+                "Name=\"TSAEditorButton\" (or x:Name=\"TSAEditorButton\"). " +
+                "Element not found — was it renamed or removed? (#860/#861)");
+
+            var buttonTag = buttonTagMatch.Value;
+
+            Assert.True(
+                System.Text.RegularExpressions.Regex.IsMatch(
+                    buttonTag,
+                    @"IsEnabled\s*=\s*""False"""),
+                $"TSAEditorButton element must declare IsEnabled=\"False\" as its axaml default. " +
+                $"Found tag: [{buttonTag}]. " +
+                $"Do NOT change to True — Jump() enables it only after a valid context is loaded. (#860/#861)");
         }
     }
 
