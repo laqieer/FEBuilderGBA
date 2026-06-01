@@ -70,7 +70,7 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
-        /// Resolve the battle-anime-setting POINTER for class <paramref name="classID"/>.
+        /// Resolve the battle-anime-setting offset for class <paramref name="classID"/>.
         /// Cross-platform mirror of WinForms <c>ClassForm.GetBattleAnimeAddrWhereID</c>
         /// (<c>ClassForm.cs:574-596</c>): the class entry holds the anime-setting
         /// pointer at a version-dependent offset — <c>addr + 48</c> for FE6
@@ -79,16 +79,27 @@ namespace FEBuilderGBA.Core
         /// <c>class_datasize</c> (the same way <see cref="SetSimClass"/> does),
         /// NOT via the WinForms-coupled <c>InputFormRef.IDToAddr</c>.
         /// </summary>
-        /// <returns>The anime-setting GBA pointer, or <see cref="U.NOT_FOUND"/>
-        /// when the ROM/class is null/unresolvable.</returns>
+        /// <returns>The anime-setting ROM OFFSET (the read goes through
+        /// <c>rom.p32</c>, which applies <c>U.toOffset</c> — callers must NOT
+        /// double-convert), or <see cref="U.NOT_FOUND"/> when the ROM/class is
+        /// null/zero/unresolvable.</returns>
         public static uint GetBattleAnimeAddrWhereID(ROM rom, int classID)
         {
             if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
-            if (classID < 0) return U.NOT_FOUND;
+            // classID 0 is "none" for the other class-ID APIs — don't accidentally
+            // resolve entry 0; reject <= 0 (and any negative).
+            if (classID <= 0) return U.NOT_FOUND;
             uint classPtr = rom.RomInfo.class_pointer;
             uint classDataSize = rom.RomInfo.class_datasize;
             if (classPtr == 0 || classDataSize == 0) return U.NOT_FOUND;
 
+            // rom.p32 reads 4 bytes (U.u32) — guard the full 4-byte span before
+            // the read so a table pointer near EOF cannot throw IndexOutOfRange
+            // (the #818/#827 4-byte-header pattern). NOTE: class_pointer is a
+            // fixed RomInfo header-region location (often < 0x200), so we do NOT
+            // apply the isSafetyOffset lower-bound here — only the EOF bound,
+            // matching the original direct rom.p32(classPtr) read.
+            if ((ulong)classPtr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
             uint baseAddr = rom.p32(classPtr);
             if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
 
@@ -98,6 +109,9 @@ namespace FEBuilderGBA.Core
             // FE6 stores the anime-setting pointer at +48; FE7/FE8 at +52.
             uint settingSlot = rom.RomInfo.version == 6 ? addr + 48 : addr + 52;
             if (!U.isSafetyOffset(settingSlot, rom)) return U.NOT_FOUND;
+            // 4-byte EOF guard before the p32 read (settingSlot may sit in the
+            // last 1-3 bytes near EOF where isSafetyOffset still passes).
+            if ((ulong)settingSlot + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
             return rom.p32(settingSlot);
         }
 

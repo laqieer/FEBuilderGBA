@@ -110,6 +110,73 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, ClassFormCore.GetBattleAnimeAddrWhereID(rom, -1));
         }
 
+        [Fact]
+        public void GetBattleAnimeAddrWhereID_ClassZero_ReturnsNotFound()
+        {
+            // classID 0 is "none" for the other class-ID APIs — must NOT resolve
+            // entry 0 (PR #842 review #1).
+            ROM rom = MakeRom(8);
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetBattleAnimeAddrWhereID(rom, 0));
+        }
+
+        [Fact]
+        public void GetBattleAnimeAddrWhereID_SettingSlotNearEOF_ReturnsNotFound_NoThrow()
+        {
+            // PR #842 review #1: rom.p32(settingSlot) reads 4 bytes — if the slot
+            // lands in the LAST 1-3 bytes (where isSafetyOffset still passes), the
+            // u32 read would throw IndexOutOfRange. The 4-byte EOF guard must
+            // return NOT_FOUND instead. Position the class table base so that
+            // classAddr + 52 (FE8) sits 2 bytes before EOF.
+            const int version = 8;
+            const uint dataSize = 84; // CLASS_DATASIZE
+            uint romLen = 0x10000;    // 64 KiB, < 0x02000000 so isSafetyOffset passes
+
+            // We want classAddr + 52 == romLen - 2 for TEST_CLASS_ID (5).
+            // classAddr = base + 5*84 = base + 420. So base = (romLen-2) - 52 - 420.
+            uint settingSlot = romLen - 2;
+            uint classAddr = settingSlot - 52;
+            uint classBase = classAddr - (uint)TEST_CLASS_ID * dataSize;
+
+            var rom = new ROM();
+            byte[] data = new byte[romLen];
+            Array.Fill(data, (byte)0x00);
+            rom.LoadLow("synth.gba", data, "BE8E01");
+            SetRomInfo(rom, new StubRomInfo(version, classPointer: CLASS_PTR_SLOT,
+                classDataSize: dataSize, unitPalettePointer: UNITPAL_PTR_SLOT));
+
+            // class_pointer slot -> classBase (4-byte write fits — classBase is
+            // well inside the ROM).
+            U.write_u32(rom.Data, CLASS_PTR_SLOT, U.toPointer(classBase));
+
+            // No throw, returns NOT_FOUND (the 4-byte span [romLen-2, romLen+2)
+            // overruns by 2 bytes).
+            uint result = ClassFormCore.GetBattleAnimeAddrWhereID(rom, TEST_CLASS_ID);
+            Assert.Equal(U.NOT_FOUND, result);
+        }
+
+        [Fact]
+        public void GetAnimeIDByClassID_SettingSlotNearEOF_ReturnsZero_NoThrow()
+        {
+            // The chained entry point must also be EOF-safe: an unresolvable
+            // (NOT_FOUND) setting slot yields anime id 0, never a throw.
+            const int version = 8;
+            const uint dataSize = 84;
+            uint romLen = 0x10000;
+            uint settingSlot = romLen - 1; // 3 bytes short of a u32
+            uint classAddr = settingSlot - 52;
+            uint classBase = classAddr - (uint)TEST_CLASS_ID * dataSize;
+
+            var rom = new ROM();
+            byte[] data = new byte[romLen];
+            Array.Fill(data, (byte)0x00);
+            rom.LoadLow("synth.gba", data, "BE8E01");
+            SetRomInfo(rom, new StubRomInfo(version, classPointer: CLASS_PTR_SLOT,
+                classDataSize: dataSize, unitPalettePointer: UNITPAL_PTR_SLOT));
+            U.write_u32(rom.Data, CLASS_PTR_SLOT, U.toPointer(classBase));
+
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByClassID(rom, TEST_CLASS_ID));
+        }
+
         // ================================================================
         // GetAnimeIDByAnimeSettingPointer — the u16(ptr + 2) read
         // ================================================================

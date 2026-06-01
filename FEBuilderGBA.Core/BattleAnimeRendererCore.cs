@@ -803,8 +803,9 @@ namespace FEBuilderGBA
         /// <param name="rom">The active ROM.</param>
         /// <param name="paletteno">1-based unit-palette slot (WF
         /// <c>AddressList.SelectedIndex + 1</c>).</param>
-        /// <returns>The GBA pointer to the unit palette block, or
-        /// <see cref="U.NOT_FOUND"/>.</returns>
+        /// <returns>The unit-palette block's ROM OFFSET (the read goes through
+        /// <c>rom.p32</c>, which applies <c>U.toOffset</c> — callers must NOT
+        /// double-convert), or <see cref="U.NOT_FOUND"/>.</returns>
         public static uint GetUnitPaletteAddr(ROM rom, int paletteno)
         {
             if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
@@ -812,6 +813,12 @@ namespace FEBuilderGBA
 
             uint tablePointer = rom.RomInfo.image_unit_palette_pointer;
             if (tablePointer == 0) return U.NOT_FOUND;
+            // rom.p32 reads 4 bytes — guard the full span before the read so a
+            // table pointer near EOF cannot throw. image_unit_palette_pointer is
+            // a fixed RomInfo header-region location (may be < 0x200), so we do
+            // NOT apply the isSafetyOffset lower-bound here — only the EOF bound,
+            // matching the original direct rom.p32(tablePointer) read.
+            if ((ulong)tablePointer + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
             uint baseAddr = rom.p32(tablePointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
 
@@ -821,7 +828,7 @@ namespace FEBuilderGBA
             // The +12 pointer slot must itself stay in-bounds + safety-valid.
             uint slot = entryAddr + 12;
             if (!U.isSafetyOffset(slot, rom)) return U.NOT_FOUND;
-            if (slot + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
+            if ((ulong)slot + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
             return rom.p32(slot);
         }
 
