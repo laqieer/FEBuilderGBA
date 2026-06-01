@@ -83,10 +83,10 @@
 
         <!-- Preview pane + frame controls -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
-          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto">
-            <!-- Row 0: preview image -->
-            <Label Grid.Row="0" Grid.Column="0" Content="Sample" VerticalAlignment="Top" />
-            <Border Grid.Row="0" Grid.Column="1"
+          <Grid ColumnDefinitions="200,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+            <!-- Row 0: preview image (legacy static placeholder, hidden) -->
+            <Label Grid.Row="0" Grid.Column="0" Content="Sample" VerticalAlignment="Top" IsVisible="False" />
+            <Border Grid.Row="0" Grid.Column="1" IsVisible="False"
                     BorderBrush="DarkGray" BorderThickness="1"
                     Width="400" Height="188" HorizontalAlignment="Left">
               <Image AutomationProperties.AutomationId="ImageMagicFEditor_Preview_Image"
@@ -100,7 +100,16 @@
                            AutomationProperties.AutomationId="ImageMagicFEditor_Frame_Input"
                            FormatString="0" Name="FrameBox" Width="100"
                            Minimum="0" Maximum="255" HorizontalAlignment="Left"
-                           Margin="0,4,0,0" />
+                           Margin="0,4,0,0"
+                           ValueChanged="FrameBox_ValueChanged" />
+
+            <!-- Row 4: BinInfo log -->
+            <Label Grid.Row="4" Grid.Column="0" Content="Info" VerticalAlignment="Top"
+                   Margin="0,4,0,0" />
+            <TextBlock Grid.Row="4" Grid.Column="1"
+                       AutomationProperties.AutomationId="ImageMagicFEditor_BinInfo_Label"
+                       Name="BinInfo" TextWrapping="Wrap" Margin="0,4,0,0"
+                       Foreground="Gray" FontSize="10" />
 
             <!-- Row 2: zoom combo -->
             <Label Grid.Row="2" Grid.Column="0" Content="Zoom" VerticalAlignment="Center"
@@ -113,13 +122,20 @@
                       Name="ZoomCombo" Width="200"
                       HorizontalAlignment="Left" Margin="0,4,0,0" />
 
-            <!-- Row 3: sample-preview label -->
-            <Label Grid.Row="3" Grid.Column="0" Content="Display Example" VerticalAlignment="Center"
+            <!-- Row 3: magic-effect frame preview (#852) -->
+            <Label Grid.Row="3" Grid.Column="0" Content="Display Example" VerticalAlignment="Top"
                    Margin="0,4,0,0" />
-            <TextBlock Grid.Row="3" Grid.Column="1"
-                       AutomationProperties.AutomationId="ImageMagicFEditor_SamplePreview_Label"
-                       Name="SamplePreviewLabel" Text="(preview deferred - tracked by #500)"
-                       Foreground="DarkOrange" Margin="0,4,0,0" />
+            <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,4,0,0" Spacing="4">
+              <controls:GbaImageControl
+                  AutomationProperties.AutomationId="ImageMagicFEditor_SamplePreview_Label"
+                  Name="MagicFramePreview"
+                  Width="240" Height="160"
+                  HorizontalAlignment="Left" />
+              <Button AutomationProperties.AutomationId="ImageMagicFEditor_ExportPng_Button"
+                      Name="ExportPngButton" Content="Export PNG"
+                      HorizontalAlignment="Left"
+                      Click="ExportPng_Click" />
+            </StackPanel>
           </Grid>
         </Border>
 

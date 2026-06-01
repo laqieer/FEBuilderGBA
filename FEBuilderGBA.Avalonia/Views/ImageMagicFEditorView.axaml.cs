@@ -4,9 +4,11 @@
 // editor surface mirroring the WF panel3 / panel5 / panel8 /
 // DragTargetPanel layout.
 using System;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -167,6 +169,29 @@ namespace FEBuilderGBA.Avalonia.Views
             P12Box.Value = _vm.P12;
             P16Box.Value = _vm.P16;
             FrameBox.Value = _vm.Frame;
+            RenderPreview();
+        }
+
+        /// <summary>
+        /// Render the current magic-effect frame and update the preview control.
+        /// Mirrors WF <c>DrawSelectedAnime()</c>.
+        /// </summary>
+        void RenderPreview()
+        {
+            try
+            {
+                string log;
+                var image = _vm.RenderMagicFramePreview(out log);
+                MagicFramePreview.SetImage(image);
+                BinInfo.Text = log;
+                ExportPngButton.IsEnabled = _vm.CanExportMagicFrame && MagicFramePreview.HasImage;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicFEditorView.RenderPreview: {0}", ex.Message);
+                MagicFramePreview.SetImage(null);
+                ExportPngButton.IsEnabled = false;
+            }
         }
 
         void DimCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -292,6 +317,28 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("ImageMagicFEditorView.MagicListExpand: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
+            }
+        }
+
+        // #852 — frame spinner drives live preview re-render.
+        void FrameBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm == null) return;
+            _vm.Frame = (uint)(FrameBox.Value ?? 0);
+            RenderPreview();
+        }
+
+        // #852 — Export PNG read-only button.
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!MagicFramePreview.HasImage) return;
+            try
+            {
+                await MagicFramePreview.ExportPng(this, "magic-effect.png");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicFEditorView.ExportPng: {0}", ex.Message);
             }
         }
 
