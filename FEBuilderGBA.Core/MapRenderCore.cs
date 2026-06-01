@@ -88,8 +88,28 @@ namespace FEBuilderGBA
         /// values that index into <paramref name="configOffset"/>.
         /// </param>
         /// <returns>
-        /// RGBA <see cref="IImage"/> of <c>width*16 × height*16</c> pixels, or
-        /// <c>null</c> on any failure.
+        /// RGBA <see cref="IImage"/> of <c>width*16 × height*16</c> pixels on success.
+        ///
+        /// Returns <c>null</c> when:
+        /// <list type="bullet">
+        ///   <item><description><paramref name="rom"/> is <c>null</c> or
+        ///   <c>rom.Data</c> is <c>null</c>.</description></item>
+        ///   <item><description><see cref="CoreState.ImageService"/> is
+        ///   <c>null</c>.</description></item>
+        ///   <item><description>Any of the four LZ77-compressed streams
+        ///   (<paramref name="objOffset"/>, <paramref name="configOffset"/>,
+        ///   <paramref name="mapOffset"/>) is truncated, has a zero compressed
+        ///   size, or decompresses to an empty result.</description></item>
+        ///   <item><description>The decompressed map data has zero
+        ///   <c>width</c> or <c>height</c>.</description></item>
+        /// </list>
+        ///
+        /// When an individual MAR tile's config descriptor index is out of range,
+        /// that tile is <b>skipped</b> (left as zero-filled blank), and a partial
+        /// image is still returned.  This differs from WF
+        /// <c>ImageUtilMap.DrawMap</c>, which bails to <c>BlankDummy()</c>
+        /// (blanks the whole map) on the first such tile; see the divergence note
+        /// in the implementation body.
         /// </returns>
         public static IImage RenderMapImage(ROM rom, uint objOffset, uint paletteOffset,
             uint configOffset, uint mapOffset)
@@ -100,7 +120,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
-                Log.Error("MapRenderCore.RenderMapImage exception: " + ex.Message);
+                Log.Error($"MapRenderCore.RenderMapImage failed: {ex}");
                 return null;
             }
         }
@@ -114,7 +134,10 @@ namespace FEBuilderGBA
             uint configOffset, uint mapOffset)
         {
             // --- Guard 1: null checks ---
-            if (rom == null || rom.Data == null || rom.RomInfo == null) return null;
+            // rom.RomInfo is intentionally NOT checked: RenderMapImage only uses
+            // rom.Data + the explicit offsets passed by the caller, so synthetic/unknown
+            // ROMs with valid offsets and Data can render without a matched RomInfo.
+            if (rom == null || rom.Data == null) return null;
             if (CoreState.ImageService == null) return null;
 
             // --- Step 2 (MR3): OBJ tiles — LZ77 raw bytes ---
@@ -188,12 +211,16 @@ namespace FEBuilderGBA
 
                 if (descOff + 7 >= configUZ.Length)
                 {
-                    // Out-of-bounds config descriptor: treat as zeros (do NOT
-                    // throw). WF DrawMap returns BlankDummy here; we skip the tile
-                    // so the canvas stays zero-initialized (all-zero TSA entries
-                    // map to tile 0, palette bank 0, no flip — benign blank tile).
-                    // This matches the plan's "treat as 0/skip — match WF" note
-                    // while avoiding abrupt null return mid-render.
+                    // DIVERGENCE from WF: WF `ImageUtilMap.DrawMap` (line 284-287)
+                    // calls `return ImageUtil.BlankDummy()` when a tile's descriptor
+                    // offset is out of range, blanking the ENTIRE map output.
+                    // For a read-only preview we instead skip only the offending tile
+                    // (the zero-initialized canvas slot stays zero, mapping to
+                    // tile 0, palette bank 0, no flip — a benign blank tile) and
+                    // continue rendering the rest of the map.  A partial image is
+                    // more useful than a fully-blank preview for a single corrupt
+                    // descriptor.  Each tile writes to independent subtile slots, so
+                    // skipping one tile cannot corrupt the rest of the render.
                 }
                 else
                 {
