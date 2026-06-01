@@ -7451,6 +7451,9 @@ Hex アドレス
 :Make Selected Class Independent
 選択クラスの分離独立
 
+:The list is empty. Separating an empty list has no effect. Make it independent anyway?
+リストが0件です。空のリストを分離させても意味がないのですが、それでも分離独立させますか？
+
 :Click here for level/skill details (opens wiki)
 習得レベルとスキルの詳細は、ここをクリックしてください。
 

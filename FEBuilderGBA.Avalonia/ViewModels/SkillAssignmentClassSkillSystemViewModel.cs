@@ -405,6 +405,75 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return count;
         }
 
+        /// <summary>
+        /// True when the selected class's level-up table currently holds 0
+        /// rows, so the View can mirror WF's "the list is empty, separate it
+        /// anyway?" confirm before <see cref="MakeIndependent"/>. Mirrors WF
+        /// <c>IndependenceButton_Click</c>'s <c>N1_InputFormRef.DataCount == 0</c>
+        /// check (<c>SkillAssignmentClassSkillSystemForm.cs:576</c>).
+        /// </summary>
+        public bool IsSelectedLevelUpListEmpty()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return true;
+            uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
+            if (!U.isSafetyOffset(pointerAddr + 3, rom)) return true;
+            uint gbaPtr = rom.u32(pointerAddr);
+            if (!U.isSafetyPointer(gbaPtr)) return true;
+            return SkillAssignmentIndependenceCore.CountLevelUpRows(rom, U.toOffset(gbaPtr)) == 0;
+        }
+
+        /// <summary>
+        /// Clone the selected class's SHARED level-up table into a fresh
+        /// free-space block and repoint ONLY this class's pointer slot — mirrors
+        /// WF <c>SkillAssignmentClassSkillSystemForm.IndependenceButton_Click</c>
+        /// (<c>:551-595</c>) → <c>PatchUtil.WriteIndependence</c>. Delegates to
+        /// <see cref="SkillAssignmentIndependenceCore.MakeIndependent"/>, which
+        /// appends the verbatim clone via the wired
+        /// <see cref="CoreState.AppendBinaryData"/> seam (#796) and writes the
+        /// SINGLE slot under the ambient undo scope opened by the View's
+        /// <c>UndoService.Begin</c>. CRITICALLY NOT
+        /// <c>RepointAllReferences</c>: every other sharing class deliberately
+        /// stays on the intact original table.
+        ///
+        /// WF guards reproduced: the per-class slot must be in-bounds
+        /// (<c>setting</c>), the resolved pointer must be safe (<c>p</c>), and
+        /// the live N1 base must equal the resolved pointer (<c>BaseAddress ==
+        /// p</c>) — here the latter is implicit because the slot IS the live
+        /// pointer. On success refreshes <see cref="XLevelUpAddr"/>, the
+        /// visibility flags, and the N1 sub-list (mirror WF <c>ReloadList</c>).
+        /// </summary>
+        /// <returns>The new block's GBA pointer (0x08xxxxxx) on success, or 0 on
+        /// no-op / failure.</returns>
+        public uint MakeIndependent(Undo.UndoData undoData)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.Data == null) return 0;
+            if (_assignLevelUpBaseAddress == 0) return 0;
+
+            // WF guard: the per-class pointer slot must be a safe, in-bounds
+            // 4-byte slot (setting = AssignLevelUpBase + classId*4).
+            uint pointerAddr = _assignLevelUpBaseAddress + SelectedId * 4;
+            if (!U.isSafetyOffset(pointerAddr + 3, rom)) return 0;
+
+            // WF guard: the resolved pointer must be a safe offset (p). Only a
+            // shared, valid table can be made independent.
+            uint gbaPtr = rom.u32(pointerAddr);
+            if (!U.isSafetyPointer(gbaPtr)) return 0;
+            if (!U.isSafetyOffset(U.toOffset(gbaPtr), rom)) return 0;
+
+            uint newOffset = SkillAssignmentIndependenceCore.MakeIndependent(
+                rom, _assignLevelUpBaseAddress, SelectedId, undoData);
+            if (newOffset == U.NOT_FOUND || newOffset == 0) return 0;
+
+            // Mirror WF ReloadList: re-read the freshly written slot so the UI
+            // reflects the new (now-independent) table.
+            XLevelUpAddr = U.toPointer(newOffset);
+            RecomputeVisibilityFlags(rom);
+            LoadLevelUpList(rom);
+            return U.toPointer(newOffset);
+        }
+
         void RecomputeVisibilityFlags(ROM rom)
         {
             if (rom == null) { IsZeroPointer = false; IsIndependenceVisible = false; return; }

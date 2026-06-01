@@ -41,17 +41,19 @@
       </StackPanel>
     </Border>
 
-    <!-- Row 2 col 0: Class list + Filter Name + List Expand. Mirrors WF panel6. -->
+    <!-- Row 2 col 0: Class list + Filter Name. Mirrors WF panel6.
+         #834: there is intentionally NO master List-Expand button. The
+         master Class-Skill table is class-count-bound — WF Init
+         (SkillAssignmentClassSkillSystemForm.cs:75/77) builds its
+         InputFormRef off ClassForm.DataCount() and does NOT subscribe
+         PostAddressListExpandsEvent (only the N1 sub-list does, :53), so the
+         table has no expand semantics. The previously-deferred (#500)
+         spurious ListExpandButton was therefore removed. -->
     <Border Grid.Row="2" Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Margin="4">
       <DockPanel>
         <Label DockPanel.Dock="Top"
                AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_FilterName_Label"
                Content="Filter Name" HorizontalAlignment="Stretch" />
-        <Button DockPanel.Dock="Bottom"
-                AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_ListExpand_Button"
-                Name="ListExpandButton" Content="List Expand"
-                HorizontalAlignment="Stretch"
-                ToolTip.Tip="Pending Core extraction - tracked by #500." IsEnabled="False" />
         <controls:AddressListControl
             AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Entry_List"
             Name="EntryList" />
@@ -259,7 +261,7 @@ If promoted...` parses with
                 <Button AutomationProperties.AutomationId="SkillAssignmentClassSkillSystem_Independence_Button"
                         Name="IndependenceButton" Content="Make Selected Class Independent"
                         HorizontalAlignment="Left"
-                        ToolTip.Tip="Pending Core extraction - tracked by #500." IsEnabled="False" />
+                        Click="Independence_Click" />
               </StackPanel>
             </Border>
 
