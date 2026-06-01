@@ -17,7 +17,7 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// <summary>
     /// Issue #831: render the Avalonia <see cref="ItemEditorView"/> on a real
     /// FE8U item with a null Stat Bonuses (P12) pointer, click the new
-    /// "New-alloc Stat Bonuses" button, and capture a BEFORE/AFTER composite PNG
+    /// "New-alloc Stat Bonuses" button, and capture a BEFORE/AFTER pair of PNGs
     /// proving the new-alloc works: the orange "P12 is null" warning + button
     /// disappear and the Stat Bonuses pointer box shows the newly allocated
     /// GBA pointer.
@@ -28,6 +28,17 @@ namespace FEBuilderGBA.Avalonia.Tests
     /// Default output is a per-test temp dir; set FEBUILDERGBA_SCREENSHOT_DIR to
     /// the repo's pr-screenshots/ to regenerate the canonical PR screenshot.
     /// Mirrors <see cref="ItemShopFirstIconScreenshotTest"/>.
+    ///
+    /// LEAK-FREE (PR #833 review): the new-alloc click goes through the real
+    /// handler, which writes to the ROM and PUSHES onto <c>CoreState.Undo</c>.
+    /// Under <c>[Collection("SharedState")]</c> that would leak undo history +
+    /// a mutated ROM into later tests (the #827 flake class). So this test
+    /// swaps in a THROWAWAY <c>CoreState.Undo</c> for the duration (the click
+    /// pushes onto it, never the shared buffer), rolls the allocation back via
+    /// <c>RunUndo()</c> so the ROM bytes are restored, and restores
+    /// <c>CoreState.Undo</c> / <c>CoreState.ROM</c> / <c>CoreState.ImageService</c>
+    /// in a <c>finally</c>. Explicit before/after assertions confirm the shared
+    /// undo buffer count is unchanged and the ROM P12 slot returns to 0.
     /// </summary>
     [Collection("SharedState")]
     public class ItemNewAllocScreenshotTest : IClassFixture<RomFixture>
@@ -49,62 +60,87 @@ namespace FEBuilderGBA.Avalonia.Tests
                 _output.WriteLine("SKIP: no ROM available");
                 return;
             }
-            if (CoreState.ImageService == null)
-                CoreState.ImageService = new SkiaImageService();
-            CoreState.Undo ??= new Undo();
 
+            // --- Save ALL shared CoreState we touch, restore in finally ---
             ROM rom = CoreState.ROM!;
-            uint itemPtr = rom.RomInfo.item_pointer;
-            uint baseAddr = rom.p32(itemPtr);
-            uint dataSize = rom.RomInfo.item_datasize;
+            var prevUndo = CoreState.Undo;
+            var prevImageService = CoreState.ImageService;
+            // Snapshot the shared undo buffer so we can prove it's untouched.
+            int sharedUndoCountBefore = prevUndo?.UndoBuffer.Count ?? 0;
+            int sharedUndoPosBefore = prevUndo?.Postion ?? 0;
 
-            // Find the first item (index > 0) whose Stat Bonuses pointer (P12)
-            // is 0 — the new-alloc target.
-            uint targetAddr = 0;
-            for (uint idx = 1; idx < 64; idx++)
+            try
             {
-                uint addr = baseAddr + idx * dataSize;
-                if (rom.u32(addr + 12) == 0) { targetAddr = addr; break; }
+                if (CoreState.ImageService == null)
+                    CoreState.ImageService = new SkiaImageService();
+                // Throwaway undo: the real click PUSHES, so route it off the
+                // shared buffer entirely (restored in finally regardless).
+                CoreState.Undo = new Undo();
+
+                uint baseAddr = rom.p32(rom.RomInfo.item_pointer);
+                uint dataSize = rom.RomInfo.item_datasize;
+
+                // First item (index > 0) whose Stat Bonuses pointer (P12) is 0.
+                uint targetAddr = 0;
+                for (uint idx = 1; idx < 64; idx++)
+                {
+                    uint addr = baseAddr + idx * dataSize;
+                    if (rom.u32(addr + 12) == 0) { targetAddr = addr; break; }
+                }
+                if (targetAddr == 0)
+                {
+                    _output.WriteLine("SKIP: no item with null P12 found");
+                    return;
+                }
+                _output.WriteLine($"Target item @ 0x{targetAddr:X8} (P12=0)");
+
+                var view = new ItemEditorView();
+                // Drive the real selection handler so the VM + UI populate
+                // exactly as in production (OnItemSelected -> LoadItem ->
+                // UpdateUI -> UpdateComputedUI shows the orange warning row).
+                Invoke(view, "OnItemSelected", targetAddr);
+
+                const int W = 900;
+                const int H = 760;
+
+                // BEFORE: the StatBonuses warning row is visible.
+                var row = view.FindControl<Control>("AllocStatBonusesRow");
+                Assert.NotNull(row);
+                Assert.True(row!.IsVisible, "BEFORE: Stat Bonuses null-pointer warning row must be visible.");
+
+                string outDir = ResolveScreenshotOutputDir();
+                Directory.CreateDirectory(outDir);
+                SaveRender(view, W, H, Path.Combine(outDir, "pr831-item-newalloc-before.png"));
+
+                // Click the new-alloc button via the real handler (writes ROM +
+                // pushes onto the throwaway CoreState.Undo).
+                Invoke(view, "AllocStatBonuses_Click", null, null);
+
+                // AFTER: the warning row is hidden and P12 holds a GBA pointer.
+                Assert.False(row.IsVisible, "AFTER: warning row must hide once P12 is allocated.");
+                uint newP12 = rom.u32(targetAddr + 12);
+                Assert.True(U.isPointer(newP12), "AFTER: P12 must hold a GBA pointer.");
+                _output.WriteLine($"AFTER: P12 = 0x{newP12:X8}");
+
+                SaveRender(view, W, H, Path.Combine(outDir, "pr831-item-newalloc.png"));
+
+                // Roll the allocation back on the throwaway undo so the ROM is
+                // left byte-for-byte as found (P12 returns to 0).
+                CoreState.Undo.RunUndo();
+                Assert.Equal(0u, rom.u32(targetAddr + 12));
             }
-            if (targetAddr == 0)
+            finally
             {
-                _output.WriteLine("SKIP: no item with null P12 found");
-                return;
+                // Restore EVERY shared slot we touched.
+                CoreState.Undo = prevUndo;
+                CoreState.ROM = rom;
+                CoreState.ImageService = prevImageService;
             }
-            _output.WriteLine($"Target item @ 0x{targetAddr:X8} (P12=0)");
 
-            var view = new ItemEditorView();
-            // Drive the real selection handler so the VM + UI populate exactly
-            // as in production (OnItemSelected -> LoadItem -> UpdateUI ->
-            // UpdateComputedUI shows the orange warning row).
-            Invoke(view, "OnItemSelected", targetAddr);
-
-            const int W = 900;
-            const int H = 760;
-
-            // BEFORE state assertions: the StatBonuses warning row is visible.
-            var row = view.FindControl<Control>("AllocStatBonusesRow");
-            Assert.NotNull(row);
-            Assert.True(row!.IsVisible, "BEFORE: Stat Bonuses null-pointer warning row must be visible.");
-
-            string outDir = ResolveScreenshotOutputDir();
-            Directory.CreateDirectory(outDir);
-            // BEFORE shot: the orange "P12 is null" warning row + New-alloc button.
-            SaveRender(view, W, H, Path.Combine(outDir, "pr831-item-newalloc-before.png"));
-
-            // Click the new-alloc button via the real handler.
-            Invoke(view, "AllocStatBonuses_Click", null, null);
-
-            // AFTER state assertions: the warning row is hidden and the pointer
-            // box shows a real GBA pointer.
-            Assert.False(row.IsVisible, "AFTER: warning row must hide once P12 is allocated.");
-            uint newP12 = rom.u32(targetAddr + 12);
-            Assert.True(U.isPointer(newP12), "AFTER: P12 must hold a GBA pointer.");
-            _output.WriteLine($"AFTER: P12 = 0x{newP12:X8}");
-
-            // AFTER shot (canonical PR proof): warning gone, Stat Bonuses box now
-            // shows the freshly allocated pointer.
-            SaveRender(view, W, H, Path.Combine(outDir, "pr831-item-newalloc.png"));
+            // The shared undo buffer must be byte-for-byte as we found it (#827
+            // leak class): no entries pushed, position unchanged.
+            Assert.Equal(sharedUndoCountBefore, CoreState.Undo?.UndoBuffer.Count ?? 0);
+            Assert.Equal(sharedUndoPosBefore, CoreState.Undo?.Postion ?? 0);
         }
 
         void SaveRender(Control view, int w, int h, string outPath)
