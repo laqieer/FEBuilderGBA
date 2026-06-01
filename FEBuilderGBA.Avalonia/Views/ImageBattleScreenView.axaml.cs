@@ -180,6 +180,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 PopulateUI();
                 RefreshBattlePreview();
                 RefreshChipsetPreview();
+                RefreshImagePreviews();
             }
             catch (Exception ex)
             {
@@ -253,6 +254,35 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageBattleScreenView.RefreshChipsetPreview failed: {0}", ex.Message);
                 ChipsetPreview.SetImage(null);
+            }
+        }
+
+        /// <summary>
+        /// Render all 5 per-image previews (#816) into their
+        /// <c>Image{1..5}Preview</c> GbaImageControls. Each image strip is
+        /// decoded from its OWN LZ77 stream at its WF per-image dimensions
+        /// (image1 = natural W x H, image2..image5 = liner-width x 8px), palette
+        /// bank 0, index 0 opaque. Null-safe per control: a bad index or
+        /// corrupt/missing strip returns <c>null</c> from the Core helper, which
+        /// <c>SetImage(null)</c> turns into a blank surface (no crash) -- same
+        /// pattern as <see cref="RefreshChipsetPreview"/>. Called on entry load
+        /// and after every write/undo so the strips track the ROM.
+        /// </summary>
+        void RefreshImagePreviews()
+        {
+            var controls = new[] { Image1Preview, Image2Preview, Image3Preview, Image4Preview, Image5Preview };
+            for (int i = 0; i < controls.Length; i++)
+            {
+                if (controls[i] == null) continue;
+                try
+                {
+                    controls[i].SetImage(_vm.RenderImagePreview(i));
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImageBattleScreenView.RefreshImagePreviews index ", i.ToString(), " failed: ", ex.Message);
+                    controls[i].SetImage(null);
+                }
             }
         }
 
@@ -336,6 +366,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // edits change the tileset the chip list renders).
             RefreshBattlePreview();
             RefreshChipsetPreview();
+            RefreshImagePreviews();
         }
 
         void PaletteWrite_Click(object sender, RoutedEventArgs e)
@@ -378,6 +409,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // both palette banks are shown in the chip-list columns).
             RefreshBattlePreview();
             RefreshChipsetPreview();
+            RefreshImagePreviews();
         }
 
         void PaletteIndex_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -459,6 +491,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 PopulateUI();
                 RefreshBattlePreview();
                 RefreshChipsetPreview();
+                RefreshImagePreviews();
             }
             catch (Exception ex)
             {
@@ -475,6 +508,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 PopulateUI();
                 RefreshBattlePreview();
                 RefreshChipsetPreview();
+                RefreshImagePreviews();
             }
             catch (Exception ex)
             {

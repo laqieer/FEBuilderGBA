@@ -77,6 +77,17 @@ namespace FEBuilderGBA
             return lastByte < (ulong)rom.Data.Length;
         }
 
+        // The GBA LZ77 stream header is 4 bytes (0x10 + a 3-byte uncompressed
+        // size). LZ77.getCompressedSize / getUncompressSize only reject when
+        // FEWER THAN 3 bytes remain, yet they read input[offset + 3] -- so a
+        // pointer to the LAST 1-3 bytes of the ROM passes isSafetyOffset but
+        // makes that header read throw IndexOutOfRangeException (Copilot PR #818
+        // review). Require the FULL 4-byte header to be in-bounds BEFORE any
+        // LZ77 call so the null-safe preview path returns null/false instead of
+        // throwing. Shared with the #804/#807 loader paths (hardens them too).
+        const int LZ77_HEADER_BYTES = 4;
+        static bool IsLZ77HeaderSafe(ROM rom, uint addr) => IsRegionSafe(rom, addr, LZ77_HEADER_BYTES);
+
         /// <summary>
         /// Read the 32 x 20 TSA map from the 5 TSA regions in <paramref name="rom"/>.
         /// Returns a <see cref="ushort"/> array of length <see cref="MAP_SIZE"/>;
@@ -172,6 +183,77 @@ namespace FEBuilderGBA
         const int BATTLE_SCREEN_WIDTH_TILES = 32;   // 256 px
         const int BATTLE_SCREEN_HEIGHT_TILES = 20;  // 160 px
         const int BATTLE_SCREEN_PALETTE_BYTES = 16 * 16 * 2; // 16 banks * 16 colors * 2 bytes = 512
+
+        // The 5 image-pointer slots in WF order (image1..image5). Centralized so
+        // RenderSingleImagePreview's index->slot mapping stays in sync with the
+        // concatenated loader.
+        static uint[] ImagePointerSlots(ROM rom) => new uint[]
+        {
+            rom.RomInfo.battle_screen_image1_pointer,
+            rom.RomInfo.battle_screen_image2_pointer,
+            rom.RomInfo.battle_screen_image3_pointer,
+            rom.RomInfo.battle_screen_image4_pointer,
+            rom.RomInfo.battle_screen_image5_pointer,
+        };
+
+        /// <summary>
+        /// Width-estimation alignment used by every WF per-image call site here
+        /// (WF's default <c>align = 8</c>).
+        /// </summary>
+        const int LINER_ALIGN = 8;
+
+        /// <summary>
+        /// Liner width estimate for an already-resolved ROM offset, ported
+        /// VERBATIM from WinForms <c>U.CalcLZ77LinerImageToWidth</c>
+        /// (FEBuilderGBA/U.cs:5953-5972). The width is
+        /// <c>(uncompSize / 2 / 2 / align) * align</c> -- i.e. it FLOORS to a
+        /// multiple of <paramref name="align"/> (NOT a plain <c>uncompSize/4</c>
+        /// approximation). Clamps to <paramref name="align"/> when the offset is
+        /// unsafe, <c>uncompSize &lt;= 0</c>, or the floored result is
+        /// <c>&lt;= 0</c>. Used for image2..image5 (height fixed at 8px).
+        /// </summary>
+        static int CalcLinerImageToWidth(ROM rom, uint addr, int align = LINER_ALIGN)
+        {
+            // 4-byte LZ77-header bounds check BEFORE getUncompressSize: a
+            // last-1-3-bytes pointer passes isSafetyOffset but makes the
+            // header read throw (Copilot PR #818 review). Treat as unmeasurable.
+            if (!IsLZ77HeaderSafe(rom, addr)) return align;
+            uint size = LZ77.getUncompressSize(rom.Data, addr);
+            if (size <= 0) return align;
+            int a = (int)size / 2 / 2 / align;
+            if (a <= 0) return align;
+            return a * align;
+        }
+
+        /// <summary>
+        /// Natural (width, height) estimate for an already-resolved ROM offset,
+        /// ported VERBATIM from WinForms <c>U.CalcLZ77ImageToSize</c>
+        /// (FEBuilderGBA/U.cs:5974-5989). Takes the liner width (height-1 guess),
+        /// then scans <c>w = 32..1</c> for the first <c>w*8</c> that evenly
+        /// divides it -- the "nice divisor" width -- returning
+        /// <c>(w*8, width/(w*8)*8)</c>. The WF
+        /// <c>Debug.Assert(false)</c>/<c>Size(8,8)</c> tail is UNREACHABLE
+        /// (<c>w = 1</c> always divides a multiple-of-8 width), so the Core port
+        /// drops the assert and just defaults to <c>(align, align)</c> safely.
+        /// Used for image1 (its natural W x H).
+        /// </summary>
+        static (int width, int height) CalcImageToSize(ROM rom, uint addr, int align = LINER_ALIGN)
+        {
+            // Height-1 guess: how wide is the strip if it were a single row?
+            int width = CalcLinerImageToWidth(rom, addr, align);
+
+            // Find a "nice" divisor width.
+            for (int w = 32; w >= 1; w--)
+            {
+                if (width % (w * 8) == 0)
+                {
+                    return (w * 8, width / (w * 8) * 8);
+                }
+            }
+            // Unreachable in practice (w=1 divides any multiple-of-8 width); the
+            // WF code asserts false here. Default safely.
+            return (align, align);
+        }
 
         /// <summary>
         /// Render a live preview of the battle screen (256 x 160) by mirroring
@@ -282,49 +364,24 @@ namespace FEBuilderGBA
             if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
 
             // --- Blocker 1: RAW 16-bank palette (512 bytes, NO LZ77) ---
-            uint palAddr = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
-            if (!U.isSafetyOffset(palAddr, rom)) return false;
-            ulong palLast = (ulong)palAddr + (ulong)BATTLE_SCREEN_PALETTE_BYTES - 1UL;
-            if (palLast >= (ulong)rom.Data.Length) return false;
-            byte[] gbaPalette = new byte[BATTLE_SCREEN_PALETTE_BYTES];
-            Array.Copy(rom.Data, palAddr, gbaPalette, 0, BATTLE_SCREEN_PALETTE_BYTES);
+            // Factored into TryLoadRawPalette so the per-image preview (#816)
+            // reads the EXACT same palette (behavior-preserving).
+            if (!TryLoadRawPalette(rom, out byte[] gbaPalette)) return false;
 
             // --- Blocker 2: LZ77 image1..image5 concatenated vertically ---
-            uint[] imagePointerSlots = new uint[]
-            {
-                rom.RomInfo.battle_screen_image1_pointer,
-                rom.RomInfo.battle_screen_image2_pointer,
-                rom.RomInfo.battle_screen_image3_pointer,
-                rom.RomInfo.battle_screen_image4_pointer,
-                rom.RomInfo.battle_screen_image5_pointer,
-            };
+            uint[] imagePointerSlots = ImagePointerSlots(rom);
 
             int totalLength = 0;
             byte[][] chunks = new byte[imagePointerSlots.Length][];
             for (int i = 0; i < imagePointerSlots.Length; i++)
             {
-                uint imageAddr = rom.p32(imagePointerSlots[i]);
                 // Each image1..5 is REQUIRED (WF blits all five): a bad pointer
                 // or LZ77 failure must fail the whole render, not skip a chunk.
-                if (!U.isSafetyOffset(imageAddr, rom)) return false;
-
-                // Validate the compressed stream BEFORE decompressing.
-                // LZ77.decompress does NOT distinguish a truncated stream: when
-                // the input ends early it breaks out and returns a ZERO-FILLED
-                // buffer of the advertised (header) size, which would silently
-                // render as a blank-but-plausible chunk and violate the
-                // "any corrupt REQUIRED source fails the whole render" contract
-                // (#802 PR #804 review fix). LZ77.getCompressedSize returns the
-                // ACTUAL consumed compressed length only when the full stream
-                // decodes within the ROM bounds, and 0 on any corruption /
-                // truncation / bad header. A defensive end-of-ROM bound check
-                // on (imageAddr + compressedSize) additionally guards an overrun.
-                uint compressedSize = LZ77.getCompressedSize(rom.Data, imageAddr);
-                if (compressedSize == 0) return false;
-                if ((ulong)imageAddr + (ulong)compressedSize > (ulong)rom.Data.Length) return false;
-
-                byte[] chunk = LZ77.decompress(rom.Data, imageAddr);
-                if (chunk == null || chunk.Length == 0) return false;
+                // The per-strip decode (pointer deref + isSafetyOffset +
+                // getCompressedSize truncation guard + end-of-ROM bound +
+                // decompress) is factored into TryDecodeImageStrip so the
+                // single-image preview (#816) reuses the EXACT same load path.
+                if (!TryDecodeImageStrip(rom, imagePointerSlots[i], out byte[] chunk)) return false;
                 chunks[i] = chunk;
                 totalLength += chunk.Length;
             }
@@ -341,6 +398,186 @@ namespace FEBuilderGBA
             tileData = tiles;
             palette = gbaPalette;
             return true;
+        }
+
+        /// <summary>
+        /// Decode ONE LZ77 image strip stored at <paramref name="pointerSlot"/>
+        /// (e.g. <c>battle_screen_image2_pointer</c>) into its raw 4bpp tile
+        /// bytes. This is the per-strip load path factored verbatim out of
+        /// <see cref="TryLoadChipsetAndPalette"/>'s concatenation loop so the
+        /// single-image preview (#816) reuses the EXACT same guards: dereference
+        /// the pointer, <see cref="U.isSafetyOffset(uint, ROM)"/>, the
+        /// <c>LZ77.getCompressedSize == 0</c> truncation guard (a truncated but
+        /// header-valid stream that <c>LZ77.decompress</c> would zero-fill must
+        /// fail), an end-of-ROM bound on <c>(addr + compressedSize)</c>, then
+        /// <c>LZ77.decompress</c>. Returns <c>false</c> (and a null output) on any
+        /// failure -- no partial-render of a corrupt strip.
+        /// </summary>
+        static bool TryDecodeImageStrip(ROM rom, uint pointerSlot, out byte[] tiles)
+        {
+            tiles = null;
+            if (rom == null || rom.Data == null) return false;
+
+            uint imageAddr = rom.p32(pointerSlot);
+            // 4-byte LZ77-header bounds check: a pointer to the LAST 1-3 bytes of
+            // the ROM passes isSafetyOffset, yet getCompressedSize reads the
+            // 4-byte header (input[addr + 3]) and would throw
+            // IndexOutOfRangeException. Require the full header in-bounds first so
+            // the null-safe path returns false (no throw) -- Copilot PR #818
+            // review. (Subsumes the bare isSafetyOffset check.)
+            if (!IsLZ77HeaderSafe(rom, imageAddr)) return false;
+
+            // Validate the compressed stream BEFORE decompressing.
+            // LZ77.getCompressedSize returns the ACTUAL consumed compressed
+            // length only when the full stream decodes within the ROM bounds,
+            // and 0 on any corruption / truncation / bad header. A defensive
+            // end-of-ROM bound check on (imageAddr + compressedSize) additionally
+            // guards an overrun (#802 PR #804 review contract).
+            uint compressedSize = LZ77.getCompressedSize(rom.Data, imageAddr);
+            if (compressedSize == 0) return false;
+            if ((ulong)imageAddr + (ulong)compressedSize > (ulong)rom.Data.Length) return false;
+
+            byte[] chunk = LZ77.decompress(rom.Data, imageAddr);
+            if (chunk == null || chunk.Length == 0) return false;
+            tiles = chunk;
+            return true;
+        }
+
+        /// <summary>
+        /// Read the RAW 16-bank battle-screen palette (512 bytes, NOT LZ77)
+        /// directly at <c>battle_screen_palette_pointer</c> -- the same read
+        /// <see cref="TryLoadChipsetAndPalette"/> does for Blocker 1 (WF passes
+        /// the palette offset straight to <c>ByteToImage16Tile</c>). Returns
+        /// <c>false</c> (null output) if the pointer or its 512-byte span is
+        /// out of bounds. Shared by the per-image preview (#816) so it renders
+        /// with the SAME palette as the composite/chipset previews.
+        /// </summary>
+        static bool TryLoadRawPalette(ROM rom, out byte[] gbaPalette)
+        {
+            gbaPalette = null;
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+
+            uint palAddr = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+            if (!U.isSafetyOffset(palAddr, rom)) return false;
+            ulong palLast = (ulong)palAddr + (ulong)BATTLE_SCREEN_PALETTE_BYTES - 1UL;
+            if (palLast >= (ulong)rom.Data.Length) return false;
+
+            byte[] pal = new byte[BATTLE_SCREEN_PALETTE_BYTES];
+            Array.Copy(rom.Data, palAddr, pal, 0, BATTLE_SCREEN_PALETTE_BYTES);
+            gbaPalette = pal;
+            return true;
+        }
+
+        /// <summary>
+        /// Load ONE battle-screen image strip (<paramref name="imageIndex"/> in
+        /// 0..4 -> image1..image5) at its WinForms per-image dimensions (#816).
+        /// Mirrors <c>ImageBattleScreenForm.InitLoadChipsetInfo</c> exactly:
+        ///   * <paramref name="imageIndex"/> == 0 (image1): natural W x H via the
+        ///     ported <see cref="CalcImageToSize"/> "nice divisor" loop.
+        ///   * <paramref name="imageIndex"/> in 1..4 (image2..image5): a single
+        ///     horizontal row -- <c>CalcLinerImageToWidth x (1 * 8)</c> (8px tall).
+        /// NOTE: these are the WF per-image widths, NOT a slice of the 8px-wide
+        /// concatenated ChipCache sheet -- the same tiles laid out at the
+        /// per-image width vs. an 8px column produce DIFFERENT images.
+        ///
+        /// Returns <c>false</c> (and null/zero outputs) for an out-of-range index
+        /// or any strip-load failure (corrupt / truncated / out-of-bounds).
+        /// </summary>
+        public static bool TryLoadSingleImageStrip(ROM rom, int imageIndex,
+            out byte[] tiles, out int widthPx, out int heightPx)
+        {
+            tiles = null;
+            widthPx = 0;
+            heightPx = 0;
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return false;
+            if (imageIndex < 0 || imageIndex > 4) return false;
+
+            uint[] slots = ImagePointerSlots(rom);
+            uint pointerSlot = slots[imageIndex];
+
+            if (!TryDecodeImageStrip(rom, pointerSlot, out byte[] chunk)) return false;
+
+            // Compute the per-image dimensions from the ALREADY-resolved strip
+            // offset, mirroring WF (image1 = natural; image2..5 = liner x 8).
+            uint imageAddr = rom.p32(pointerSlot);
+            if (imageIndex == 0)
+            {
+                var (w, h) = CalcImageToSize(rom, imageAddr);
+                widthPx = w;
+                heightPx = h;
+            }
+            else
+            {
+                widthPx = CalcLinerImageToWidth(rom, imageAddr);
+                heightPx = 1 * 8; // WF: srcImageWidth[i] x (1 * 8)
+            }
+
+            tiles = chunk;
+            return true;
+        }
+
+        /// <summary>
+        /// Render a single battle-screen image strip
+        /// (<paramref name="imageIndex"/> in 0..4 -> image1..image5) to an
+        /// <see cref="IImage"/> at its WinForms per-image dimensions (#816,
+        /// follow-up to #802/#804/#807). The strip's 4bpp tiles are laid out
+        /// ROW-MAJOR at the per-image width via
+        /// <see cref="ImageUtilCore.DecodeTileToPixels"/> with palette
+        /// <b>bank 0</b> (WF passes the palette base straight to
+        /// <c>ImageFormRef</c>/<c>ByteToImage16Tile</c> -- bank 0, NOT a
+        /// TSA-derived bank) and palette index 0 OPAQUE (matching the WF
+        /// <c>BitBlt</c> with <c>transparent_index = 0xFF</c>).
+        ///
+        /// Null-safe: an out-of-range <paramref name="imageIndex"/>, a missing
+        /// <see cref="CoreState.ImageService"/>, or any strip-load failure
+        /// (corrupt / truncated / out-of-bounds) returns <c>null</c> (no crash).
+        /// </summary>
+        public static IImage RenderSingleImagePreview(ROM rom, int imageIndex)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (imageIndex < 0 || imageIndex > 4) return null;
+
+            if (!TryLoadSingleImageStrip(rom, imageIndex, out byte[] tileData, out int widthPx, out int heightPx))
+                return null;
+            if (widthPx <= 0 || heightPx <= 0) return null;
+
+            // Same RAW 16-bank palette as the composite/chipset previews; we use
+            // bank 0 (WF passes the palette base straight to ByteToImage16Tile).
+            if (!TryLoadRawPalette(rom, out byte[] gbaPalette)) return null;
+
+            // Tiles are 8x8 blocks placed ROW-MAJOR within the per-image width:
+            // tilesPerRow = widthPx / 8; tile t -> column (t % tilesPerRow),
+            // row (t / tilesPerRow). This is exactly how ByteToImage16Tile lays
+            // an 8px-tile sheet into a target width.
+            const int bytesPerTile = 32; // 4bpp
+            int tileCount = tileData.Length / bytesPerTile;
+            if (tileCount <= 0) return null;
+
+            int tilesPerRow = widthPx / 8;
+            if (tilesPerRow <= 0) return null;
+
+            var image = CoreState.ImageService.CreateImage(widthPx, heightPx);
+            byte[] pixels = new byte[widthPx * heightPx * 4]; // RGBA
+
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                int col = tile % tilesPerRow;
+                int row = tile / tilesPerRow;
+                int destX = col * 8;
+                int destY = row * 8;
+                // Stop if a stray extra tile would fall outside the computed
+                // per-image height (DecodeTileToPixels also clips defensively).
+                if (destY >= heightPx) break;
+
+                ImageUtilCore.DecodeTileToPixels(
+                    tileData, tile, gbaPalette, palIndex: 0,
+                    pixels, widthPx, destX, destY,
+                    hFlip: false, vFlip: false, is4bpp: true, opaqueIndex0: true);
+            }
+
+            image.SetPixelData(pixels);
+            return image;
         }
 
         /// <summary>

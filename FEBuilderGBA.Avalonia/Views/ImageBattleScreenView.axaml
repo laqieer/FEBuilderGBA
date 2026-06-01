@@ -389,10 +389,17 @@
                       Content="Image Export" Width="140" IsEnabled="False"
                       ToolTip.Tip="KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393)." />
             </StackPanel>
-            <Border BorderBrush="Gray" BorderThickness="1" Padding="8" MinHeight="60">
-              <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image1_Preview_Label"
-                         Text="Image1 Preview (deferred KnownGap): per-tile LZ77 decompress + palette blit is WinForms-coupled (#393)."
-                         TextWrapping="Wrap" Foreground="Gray" VerticalAlignment="Center" />
+            <!-- Image1 per-image preview (#816): rendered at its NATURAL W x H
+                 (ImageBattleScreenCore.RenderSingleImagePreview(0), palette
+                 bank 0, index 0 opaque). Replaces the deferred KnownGap.
+                 Scrollable in a black-backed border because image1's natural
+                 width can exceed the panel. -->
+            <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="60"
+                    MaxHeight="320" Background="Black">
+              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_Image1_Preview_Image"
+                                          Name="Image1Preview" />
+              </ScrollViewer>
             </Border>
           </StackPanel>
         </TabItem>
@@ -414,9 +421,14 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image2_Export_Button"
                       Content="Image Export" Width="140" IsEnabled="False"
                       ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
-              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
-                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image2_Preview_Label"
-                           Text="Image2 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              <!-- Image2 per-image preview (#816): liner-width x 8px row
+                   (RenderSingleImagePreview(1), palette bank 0, index 0 opaque). -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
+                      Background="Black">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_Image2_Preview_Image"
+                                            Name="Image2Preview" />
+                </ScrollViewer>
               </Border>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -432,9 +444,14 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image3_Export_Button"
                       Content="Image Export" Width="140" IsEnabled="False"
                       ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
-              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
-                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image3_Preview_Label"
-                           Text="Image3 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              <!-- Image3 per-image preview (#816): liner-width x 8px row
+                   (RenderSingleImagePreview(2), palette bank 0, index 0 opaque). -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
+                      Background="Black">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_Image3_Preview_Image"
+                                            Name="Image3Preview" />
+                </ScrollViewer>
               </Border>
             </StackPanel>
           </StackPanel>
@@ -457,9 +474,14 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image4_Export_Button"
                       Content="Image Export" Width="140" IsEnabled="False"
                       ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
-              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
-                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image4_Preview_Label"
-                           Text="Image4 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              <!-- Image4 per-image preview (#816): liner-width x 8px row
+                   (RenderSingleImagePreview(3), palette bank 0, index 0 opaque). -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
+                      Background="Black">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_Image4_Preview_Image"
+                                            Name="Image4Preview" />
+                </ScrollViewer>
               </Border>
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -475,9 +497,14 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image5_Export_Button"
                       Content="Image Export" Width="140" IsEnabled="False"
                       ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
-              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200">
-                <TextBlock AutomationProperties.AutomationId="ImageBattleScreen_Image5_Preview_Label"
-                           Text="Image5 Preview (deferred)" Foreground="Gray" VerticalAlignment="Center" />
+              <!-- Image5 per-image preview (#816): liner-width x 8px row
+                   (RenderSingleImagePreview(4), palette bank 0, index 0 opaque). -->
+              <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
+                      Background="Black">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <controls:GbaImageControl AutomationProperties.AutomationId="ImageBattleScreen_Image5_Preview_Image"
+                                            Name="Image5Preview" />
+                </ScrollViewer>
               </Border>
             </StackPanel>
           </StackPanel>

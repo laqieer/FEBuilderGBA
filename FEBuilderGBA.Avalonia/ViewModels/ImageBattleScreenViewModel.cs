@@ -189,6 +189,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Render the per-image preview for <paramref name="imageIndex"/> (0..4
+        /// -> image1..image5) at its WinForms per-image dimensions (#816,
+        /// follow-up to #802/#804/#807). Delegates to
+        /// <see cref="ImageBattleScreenCore.RenderSingleImagePreview"/>:
+        /// image1 = natural W x H, image2..image5 = liner-width x 8px, palette
+        /// bank 0, index 0 opaque. Returns <c>null</c> (caller shows a blank
+        /// surface) for a bad index or any corrupt/missing strip.
+        /// </summary>
+        public IImage RenderImagePreview(int imageIndex)
+        {
+            return ImageBattleScreenCore.RenderSingleImagePreview(CoreState.ROM, imageIndex);
+        }
+
+        /// <summary>
         /// Bulk-write the TSA grid + 5 image pointers to ROM. Caller MUST
         /// wrap this in <c>UndoService.Begin/Commit/Rollback</c>. Returns
         /// <c>true</c> on success.
