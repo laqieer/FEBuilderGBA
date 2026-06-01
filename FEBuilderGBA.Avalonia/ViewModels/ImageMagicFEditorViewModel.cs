@@ -464,6 +464,48 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public int GetListCount() => LoadList().Count;
 
+        // ------------------------------------------------------------------
+        // #852 — Magic-effect frame preview + read-only Export PNG.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Render the currently-selected magic-effect frame using the live
+        /// P0/Frame/P4/P12 values. Mirrors WF
+        /// <c>ImageMagicFEditorForm.DrawSelectedAnime()</c>:
+        /// <c>ImageUtilMagicFEditor.Draw((uint)ShowFrameUpDown.Value, (uint)P0.Value,
+        /// (uint)P4.Value, (uint)P12.Value, out log)</c>.
+        ///
+        /// <para>Returns <c>null</c> when no magic system is detected, when the
+        /// ROM is not loaded, or on any bad pointer / decompression failure.</para>
+        /// </summary>
+        /// <param name="log">Diagnostic text from the renderer
+        ///   (<c>MagicEffectRendererCore.RenderMagicFrame</c>).</param>
+        /// <returns>A 240×128 <see cref="IImage"/>, or <c>null</c>.</returns>
+        public IImage RenderMagicFramePreview(out string log)
+        {
+            log = string.Empty;
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+            {
+                log = "ROM not loaded.";
+                return null;
+            }
+            if (!_magicSystemDetected)
+            {
+                log = "No magic system patch detected.";
+                return null;
+            }
+            return MagicEffectRendererCore.RenderMagicFrame(
+                rom, _p0, _frame, _p4, _p12, out log);
+        }
+
+        /// <summary>
+        /// True when <see cref="RenderMagicFramePreview"/> can produce a
+        /// non-null image (i.e. the magic system is detected and the entry
+        /// is loaded). Used to gate the Export PNG button.
+        /// </summary>
+        public bool CanExportMagicFrame => _magicSystemDetected && _isLoaded;
+
         public Dictionary<string, string> GetDataReport()
         {
             return new Dictionary<string, string>
