@@ -16,10 +16,14 @@ namespace FEBuilderGBA.Avalonia.Views
     /// address so the dim/no-dim/empty pointer write targets the correct
     /// pointer-table slot (Copilot CLI plan review #1).
     ///
-    /// Real CSA animation import/export, list expansion, source open/select,
-    /// JumpEditor, and live preview rendering remain WF-coupled and are
-    /// surfaced as disabled buttons with tooltips referencing the open
-    /// follow-up <c>#500</c> (ToolAnimationCreator real-init flow).
+    /// The "Data Expansion" (list expansion) button is wired in #837 — it grows
+    /// the magic-effect + CSA spell tables to 254 rows via the all-reference
+    /// <see cref="MagicListExpandCore"/> path (see <c>ListExpand_Click</c> /
+    /// <c>UpdateListExpandVisibility</c>). Real CSA animation import/export,
+    /// source open/select, JumpEditor, and live preview rendering remain
+    /// WF-coupled and are surfaced as disabled buttons with tooltips
+    /// referencing the open follow-up <c>#500</c> (ToolAnimationCreator
+    /// real-init flow).
     /// </summary>
     public partial class ImageMagicCSACreatorView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
