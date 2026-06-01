@@ -217,6 +217,49 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("ImageBattleAnimePalletView.RefreshSamplePreview failed: {0}", ex.Message);
                 SamplePreview.SetImage(null);
             }
+            // #828: gate the Export Image button on a successful render.
+            // HasImage is true only when SetImage received a non-null IImage
+            // (a no-resolvable-anime / blank record clears the preview). Mirrors
+            // ImageBattleScreenView's `BattleExportPngButton.IsEnabled =
+            // _vm.CanExportBattle`. ExportPng is null-safe regardless, but this
+            // makes the disabled state visible instead of a silent no-op.
+            if (ExportButton != null)
+            {
+                ExportButton.IsEnabled = SamplePreview.HasImage;
+            }
+        }
+
+        /// <summary>
+        /// Export the rendered battle-animation sample grid to a PNG file via a
+        /// non-modal save dialog. #828: reuses <c>GbaImageControl.ExportPng</c>
+        /// — the identical read-only PNG primitive the merged battle-screen
+        /// (#810) and TSA (#810/#815) editors use. Read-only — no ROM write.
+        /// Enabled only when a render succeeded (<see cref="RefreshSamplePreview"/>
+        /// set <c>HasImage</c>); <c>ExportPng</c> early-returns on a null bitmap.
+        /// </summary>
+        async void Export_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await SamplePreview.ExportPng(this, ExportSuggestedName());
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleAnimePalletView.Export_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Build a sensible suggested PNG filename for the current animation
+        /// sample, e.g. <c>anime_sample_03</c> for the row whose list index is
+        /// 3. The list index is the WF battle-animation id (the VM names rows
+        /// "{i:X2} BattleAnime"). Falls back to <c>anime_sample</c> when no row
+        /// is selected.
+        /// </summary>
+        string ExportSuggestedName()
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            return idx >= 0 ? $"anime_sample_{idx:X2}" : "anime_sample";
         }
 
         void PaletteIndexCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

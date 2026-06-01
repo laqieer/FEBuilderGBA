@@ -373,7 +373,8 @@
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Export_Button"
                   Name="ExportButton" Content="Export Image" Width="140"
                   IsEnabled="False"
-                  ToolTip.Tip="Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399)." />
+                  Click="Export_Click"
+                  ToolTip.Tip="Export the rendered battle-animation sample (360x290 grid) to a PNG file. Read-only — no ROM write. Enabled once a sample renders." />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Undo_Button"
                   Name="UndoButton" Content="Undo" Width="100"
                   Click="Undo_Click" />

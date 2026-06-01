@@ -22143,8 +22143,8 @@ English
 :Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).
 待支持的已知缺口: 导入需要渲染好的样本位图 (依赖 WinForms 的 PaletteFormRef.MakePaletteBitmapToUIEx -> DrawBattleAnime) (#399)。
 
-:Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).
-待支持的已知缺口: 导出需要渲染好的样本位图 (依赖 WinForms 的 ImageFormRef.ExportImage -> DrawBattleAnime) (#399)。
+:Export the rendered battle-animation sample (360x290 grid) to a PNG file. Read-only — no ROM write. Enabled once a sample renders.
+将渲染好的战斗动画样本 (360x290 网格) 导出为 PNG 文件。只读 — 不写入 ROM。样本渲染成功后启用。
 
 :Fit to window
 适应窗口
