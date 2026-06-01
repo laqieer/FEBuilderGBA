@@ -460,10 +460,13 @@ namespace FEBuilderGBA.Core.Tests
             U.write_u16(rom.Data, PALETTE_OFFSET + (1 * 16 + 5) * 2, 0x7C00);
 
             // ---- image1: 33 distinct tiles -> natural (88, 24) = 11x3 ----
-            // Row-major plant: tiles 0,11,22 green at column 0 of each row;
-            // tiles 10,32 (row 0/2 last) green; tile 11 (row 1 start) red;
-            // tile 10 (row 0 last) red. The rest default green so the canvas
-            // fills, with the distinctive red corners used by the layout test.
+            // Row-major plant (11 tiles per row): ONLY tiles 10 and 11 are red
+            // (index 3); every other tile -- including 0, 22 and 32 -- is green
+            // (index 5). Those two red tiles straddle the row-0/row-1 boundary
+            // (tile 10 = row 0 last column, tile 11 = row 1 first column), which
+            // -- together with the green tiles 0, 22 and 32 -- lets the layout
+            // test verify row-major placement (see
+            // RenderSingleImagePreview_Image1_LaysTilesRowMajorAtWidth).
             PlantImageStripTiles(rom, rom.RomInfo.battle_screen_image1_pointer, IMAGE1_OFFSET, IMAGE1_TILES,
                 t => (t == 10 || t == 11) ? 3 : 5); // red at tile 10/11, else green
 
