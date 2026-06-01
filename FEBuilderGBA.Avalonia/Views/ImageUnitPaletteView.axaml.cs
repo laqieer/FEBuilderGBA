@@ -25,11 +25,62 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+
+            // Populate the preview sub-palette combo via R._() so it picks up
+            // ja/zh translations (ComboBoxItem.Content is not touched by
+            // ViewTranslationHelper — the #822/#571 pattern). Replace the XAML
+            // placeholder items with translated ones.
+            PreviewPaletteTypeCombo.Items.Clear();
+            PreviewPaletteTypeCombo.Items.Add(R._("Player"));
+            PreviewPaletteTypeCombo.Items.Add(R._("Enemy"));
+            PreviewPaletteTypeCombo.Items.Add(R._("Other"));
+            PreviewPaletteTypeCombo.Items.Add(R._("4th Army"));
+            PreviewPaletteTypeCombo.SelectedIndex = 0;
+
+            // #840: the class selector + sub-palette combo both re-render the
+            // sample preview (the cross-platform equivalent of WF
+            // X_DISPLAY_CLASS_ValueChanged / PaletteIndexComboBox change ->
+            // DrawSample). Null-safe via RefreshSamplePreview.
+            ClassBox.ValueChanged += OnClassChanged;
+            PreviewPaletteTypeCombo.SelectionChanged += OnPreviewPaletteTypeChanged;
+
             Opened += (_, _) =>
             {
                 CacheSwatchControls();
                 LoadList();
             };
+        }
+
+        void OnClassChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            try
+            {
+                _vm.ClassID = (uint)(ClassBox.Value ?? 0);
+                _vm.ClassName = NameResolver.GetClassName(_vm.ClassID);
+                ClassNameLabel.Text = _vm.ClassName;
+                RefreshSamplePreview();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.OnClassChanged failed: {0}", ex.Message);
+            }
+        }
+
+        void OnPreviewPaletteTypeChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            try
+            {
+                int idx = PreviewPaletteTypeCombo.SelectedIndex;
+                if (idx < 0) idx = 0;
+                _vm.PaletteTypeIndex = idx;
+                RefreshSamplePreview();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.OnPreviewPaletteTypeChanged failed: {0}", ex.Message);
+            }
         }
 
         void CacheSwatchControls()
@@ -82,7 +133,18 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.LoadEntry(addr);
+
+                // #840: the selected entry's stored tag is its 0-based row index
+                // (LoadList emits `new AddrResult(addr, name, (uint)i)`). The WF
+                // custompalette override is `paletteno = AddressList.SelectedIndex
+                // + 1`, so the unit-palette slot is rowIndex + 1.
+                var selected = EntryList.SelectedItem;
+                _vm.SelectedPaletteSlot = selected != null && selected.addr != 0
+                    ? (int)selected.tag + 1
+                    : 0;
+
                 UpdateUI();
+                RefreshSamplePreview();
             }
             catch (Exception ex)
             {
@@ -111,15 +173,14 @@ namespace FEBuilderGBA.Avalonia.Views
             PalettePointerBox.Text = $"0x{_vm.PalettePointer:X08}";
             PaletteAddressBox.Text = $"0x{_vm.PalettePointer:X08}";
 
-            // BattleAnimeBox is a KnownGap field (IsEnabled="False"), but it is
-            // still IsEffectivelyVisible so the production data-verify UI check
-            // in MainWindow.CheckNumericUpDownsDisplayValues flags it as
-            // UI_EMPTY when Value stays at Avalonia's decimal? default (null).
-            // Seed it to 0 to match every other Box.Value assignment in this
-            // method. Closes the 2026-05-24/25 daily E2E failures (#612, #613,
-            // #616, #623, #625). The value is never read (Write_Click ignores
-            // BattleAnimeBox) so this is a UI-only seed with no ROM impact.
-            BattleAnimeBox.Value = 0;
+            // Seed the Class selector NumericUpDown so it is never left at
+            // Avalonia's decimal? default (null) — the production data-verify UI
+            // check (MainWindow.CheckNumericUpDownsDisplayValues) flags an
+            // IsEffectivelyVisible NumericUpDown with a null Value as UI_EMPTY
+            // (the same trap the old BattleAnimeBox hit, #612/#613/#616/#623/#625).
+            // ClassBox.ValueChanged -> OnClassChanged then re-renders the preview.
+            ClassBox.Value = _vm.ClassID;
+            ClassNameLabel.Text = _vm.ClassName;
 
             // Push RGB channels from VM to the 16 swatch inputs.
             for (int i = 0; i < 16; i++)
@@ -143,6 +204,54 @@ namespace FEBuilderGBA.Avalonia.Views
             byte g8 = (byte)((g << 3) | (g >> 2));
             byte b8 = (byte)((b << 3) | (b >> 2));
             _swatches[i].Background = new SolidColorBrush(Color.FromRgb(r8, g8, b8));
+        }
+
+        /// <summary>
+        /// #840: re-render the class battle-anime sample preview for the selected
+        /// unit-palette slot + class + sub-palette and push it into the
+        /// GbaImageControl. The render uses the UNIT palette as the base (the
+        /// palette-override path, mirroring WF <c>DrawBattleAnime custompalette</c>),
+        /// NOT the anime's own palette. Also refreshes the resolved
+        /// battle-anime-ID display. Null-safe: a null render clears the preview
+        /// (<c>SetImage(null)</c>) and blanks the anime-ID field.
+        /// </summary>
+        void RefreshSamplePreview()
+        {
+            // Surface the resolved battle-anime ID (informational, read-only).
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom != null && _vm.ClassID > 0)
+                {
+                    uint animeId = FEBuilderGBA.Core.ClassFormCore.GetAnimeIDByClassID(rom, (int)_vm.ClassID);
+                    BattleAnimeBox.Text = animeId > 0 ? $"0x{animeId:X02}" : "";
+                }
+                else
+                {
+                    BattleAnimeBox.Text = "";
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.RefreshSamplePreview (anime id) failed: {0}", ex.Message);
+                BattleAnimeBox.Text = "";
+            }
+
+            // Render the 12-cell sample grid with the unit-palette override.
+            try
+            {
+                // IImage is IDisposable (Skia-backed). GbaImageControl.SetImage
+                // copies the pixels into an independent WriteableBitmap and does
+                // NOT take ownership, so dispose the freshly-rendered grid after
+                // SetImage has copied it (also covers the null case -> clear).
+                using IImage grid = _vm.RenderClassSamplePreview();
+                SamplePreview.SetImage(grid);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.RefreshSamplePreview failed: {0}", ex.Message);
+                SamplePreview.SetImage(null);
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

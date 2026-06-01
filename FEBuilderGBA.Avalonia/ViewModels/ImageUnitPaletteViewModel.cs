@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -8,16 +9,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         const uint SIZE = 16;
 
+        /// <summary>Byte stride of one battle-animation list record (WF N_Init).</summary>
+        const uint AnimeRecordStride = 32;
+
         uint _currentAddr;
         bool _isLoaded;
         bool _canWrite;
         uint _id0, _id1, _id2, _id3, _id4, _id5, _id6, _id7, _id8, _id9, _id10, _id11;
         uint _palettePointer;
         string _identifierName = "";
+        int _selectedPaletteSlot;   // 1-based unit-palette slot (WF AddressList.SelectedIndex + 1)
+        int _paletteTypeIndex;      // sub-palette / SwapPalette index (WF PaletteIndexComboBox)
+        uint _classId;              // class whose battle anime feeds the sample preview
+        string _className = "";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+
+        /// <summary>
+        /// 1-based unit-palette slot of the selected entry — the WF
+        /// <c>paletteno = AddressList.SelectedIndex + 1</c> that becomes the
+        /// <c>custompalette</c> override in <c>DrawBattleAnime</c>. 0 = none selected.
+        /// </summary>
+        public int SelectedPaletteSlot { get => _selectedPaletteSlot; set => SetField(ref _selectedPaletteSlot, value); }
+
+        /// <summary>
+        /// Active sub-palette (palette-type) index — the WF
+        /// <c>paletteIndex = PaletteIndexComboBox.SelectedIndex</c> (SwapPalette).
+        /// Independent of <see cref="SelectedPaletteSlot"/>.
+        /// </summary>
+        public int PaletteTypeIndex { get => _paletteTypeIndex; set => SetField(ref _paletteTypeIndex, value); }
+
+        /// <summary>Class whose battle animation is rendered in the sample preview.</summary>
+        public uint ClassID { get => _classId; set => SetField(ref _classId, value); }
+
+        /// <summary>Resolved class name for <see cref="ClassID"/> (display only).</summary>
+        public string ClassName { get => _className; set => SetField(ref _className, value); }
 
         // B0-B11: Identifier string bytes (12 chars)
         public uint Id0 { get => _id0; set => SetField(ref _id0, value); }
@@ -202,6 +230,78 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 10, Id10);
             rom.write_u8(addr + 11, Id11);
             rom.write_u32(addr + 12, PalettePointer);
+        }
+
+        /// <summary>
+        /// Render the class battle-anime sample-preview grid for the currently
+        /// selected unit-palette slot (<see cref="SelectedPaletteSlot"/>), the
+        /// active sub-palette (<see cref="PaletteTypeIndex"/>), and the chosen
+        /// class (<see cref="ClassID"/>). Convenience wrapper over the explicit
+        /// overload that reads the VM's current state.
+        /// </summary>
+        public IImage RenderClassSamplePreview()
+            => RenderClassSamplePreview((int)ClassID, SelectedPaletteSlot, PaletteTypeIndex);
+
+        /// <summary>
+        /// Render the class battle-anime sample-preview grid, recolored with the
+        /// UNIT palette at slot <paramref name="paletteno"/> (NOT the anime's own
+        /// palette) and sub-palette <paramref name="paletteIndex"/>. Mirrors WinForms
+        /// <c>ImageUnitPaletteForm.DrawSample(GetAnimeIDByClassID(classID), paletteno, paletteIndex)</c>:
+        ///   1. resolve the class's battle-anime ID via
+        ///      <see cref="ClassFormCore.GetAnimeIDByClassID"/> (the WF
+        ///      <c>p32 + u16(ptr+2)</c> chain, FE6 <c>+48</c> / FE7-8 <c>+52</c>);
+        ///   2. convert that 1-based anime ID to the record offset
+        ///      (<c>base + (id-1)*0x20</c>, the WF <c>DrawBattleAnime id-1 / N_Init</c>
+        ///      indexing);
+        ///   3. resolve the UNIT-palette override address via
+        ///      <see cref="BattleAnimeRendererCore.GetUnitPaletteAddr"/> (the WF
+        ///      <c>GetPaletteAddr(paletteno)</c> = <c>p32(IDToAddr(paletteno-1)+12)</c>);
+        ///   4. render via the palette-override overload of
+        ///      <see cref="BattleAnimeRendererCore.RenderSampleBattleAnime(uint,int,uint)"/>,
+        ///      so the BASE is the unit palette, not the anime palette.
+        ///
+        /// <para><b>Phase-1 parity (like #822):</b> uses the SAVED unit palette
+        /// (the on-ROM <c>p32(...)</c> block). The live <c>OnChangeColor</c>
+        /// post-render bitmap-palette mutation (WF
+        /// <c>ImageUnitPaletteForm.cs:321-333</c>) is deferred — acceptable
+        /// because the rendered base is already the unit palette.</para>
+        ///
+        /// <para>Null-safe: returns null on null ROM/ImageService, an
+        /// unresolvable class / anime / palette slot, or a blank render — the
+        /// caller (view) treats null as "clear preview".</para>
+        /// </summary>
+        /// <param name="classID">Class whose battle anime to render.</param>
+        /// <param name="paletteno">1-based unit-palette slot (the WF
+        /// <c>AddressList.SelectedIndex + 1</c> custompalette override).</param>
+        /// <param name="paletteIndex">Sub-palette / SwapPalette index.</param>
+        public IImage RenderClassSamplePreview(int classID, int paletteno, int paletteIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null || CoreState.ImageService == null) return null;
+            if (classID <= 0 || paletteno <= 0) return null;
+
+            // 1. class -> battle-anime ID (WF GetAnimeIDByClassID). 0 = unresolvable.
+            uint animeId = ClassFormCore.GetAnimeIDByClassID(rom, classID);
+            if (animeId == 0) return null;
+
+            // 2. anime ID -> record offset (WF DrawBattleAnime: id-1 then
+            //    N_Init.IDToAddr = p32(image_battle_animelist_pointer) + (id-1)*0x20).
+            uint listPointer = rom.RomInfo.image_battle_animelist_pointer;
+            if (listPointer == 0) return null;
+            uint listBase = rom.p32(listPointer);
+            if (!U.isSafetyOffset(listBase, rom)) return null;
+            uint recordOffset = listBase + (animeId - 1) * AnimeRecordStride;
+            if (!U.isSafetyOffset(recordOffset, rom)) return null;
+
+            // 3. unit-palette override address (WF GetPaletteAddr(paletteno)).
+            //    NOT_FOUND => no valid override; fall back to 0 so the render uses
+            //    the anime's own palette rather than crashing (the WF
+            //    `if (U.isSafetyOffset(addr)) palettes = p` guard).
+            uint paletteOverride = BattleAnimeRendererCore.GetUnitPaletteAddr(rom, paletteno);
+            if (paletteOverride == U.NOT_FOUND) paletteOverride = 0;
+
+            // 4. render with the UNIT palette override + the paletteIndex sub-palette.
+            return BattleAnimeRendererCore.RenderSampleBattleAnime(recordOffset, paletteIndex, paletteOverride);
         }
 
         public int GetListCount() => LoadList().Count;

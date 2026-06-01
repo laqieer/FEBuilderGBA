@@ -68,5 +68,73 @@ namespace FEBuilderGBA.Core
                 , (int)MagicSplitUtil.GetClassGrowMagicExtends(cid, addr) //magic ext
                 );
         }
+
+        /// <summary>
+        /// Resolve the battle-anime-setting POINTER for class <paramref name="classID"/>.
+        /// Cross-platform mirror of WinForms <c>ClassForm.GetBattleAnimeAddrWhereID</c>
+        /// (<c>ClassForm.cs:574-596</c>): the class entry holds the anime-setting
+        /// pointer at a version-dependent offset — <c>addr + 48</c> for FE6
+        /// (<c>RomInfo.version == 6</c>), <c>addr + 52</c> for FE7/FE8. The class
+        /// base address is resolved via <c>RomInfo.class_pointer</c> /
+        /// <c>class_datasize</c> (the same way <see cref="SetSimClass"/> does),
+        /// NOT via the WinForms-coupled <c>InputFormRef.IDToAddr</c>.
+        /// </summary>
+        /// <returns>The anime-setting GBA pointer, or <see cref="U.NOT_FOUND"/>
+        /// when the ROM/class is null/unresolvable.</returns>
+        public static uint GetBattleAnimeAddrWhereID(ROM rom, int classID)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (classID < 0) return U.NOT_FOUND;
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint classDataSize = rom.RomInfo.class_datasize;
+            if (classPtr == 0 || classDataSize == 0) return U.NOT_FOUND;
+
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            uint addr = baseAddr + (uint)classID * classDataSize;
+            if (!U.isSafetyOffset(addr, rom)) return U.NOT_FOUND;
+
+            // FE6 stores the anime-setting pointer at +48; FE7/FE8 at +52.
+            uint settingSlot = rom.RomInfo.version == 6 ? addr + 48 : addr + 52;
+            if (!U.isSafetyOffset(settingSlot, rom)) return U.NOT_FOUND;
+            return rom.p32(settingSlot);
+        }
+
+        /// <summary>
+        /// Read the first battle-anime ID from an anime-setting pointer. Mirror of
+        /// WinForms <c>ImageBattleAnimeForm.GetAnimeIDByAnimeSettingPointer</c>
+        /// (<c>ImageBattleAnimeForm.cs:339-350</c>): the anime-setting block stores
+        /// the anime ID as a <c>u16</c> at <c>pointer + 2</c> (note the <c>+2</c>).
+        /// A null / out-of-range pointer yields <c>0</c> (WF's safety-guard return),
+        /// not a crash.
+        /// </summary>
+        public static uint GetAnimeIDByAnimeSettingPointer(ROM rom, uint animeSettingPointer)
+        {
+            if (rom == null) return 0;
+            uint off = U.toOffset(animeSettingPointer);
+            if (!U.isSafetyOffset(off, rom)) return 0;
+            // The +2 read must itself stay in-bounds (EOF safety the WF u16 read
+            // relied on the ROM array length for).
+            if (off + 2 + 2 > (uint)rom.Data.Length) return 0;
+            return rom.u16(off + 2);
+        }
+
+        /// <summary>
+        /// Resolve the battle-anime ID used by class <paramref name="classID"/>.
+        /// Cross-platform mirror of WinForms
+        /// <c>ImageBattleAnimeForm.GetAnimeIDByClassID</c> (<c>ImageBattleAnimeForm.cs:334</c>):
+        /// <c>GetAnimeIDByAnimeSettingPointer(GetBattleAnimeAddrWhereID(classID))</c>
+        /// — the <c>p32</c> (FE6 <c>+48</c> / FE7-8 <c>+52</c>) class-indirection
+        /// followed by the <c>u16(ptr + 2)</c> read. Returns <c>0</c> on an
+        /// unresolvable class / ROM (WF returns 0, which is the "first anime"
+        /// sentinel, never a crash).
+        /// </summary>
+        public static uint GetAnimeIDByClassID(ROM rom, int classID)
+        {
+            uint settingPointer = GetBattleAnimeAddrWhereID(rom, classID);
+            if (settingPointer == U.NOT_FOUND) return 0;
+            return GetAnimeIDByAnimeSettingPointer(rom, settingPointer);
+        }
     }
 }

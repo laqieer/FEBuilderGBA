@@ -1,0 +1,261 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// #840 tests for the cross-platform ports of:
+//   - ClassFormCore.GetBattleAnimeAddrWhereID  (WF ClassForm.GetBattleAnimeAddrWhereID:
+//       p32(classAddr + 48) FE6 / p32(classAddr + 52) FE7-8)
+//   - ClassFormCore.GetAnimeIDByAnimeSettingPointer (WF
+//       ImageBattleAnimeForm.GetAnimeIDByAnimeSettingPointer: u16(ptr + 2))
+//   - ClassFormCore.GetAnimeIDByClassID (the composed p32 + u16(ptr+2) chain)
+//   - BattleAnimeRendererCore.GetUnitPaletteAddr (WF
+//       ImageUnitPaletteForm.GetPaletteAddr: p32(IDToAddr(paletteno-1) + 12),
+//       unit-palette table base = p32(image_unit_palette_pointer), stride 16)
+//
+// Uses a synthetic ROM with a custom RomInfo (StubRomInfo) so the class /
+// anime-list / unit-palette table pointers are deterministic. The version field
+// drives the FE6 (+48) vs FE7-8 (+52) class-anime-setting offset split.
+using System;
+using FEBuilderGBA;
+using FEBuilderGBA.Core;
+using Xunit;
+
+namespace FEBuilderGBA.Core.Tests
+{
+    [Collection("SharedState")]
+    public class ClassFormCoreBattleAnimeTests : IDisposable
+    {
+        readonly ROM _prevRom;
+
+        public ClassFormCoreBattleAnimeTests()
+        {
+            _prevRom = CoreState.ROM;
+        }
+
+        public void Dispose()
+        {
+            CoreState.ROM = _prevRom;
+        }
+
+        // Synthetic ROM layout (arbitrary free-space offsets).
+        const uint CLASS_PTR_SLOT     = 0x100;   // RomInfo.class_pointer -> CLASS_BASE
+        const uint CLASS_BASE         = 0x1000;  // class table base
+        const uint CLASS_DATASIZE     = 84;      // FE8 class entry size (84 bytes)
+        const uint ANIME_SETTING_PTR  = 0x4000;  // the anime-setting block for class 5
+        const uint UNITPAL_PTR_SLOT   = 0x200;   // RomInfo.image_unit_palette_pointer -> UNITPAL_BASE
+        const uint UNITPAL_BASE       = 0x6000;  // unit-palette table base
+        const uint UNITPAL_BLOCK      = 0x7000;  // a unit-palette LZ77 block (pointed to from +12)
+
+        const int  TEST_CLASS_ID      = 5;
+        const ushort TEST_ANIME_ID    = 0x2A;    // the u16 stored at anime-setting +2
+
+        /// <summary>
+        /// Build a synthetic ROM whose class <see cref="TEST_CLASS_ID"/> resolves
+        /// to anime ID <see cref="TEST_ANIME_ID"/> for the given
+        /// <paramref name="version"/> (6 => +48, else +52).
+        /// </summary>
+        static ROM MakeRom(int version)
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x1000000];
+            Array.Fill(data, (byte)0x00);
+            rom.LoadLow("synth.gba", data, "BE8E01");
+            SetRomInfo(rom, new StubRomInfo(version, classPointer: CLASS_PTR_SLOT,
+                classDataSize: CLASS_DATASIZE, unitPalettePointer: UNITPAL_PTR_SLOT));
+
+            // class_pointer slot -> CLASS_BASE (GBA pointer).
+            U.write_u32(rom.Data, CLASS_PTR_SLOT, U.toPointer(CLASS_BASE));
+
+            // Class TEST_CLASS_ID's entry holds the anime-setting pointer at the
+            // version-specific offset (+48 FE6, +52 FE7-8).
+            uint classAddr = CLASS_BASE + (uint)TEST_CLASS_ID * CLASS_DATASIZE;
+            uint settingOffsetInEntry = version == 6 ? 48u : 52u;
+            U.write_u32(rom.Data, classAddr + settingOffsetInEntry, U.toPointer(ANIME_SETTING_PTR));
+
+            // The anime-setting block stores the anime ID as u16 at +2.
+            U.write_u16(rom.Data, ANIME_SETTING_PTR + 2, TEST_ANIME_ID);
+
+            return rom;
+        }
+
+        // ================================================================
+        // GetBattleAnimeAddrWhereID — the version-split p32 indirection
+        // ================================================================
+
+        [Fact]
+        public void GetBattleAnimeAddrWhereID_FE8_UsesPlus52()
+        {
+            // GetBattleAnimeAddrWhereID returns p32(...) which is an OFFSET
+            // (U.toOffset applied), matching WF Program.ROM.p32 semantics.
+            ROM rom = MakeRom(8);
+            uint off = ClassFormCore.GetBattleAnimeAddrWhereID(rom, TEST_CLASS_ID);
+            Assert.Equal(ANIME_SETTING_PTR, off);
+        }
+
+        [Fact]
+        public void GetBattleAnimeAddrWhereID_FE6_UsesPlus48()
+        {
+            ROM rom = MakeRom(6);
+            uint off = ClassFormCore.GetBattleAnimeAddrWhereID(rom, TEST_CLASS_ID);
+            Assert.Equal(ANIME_SETTING_PTR, off);
+        }
+
+        [Fact]
+        public void GetBattleAnimeAddrWhereID_NullRom_ReturnsNotFound()
+        {
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetBattleAnimeAddrWhereID(null, TEST_CLASS_ID));
+        }
+
+        [Fact]
+        public void GetBattleAnimeAddrWhereID_NegativeClass_ReturnsNotFound()
+        {
+            ROM rom = MakeRom(8);
+            Assert.Equal(U.NOT_FOUND, ClassFormCore.GetBattleAnimeAddrWhereID(rom, -1));
+        }
+
+        // ================================================================
+        // GetAnimeIDByAnimeSettingPointer — the u16(ptr + 2) read
+        // ================================================================
+
+        [Fact]
+        public void GetAnimeIDByAnimeSettingPointer_ReadsU16AtPlus2()
+        {
+            ROM rom = MakeRom(8);
+            uint id = ClassFormCore.GetAnimeIDByAnimeSettingPointer(rom, U.toPointer(ANIME_SETTING_PTR));
+            Assert.Equal((uint)TEST_ANIME_ID, id);
+        }
+
+        [Fact]
+        public void GetAnimeIDByAnimeSettingPointer_UnsafePointer_ReturnsZero()
+        {
+            ROM rom = MakeRom(8);
+            // 0x12345678 is not a valid GBA pointer -> WF safety-guard returns 0.
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByAnimeSettingPointer(rom, 0x12345678));
+        }
+
+        [Fact]
+        public void GetAnimeIDByAnimeSettingPointer_NullRom_ReturnsZero()
+        {
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByAnimeSettingPointer(null, U.toPointer(ANIME_SETTING_PTR)));
+        }
+
+        // ================================================================
+        // GetAnimeIDByClassID — the composed chain (p32 + u16(ptr+2))
+        // ================================================================
+
+        [Fact]
+        public void GetAnimeIDByClassID_FE8_ResolvesCorrectAnime()
+        {
+            ROM rom = MakeRom(8);
+            uint id = ClassFormCore.GetAnimeIDByClassID(rom, TEST_CLASS_ID);
+            Assert.Equal((uint)TEST_ANIME_ID, id);
+        }
+
+        [Fact]
+        public void GetAnimeIDByClassID_FE6_ResolvesCorrectAnime_ViaPlus48()
+        {
+            ROM rom = MakeRom(6);
+            uint id = ClassFormCore.GetAnimeIDByClassID(rom, TEST_CLASS_ID);
+            Assert.Equal((uint)TEST_ANIME_ID, id);
+        }
+
+        [Fact]
+        public void GetAnimeIDByClassID_FE6_vs_FE8_OffsetSplit_Matters()
+        {
+            // Plant the anime-setting pointer ONLY at the FE6 (+48) slot, but ask
+            // an FE8 ROM (which reads +52) -> it must NOT resolve TEST_ANIME_ID
+            // (proving the version split is honored, not a fixed offset).
+            ROM rom = MakeRom(8);
+            // Wipe the +52 slot, plant the setting pointer at +48 instead.
+            uint classAddr = CLASS_BASE + (uint)TEST_CLASS_ID * CLASS_DATASIZE;
+            U.write_u32(rom.Data, classAddr + 52, 0);
+            U.write_u32(rom.Data, classAddr + 48, U.toPointer(ANIME_SETTING_PTR));
+
+            // FE8 reads +52 (now 0) -> NOT_FOUND -> anime id 0.
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByClassID(rom, TEST_CLASS_ID));
+        }
+
+        [Fact]
+        public void GetAnimeIDByClassID_NullRom_ReturnsZero()
+        {
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByClassID(null, TEST_CLASS_ID));
+        }
+
+        [Fact]
+        public void GetAnimeIDByClassID_AbsentSettingPointer_ReturnsZero()
+        {
+            ROM rom = MakeRom(8);
+            // Wipe the class's anime-setting pointer slot -> p32 reads 0 -> the
+            // setting pointer is unsafe -> id 0 (no crash).
+            uint classAddr = CLASS_BASE + (uint)TEST_CLASS_ID * CLASS_DATASIZE;
+            U.write_u32(rom.Data, classAddr + 52, 0);
+            Assert.Equal(0u, ClassFormCore.GetAnimeIDByClassID(rom, TEST_CLASS_ID));
+        }
+
+        // ================================================================
+        // GetUnitPaletteAddr — p32(IDToAddr(paletteno-1) + 12), stride 16
+        // ================================================================
+
+        [Fact]
+        public void GetUnitPaletteAddr_ResolvesP32OfEntryPlus12()
+        {
+            // GetUnitPaletteAddr returns p32(...) which is an OFFSET (U.toOffset
+            // applied), matching WF GetPaletteAddr (Program.ROM.p32) semantics.
+            ROM rom = MakeRom(8);
+            // unit-palette table base.
+            U.write_u32(rom.Data, UNITPAL_PTR_SLOT, U.toPointer(UNITPAL_BASE));
+            // paletteno = 3 -> IDToAddr(2) = base + 2*16; +12 holds the block pointer.
+            const int paletteno = 3;
+            uint entryAddr = UNITPAL_BASE + (uint)(paletteno - 1) * 16;
+            U.write_u32(rom.Data, entryAddr + 12, U.toPointer(UNITPAL_BLOCK));
+
+            uint result = BattleAnimeRendererCore.GetUnitPaletteAddr(rom, paletteno);
+            Assert.Equal(UNITPAL_BLOCK, result);
+        }
+
+        [Fact]
+        public void GetUnitPaletteAddr_Slot1_UsesEntryZero()
+        {
+            ROM rom = MakeRom(8);
+            U.write_u32(rom.Data, UNITPAL_PTR_SLOT, U.toPointer(UNITPAL_BASE));
+            // paletteno = 1 -> IDToAddr(0) = base + 0; +12 holds the block pointer.
+            U.write_u32(rom.Data, UNITPAL_BASE + 12, U.toPointer(UNITPAL_BLOCK));
+
+            uint result = BattleAnimeRendererCore.GetUnitPaletteAddr(rom, 1);
+            Assert.Equal(UNITPAL_BLOCK, result);
+        }
+
+        [Fact]
+        public void GetUnitPaletteAddr_ZeroOrNegative_ReturnsNotFound()
+        {
+            ROM rom = MakeRom(8);
+            U.write_u32(rom.Data, UNITPAL_PTR_SLOT, U.toPointer(UNITPAL_BASE));
+            Assert.Equal(U.NOT_FOUND, BattleAnimeRendererCore.GetUnitPaletteAddr(rom, 0));
+            Assert.Equal(U.NOT_FOUND, BattleAnimeRendererCore.GetUnitPaletteAddr(rom, -2));
+        }
+
+        [Fact]
+        public void GetUnitPaletteAddr_NullRom_ReturnsNotFound()
+        {
+            Assert.Equal(U.NOT_FOUND, BattleAnimeRendererCore.GetUnitPaletteAddr(null, 1));
+        }
+
+        // ================================================================
+        // Stub RomInfo — drives version + the three table pointers.
+        // ================================================================
+
+        sealed class StubRomInfo : ROMFEINFO
+        {
+            public StubRomInfo(int version, uint classPointer, uint classDataSize, uint unitPalettePointer)
+            {
+                this.version = version;
+                this.class_pointer = classPointer;
+                this.class_datasize = classDataSize;
+                this.image_unit_palette_pointer = unitPalettePointer;
+            }
+        }
+
+        static void SetRomInfo(ROM rom, ROMFEINFO info)
+        {
+            var prop = typeof(ROM).GetProperty("RomInfo");
+            prop?.GetSetMethod(true)?.Invoke(rom, new object[] { info });
+        }
+    }
+}

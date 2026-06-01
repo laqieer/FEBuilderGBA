@@ -103,29 +103,52 @@
                         Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
               </StackPanel>
 
-              <!-- Right half: class-uses meta panel + battle-anime preview placeholder -->
+              <!-- Right half: class selector + battle-anime sample preview (#840),
+                   rendered with the UNIT palette being edited (palette-override). -->
               <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_UnitClassAndAnime_Label"
                            Text="Class and Animation" FontWeight="SemiBold" />
+
+                <!-- Class selector: drives GetAnimeIDByClassID -> sample preview -->
+                <Grid ColumnDefinitions="Auto,120,*" RowDefinitions="Auto">
+                  <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Class_Label"
+                             Grid.Column="0" Text="Class:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_Class_Input"
+                                 Grid.Column="1" Name="ClassBox" FormatString="0" Minimum="0" Maximum="65535" />
+                  <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_ClassName_Label"
+                             Grid.Column="2" Name="ClassNameLabel" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </Grid>
+
+                <!-- Sub-palette (palette-type) selector for the preview (SwapPalette) -->
+                <Grid ColumnDefinitions="Auto,160" RowDefinitions="Auto" Margin="0,2,0,0">
+                  <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_PreviewPaletteType_Label"
+                             Grid.Column="0" Text="Palette Type:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <ComboBox AutomationProperties.AutomationId="ImageUnitPalette_PreviewPaletteType_Combo"
+                            Grid.Column="1" Name="PreviewPaletteTypeCombo" Width="160" SelectedIndex="0">
+                    <ComboBoxItem>Player</ComboBoxItem>
+                    <ComboBoxItem>Enemy</ComboBoxItem>
+                    <ComboBoxItem>Other</ComboBoxItem>
+                    <ComboBoxItem>4th Army</ComboBoxItem>
+                  </ComboBox>
+                </Grid>
+
+                <!-- Resolved battle-anime ID (read-only, informational) -->
+                <Grid ColumnDefinitions="Auto,120" RowDefinitions="Auto">
+                  <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_BattleAnime_Label"
+                             Grid.Column="0" Text="Battle Animation:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                  <TextBox AutomationProperties.AutomationId="ImageUnitPalette_BattleAnime_Input"
+                           Grid.Column="1" Name="BattleAnimeBox" Width="120" IsReadOnly="True" />
+                </Grid>
+
+                <!-- The composited 12-cell battle-anime sample, rendered with the
+                     selected unit palette (#840 / reuses #822 RenderSampleBattleAnime). -->
                 <Border Background="{DynamicResource SubtlePanelBackgroundBrush}"
                         BorderBrush="{DynamicResource SubtlePanelBorderBrush}"
-                        BorderThickness="1" CornerRadius="4" Padding="8" MinHeight="120">
-                  <TextBlock Text="[KnownGap: class-uses list requires ImageBattleAnimeForm.GetAnimeIDByClassID Core port.]"
-                             Foreground="Gray" TextWrapping="Wrap" />
-                </Border>
-
-                <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_BattleAnime_Label"
-                           Text="Battle Animation:" Margin="0,4,0,0" />
-                <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_BattleAnime_Input"
-                               Name="BattleAnimeBox" FormatString="0" Minimum="0" Maximum="65535"
-                               Width="120" HorizontalAlignment="Left" IsEnabled="False"
-                               ToolTip.Tip="KnownGap" />
-
-                <Border Background="{DynamicResource SubtlePanelBackgroundBrush}"
-                        BorderBrush="{DynamicResource SubtlePanelBorderBrush}"
-                        BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0" MinHeight="80">
-                  <TextBlock Text="[Battle-anime preview placeholder: requires DrawBattleAnime Core extraction.]"
-                             Foreground="Gray" TextWrapping="Wrap" />
+                        BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,8,0,0" MinHeight="120">
+                  <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <controls:GbaImageControl AutomationProperties.AutomationId="ImageUnitPalette_SamplePreview_Image"
+                                              Name="SamplePreview" />
+                  </ScrollViewer>
                 </Border>
               </StackPanel>
             </Grid>

@@ -591,6 +591,30 @@ namespace FEBuilderGBA
         /// <param name="paletteIndex">Sub-palette (palette-type) index: 0=Player, 1=Enemy, 2=Other, 3=4th.</param>
         /// <returns>A 360x290 composite IImage, or null on failure.</returns>
         public static IImage RenderSampleBattleAnime(uint animeRecordAddr, int paletteIndex)
+            => RenderSampleBattleAnime(animeRecordAddr, paletteIndex, 0);
+
+        /// <summary>
+        /// Palette-override overload of <see cref="RenderSampleBattleAnime(uint,int)"/>.
+        /// When <paramref name="paletteOverrideAddr"/> is non-zero, the 12-cell
+        /// grid is rendered with the palette block at THAT address (a GBA pointer
+        /// to the LZ77-compressed UNIT palette) instead of the animation record's
+        /// own palette at <c>rec+0x1C</c> — the cross-platform mirror of WinForms
+        /// <c>ImageBattleAnimeForm.DrawBattleAnime</c>'s
+        /// <c>custompalette&gt;0 → palettes = ImageUnitPaletteForm.GetPaletteAddr(custompalette)</c>
+        /// override (<c>ImageBattleAnimeForm.cs:285-293</c>). The
+        /// <paramref name="paletteIndex"/> sub-palette slice is still applied on
+        /// top (the two are independent: the override picks the unit-palette
+        /// BLOCK / custompalette slot; <paramref name="paletteIndex"/> picks the
+        /// enemy/ally SUB-palette within that block, like WF <c>SwapPalette</c>).
+        /// When <paramref name="paletteOverrideAddr"/> is 0 the behaviour is
+        /// identical to the existing #822 path (the record's own palette).
+        /// </summary>
+        /// <param name="animeRecordAddr">ROM offset of the 32-byte animation record.</param>
+        /// <param name="paletteIndex">Sub-palette (palette-type) index: 0=Player, 1=Enemy, 2=Other, 3=4th.</param>
+        /// <param name="paletteOverrideAddr">GBA pointer to the override palette
+        /// block (the unit palette). 0 = use the record's own <c>rec+0x1C</c> palette.</param>
+        /// <returns>A 360x290 composite IImage, or null on failure.</returns>
+        public static IImage RenderSampleBattleAnime(uint animeRecordAddr, int paletteIndex, uint paletteOverrideAddr)
         {
             ROM rom = CoreState.ROM;
             IImageService svc = CoreState.ImageService;
@@ -603,6 +627,28 @@ namespace FEBuilderGBA
             uint frameRaw   = rom.u32(animeRecordAddr + 16);
             uint oamRtLRaw  = rom.u32(animeRecordAddr + 20);
             uint paletteRaw = rom.u32(animeRecordAddr + 28);
+
+            // Palette source: the UNIT-palette override (custompalette) when
+            // supplied AND it points somewhere safe, else the record's own
+            // palette. Mirrors WF: `if (custompalette>0) { p = GetPaletteAddr(...);
+            // if (U.isSafetyOffset(addr)) palettes = p; }` — the override only
+            // takes effect for a safety-valid record (which the early bound check
+            // above already guaranteed) and a safety-valid override block.
+            //
+            // The override may arrive as either a raw GBA POINTER (0x08...) or an
+            // OFFSET (as GetUnitPaletteAddr/p32 returns, < 0x08000000). Normalize
+            // to an offset for the safety check, then feed it to
+            // ResolveSamplePaletteBlock in POINTER form (which the helper toOffsets
+            // again — same convention as the record's own rec+0x1C pointer).
+            uint effectivePaletteRaw = paletteRaw;
+            if (paletteOverrideAddr != 0)
+            {
+                uint overrideOffset = U.toOffset(paletteOverrideAddr);
+                if (U.isSafetyOffset(overrideOffset, rom))
+                {
+                    effectivePaletteRaw = U.toPointer(overrideOffset);
+                }
+            }
 
             // Section data is raw (not compressed) at the pointer address.
             if (!U.isPointer(sectionRaw)) return null;
@@ -624,7 +670,9 @@ namespace FEBuilderGBA
             if (oamData == null) return null;
 
             // Palette (LZ77-compressed) → slice the paletteIndex-th 16-color block.
-            byte[] paletteSubBytes = ResolveSamplePaletteBlock(rom, paletteRaw, paletteIndex);
+            // `effectivePaletteRaw` is the unit-palette override when one was
+            // supplied, otherwise the record's own palette.
+            byte[] paletteSubBytes = ResolveSamplePaletteBlock(rom, effectivePaletteRaw, paletteIndex);
             if (paletteSubBytes == null) return null;
 
             // --- Collect 12 cropped 90x90 cells (mirror DrawSample) ---
@@ -738,6 +786,43 @@ namespace FEBuilderGBA
             {
                 try { d.Dispose(); } catch { /* double-dispose / already-disposed: ignore */ }
             }
+        }
+
+        /// <summary>
+        /// Resolve the UNIT-palette address for unit-palette slot
+        /// <paramref name="paletteno"/> (1-based). Cross-platform mirror of
+        /// WinForms <c>ImageUnitPaletteForm.GetPaletteAddr(paletteid)</c>
+        /// (<c>ImageUnitPaletteForm.cs:115-130</c>):
+        /// <c>p32(IDToAddr(paletteno-1) + 12)</c>, where the unit-palette table
+        /// base is <c>p32(RomInfo.image_unit_palette_pointer)</c> and each entry
+        /// is 16 bytes (<c>IDToAddr(id) = base + id*16</c>). This is resolved via
+        /// Core <c>RomInfo</c>, NOT the WinForms-coupled <c>InputFormRef.IDToAddr</c>.
+        /// Returns <see cref="U.NOT_FOUND"/> for <paramref name="paletteno"/> &lt;= 0
+        /// or an unsafe resolved address (the WF <c>U.isSafetyOffset</c> guard).
+        /// </summary>
+        /// <param name="rom">The active ROM.</param>
+        /// <param name="paletteno">1-based unit-palette slot (WF
+        /// <c>AddressList.SelectedIndex + 1</c>).</param>
+        /// <returns>The GBA pointer to the unit palette block, or
+        /// <see cref="U.NOT_FOUND"/>.</returns>
+        public static uint GetUnitPaletteAddr(ROM rom, int paletteno)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (paletteno <= 0) return U.NOT_FOUND;
+
+            uint tablePointer = rom.RomInfo.image_unit_palette_pointer;
+            if (tablePointer == 0) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(tablePointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            // IDToAddr(paletteno - 1): table base + (paletteno-1) * 16-byte stride.
+            const uint EntrySize = 16;
+            uint entryAddr = baseAddr + (uint)(paletteno - 1) * EntrySize;
+            // The +12 pointer slot must itself stay in-bounds + safety-valid.
+            uint slot = entryAddr + 12;
+            if (!U.isSafetyOffset(slot, rom)) return U.NOT_FOUND;
+            if (slot + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
+            return rom.p32(slot);
         }
 
         /// <summary>
