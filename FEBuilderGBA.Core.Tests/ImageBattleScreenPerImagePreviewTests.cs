@@ -343,6 +343,59 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(ImageBattleScreenCore.RenderSingleImagePreview(rom, 0));
         }
 
+        // ----------------------------------------------------------------
+        // Edge case (Copilot PR #818 review): an imageN pointer to the LAST
+        // 1-3 bytes of the ROM PASSES U.isSafetyOffset (offset is in
+        // [0x200, 0x02000000) and < Data.Length) but leaves FEWER than the
+        // 4-byte LZ77 header. LZ77.getCompressedSize checks the 0x10 magic byte
+        // at input[offset] and THEN reads the size from input[offset + 3];
+        // when exactly 3 bytes remain (offset == Data.Length - 3) and the magic
+        // byte is 0x10, that input[offset + 3] read is input[Data.Length] and
+        // would throw IndexOutOfRangeException WITHOUT the 4-byte header guard.
+        //
+        // CRITICAL: we plant 0x10 at the offset so the magic-byte check passes
+        // and the throwing input[offset + 3] read is actually reached -- a
+        // 0xFF-filled offset would short-circuit at the magic check (no throw)
+        // and would NOT exercise the bug.
+        //
+        // The null-safe preview path must return null and NOT throw. These are
+        // try/catch-free Assert.Null calls, so any throw fails the test.
+        // ----------------------------------------------------------------
+
+        [Theory]
+        [InlineData(1)] // Data.Length - 1: 1 byte remains
+        [InlineData(2)] // Data.Length - 2: 2 bytes remain (review spec)
+        [InlineData(3)] // Data.Length - 3: 3 bytes remain -> the un-guarded THROW case
+        public void RenderSingleImagePreview_PointerInLastBytes_ReturnsNullNoThrow(int bytesFromEnd)
+        {
+            using var _ = EnsureImageService();
+            var rom = MakeRom();
+
+            uint addr = (uint)rom.Data.Length - (uint)bytesFromEnd;
+            // Sanity: this offset PASSES isSafetyOffset (so the bug is reachable)
+            // yet has < 4 header bytes (so it would throw without the guard).
+            Assert.True(U.isSafetyOffset(addr, rom),
+                $"offset Data.Length-{bytesFromEnd} must pass isSafetyOffset to exercise the bug");
+            Assert.True((ulong)addr + 4 > (ulong)rom.Data.Length,
+                $"offset Data.Length-{bytesFromEnd} must have < 4 header bytes");
+
+            // Plant the 0x10 LZ77 magic byte at the offset so getCompressedSize
+            // gets PAST the magic check and reaches the throwing input[offset+3]
+            // read (a 0xFF byte would short-circuit and not exercise the bug).
+            rom.Data[addr] = 0x10;
+
+            U.write_u32(rom.Data, rom.RomInfo.battle_screen_image2_pointer, U.toPointer(addr));
+
+            // Must NOT throw -- the 4-byte header guard returns false -> null.
+            IImage img = ImageBattleScreenCore.RenderSingleImagePreview(rom, 1);
+            Assert.Null(img);
+
+            // The composite (#804) + chipset (#807) loaders share the same
+            // TryDecodeImageStrip guard -- they must also degrade to null, no throw.
+            Assert.Null(ImageBattleScreenCore.RenderBattleScreenPreview(rom));
+            Assert.Null(ImageBattleScreenCore.RenderChipsetPreview(rom));
+        }
+
         [Fact]
         public void RenderSingleImagePreview_TruncatedImageStream_ReturnsNull()
         {

@@ -77,6 +77,17 @@ namespace FEBuilderGBA
             return lastByte < (ulong)rom.Data.Length;
         }
 
+        // The GBA LZ77 stream header is 4 bytes (0x10 + a 3-byte uncompressed
+        // size). LZ77.getCompressedSize / getUncompressSize only reject when
+        // FEWER THAN 3 bytes remain, yet they read input[offset + 3] -- so a
+        // pointer to the LAST 1-3 bytes of the ROM passes isSafetyOffset but
+        // makes that header read throw IndexOutOfRangeException (Copilot PR #818
+        // review). Require the FULL 4-byte header to be in-bounds BEFORE any
+        // LZ77 call so the null-safe preview path returns null/false instead of
+        // throwing. Shared with the #804/#807 loader paths (hardens them too).
+        const int LZ77_HEADER_BYTES = 4;
+        static bool IsLZ77HeaderSafe(ROM rom, uint addr) => IsRegionSafe(rom, addr, LZ77_HEADER_BYTES);
+
         /// <summary>
         /// Read the 32 x 20 TSA map from the 5 TSA regions in <paramref name="rom"/>.
         /// Returns a <see cref="ushort"/> array of length <see cref="MAP_SIZE"/>;
@@ -203,7 +214,10 @@ namespace FEBuilderGBA
         /// </summary>
         static int CalcLinerImageToWidth(ROM rom, uint addr, int align = LINER_ALIGN)
         {
-            if (!U.isSafetyOffset(addr, rom)) return align;
+            // 4-byte LZ77-header bounds check BEFORE getUncompressSize: a
+            // last-1-3-bytes pointer passes isSafetyOffset but makes the
+            // header read throw (Copilot PR #818 review). Treat as unmeasurable.
+            if (!IsLZ77HeaderSafe(rom, addr)) return align;
             uint size = LZ77.getUncompressSize(rom.Data, addr);
             if (size <= 0) return align;
             int a = (int)size / 2 / 2 / align;
@@ -405,7 +419,13 @@ namespace FEBuilderGBA
             if (rom == null || rom.Data == null) return false;
 
             uint imageAddr = rom.p32(pointerSlot);
-            if (!U.isSafetyOffset(imageAddr, rom)) return false;
+            // 4-byte LZ77-header bounds check: a pointer to the LAST 1-3 bytes of
+            // the ROM passes isSafetyOffset, yet getCompressedSize reads the
+            // 4-byte header (input[addr + 3]) and would throw
+            // IndexOutOfRangeException. Require the full header in-bounds first so
+            // the null-safe path returns false (no throw) -- Copilot PR #818
+            // review. (Subsumes the bare isSafetyOffset check.)
+            if (!IsLZ77HeaderSafe(rom, imageAddr)) return false;
 
             // Validate the compressed stream BEFORE decompressing.
             // LZ77.getCompressedSize returns the ACTUAL consumed compressed
