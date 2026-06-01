@@ -205,6 +205,24 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(img);
         }
 
+        /// <summary>
+        /// Per-dimension guard: a degenerate shape where only one dimension exceeds 256
+        /// (e.g. width=257, height=1) must be rejected, even though the product (257) would
+        /// pass the total-tile cap.  This prevents a corrupt change record from bypassing
+        /// the product-only guard with a thin-but-tall or wide-but-thin allocation.
+        /// </summary>
+        [Theory]
+        [InlineData(257, 1)]   // width > 256, height fine
+        [InlineData(1, 257)]   // height > 256, width fine
+        [InlineData(257, 257)] // both exceed 256
+        public void RenderChangeMap_PerDimensionOversizeGuard_ReturnsNull(int width, int height)
+        {
+            var rom = MakeMinimalRom();
+            CoreState.ROM = rom;
+            IImage img = MapRenderCore.RenderChangeMap(rom, 0x200, 0x400, 0x600, 0x800, width, height);
+            Assert.Null(img);
+        }
+
         [Fact]
         public void RenderChangeMap_TruncatedObjLZ77_ReturnsNull()
         {

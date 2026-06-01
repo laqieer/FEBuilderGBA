@@ -61,10 +61,13 @@ namespace FEBuilderGBA
         // GBA LZ77 stream header is 4 bytes (0x10 marker + 3-byte uncompressed size).
         const int LZ77_HEADER_BYTES = 4;
 
-        // Sanity upper bound: refuse to allocate a tile-index array larger than
-        // a 4096×4096 tile canvas (each tile is 16 px, so 4096*4096/256 = 65536
-        // logical tiles). Prevents large-alloc denial-of-service on corrupt ROMs.
-        const long MAX_CHANGE_TILES = 4096L * 4096 / 256;
+        // Sanity upper bound on the total tile count for a change-map overlay.
+        // cap = 256×256 logical tiles (a 4096×4096-pixel canvas) — guards against
+        // a corrupt change record requesting a huge allocation.
+        // Per-dimension bounds (width > 256 || height > 256) are enforced separately
+        // so a degenerate shape such as width=65536, height=1 is rejected before
+        // the product check; this constant is the final product cap.
+        const int MAX_CHANGE_TILES = 256 * 256; // = 65536
 
         /// <summary>
         /// Composite a full chapter-map image from its four already-resolved ROM
@@ -261,14 +264,23 @@ namespace FEBuilderGBA
             if (CoreState.ImageService == null) return null;
 
             // --- Guard 2: dimension sanity ---
+            // Check each dimension individually first so a degenerate shape
+            // (e.g. width=65536, height=1) is rejected before the product check.
+            // WF map dimensions are byte-sourced (B3/B4 of the change record, u8),
+            // so they can never exceed 255 in practice; 256 is a safe ceiling.
             if (width <= 0 || height <= 0) return null;
-            long tileCount = (long)width * height;
-            if (tileCount > MAX_CHANGE_TILES) return null;
+            if (width > 256 || height > 256) return null;
+            // Now both width and height are ≤ 256, so their product fits in int.
+            // Use long for the bounds arithmetic to avoid any intermediate overflow,
+            // then assign to int once we know the value is ≤ MAX_CHANGE_TILES.
+            long tileCountL = (long)width * height;
+            if (tileCountL > MAX_CHANGE_TILES) return null;
+            int tileCount = (int)tileCountL; // provably ≤ 65536, safe as int
 
             // --- Guard 3: change-data bounds ---
             // changeDataOffset is a ROM offset (already converted by caller via U.toOffset).
             if (!U.isSafetyOffset(changeDataOffset, rom)) return null;
-            long changeDataEnd = (long)changeDataOffset + tileCount * 2;
+            long changeDataEnd = (long)changeDataOffset + (long)tileCount * 2; // long to avoid overflow
             if (changeDataEnd > rom.Data.Length) return null;
 
             // --- Step OBJ: LZ77 raw bytes ---
@@ -292,10 +304,10 @@ namespace FEBuilderGBA
             if (configUZ == null || configUZ.Length == 0) return null;
 
             // --- Step CHG: read the RAW u16 tile-index array ---
-            ushort[] tileIndices = new ushort[tileCount];
-            for (long i = 0; i < tileCount; i++)
+            ushort[] tileIndices = new ushort[tileCount]; // int index — provably safe
+            for (int i = 0; i < tileCount; i++)
             {
-                uint byteOff = (uint)(changeDataOffset + i * 2);
+                uint byteOff = (uint)((long)changeDataOffset + (long)i * 2);
                 tileIndices[i] = (ushort)U.u16(rom.Data, byteOff);
             }
 

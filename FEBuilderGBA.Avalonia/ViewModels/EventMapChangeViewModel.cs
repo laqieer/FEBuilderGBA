@@ -352,9 +352,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     return null;
                 }
 
-                // Get the change-data offset from P8 (already resolved as a ROM offset
-                // via rom.p32 in EditorFormRef.ReadFields for "P8" type fields).
-                // P8 holds the raw GBA pointer value read via rom.p32 → convert to ROM offset.
+                // P8 is read via EditorFormRef.ReadFields → rom.p32, which already calls
+                // U.toOffset internally and returns a ROM offset.  The U.toOffset call here
+                // is an idempotent safety-normalize: it is a no-op on a valid ROM offset
+                // (< 0x08000000), but correctly converts a raw GBA pointer (≥ 0x08000000)
+                // in case the field was hand-edited to a raw pointer value before saving.
                 uint changeDataOffset = U.toOffset(P8);
                 if (!U.isSafetyOffset(changeDataOffset, rom))
                 {
