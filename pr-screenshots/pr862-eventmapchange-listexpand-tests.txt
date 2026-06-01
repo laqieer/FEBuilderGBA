@@ -1,0 +1,35 @@
+Build started 2026/6/2 7:00:52.
+Test run for C:\Users\zhiwenzhu\source\repos\laqieer\FEBuilderGBA\.claude\worktrees\agent-a4839079019880236\FEBuilderGBA.Avalonia.Tests\bin\Debug\net9.0\FEBuilderGBA.Avalonia.Tests.dll (.NETCoreApp,Version=v9.0)
+VSTest version 17.14.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 9.0.16)
+[xUnit.net 00:00:00.10]   Discovering: FEBuilderGBA.Avalonia.Tests
+[xUnit.net 00:00:01.08]   Discovered:  FEBuilderGBA.Avalonia.Tests
+[xUnit.net 00:00:01.09]   Starting:    FEBuilderGBA.Avalonia.Tests
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.View_ListExpands_Click_HasRollbackOnError [13 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ViewModel_BuildChangeListForCount_MethodExists_IsPublic [< 1 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ViewModel_ExpandEventMapChangeList_MethodExists_IsPublic [3 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_CountZero_ReturnsError [19 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_NoMapSelected_ReturnsError [25 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_EmptyList_FirstByteFF_ReturnsError [13 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_GrowsCount_WritesTerminator_CopiesRows_RepointsAllThreeRefs [159 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_Unterminated_ReturnsError_NoMutation [10 ms]
+[xUnit.net 00:00:01.77]   Finished:    FEBuilderGBA.Avalonia.Tests
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_Rollback_RestoresAllThreeRefs_AndOldRegion [154 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.ExpandEventMapChangeList_CleanRom_NoSecondaryRefs_SucceedsWithZeroRepoint_AndSetsNewCount [241 ms]
+  Passed FEBuilderGBA.Avalonia.Tests.GapSweep.EventMapChangeListExpandTests.View_ListExpands_Click_IsWiredNotStub [4 ms]
+
+Test Run Successful.
+Total tests: 11
+     Passed: 11
+ Total time: 2.3139 Seconds
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:03.16
+
+Workload updates are available. Run `dotnet workload list` for more information.
