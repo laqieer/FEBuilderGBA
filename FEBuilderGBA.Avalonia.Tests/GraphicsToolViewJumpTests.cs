@@ -3,6 +3,10 @@
 // added in #434. Verifies that the WF `GraphicsToolForm.Jump` pixel→tile
 // conversion is correct, that the addresses are formatted as hex, and
 // that the imageType→IsCompressed flag toggles work.
+//
+// Also contains regression tests for the TSA Editor button enable-after-Jump
+// pattern (#860). See GraphicsToolTsaButtonTests below.
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -122,6 +126,137 @@ namespace FEBuilderGBA.Avalonia.Tests
                 0x08500000u, 1, 0x08600000u, 1, 8, 0);
             var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
             Assert.True(vm.Is4bpp);
+        }
+    }
+
+    /// <summary>
+    /// Regression tests for the TSA Editor button enable-after-Jump pattern.
+    /// Issue #860: verifies that TSAEditorButton starts disabled (no TSA context)
+    /// and is enabled after Jump() loads a valid image/TSA/palette context.
+    ///
+    /// The enable-on-Jump pattern is intentional and CORRECT:
+    /// - axaml: <c>IsEnabled="False"</c> — correct initial state (no context yet)
+    /// - Jump(): sets <c>TSAEditorButton.IsEnabled = _tsaNavReady</c> (true) once context is loaded
+    /// - TSAEditor_Click(): early-returns if <c>!_tsaNavReady</c> (safety guard)
+    /// - Standalone menu path (OpenGraphicsTool_Click): leaves button disabled — also correct
+    ///
+    /// These tests lock that behavior so a future edit that removes the enable
+    /// path, or flips the axaml default to True, will be caught by CI.
+    /// </summary>
+    public class GraphicsToolTsaButtonTests
+    {
+        /// <summary>
+        /// Before Jump() is called, TSAEditorButton must be disabled (no TSA context).
+        /// This matches the axaml <c>IsEnabled="False"</c> initial state and the
+        /// standalone menu path (OpenGraphicsTool_Click) which opens the view
+        /// without a TSA context.
+        ///
+        /// Regression anchor for #860: if someone flips the axaml default to
+        /// <c>IsEnabled="True"</c> this test will catch it.
+        /// </summary>
+        [AvaloniaFact]
+        public void TSAEditorButton_IsDisabled_Initially_BeforeJump()
+        {
+            var view = new GraphicsToolView();
+            var button = view.FindControl<Button>("TSAEditorButton");
+
+            Assert.NotNull(button);
+            Assert.False(button!.IsEnabled,
+                "TSAEditorButton must be disabled on construction (no TSA context yet). " +
+                "axaml IsEnabled=\"False\" is intentional — do NOT change to True. (#860)");
+        }
+
+        /// <summary>
+        /// After Jump() is called with a valid image/TSA/palette context,
+        /// TSAEditorButton must be enabled. This mirrors the real navigation path:
+        /// ImageBattleBGView and ImageBGView call Open&lt;GraphicsToolView&gt;() then Jump().
+        ///
+        /// Regression anchor for #860: if someone removes the
+        /// <c>TSAEditorButton.IsEnabled = _tsaNavReady</c> assignment from Jump(),
+        /// this test will catch it.
+        /// </summary>
+        [AvaloniaFact]
+        public void TSAEditorButton_IsEnabled_AfterJump_WithValidContext()
+        {
+            var view = new GraphicsToolView();
+            var button = view.FindControl<Button>("TSAEditorButton");
+            Assert.NotNull(button);
+
+            // Simulate the real ImageBattleBGView callsite:
+            //   .Jump(30*8, 20*8, image, 0, tsa, 1, palette, 1, 8, 0)
+            view.Jump(
+                width: 240, height: 160,
+                image: 0x08400000u, imageType: 0,
+                tsa: 0x08500000u, tsaType: 1,
+                palette: 0x08600000u, paletteType: 1,
+                paletteCount: 8,
+                image2: 0);
+
+            Assert.True(button!.IsEnabled,
+                "TSAEditorButton must be enabled after Jump() loads a valid image/TSA/palette context. " +
+                "The enable assignment 'TSAEditorButton.IsEnabled = _tsaNavReady' in Jump() is intentional. (#860)");
+        }
+
+        /// <summary>
+        /// Parity assertion: the code-behind source must contain both the
+        /// <c>IsEnabled="False"</c> axaml default AND the
+        /// <c>TSAEditorButton.IsEnabled = _tsaNavReady</c> enable assignment,
+        /// verifying neither is accidentally deleted.
+        ///
+        /// This is a secondary safety net — the behavioral tests above are the
+        /// primary regression anchors. This test catches edits that delete the
+        /// enable path without breaking the behavioral tests (which would only
+        /// fail if the axaml also changed).
+        /// </summary>
+        [Fact]
+        public void GraphicsToolView_SourceHasBothDisabledDefaultAndEnableAssignment()
+        {
+            // Locate the Views source file via the assembly location.
+            // In CI the .cs source may not be co-located with the DLL —
+            // use a source-path relative to this test assembly's location
+            // (both live under the solution root in the same git checkout).
+            var asm = typeof(GraphicsToolView).Assembly;
+            var asmDir = System.IO.Path.GetDirectoryName(asm.Location) ?? string.Empty;
+
+            // Walk up from the assembly output dir (obj/Debug/net9.0) to the
+            // solution root, then down to the Views file.
+            var dir = new System.IO.DirectoryInfo(asmDir);
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                dir = dir.Parent;
+
+            if (dir == null)
+            {
+                // Source tree not available (e.g. published artifact without sources).
+                // Skip gracefully — the behavioral tests above are the primary guards.
+                return;
+            }
+
+            var csPath = System.IO.Path.Combine(
+                dir.FullName, "FEBuilderGBA.Avalonia", "Views", "GraphicsToolView.axaml.cs");
+            var axamlPath = System.IO.Path.Combine(
+                dir.FullName, "FEBuilderGBA.Avalonia", "Views", "GraphicsToolView.axaml");
+
+            if (!System.IO.File.Exists(csPath) || !System.IO.File.Exists(axamlPath))
+                return; // Source not present — skip.
+
+            var csSource = System.IO.File.ReadAllText(csPath);
+            var axamlSource = System.IO.File.ReadAllText(axamlPath);
+
+            // 1. The code-behind must contain the enable assignment.
+            Assert.Contains(
+                "TSAEditorButton.IsEnabled = _tsaNavReady",
+                csSource,
+                System.StringComparison.Ordinal);
+
+            // 2. The axaml must have the button starting as False (not True).
+            Assert.Contains(
+                "TSAEditorButton",
+                axamlSource,
+                System.StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                "x:Name=\"TSAEditorButton\" Content=\"TSA Editor\" Width=\"100\" Click=\"TSAEditor_Click\" IsEnabled=\"True\"",
+                axamlSource,
+                System.StringComparison.Ordinal);
         }
     }
 
