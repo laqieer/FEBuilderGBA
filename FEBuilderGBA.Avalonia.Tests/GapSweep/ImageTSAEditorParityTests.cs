@@ -443,10 +443,10 @@ public class ImageTSAEditorParityTests
         var rx = new Regex(@"KnownGap:\s*(\S+(?:\s+\S+)*?)\s+reason=(.+?)\s*-->",
             RegexOptions.Compiled);
         var matches = rx.Matches(axaml);
-        Assert.True(matches.Count >= 4,
-            $"AXAML must contain at least 4 KnownGap markers (ChipsetListRender, " +
-            $"TSAByteWrite, PaletteToClipboard, MainImageImportExport); " +
-            $"found {matches.Count}. (BattleCanvasRender was resolved in #808.)");
+        Assert.True(matches.Count >= 3,
+            $"AXAML must contain at least 3 KnownGap markers (TSAByteWrite, " +
+            $"PaletteToClipboard, MainImageImportExport); found {matches.Count}. " +
+            $"(BattleCanvasRender was resolved in #808; ChipsetListRender in #819.)");
         foreach (Match m in matches)
         {
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[1].Value),
@@ -511,6 +511,34 @@ public class ImageTSAEditorParityTests
 
         // Image / TSA slots are NOT_FOUND -> render is skipped without throwing.
         Assert.Null(vm.RenderMainImage());
+    }
+
+    /// <summary>
+    /// #819: RenderChipList must return null (no throw) when there is no
+    /// context, and when the image pointer slot is NOT_FOUND even with a
+    /// loaded context. The chip list never reads the TSA stream, so a
+    /// NOT_FOUND tsaPointer is irrelevant; only the image slot gates it.
+    /// </summary>
+    [Fact]
+    public void ViewModel_RenderChipList_NotFoundImagePointer_ReturnsNull()
+    {
+        var vm = new ImageTSAEditorViewModel();
+        // No context yet -> null.
+        Assert.Null(vm.RenderChipList());
+
+        vm.Init(
+            width8: 32u,
+            height8: 20u,
+            zimgPointer: U.NOT_FOUND,
+            isHeaderTSA: false,
+            isLZ77TSA: true,
+            tsaPointer: U.NOT_FOUND,
+            palettePointer: U.NOT_FOUND,
+            paletteAddress: 0u,
+            paletteCount: 1);
+
+        // Image slot is NOT_FOUND -> render is skipped without throwing.
+        Assert.Null(vm.RenderChipList());
     }
 
     [Fact]

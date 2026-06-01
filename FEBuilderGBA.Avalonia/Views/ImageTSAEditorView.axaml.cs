@@ -113,6 +113,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             UpdateInfoLabel();
             RefreshBattleCanvas();
+            RefreshChipList();
         }
 
         /// <summary>
@@ -220,6 +221,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.LoadEntry(addr);
                 UpdateInfoLabel();
                 RefreshBattleCanvas();
+                RefreshChipList();
             }
             catch (Exception ex)
             {
@@ -263,6 +265,30 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// Render the chip-list thumbnail (#819) into the ChipListPreview
+        /// control — the main-image tiles in WF MakeCHIPLIST's 4-column
+        /// (orig / Hflip / Vflip / HVflip) single-bank-0 strip. Mirrors
+        /// <see cref="RefreshBattleCanvas"/>: on a successful render the image
+        /// is shown; on any failure (no context, unset pointers, corrupt data)
+        /// the preview is cleared (blank). Never throws. Invoked on entry-load
+        /// (Init / OnSelected) and after a successful palette write so the
+        /// thumbnail tracks palette-color changes.
+        /// </summary>
+        void RefreshChipList()
+        {
+            try
+            {
+                IImage img = _vm.RenderChipList();
+                ChipListPreview.SetImage(img);
+            }
+            catch (Exception ex)
+            {
+                ChipListPreview.SetImage(null);
+                Log.Error("ImageTSAEditorView.RefreshChipList failed: {0}", ex.Message);
+            }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
 
@@ -286,6 +312,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 PerformPaletteWrite();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // A palette write changes the rendered colors -> refresh the
+                // read-only chip-list thumbnail so it tracks the new palette.
+                RefreshChipList();
             }
             catch (Exception ex)
             {
@@ -308,6 +337,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 PerformPaletteWrite();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // A palette write changes the rendered colors -> refresh the
+                // read-only chip-list thumbnail so it tracks the new palette.
+                RefreshChipList();
             }
             catch (Exception ex)
             {
@@ -371,6 +403,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (CoreState.Undo != null)
                 {
                     CoreState.Undo.RunUndo();
+                    // RunUndo reverts ROM bytes (e.g. an undone palette write),
+                    // so reload the affected state and re-render the previews --
+                    // otherwise the spinners + ChipListPreview / BattlePreview
+                    // keep showing the pre-undo colors (mirrors how
+                    // ImageBattleScreenView refreshes after undo). Null-safe.
+                    ReloadPaletteIntoGrid();
+                    RefreshBattleCanvas();
+                    RefreshChipList();
                 }
             }
             catch (Exception ex)
