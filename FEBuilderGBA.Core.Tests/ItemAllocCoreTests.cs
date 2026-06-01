@@ -41,8 +41,8 @@ public class ItemAllocCoreTests
         // Lay down a benign item record. The bytes don't matter except that the
         // P12/P16 slots (addr+12 / addr+16) are 0 (already zero from the array).
         // Give it an icon byte / weapon type so it's a plausible record.
-        bytes[ItemAddr + 6] = 0x01;  // item number
-        bytes[ItemAddr + 7] = 0x00;  // weapon type (sword)
+        bytes[(int)ItemAddr + 6] = 0x01;  // item number
+        bytes[(int)ItemAddr + 7] = 0x00;  // weapon type (sword)
         // P12 (addr+12..15) and P16 (addr+16..19) stay 0 — the alloc target.
 
         rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
@@ -127,10 +127,11 @@ public class ItemAllocCoreTests
                 Assert.True(U.isPointer(rom.u32(ItemAddr + 12)));
 
                 // The appended block is the EXACT WF template: 20 bytes, [1]=5.
-                Assert.Equal((byte)0x00, rom.Data[addr + 0]);
-                Assert.Equal((byte)0x05, rom.Data[addr + 1]);
-                for (uint i = 2; i < 20; i++)
-                    Assert.Equal((byte)0x00, rom.Data[addr + i]);
+                int a = (int)addr;
+                Assert.Equal((byte)0x00, rom.Data[a + 0]);
+                Assert.Equal((byte)0x05, rom.Data[a + 1]);
+                for (int i = 2; i < 20; i++)
+                    Assert.Equal((byte)0x00, rom.Data[a + i]);
             }
         }
         finally { Exit(prevRom, prevUndo); }
@@ -185,9 +186,10 @@ public class ItemAllocCoreTests
                 Assert.True(U.isPointer(rom.u32(ItemAddr + 16)));
 
                 // EXACT non-Rework template: 12 bytes all 0x01 except [11]==0.
-                for (uint i = 0; i < 11; i++)
-                    Assert.Equal((byte)0x01, rom.Data[addr + i]);
-                Assert.Equal((byte)0x00, rom.Data[addr + 11]);
+                int a = (int)addr;
+                for (int i = 0; i < 11; i++)
+                    Assert.Equal((byte)0x01, rom.Data[a + i]);
+                Assert.Equal((byte)0x00, rom.Data[a + 11]);
             }
         }
         finally { Exit(prevRom, prevUndo); }
@@ -207,15 +209,16 @@ public class ItemAllocCoreTests
 
                 Assert.Equal(U.toPointer(addr), rom.u32(ItemAddr + 16));
                 // EXACT Rework template: [1]=6,[2]=1,[5]=6,[6]=2, rest 0.
-                Assert.Equal((byte)0x00, rom.Data[addr + 0]);
-                Assert.Equal((byte)0x06, rom.Data[addr + 1]);
-                Assert.Equal((byte)0x01, rom.Data[addr + 2]);
-                Assert.Equal((byte)0x00, rom.Data[addr + 3]);
-                Assert.Equal((byte)0x00, rom.Data[addr + 4]);
-                Assert.Equal((byte)0x06, rom.Data[addr + 5]);
-                Assert.Equal((byte)0x02, rom.Data[addr + 6]);
-                for (uint i = 7; i < 12; i++)
-                    Assert.Equal((byte)0x00, rom.Data[addr + i]);
+                int a = (int)addr;
+                Assert.Equal((byte)0x00, rom.Data[a + 0]);
+                Assert.Equal((byte)0x06, rom.Data[a + 1]);
+                Assert.Equal((byte)0x01, rom.Data[a + 2]);
+                Assert.Equal((byte)0x00, rom.Data[a + 3]);
+                Assert.Equal((byte)0x00, rom.Data[a + 4]);
+                Assert.Equal((byte)0x06, rom.Data[a + 5]);
+                Assert.Equal((byte)0x02, rom.Data[a + 6]);
+                for (int i = 7; i < 12; i++)
+                    Assert.Equal((byte)0x00, rom.Data[a + i]);
             }
         }
         finally { Exit(prevRom, prevUndo); }
@@ -331,7 +334,7 @@ public class ItemAllocCoreTests
                 uint addr = ItemAllocCore.AllocStatBonuses(rom, ItemAddr, undodata);
                 Assert.NotEqual(U.NOT_FOUND, addr);
                 Assert.Equal(U.toPointer(addr), rom.u32(ItemAddr + 12));
-                Assert.Equal((byte)0x05, rom.Data[addr + 1]);
+                Assert.Equal((byte)0x05, rom.Data[(int)addr + 1]);
             }
         }
         finally

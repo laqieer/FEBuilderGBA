@@ -24,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             for (int i = bytes.Length / 2; i < bytes.Length; i++) bytes[i] = 0xFF;
             var rom = new ROM();
             rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
-            bytes[ItemAddr + 6] = 0x01; // item number (record is plausible)
+            bytes[(int)ItemAddr + 6] = 0x01; // item number (record is plausible)
             rom.LoadLow("synthetic-fe8u.gba", bytes, "BE8E01");
             return rom;
         }
