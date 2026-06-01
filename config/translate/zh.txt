@@ -22313,8 +22313,18 @@ tcs 参数??
 KnownGap: 等待 Core 抽取。
 :KnownGap: live bitmap preview pending Core extraction.
 KnownGap: 实时位图预览等待 Core 抽取。
-:KnownGap: list-expand requires DataExpansionCore wiring not yet ported.
-KnownGap: 列表扩展需要 DataExpansionCore 接线尚未移植。
+:Grow the border table by N rows (ExpandTableTo + RepointAllReferences).
+将国境表扩展 N 行(ExpandTableTo + RepointAllReferences)。
+:Grow the icon-data table by N rows (ExpandTableTo + RepointAllReferences).
+将图标数据表扩展 N 行(ExpandTableTo + RepointAllReferences)。
+:Enter the new entry count for the world map border list (current: {0}, max: 255).
+输入世界地图国境列表的新条目数(当前: {0}, 最大: 255)。
+:Enter the new entry count for the world map icon-data list (current: {0}, max: 255).
+输入世界地图图标数据列表的新条目数(当前: {0}, 最大: 255)。
+:Expanded world map border list to {0} entries.
+已将世界地图国境列表扩展为 {0} 个条目。
+:Expanded world map icon-data list to {0} entries.
+已将世界地图图标数据列表扩展为 {0} 个条目。
 :KnownGap: DecreaseColorTSAToolForm not yet ported.
 KnownGap: DecreaseColorTSAToolForm 尚未移植。
 :KnownGap: ResourceCache source-file feature not yet wired in Avalonia.

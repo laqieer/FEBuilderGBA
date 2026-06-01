@@ -8478,8 +8478,18 @@ tcs params??
 KnownGap: Core実装が未対応。
 :KnownGap: live bitmap preview pending Core extraction.
 KnownGap: ライブビットマッププレビューはCore実装待ち。
-:KnownGap: list-expand requires DataExpansionCore wiring not yet ported.
-KnownGap: リスト拡張はDataExpansionCoreの未移植配線が必要。
+:Grow the border table by N rows (ExpandTableTo + RepointAllReferences).
+国境テーブルをN行拡張します(ExpandTableTo + RepointAllReferences)。
+:Grow the icon-data table by N rows (ExpandTableTo + RepointAllReferences).
+アイコンデータテーブルをN行拡張します(ExpandTableTo + RepointAllReferences)。
+:Enter the new entry count for the world map border list (current: {0}, max: 255).
+ワールドマップ国境リストの新しいエントリ数を入力してください(現在: {0}, 最大: 255)。
+:Enter the new entry count for the world map icon-data list (current: {0}, max: 255).
+ワールドマップアイコンデータリストの新しいエントリ数を入力してください(現在: {0}, 最大: 255)。
+:Expanded world map border list to {0} entries.
+ワールドマップ国境リストを{0}エントリに拡張しました。
+:Expanded world map icon-data list to {0} entries.
+ワールドマップアイコンデータリストを{0}エントリに拡張しました。
 :KnownGap: DecreaseColorTSAToolForm not yet ported.
 KnownGap: DecreaseColorTSAToolFormは未移植。
 :KnownGap: ResourceCache source-file feature not yet wired in Avalonia.

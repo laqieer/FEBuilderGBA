@@ -328,8 +328,9 @@
             <Button Grid.Column="1"
                     AutomationProperties.AutomationId="WorldMapImage_Border_AddressListExpand_Button"
                     Name="Border_AddressListExpandButton" Content="List Expand"
-                    IsEnabled="False" Margin="4,0,0,0" VerticalAlignment="Center"
-                    ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
+                    Click="BorderListExpand_Click"
+                    Margin="4,0,0,0" VerticalAlignment="Center"
+                    ToolTip.Tip="Grow the border table by N rows (ExpandTableTo + RepointAllReferences)." />
           </Grid>
 
           <!-- Row 1: Selection bar (mirrors WF AddressPanel) -->
@@ -445,8 +446,9 @@
             <Button Grid.Column="1"
                     AutomationProperties.AutomationId="WorldMapImage_IconData_AddressListExpand_Button"
                     Name="IconData_AddressListExpandButton" Content="List Expand"
-                    IsEnabled="False" Margin="4,0,0,0" VerticalAlignment="Center"
-                    ToolTip.Tip="KnownGap: list-expand requires DataExpansionCore wiring not yet ported." />
+                    Click="IconDataListExpand_Click"
+                    Margin="4,0,0,0" VerticalAlignment="Center"
+                    ToolTip.Tip="Grow the icon-data table by N rows (ExpandTableTo + RepointAllReferences)." />
           </Grid>
 
           <!-- Row 1: Selection bar -->

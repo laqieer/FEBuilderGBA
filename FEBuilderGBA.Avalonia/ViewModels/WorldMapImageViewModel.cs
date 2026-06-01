@@ -337,5 +337,171 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u16(IconCurrentAddr + 14, IconW14);
             return true;
         }
+
+        // ===================================================================
+        // List expansion (#825) — delegates to DataExpansionCore.ExpandTableTo
+        // + RepointAllReferences. Mirrors ImageMapActionAnimationViewModel.
+        // ExpandList (#501) but composes the all-reference repoint that WF's
+        // InputFormRef.ExpandsArea performs via MoveToFreeSapceForm.SearchPointer
+        // (raw 32-bit pointers + ARM-Thumb LDR literal-pool loads). Both world-
+        // map tables are fixed-RomInfo-pointer tables (Border = 12B at
+        // worldmap_county_border_pointer; IconData = 16B at
+        // worldmap_icon_data_pointer).
+        //
+        // Caller wraps each call in an UndoService.Begin/Commit/Rollback scope
+        // (ROM.BeginUndoScope), so every ExpandTableTo + RepointAllReferences
+        // write lands in ONE undo transaction.
+        // ===================================================================
+
+        /// <summary>
+        /// Grow the border table (<c>worldmap_county_border_pointer</c>, 12-byte
+        /// records) to <paramref name="newCount"/> rows.
+        ///
+        /// <para>Composition: capture <c>oldBase = rom.p32(ptr)</c> →
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> (moves + copies +
+        /// writes the <c>0xFFFFFFFF</c> terminator + wipes the old region +
+        /// single-slot-repoints the canonical pointer) → read <c>newBase</c>
+        /// from the result → <see cref="DataExpansionCore.RepointAllReferences"/>
+        /// to repoint EVERY other raw-pointer / LDR reference to the old base.</para>
+        ///
+        /// <para><b>NOTE A:</b> a <see cref="DataExpansionCore.RepointAllReferences"/>
+        /// return of <c>0</c> is SUCCESS here — <c>ExpandTableTo</c> already
+        /// repointed the canonical pointer, so a clean ROM with no secondary
+        /// references legitimately has zero further slots to rewrite. (Unlike
+        /// <c>SongInstrumentViewModel.ExpandVoicegroupTo128</c>, whose append-
+        /// based path relies on <c>RepointAllReferences</c> for its ONLY
+        /// repoint and therefore treats <c>0</c> as an orphan.)</para>
+        ///
+        /// <para><b>NOTE B:</b> sets <see cref="BorderReadCount"/> /
+        /// <see cref="BorderReadStartAddress"/> directly from the
+        /// <see cref="DataExpansionCore.ExpandResult"/>. The new rows are
+        /// zero-filled and <c>U.isPointer(0) == false</c>, so re-deriving the
+        /// count by re-scanning (<see cref="LoadBorderList"/> stops at
+        /// <c>!U.isPointer(...)</c>) would report the OLD count. Callers refresh
+        /// the displayed list via <see cref="BuildBorderListForCount"/>, NOT by
+        /// re-scanning.</para>
+        ///
+        /// <para><b>Inherited KnownGap:</b> the comment/lint cache repoint that
+        /// <c>ExpandTableTo</c> performs is forward-only — ROM undo restores
+        /// bytes but does NOT reverse the cache repoint (accepted WF parity, see
+        /// <c>DataExpansionCore.ExpandTableTo</c> XML doc).</para>
+        /// </summary>
+        /// <param name="newCount">Target row count (must be &gt;= current
+        /// <see cref="BorderReadCount"/>).</param>
+        /// <param name="undo">The active undo buffer (from the caller's
+        /// <c>UndoService.GetActiveUndoData()</c>) so the all-reference repoint
+        /// records into the same transaction.</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ExpandBorderList(uint newCount, Undo.UndoData undo)
+            => ExpandTableHelper(
+                CoreState.ROM?.RomInfo?.worldmap_county_border_pointer ?? 0,
+                BorderRecordStride,
+                (uint)BorderReadCount,
+                newCount,
+                undo,
+                onSuccess: (newBase, count) =>
+                {
+                    BorderReadStartAddress = U.toPointer(newBase);
+                    BorderReadCount = (int)count;
+                });
+
+        /// <summary>
+        /// Grow the icon-data table (<c>worldmap_icon_data_pointer</c>, 16-byte
+        /// records) to <paramref name="newCount"/> rows. Same composition,
+        /// NOTE A / NOTE B handling, and inherited cache KnownGap as
+        /// <see cref="ExpandBorderList"/>.
+        /// </summary>
+        /// <param name="newCount">Target row count (must be &gt;= current
+        /// <see cref="IconReadCount"/>).</param>
+        /// <param name="undo">The active undo buffer (same transaction).</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ExpandIconList(uint newCount, Undo.UndoData undo)
+            => ExpandTableHelper(
+                CoreState.ROM?.RomInfo?.worldmap_icon_data_pointer ?? 0,
+                IconRecordStride,
+                (uint)IconReadCount,
+                newCount,
+                undo,
+                onSuccess: (newBase, count) =>
+                {
+                    IconReadStartAddress = U.toPointer(newBase);
+                    IconReadCount = (int)count;
+                });
+
+        /// <summary>
+        /// Shared expand body for both world-map tables. Validates the pointer
+        /// + count, runs <c>ExpandTableTo</c> then <c>RepointAllReferences</c>
+        /// (NOTE A: 0 is success), and invokes <paramref name="onSuccess"/> with
+        /// the new base offset + new count (NOTE B: caller sets the read count
+        /// from the result, not by re-scanning).
+        /// </summary>
+        string ExpandTableHelper(uint ptr, int entrySize, uint currentCount,
+            uint newCount, Undo.UndoData undo,
+            Action<uint, uint> onSuccess)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return R._("ROM not loaded.");
+            if (ptr == 0) return R._("World map table pointer not found in this ROM.");
+            if (newCount < currentCount)
+                return R._("New count ({0}) must be greater than or equal to current count ({1}).",
+                    newCount, currentCount);
+            if (newCount == currentCount) return ""; // no-op success
+
+            // Capture the OLD base BEFORE ExpandTableTo moves the table.
+            uint oldBase = rom.p32(ptr);
+
+            var result = DataExpansionCore.ExpandTableTo(rom, ptr, (uint)entrySize, currentCount, newCount);
+            if (!result.Success)
+                return result.Error ?? R._("Table expansion failed.");
+
+            uint newBase = result.NewBaseAddress;
+
+            // Repoint EVERY other raw-pointer / LDR reference to the old base.
+            // NOTE A: ExpandTableTo already repointed the canonical pointer, so
+            // RepointAllReferences returning 0 (clean ROM, no secondary refs) is
+            // SUCCESS — do NOT roll back on 0. The canonical slot now holds the
+            // new base and is therefore NOT re-matched (no double-write).
+            DataExpansionCore.RepointAllReferences(rom, oldBase, newBase, undo);
+
+            // NOTE B: set the read count from the result, NOT by re-scanning
+            // (the appended rows are zero-filled, and U.isPointer(0) == false,
+            // so a re-scan would stop at the first new row and report the OLD
+            // count).
+            onSuccess(newBase, result.NewCount);
+            return "";
+        }
+
+        /// <summary>
+        /// Build the border AddressList for exactly <paramref name="count"/>
+        /// rows starting at <paramref name="baseAddr"/> (an offset). Used after
+        /// an expand to render the grown list WITHOUT re-scanning past the
+        /// zero-filled new rows (NOTE B). Mirrors the row shape produced by
+        /// <see cref="LoadBorderList"/> (one <see cref="AddrResult"/> per row,
+        /// labelled with the hex row index).
+        /// </summary>
+        public List<AddrResult> BuildBorderListForCount(uint baseAddr, int count)
+            => BuildListForCount(baseAddr, count, BorderRecordStride);
+
+        /// <summary>
+        /// Build the icon-data AddressList for exactly <paramref name="count"/>
+        /// rows starting at <paramref name="baseAddr"/>. IconData counterpart of
+        /// <see cref="BuildBorderListForCount"/>.
+        /// </summary>
+        public List<AddrResult> BuildIconListForCount(uint baseAddr, int count)
+            => BuildListForCount(baseAddr, count, IconRecordStride);
+
+        static List<AddrResult> BuildListForCount(uint baseAddr, int count, int stride)
+        {
+            var result = new List<AddrResult>();
+            ROM rom = CoreState.ROM;
+            if (rom?.Data == null || count <= 0) return result;
+            uint addr = baseAddr;
+            for (int i = 0; i < count && i < LoadListHardCap; i++, addr += (uint)stride)
+            {
+                if (addr + stride > (uint)rom.Data.Length) break;
+                result.Add(new AddrResult(addr, U.ToHexString(i), 0));
+            }
+            return result;
+        }
     }
 }

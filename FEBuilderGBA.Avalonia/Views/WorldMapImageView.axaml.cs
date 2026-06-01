@@ -15,6 +15,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -213,6 +214,103 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { Log.Error("BorderReload failed: {0}", ex.Message); }
         }
 
+        // #825: list-expand for the border table (worldmap_county_border_pointer,
+        // 12-byte records). Prompt -> ExpandTableTo + RepointAllReferences ->
+        // refresh honoring the new count. Mirrors ImageMapActionAnimationView.
+        // ListExpand_Click but with the all-reference repoint (the canonical
+        // ptr is fixed; ExpandTableTo single-slot-repoints it, then
+        // RepointAllReferences repoints any raw/LDR secondary refs — a return of
+        // 0 is success per NOTE A).
+        async void BorderListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (_vm.BorderReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
+                    return;
+                }
+
+                // Default = current + 1, max 255 (mirrors WF
+                // AddressListExpandsButton_255 convention).
+                uint current = (uint)_vm.BorderReadCount;
+                uint defaultCount = current + 1;
+                if (defaultCount > 255) defaultCount = 255;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the world map border list (current: {0}, max: 255).", current),
+                    R._("List Expansion"),
+                    defaultCount,
+                    current,
+                    255);
+                if (chosen == null) return; // cancelled
+                uint newCount = chosen.Value;
+                if (newCount == current)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                _undoService.Begin("Expand World Map Border List");
+                try
+                {
+                    string err = _vm.ExpandBorderList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // NOTE B: render the grown list directly from the new base +
+                    // new count (the VM already set BorderReadCount/StartAddress
+                    // from the ExpandResult). Re-scanning would stop at the first
+                    // zero-filled new row and show the OLD count.
+                    RefreshBorderListFromReadConfig();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded world map border list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("WorldMapImageView.BorderListExpand inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapImageView.BorderListExpand failed: {0}", ex.Message);
+            }
+        }
+
+        // Render the border AddressList from the VM's post-expand read-config
+        // (BorderReadStartAddress = encoded GBA pointer of the new base;
+        // BorderReadCount = new row count) WITHOUT re-scanning (NOTE B).
+        void RefreshBorderListFromReadConfig()
+        {
+            bool prevLoading = _vm.IsLoading;
+            try
+            {
+                _vm.IsLoading = true;
+                uint baseAddr = U.toOffset(_vm.BorderReadStartAddress);
+                var items = _vm.BuildBorderListForCount(baseAddr, _vm.BorderReadCount);
+                Border_EntryList.SetItems(items);
+                if (Border_TopBar != null)
+                {
+                    Border_TopBar.StartAddressText = $"0x{_vm.BorderReadStartAddress:X08}";
+                    Border_TopBar.ReadCountText = _vm.BorderReadCount.ToString();
+                }
+            }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
+        }
+
         // ===================================================================
         // Icon-data tab
         // ===================================================================
@@ -310,6 +408,92 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try { LoadIconList(); }
             catch (Exception ex) { Log.Error("IconDataReload failed: {0}", ex.Message); }
+        }
+
+        // #825: list-expand for the icon-data table (worldmap_icon_data_pointer,
+        // 16-byte records). Same prompt -> ExpandTableTo + RepointAllReferences
+        // -> refresh-without-rescan flow as the border tab.
+        async void IconDataListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.IsLoaded)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (_vm.IconReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
+                    return;
+                }
+
+                uint current = (uint)_vm.IconReadCount;
+                uint defaultCount = current + 1;
+                if (defaultCount > 255) defaultCount = 255;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the world map icon-data list (current: {0}, max: 255).", current),
+                    R._("List Expansion"),
+                    defaultCount,
+                    current,
+                    255);
+                if (chosen == null) return; // cancelled
+                uint newCount = chosen.Value;
+                if (newCount == current)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                _undoService.Begin("Expand World Map Icon List");
+                try
+                {
+                    string err = _vm.ExpandIconList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // NOTE B: render from the new base + new count, no re-scan.
+                    RefreshIconListFromReadConfig();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded world map icon-data list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("WorldMapImageView.IconDataListExpand inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapImageView.IconDataListExpand failed: {0}", ex.Message);
+            }
+        }
+
+        // IconData counterpart of RefreshBorderListFromReadConfig (NOTE B).
+        void RefreshIconListFromReadConfig()
+        {
+            bool prevLoading = _vm.IsLoading;
+            try
+            {
+                _vm.IsLoading = true;
+                uint baseAddr = U.toOffset(_vm.IconReadStartAddress);
+                var items = _vm.BuildIconListForCount(baseAddr, _vm.IconReadCount);
+                IconData_EntryList.SetItems(items);
+                if (IconData_TopBar != null)
+                {
+                    IconData_TopBar.StartAddressText = $"0x{_vm.IconReadStartAddress:X08}";
+                    IconData_TopBar.ReadCountText = _vm.IconReadCount.ToString();
+                }
+            }
+            finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
         }
 
         // ===================================================================
