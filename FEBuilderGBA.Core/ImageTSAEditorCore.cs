@@ -225,7 +225,16 @@ namespace FEBuilderGBA
             // --- Tile data: LZ77 image (validate the compressed stream BEFORE
             // decompress; truncation guard via getCompressedSize==0 + end-of-ROM
             // bound check). ---
-            if (!U.isSafetyOffset(imageAddr, rom)) return false;
+            // The GBA LZ77 header is 4 bytes (0x10 + a 3-byte uncompressed size).
+            // LZ77.getCompressedSize reads input[offset+3] but only rejects when
+            // FEWER THAN 3 bytes remain, so a pointer to the LAST 1-3 bytes of the
+            // ROM passes isSafetyOffset yet makes that header read throw
+            // IndexOutOfRangeException. Require the FULL 4-byte header to be
+            // in-bounds BEFORE any LZ77 call (mirrors ImageBattleScreenCore's
+            // IsLZ77HeaderSafe / IsRegionSafe, #818) so this null-safe loader
+            // returns false instead of throwing -- this also hardens
+            // TryRenderMainImage (#810), which now delegates here.
+            if (!IsLZ77HeaderSafe(rom, imageAddr)) return false;
             uint imgCompressed = LZ77.getCompressedSize(rom.Data, imageAddr);
             if (imgCompressed == 0) return false;
             if ((ulong)imageAddr + imgCompressed > (ulong)rom.Data.Length) return false;
@@ -247,6 +256,33 @@ namespace FEBuilderGBA
             tiles = tileData;
             palette = palBuf;
             return true;
+        }
+
+        // The GBA LZ77 stream header is 4 bytes (0x10 + a 3-byte uncompressed
+        // size). LZ77.getCompressedSize reads input[offset + 3] but only rejects
+        // when FEWER THAN 3 bytes remain, so a pointer to the LAST 1-3 bytes of
+        // the ROM passes isSafetyOffset yet makes that header read throw
+        // IndexOutOfRangeException (Copilot PR #818 review). Require the FULL
+        // 4-byte header to be in-bounds BEFORE any LZ77 call. Mirrors
+        // ImageBattleScreenCore.IsLZ77HeaderSafe / IsRegionSafe.
+        const int LZ77_HEADER_BYTES = 4;
+        static bool IsLZ77HeaderSafe(ROM rom, uint addr) => IsRegionSafe(rom, addr, LZ77_HEADER_BYTES);
+
+        /// <summary>
+        /// True when <c>[addr, addr+bytes)</c> is a valid in-ROM region:
+        /// <see cref="U.isSafetyOffset(uint, ROM)"/> domain constraints (offset
+        /// in [0x200, 0x02000000) and within rom.Data) PLUS an explicit
+        /// end-of-range check using <c>ulong</c> arithmetic so the addition
+        /// cannot overflow on near-<see cref="uint.MaxValue"/> inputs. Mirrors
+        /// ImageBattleScreenCore.IsRegionSafe (#594/#818).
+        /// </summary>
+        static bool IsRegionSafe(ROM rom, uint addr, int bytes)
+        {
+            if (rom == null || rom.Data == null) return false;
+            if (!U.isSafetyOffset(addr, rom)) return false;
+            if (bytes <= 0) return false;
+            ulong lastByte = (ulong)addr + (ulong)bytes - 1UL;
+            return lastByte < (ulong)rom.Data.Length;
         }
     }
 }

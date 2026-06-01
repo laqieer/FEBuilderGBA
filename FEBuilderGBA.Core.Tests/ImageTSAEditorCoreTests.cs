@@ -710,14 +710,16 @@ namespace FEBuilderGBA.Core.Tests
                 PlantPalette(rom, StandardPalette());
                 // Valid 0x10 header claiming 0x100 bytes, planted 4 bytes from the
                 // ROM end so the stream is truncated -> getCompressedSize == 0.
-                uint addr = (uint)rom.Data.Length - 4;
+                // (addr is int for idiomatic array indexing; cast to uint at the
+                // LZ77 / RenderChipList call sites.)
+                int addr = rom.Data.Length - 4;
                 rom.Data[addr + 0] = 0x10;
                 rom.Data[addr + 1] = 0x00;
                 rom.Data[addr + 2] = 0x01;
                 rom.Data[addr + 3] = 0x00;
-                Assert.Equal(0u, LZ77.getCompressedSize(rom.Data, addr));
+                Assert.Equal(0u, LZ77.getCompressedSize(rom.Data, (uint)addr));
                 Assert.Null(ImageTSAEditorCore.RenderChipList(
-                    rom, addr, PALETTE_OFFSET));
+                    rom, (uint)addr, PALETTE_OFFSET));
             });
         }
 
@@ -735,6 +737,40 @@ namespace FEBuilderGBA.Core.Tests
                 IImage img = ImageTSAEditorCore.RenderChipList(
                     rom, imageNearEnd, PALETTE_OFFSET);
                 Assert.Null(img); // no throw, bounded read
+            });
+        }
+
+        [Fact]
+        public void ImagePointerThreeBytesFromEnd_WithMagic_NoThrow_BothReturnNull()
+        {
+            // PR #821 review (item 1): the LZ77 header is 4 bytes and
+            // getCompressedSize reads input[addr+3]. An image pointer 3 bytes
+            // from the ROM end (addr+3 == Data.Length, out of range) passes
+            // isSafetyOffset but would throw IndexOutOfRangeException inside
+            // getCompressedSize WITHOUT the explicit 4-byte-header guard. With
+            // the guard, BOTH RenderChipList and TryRenderMainImage must return
+            // null (a throw fails the test -- there is no try/catch here).
+            // Plant the 0x10 magic so the throw would otherwise be reached.
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantPalette(rom, StandardPalette());
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 0) });
+
+                int addr = rom.Data.Length - 3;          // only 3 header bytes in-bounds
+                rom.Data[addr + 0] = 0x10;               // LZ77 magic
+                rom.Data[addr + 1] = 0x00;
+                rom.Data[addr + 2] = 0x01;
+                // addr+3 is out of range -- the 4-byte-header guard must reject
+                // BEFORE getCompressedSize touches input[addr+3].
+
+                // Chip-list path (no TSA): guard short-circuits -> null, no throw.
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    rom, (uint)addr, PALETTE_OFFSET));
+
+                // Main-image path (delegates to the SAME loader): also null, no throw.
+                Assert.Null(ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, (uint)addr, false, false, TSA_OFFSET, PALETTE_OFFSET));
             });
         }
 

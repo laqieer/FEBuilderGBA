@@ -403,6 +403,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (CoreState.Undo != null)
                 {
                     CoreState.Undo.RunUndo();
+                    // RunUndo reverts ROM bytes (e.g. an undone palette write),
+                    // so reload the affected state and re-render the previews --
+                    // otherwise the spinners + ChipListPreview / BattlePreview
+                    // keep showing the pre-undo colors (mirrors how
+                    // ImageBattleScreenView refreshes after undo). Null-safe.
+                    ReloadPaletteIntoGrid();
+                    RefreshBattleCanvas();
+                    RefreshChipList();
                 }
             }
             catch (Exception ex)
