@@ -431,7 +431,7 @@
                 <Button AutomationProperties.AutomationId="WorldMapImage_Border_Import_Button"
                         Content="Import Image"
                         IsEnabled="False"
-                        ToolTip.Tip="Import is not supported in the cross-platform viewer (read-only)." />
+                        ToolTip.Tip="KnownGap: border import (OAM assembly) is a separate follow-up." />
                 <Button AutomationProperties.AutomationId="WorldMapImage_Border_Export_Button"
                         Name="BorderExportButton"
                         Content="Export Image"

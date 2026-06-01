@@ -23781,3 +23781,9 @@ FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑
 
 :No instrument set selected
 未选择乐器组
+
+:KnownGap: border import (OAM assembly) is a separate follow-up.
+KnownGap: 国境导入（OAM汇编）是单独的后续任务。
+
+:Export the border AP preview to PNG.
+将国境AP预览导出为PNG。

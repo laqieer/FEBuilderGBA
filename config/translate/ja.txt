@@ -9949,3 +9949,9 @@ ROMファイルを開いて難易度設定を編集してください。
 
 :No instrument set selected
 楽器セットが選択されていません
+
+:KnownGap: border import (OAM assembly) is a separate follow-up.
+KnownGap: 国境インポート（OAMアセンブリ）は別のフォローアップです。
+
+:Export the border AP preview to PNG.
+国境APプレビューをPNGとして書き出します。
