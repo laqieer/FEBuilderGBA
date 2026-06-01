@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Cross-platform chapter-map composite render (NV6-PR1, issue #855).
+// Cross-platform chapter-map composite render (NV6-PR1, issue #855) +
+// Change-map overlay render (NV6-PR2, issue #857).
 //
 // WinForms reference (FEBuilderGBA/ImageUtilMap.cs):
 //   * DrawMap (~L230-323): LZ77-decode OBJ tiles (raw bytes), RAW-read 512-byte
@@ -7,6 +8,9 @@
 //     map data; build expanded ushort[] TSA array then call ImageUtil.BitBltTSA.
 //   * DrawMapChipOnly (~L21-90): LZ77-decode OBJ bytes + RAW palette;
 //     optional OBJ2 appended (FE7 only, obj_plist high byte — see MR4 note below).
+//   * DrawChangeMap (~L418-495): same as DrawMap but the tile-index array is
+//     a RAW (uncompressed) u16 array of width*height entries instead of LZ77
+//     MAR data. Width/height are caller-supplied (from the change record B3/B4).
 //   * UnLZ77ChipsetData (~L93-107): LZ77-decompress the config stream.
 //   * UnLZ77MapData (~L179-193): LZ77-decompress the map data stream.
 //
@@ -16,7 +20,7 @@
 //        LoadROMTiles4bpp (which returns IImage, not byte[]).
 //   MR4 (deferred): FE7 has an optional second OBJ tileset (obj2, encoded in the
 //        high byte of obj_plist) that is U.ArrayAppend-ed onto the primary bytes
-//        before the final render in WF DrawMapChipOnly. PR1 takes a SINGLE
+//        before the final render in WF DrawMapChipOnly. PR1/PR2 take a SINGLE
 //        objOffset. A follow-up PR should add obj2Offset + Array.concat before
 //        DecodeTSA when the caller resolves a non-zero obj2 plist.
 //   MR5: opaqueIndex0 = true; GBA map tiles are an opaque background — palette
@@ -35,13 +39,15 @@ using System;
 namespace FEBuilderGBA
 {
     /// <summary>
-    /// Cross-platform chapter-map tile composite renderer (issue #855, NV6-PR1).
-    /// Ports WinForms <c>ImageUtilMap.DrawMap</c> to the Core library using
-    /// <see cref="ImageUtilCore.DecodeTSA"/> with <c>opaqueIndex0=true</c>.
+    /// Cross-platform chapter-map tile composite renderer (issue #855, NV6-PR1)
+    /// and change-map overlay renderer (issue #857, NV6-PR2).
+    /// Ports WinForms <c>ImageUtilMap.DrawMap</c> + <c>DrawChangeMap</c> to the
+    /// Core library using <see cref="ImageUtilCore.DecodeTSA"/> with
+    /// <c>opaqueIndex0=true</c>.
     ///
     /// <para><b>FE7 OBJ2 deferred (MR4):</b> FE7 maps may specify a second OBJ
     /// tileset (encoded in the high byte of <c>obj_plist</c>) that WF appends
-    /// via <c>U.ArrayAppend</c> before the render. This PR takes a single
+    /// via <c>U.ArrayAppend</c> before the render. Both methods take a single
     /// <paramref name="objOffset"/>. A follow-up must add an <c>obj2Offset</c>
     /// parameter and concat the two byte arrays before calling
     /// <see cref="ImageUtilCore.DecodeTSA"/> when the caller supplies a valid
@@ -54,6 +60,11 @@ namespace FEBuilderGBA
 
         // GBA LZ77 stream header is 4 bytes (0x10 marker + 3-byte uncompressed size).
         const int LZ77_HEADER_BYTES = 4;
+
+        // Sanity upper bound: refuse to allocate a tile-index array larger than
+        // a 4096×4096 tile canvas (each tile is 16 px, so 4096*4096/256 = 65536
+        // logical tiles). Prevents large-alloc denial-of-service on corrupt ROMs.
+        const long MAX_CHANGE_TILES = 4096L * 4096 / 256;
 
         /// <summary>
         /// Composite a full chapter-map image from its four already-resolved ROM
@@ -125,9 +136,64 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>
+        /// Composite a change-map overlay image from its already-resolved ROM offsets
+        /// and caller-supplied dimensions, mirroring WinForms
+        /// <c>ImageUtilMap.DrawChangeMap</c>.
+        ///
+        /// <para>The change-data at <paramref name="changeDataOffset"/> is a
+        /// <b>RAW (uncompressed)</b> array of <c>width * height</c> u16 tile-index
+        /// values — NOT LZ77. The same <c>index = u16value &lt;&lt; 1</c> descriptor
+        /// lookup into <paramref name="configOffset"/> is used as in
+        /// <see cref="RenderMapImage"/>.</para>
+        ///
+        /// <para>OBJ (<paramref name="objOffset"/>) and config
+        /// (<paramref name="configOffset"/>) remain LZ77-compressed (same as the
+        /// chapter-map path). Palette (<paramref name="paletteOffset"/>) remains
+        /// RAW 512 bytes.</para>
+        ///
+        /// <para><b>Never throws.</b> Returns <c>null</c> on any guard failure.
+        /// Width/height of zero, out-of-bounds changeDataOffset, or oversized
+        /// dimensions all return <c>null</c> without allocating.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (read-only; never written).</param>
+        /// <param name="objOffset">ROM offset of the LZ77-compressed OBJ tile data.</param>
+        /// <param name="paletteOffset">ROM offset of the RAW 512-byte palette block.</param>
+        /// <param name="configOffset">ROM offset of the LZ77-compressed config data.</param>
+        /// <param name="changeDataOffset">
+        /// ROM offset of the RAW u16 array of <c>width * height</c> tile-index values.
+        /// Mirrors the WF <c>DrawChangeMap</c> <c>change_address</c> parameter
+        /// (already converted from GBA pointer to ROM offset by the caller).
+        /// </param>
+        /// <param name="width">Width of the change region in logical tiles (from B3 of the change record).</param>
+        /// <param name="height">Height of the change region in logical tiles (from B4 of the change record).</param>
+        /// <returns>
+        /// RGBA <see cref="IImage"/> of <c>width*16 × height*16</c> pixels on success,
+        /// or <c>null</c> on any guard failure (including oversized or empty dimensions).
+        ///
+        /// When an individual change-data entry's config descriptor index is out of
+        /// range, that tile is <b>skipped</b> (matching the PR1 inherited divergence
+        /// from WF <c>DrawChangeMap</c> which returns <c>BlankDummy</c> on the first
+        /// out-of-range tile). A partial image is returned rather than null.
+        /// </returns>
+        public static IImage RenderChangeMap(ROM rom, uint objOffset, uint paletteOffset,
+            uint configOffset, uint changeDataOffset, int width, int height)
+        {
+            try
+            {
+                return RenderChangeMapCore(rom, objOffset, paletteOffset, configOffset,
+                    changeDataOffset, width, height);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"MapRenderCore.RenderChangeMap failed: {ex}");
+                return null;
+            }
+        }
+
         // =====================================================================
         // Internal implementation — same contract as the public surface above,
-        // but allowed to throw (the public wrapper catches all exceptions).
+        // but allowed to throw (the public wrappers catch all exceptions).
         // =====================================================================
 
         static IImage RenderMapImageCore(ROM rom, uint objOffset, uint paletteOffset,
@@ -141,8 +207,6 @@ namespace FEBuilderGBA
             if (CoreState.ImageService == null) return null;
 
             // --- Step 2 (MR3): OBJ tiles — LZ77 raw bytes ---
-            // Validate the compressed stream BEFORE decompress (truncation guard
-            // mirrors ImageTSAEditorCore.TryLoadTSATileAndPalette, PR #818/#819).
             if (!IsLZ77HeaderSafe(rom, objOffset)) return null;
             uint objCompressedSize = LZ77.getCompressedSize(rom.Data, objOffset);
             if (objCompressedSize == 0) return null;
@@ -150,20 +214,9 @@ namespace FEBuilderGBA
             byte[] objBytes = LZ77.decompress(rom.Data, objOffset);
             if (objBytes == null || objBytes.Length == 0) return null;
 
-            // --- Step 3 (CORRECTION): Palette — RAW 512 bytes from passed rom ---
-            // Use the passed `rom` directly (NOT CoreState.ROM / GetPalette) so
-            // the call is authoritative on the ROM instance the caller controls.
-            if (!U.isSafetyOffset(paletteOffset, rom)) return null;
-            int palBytes = PALETTE_BYTES;
-            if ((ulong)paletteOffset + (ulong)palBytes > (ulong)rom.Data.Length)
-            {
-                // Clamp to ROM end (matching ImageTSAEditorCore's palette truncation
-                // tolerance — DecodeTileToPixels bounds-checks short palettes).
-                palBytes = (int)((ulong)rom.Data.Length - paletteOffset);
-            }
-            if (palBytes <= 0) return null;
-            byte[] palette = new byte[palBytes];
-            Array.Copy(rom.Data, paletteOffset, palette, 0, palBytes);
+            // --- Step 3: Palette — RAW 512 bytes ---
+            byte[] palette = ReadRawPalette(rom, paletteOffset);
+            if (palette == null) return null;
 
             // --- Step 4: Config (chipset) — LZ77 decompress ---
             if (!IsLZ77HeaderSafe(rom, configOffset)) return null;
@@ -186,9 +239,89 @@ namespace FEBuilderGBA
             if (width <= 0 || height <= 0) return null;
 
             // The u16 tile-index array starts at mar[2].
-            // Total bytes needed: 2 header + width*height u16 entries.
             if (2 + width * height * 2 > mar.Length) return null;
 
+            // Build the ushort[] tile-index array from the MAR data.
+            int tileCount = width * height;
+            ushort[] tileIndices = new ushort[tileCount];
+            for (int i = 0; i < tileCount; i++)
+            {
+                int byteOff = 2 + i * 2;
+                tileIndices[i] = (ushort)(mar[byteOff] | ((int)mar[byteOff + 1] << 8));
+            }
+
+            return RenderTsaComposite(rom, objBytes, palette, configUZ, tileIndices, width, height);
+        }
+
+        static IImage RenderChangeMapCore(ROM rom, uint objOffset, uint paletteOffset,
+            uint configOffset, uint changeDataOffset, int width, int height)
+        {
+            // --- Guard 1: null / ImageService ---
+            if (rom == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            // --- Guard 2: dimension sanity ---
+            if (width <= 0 || height <= 0) return null;
+            long tileCount = (long)width * height;
+            if (tileCount > MAX_CHANGE_TILES) return null;
+
+            // --- Guard 3: change-data bounds ---
+            // changeDataOffset is a ROM offset (already converted by caller via U.toOffset).
+            if (!U.isSafetyOffset(changeDataOffset, rom)) return null;
+            long changeDataEnd = (long)changeDataOffset + tileCount * 2;
+            if (changeDataEnd > rom.Data.Length) return null;
+
+            // --- Step OBJ: LZ77 raw bytes ---
+            if (!IsLZ77HeaderSafe(rom, objOffset)) return null;
+            uint objCompressedSize = LZ77.getCompressedSize(rom.Data, objOffset);
+            if (objCompressedSize == 0) return null;
+            if ((ulong)objOffset + objCompressedSize > (ulong)rom.Data.Length) return null;
+            byte[] objBytes = LZ77.decompress(rom.Data, objOffset);
+            if (objBytes == null || objBytes.Length == 0) return null;
+
+            // --- Step PAL: RAW 512 bytes ---
+            byte[] palette = ReadRawPalette(rom, paletteOffset);
+            if (palette == null) return null;
+
+            // --- Step CFG: LZ77 decompress ---
+            if (!IsLZ77HeaderSafe(rom, configOffset)) return null;
+            uint cfgCompressedSize = LZ77.getCompressedSize(rom.Data, configOffset);
+            if (cfgCompressedSize == 0) return null;
+            if ((ulong)configOffset + cfgCompressedSize > (ulong)rom.Data.Length) return null;
+            byte[] configUZ = LZ77.decompress(rom.Data, configOffset);
+            if (configUZ == null || configUZ.Length == 0) return null;
+
+            // --- Step CHG: read the RAW u16 tile-index array ---
+            ushort[] tileIndices = new ushort[tileCount];
+            for (long i = 0; i < tileCount; i++)
+            {
+                uint byteOff = (uint)(changeDataOffset + i * 2);
+                tileIndices[i] = (ushort)U.u16(rom.Data, byteOff);
+            }
+
+            return RenderTsaComposite(rom, objBytes, palette, configUZ, tileIndices, width, height);
+        }
+
+        /// <summary>
+        /// Shared private helper: given already-decoded OBJ bytes, palette bytes,
+        /// config (chipset) bytes, and a flat ushort[] tile-index array, composite
+        /// the <c>width × height</c> logical-tile canvas and return an
+        /// <see cref="IImage"/>.
+        ///
+        /// <para>This is the byte-identical core extracted from PR1's
+        /// <c>RenderMapImageCore</c> step 6+7. Both <c>RenderMapImage</c> and
+        /// <c>RenderChangeMap</c> differ only in how they obtain the
+        /// <paramref name="tileIndices"/> array (LZ77-MAR vs. raw u16 block).</para>
+        ///
+        /// <para>Out-of-range config <c>descOff</c> entries are <b>skipped</b>
+        /// (zero-filled subtile slots) — matching the PR1 divergence from WF
+        /// <c>DrawMap</c> / <c>DrawChangeMap</c>, which bail on the first such tile.
+        /// A partial image is returned rather than null.</para>
+        /// </summary>
+        static IImage RenderTsaComposite(ROM rom,
+            byte[] objBytes, byte[] palette, byte[] configUZ,
+            ushort[] tileIndices, int width, int height)
+        {
             // --- Step 6 (MR1): Build expanded per-subtile TSA byte[] ---
             // Each logical tile (16×16 px) expands to 2×2 subtiles (8×8 px each),
             // so the canvas is (width*2) × (height*2) subtiles.
@@ -201,23 +334,25 @@ namespace FEBuilderGBA
             // (lines 277-318) to stay bug-for-bug identical with the reference.
             int x = 0;  // subtile x (increments by 2 per logical tile)
             int y = 0;  // subtile y
-            for (int i = 2; i + 1 < mar.Length; i += 2)
+            int totalTiles = tileIndices.Length;
+            for (int t = 0; t < totalTiles; t++)
             {
-                // Read the MAR u16 for this logical tile (little-endian).
-                int m = mar[i] | ((int)mar[i + 1] << 8);
+                // Read the u16 tile index for this logical tile.
+                int m = tileIndices[t];
 
                 // MR1: config byte-offset = m << 1 (WF: tile_tsa_index = m << 1).
                 int descOff = m << 1;
 
                 if (descOff + 7 >= configUZ.Length)
                 {
-                    // DIVERGENCE from WF: WF `ImageUtilMap.DrawMap` (line 284-287)
-                    // calls `return ImageUtil.BlankDummy()` when a tile's descriptor
-                    // offset is out of range, blanking the ENTIRE map output.
+                    // DIVERGENCE from WF: WF `ImageUtilMap.DrawMap` (line 284-287) and
+                    // `DrawChangeMap` (line 464-466) return `BlankDummy` / `BlankDummy(16)`
+                    // when a tile's descriptor offset is out of range, blanking the ENTIRE
+                    // canvas output.
                     // For a read-only preview we instead skip only the offending tile
                     // (the zero-initialized canvas slot stays zero, mapping to
                     // tile 0, palette bank 0, no flip — a benign blank tile) and
-                    // continue rendering the rest of the map.  A partial image is
+                    // continue rendering the rest of the canvas.  A partial image is
                     // more useful than a fully-blank preview for a single corrupt
                     // descriptor.  Each tile writes to independent subtile slots, so
                     // skipping one tile cannot corrupt the rest of the render.
@@ -266,6 +401,24 @@ namespace FEBuilderGBA
         // =====================================================================
         // Private helpers
         // =====================================================================
+
+        /// <summary>
+        /// Read the raw palette bytes from ROM at <paramref name="paletteOffset"/>.
+        /// Clamps to ROM end when the full 512 bytes are not available (matching
+        /// the ImageTSAEditorCore truncation-tolerance pattern).
+        /// Returns null when the offset is unsafe or no bytes are available.
+        /// </summary>
+        static byte[] ReadRawPalette(ROM rom, uint paletteOffset)
+        {
+            if (!U.isSafetyOffset(paletteOffset, rom)) return null;
+            int palBytes = PALETTE_BYTES;
+            if ((ulong)paletteOffset + (ulong)palBytes > (ulong)rom.Data.Length)
+                palBytes = (int)((ulong)rom.Data.Length - paletteOffset);
+            if (palBytes <= 0) return null;
+            byte[] palette = new byte[palBytes];
+            Array.Copy(rom.Data, paletteOffset, palette, 0, palBytes);
+            return palette;
+        }
 
         /// <summary>
         /// Write a 16-bit TSA entry as little-endian bytes into <paramref name="tsaBuffer"/>
