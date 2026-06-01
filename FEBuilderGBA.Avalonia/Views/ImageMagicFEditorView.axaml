@@ -67,8 +67,7 @@
         <Button DockPanel.Dock="Bottom"
                 AutomationProperties.AutomationId="ImageMagicFEditor_MagicListExpand_Button"
                 Name="MagicListExpandButton" Content="Expand List"
-                IsEnabled="False"
-                ToolTip.Tip="Pending Core extraction - tracked by #500."
+                ToolTip.Tip="Expand the magic-effect + CSA spell tables to 254 entries."
                 Click="MagicListExpand_Click" HorizontalAlignment="Stretch"
                 Margin="2" IsVisible="True" />
         <controls:AddressListControl

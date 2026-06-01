@@ -244,6 +244,58 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CoreState.CommentCache?.Update(CurrentAddr, Comment ?? "");
         }
 
+        /// <summary>True when the spell-data table is expanded past the
+        /// original per-version magic count, i.e. the "Data Expansion" button
+        /// should be hidden. Mirrors WF
+        /// <c>MagicListExpandsButton.Enabled = false</c> when
+        /// <c>DataCount &gt; magic_effect_original_data_count</c>.</summary>
+        public bool IsListExpanded
+        {
+            get
+            {
+                var rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return false;
+                return _spellDataCount > rom.RomInfo.magic_effect_original_data_count;
+            }
+        }
+
+        /// <summary>
+        /// Expand the magic-effect pointer table (table-1) AND the CSA spell
+        /// table (table-2) to the fixed <see cref="MagicListExpandCore.NewCount"/>
+        /// (254) rows via the all-reference path
+        /// (<see cref="MagicListExpandCore.ExpandMagicLists"/> →
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> +
+        /// <see cref="DataExpansionCore.RepointAllReferences"/>). Mirrors WF
+        /// <c>ImageMagicCSACreatorForm.MagicListExpandsButton_Click</c> (#837;
+        /// byte-identical to the FEditor handler).
+        ///
+        /// <para>The CSA spell-table-pointer discovery + NOT_FOUND clean-abort
+        /// runs FIRST inside the Core helper (before the table-1 expand), so a
+        /// ROM without the CSA table is rejected with ZERO mutation.</para>
+        /// </summary>
+        /// <param name="undo">Active undo buffer (same transaction).</param>
+        /// <returns>Empty string on success, an error message otherwise.</returns>
+        public string ExpandMagicLists(Undo.UndoData undo)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return R._("ROM not loaded.");
+
+            // table-1 current count = magic-effect spell-data count.
+            uint magicEffectCurrentCount = MagicCSACore.ComputeSpellDataCount(rom);
+            // table-2 current count = the displayed list row count (WF
+            // InputFormRef.DataCount).
+            uint csaCurrentCount = (uint)LoadList().Count;
+
+            var result = MagicListExpandCore.ExpandMagicLists(
+                rom, magicEffectCurrentCount, csaCurrentCount, undo);
+            if (!result.Success)
+                return result.Error ?? R._("Table expansion failed.");
+
+            // NOTE B: refresh the cached spell-data count from the grown table.
+            _spellDataCount = MagicCSACore.ComputeSpellDataCount(rom);
+            return "";
+        }
+
         // ---- IDataVerifiable ----
 
         public int GetListCount() => LoadList().Count;

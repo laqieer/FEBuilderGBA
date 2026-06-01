@@ -22340,6 +22340,22 @@ KnownGap: 实时位图预览等待 Core 抽取。
 已将世界地图国境列表扩展为 {0} 个条目。
 :Expanded world map icon-data list to {0} entries.
 已将世界地图图标数据列表扩展为 {0} 个条目。
+:Expand the magic-effect + CSA spell tables to 254 entries.
+将魔法特效表 + CSA魔法表扩展为 254 个条目。
+:Expand the magic table? This grows the list to 254 entries.
+是否扩展魔法表？这会将列表扩展为 254 个条目。
+:Expanded magic list to 254 entries.
+已将魔法列表扩展为 254 个条目。
+:List expansion failed: {0}
+列表扩展失败: {0}
+:CSASpellTable Not Found.
+未找到 CSA 魔法表。
+:New count ({0}) must be greater than the current count ({1}).
+新数量({0})必须大于当前数量({1})。
+:ROM not loaded.
+未加载 ROM。
+:Table expansion failed.
+表扩展失败。
 :KnownGap: DecreaseColorTSAToolForm not yet ported.
 KnownGap: DecreaseColorTSAToolForm 尚未移植。
 :KnownGap: ResourceCache source-file feature not yet wired in Avalonia.

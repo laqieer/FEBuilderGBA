@@ -147,7 +147,8 @@ public class ImageMagicCSACreatorParityTests
     [InlineData("ImageMagicCSACreator_OpenSource_Button")]
     [InlineData("ImageMagicCSACreator_SelectSource_Button")]
     [InlineData("ImageMagicCSACreator_Editor_Button")]
-    [InlineData("ImageMagicCSACreator_ListExpand_Button")]
+    // NOTE: ListExpand_Button is NO LONGER deferred — wired in #837. See
+    // View_ListExpandButton_IsWired below.
     public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string automationId)
     {
         string axaml = ReadAxaml();
@@ -162,6 +163,31 @@ public class ImageMagicCSACreatorParityTests
 
         Assert.Contains("IsEnabled=\"False\"", element);
         Assert.Contains("#500", element);
+    }
+
+    /// <summary>
+    /// #837 — the CSA "Data Expansion" (ListExpand) button is now WIRED: the
+    /// AXAML element no longer hard-codes IsEnabled="False" nor references the
+    /// stale #500 follow-up (enablement is driven at runtime by
+    /// UpdateListExpandVisibility), and the Click handler is bound.
+    /// </summary>
+    [Fact]
+    public void View_ListExpandButton_IsWired()
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf("AutomationId=\"ImageMagicCSACreator_ListExpand_Button\"",
+            StringComparison.Ordinal);
+        Assert.True(idx >= 0, "ListExpand button AutomationId not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        // Find the end of THIS Button element (its self-closing "/>"), so the
+        // Click attribute on the same element is included in the slice.
+        int elementEnd = axaml.IndexOf("/>", idx, StringComparison.Ordinal);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 2);
+
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("#500", element);
+        Assert.Contains("Click=\"ListExpand_Click\"", element);
     }
 
     // -----------------------------------------------------------------
