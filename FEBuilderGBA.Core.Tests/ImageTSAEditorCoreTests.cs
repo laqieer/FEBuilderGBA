@@ -446,6 +446,312 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // =================================================================
+        // RenderChipList (#819) — the 4-column single-bank chip-list strip
+        // mirroring WF ImageTSAEditorForm.MakeCHIPLIST:
+        //   * Output = 32 x (tileCount*8): 4 columns of 8px (orig / Hflip /
+        //     Vflip / HVflip), one 8x8 cell per tile-row, SINGLE palette bank 0.
+        //   * index 0 renders OPAQUE.
+        // Reuses the #810 synthetic-ROM harness (MarkerTiles + StandardPalette).
+        // MarkerTiles() = 2 tiles: tile 0 all index 0, tile 1 index-1 fill with
+        // an index-2 marker at (0,0). So tile 1 sits on the SECOND row (tileY=8).
+        // bank0 idx1=red, idx2=green; bank1 idx1=blue, idx2=white; color 0 =
+        // black (unset) but OPAQUE.
+        // =================================================================
+
+        [Fact]
+        public void RenderChipList_RendersThirtyTwoByTileCountTimesEightDimensions()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());          // 2 tiles
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // 4 columns * 8px = 32 wide.
+                Assert.Equal(32, img.Width);
+                // 2 tiles * 8px = 16 tall.
+                Assert.Equal(16, img.Height);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_SingleTile_RendersThirtyTwoByEight()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, SingleMarkerTile());      // exactly 1 tile
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                Assert.Equal(32, img.Width);   // 4 cols * 8
+                Assert.Equal(8, img.Height);   // 1 tile * 8
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_OriginalColumn_HasMarkerTopLeft()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // tile 1 is on the 2nd row -> tileY = 8. col 0 (orig, x base 0):
+                // marker src(0,0) stays at (0, 8) = green; neighbour (1, 8) = red.
+                AssertPixel(img, 0, 8, 0, 248, 0, 255);
+                AssertPixel(img, 1, 8, 248, 0, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_HFlipColumn_MovesMarkerToTopRight()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // col 1 (Hflip, x base 8): src(0,0) -> local x=7 -> global (15, 8).
+                AssertPixel(img, 15, 8, 0, 248, 0, 255);
+                // The column's local (0,0) is now an index-1 (red) pixel.
+                AssertPixel(img, 8, 8, 248, 0, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_VFlipColumn_MovesMarkerToBottomLeft()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // col 2 (Vflip, x base 16): src(0,0) -> local y=7 -> global (16, 15).
+                AssertPixel(img, 16, 15, 0, 248, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_HVFlipColumn_MovesMarkerToBottomRight()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // col 3 (HVflip, x base 24): src(0,0) -> local (7,7) -> global (31, 15).
+                AssertPixel(img, 31, 15, 0, 248, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_UsesPaletteBank0_NotBank1()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // The marker (index 2) renders as GREEN (bank 0 idx2 = 0x03E0),
+                // NOT white (bank 1 idx2 = 0x7FFF). This proves bank 0 is used.
+                AssertPixel(img, 0, 8, 0, 248, 0, 255);
+                // And the index-1 fill is RED (bank 0), not blue (bank 1).
+                AssertPixel(img, 1, 8, 248, 0, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_SingleBank_NoFifthThroughEighthColumns()
+        {
+            // The structural difference from #807's 8-col/2-bank chip list: this
+            // chip list is SINGLE bank, exactly 4 columns wide (32px). There is
+            // no bank-1 5th-8th column, so the canvas width must be 32 (not 64).
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // Width is exactly the 4 single-bank columns -> 32. Were a 5th-8th
+                // bank-1 column present (the #807 layout) the width would be 64.
+                Assert.Equal(32, img.Width);
+                // Every RGBA pixel lives within the 32-wide buffer; the pixel data
+                // length equals exactly 32 * height * 4 (no extra bank-1 columns).
+                byte[] px = img.GetPixelData();
+                Assert.Equal(32 * img.Height * 4, px.Length);
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_Index0_RendersOpaque()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());          // tile 0 = all index 0
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // tile 0 is on the FIRST row (tileY=0), entirely index 0. Per WF
+                // MakeCHIPLIST (transparent_index 0xFF + Blank color-0 bg), index 0
+                // must render OPAQUE (alpha 255). color 0 = 0x0000 = black.
+                byte[] px = img.GetPixelData();
+                Assert.Equal(255, px[(0 * img.Width + 0) * 4 + 3]);   // (0,0) alpha
+                Assert.Equal(255, px[(7 * img.Width + 7) * 4 + 3]);   // (7,7) alpha
+                AssertPixel(img, 0, 0, 0, 0, 0, 255);                 // opaque black
+            });
+        }
+
+        // ----- RenderChipList null / out-of-bounds safety -----
+
+        [Fact]
+        public void RenderChipList_NullRom_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    null, IMAGE_OFFSET, PALETTE_OFFSET));
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_NoImageService_ReturnsNull()
+        {
+            var rom = MakeRom();
+            PlantImage(rom, MarkerTiles());
+            PlantPalette(rom, StandardPalette());
+
+            var saved = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = null;
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET));
+            }
+            finally { CoreState.ImageService = saved; }
+        }
+
+        [Fact]
+        public void RenderChipList_CorruptImagePointer_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantPalette(rom, StandardPalette());
+                // imageAddr at header (0) -> isSafetyOffset false.
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    rom, 0, PALETTE_OFFSET));
+                // imageAddr at a zero-filled region -> not a valid LZ77 stream.
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET));
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_CorruptPalettePointer_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                // paletteAddr at header (0) -> isSafetyOffset false.
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, 0));
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_TruncatedLz77Image_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantPalette(rom, StandardPalette());
+                // Valid 0x10 header claiming 0x100 bytes, planted 4 bytes from the
+                // ROM end so the stream is truncated -> getCompressedSize == 0.
+                uint addr = (uint)rom.Data.Length - 4;
+                rom.Data[addr + 0] = 0x10;
+                rom.Data[addr + 1] = 0x00;
+                rom.Data[addr + 2] = 0x01;
+                rom.Data[addr + 3] = 0x00;
+                Assert.Equal(0u, LZ77.getCompressedSize(rom.Data, addr));
+                Assert.Null(ImageTSAEditorCore.RenderChipList(
+                    rom, addr, PALETTE_OFFSET));
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_ImagePointerAtLastBytes_NoThrow_ReturnsNull()
+        {
+            // #818 last-bytes-pointer no-throw case: an image address within the
+            // final 4 bytes of ROM must not throw inside LZ77.getCompressedSize /
+            // the end-of-ROM bound guard -- it returns null gracefully.
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantPalette(rom, StandardPalette());
+                uint imageNearEnd = (uint)rom.Data.Length - 2;
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, imageNearEnd, PALETTE_OFFSET);
+                Assert.Null(img); // no throw, bounded read
+            });
+        }
+
+        [Fact]
+        public void RenderChipList_PaletteNearRomEnd_ClampsWithoutThrowing()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                uint paletteNearEnd = (uint)rom.Data.Length - 10; // < 512 bytes left
+                IImage img = ImageTSAEditorCore.RenderChipList(
+                    rom, IMAGE_OFFSET, paletteNearEnd);
+                Assert.NotNull(img); // clamped palette read, no throw
+            });
+        }
+
         // -----------------------------------------------------------------
         // Helpers
         // -----------------------------------------------------------------
@@ -476,6 +782,17 @@ namespace FEBuilderGBA.Core.Tests
             byte[] tiles = new byte[2 * 32];
             FillTile(tiles, 1, 1);
             SetPixel(tiles, 1, 0, 0, 2);
+            return tiles;
+        }
+
+        /// <summary>Exactly 1 tile: index-1 fill with an index-2 marker at (0,0)
+        /// (the same shape as MarkerTiles()' tile 1, but as the sole tile so the
+        /// chip-list tileCount is 1).</summary>
+        static byte[] SingleMarkerTile()
+        {
+            byte[] tiles = new byte[1 * 32];
+            FillTile(tiles, 0, 1);
+            SetPixel(tiles, 0, 0, 0, 2);
             return tiles;
         }
 

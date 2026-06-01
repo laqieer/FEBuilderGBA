@@ -31,7 +31,7 @@
   -->
 
   <!-- BattleCanvasRender RESOLVED (#808): the TSA-composited main image is now rendered cross-platform via ImageTSAEditorCore.TryRenderMainImage into BattlePreview, with a read-only Export PNG button. Note: export is intentionally NOT byte-identical to the WF canvas for TSA tile indices >= 0x100 because the Core decoder uses the full 10-bit index (& 0x3FF) like ImageUtil.ByteToImage16Tile, whereas the WF TSA canvas masks tile numbers to 8 bits (& 0xff). The 10-bit value is the on-ROM truth, so this is acceptable for a read-only export. -->
-  <!-- KnownGap: ChipsetListRender reason=PATHCHIPLIST permuted chipset (orig + H flip + V flip + HV flip) requires the same WinForms ImageUtil.Copy + BitBlt pipeline; deferred consistent with PR #577 and PR #513. -->
+  <!-- ChipsetListRender RESOLVED (#819): the chip-list thumbnail (WF MakeCHIPLIST / PATHCHIPLIST_Paint) is now rendered cross-platform via ImageTSAEditorCore.RenderChipList into ChipListPreview — the main-image tiles in WF's 4-column (orig / Hflip / Vflip / HVflip) single-palette-bank-0 strip, read-only. Follow-up to #808/#810 (shared TSA tile/palette loader) and #807 (the 8-col/2-bank battle-screen sibling). -->
   <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. Deferred; only the palette-write path is exercised by the Write button in this PR. -->
   <!-- KnownGap: PaletteToClipboard reason=System.Windows.Forms.Clipboard interop is WinForms-only; Avalonia equivalent (TopLevel.Clipboard async API) is a separate cross-cutting refactor not in scope here. The Clipboard button (label クリップボード) renders as a disabled stub so the labels audit still passes. -->
   <!-- KnownGap: MainImageImportExport reason=image1_Import / image1_Export call into ImageFormRef.ImportImageHandler / ExportImageHandler which depend on the full WinForms ImageFormRef ROM-write pipeline; deferred consistent with #513's BatchPng deferral. The Image Import / Image Export buttons (labels 画像読込 / 画像取出) render as disabled stubs so the labels audit still passes. -->
@@ -98,7 +98,9 @@
       <controls:AddressListControl AutomationProperties.AutomationId="ImageTSAEditor_Entry_List"
                                    Grid.Row="0" Name="EntryList" />
       <Label Grid.Row="1" Content="Chipset Preview" Margin="0,4,0,0" />
-      <!-- Chipset thumbnail (CHIPLIST + PATHCHIPLIST_Paint) - KnownGap: ChipsetListRender -->
+      <!-- Chipset thumbnail (WF MakeCHIPLIST / PATHCHIPLIST_Paint) — RESOLVED (#819):
+           rendered via ImageTSAEditorCore.RenderChipList into ChipListPreview
+           on entry-load + after a successful write (see RefreshChipList). -->
       <Border Grid.Row="2" BorderBrush="DarkGray" BorderThickness="1" Margin="0,4,0,0">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
           <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_ChipList_Image"

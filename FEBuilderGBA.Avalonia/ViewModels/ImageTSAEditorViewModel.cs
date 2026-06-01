@@ -11,9 +11,12 @@
 //     16 ushort entries through rom.write_u16(...) so an ambient
 //     UndoService.Begin scope captures them.
 //
+// RESOLVED (#808): BattleCanvasRender — RenderMainImage delegates to
+//   ImageTSAEditorCore.TryRenderMainImage (read-only TSA-composited main image).
+// RESOLVED (#819): ChipsetListRender — RenderChipList delegates to
+//   ImageTSAEditorCore.RenderChipList (read-only orig/Hflip/Vflip/HVflip strip).
+//
 // Out-of-scope (KnownGap markers in the AXAML cover the labels-sweep audit):
-//   - BattleCanvasRender    — live LZ77 + TSA blit through ImageUtil.BitBlt
-//   - ChipsetListRender     — permuted (orig / Hflip / Vflip / HVflip) chipset
 //   - TSAByteWrite          — ImageFormRef.WriteImageData pointer-aware realloc
 //   - PaletteToClipboard    — system clipboard interop (WinForms-only API)
 //   - MainImageImportExport — image1_Import / image1_Export through ImageFormRef
@@ -188,6 +191,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return ImageTSAEditorCore.TryRenderMainImage(
                 rom, _width8, _height8, imageAddr,
                 _isHeaderTSA, _isLZ77TSA, tsaAddr, paletteAddr);
+        }
+
+        /// <summary>
+        /// Render the chip-list thumbnail (read-only) for the
+        /// <c>ChipListPreview</c> control (#819). Resolves the SAME image +
+        /// palette addresses as <see cref="RenderMainImage"/> (the chip list is
+        /// a pure tile-strip, so there is NO TSA pointer) and delegates to
+        /// <see cref="ImageTSAEditorCore.RenderChipList"/>.
+        ///
+        /// Returns null (no throw) when there is no context, when the image
+        /// pointer slot is unset (U.NOT_FOUND), or when the underlying render
+        /// fails. A NOT_FOUND palette pointer is NOT a failure — it is the
+        /// expected raw-address fallback handled by
+        /// <see cref="ResolveActivePaletteAddress"/>.
+        /// </summary>
+        public IImage RenderChipList()
+        {
+            if (!IsContextLoaded) return null;
+
+            // The image pointer slot must be real before we follow it with p32;
+            // only the palette pointer has a raw-address fallback. The chip list
+            // never reads the TSA stream, so _tsaPointer is irrelevant here.
+            if (_zimgPointer == U.NOT_FOUND) return null;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return null;
+
+            uint imageAddr = rom.p32(_zimgPointer);
+            uint paletteAddr = ResolveActivePaletteAddress();
+
+            return ImageTSAEditorCore.RenderChipList(rom, imageAddr, paletteAddr);
         }
 
         /// <summary>
