@@ -259,6 +259,117 @@ namespace FEBuilderGBA.Core.Tests
             AssertPixel(grid, 90, 0, 248, 0, 0, 255);
         }
 
+        // ================================================================
+        // #840 — palette-override overload: render with a UNIT-palette block
+        // INSTEAD of the record's own rec+0x1C palette, still applying the
+        // paletteIndex sub-palette slice.
+        // ================================================================
+
+        [Fact]
+        public void RenderSample_OverrideAddr0_IsIdenticalToTwoArgPath()
+        {
+            // The override overload with paletteOverrideAddr == 0 must be
+            // byte-identical to the existing two-arg #822 path (the record's own
+            // palette). This proves existing callers are unaffected.
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            IImage twoArg = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0);
+            IImage overrideZero = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
+            Assert.NotNull(twoArg);
+            Assert.NotNull(overrideZero);
+            Assert.True(ByteArraysEqual(twoArg.GetPixelData(), overrideZero.GetPixelData()),
+                "override-addr-0 must match the two-arg (record-own-palette) path exactly");
+        }
+
+        [Fact]
+        public void RenderSample_PaletteOverride_UsesOverrideBlock_NotRecordOwn()
+        {
+            // PRIMARY deterministic override-effect assertion (reviewer pref):
+            // the record's own palette (rec+0x1C) block 0 index 5 = GREEN.
+            // The OVERRIDE palette block 0 index 5 = MAGENTA. Rendering with the
+            // override address must yield MAGENTA at grid (0,0) — i.e. the
+            // unit-palette override block was used, NOT the anime's own palette.
+            ROM rom = MakeAnimeRom();
+            // Plant an override palette block (distinct colors) at OVERRIDE_PAL_OFFSET.
+            byte[] overridePal = new byte[64];
+            U.write_u16(overridePal, (0 * 16 + 5) * 2, 0x7C1F); // block0 idx5 = magenta (R31 B31)
+            U.write_u16(overridePal, (1 * 16 + 5) * 2, 0x03FF); // block1 idx5 = yellow  (R31 G31)
+            PlantCompressed(rom, OVERRIDE_PAL_OFFSET, overridePal);
+            CoreState.ROM = rom;
+
+            uint overrideAddr = U.toPointer(OVERRIDE_PAL_OFFSET);
+
+            // Sanity: the override pointer differs from the record's own palette
+            // pointer at rec+0x1C — so a render that used the record's own palette
+            // would NOT produce the override color (== GetUnitPaletteAddr ≠ rec+0x1C).
+            uint recordOwnPalettePtr = rom.u32(RECORD_OFFSET + 28);
+            Assert.NotEqual(recordOwnPalettePtr, overrideAddr);
+
+            IImage withOverride = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, overrideAddr);
+            Assert.NotNull(withOverride);
+            // Magenta (0x7C1F) -> R=248, G=0, B=248. Proves the UNIT-palette
+            // override block was applied, not the record's own green.
+            AssertPixel(withOverride, 0, 0, 248, 0, 248, 255);
+        }
+
+        [Fact]
+        public void RenderSample_PaletteOverride_DiffersFromRecordOwnPalette()
+        {
+            // Secondary pixel-diff: the same class/anime rendered with the unit
+            // palette override vs the record's own palette must differ.
+            ROM rom = MakeAnimeRom();
+            byte[] overridePal = new byte[64];
+            U.write_u16(overridePal, (0 * 16 + 5) * 2, 0x7C1F); // magenta (vs green rec-own)
+            PlantCompressed(rom, OVERRIDE_PAL_OFFSET, overridePal);
+            CoreState.ROM = rom;
+
+            IImage recordOwn    = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
+            IImage withOverride = BattleAnimeRendererCore.RenderSampleBattleAnime(
+                RECORD_OFFSET, 0, U.toPointer(OVERRIDE_PAL_OFFSET));
+            Assert.NotNull(recordOwn);
+            Assert.NotNull(withOverride);
+            Assert.False(ByteArraysEqual(recordOwn.GetPixelData(), withOverride.GetPixelData()),
+                "unit-palette override must change the rendered pixels vs the anime's own palette");
+        }
+
+        [Fact]
+        public void RenderSample_PaletteOverride_StillAppliesPaletteIndexSubPalette()
+        {
+            // The override picks the unit-palette BLOCK; paletteIndex still picks
+            // the SUB-palette within it. Override block 0 idx5 = magenta;
+            // block 1 idx5 = yellow. paletteIndex 0 -> magenta; 1 -> yellow.
+            ROM rom = MakeAnimeRom();
+            byte[] overridePal = new byte[64];
+            U.write_u16(overridePal, (0 * 16 + 5) * 2, 0x7C1F); // block0 idx5 = magenta
+            U.write_u16(overridePal, (1 * 16 + 5) * 2, 0x03FF); // block1 idx5 = yellow
+            PlantCompressed(rom, OVERRIDE_PAL_OFFSET, overridePal);
+            CoreState.ROM = rom;
+
+            uint overrideAddr = U.toPointer(OVERRIDE_PAL_OFFSET);
+            IImage idx0 = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, overrideAddr);
+            IImage idx1 = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 1, overrideAddr);
+            Assert.NotNull(idx0);
+            Assert.NotNull(idx1);
+            AssertPixel(idx0, 0, 0, 248, 0, 248, 255); // magenta = override block 0
+            AssertPixel(idx1, 0, 0, 248, 248, 0, 255); // yellow  = override block 1
+        }
+
+        [Fact]
+        public void RenderSample_PaletteOverride_UnsafeAddr_FallsBackToRecordOwn()
+        {
+            // A non-pointer / out-of-range override address is ignored (WF's
+            // `if (U.isSafetyOffset(addr)) palettes = p` guard) -> the record's
+            // own palette (green) is used.
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            // 0x12345678 is not a valid GBA pointer (top byte 0x12, not 0x08/0x09).
+            IImage grid = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0x12345678);
+            Assert.NotNull(grid);
+            AssertPixel(grid, 0, 0, 0, 248, 0, 255); // green = record's own palette
+        }
+
         [Fact]
         public void RenderSample_NullRom_ReturnsNull()
         {
@@ -519,7 +630,8 @@ namespace FEBuilderGBA.Core.Tests
         const uint SECTION_OFFSET  = 0x201000;
         const uint FRAME_OFFSET    = 0x202000; // LZ77-compressed frame stream
         const uint OAM_OFFSET      = 0x203000; // LZ77-compressed OAM
-        const uint PALETTE_OFFSET  = 0x204000; // LZ77-compressed palette
+        const uint PALETTE_OFFSET  = 0x204000; // LZ77-compressed palette (record's own)
+        const uint OVERRIDE_PAL_OFFSET = 0x205000; // LZ77-compressed UNIT-palette override (#840)
         const uint GFX_GREEN       = 0x210000; // LZ77 graphics: index 5 at (0,0)
         const uint GFX_RED         = 0x211000; // LZ77 graphics: index 5 at (0,0)
 
