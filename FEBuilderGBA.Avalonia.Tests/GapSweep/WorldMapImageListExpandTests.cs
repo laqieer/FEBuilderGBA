@@ -421,23 +421,28 @@ public class WorldMapImageListExpandTests : IDisposable
     static void PlantSecondaryRefs(ROM rom, uint baseAddr)
     {
         PlantPointer(rom, RawSlot, baseAddr);          // raw 32-bit pointer
-        rom.Data[LdrInstr + 0] = 0x00;                 // ldr r0,[pc,#0]
-        rom.Data[LdrInstr + 1] = 0x48;                 // = 0x4800
+        int ldrIdx = (int)LdrInstr;
+        rom.Data[ldrIdx + 0] = 0x00;                   // ldr r0,[pc,#0]
+        rom.Data[ldrIdx + 1] = 0x48;                   // = 0x4800
         PlantPointer(rom, LdrSlot, baseAddr);          // literal-pool slot
     }
 
     static void PlantFreeRegion(ROM rom, uint start, int length)
     {
+        // Index with int (compute the absolute offset once) — C# array
+        // indexers accept uint too, but int keeps the index type unambiguous.
+        int baseIdx = (int)start;
         for (int i = 0; i < length; i++)
-            rom.Data[start + (uint)i] = 0xFF;
+            rom.Data[baseIdx + i] = 0xFF;
     }
 
     static void PlantU32(ROM rom, uint addr, uint value)
     {
-        rom.Data[addr + 0] = (byte)(value & 0xFF);
-        rom.Data[addr + 1] = (byte)((value >> 8) & 0xFF);
-        rom.Data[addr + 2] = (byte)((value >> 16) & 0xFF);
-        rom.Data[addr + 3] = (byte)((value >> 24) & 0xFF);
+        int idx = (int)addr;
+        rom.Data[idx + 0] = (byte)(value & 0xFF);
+        rom.Data[idx + 1] = (byte)((value >> 8) & 0xFF);
+        rom.Data[idx + 2] = (byte)((value >> 16) & 0xFF);
+        rom.Data[idx + 3] = (byte)((value >> 24) & 0xFF);
     }
 
     static void PlantPointer(ROM rom, uint slotAddr, uint targetOffset)

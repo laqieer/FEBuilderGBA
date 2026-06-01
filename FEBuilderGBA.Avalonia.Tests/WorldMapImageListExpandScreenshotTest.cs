@@ -109,6 +109,19 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Drive the expand the same way the button does once confirmed:
             // open an undo scope, grow by +2, then refresh the list honoring the
             // new count (NOTE B — no re-scan).
+            //
+            // This is a one-shot screenshot test that never rolls back, so we do
+            // NOT Push the undo record into the shared CoreState.Undo buffer —
+            // doing so would leak undo history into later [Collection("SharedState")]
+            // tests (RomFixture does not restore CoreState.Undo), causing
+            // order-dependent failures. The local `ud` captures the writes for
+            // the scope's lifetime and is then discarded; the ROM bytes are
+            // written regardless. (Copilot PR #827 review thread 3.)
+            // Snapshot the shared undo buffer so we can prove this test does NOT
+            // leak undo history into later [Collection("SharedState")] tests.
+            int undoBufferCountBefore = CoreState.Undo.UndoBuffer.Count;
+            int undoPositionBefore = CoreState.Undo.Postion;
+
             uint newCount = (uint)rowsBefore + 2;
             var ud = CoreState.Undo.NewUndoData("WorldMap Border ExpandList screenshot");
             string err;
@@ -116,8 +129,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 err = InvokeExpand(view, newCount, ud);
             }
-            CoreState.Undo.Push(ud);
             Assert.True(string.IsNullOrEmpty(err), $"expand error: {err}");
+
+            // The shared undo buffer is untouched (no Push) — no shared-state leak.
+            Assert.Equal(undoBufferCountBefore, CoreState.Undo.UndoBuffer.Count);
+            Assert.Equal(undoPositionBefore, CoreState.Undo.Postion);
 
             Invoke(view, "RefreshBorderListFromReadConfig");
 
