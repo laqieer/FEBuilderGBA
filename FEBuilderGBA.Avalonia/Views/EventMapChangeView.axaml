@@ -136,15 +136,25 @@
                    Grid.Column="1" Name="CommentBox" Width="260" HorizontalAlignment="Left" />
         </Grid>
 
-        <!-- Map Picture placeholder (full rendering deferred; see plan
-             Scope Boundary). The Image keeps an AutomationId so the
-             parity scanner sees the surface; tile rendering is tracked
-             as a follow-up. -->
+        <!-- Map Picture: live change-overlay preview (#857, NV6-PR2).
+             GbaImageControl carries the rendered IImage and supports
+             the read-only Export PNG action. The AutomationId is kept
+             identical to the previous placeholder so the parity scanner
+             and automation scripts are unaffected. -->
         <Border BorderBrush="Gray" BorderThickness="1" Margin="0,8,0,0"
                 MinHeight="180" MinWidth="320">
-          <Image AutomationProperties.AutomationId="EventMapChange_MapPicture_Image"
-                 Name="MapPictureImage" Stretch="None" />
+          <controls:GbaImageControl AutomationProperties.AutomationId="EventMapChange_MapPicture_Image"
+                                    Name="MapPictureImage" />
         </Border>
+
+        <!-- Export PNG: read-only export of the change-overlay preview.
+             Gated on CanExportChange (non-null render). -->
+        <Button AutomationProperties.AutomationId="EventMapChange_ExportPng_Button"
+                Name="ExportPngButton"
+                Content="Export PNG"
+                IsEnabled="{Binding CanExportChange}"
+                Click="ExportPng_Click"
+                Margin="0,4,0,0" />
       </StackPanel>
     </ScrollViewer>
 

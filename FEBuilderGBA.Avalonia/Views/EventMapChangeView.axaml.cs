@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -22,6 +23,9 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventMapChangeView()
         {
             InitializeComponent();
+            // #857: DataContext needed for the CanExportChange binding on the
+            // Export PNG button (mirrors WorldMapImageView / ImageTSAEditorView).
+            DataContext = _vm;
             MapListBox.ItemsSource = _mapDisplayItems;
             MapListBox.SelectionChanged += MapListBox_SelectionChanged;
 
@@ -73,11 +77,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (ok)
                 {
                     UpdateUI();
+                    // #857: render the change-overlay preview after loading the entry.
+                    RenderChangePreview();
                 }
                 else
                 {
                     // No change-data for this map — clear the detail panel.
                     ClearDetail();
+                    // Clear the preview too.
+                    MapPictureImage.SetImage(null);
                 }
             }
             catch (Exception ex)
@@ -92,6 +100,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.LoadEntry(addr);
                 UpdateUI();
+                // #857: re-render preview when an entry is selected from the
+                // legacy AddressList (right column). The map ID was already set
+                // by the left-column MapListBox selection so _currentMapId is valid.
+                RenderChangePreview();
             }
             catch (Exception ex)
             {
@@ -151,6 +163,8 @@ namespace FEBuilderGBA.Avalonia.Views
             B7Box.Value = 0;
             P8Box.Text = "";
             CommentBox.Text = "";
+            // #857: clear preview.
+            MapPictureImage.SetImage(null);
         }
 
         void ReadFromUI()
@@ -198,6 +212,44 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("EventMapChangeView.Write_Click failed: {0}", ex.Message);
                 CoreState.Services?.ShowError($"Write failed: {ex.Message}");
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Change-overlay preview (#857, NV6-PR2).
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Render the change-map overlay into <see cref="MapPictureImage"/>
+        /// and update the <c>CanExportChange</c> binding gate.
+        /// </summary>
+        void RenderChangePreview()
+        {
+            try
+            {
+                IImage? img = _vm.RenderChangePreview();
+                MapPictureImage.SetImage(img);
+                // CanExportChange is set by the VM; the binding propagates
+                // to the Export PNG button automatically.
+            }
+            catch (Exception ex)
+            {
+                MapPictureImage.SetImage(null);
+                _vm.CanExportChange = false;
+                Log.Error($"EventMapChangeView.RenderChangePreview failed: {ex}");
+            }
+        }
+
+        /// <summary>Export the change-overlay preview as PNG.</summary>
+        async void ExportPng_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await MapPictureImage.ExportPng(this, "eventmapchange_overlay");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"EventMapChangeView.ExportPng failed: {ex}");
             }
         }
 

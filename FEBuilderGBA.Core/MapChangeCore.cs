@@ -34,6 +34,12 @@ namespace FEBuilderGBA
             /// LZ77-compressed 4bpp tile sheet.
             /// </summary>
             OBJECT,
+            /// <summary>
+            /// Palette PLIST table (<c>map_pal_pointer</c>). Used by the
+            /// Event Map Change overlay render (#857) to resolve the shared
+            /// palette for a given change event's parent map.
+            /// </summary>
+            PALETTE,
         }
 
         /// <summary>
@@ -154,9 +160,10 @@ namespace FEBuilderGBA
             if (rom?.RomInfo == null) return 0u;
             return type switch
             {
-                PlistType.CHANGE => rom.RomInfo.map_mapchange_pointer,
-                PlistType.CONFIG => rom.RomInfo.map_config_pointer,
-                PlistType.OBJECT => rom.RomInfo.map_obj_pointer,
+                PlistType.CHANGE  => rom.RomInfo.map_mapchange_pointer,
+                PlistType.CONFIG  => rom.RomInfo.map_config_pointer,
+                PlistType.OBJECT  => rom.RomInfo.map_obj_pointer,
+                PlistType.PALETTE => rom.RomInfo.map_pal_pointer,
                 _ => 0u,
             };
         }

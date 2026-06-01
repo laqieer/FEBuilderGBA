@@ -8,6 +8,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         const uint SIZE = 12;
 
+        // ----------------------------------------------------------------
+        // Preview state (issue #857, NV6-PR2).
+        // ----------------------------------------------------------------
+        bool _canExportChange;
+        /// <summary>
+        /// True when a change-map preview image has been successfully rendered.
+        /// Gates the read-only "Export PNG" button in the View.
+        /// </summary>
+        public bool CanExportChange { get => _canExportChange; set => SetField(ref _canExportChange, value); }
+
+        // Currently selected map ID — stored so RenderChangePreview can resolve
+        // the map_setting fields (obj_plist, palette_plist, config_plist).
+        uint _currentMapId = uint.MaxValue;
+
         // The detail-panel field layout. WF Designer.cs declares P8 as a
         // pointer (NumericUpDown Hexadecimal=true + InputFormRef pointer
         // semantics) — using "P8" here routes the read/write through
@@ -91,6 +105,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(addr, rom)) { ClearEntry(); return false; }
             if (addr + SIZE > (uint)rom.Data.Length) { ClearEntry(); return false; }
 
+            _currentMapId = mapId;
             LoadEventMapChange(addr);
             return true;
         }
@@ -128,6 +143,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ReadStartAddress = 0;
             ReadCount = 0;
             BlockSize = SIZE;
+            // Clear preview state (#857, NV6-PR2).
+            _currentMapId = uint.MaxValue;
+            CanExportChange = false;
         }
 
         // ----------------------------------------------------------------
@@ -270,6 +288,99 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (cache == null) return;
             if (CurrentAddr == 0) return;
             cache.Update(CurrentAddr, Comment);
+        }
+
+        // ----------------------------------------------------------------
+        // Change-map overlay preview (#857, NV6-PR2).
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Render the change-map overlay preview for the currently loaded
+        /// change record and currently selected map. Returns the rendered
+        /// <see cref="IImage"/> (may be <c>null</c> on any failure), and
+        /// updates <see cref="CanExportChange"/> accordingly.
+        ///
+        /// <para>Null-safe: returns <c>null</c> and clears
+        /// <see cref="CanExportChange"/> when no ROM, no entry, no valid
+        /// map_setting, or the Core render fails.</para>
+        /// </summary>
+        public IImage RenderChangePreview()
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null || rom.RomInfo == null || !IsLoaded || CurrentAddr == 0
+                    || _currentMapId == uint.MaxValue)
+                {
+                    CanExportChange = false;
+                    return null;
+                }
+
+                // Resolve map_setting address for the selected map.
+                uint mapSettingAddr = MapSettingCore.GetMapAddr(rom, _currentMapId);
+                if (!U.isSafetyOffset(mapSettingAddr, rom))
+                {
+                    CanExportChange = false;
+                    return null;
+                }
+                // Verify the map setting has the required fields at the expected offsets.
+                // map_setting layout (verified in plan review):
+                //   +4 (u16): obj_plist   — OBJ tileset PLIST index (take low byte: &0xFF)
+                //   +6 (u8):  palette_plist
+                //   +7 (u8):  config_plist
+                if (mapSettingAddr + 8u > (uint)rom.Data.Length)
+                {
+                    CanExportChange = false;
+                    return null;
+                }
+                uint objPlistRaw    = rom.u16(mapSettingAddr + 4);
+                uint palettePlist   = rom.u8(mapSettingAddr + 6);
+                uint configPlist    = rom.u8(mapSettingAddr + 7);
+
+                // The high byte of obj_plist is the FE7 obj2 index (DEFERRED, MR4).
+                // Use only the low byte for the primary OBJ tileset.
+                uint objPlist = objPlistRaw & 0xFFu;
+
+                // Resolve each plist to a ROM data offset.
+                uint objOffset     = MapChangeCore.PlistToOffsetAddr(rom, MapChangeCore.PlistType.OBJECT,  objPlist,     out _);
+                uint paletteOffset = MapChangeCore.PlistToOffsetAddr(rom, MapChangeCore.PlistType.PALETTE, palettePlist, out _);
+                uint configOffset  = MapChangeCore.PlistToOffsetAddr(rom, MapChangeCore.PlistType.CONFIG,  configPlist,  out _);
+
+                if (objOffset == U.NOT_FOUND || paletteOffset == U.NOT_FOUND || configOffset == U.NOT_FOUND)
+                {
+                    CanExportChange = false;
+                    return null;
+                }
+
+                // P8 is read via EditorFormRef.ReadFields → rom.p32, which already calls
+                // U.toOffset internally and returns a ROM offset.  The U.toOffset call here
+                // is an idempotent safety-normalize: it is a no-op on a valid ROM offset
+                // (< 0x08000000), but correctly converts a raw GBA pointer (≥ 0x08000000)
+                // in case the field was hand-edited to a raw pointer value before saving.
+                uint changeDataOffset = U.toOffset(P8);
+                if (!U.isSafetyOffset(changeDataOffset, rom))
+                {
+                    CanExportChange = false;
+                    return null;
+                }
+
+                // Width (B3) and height (B4) from the loaded change record.
+                int width  = (int)B3;
+                int height = (int)B4;
+
+                IImage img = MapRenderCore.RenderChangeMap(
+                    rom, objOffset, paletteOffset, configOffset,
+                    changeDataOffset, width, height);
+
+                CanExportChange = img != null;
+                return img;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"EventMapChangeViewModel.RenderChangePreview failed: {ex}");
+                CanExportChange = false;
+                return null;
+            }
         }
 
         public int GetListCount() => IsLoaded && CurrentAddr != 0 ? 1 : 0;
