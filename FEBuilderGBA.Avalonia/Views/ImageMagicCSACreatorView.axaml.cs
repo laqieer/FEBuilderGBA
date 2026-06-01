@@ -65,6 +65,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     ClearDetailPanel();
                     UpdateUI();
                 }
+
+                UpdateListExpandVisibility();
             }
             catch (Exception ex)
             {
@@ -192,10 +194,67 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // ---- deferred affordances (#500) ----
+        /// <summary>
+        /// Enable the "Data Expansion" button only when the CSA magic system is
+        /// present, and hide it once the table is already expanded past the
+        /// original per-version count (mirrors WF
+        /// <c>MagicListExpandsButton.Enabled = false</c> when
+        /// <c>DataCount &gt; magic_effect_original_data_count</c>). #837.
+        /// </summary>
+        void UpdateListExpandVisibility()
+        {
+            ListExpandButton.IsEnabled = _vm.MagicKind == MagicSystemKind.CsaCreator;
+            ListExpandButton.IsVisible = !_vm.IsListExpanded;
+        }
 
-        void ListExpand_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.ListExpand_Click invoked - disabled until #500 lands");
+        void ListExpand_Click(object? sender, RoutedEventArgs e)
+        {
+            // #837 — grow the magic-effect (table-1, entrySize 4) AND the CSA
+            // spell table (table-2, entrySize 20) to a fixed 254 rows via the
+            // all-reference path (DataExpansionCore.ExpandTableTo +
+            // RepointAllReferences). The CSA-pointer NOT_FOUND clean-abort runs
+            // FIRST inside the Core helper. Byte-identical to the WF
+            // ImageMagicCSACreatorForm.MagicListExpandsButton_Click handler.
+            if (CoreState.Services?.ShowYesNo(
+                    R._("Expand the magic table? This grows the list to 254 entries.")) != true)
+                return;
+
+            uint reloadAddr = _vm.CurrentAddr;
+
+            _undoService.Begin("Magic List Expansion");
+            try
+            {
+                string err = _vm.ExpandMagicLists(_undoService.GetActiveUndoData());
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // NOTE B: refresh the list from the grown table (LoadList scans
+                // via isPointerOrNULL and stops at the 0xFFFFFFFF terminator).
+                // Reselect the prior row + hide the spent expand button.
+                _vm.IsLoading = true;
+                try
+                {
+                    EntryList.SetItems(_vm.LoadList());
+                    if (reloadAddr != 0u) EntryList.SelectAddress(reloadAddr);
+                    UpdateListExpandVisibility();
+                }
+                finally { _vm.IsLoading = false; _vm.MarkClean(); }
+
+                CoreState.Services?.ShowInfo(R._("Expanded magic list to 254 entries."));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ImageMagicCSACreatorView.ListExpand: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
+            }
+        }
 
         void Import_Click(object? sender, RoutedEventArgs e) =>
             Log.Debug("ImageMagicCSACreatorView.Import_Click invoked - disabled until #500 lands");

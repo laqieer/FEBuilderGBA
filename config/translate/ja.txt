@@ -8505,6 +8505,22 @@ KnownGap: ライブビットマッププレビューはCore実装待ち。
 ワールドマップ国境リストを{0}エントリに拡張しました。
 :Expanded world map icon-data list to {0} entries.
 ワールドマップアイコンデータリストを{0}エントリに拡張しました。
+:Expand the magic-effect + CSA spell tables to 254 entries.
+魔法エフェクト + CSA魔法テーブルを254エントリに拡張します。
+:Expand the magic table? This grows the list to 254 entries.
+魔法テーブルを拡張してもよろしいですか？リストを254エントリに拡張します。
+:Expanded magic list to 254 entries.
+魔法リストを254エントリに拡張しました。
+:List expansion failed: {0}
+リストの拡張に失敗しました: {0}
+:CSASpellTable Not Found.
+CSA魔法テーブルが見つかりません。
+:New count ({0}) must be greater than the current count ({1}).
+新しい数({0})は現在の数({1})より大きくなければなりません。
+:ROM not loaded.
+ROMが読み込まれていません。
+:Table expansion failed.
+テーブルの拡張に失敗しました。
 :KnownGap: DecreaseColorTSAToolForm not yet ported.
 KnownGap: DecreaseColorTSAToolFormは未移植。
 :KnownGap: ResourceCache source-file feature not yet wired in Avalonia.

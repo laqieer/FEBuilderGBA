@@ -200,7 +200,9 @@ public class ImageMagicFEditorParityTests
     [InlineData("ImageMagicFEditor_MagicAnimeExport_Button")]
     [InlineData("ImageMagicFEditor_OpenSource_Button")]
     [InlineData("ImageMagicFEditor_SelectSource_Button")]
-    [InlineData("ImageMagicFEditor_MagicListExpand_Button")]
+    // NOTE: MagicListExpand_Button is NO LONGER deferred — it was wired in #837
+    // (ExpandTableTo + RepointAllReferences all-reference path). See
+    // View_MagicListExpandButton_IsWired below.
     public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string id)
     {
         // Simple regex check on the raw AXAML text — looks at the
@@ -220,6 +222,26 @@ public class ImageMagicFEditorParityTests
         Assert.Contains("IsEnabled=\"False\"", match.Value);
         Assert.Contains("ToolTip.Tip=", match.Value);
         Assert.Contains("#500", match.Value);
+    }
+
+    /// <summary>
+    /// #837 — the MagicListExpand button is now WIRED: the AXAML element no
+    /// longer hard-codes IsEnabled="False" nor references the stale #500
+    /// follow-up (enablement is driven at runtime by
+    /// UpdateWriteControlsEnabled), and the Click handler is bound.
+    /// </summary>
+    [Fact]
+    public void View_MagicListExpandButton_IsWired()
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationId=""ImageMagicFEditor_MagicListExpand_Button""[^>]*?/>",
+            RegexOptions.Singleline);
+        var match = pattern.Match(axaml);
+        Assert.True(match.Success, "Expected the MagicListExpand button element");
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
+        Assert.DoesNotContain("#500", match.Value);
+        Assert.Contains("Click=\"MagicListExpand_Click\"", match.Value);
     }
 
     // -----------------------------------------------------------------

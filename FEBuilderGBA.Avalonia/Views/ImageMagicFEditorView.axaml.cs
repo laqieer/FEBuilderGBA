@@ -86,10 +86,12 @@ namespace FEBuilderGBA.Avalonia.Views
             P12Box.IsEnabled = ok;
             P16Box.IsEnabled = ok;
             FrameBox.IsEnabled = ok;
-            // MagicListExpandButton is intentionally NOT re-enabled here -
-            // the underlying ExpandsArea call is WF-coupled and tracked by
-            // #500 (Copilot CLI review on PR #554 #4). The AXAML keeps
-            // IsEnabled="False" + ToolTip.Tip referencing #500.
+            // MagicListExpandButton enablement (#837): the expand is only
+            // meaningful when the FEditor/CSA magic system is present (the Core
+            // helper aborts on a NOT_FOUND CSA pointer anyway). Visibility is
+            // driven separately by UpdateListExpandVisibility (hidden once the
+            // table is already expanded — mirrors WF MagicListExpandsButton).
+            MagicListExpandButton.IsEnabled = ok;
         }
 
         void UpdatePatchNotice()
@@ -241,21 +243,55 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void MagicListExpand_Click(object? sender, RoutedEventArgs e)
         {
+            // #837 — grow the magic-effect (table-1, entrySize 4) AND the CSA
+            // spell table (table-2, entrySize 20) to a fixed 254 rows via the
+            // all-reference path (DataExpansionCore.ExpandTableTo +
+            // RepointAllReferences). The CSA-pointer NOT_FOUND clean-abort runs
+            // FIRST inside the Core helper (before the table-1 expand). Mirrors
+            // WF ImageMagicFEditorForm.MagicListExpandsButton_Click.
+
+            // Confirmation (mirrors WF R.ShowYesNo("魔法テーブルを拡張...")).
+            if (CoreState.Services?.ShowYesNo(
+                    R._("Expand the magic table? This grows the list to 254 entries.")) != true)
+                return;
+
+            // Remember the current selection so we can restore it after refresh.
+            uint reloadCsa = _vm.CurrentAddr;
+
             _undoService.Begin("Magic List Expansion");
             try
             {
-                // Real spell-data + CSA-table expansion is WF-coupled
-                // (InputFormRef.ExpandsArea) - tracked at #500. Logging
-                // the request keeps the undo scope wired so a later
-                // Core extraction can drop in without retrofitting.
-                Log.Debug("ImageMagicFEditorView.MagicListExpand_Click invoked - deferred until #500 lands");
+                string err = _vm.ExpandMagicLists(_undoService.GetActiveUndoData());
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
+
+                // NOTE B: refresh the list from the grown table. The magic
+                // LoadList scan uses isPointerOrNULL and stops at the
+                // 0xFFFFFFFF terminator ExpandTableTo wrote, so it reports the
+                // grown count correctly (no re-scan undercount). Reselect the
+                // previously-selected row + hide the now-spent expand button.
+                _vm.IsLoading = true;
+                try
+                {
+                    EntryList.SetItems(_vm.LoadList());
+                    if (reloadCsa != 0u) EntryList.SelectAddress(reloadCsa);
+                    UpdateListExpandVisibility();
+                }
+                finally { _vm.IsLoading = false; _vm.MarkClean(); }
+
+                CoreState.Services?.ShowInfo(R._("Expanded magic list to 254 entries."));
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.Error("ImageMagicFEditorView.MagicListExpand: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
             }
         }
 
