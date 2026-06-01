@@ -105,10 +105,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
-        // ---- Reuse-based preview export gates (#843 NV5a). Each is set true
-        // only after a successful render so the per-preview "Export PNG" button
-        // stays disabled when the preview could not be decoded. ----
-        bool _canExportEvent, _canExportMini, _canExportPoint1, _canExportPoint2, _canExportRoad;
+        // ---- Reuse-based preview export gates (#843 NV5a) + main field map
+        // (#846 NV5b). Each is set true only after a successful render so the
+        // per-preview "Export PNG" button stays disabled when the preview could
+        // not be decoded. ----
+        bool _canExportMain, _canExportEvent, _canExportMini, _canExportPoint1, _canExportPoint2, _canExportRoad;
+        public bool CanExportMain { get => _canExportMain; set => SetField(ref _canExportMain, value); }
         public bool CanExportEvent { get => _canExportEvent; set => SetField(ref _canExportEvent, value); }
         public bool CanExportMini { get => _canExportMini; set => SetField(ref _canExportMini, value); }
         public bool CanExportPoint1 { get => _canExportPoint1; set => SetField(ref _canExportPoint1, value); }
@@ -515,14 +517,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         // ===================================================================
-        // Reuse-based live previews (#843 NV5a). Each delegates to the matching
-        // ImageWorldMapCore resolver+decode (pointer-to-pointer dereference +
-        // 4-byte LZ77-header guard + existing Core primitive). All null-safe —
-        // a bad/truncated/missing pointer returns null and the view clears the
-        // preview surface. Read-only: no ROM write. The main field map (NV5b)
-        // and county border (NV5c) are deliberately NOT here — separate
-        // follow-ups (new decode primitive / OAM blit respectively).
+        // Live previews. Each delegates to the matching ImageWorldMapCore
+        // resolver+decode (pointer-to-pointer dereference + LZ77 guard + Core
+        // primitive). All null-safe — a bad/truncated/missing pointer (or, for
+        // the main field map, a non-FE8 ROM) returns null and the view clears
+        // the preview surface. Read-only: no ROM write. The county border (NV5c)
+        // is deliberately NOT here — a separate follow-up (OAM blit).
+        //   * Main field map: #846 NV5b — the NEW pure primitive
+        //     ByteToImage16TilePaletteMap (FE8-only, LZ77 palette-map only).
+        //   * Event / mini / point1 / point2 / road: #843 NV5a (reuse-based).
         // ===================================================================
+
+        /// <summary>Render the FE8 MAIN FIELD MAP preview (480×320 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderMainFieldMap"/>. FE8-only
+        /// (FE6/FE7 -&gt; null), LZ77-decompresses ONLY the palette-map (image +
+        /// palette RAW), requires the full fixed regions. Null on any failure or
+        /// a non-FE8 ROM.</summary>
+        public IImage TryRenderMainFieldMap() => ImageWorldMapCore.TryRenderMainFieldMap(CoreState.ROM);
 
         /// <summary>Render the EVENT preview (32x20 tiles = 256x160 px) via
         /// <see cref="ImageWorldMapCore.TryRenderEvent"/>. Decompresses BOTH the

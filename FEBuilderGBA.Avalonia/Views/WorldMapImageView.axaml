@@ -87,6 +87,13 @@
                     Content="Export Image"
                     IsEnabled="False"
                     ToolTip.Tip="KnownGap: pending Core extraction." />
+            <!-- #846: read-only Export PNG of the live main field-map preview
+                 (mirrors the Event/Mini tabs' read-only export). Enabled only
+                 after a successful FE8 render. -->
+            <Button AutomationProperties.AutomationId="WorldMapImage_Main_ExportPng_Button"
+                    Name="MainFieldMapExportButton" Content="Export PNG"
+                    IsEnabled="{Binding CanExportMain}"
+                    Click="MainExport_Click" />
 
             <Label AutomationProperties.AutomationId="WorldMapImage_Main_DarkSection_Label"
                    Content="Dark Map" FontWeight="SemiBold" Margin="0,8,0,0" />
@@ -113,11 +120,15 @@
                     ToolTip.Tip="KnownGap: ResourceCache source-file feature not yet wired in Avalonia." />
           </StackPanel>
 
-          <!-- Col 1: preview image (deferred) -->
+          <!-- Col 1: live main field-map preview (#846 NV5b — FE8-only, 480x320)
+               via ImageWorldMapCore.TryRenderMainFieldMap. The new pure
+               primitive ByteToImage16TilePaletteMap decodes the 4bpp tiles with
+               a per-tile sub-palette selected by the LZ77-decompressed
+               palette-map (image + palette RAW). FE6/FE7 or incomplete regions
+               render blank (null). -->
           <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="6">
-            <Image AutomationProperties.AutomationId="WorldMapImage_Main_Preview_Image"
-                   Name="MainPreviewImage" Stretch="Uniform"
-                   ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_Main_Preview_Image"
+                                      Name="MainFieldMapPreview" MinWidth="480" MinHeight="320" />
           </Border>
         </Grid>
       </TabItem>

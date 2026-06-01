@@ -505,17 +505,21 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // ===================================================================
-        // Reuse-based live previews (#843 NV5a) — event / mini / point1 /
-        // point2 / road. Each renders via the matching ImageWorldMapCore
-        // resolver+decode into a GbaImageControl and gates its read-only Export
-        // PNG button. On any failure (no ROM, unset/corrupt/truncated pointer)
-        // the preview is cleared and the export gate is set false. Never throws.
-        // Mirrors ImageTSAEditorView.RefreshBattleCanvas. Main field map (NV5b)
-        // and county border (NV5c) are deliberately NOT rendered here.
+        // Live previews — main field map (#846 NV5b) + event / mini / point1 /
+        // point2 / road (#843 NV5a). Each renders via the matching
+        // ImageWorldMapCore resolver+decode into a GbaImageControl and gates its
+        // read-only Export PNG button. On any failure (no ROM, unset/corrupt/
+        // truncated pointer, or — for the main field map — a non-FE8 ROM) the
+        // preview is cleared and the export gate is set false. Never throws.
+        // Mirrors ImageTSAEditorView.RefreshBattleCanvas. The county border
+        // (NV5c) is deliberately NOT rendered here.
         // ===================================================================
 
         void RefreshPreviews()
         {
+            // Main field map: FE8-only via the new ByteToImage16TilePaletteMap
+            // primitive (FE6/FE7/incomplete -> null -> blank, export disabled).
+            RenderInto(MainFieldMapPreview, _vm.TryRenderMainFieldMap, v => _vm.CanExportMain = v, "MainFieldMap");
             RenderInto(EventPreviewImage, _vm.TryRenderEvent, v => _vm.CanExportEvent = v, "Event");
             RenderInto(MiniPreviewImage, _vm.TryRenderMini, v => _vm.CanExportMini = v, "Mini");
             RenderInto(Point1PreviewImage, _vm.TryRenderPoint1, v => _vm.CanExportPoint1 = v, "Point1");
@@ -542,6 +546,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error($"WorldMapImageView.Render{label} failed: {ex}");
             }
         }
+
+        async void MainExport_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(MainFieldMapPreview, "worldmap_mainfieldmap");
 
         async void EventExport_Click(object? sender, RoutedEventArgs e)
             => await ExportPreview(EventPreviewImage, "worldmap_event");

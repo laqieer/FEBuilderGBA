@@ -35,6 +35,16 @@ namespace FEBuilderGBA.Core.Tests
         const uint ICON2_OFFSET         = 0x007000;
         const uint ROAD_OFFSET          = 0x008000;
         const uint ICON_PALETTE_OFFSET  = 0x009000;
+        // Main field map (#846, NV5b). Large RAW image (76,800 B) so its region
+        // is well clear of the others and of EOF.
+        const uint MAIN_IMAGE_OFFSET     = 0x010000; // + 76,800 B
+        const uint MAIN_PALETTE_OFFSET   = 0x030000; // 512 B
+        const uint MAIN_PALETTEMAP_OFFSET = 0x031000; // LZ77 stream
+
+        // Main field map fixed sizes (must match ImageWorldMapCore).
+        const int MAIN_W = 480, MAIN_H = 320;
+        const int MAIN_IMAGE_BYTES = (MAIN_W * MAIN_H) / 2; // 76,800
+        const int MAIN_PALETTE_BYTES = 256 * 2;             // 512
 
         // GBA 5-5-5 colors.
         const ushort RED   = 0x001F;
@@ -148,6 +158,150 @@ namespace FEBuilderGBA.Core.Tests
         public void Event_NullRom_ReturnsNull()
         {
             WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderEvent(null)));
+        }
+
+        // =================================================================
+        // Main field map (#846, NV5b) — FE8-only, 480x320, LZ77 palette-map only
+        // =================================================================
+
+        [Fact]
+        public void MainFieldMap_FE8_RendersExpectedDims_480x320()
+        {
+            WithRom((rom) =>
+            {
+                PlantMainFieldGraphic(rom);
+
+                IImage img = ImageWorldMapCore.TryRenderMainFieldMap(rom);
+
+                Assert.NotNull(img);
+                Assert.Equal(480, img.Width);  // 60 tiles * 8
+                Assert.Equal(320, img.Height); // 40 tiles * 8
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_FE7_ReturnsNull()
+        {
+            // CORRECTION 2: FE7 routes to DrawWorldMapFE7 (TSA 12-split), so the
+            // 16-tile palette-map decoder must NOT run -> null even though the
+            // worldmap_big_* pointers exist. The version gate fires BEFORE any
+            // pointer resolution.
+            WithRomVersion(MakeFE7Rom, (rom) =>
+            {
+                Assert.Equal(7, rom.RomInfo.version);
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_FE6_ReturnsNull()
+        {
+            // CORRECTION 2: FE6 routes to DrawWorldMapFE6 (256-color liner) and
+            // its palettemap pointer is 0x0 -> null.
+            WithRomVersion(MakeFE6Rom, (rom) =>
+            {
+                Assert.Equal(6, rom.RomInfo.version);
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_TruncatedImage_ReturnsNull()
+        {
+            // The image is a FIXED 76,800 RAW bytes. A pointer with fewer than
+            // 76,800 bytes to EOF is truncated/corrupt -> null via the region
+            // guard (ReadRawRegion), NOT a primitive partial-render. Plant a
+            // valid palette + palette-map so the image is the only failure.
+            WithRom((rom) =>
+            {
+                PlantMainPalette(rom);
+                PlantMainPaletteMap(rom);
+                // image pointer 10 bytes before EOF -> region [addr, addr+76800)
+                // overruns the ROM -> IsRegionSafe false -> null.
+                uint imgNearEnd = (uint)rom.Data.Length - 10;
+                SetPtr(rom, rom.RomInfo.worldmap_big_image_pointer, imgNearEnd);
+
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_TruncatedPalette_ReturnsNull()
+        {
+            // The palette is a FIXED 512 RAW bytes. A pointer with fewer than 512
+            // bytes to EOF -> null via the region guard. Plant a valid image +
+            // palette-map so the palette is the only failure.
+            WithRom((rom) =>
+            {
+                PlantMainImage(rom);
+                PlantMainPaletteMap(rom);
+                uint palNearEnd = (uint)rom.Data.Length - 100; // < 512
+                SetPtr(rom, rom.RomInfo.worldmap_big_palette_pointer, palNearEnd);
+
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_TruncatedCompressedPaletteMap_ReturnsNull()
+        {
+            // CORRECTION 1: the palette-map is the ONLY LZ77 stream and must pass
+            // the 4-byte-header + truncation guard on the COMPRESSED stream. A
+            // header claiming more bytes than remain -> getCompressedSize == 0 ->
+            // null (NOT a primitive throw). Plant a valid image + palette.
+            WithRom((rom) =>
+            {
+                PlantMainImage(rom);
+                PlantMainPalette(rom);
+                uint pmAddr = (uint)rom.Data.Length - 4;
+                rom.Data[pmAddr + 0] = 0x10;
+                rom.Data[pmAddr + 1] = 0x00;
+                rom.Data[pmAddr + 2] = 0x01;
+                rom.Data[pmAddr + 3] = 0x00;
+                SetPtr(rom, rom.RomInfo.worldmap_big_palettemap_pointer, pmAddr);
+
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_CorruptImagePointer_ReturnsNull()
+        {
+            // Image pointer at the header (0) -> isSafetyOffset false -> null.
+            WithRom((rom) =>
+            {
+                PlantMainPalette(rom);
+                PlantMainPaletteMap(rom);
+                rom.write_u32(rom.RomInfo.worldmap_big_image_pointer, U.toPointer(0));
+
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            });
+        }
+
+        [Fact]
+        public void MainFieldMap_NullRom_ReturnsNull()
+        {
+            WithRom((_) => Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(null)));
+        }
+
+        [Fact]
+        public void MainFieldMap_NoImageService_ReturnsNull()
+        {
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeRom();
+                CoreState.ROM = rom;
+                CoreState.ImageService = null;
+                PlantMainFieldGraphic(rom);
+                Assert.Null(ImageWorldMapCore.TryRenderMainFieldMap(rom));
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.ImageService = savedSvc;
+            }
         }
 
         // =================================================================
@@ -422,6 +576,88 @@ namespace FEBuilderGBA.Core.Tests
             byte[] data = new byte[0x1000000]; // 16 MB (min for FE8U detection)
             rom.LoadLow("synth.gba", data, "BE8E01");
             return rom;
+        }
+
+        /// <summary>FE7U synthetic ROM (16 MB, signature AE7E01) -> version 7.
+        /// Used to lock correction #2 (FE7 -> null, not the 16-tile decoder).</summary>
+        static ROM MakeFE7Rom()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x1000000]; // 16 MB (min for FE7U detection)
+            rom.LoadLow("synth_fe7.gba", data, "AE7E01");
+            return rom;
+        }
+
+        /// <summary>FE6 synthetic ROM (8 MB, signature AFEJ01) -> version 6.
+        /// Used to lock correction #2 (FE6 -> null; its palettemap pointer is
+        /// 0x0).</summary>
+        static ROM MakeFE6Rom()
+        {
+            var rom = new ROM();
+            byte[] data = new byte[0x800000]; // 8 MB (min for FE6 detection)
+            rom.LoadLow("synth_fe6.gba", data, "AFEJ01");
+            return rom;
+        }
+
+        /// <summary>Like <see cref="WithRom"/> but builds the ROM via
+        /// <paramref name="make"/> (a specific game version).</summary>
+        static void WithRomVersion(Func<ROM> make, Action<ROM> body)
+        {
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            try
+            {
+                var rom = make();
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                body(rom);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.ImageService = savedSvc;
+            }
+        }
+
+        // ---- Main field map planting (#846) ----
+
+        /// <summary>Plant the full FE8 main field graphic: RAW image (76,800 B) +
+        /// RAW 256-color palette (512 B) + LZ77 palette-map, and wire the three
+        /// worldmap_big_* pointers.</summary>
+        static void PlantMainFieldGraphic(ROM rom)
+        {
+            PlantMainImage(rom);
+            PlantMainPalette(rom);
+            PlantMainPaletteMap(rom);
+        }
+
+        static void PlantMainImage(ROM rom)
+        {
+            // A non-zero image (tile 0 carries an index-1 pixel at (0,0)); the
+            // exact content does not matter for the dims/null tests.
+            byte[] image = new byte[MAIN_IMAGE_BYTES];
+            image[0] = 0x01; // (0,0) low nibble = index 1
+            PlantBytes(rom, MAIN_IMAGE_OFFSET, image);
+            SetPtr(rom, rom.RomInfo.worldmap_big_image_pointer, MAIN_IMAGE_OFFSET);
+        }
+
+        static void PlantMainPalette(ROM rom)
+        {
+            // 256-color RAW palette; bank 0 idx1=RED idx2=GREEN.
+            byte[] pal = new byte[MAIN_PALETTE_BYTES];
+            pal[1 * 2] = (byte)(RED & 0xFF);   pal[1 * 2 + 1] = (byte)(RED >> 8);
+            pal[2 * 2] = (byte)(GREEN & 0xFF); pal[2 * 2 + 1] = (byte)(GREEN >> 8);
+            PlantBytes(rom, MAIN_PALETTE_OFFSET, pal);
+            SetPtr(rom, rom.RomInfo.worldmap_big_palette_pointer, MAIN_PALETTE_OFFSET);
+        }
+
+        static void PlantMainPaletteMap(ROM rom)
+        {
+            // LZ77-compressed palette-map. 40 rows * 64 nibbles = 2560 nibbles =
+            // 1280 bytes (all sub-palette 0 is fine for the dims/null tests).
+            byte[] pm = new byte[1280];
+            PlantBytes(rom, MAIN_PALETTEMAP_OFFSET, LZ77.compress(pm));
+            SetPtr(rom, rom.RomInfo.worldmap_big_palettemap_pointer, MAIN_PALETTEMAP_OFFSET);
         }
 
         // ---- Event planting ----
