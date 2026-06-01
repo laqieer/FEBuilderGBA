@@ -105,6 +105,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
+        // ---- Reuse-based preview export gates (#843 NV5a). Each is set true
+        // only after a successful render so the per-preview "Export PNG" button
+        // stays disabled when the preview could not be decoded. ----
+        bool _canExportEvent, _canExportMini, _canExportPoint1, _canExportPoint2, _canExportRoad;
+        public bool CanExportEvent { get => _canExportEvent; set => SetField(ref _canExportEvent, value); }
+        public bool CanExportMini { get => _canExportMini; set => SetField(ref _canExportMini, value); }
+        public bool CanExportPoint1 { get => _canExportPoint1; set => SetField(ref _canExportPoint1, value); }
+        public bool CanExportPoint2 { get => _canExportPoint2; set => SetField(ref _canExportPoint2, value); }
+        public bool CanExportRoad { get => _canExportRoad; set => SetField(ref _canExportRoad, value); }
+
         // ===================================================================
         // Canonical pointer slots (load + write all 13 in one undo scope).
         // ===================================================================
@@ -503,5 +513,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             return result;
         }
+
+        // ===================================================================
+        // Reuse-based live previews (#843 NV5a). Each delegates to the matching
+        // ImageWorldMapCore resolver+decode (pointer-to-pointer dereference +
+        // 4-byte LZ77-header guard + existing Core primitive). All null-safe —
+        // a bad/truncated/missing pointer returns null and the view clears the
+        // preview surface. Read-only: no ROM write. The main field map (NV5b)
+        // and county border (NV5c) are deliberately NOT here — separate
+        // follow-ups (new decode primitive / OAM blit respectively).
+        // ===================================================================
+
+        /// <summary>Render the EVENT preview (32x20 tiles = 256x160 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderEvent"/>. Decompresses BOTH the
+        /// LZ77 image AND the LZ77 header-TSA and reads the 64-color
+        /// (4-sub-palette) event palette. Null on any failure.</summary>
+        public IImage TryRenderEvent() => ImageWorldMapCore.TryRenderEvent(CoreState.ROM);
+
+        /// <summary>Render the MINI MAP preview (8x8 tiles = 64x64 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderMini"/>. Null on any failure.</summary>
+        public IImage TryRenderMini() => ImageWorldMapCore.TryRenderMini(CoreState.ROM);
+
+        /// <summary>Render the POINT 1 preview (32x8 tiles = 256x64 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderPoint1"/>. Null on any failure.</summary>
+        public IImage TryRenderPoint1() => ImageWorldMapCore.TryRenderPoint1(CoreState.ROM);
+
+        /// <summary>Render the POINT 2 preview (12x4 tiles = 96x32 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderPoint2"/>. Null on any failure.</summary>
+        public IImage TryRenderPoint2() => ImageWorldMapCore.TryRenderPoint2(CoreState.ROM);
+
+        /// <summary>Render the ROAD preview (1x15 tiles = 8x120 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderRoad"/>. Null on any failure.</summary>
+        public IImage TryRenderRoad() => ImageWorldMapCore.TryRenderRoad(CoreState.ROM);
     }
 }

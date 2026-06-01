@@ -220,10 +220,16 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// Deferred affordances (image import/export, dark-map import/export,
-    /// decrease-color tool, open-source, select-source) must be disabled
-    /// and reference KnownGap in the tooltip. No follow-up issues per task
-    /// scope discipline.
+    /// Deferred affordances (image IMPORT, dark-map import/export,
+    /// decrease-color tool, open-source, select-source, and the two NV5b/NV5c
+    /// previews' export: main-field-map + border) must be disabled and
+    /// reference KnownGap in the tooltip. No follow-up issues per task scope
+    /// discipline.
+    ///
+    /// NOTE (#843 NV5a): the five reuse-based preview EXPORT buttons
+    /// (Event / Mini / Point1 / Point2 / Road) are NO LONGER deferred — they
+    /// are working read-only Export PNG buttons gated by CanExport* and are
+    /// asserted by <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
     /// </summary>
     [Theory]
     [InlineData("WorldMapImage_Main_Import_Button")]
@@ -234,16 +240,11 @@ public class WorldMapImageParityTests
     [InlineData("WorldMapImage_Main_OpenSource_Button")]
     [InlineData("WorldMapImage_Main_SelectSource_Button")]
     [InlineData("WorldMapImage_Event_Import_Button")]
-    [InlineData("WorldMapImage_Event_Export_Button")]
     [InlineData("WorldMapImage_Event_DecreaseColor_Button")]
     [InlineData("WorldMapImage_Mini_Import_Button")]
-    [InlineData("WorldMapImage_Mini_Export_Button")]
     [InlineData("WorldMapImage_PointIcon_Point1Import_Button")]
-    [InlineData("WorldMapImage_PointIcon_Point1Export_Button")]
     [InlineData("WorldMapImage_PointIcon_Point2Import_Button")]
-    [InlineData("WorldMapImage_PointIcon_Point2Export_Button")]
     [InlineData("WorldMapImage_PointIcon_RoadImport_Button")]
-    [InlineData("WorldMapImage_PointIcon_RoadExport_Button")]
     [InlineData("WorldMapImage_Border_Import_Button")]
     [InlineData("WorldMapImage_Border_Export_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesKnownGap(string automationId)
@@ -260,6 +261,101 @@ public class WorldMapImageParityTests
 
         Assert.Contains("IsEnabled=\"False\"", element);
         Assert.Contains("KnownGap", element);
+    }
+
+    /// <summary>
+    /// #843 NV5a: the five reuse-based preview EXPORT buttons are working
+    /// read-only Export PNG buttons — gated by a CanExport* binding (set true
+    /// only after a successful render) and wired to an Export click handler.
+    /// They must NOT be IsEnabled="False" and must NOT reference KnownGap.
+    /// </summary>
+    [Theory]
+    [InlineData("WorldMapImage_Event_Export_Button", "CanExportEvent", "EventExport_Click")]
+    [InlineData("WorldMapImage_Mini_Export_Button", "CanExportMini", "MiniExport_Click")]
+    [InlineData("WorldMapImage_PointIcon_Point1Export_Button", "CanExportPoint1", "Point1Export_Click")]
+    [InlineData("WorldMapImage_PointIcon_Point2Export_Button", "CanExportPoint2", "Point2Export_Click")]
+    [InlineData("WorldMapImage_PointIcon_RoadExport_Button", "CanExportRoad", "RoadExport_Click")]
+    public void View_ReuseExportButton_IsBindingGatedReadOnlyExport(
+        string automationId, string canExportBinding, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        // Working read-only export: gated by the CanExport* binding, wired to
+        // the export click handler, and NOT a deferred KnownGap stub.
+        Assert.Contains($"IsEnabled=\"{{Binding {canExportBinding}}}\"", element);
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("KnownGap", element);
+
+        // The click handler exists in the code-behind and routes through the
+        // shared GbaImageControl ExportPng helper.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains(clickHandler, source);
+    }
+
+    /// <summary>
+    /// #843 NV5a: the five reuse-based previews must render via
+    /// ImageWorldMapCore (resolve + decode) into a GbaImageControl, and the two
+    /// follow-up previews (main-field-map NV5b, border NV5c) must NOT — they
+    /// keep their KnownGap Image placeholders. Asserts the five preview controls
+    /// are GbaImageControl and the NV5a "live bitmap preview pending Core
+    /// extraction" markers are gone for them while the NV5b/NV5c markers remain.
+    /// </summary>
+    [Fact]
+    public void View_ReusePreviews_AreGbaImageControlsAndCoreWired()
+    {
+        string axaml = ReadAxaml();
+
+        // The five reuse previews are GbaImageControl (not <Image>).
+        foreach (string id in new[]
+        {
+            "WorldMapImage_Event_Preview_Image",
+            "WorldMapImage_Mini_Preview_Image",
+            "WorldMapImage_PointIcon_Point1Preview_Image",
+            "WorldMapImage_PointIcon_Point2Preview_Image",
+            "WorldMapImage_PointIcon_RoadPreview_Image",
+        })
+        {
+            int idx = axaml.IndexOf($"AutomationId=\"{id}\"", StringComparison.Ordinal);
+            Assert.True(idx >= 0, $"AutomationId {id} not found");
+            int elementStart = axaml.LastIndexOf('<', idx);
+            string head = axaml.Substring(elementStart, idx - elementStart);
+            Assert.Contains("controls:GbaImageControl", head);
+        }
+
+        // The main-field-map (NV5b) and border (NV5c) previews stay deferred:
+        // still <Image> with the KnownGap live-preview marker.
+        foreach (string id in new[]
+        {
+            "WorldMapImage_Main_Preview_Image",
+            "WorldMapImage_Border_DrawSample_Image",
+        })
+        {
+            int idx = axaml.IndexOf($"AutomationId=\"{id}\"", StringComparison.Ordinal);
+            Assert.True(idx >= 0, $"AutomationId {id} not found");
+            int elementStart = axaml.LastIndexOf('<', idx);
+            int elementEnd = FindElementEnd(axaml, elementStart);
+            string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+            Assert.Contains("live bitmap preview pending Core extraction", element);
+        }
+
+        // The view renders the reuse previews through the Core helper.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("RefreshPreviews", source);
+        string vm = File.ReadAllText(ViewModelPath());
+        Assert.Contains("ImageWorldMapCore.TryRenderEvent", vm);
+        Assert.Contains("ImageWorldMapCore.TryRenderMini", vm);
+        Assert.Contains("ImageWorldMapCore.TryRenderPoint1", vm);
+        Assert.Contains("ImageWorldMapCore.TryRenderPoint2", vm);
+        Assert.Contains("ImageWorldMapCore.TryRenderRoad", vm);
     }
 
     // ===================================================================
@@ -868,6 +964,9 @@ public class WorldMapImageParityTests
 
     static string ViewCodeBehindPath() => Path.Combine(FindRepoRoot(),
         "FEBuilderGBA.Avalonia", "Views", "WorldMapImageView.axaml.cs");
+
+    static string ViewModelPath() => Path.Combine(FindRepoRoot(),
+        "FEBuilderGBA.Avalonia", "ViewModels", "WorldMapImageViewModel.cs");
 
     static string FindRepoRoot()
     {
