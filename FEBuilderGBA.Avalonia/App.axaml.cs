@@ -42,16 +42,6 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>When true, capture screenshots of all editors and save as PNG.</summary>
         public static bool ScreenshotAllMode { get; set; }
 
-        /// <summary>
-        /// When true (#831), capture a focused BEFORE/AFTER proof of the
-        /// ItemEditor StatBooster new-alloc button: open the editor on an item
-        /// with a null P12 pointer (warning + button visible), screenshot, click
-        /// the new-alloc button, screenshot again (warning gone, pointer set).
-        /// Real Skia render via the desktop platform (RunScreenshotItemNewAlloc),
-        /// used to regenerate pr-screenshots/pr831-item-newalloc.png.
-        /// </summary>
-        public static bool ScreenshotItemNewAllocMode { get; set; }
-
         /// <summary>When true, export decoded editor images (not full screenshots) as PNG.</summary>
         public static bool ExportEditorImagesMode { get; set; }
 
@@ -1005,11 +995,6 @@ namespace FEBuilderGBA.Avalonia
                 {
                     SmokeTestMode = true;
                     ScreenshotAllMode = true;
-                }
-                else if (args[i] == "--screenshot-item-newalloc")
-                {
-                    SmokeTestMode = true;
-                    ScreenshotItemNewAllocMode = true;
                 }
                 else if (args[i] == "--export-editor-images")
                 {
