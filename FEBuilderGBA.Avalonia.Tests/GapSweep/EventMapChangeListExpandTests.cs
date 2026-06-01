@@ -308,37 +308,30 @@ public class EventMapChangeListExpandTests : IDisposable
     }
 
     [Fact]
-    public void ExpandEventMapChangeList_CountZero_ReturnsError()
+    public void ExpandEventMapChangeList_NewCountEqualsCurrent_IsNoOpSuccess()
     {
         ROM rom = MakeRom();
         CoreState.ROM = rom;
         CoreState.Undo = new Undo();
 
-        // Plant a plist entry that resolves but has 0 valid rows (terminated immediately).
+        // Set up a list with a single valid row followed by a 0xFF terminator so
+        // LoadEntryForMap succeeds and ReadCount == 1.
+        // (count-zero with first byte != 0xFF is unreachable in practice -- the
+        // count-zero refusal is belt-and-suspenders; the genuine zero-count path
+        // requires first byte == 0xFF, already covered by
+        // ExpandEventMapChangeList_EmptyList_FirstByteFF_ReturnsError.)
         PlantChangeTable(rom, TableBase, 0);
-        // First byte must be 0x01 (not 0xFF) so LoadEntryForMap succeeds...
-        // but wait: 0 rows means the first byte IS 0xFF (the terminator).
-        // Since we guard 0xFF in ExpandEventMapChangeList, this case is handled
-        // by the empty-list guard. We test the count==0 guard separately by
-        // constructing a scenario where changeAddr resolves and firstByte != 0xFF
-        // but CountChangeRecordsTerminated returns 0 with terminated=true.
-        // That happens when the terminator is at address TableBase itself
-        // (first byte == 0xFF), which is already covered by the EmptyList test.
-        // In practice count==0 with terminated==true can only happen if first byte == 0xFF.
-        // The guard is belt-and-suspenders. Test it by directly calling the VM
-        // method with a loaded state that has ReadCount=0.
         rom.Data[(int)TableBase] = 0x01; // non-0xFF so LoadEntryForMap works
         rom.Data[(int)(TableBase + SIZE)] = 0xFF; // immediate terminator -> count=1 after one row
         PlantPlistPointer(rom, TableBase);
 
         var vm = new EventMapChangeViewModel();
         vm.LoadEntryForMap(0u);
-        // ReadCount is 1 in this case. For the zero-count refusal, we'd need
-        // first byte == 0xFF, which is the empty-list test. The zero-count guard
-        // is belt-and-suspenders; instead verify the no-op equal-count path.
+        // Passing newCount == currentCount (ReadCount == 1) exercises the no-op
+        // equal-count path, which returns "" (success) without writing anything to ROM.
         var ud = CoreState.Undo.NewUndoData("test");
         string err = vm.ExpandEventMapChangeList((uint)vm.ReadCount, ud); // newCount == currentCount
-        Assert.Equal("", err); // no-op is still success
+        Assert.Equal("", err); // no-op equal-count returns success (empty error string)
     }
 
     // ------------------------------------------------------------------
