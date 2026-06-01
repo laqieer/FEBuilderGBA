@@ -14,7 +14,10 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using global::Avalonia.Headless.XUnit;
+using global::Avalonia.Media.Imaging;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.GapSweep;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -171,17 +174,50 @@ public class ImageBattleAnimePalletParityTests
     }
 
     [Fact]
-    public void View_ImportExportButtons_AreHonestlyDisabledKnownGap()
+    public void View_ImportButton_IsHonestlyDisabledKnownGap()
     {
-        // Real PNG export/import are WF ImageFormRef-coupled (#399). Both
-        // buttons are rendered but disabled.
+        // Real PNG import is still WF PaletteFormRef-coupled (#399). The
+        // Import button is rendered but disabled. (Export is now wired — see
+        // View_ExportButton_WiredAndGated.)
         string axaml = ReadAxaml();
         Assert.Matches(new Regex(
             @"AutomationId=""ImageBattleAnimePallet_Import_Button""[\s\S]{0,400}IsEnabled=""False""",
             RegexOptions.Singleline), axaml);
+    }
+
+    /// <summary>
+    /// #828: the Export Image button now reuses <c>GbaImageControl.ExportPng</c>
+    /// (the merged read-only PNG primitive, #815) to export the rendered sample
+    /// grid. It is wired to a Click handler, starts disabled (gated until a
+    /// sample render succeeds), and the code-behind drives its IsEnabled from
+    /// <c>SamplePreview.HasImage</c> — the exact pattern
+    /// <c>ImageBattleScreenView</c> (#810) uses. The stale "Export requires…
+    /// WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage" marker
+    /// must be gone.
+    /// </summary>
+    [Fact]
+    public void View_ExportButton_WiredAndGated()
+    {
+        string axaml = ReadAxaml();
+        // Click handler is wired.
+        Assert.Matches(new Regex(
+            @"AutomationId=""ImageBattleAnimePallet_Export_Button""[\s\S]{0,400}Click=""Export_Click""",
+            RegexOptions.Singleline), axaml);
+        // Starts disabled until a render succeeds (gated like ImageBattleScreen).
         Assert.Matches(new Regex(
             @"AutomationId=""ImageBattleAnimePallet_Export_Button""[\s\S]{0,400}IsEnabled=""False""",
             RegexOptions.Singleline), axaml);
+        // The stale WinForms-coupled deferral marker must be gone.
+        Assert.DoesNotContain("ImageFormRef.ExportImage", axaml);
+
+        string code = File.ReadAllText(CodeBehindPath());
+        // Handler exports the rendered sample preview (no ROM write).
+        Assert.Matches(new Regex(
+            @"SamplePreview\.ExportPng\(\s*this", RegexOptions.Singleline), code);
+        // Gate is driven from HasImage and applied to the button.
+        Assert.Matches(new Regex(
+            @"ExportButton\.IsEnabled\s*=\s*SamplePreview\.HasImage",
+            RegexOptions.Singleline), code);
     }
 
     // -----------------------------------------------------------------
@@ -614,6 +650,107 @@ public class ImageBattleAnimePalletParityTests
             Assert.Equal(290, grid.Height);
         }
         finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // #828 — Export PNG of the rendered sample. The export path is
+    // GbaImageControl.SetImage -> IconBitmapBuilder.FromImage -> WriteableBitmap
+    // (the pixel copy) -> ExportPng -> Save (PNG encode). This test exercises
+    // both halves: (a) IconBitmapBuilder.FromImage builds a 360x290 bitmap from
+    // the rendered IImage, and (b) the rendered sample IImage encodes to a valid
+    // 360x290 PNG (decoding the IHDR header). The cross-platform IImage->PNG
+    // encode (SkiaImage.EncodePng -> SKEncodedImageFormat.Png) is asserted
+    // directly rather than via WriteableBitmap.Save, which depends on Avalonia's
+    // platform render backend (the headless test app runs without Skia, so its
+    // WriteableBitmap.Save does not emit a real PNG — an environment quirk, not
+    // an export-path defect).
+    // -----------------------------------------------------------------
+
+    [AvaloniaFact]
+    public void Export_RenderedSample_EncodesValid360x290Png()
+    {
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithFullAnimeRecord();
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+
+            using IImage grid = vm.RenderSampleBattleAnime();
+            Assert.NotNull(grid);
+            Assert.Equal(360, grid.Width);
+            Assert.Equal(290, grid.Height);
+
+            // (a) The SetImage pixel-copy step builds a 360x290 WriteableBitmap.
+            using WriteableBitmap bmp = IconBitmapBuilder.FromImage(grid);
+            Assert.NotNull(bmp);
+            Assert.Equal(360, bmp.PixelSize.Width);
+            Assert.Equal(290, bmp.PixelSize.Height);
+
+            // (b) The rendered sample encodes to a real 360x290 PNG via the
+            // cross-platform IImage->PNG primitive (SkiaImage.EncodePng).
+            byte[] png = grid.EncodePng();
+            Assert.True(IsPngSignature(png), "encoded bytes are not a PNG");
+            (int w, int h) = ReadPngIhdrDimensions(png);
+            Assert.Equal(360, w);
+            Assert.Equal(290, h);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [AvaloniaFact]
+    public void Export_NullSample_ProducesNoBitmap_NoCrash()
+    {
+        // Null-safety: a no-resolvable-anime record returns null from
+        // RenderSampleBattleAnime; IconBitmapBuilder.FromImage(null) returns
+        // null (no bitmap, no file written, button stays disabled). Mirrors
+        // GbaImageControl.ExportPng early-returning on a null bitmap.
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            // Palette-only record => unresolvable => null sample.
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithSingleSlotPalette(new ushort[16]);
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+
+            IImage grid = vm.RenderSampleBattleAnime();
+            Assert.Null(grid);
+
+            // The builder is null-safe on a null image (no throw, no bitmap).
+            WriteableBitmap bmp = IconBitmapBuilder.FromImage(grid);
+            Assert.Null(bmp);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>True if the byte buffer starts with the 8-byte PNG signature.</summary>
+    static bool IsPngSignature(byte[] data)
+    {
+        if (data == null || data.Length < 8) return false;
+        ReadOnlySpan<byte> sig = stackalloc byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+        for (int i = 0; i < 8; i++) if (data[i] != sig[i]) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Read the width/height from a PNG's IHDR chunk. The IHDR is always the
+    /// first chunk: bytes [0..7] signature, [8..11] length, [12..15] "IHDR",
+    /// [16..19] width (big-endian), [20..23] height (big-endian).
+    /// </summary>
+    static (int width, int height) ReadPngIhdrDimensions(byte[] png)
+    {
+        Assert.True(png.Length >= 24, "PNG too small to contain IHDR");
+        // Confirm the IHDR chunk-type marker at offset 12.
+        Assert.True(png[12] == (byte)'I' && png[13] == (byte)'H'
+                 && png[14] == (byte)'D' && png[15] == (byte)'R',
+                 "first chunk is not IHDR");
+        int w = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+        int h = (png[20] << 24) | (png[21] << 16) | (png[22] << 8) | png[23];
+        return (w, h);
     }
 
     static void EnsureImageService()

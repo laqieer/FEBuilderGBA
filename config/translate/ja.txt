@@ -8308,8 +8308,8 @@ REDO
 :Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399).
 保留中の既知ギャップ: Import は描画されたサンプルビットマップを必要とします (PaletteFormRef.MakePaletteBitmapToUIEx 経由の WinForms 依存 DrawBattleAnime) (#399)。
 
-:Deferred KnownGap: Export requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage) (#399).
-保留中の既知ギャップ: Export は描画されたサンプルビットマップを必要とします (ImageFormRef.ExportImage 経由の WinForms 依存 DrawBattleAnime) (#399)。
+:Export the rendered battle-animation sample (360x290 grid) to a PNG file. Read-only — no ROM write. Enabled once a sample renders.
+描画されたバトルアニメサンプル (360x290 のグリッド) を PNG ファイルにエクスポートします。読み取り専用 — ROM への書き込みはありません。サンプルが描画されると有効になります。
 
 :Fit to window
 ウィンドウに合わせる
