@@ -560,15 +560,11 @@ namespace FEBuilderGBA
             parts.Dispose();
 
             // ---- Step 3: composite ----
-            // Background: the event world map (TryRenderEvent reuses CoreState.ROM;
-            // we must set it to the passed rom if it differs).
-            IImage bg = null;
-            if (CoreState.ROM == rom)
-            {
-                bg = TryRenderEvent(rom);
-            }
-            // If TryRenderEvent fails or CoreState.ROM is not this rom, use a blank
-            // opaque 256×160 background (WF always draws a background).
+            // Background: TryRenderEvent renders purely from the passed rom
+            // (rom.RomInfo + rom.Data only; no CoreState.ROM dependency).
+            // If it returns null (FE6/FE7, missing pointers, truncated data, etc.),
+            // fall back to a blank opaque 256×160 background (WF always draws one).
+            IImage bg = TryRenderEvent(rom);
             if (bg == null)
             {
                 bg = MakeOpaqueBlank256x160();
