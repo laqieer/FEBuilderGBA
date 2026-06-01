@@ -210,6 +210,44 @@ public class ImageBattleScreenParityTests
             RegexOptions.Singleline), code);
     }
 
+    /// <summary>
+    /// #816: each per-image preview (Image1..Image5) is now rendered LIVE via
+    /// its own GbaImageControl at its WF per-image dimensions
+    /// (ImageBattleScreenCore.RenderSingleImagePreview), replacing the 5 old
+    /// deferred placeholder labels. Each new control carries the
+    /// Image{N}_Preview_Image AutomationId; the old _Preview_Label ids are gone;
+    /// the VM exposes RenderImagePreview(n); and the code-behind refreshes all 5.
+    /// </summary>
+    [Fact]
+    public void View_HasLivePerImagePreviewImages()
+    {
+        string axaml = ReadAxaml();
+        for (int i = 1; i <= 5; i++)
+        {
+            // Each per-image preview is a live GbaImageControl.
+            Assert.Contains($"AutomationId=\"ImageBattleScreen_Image{i}_Preview_Image\"", axaml);
+            Assert.Contains($"Name=\"Image{i}Preview\"", axaml);
+            // The old deferred placeholder labels must be gone.
+            Assert.DoesNotContain($"AutomationId=\"ImageBattleScreen_Image{i}_Preview_Label\"", axaml);
+        }
+
+        // VM delegates to the Core per-image renderer.
+        string vmCode = File.ReadAllText(ViewModelPath());
+        Assert.Matches(new Regex(
+            @"public\s+IImage\s+RenderImagePreview\(int\s+\w+\)[\s\S]*?ImageBattleScreenCore\.RenderSingleImagePreview\(CoreState\.ROM,",
+            RegexOptions.Singleline), vmCode);
+
+        // Code-behind refreshes all 5 per-image previews (entry load + writes).
+        string code = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"void\s+RefreshImagePreviews\(\)[\s\S]*?\.SetImage\(\s*_vm\.RenderImagePreview\(",
+            RegexOptions.Singleline), code);
+        // RefreshImagePreviews must be invoked on the entry-load path (OnSelected).
+        Assert.Matches(new Regex(
+            @"void\s+OnSelected[\s\S]*?RefreshImagePreviews\(\)",
+            RegexOptions.Singleline), code);
+    }
+
     [Fact]
     public void View_HasPaletteTab()
     {
@@ -248,7 +286,9 @@ public class ImageBattleScreenParityTests
         Assert.Contains("AutomationId=\"ImageBattleScreen_Image1_ZIMAGE_Input\"", axaml);
         Assert.Contains("AutomationId=\"ImageBattleScreen_Image1_Import_Button\"", axaml);
         Assert.Contains("AutomationId=\"ImageBattleScreen_Image1_Export_Button\"", axaml);
-        Assert.Contains("AutomationId=\"ImageBattleScreen_Image1_Preview_Label\"", axaml);
+        // #816: the image1 preview is now a live GbaImageControl (rendered at
+        // its natural W x H), replacing the old deferred KnownGap label.
+        Assert.Contains("AutomationId=\"ImageBattleScreen_Image1_Preview_Image\"", axaml);
     }
 
     [Fact]
