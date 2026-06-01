@@ -232,10 +232,14 @@ public class WorldMapImageParityTests
     /// (#846 NV5b) is a working CanExport-gated export asserted by
     /// <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
     ///
-    /// NOTE (#843 NV5a / #846 NV5b): the six preview EXPORT PNG buttons
-    /// (Main / Event / Mini / Point1 / Point2 / Road) are NOT deferred — they
-    /// are working read-only Export PNG buttons gated by CanExport* and are
-    /// asserted by <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
+    /// NOTE (#843 NV5a / #846 NV5b / #849 NV5c): the read-only EXPORT PNG buttons
+    /// (Main / Event / Mini / Point1 / Point2 / Road, and the Border Export PNG)
+    /// are NOT deferred — they are working CanExport*-gated buttons. The Border
+    /// EXPORT PNG (<c>WorldMapImage_Border_Export_Button</c>) is now functional
+    /// (#849 NV5c) and is asserted by
+    /// <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
+    /// Only <c>WorldMapImage_Border_Import_Button</c> stays deferred (OAM assembly
+    /// is a separate follow-up).
     /// </summary>
     [Theory]
     [InlineData("WorldMapImage_Main_Import_Button")]
@@ -252,7 +256,6 @@ public class WorldMapImageParityTests
     [InlineData("WorldMapImage_PointIcon_Point2Import_Button")]
     [InlineData("WorldMapImage_PointIcon_RoadImport_Button")]
     [InlineData("WorldMapImage_Border_Import_Button")]
-    [InlineData("WorldMapImage_Border_Export_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesKnownGap(string automationId)
     {
         string axaml = ReadAxaml();
@@ -270,11 +273,11 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// #843 NV5a + #846 NV5b: the read-only preview EXPORT PNG buttons are
-    /// working buttons — gated by a CanExport* binding (set true only after a
+    /// #843 NV5a + #846 NV5b + #849 NV5c: the read-only preview EXPORT PNG buttons
+    /// are working buttons — gated by a CanExport* binding (set true only after a
     /// successful render) and wired to an Export click handler. They must NOT be
-    /// IsEnabled="False" and must NOT reference KnownGap. As of #846 the MAIN
-    /// FIELD MAP export joins the five reuse-based exports.
+    /// IsEnabled="False" and must NOT reference KnownGap. As of #849 the BORDER
+    /// EXPORT PNG joins the six reuse-based exports.
     /// </summary>
     [Theory]
     [InlineData("WorldMapImage_Main_ExportPng_Button", "CanExportMain", "MainExport_Click")]
@@ -283,6 +286,7 @@ public class WorldMapImageParityTests
     [InlineData("WorldMapImage_PointIcon_Point1Export_Button", "CanExportPoint1", "Point1Export_Click")]
     [InlineData("WorldMapImage_PointIcon_Point2Export_Button", "CanExportPoint2", "Point2Export_Click")]
     [InlineData("WorldMapImage_PointIcon_RoadExport_Button", "CanExportRoad", "RoadExport_Click")]
+    [InlineData("WorldMapImage_Border_Export_Button", "CanExportBorder", "BorderExport_Click")]
     public void View_ReuseExportButton_IsBindingGatedReadOnlyExport(
         string automationId, string canExportBinding, string clickHandler)
     {
@@ -310,21 +314,20 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// #843 NV5a + #846 NV5b: the live previews must render via ImageWorldMapCore
-    /// (resolve + decode) into a GbaImageControl. As of #846 the MAIN FIELD MAP
-    /// (NV5b, the new ByteToImage16TilePaletteMap primitive) joins the five
-    /// reuse-based previews (event / mini / point1 / point2 / road) — all six are
-    /// now GbaImageControls with their "live bitmap preview pending Core
-    /// extraction" marker gone. ONLY the county-border draw sample (NV5c — needs
-    /// an OAM-from-pointer blit) remains a deferred &lt;Image&gt; placeholder.
+    /// #843 NV5a + #846 NV5b + #849 NV5c: the live previews must render via
+    /// ImageWorldMapCore (resolve + decode) into a GbaImageControl. As of #849
+    /// the BORDER DRAW SAMPLE (NV5c, via TryRenderBorder) joins the six
+    /// reuse-based previews (main / event / mini / point1 / point2 / road) —
+    /// all seven are now GbaImageControls. No deferred &lt;Image&gt; placeholders remain.
     /// </summary>
     [Fact]
     public void View_ReusePreviews_AreGbaImageControlsAndCoreWired()
     {
         string axaml = ReadAxaml();
 
-        // The six live previews are GbaImageControl (not <Image>): the five
-        // reuse-based (#843) + the main field map (#846 NV5b).
+        // The seven live previews are GbaImageControl (not <Image>): the five
+        // reuse-based (#843) + the main field map (#846 NV5b) + the border
+        // draw sample (#849 NV5c — now implemented via TryRenderBorder).
         foreach (string id in new[]
         {
             "WorldMapImage_Main_Preview_Image",
@@ -333,6 +336,7 @@ public class WorldMapImageParityTests
             "WorldMapImage_PointIcon_Point1Preview_Image",
             "WorldMapImage_PointIcon_Point2Preview_Image",
             "WorldMapImage_PointIcon_RoadPreview_Image",
+            "WorldMapImage_Border_DrawSample_Image",
         })
         {
             int idx = axaml.IndexOf($"AutomationId=\"{id}\"", StringComparison.Ordinal);
@@ -342,20 +346,7 @@ public class WorldMapImageParityTests
             Assert.Contains("controls:GbaImageControl", head);
         }
 
-        // ONLY the county-border (NV5c) preview stays deferred: still <Image>
-        // with the KnownGap live-preview marker (needs an OAM blit — follow-up).
-        foreach (string id in new[]
-        {
-            "WorldMapImage_Border_DrawSample_Image",
-        })
-        {
-            int idx = axaml.IndexOf($"AutomationId=\"{id}\"", StringComparison.Ordinal);
-            Assert.True(idx >= 0, $"AutomationId {id} not found");
-            int elementStart = axaml.LastIndexOf('<', idx);
-            int elementEnd = FindElementEnd(axaml, elementStart);
-            string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
-            Assert.Contains("live bitmap preview pending Core extraction", element);
-        }
+
 
         // The view renders the previews through the Core helper.
         string source = File.ReadAllText(ViewCodeBehindPath());
@@ -368,6 +359,8 @@ public class WorldMapImageParityTests
         Assert.Contains("ImageWorldMapCore.TryRenderPoint1", vm);
         Assert.Contains("ImageWorldMapCore.TryRenderPoint2", vm);
         Assert.Contains("ImageWorldMapCore.TryRenderRoad", vm);
+        // #849 NV5c — the border draw sample via TryRenderBorder.
+        Assert.Contains("ImageWorldMapCore.TryRenderBorder", vm);
     }
 
     // ===================================================================

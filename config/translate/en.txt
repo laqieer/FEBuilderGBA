@@ -20001,3 +20001,9 @@ Edit Battle Screen Palette
 
 :KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
 KnownGap: zoom only affects the deferred Battle/Chipset preview rendering (WinForms-coupled, #393). Re-enabled once the live preview lands.
+
+:KnownGap: border import (OAM assembly) is a separate follow-up.
+KnownGap: border import (OAM assembly) is a separate follow-up.
+
+:Export the border AP preview to PNG.
+Export the border AP preview to PNG.
