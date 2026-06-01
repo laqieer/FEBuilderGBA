@@ -19640,6 +19640,18 @@ W94: Unknown
 :Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
 警告: 属性加成指针为空 (P12=0)。请考虑分配空间。
 
+:New-alloc Stat Bonuses
+新分配属性加成
+
+:New-alloc Effectiveness
+新分配特效
+
+:Allocate a new Stat Bonuses (P12) block and write its pointer into this item (mirrors WF new-alloc).
+为该物品新分配属性加成(P12)数据块并写入指针 (镜像 WF 的新分配)。
+
+:Allocate a new Effectiveness (P16) block and write its pointer into this item (mirrors WF new-alloc).
+为该物品新分配特效(P16)数据块并写入指针 (镜像 WF 的新分配)。
+
 :Warning: Zero region (direct match)
 警告: 零区域 (直接匹配)
 

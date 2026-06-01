@@ -3806,6 +3806,18 @@ W36: 敵 phase BGM flag 4
 :Warning: Stat Bonuses pointer is null (P12=0). Consider allocating.
 警告: 能力ボーナス pointer is null (P12=0). Consider allocating.
 
+:New-alloc Stat Bonuses
+能力補正を新規に割り振る
+
+:New-alloc Effectiveness
+特効効果を新規に割り振る
+
+:Allocate a new Stat Bonuses (P12) block and write its pointer into this item (mirrors WF new-alloc).
+このアイテムに能力補正(P12)を新規に割り振り、そのポインタを書き込みます。
+
+:Allocate a new Effectiveness (P16) block and write its pointer into this item (mirrors WF new-alloc).
+このアイテムに特効効果(P16)を新規に割り振り、そのポインタを書き込みます。
+
 :Warning: Zero region (direct match)
 警告: 0地帯 (直接マッチ)
 

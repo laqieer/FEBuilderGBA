@@ -215,16 +215,25 @@
                surfaced as the Buy Price / Sell Price / Forge Price labels.
              - WF MagicExtUnitBase: requires HasMagicSplit + per-unit
                base-magic detection — deferred.
-             - WF L_12_NEWALLOC_ITEMSTATBOOSTER / L_16_NEWALLOC_EFFECTIVENESS
-               buttons: deferred because Avalonia head does not yet wire
-               CoreState.AppendBinaryData; the existing null-pointer warning
-               labels (above) are the substitute UI affordance.
              None of these spawn new follow-up issues per #409 scope rule. -->
 
 
-        <!-- Null pointer warnings -->
-        <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocStatBonusesWarning_Label" Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,4,0,0" />
-        <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocEffectivenessWarning_Label" Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" IsVisible="False" Margin="0,2,0,0" />
+        <!-- Null pointer warnings + new-alloc buttons.
+             #831: the New-alloc buttons mirror WF
+             L_12_NEWALLOC_ITEMSTATBOOSTER / L_16_NEWALLOC_EFFECTIVENESS
+             (InputFormRef.AllocEvent) via ItemAllocCore + the wired
+             CoreState.AppendBinaryData seam (#796). Clicking allocates the
+             exact WF default template + writes the pointer under undo. -->
+        <StackPanel Name="AllocStatBonusesRow" Orientation="Horizontal" Spacing="8" IsVisible="False" Margin="0,4,0,0">
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocStatBonusesWarning_Label" Name="AllocStatBonusesWarning" Text="Warning: Stat Bonuses pointer is null (P12=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="ItemEditor_AllocStatBonuses_Button" Content="New-alloc Stat Bonuses" Click="AllocStatBonuses_Click" FontSize="11" Padding="6,2" VerticalAlignment="Center"
+                  ToolTip.Tip="Allocate a new Stat Bonuses (P12) block and write its pointer into this item (mirrors WF new-alloc)." />
+        </StackPanel>
+        <StackPanel Name="AllocEffectivenessRow" Orientation="Horizontal" Spacing="8" IsVisible="False" Margin="0,2,0,0">
+          <TextBlock AutomationProperties.AutomationId="ItemEditor_AllocEffectivenessWarning_Label" Name="AllocEffectivenessWarning" Text="Warning: Effectiveness pointer is null (P16=0). Consider allocating." Foreground="Orange" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="ItemEditor_AllocEffectiveness_Button" Content="New-alloc Effectiveness" Click="AllocEffectiveness_Click" FontSize="11" Padding="6,2" VerticalAlignment="Center"
+                  ToolTip.Tip="Allocate a new Effectiveness (P16) block and write its pointer into this item (mirrors WF new-alloc)." />
+        </StackPanel>
 
         <!-- Stat bonus preview (#409 mirrors WF "能力補正値" + X_SIM_* labels:
              HP/攻撃/技/速さ/守備/魔防/幸運/移動/体格 + 魔力 when MagicSplit). -->
