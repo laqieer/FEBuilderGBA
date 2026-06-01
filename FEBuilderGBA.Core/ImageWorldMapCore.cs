@@ -55,9 +55,11 @@
 // FE6/FE7; 0xC27A4/FE8U, 0xC755C/FE8JP). G5 gate: bail (null/false) when
 // rom.RomInfo.worldmap_county_border_palette_pointer==0.
 // WF path (ImageUtilBorderAP.DrawBorderImages + DrawBorderBitmap):
-//   1. LZ77-decompress the parts image; read 16-color palette RAW from the
-//      DIRECT offset worldmap_county_border_palette_pointer (NOT pointer-to-
-//      pointer — it IS the palette offset); CalcHeight guard.
+//   1. LZ77-decompress the parts image; dereference the palette POINTER via
+//      p32(worldmap_county_border_palette_pointer) to get the actual palette
+//      offset (it IS a pointer-to-pointer — matching WF DrawBorderBitmap:
+//      "uint pal = Program.ROM.p32(Program.ROM.RomInfo.worldmap_county_border_palette_pointer)");
+//      CalcHeight guard.
 //   2. ByteToImage16Tile → parts sheet (palette index 0 = transparent, G4c).
 //   3. Parse AP at p32(apAddr), DrawFrame(layer,0)+DrawFrame(layer,1) → AP layer.
 //   4. Composite: TryRenderEvent as background; MakeTransparent (alpha-key the
@@ -429,9 +431,11 @@ namespace FEBuilderGBA
         //
         // WF render path:
         //   ImageUtilBorderAP.DrawBorderImages(image_addr, ap_addr, x, y)
-        //   → DrawBorderBitmap: decompress parts image; read 16-color palette
-        //     RAW from worldmap_county_border_palette_pointer (DIRECT offset,
-        //     NOT pointer-to-pointer); CalcHeight; ByteToImage16Tile.
+        //   → DrawBorderBitmap: decompress parts image; DEREFERENCE the palette
+        //     pointer via p32(worldmap_county_border_palette_pointer) to obtain
+        //     the actual palette offset (pointer-to-pointer — WF DrawBorderBitmap:
+        //     "uint pal = Program.ROM.p32(Program.ROM.RomInfo.worldmap_county_border_palette_pointer)");
+        //     CalcHeight; ByteToImage16Tile.
         //   → Parse AP (at U.toOffset(ap_addr)); DrawFrame(0)+DrawFrame(1)
         //     onto a transparent Blank(256,160) canvas.
         //   → composite: event worldmap as background; MakeTransparent on AP
@@ -472,8 +476,9 @@ namespace FEBuilderGBA
         ///
         /// <para><b>Parts sheet:</b> LZ77-decompress the image at
         /// <paramref name="imageAddr"/> (GBA-pointer-encoded; converted to offset
-        /// internally), read the 16-color palette RAW from the DIRECT offset
-        /// <c>worldmap_county_border_palette_pointer</c> (NOT pointer-to-pointer),
+        /// internally), dereference the 16-color palette POINTER via
+        /// p32(<c>worldmap_county_border_palette_pointer</c>) to obtain the actual
+        /// palette offset (pointer-to-pointer, matching WF DrawBorderBitmap),
         /// compute <c>height = CalcHeight(256, bin.Length)</c>; if ≤ 0 return
         /// <c>null</c> (WF blank guard). Render via
         /// <see cref="ImageUtilCore.ByteToImage16Tile"/> (palette index 0 =
@@ -507,8 +512,8 @@ namespace FEBuilderGBA
             if (CoreState.ImageService == null) return null;
 
             // G5 — FE8-only gate.
-            uint paletteDirectOffset = rom.RomInfo.worldmap_county_border_palette_pointer;
-            if (paletteDirectOffset == 0) return null;
+            uint palettePointerSlot = rom.RomInfo.worldmap_county_border_palette_pointer;
+            if (palettePointerSlot == 0) return null;
 
             // ---- Step 1: render the parts sheet (DrawBorderBitmap) ----
             // imageAddr is an encoded GBA pointer; convert to ROM offset.
@@ -528,10 +533,14 @@ namespace FEBuilderGBA
             int height = CalcHeight256(bin.Length);
             if (height <= 0) return null; // WF returns Blank(256,32); we return null
 
-            // Read the 16-color palette RAW from the DIRECT offset (not pointer-to-pointer).
-            if (!IsRegionSafe(rom, paletteDirectOffset, BORDER_PALETTE_BYTES)) return null;
+            // Dereference the palette pointer: palettePointerSlot holds the ADDRESS
+            // of a GBA pointer to the actual palette block — matching WF DrawBorderBitmap:
+            // "uint pal = Program.ROM.p32(Program.ROM.RomInfo.worldmap_county_border_palette_pointer)".
+            // TryResolveDataOffset does p32(slot) → U.toOffset → safety check.
+            if (!TryResolveDataOffset(rom, palettePointerSlot, out uint palOffset)) return null;
+            if (!IsRegionSafe(rom, palOffset, BORDER_PALETTE_BYTES)) return null;
             byte[] palette = new byte[BORDER_PALETTE_BYTES];
-            Array.Copy(rom.Data, paletteDirectOffset, palette, 0, BORDER_PALETTE_BYTES);
+            Array.Copy(rom.Data, palOffset, palette, 0, BORDER_PALETTE_BYTES);
 
             IImage parts = ImageUtilCore.ByteToImage16Tile(bin, 0, palette, 0, 256, height);
             if (parts == null) return null;
@@ -643,26 +652,28 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// WF <c>ImageUtil.CalcHeight(32*8, bin.Length)</c> for the border parts
-        /// sheet. WF formula (verified ImageUtil.cs:900-918):
-        /// <c>height = (bin.Length * 2) / width</c> in tiles, rounded up, then
-        /// aligned up to <c>align=1</c> (no real alignment for 16-color tiles). For
-        /// the border sheet width is always 256 = 32*8; in tiles = 32.
-        /// height_pixels = ((bin.Length * 2 + 31) / 32) * 8.
-        /// Returns ≤ 0 when bin.Length is 0.
+        /// sheet. WF formula (verified ImageUtil.cs:890-902):
+        /// <code>
+        /// height = image_size / (width / 2);   // bin.Length / 128 for width=256
+        /// if (image_size % (width / 2) != 0) height++;   // round up
+        /// if (height % align != 0) height += align;      // align up (align=8)
+        /// return height / align * align;
+        /// </code>
+        /// Example: bin.Length=32 → height=1 → round-up → align → 8.
+        /// Example: bin.Length=4096 → height=32 (exact) → 32.
+        /// Returns 0 when bin.Length ≤ 0.
         /// </summary>
         static int CalcHeight256(int binLength)
         {
             if (binLength <= 0) return 0;
-            // WF: tsa_size = (width * height) / 2; height = tsa_size / (width/8).
-            // Rearranging: height_tiles = (binLength * 2 + (width-1)) / width
-            //            = (binLength * 2 + 255) / 256 (in tiles, ceiling div)
-            // height_pixels = height_tiles * 8.
-            // But WF uses: CalcHeight(width, binLength) with align=8.
-            // Verified against WF code: "int height = tsa_size / (width / 8);" + round-up.
+            // WF: int height = image_size / (width / 2);
+            //                  where image_size = bin.Length, width = 256.
             const int width = 256;
-            int tsa_size = binLength; // bin is 4bpp: 2 pixels per byte
-            int height_tiles = (tsa_size * 2 + (width - 1)) / width; // ceiling
-            return height_tiles * 8;
+            const int align = 8;
+            int height = binLength / (width / 2);   // binLength / 128
+            if (binLength % (width / 2) != 0) height++;
+            if (height % align != 0) height += align;
+            return height / align * align;
         }
     }
 }

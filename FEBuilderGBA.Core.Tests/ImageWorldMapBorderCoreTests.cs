@@ -10,7 +10,10 @@
 //     malformed/empty AP → null; apAddr near EOF → no throw; SharpTable shape
 //     decode (build OAM bytes for a known shape and assert the rendered footprint).
 //   * TryRenderBorder: FE8U → non-null 256×160; truncated parts image → null;
-//     invalid AP → null; FE6/FE7 (palette_pointer==0) → null (G5 gate).
+//     invalid AP → null; FE6/FE7 (palette_pointer==0) → null (G5 gate);
+//     palette deref correctness → at least one RED pixel (index 1 = RED) verifying
+//     that the pointer-slot is dereferenced via p32() rather than read directly
+//     (BUG 1 regression guard, #851).
 //     CanExportBorder matches TryRenderBorder (non-null ↔ true).
 //
 // All ROM-dependent tests use [Collection("SharedState")] + CoreState.ROM/
@@ -31,12 +34,13 @@ namespace FEBuilderGBA.Core.Tests
         const uint BORDER_IMAGE_OFFSET   = 0x500000;
         // AP data offset.
         const uint BORDER_AP_OFFSET      = 0x510000;
-        // Palette for the parts sheet (raw 16-color block) planted directly at
-        // worldmap_county_border_palette_pointer — NOTE: that RomInfo field is a
-        // DIRECT offset, NOT a pointer-to-pointer slot.  We use a fixed address
-        // in the synthetic ROM that happens to equal what FE8U carries so there
-        // is no actual lookup.  In our synthetic ROM the field just needs to be
-        // non-zero to pass the G5 gate; we plant palette bytes there directly.
+        // Palette block offset — the ACTUAL 32-byte palette block lives here.
+        // PlantBorderPalette writes a GBA pointer (BORDER_PALETTE_OFFSET |
+        // 0x08000000) into rom.Data[palettePointerSlot..+3], and plants the 32
+        // palette bytes at BORDER_PALETTE_OFFSET.  This mirrors the real ROM
+        // layout: worldmap_county_border_palette_pointer IS a pointer-to-pointer
+        // slot — WF DrawBorderBitmap calls p32() on it to get the actual palette
+        // offset (#849 BUG 1 fix).
         const uint BORDER_PALETTE_OFFSET = 0x520000;
 
         // GBA 5-5-5 colors — same literals as ImageWorldMapCoreTests.
@@ -358,6 +362,61 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void TryRenderBorder_PaletteDeref_RendersCorrectColor()
+        {
+            // Regression guard for BUG 1 (#851): if TryRenderBorder reads palette
+            // bytes DIRECTLY at the pointer-slot (instead of dereferencing via p32),
+            // it reads the 4-byte encoded pointer as garbage colors 1–3 and the
+            // rendered pixels get wrong RGBA values.
+            //
+            // Strategy: plant a parts image with ALL pixels at index 1 (0x11 in 4bpp),
+            // palette index 1 = RED (GBA 5-5-5: 0x001F), and an AP with 1 OAM entry
+            // (8×8 at (0,0)) so the first tile is actually blitted to the AP layer.
+            // After render+composite the first tile area (pixels 0..63 in the 256×160
+            // result) must contain RED-opaque pixels (R=248, G=0, B=0, A=255).
+            // A deref bug produces colors derived from the raw pointer bytes — not RED.
+            WithRom((rom) =>
+            {
+                // Plant a parts image: 32 bytes, all index 1.
+                byte[] bin = new byte[32];
+                for (int i = 0; i < bin.Length; i++) bin[i] = 0x11;
+                PlantBytes(rom, BORDER_IMAGE_OFFSET, LZ77.compress(bin));
+
+                // Plant palette (index 1 = RED) via the pointer-slot layout.
+                PlantBorderPalette(rom);
+
+                // Plant AP with 1 OAM entry (shape=0,size=0 → 8×8, tile=0, at (0,0)).
+                byte[] apData = BuildMinimalAPDataWithOAM(0x0000u, 0x0000u, 0x0000u);
+                PlantBytes(rom, BORDER_AP_OFFSET, apData);
+
+                // Render; the AP layer must have RED pixels from index 1.
+                IImage result = ImageWorldMapCore.TryRenderBorder(
+                    rom,
+                    U.toPointer(BORDER_IMAGE_OFFSET),
+                    U.toPointer(BORDER_AP_OFFSET),
+                    0, 0);
+
+                Assert.NotNull(result);
+                byte[] px = result.GetPixelData();
+                // Scan for at least one opaque RED pixel (R=248, G=0, B=0, A=255).
+                // If the palette deref is broken the pixel colors come from raw
+                // pointer bytes and this assertion fails.
+                bool foundRed = false;
+                for (int i = 0; i + 3 < px.Length; i += 4)
+                {
+                    if (px[i + 3] == 255 && px[i] == 248 && px[i + 1] == 0 && px[i + 2] == 0)
+                    {
+                        foundRed = true;
+                        break;
+                    }
+                }
+                Assert.True(foundRed,
+                    "Expected at least one RED-opaque pixel (R=248,G=0,B=0,A=255) " +
+                    "from palette index 1. A palette-deref regression returns wrong colors.");
+            });
+        }
+
+        [Fact]
         public void TryRenderBorder_FE6_ReturnsNull()
         {
             // G5 gate: FE6 has worldmap_county_border_palette_pointer==0 → null.
@@ -557,17 +616,30 @@ namespace FEBuilderGBA.Core.Tests
 
         static void PlantBorderPalette(ROM rom)
         {
-            // 16-color palette directly at worldmap_county_border_palette_pointer.
-            // FE8U has it at 0xC27A4. Our synthetic ROM has that same value in
-            // rom.RomInfo.worldmap_county_border_palette_pointer. We plant 32 bytes
-            // at BORDER_PALETTE_OFFSET and also at the RomInfo address so the
-            // direct-offset read in TryRenderBorder hits live data.
-            uint palAddr = rom.RomInfo.worldmap_county_border_palette_pointer;
-            if (palAddr == 0) return; // FE6/FE7 — nothing to plant
+            // worldmap_county_border_palette_pointer is a POINTER-TO-POINTER slot.
+            // TryRenderBorder calls TryResolveDataOffset on this slot, which does:
+            //   encoded = rom.u32(slot)         — reads the GBA pointer stored at slot
+            //   off     = U.toOffset(encoded)   — strips the 0x08000000 bias
+            // So we must:
+            //   1. Write a GBA pointer to BORDER_PALETTE_OFFSET into the slot bytes.
+            //   2. Plant the actual 32-byte palette block at BORDER_PALETTE_OFFSET.
+            uint palettePointerSlot = rom.RomInfo.worldmap_county_border_palette_pointer;
+            if (palettePointerSlot == 0) return; // FE6/FE7 — nothing to plant
+
+            // Write the GBA pointer at the slot (little-endian u32).
+            uint encodedPtr = U.toPointer(BORDER_PALETTE_OFFSET); // BORDER_PALETTE_OFFSET | 0x08000000
+            if ((ulong)palettePointerSlot + 4 <= (ulong)rom.Data.Length)
+            {
+                rom.Data[palettePointerSlot + 0] = (byte)(encodedPtr & 0xFF);
+                rom.Data[palettePointerSlot + 1] = (byte)((encodedPtr >>  8) & 0xFF);
+                rom.Data[palettePointerSlot + 2] = (byte)((encodedPtr >> 16) & 0xFF);
+                rom.Data[palettePointerSlot + 3] = (byte)((encodedPtr >> 24) & 0xFF);
+            }
+
+            // Plant the actual palette bytes at BORDER_PALETTE_OFFSET.
             byte[] pal = MakeSimplePalette();
-            // Ensure enough room.
-            if ((ulong)palAddr + (ulong)pal.Length <= (ulong)rom.Data.Length)
-                Array.Copy(pal, 0, rom.Data, palAddr, pal.Length);
+            if ((ulong)BORDER_PALETTE_OFFSET + (ulong)pal.Length <= (ulong)rom.Data.Length)
+                Array.Copy(pal, 0, rom.Data, BORDER_PALETTE_OFFSET, pal.Length);
         }
 
         static void PlantBorderAP(ROM rom)
