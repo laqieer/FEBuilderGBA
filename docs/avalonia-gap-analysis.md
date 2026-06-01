@@ -210,6 +210,7 @@ Map Editor is no longer read-only: current code supports map rendering, tile sel
 | ImagePortrait | **45%** | ~~List stub~~ **FIXED** — list from portrait_pointer with unit name hints. Missing: Import, Drag-drop |
 | ImagePortraitFE6 | 35% | Import, Advanced import dialog |
 | ImageBattleAnime | **28%** | ~~List stub~~ **FIXED** — list from image_battle_animelist_pointer. Missing: Two-level list, Animation playback, Import/Export |
+| ImageBattleAnimePallet | **55%** | ~~Sample preview deferred~~ **FIXED** (#822) — the 16-color LZ77 palette editor now renders the WinForms `DrawSample` 12-frame 360×290 sample-preview grid cross-platform: `BattleAnimeRendererCore.RenderSampleBattleAnime` decompresses the palette, slices the palette-type (0–3) sub-palette (= WF `SwapPalette`), renders each frame via `RenderSingleFrame`, crops to 90×90 at source (100,30) (= WF SCALE_90), blank-checks the crop (`IsBlankImage`, threshold 10), and walks 12 cells with a persistent section/frame cursor; re-renders on entry-load + palette-type change. Phase 1 uses the saved ROM palette (WF parity). Missing: live-spinner palette re-render, PNG Import/Export (still `ImageFormRef`-coupled) |
 | ImageBattleBG | 45% | Import, Drag-drop, DecreaseColor |
 | ImageCG / BigCGViewer | **55%** | ~~Import~~ **FIXED** -- PNG/BMP import + drag-drop + ROM write-back via `ImageImportCore`. Missing: 10-split LZ77 compression, advanced tooling |
 | ImageCGFE7U | **55%** | ~~Import, Drag-drop~~ **FIXED** -- same core flow. Missing: FE7U-specific polish |

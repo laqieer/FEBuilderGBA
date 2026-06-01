@@ -265,6 +265,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Render the 12-frame battle-animation sample-preview grid for the
+        /// currently-loaded entry, recolored with the active palette type
+        /// (<see cref="PaletteTypeIndex"/>). Mirrors WinForms
+        /// <c>ImageBattleAnimePalletForm.DrawSample(BattleAnimeID, paletteIndex)</c>
+        /// (Phase 1 — uses the SAVED ROM palette, exactly like WF; live-spinner
+        /// edits are out of scope because WF also previews the ROM palette).
+        ///
+        /// <para>The animation record offset is derived from the back-pointer
+        /// slot: <c>_sourcePointerSlot</c> is <c>entryOffset + 0x1C</c> (the
+        /// palette pointer lives at record+0x1C), so the record begins at
+        /// <c>_sourcePointerSlot - 0x1C</c>. This is the same 0-based record
+        /// the list loop produced (no WF <c>id-1</c> conversion).</para>
+        ///
+        /// <para>Returns null when no entry is loaded / the ROM or image
+        /// service is unavailable / the record is unresolvable / there is no
+        /// non-blank frame — the caller (view) treats null as "clear preview".</para>
+        /// </summary>
+        public IImage RenderSampleBattleAnime()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CoreState.ImageService == null) return null;
+            if (_sourcePointerSlot < PalettePointerOffsetInRecord) return null;
+
+            uint recordOffset = _sourcePointerSlot - PalettePointerOffsetInRecord;
+            return BattleAnimeRendererCore.RenderSampleBattleAnime(recordOffset, _paletteTypeIndex);
+        }
+
+        /// <summary>
         /// Pack the UI R/G/B rows into GBA u16 colors and call
         /// <see cref="ImageBattleAnimePaletteCore.WritePalette"/>. Caller
         /// must wrap this in <c>UndoService.Begin/Commit/Rollback</c>.

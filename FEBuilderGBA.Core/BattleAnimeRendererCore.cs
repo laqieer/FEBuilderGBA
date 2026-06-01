@@ -439,6 +439,413 @@ namespace FEBuilderGBA
             return image;
         }
 
+        // -----------------------------------------------------------------
+        // Sample-preview helpers (#822) — the cross-platform port of the
+        // WinForms ImageBattleAnimePalletForm.DrawSample 12-frame grid +
+        // SCALE_90 crop + IsBlankBitmap blank-check + section/frame advance.
+        // -----------------------------------------------------------------
+
+        /// <summary>Cropped sample cell size — mirrors WF SCALE_90 (90x90).</summary>
+        public const int SampleCellSize = 90;
+        /// <summary>Crop window source X — mirrors WF BitBlt(... , bitmap, 100, 30).</summary>
+        public const int SampleCropSrcX = 100;
+        /// <summary>Crop window source Y — mirrors WF BitBlt(... , bitmap, 100, 30).</summary>
+        public const int SampleCropSrcY = 30;
+        /// <summary>Number of sample cells — mirrors WF DrawSample's Bitmap[12].</summary>
+        public const int SampleFrameCount = 12;
+        /// <summary>Composite grid width — mirrors WF Blank(360, 290).</summary>
+        public const int SampleGridWidth = 360;
+        /// <summary>Composite grid height — mirrors WF Blank(360, 290).</summary>
+        public const int SampleGridHeight = 290;
+
+        /// <summary>
+        /// Copy a rectangular <paramref name="w"/>x<paramref name="h"/> window
+        /// starting at source pixel (<paramref name="srcX"/>, <paramref name="srcY"/>)
+        /// out of <paramref name="src"/> into a fresh RGBA image. Out-of-bounds
+        /// source pixels are left transparent (RGBA 0,0,0,0).
+        ///
+        /// <para>This is the cross-platform equivalent of WinForms
+        /// <c>ImageBattleAnimeForm.DrawBattleAnime</c>'s SCALE_90 branch:
+        /// <c>Blank(90,90)</c> + <c>BitBlt(trim, 0,0, 90,90, bitmap, 100, 30)</c>
+        /// — i.e. a CROP of the (100,30)..(190,120) window, NOT a scale.</para>
+        /// </summary>
+        /// <param name="src">Source RGBA image.</param>
+        /// <param name="srcX">Source window X origin.</param>
+        /// <param name="srcY">Source window Y origin.</param>
+        /// <param name="w">Crop width.</param>
+        /// <param name="h">Crop height.</param>
+        /// <returns>A fresh <paramref name="w"/>x<paramref name="h"/> RGBA image, or null on failure.</returns>
+        public static IImage CropImage(IImage src, int srcX, int srcY, int w, int h)
+        {
+            IImageService svc = CoreState.ImageService;
+            if (svc == null || src == null || w <= 0 || h <= 0)
+                return null;
+
+            byte[] srcPixels = src.GetPixelData();
+            if (srcPixels == null)
+                return null;
+
+            int srcW = src.Width;
+            int srcH = src.Height;
+            byte[] outPixels = new byte[w * h * 4]; // RGBA, zero-filled = transparent
+
+            for (int y = 0; y < h; y++)
+            {
+                int sy = srcY + y;
+                if (sy < 0 || sy >= srcH) continue;
+                for (int x = 0; x < w; x++)
+                {
+                    int sx = srcX + x;
+                    if (sx < 0 || sx >= srcW) continue;
+
+                    int si = (sy * srcW + sx) * 4;
+                    if (si + 3 >= srcPixels.Length) continue;
+
+                    int di = (y * w + x) * 4;
+                    outPixels[di + 0] = srcPixels[si + 0];
+                    outPixels[di + 1] = srcPixels[si + 1];
+                    outPixels[di + 2] = srcPixels[si + 2];
+                    outPixels[di + 3] = srcPixels[si + 3];
+                }
+            }
+
+            var image = svc.CreateImage(w, h);
+            image.SetPixelData(outPixels);
+            return image;
+        }
+
+        /// <summary>
+        /// Return true when <paramref name="img"/> has at most
+        /// <paramref name="threshold"/> non-transparent pixels.
+        ///
+        /// <para>Cross-platform mirror of WinForms
+        /// <c>ImageUtil.IsBlankBitmap(bmp, emptySize)</c>: WF iterates the
+        /// 8bpp indexed bitmap and counts pixels whose palette index byte is
+        /// <c>&gt; 0</c> (index 0 = transparent), returning
+        /// <c>dotCount &lt;= emptySize</c>. Here the equivalent is the RGBA
+        /// alpha channel: <c>RenderSingleFrame</c> writes alpha 0 for color
+        /// index 0 and alpha 255 otherwise, so "alpha &gt; 0" == "index &gt; 0".
+        /// The default threshold of 10 matches WF's <c>DrawSample</c> call
+        /// (<c>IsBlankBitmap(animeframe[index], 10)</c>).</para>
+        /// </summary>
+        /// <param name="img">Image to test (RGBA).</param>
+        /// <param name="threshold">Max non-transparent pixel count to still count as blank.</param>
+        /// <returns>True if the image is effectively blank.</returns>
+        public static bool IsBlankImage(IImage img, int threshold = 10)
+        {
+            if (img == null) return true;
+            byte[] pixels = img.GetPixelData();
+            if (pixels == null) return true;
+
+            int dotCount = 0;
+            // RGBA: alpha at index 3 of every 4-byte group.
+            for (int i = 3; i < pixels.Length; i += 4)
+            {
+                if (pixels[i] > 0)
+                {
+                    dotCount++;
+                    if (dotCount > threshold) return false;
+                }
+            }
+            return dotCount <= threshold;
+        }
+
+        /// <summary>
+        /// Render the 12-frame battle-animation sample-preview grid for the
+        /// 32-byte animation record at <paramref name="animeRecordAddr"/>,
+        /// recolored with the <paramref name="paletteIndex"/>-th 16-color
+        /// sub-palette. Mirrors WinForms
+        /// <c>ImageBattleAnimePalletForm.DrawSample(battleAnimeID, paletteIndex)</c>.
+        ///
+        /// <para><b>Record resolution.</b> <paramref name="animeRecordAddr"/>
+        /// is the ROM offset of the record itself (NOT a 1-based anime id — the
+        /// caller already resolved <c>baseAddr + i*0x20</c>, so there is no WF
+        /// <c>id-1</c> conversion here). Pointer/offset conventions mirror
+        /// <c>ImageBattleAnimeViewModel.InitFrameNavigation</c> exactly:
+        /// section <c>u32(rec+12)</c> → OFFSET (<c>U.toOffset</c>, fed to
+        /// <see cref="GetSectionRange"/>); frame <c>u32(rec+16)</c> → POINTER
+        /// (passed raw to <see cref="DecompressFrameData"/>, which
+        /// <c>toOffset</c>s internally); OAM <c>u32(rec+20)</c> → POINTER
+        /// (→ offset → LZ77); palette <c>u32(rec+0x1C)</c> → POINTER
+        /// (→ offset → LZ77).</para>
+        ///
+        /// <para><b>Palette.</b> The palette block is LZ77-compressed; this
+        /// decompresses it and slices the <c>paletteIndex*0x20</c> 16-color
+        /// block (guarding length, falling back to block 0) — the
+        /// cross-platform equivalent of WF <c>ImageUtil.SwapPalette</c>.</para>
+        ///
+        /// <para><b>Per-cell.</b> Each frame is rendered via
+        /// <see cref="RenderSingleFrame"/> (240x160), then cropped to 90x90 at
+        /// source (100,30) via <see cref="CropImage"/> (WF SCALE_90), then
+        /// blank-checked via <see cref="IsBlankImage"/> on the CROP. A single
+        /// section/frame cursor PERSISTS across all 12 cells (advanced section
+        /// carries forward — mirrors WF declaring <c>showsecstion</c>/
+        /// <c>showframe</c> outside the loop). On a blank crop the advance order
+        /// is WF's exact one: <c>frame += 2</c>, then on a still-blank crop
+        /// <c>section += 1; frame = 0</c> (twice).</para>
+        ///
+        /// <para>Null-safe: returns null on null ROM / null ImageService /
+        /// unresolvable record / no non-blank frame.</para>
+        /// </summary>
+        /// <param name="animeRecordAddr">ROM offset of the 32-byte animation record.</param>
+        /// <param name="paletteIndex">Sub-palette (palette-type) index: 0=Player, 1=Enemy, 2=Other, 3=4th.</param>
+        /// <returns>A 360x290 composite IImage, or null on failure.</returns>
+        public static IImage RenderSampleBattleAnime(uint animeRecordAddr, int paletteIndex)
+        {
+            ROM rom = CoreState.ROM;
+            IImageService svc = CoreState.ImageService;
+            if (rom == null || svc == null) return null;
+            if (animeRecordAddr + 32 > (uint)rom.Data.Length) return null;
+            if (paletteIndex < 0) paletteIndex = 0;
+
+            // --- Resolve the record's pointers (mirror InitFrameNavigation) ---
+            uint sectionRaw = rom.u32(animeRecordAddr + 12);
+            uint frameRaw   = rom.u32(animeRecordAddr + 16);
+            uint oamRtLRaw  = rom.u32(animeRecordAddr + 20);
+            uint paletteRaw = rom.u32(animeRecordAddr + 28);
+
+            // Section data is raw (not compressed) at the pointer address.
+            if (!U.isPointer(sectionRaw)) return null;
+            uint sectionOffset = U.toOffset(sectionRaw);
+            if (!U.isSafetyOffset(sectionOffset, rom)) return null;
+
+            // Frame command stream (LZ77 or un-Huffman patch pointer).
+            byte[] frameData = DecompressFrameData(rom, frameRaw);
+            if (frameData == null || frameData.Length == 0) return null;
+
+            // OAM data (LZ77-compressed).
+            byte[] oamData = null;
+            if (U.isPointer(oamRtLRaw))
+            {
+                uint oamOff = U.toOffset(oamRtLRaw);
+                if (U.isSafetyOffset(oamOff, rom))
+                    oamData = LZ77.decompress(rom.Data, oamOff);
+            }
+            if (oamData == null) return null;
+
+            // Palette (LZ77-compressed) → slice the paletteIndex-th 16-color block.
+            byte[] paletteSubBytes = ResolveSamplePaletteBlock(rom, paletteRaw, paletteIndex);
+            if (paletteSubBytes == null) return null;
+
+            // --- Collect 12 cropped 90x90 cells (mirror DrawSample) ---
+            // The cursor PERSISTS across cells: an advanced section/frame carries
+            // forward into the next cell (WF declares these outside the loop).
+            //
+            // IImage is IDisposable (Skia-backed native bitmaps), so every
+            // intermediate cell MUST be disposed: a blank-retry overwrite
+            // disposes the previous crop, and after the grid is composed (or on
+            // the no-content path) all cells are disposed in `finally`. The
+            // full 240x160 frame each cell came from is disposed inside
+            // RenderSampleCell right after the crop. Only the RETURNED grid
+            // survives (the caller owns it).
+            var cells = new IImage[SampleFrameCount];
+            try
+            {
+                int section = 0;
+                int frame = 0;
+                for (int index = 0; index < SampleFrameCount; index++, frame += 2)
+                {
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                    if (!IsBlankImage(cells[index], 10))
+                    {
+                        continue;
+                    }
+                    // Blank: advance the frame a bit and retry (disposes the
+                    // previous blank crop before overwriting).
+                    frame += 2;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                    if (!IsBlankImage(cells[index], 10))
+                    {
+                        continue;
+                    }
+                    // Still blank: switch to the next section (reset frame).
+                    section += 1;
+                    frame = 0;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                    if (!IsBlankImage(cells[index], 10))
+                    {
+                        continue;
+                    }
+                    // Still blank: advance one more section, then give up for this cell.
+                    section += 1;
+                    frame = 0;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                }
+
+                // If every cell came back null/blank, there is nothing to
+                // preview. The `finally` disposes the (blank) cells.
+                bool anyContent = false;
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    if (cells[i] != null && !IsBlankImage(cells[i], 10)) { anyContent = true; break; }
+                }
+                if (!anyContent) return null;
+
+                // --- Compose the cells into the 4-col x 3-row 360x290 grid ---
+                byte[] gridPixels = new byte[SampleGridWidth * SampleGridHeight * 4]; // RGBA
+                int gx = 0;
+                int gy = 0;
+                for (int index = 0; index < cells.Length; index++)
+                {
+                    BlitCellIntoGrid(cells[index], gridPixels, SampleGridWidth, SampleGridHeight, gx, gy);
+                    gx += SampleCellSize;
+                    if (gx >= SampleGridWidth)
+                    {
+                        gx = 0;
+                        gy += SampleCellSize;
+                    }
+                }
+
+                var grid = svc.CreateImage(SampleGridWidth, SampleGridHeight);
+                grid.SetPixelData(gridPixels);
+                return grid; // caller owns the grid — NOT disposed here.
+            }
+            finally
+            {
+                // BlitCellIntoGrid copied each cell's pixels into the grid, so
+                // the cell intermediates are safe to dispose now (also covers
+                // the no-content early return). The returned grid is a separate
+                // image created above and is never placed in `cells`.
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    DisposeImage(cells[i]);
+                    cells[i] = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Assign <paramref name="value"/> to <c>cells[index]</c>, disposing any
+        /// image already there first (a blank-retry overwrite). Null-safe.
+        /// </summary>
+        static void SetCell(IImage[] cells, int index, IImage value)
+        {
+            if (!ReferenceEquals(cells[index], value))
+            {
+                DisposeImage(cells[index]);
+            }
+            cells[index] = value;
+        }
+
+        /// <summary>Null-safe, exception-swallowing dispose for an IImage.</summary>
+        static void DisposeImage(IImage img)
+        {
+            if (img is IDisposable d)
+            {
+                try { d.Dispose(); } catch { /* double-dispose / already-disposed: ignore */ }
+            }
+        }
+
+        /// <summary>
+        /// Decompress the anime palette block and slice the
+        /// <paramref name="paletteIndex"/>-th 16-color (32-byte) sub-palette.
+        /// Falls back to block 0 when the requested block is out of range.
+        /// Returns null on null/invalid palette pointer or decompress failure.
+        /// </summary>
+        static byte[] ResolveSamplePaletteBlock(ROM rom, uint paletteRaw, int paletteIndex)
+        {
+            if (!U.isPointer(paletteRaw)) return null;
+            uint palOff = U.toOffset(paletteRaw);
+            if (!U.isSafetyOffset(palOff, rom)) return null;
+
+            byte[] decompressed = LZ77.decompress(rom.Data, palOff);
+            if (decompressed == null || decompressed.Length < 32) return null;
+
+            const int blockBytes = 32; // 16 colors * 2 bytes
+            int start = paletteIndex * blockBytes;
+            if (start < 0 || start + blockBytes > decompressed.Length)
+            {
+                start = 0; // length guard → fall back to block 0
+            }
+
+            byte[] sub = new byte[blockBytes];
+            Array.Copy(decompressed, start, sub, 0, blockBytes);
+            return sub;
+        }
+
+        /// <summary>
+        /// Render one sample cell: resolve the (section, frameIndex) frame in the
+        /// decompressed frame stream, render it via <see cref="RenderSingleFrame"/>,
+        /// then crop to 90x90 at source (100,30) (WF SCALE_90). Returns a blank
+        /// 90x90 cell when the frame index does not exist in the section (WF
+        /// returns a blank bitmap in that case, which the caller's blank-check
+        /// then advances past).
+        /// </summary>
+        static IImage RenderSampleCell(ROM rom, byte[] frameData, byte[] oamData,
+            byte[] paletteSubBytes, uint sectionOffset, int section, int frameIndex)
+        {
+            // Out-of-range section → blank cell (WF FindFrame would return NOT_FOUND).
+            if (section < 0 || section >= SECTION_COUNT)
+                return BlankSampleCell();
+
+            GetSectionRange(section, sectionOffset, (uint)frameData.Length, rom,
+                out uint start, out uint end);
+
+            List<FrameInfo> frames = ParseFramesInRange(frameData, start, end);
+            if (frames == null || frameIndex < 0 || frameIndex >= frames.Count)
+                return BlankSampleCell();
+
+            IImage full = RenderSingleFrame(frames[frameIndex], oamData, paletteSubBytes);
+            if (full == null)
+                return BlankSampleCell();
+
+            // Crop to the 90x90 SCALE_90 window, then dispose the 240x160 full
+            // frame intermediate (its pixels were copied into the crop).
+            IImage crop = CropImage(full, SampleCropSrcX, SampleCropSrcY,
+                SampleCellSize, SampleCellSize);
+            DisposeImage(full);
+            return crop ?? BlankSampleCell();
+        }
+
+        /// <summary>A fresh transparent 90x90 cell (for missing/failed frames).</summary>
+        static IImage BlankSampleCell()
+        {
+            IImageService svc = CoreState.ImageService;
+            if (svc == null) return null;
+            var img = svc.CreateImage(SampleCellSize, SampleCellSize);
+            img.SetPixelData(new byte[SampleCellSize * SampleCellSize * 4]);
+            return img;
+        }
+
+        /// <summary>
+        /// Blit a (possibly null) 90x90 cell into the composite grid at
+        /// (<paramref name="gx"/>, <paramref name="gy"/>). Null/short cells are
+        /// skipped (the grid stays transparent there).
+        /// </summary>
+        static void BlitCellIntoGrid(IImage cell, byte[] gridPixels, int gridW, int gridH,
+            int gx, int gy)
+        {
+            if (cell == null) return;
+            byte[] cellPixels = cell.GetPixelData();
+            if (cellPixels == null) return;
+
+            int cw = cell.Width;
+            int ch = cell.Height;
+            for (int y = 0; y < ch; y++)
+            {
+                int dy = gy + y;
+                if (dy < 0 || dy >= gridH) continue;
+                for (int x = 0; x < cw; x++)
+                {
+                    int dx = gx + x;
+                    if (dx < 0 || dx >= gridW) continue;
+
+                    int si = (y * cw + x) * 4;
+                    if (si + 3 >= cellPixels.Length) continue;
+
+                    int di = (dy * gridW + dx) * 4;
+                    gridPixels[di + 0] = cellPixels[si + 0];
+                    gridPixels[di + 1] = cellPixels[si + 1];
+                    gridPixels[di + 2] = cellPixels[si + 2];
+                    gridPixels[di + 3] = cellPixels[si + 3];
+                }
+            }
+        }
+
         /// <summary>
         /// GBA OAM affine transform matrix (PA/PB/PC/PD).
         /// Represents the 2x2 fixed-point matrix used for rotation/scaling.
