@@ -805,6 +805,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            if (App.ScreenshotItemNewAllocMode)
+            {
+                RunScreenshotItemNewAlloc();
+                return;
+            }
+
             if (App.DataVerifyMode)
             {
                 RunDataVerify();
@@ -988,6 +994,98 @@ namespace FEBuilderGBA.Avalonia.Views
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// #831 focused proof: open the ItemEditor on a real item with a null
+        /// Stat Bonuses (P12) pointer, capture a BEFORE shot (orange warning +
+        /// "New-alloc Stat Bonuses" button visible), click the new-alloc button,
+        /// then capture an AFTER shot (warning gone, the P12 box now shows the
+        /// freshly allocated GBA pointer). Real Skia render via the desktop
+        /// platform (RenderTargetBitmap.Render), used to regenerate
+        /// pr-screenshots/pr831-item-newalloc{,-before}.png.
+        /// </summary>
+        private void RunScreenshotItemNewAlloc()
+        {
+            Dispatcher.UIThread.Post(async () =>
+            {
+                int rc = 1;
+                try
+                {
+                    string screenshotDir = App.ScreenshotDir
+                        ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshots");
+                    Directory.CreateDirectory(screenshotDir);
+
+                    global::FEBuilderGBA.ROM rom = global::FEBuilderGBA.CoreState.ROM!;
+                    uint baseAddr = rom.p32(rom.RomInfo.item_pointer);
+                    uint dataSize = rom.RomInfo.item_datasize;
+
+                    // First item (index > 0) with a null Stat Bonuses pointer.
+                    uint targetAddr = 0;
+                    for (uint idx = 1; idx < 64; idx++)
+                    {
+                        uint addr = baseAddr + idx * dataSize;
+                        if (rom.u32(addr + 12) == 0) { targetAddr = addr; break; }
+                    }
+                    if (targetAddr == 0)
+                    {
+                        Console.WriteLine("SCREENSHOT831: no item with null P12 found");
+                        Environment.ExitCode = 1;
+                        Close();
+                        return;
+                    }
+                    Console.WriteLine($"SCREENSHOT831: target item @ 0x{targetAddr:X8} (P12=0)");
+
+                    var view = new ItemEditorView();
+                    view.Show();
+                    await Task.Delay(300);
+                    // Select the target item so the warning + new-alloc button show.
+                    view.NavigateTo(targetAddr);
+                    await Task.Delay(300);
+
+                    CaptureItemEditor(view, Path.Combine(screenshotDir, "pr831-item-newalloc-before.png"));
+
+                    // Click the real new-alloc handler (private method).
+                    var click = typeof(ItemEditorView).GetMethod("AllocStatBonuses_Click",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    click?.Invoke(view, new object?[] { null, null });
+                    await Task.Delay(300);
+
+                    uint newP12 = rom.u32(targetAddr + 12);
+                    Console.WriteLine($"SCREENSHOT831: after click, P12 = 0x{newP12:X8}");
+
+                    CaptureItemEditor(view, Path.Combine(screenshotDir, "pr831-item-newalloc.png"));
+
+                    try { view.Close(); } catch { /* best effort */ }
+                    WindowManager.Instance.CloseAll();
+                    rc = global::FEBuilderGBA.U.isPointer(newP12) ? 0 : 1;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"SCREENSHOT831: FAIL: {ex.Message}");
+                    rc = 1;
+                }
+                Environment.ExitCode = rc;
+                Close();
+            }, DispatcherPriority.Background);
+        }
+
+        /// <summary>Render an ItemEditorView to a PNG via RenderTargetBitmap (real Skia desktop backend).</summary>
+        private static void CaptureItemEditor(Window view, string outPath)
+        {
+            try
+            {
+                int w = Math.Max((int)view.Width, 100);
+                int h = Math.Max((int)view.Height, 100);
+                using var rtb = new RenderTargetBitmap(new PixelSize(w, h), new Vector(96, 96));
+                rtb.Render(view);
+                rtb.Save(outPath);
+                Console.WriteLine($"SCREENSHOT831: saved {outPath} ({new FileInfo(outPath).Length} bytes)");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SCREENSHOT831: render failed for {outPath}: {ex.Message}");
+            }
         }
 
         /// <summary>

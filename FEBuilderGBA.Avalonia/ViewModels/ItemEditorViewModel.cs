@@ -520,6 +520,58 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// New-alloc the StatBooster (P12) block for the current item — mirrors
+        /// WF <c>L_12_NEWALLOC_ITEMSTATBOOSTER</c> /
+        /// <c>AllocEvent("ITEMSTATBOOSTER")</c>. Delegates to
+        /// <see cref="ItemAllocCore.AllocStatBonuses"/> (template <c>byte[20]</c>
+        /// <c>[1]=5</c>), which writes the block + repoints the slot under the
+        /// ambient undo scope opened by the View's <c>UndoService.Begin</c>.
+        /// No-clobber: a non-zero P12 is left untouched. On success refreshes
+        /// <see cref="StatBonusesPtr"/> + the computed warnings/preview.
+        /// </summary>
+        /// <returns>true when a block was allocated and the pointer set.</returns>
+        public bool AllocStatBonuses(Undo.UndoData? undoData)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return false;
+            // Gate identical to the warning visibility (Ptr==0 && index>0).
+            if (StatBonusesPtr != 0 || _currentItemIndex == 0) return false;
+
+            uint addr = ItemAllocCore.AllocStatBonuses(rom, CurrentAddr, undoData);
+            if (addr == U.NOT_FOUND) return false;
+
+            // Re-read the freshly written pointer slot so the UI + computed
+            // fields reflect the new block (mirrors WF writeButton.PerformClick).
+            StatBonusesPtr = rom.u32(CurrentAddr + 12);
+            RecalcComputed();
+            return true;
+        }
+
+        /// <summary>
+        /// New-alloc the Effectiveness (P16) block for the current item —
+        /// mirrors WF <c>L_16_NEWALLOC_EFFECTIVENESS</c> /
+        /// <c>AllocEvent("EFFECTIVENESS")</c>. <paramref name="skillSystemsRework"/>
+        /// selects the WF patch-conditional template
+        /// (<see cref="ItemAllocCore.BuildEffectivenessTemplate"/>); the View
+        /// supplies <c>PatchDetectionService.SkillSystemsClassTypeRework</c>.
+        /// No-clobber + ambient-undo, exactly like
+        /// <see cref="AllocStatBonuses"/>.
+        /// </summary>
+        public bool AllocEffectiveness(bool skillSystemsRework, Undo.UndoData? undoData)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return false;
+            if (EffectivenessPtr != 0 || _currentItemIndex == 0) return false;
+
+            uint addr = ItemAllocCore.AllocEffectiveness(rom, CurrentAddr, skillSystemsRework, undoData);
+            if (addr == U.NOT_FOUND) return false;
+
+            EffectivenessPtr = rom.u32(CurrentAddr + 16);
+            RecalcComputed();
+            return true;
+        }
+
+        /// <summary>
         /// Resolve a skill ID to a display name via NameResolver.
         /// </summary>
         static string ResolveSkillName(uint skillId)

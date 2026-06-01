@@ -148,17 +148,21 @@ public class ItemEditorParityTests
     }
 
     [Fact]
-    public void View_HasNewallocKnownGapMarker()
+    public void View_HasWiredNewallocButtons()
     {
-        // Copilot v1 review C2 / C5: the Newalloc buttons (WF
-        // L_12_NEWALLOC_ITEMSTATBOOSTER / L_16_NEWALLOC_EFFECTIVENESS) are
-        // deliberately deferred because the Avalonia head does not yet wire
-        // CoreState.AppendBinaryData. The AXAML must carry an explicit
-        // KnownGap marker so future gap sweeps see the deferral context.
+        // #831: the Newalloc buttons (WF L_12_NEWALLOC_ITEMSTATBOOSTER /
+        // L_16_NEWALLOC_EFFECTIVENESS) are now WIRED via ItemAllocCore + the
+        // wired CoreState.AppendBinaryData seam (#796). The AXAML must carry
+        // both buttons (AutomationId + Click handler), and the stale "not
+        // wired / deferred" deferral marker must be gone.
         string axaml = ReadAxaml();
-        Assert.Contains("KnownGap", axaml);
-        Assert.Contains("NEWALLOC", axaml);
-        Assert.Contains("CoreState.AppendBinaryData", axaml);
+        Assert.Contains("AutomationId=\"ItemEditor_AllocStatBonuses_Button\"", axaml);
+        Assert.Contains("AutomationId=\"ItemEditor_AllocEffectiveness_Button\"", axaml);
+        Assert.Contains("Click=\"AllocStatBonuses_Click\"", axaml);
+        Assert.Contains("Click=\"AllocEffectiveness_Click\"", axaml);
+        // The stale "does not yet wire CoreState.AppendBinaryData" deferral
+        // marker must no longer be present (the buttons are wired now).
+        Assert.DoesNotContain("does not yet wire", axaml);
     }
 
     // -----------------------------------------------------------------

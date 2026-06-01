@@ -222,9 +222,12 @@ namespace FEBuilderGBA.Avalonia.Views
             ShopSellPriceLabel.Text = _vm.ShopSellPrice.ToString();
             ShopShingekiPriceLabel.Text = _vm.ShopShingekiShopPrice.ToString();
 
-            // Null pointer warnings.
-            AllocStatBonusesWarning.IsVisible = _vm.ShowAllocStatBonuses;
-            AllocEffectivenessWarning.IsVisible = _vm.ShowAllocEffectiveness;
+            // Null pointer warnings + new-alloc buttons (#831). The whole row
+            // (warning label + New-alloc button) shows only when the field
+            // pointer is 0 and SelectedListIndex > 0, matching the WF
+            // visibility gate (UpdateStateByAllocEvent).
+            AllocStatBonusesRow.IsVisible = _vm.ShowAllocStatBonuses;
+            AllocEffectivenessRow.IsVisible = _vm.ShowAllocEffectiveness;
 
             // Effective class list.
             EffectiveClassBorder.IsVisible = _vm.HasEffectiveClasses;
@@ -501,6 +504,62 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("Write failed: {0}", ex.Message);
+            }
+        }
+
+        // #831: new-alloc the StatBooster (P12) block — mirrors WF
+        // L_12_NEWALLOC_ITEMSTATBOOSTER (InputFormRef.AllocEvent). One undo
+        // scope covers the block-write + the pointer-write; refresh the box +
+        // warning rows on success.
+        void AllocStatBonuses_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("New-alloc Stat Bonuses (FE6)");
+            try
+            {
+                bool ok = _vm.AllocStatBonuses(_undoService.GetActiveUndoData());
+                if (ok)
+                {
+                    _undoService.Commit();
+                    StatBonusesPtrBox.Text = $"0x{_vm.StatBonusesPtr:X08}";
+                    UpdateComputedUI();
+                }
+                else
+                {
+                    _undoService.Rollback();
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("AllocStatBonuses failed: {0}", ex.Message);
+            }
+        }
+
+        // #831: new-alloc the Effectiveness (P16) block — mirrors WF
+        // L_16_NEWALLOC_EFFECTIVENESS. FE6 (version 6) never has the
+        // SkillSystems class-type rework, so the rework flag is false here.
+        void AllocEffectiveness_Click(object? sender, RoutedEventArgs e)
+        {
+            _undoService.Begin("New-alloc Effectiveness (FE6)");
+            try
+            {
+                bool rework = PatchDetectionService.Instance.SkillSystemsClassTypeRework;
+                bool ok = _vm.AllocEffectiveness(rework, _undoService.GetActiveUndoData());
+                if (ok)
+                {
+                    _undoService.Commit();
+                    EffectivenessPtrBox.Text = $"0x{_vm.EffectivenessPtr:X08}";
+                    UpdateComputedUI();
+                }
+                else
+                {
+                    _undoService.Rollback();
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("AllocEffectiveness failed: {0}", ex.Message);
             }
         }
 

@@ -253,9 +253,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Mirrors WF ItemFE6Form.AddressList_SelectedIndexChanged null
-        /// pointer warning checks for P12 / P16. The Avalonia head shows
-        /// a warning label (not a newalloc button - that's deferred via
-        /// the KnownGap marker in the AXAML).
+        /// pointer warning checks for P12 / P16. The Avalonia head shows a
+        /// warning label PLUS a New-alloc button (#831 wired the button via
+        /// <see cref="AllocStatBonuses"/> / <see cref="AllocEffectiveness"/>);
+        /// this flag also gates the button row's visibility.
         ///
         /// Copilot CLI review #576 blocking finding 3: gate the warning
         /// on `SelectedListIndex > 0`, NOT on `CurrentAddr != 0` — the
@@ -366,6 +367,55 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 29, Icon);
             rom.write_u8(addr + 30, UsageEffect);
             rom.write_u8(addr + 31, DamageEffect);
+        }
+
+        /// <summary>
+        /// New-alloc the StatBooster (P12) block for the current item — mirrors
+        /// WF <c>L_12_NEWALLOC_ITEMSTATBOOSTER</c> /
+        /// <c>AllocEvent("ITEMSTATBOOSTER")</c>. Delegates to
+        /// <see cref="ItemAllocCore.AllocStatBonuses"/> (template <c>byte[20]</c>
+        /// <c>[1]=5</c>) under the ambient undo scope opened by the View's
+        /// <c>UndoService.Begin</c>. Gated on <c>SelectedListIndex &gt; 0</c>
+        /// (FE6 row 0 is a dummy). No-clobber: a non-zero P12 is untouched.
+        /// </summary>
+        /// <returns>true when a block was allocated and the pointer set.</returns>
+        public bool AllocStatBonuses(Undo.UndoData? undoData)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return false;
+            if (StatBonusesPtr != 0 || SelectedListIndex <= 0) return false;
+
+            uint addr = ItemAllocCore.AllocStatBonuses(rom, CurrentAddr, undoData);
+            if (addr == U.NOT_FOUND) return false;
+
+            StatBonusesPtr = rom.u32(CurrentAddr + 12);
+            RecalcAllocFlags();
+            RecalcStatBonuses();
+            return true;
+        }
+
+        /// <summary>
+        /// New-alloc the Effectiveness (P16) block for the current item —
+        /// mirrors WF <c>L_16_NEWALLOC_EFFECTIVENESS</c> /
+        /// <c>AllocEvent("EFFECTIVENESS")</c>. FE6 (version 6) never has the
+        /// SkillSystems class-type rework, so <paramref name="skillSystemsRework"/>
+        /// is effectively always false here, but is kept for API parity with
+        /// <see cref="ItemEditorViewModel.AllocEffectiveness"/>. No-clobber +
+        /// ambient-undo, exactly like <see cref="AllocStatBonuses"/>.
+        /// </summary>
+        public bool AllocEffectiveness(bool skillSystemsRework, Undo.UndoData? undoData)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || CurrentAddr == 0) return false;
+            if (EffectivenessPtr != 0 || SelectedListIndex <= 0) return false;
+
+            uint addr = ItemAllocCore.AllocEffectiveness(rom, CurrentAddr, skillSystemsRework, undoData);
+            if (addr == U.NOT_FOUND) return false;
+
+            EffectivenessPtr = rom.u32(CurrentAddr + 16);
+            RecalcAllocFlags();
+            UpdateEffectiveClassList();
+            return true;
         }
 
         public int GetListCount() => LoadItemList().Count;
