@@ -335,6 +335,63 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // =================================================================
+        // EOF guards (#845 review threads 1 + 2)
+        // =================================================================
+
+        [Fact]
+        public void Event_PaletteNearRomEnd_InsufficientBytes_ReturnsNull()
+        {
+            // Thread 2: the event palette is a FIXED 128 bytes (64 colors). A
+            // palette pointer with FEWER than 128 bytes to EOF is a truncated /
+            // corrupt pointer, NOT a smaller-but-valid palette -> the resolver must
+            // return null (so the preview is null and Export PNG stays disabled),
+            // NOT a partial-read non-null image. Plant a valid image + TSA so the
+            // ONLY failure point is the palette.
+            WithRom((rom) =>
+            {
+                PlantBytes(rom, EVENT_IMAGE_OFFSET, LZ77.compress(MarkerTiles()));
+                SetPtr(rom, rom.RomInfo.worldmap_event_image_pointer, EVENT_IMAGE_OFFSET);
+                PlantBytes(rom, EVENT_TSA_OFFSET, LZ77.compress(HeaderTsaBytes(Cell(1, false, false, 0))));
+                SetPtr(rom, rom.RomInfo.worldmap_event_tsa_pointer, EVENT_TSA_OFFSET);
+
+                // 100 bytes to EOF < the required 128.
+                uint palNearEnd = (uint)rom.Data.Length - 100;
+                SetPtr(rom, rom.RomInfo.worldmap_event_palette_pointer, palNearEnd);
+
+                Assert.Null(ImageWorldMapCore.TryRenderEvent(rom));
+            });
+        }
+
+        [Fact]
+        public void Mini_PaletteNearRomEnd_InsufficientBytes_ReturnsNull()
+        {
+            // Thread 2, icon side: the icon palette is a FIXED 32 bytes (16 colors).
+            // A palette pointer with fewer than 32 bytes to EOF -> null (not a
+            // partial read). Plant a valid image so the palette is the only failure.
+            WithRom((rom) =>
+            {
+                PlantIconStrip(rom, MINI_IMAGE_OFFSET, rom.RomInfo.worldmap_mini_image_pointer, 8 * 8);
+
+                // 20 bytes to EOF < the required 32.
+                uint palNearEnd = (uint)rom.Data.Length - 20;
+                SetPtr(rom, rom.RomInfo.worldmap_mini_palette_pointer, palNearEnd);
+
+                Assert.Null(ImageWorldMapCore.TryRenderMini(rom));
+            });
+        }
+
+        // Thread 1 note: TryResolveDataOffset now reads rom.u32(pointerSlot) behind
+        // a 4-byte EOF guard (IsRegionSafe(rom, slot, 4)) — the SAME guard the
+        // palette path uses — so a pointer slot in the last 1-3 bytes of the ROM
+        // returns null instead of throwing IndexOutOfRangeException. This cannot be
+        // exercised behaviorally here: a validly-detected FE8U ROM is a mandatory
+        // 16 MB (ROM.LoadLow requires Length >= 0x1000000) and the worldmap RomInfo
+        // pointer slots are at fixed LOW offsets (e.g. worldmap_road_tile_pointer =
+        // 0xB8F98), so a slot can never sit near EOF, and ROM.Data is protected-set
+        // (cannot be shrunk from a test). The guard's logic is covered by the
+        // palette-near-EOF tests above (same IsRegionSafe helper).
+
+        // =================================================================
         // Harness
         // =================================================================
 

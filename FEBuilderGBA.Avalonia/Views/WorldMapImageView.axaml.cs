@@ -536,7 +536,10 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 target.SetImage(null);
                 setGate(false);
-                Log.Error("WorldMapImageView.Render{0} failed: {1}", label, ex.Message);
+                // Core Log.Error(params string[]) string.Joins its args (no {0}/{1}
+                // substitution), so pass a single interpolated string and include
+                // the full exception (stack trace) rather than just ex.Message.
+                Log.Error($"WorldMapImageView.Render{label} failed: {ex}");
             }
         }
 
@@ -563,7 +566,9 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("WorldMapImageView.ExportPreview({0}) failed: {1}", suggestedName, ex.Message);
+                // Single interpolated string + full exception (Core Log.Error does
+                // not apply {0}/{1} substitution — see RenderInto).
+                Log.Error($"WorldMapImageView.ExportPreview({suggestedName}) failed: {ex}");
             }
         }
 

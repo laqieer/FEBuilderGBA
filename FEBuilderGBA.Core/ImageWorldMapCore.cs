@@ -114,10 +114,11 @@ namespace FEBuilderGBA
             // 4-byte-header + truncation guard applied to the SECOND stream). ---
             if (!TryDecompressGuarded(rom, tsaAddr, out byte[] tsaData)) return null;
 
-            // --- Event palette: RAW 64 colors / 128 bytes (CAUTION 2), clamped
-            // to ROM end (no LZ77). DecodeTileToPixels bounds-checks short
-            // palettes, so a clamped read is safe. ---
-            byte[] palette = ReadRawPaletteClamped(rom, paletteAddr, EVENT_PALETTE_BYTES);
+            // --- Event palette: the FULL RAW 64 colors / 128 bytes (CAUTION 2),
+            // no LZ77. The size is FIXED, so a truncated/corrupt palette pointer
+            // (insufficient bytes to EOF) returns null here -> the preview is null
+            // and Export PNG stays disabled. ---
+            byte[] palette = ReadRawPalette(rom, paletteAddr, EVENT_PALETTE_BYTES);
             if (palette == null) return null;
 
             // tsaAddend=0 / paletteShift=0 are the correct event defaults
@@ -200,8 +201,9 @@ namespace FEBuilderGBA
             if (compressed == 0) return null;
             if ((ulong)imageAddr + compressed > (ulong)rom.Data.Length) return null;
 
-            // 16-color palette (palette_count=1), raw, clamped to ROM end.
-            byte[] palette = ReadRawPaletteClamped(rom, paletteAddr, ICON_PALETTE_COLORS * 2);
+            // The FULL 16-color palette (palette_count=1) = 32 bytes, raw. FIXED
+            // size, so a truncated/corrupt palette pointer returns null here.
+            byte[] palette = ReadRawPalette(rom, paletteAddr, ICON_PALETTE_COLORS * 2);
             if (palette == null) return null;
 
             // LoadROMTiles4bpp reads from CoreState.ROM and LZ77-decompresses
@@ -221,14 +223,19 @@ namespace FEBuilderGBA
         /// Dereference a canonical RomInfo pointer (pointer-to-pointer): p32 the
         /// pointer slot to read the encoded data pointer, decode it to a ROM
         /// offset, and validate the offset with <see cref="U.isSafetyOffset(uint, ROM)"/>.
-        /// Returns false (no offset) on a zero / non-pointer / unsafe target.
+        /// Returns false (no offset) on a zero / non-pointer / unsafe / EOF-truncated
+        /// target.
         /// </summary>
         static bool TryResolveDataOffset(ROM rom, uint pointerSlot, out uint dataOffset)
         {
             dataOffset = 0;
             if (pointerSlot == 0) return false;
-            // The slot itself must be in-bounds before p32 reads it.
-            if (!U.isSafetyOffset(pointerSlot, rom)) return false;
+            // The slot itself must be in-bounds before the u32 read. isSafetyOffset
+            // only checks the START offset, so a slot in the last 1-3 bytes of the
+            // ROM (truncated ROM / corrupt RomInfo slot near EOF) would still throw
+            // IndexOutOfRangeException inside rom.u32 — require the FULL 4-byte read
+            // to be in-bounds first (#818/#827 EOF-guard pattern).
+            if (!IsRegionSafe(rom, pointerSlot, 4)) return false;
             uint encoded = rom.u32(pointerSlot);
             if (!U.isPointer(encoded)) return false;
             uint off = U.toOffset(encoded);
@@ -260,19 +267,21 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Read <paramref name="wantBytes"/> of raw (uncompressed) palette data
-        /// from <paramref name="paletteAddr"/>, clamped to the ROM end. Returns
-        /// null when the address is unsafe or zero bytes remain.
+        /// Read the FULL fixed-size <paramref name="sizeBytes"/> raw (uncompressed)
+        /// palette block from <paramref name="paletteAddr"/>. The world-map palette
+        /// sizes are FIXED (Event = 128 bytes / 64 colors; Icon = 32 bytes / 16
+        /// colors), so a PARTIAL read near EOF is a truncated / corrupt palette
+        /// pointer, not a smaller-but-valid palette — return <c>null</c> (do NOT
+        /// clamp to a partial buffer). A partial buffer would otherwise yield a
+        /// non-null (incorrect / transparent) image, and the view enables Export
+        /// PNG on <c>img != null</c>. Requires the full <c>[addr, addr+sizeBytes)</c>
+        /// region in-bounds (isSafetyOffset on the start + an explicit EOF check).
         /// </summary>
-        static byte[] ReadRawPaletteClamped(ROM rom, uint paletteAddr, int wantBytes)
+        static byte[] ReadRawPalette(ROM rom, uint paletteAddr, int sizeBytes)
         {
-            if (!U.isSafetyOffset(paletteAddr, rom)) return null;
-            int palBytes = wantBytes;
-            if ((ulong)paletteAddr + (ulong)palBytes > (ulong)rom.Data.Length)
-                palBytes = (int)((ulong)rom.Data.Length - paletteAddr);
-            if (palBytes <= 0) return null;
-            byte[] buf = new byte[palBytes];
-            Array.Copy(rom.Data, paletteAddr, buf, 0, palBytes);
+            if (!IsRegionSafe(rom, paletteAddr, sizeBytes)) return null;
+            byte[] buf = new byte[sizeBytes];
+            Array.Copy(rom.Data, paletteAddr, buf, 0, sizeBytes);
             return buf;
         }
 
