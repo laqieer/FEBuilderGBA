@@ -630,67 +630,114 @@ namespace FEBuilderGBA
             // --- Collect 12 cropped 90x90 cells (mirror DrawSample) ---
             // The cursor PERSISTS across cells: an advanced section/frame carries
             // forward into the next cell (WF declares these outside the loop).
+            //
+            // IImage is IDisposable (Skia-backed native bitmaps), so every
+            // intermediate cell MUST be disposed: a blank-retry overwrite
+            // disposes the previous crop, and after the grid is composed (or on
+            // the no-content path) all cells are disposed in `finally`. The
+            // full 240x160 frame each cell came from is disposed inside
+            // RenderSampleCell right after the crop. Only the RETURNED grid
+            // survives (the caller owns it).
             var cells = new IImage[SampleFrameCount];
-            int section = 0;
-            int frame = 0;
-            for (int index = 0; index < SampleFrameCount; index++, frame += 2)
+            try
             {
-                cells[index] = RenderSampleCell(rom, frameData, oamData, paletteSubBytes,
-                    sectionOffset, section, frame);
-                if (!IsBlankImage(cells[index], 10))
+                int section = 0;
+                int frame = 0;
+                for (int index = 0; index < SampleFrameCount; index++, frame += 2)
                 {
-                    continue;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                    if (!IsBlankImage(cells[index], 10))
+                    {
+                        continue;
+                    }
+                    // Blank: advance the frame a bit and retry (disposes the
+                    // previous blank crop before overwriting).
+                    frame += 2;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                    if (!IsBlankImage(cells[index], 10))
+                    {
+                        continue;
+                    }
+                    // Still blank: switch to the next section (reset frame).
+                    section += 1;
+                    frame = 0;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
+                    if (!IsBlankImage(cells[index], 10))
+                    {
+                        continue;
+                    }
+                    // Still blank: advance one more section, then give up for this cell.
+                    section += 1;
+                    frame = 0;
+                    SetCell(cells, index, RenderSampleCell(rom, frameData, oamData,
+                        paletteSubBytes, sectionOffset, section, frame));
                 }
-                // Blank: advance the frame a bit and retry.
-                frame += 2;
-                cells[index] = RenderSampleCell(rom, frameData, oamData, paletteSubBytes,
-                    sectionOffset, section, frame);
-                if (!IsBlankImage(cells[index], 10))
-                {
-                    continue;
-                }
-                // Still blank: switch to the next section (reset frame).
-                section += 1;
-                frame = 0;
-                cells[index] = RenderSampleCell(rom, frameData, oamData, paletteSubBytes,
-                    sectionOffset, section, frame);
-                if (!IsBlankImage(cells[index], 10))
-                {
-                    continue;
-                }
-                // Still blank: advance one more section, then give up for this cell.
-                section += 1;
-                frame = 0;
-                cells[index] = RenderSampleCell(rom, frameData, oamData, paletteSubBytes,
-                    sectionOffset, section, frame);
-            }
 
-            // If every cell came back null/blank, there is nothing to preview.
-            bool anyContent = false;
-            for (int i = 0; i < cells.Length; i++)
+                // If every cell came back null/blank, there is nothing to
+                // preview. The `finally` disposes the (blank) cells.
+                bool anyContent = false;
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    if (cells[i] != null && !IsBlankImage(cells[i], 10)) { anyContent = true; break; }
+                }
+                if (!anyContent) return null;
+
+                // --- Compose the cells into the 4-col x 3-row 360x290 grid ---
+                byte[] gridPixels = new byte[SampleGridWidth * SampleGridHeight * 4]; // RGBA
+                int gx = 0;
+                int gy = 0;
+                for (int index = 0; index < cells.Length; index++)
+                {
+                    BlitCellIntoGrid(cells[index], gridPixels, SampleGridWidth, SampleGridHeight, gx, gy);
+                    gx += SampleCellSize;
+                    if (gx >= SampleGridWidth)
+                    {
+                        gx = 0;
+                        gy += SampleCellSize;
+                    }
+                }
+
+                var grid = svc.CreateImage(SampleGridWidth, SampleGridHeight);
+                grid.SetPixelData(gridPixels);
+                return grid; // caller owns the grid — NOT disposed here.
+            }
+            finally
             {
-                if (cells[i] != null && !IsBlankImage(cells[i], 10)) { anyContent = true; break; }
-            }
-            if (!anyContent) return null;
-
-            // --- Compose the cells into the 4-col x 3-row 360x290 grid ---
-            byte[] gridPixels = new byte[SampleGridWidth * SampleGridHeight * 4]; // RGBA
-            int gx = 0;
-            int gy = 0;
-            for (int index = 0; index < cells.Length; index++)
-            {
-                BlitCellIntoGrid(cells[index], gridPixels, SampleGridWidth, SampleGridHeight, gx, gy);
-                gx += SampleCellSize;
-                if (gx >= SampleGridWidth)
+                // BlitCellIntoGrid copied each cell's pixels into the grid, so
+                // the cell intermediates are safe to dispose now (also covers
+                // the no-content early return). The returned grid is a separate
+                // image created above and is never placed in `cells`.
+                for (int i = 0; i < cells.Length; i++)
                 {
-                    gx = 0;
-                    gy += SampleCellSize;
+                    DisposeImage(cells[i]);
+                    cells[i] = null;
                 }
             }
+        }
 
-            var grid = svc.CreateImage(SampleGridWidth, SampleGridHeight);
-            grid.SetPixelData(gridPixels);
-            return grid;
+        /// <summary>
+        /// Assign <paramref name="value"/> to <c>cells[index]</c>, disposing any
+        /// image already there first (a blank-retry overwrite). Null-safe.
+        /// </summary>
+        static void SetCell(IImage[] cells, int index, IImage value)
+        {
+            if (!ReferenceEquals(cells[index], value))
+            {
+                DisposeImage(cells[index]);
+            }
+            cells[index] = value;
+        }
+
+        /// <summary>Null-safe, exception-swallowing dispose for an IImage.</summary>
+        static void DisposeImage(IImage img)
+        {
+            if (img is IDisposable d)
+            {
+                try { d.Dispose(); } catch { /* double-dispose / already-disposed: ignore */ }
+            }
         }
 
         /// <summary>
@@ -746,9 +793,11 @@ namespace FEBuilderGBA
             if (full == null)
                 return BlankSampleCell();
 
+            // Crop to the 90x90 SCALE_90 window, then dispose the 240x160 full
+            // frame intermediate (its pixels were copied into the crop).
             IImage crop = CropImage(full, SampleCropSrcX, SampleCropSrcY,
                 SampleCellSize, SampleCellSize);
-            if (full is IDisposable d) d.Dispose();
+            DisposeImage(full);
             return crop ?? BlankSampleCell();
         }
 

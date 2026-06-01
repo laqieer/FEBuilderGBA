@@ -203,7 +203,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                SamplePreview.SetImage(_vm.RenderSampleBattleAnime());
+                // IImage is IDisposable (Skia-backed). GbaImageControl.SetImage
+                // (via IconBitmapBuilder.FromImage) copies the pixels into an
+                // independent WriteableBitmap synchronously and does NOT take
+                // ownership of the IImage, so dispose the freshly-rendered grid
+                // AFTER SetImage has copied it. The `using` also covers the null
+                // case (SetImage(null) clears the preview).
+                using IImage grid = _vm.RenderSampleBattleAnime();
+                SamplePreview.SetImage(grid);
             }
             catch (Exception ex)
             {

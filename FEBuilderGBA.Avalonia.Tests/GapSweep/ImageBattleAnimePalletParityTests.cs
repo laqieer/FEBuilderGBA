@@ -140,7 +140,13 @@ public class ImageBattleAnimePalletParityTests
         // entry-load (OnSelectedEntry) and on palette-type change
         // (ReloadFromAuthoritativeSlot), via RenderSampleBattleAnime().
         string code = File.ReadAllText(CodeBehindPath());
-        Assert.Contains("SamplePreview.SetImage(_vm.RenderSampleBattleAnime())", code);
+        // The rendered grid must be passed to SetImage AND disposed afterwards
+        // (#824 Copilot review: IImage is IDisposable). The code-behind wraps it
+        // in a `using` so the freshly-rendered grid is freed after SetImage
+        // copies its pixels.
+        Assert.Matches(new Regex(
+            @"using\s+IImage\s+grid\s*=\s*_vm\.RenderSampleBattleAnime\(\)\s*;[\s\S]{0,200}?SamplePreview\.SetImage\(grid\)",
+            RegexOptions.Singleline), code);
         // RefreshSamplePreview is invoked from OnSelectedEntry (load).
         Assert.Matches(new Regex(
             @"OnSelectedEntry[\s\S]*?RefreshSamplePreview\(\)",

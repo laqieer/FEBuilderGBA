@@ -303,6 +303,81 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ================================================================
+        // Resource-disposal regression (#824 Copilot review) — IImage is
+        // IDisposable (Skia-backed); every intermediate cell/frame must be
+        // disposed and the RETURNED grid must NOT be.
+        // ================================================================
+
+        [Fact]
+        public void RenderSample_DisposesAllIntermediates_ButNotReturnedGrid()
+        {
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            var tracking = new TrackingImageService();
+            var prevSvc = CoreState.ImageService;
+            CoreState.ImageService = tracking;
+            try
+            {
+                IImage grid = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0);
+                Assert.NotNull(grid);
+                Assert.Equal(360, grid.Width);
+                Assert.Equal(290, grid.Height);
+
+                // The returned grid must still be usable (pixels intact) and
+                // NOT disposed by the Core method — the caller owns it.
+                Assert.False(((TrackingImage)grid).Disposed, "returned grid must NOT be disposed");
+                AssertPixel(grid, 0, 0, 0, 248, 0, 255); // green still readable
+
+                // Every OTHER image the method created (full frames + cropped
+                // cells + blank-fallback cells) must be disposed — no leaks.
+                int leaked = 0;
+                foreach (var img in tracking.Created)
+                {
+                    if (ReferenceEquals(img, grid)) continue;
+                    if (!img.Disposed) leaked++;
+                }
+                Assert.Equal(0, leaked);
+
+                // Sanity: the method really did create intermediates (so the
+                // assertion above is meaningful, not vacuously true).
+                Assert.True(tracking.Created.Count > 1,
+                    $"expected multiple intermediates, got {tracking.Created.Count}");
+
+                grid.Dispose(); // caller cleans up afterwards
+            }
+            finally { CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderSample_NoContentPath_DisposesAllCells_ReturnsNull()
+        {
+            // A record with a valid palette/section/frame/OAM but a graphics
+            // tile that is fully transparent (index 0) => every cropped cell is
+            // blank => anyContent false => null. All generated cells must be
+            // disposed (the no-content early-return path).
+            ROM rom = MakeBlankGraphicsAnimeRom();
+            CoreState.ROM = rom;
+
+            var tracking = new TrackingImageService();
+            var prevSvc = CoreState.ImageService;
+            CoreState.ImageService = tracking;
+            try
+            {
+                IImage grid = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0);
+                Assert.Null(grid);
+
+                // Whatever images were created on this path must all be disposed.
+                foreach (var img in tracking.Created)
+                {
+                    Assert.True(img.Disposed,
+                        "no-content path must dispose every generated cell/frame");
+                }
+            }
+            finally { CoreState.ImageService = prevSvc; }
+        }
+
+        // ================================================================
         // Real-ROM integration — exercises the full path against actual
         // FE game data (skips when no ROM is present, like the existing
         // RenderAnimationTileSheet_RealRom test).
@@ -605,6 +680,79 @@ namespace FEBuilderGBA.Core.Tests
             if (a.Length != b.Length) return false;
             for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
             return true;
+        }
+
+        // ================================================================
+        // Disposal-tracking image service (for the #824 leak regression).
+        // Records every image it creates and whether each was disposed.
+        // ================================================================
+
+        sealed class TrackingImage : IImage
+        {
+            public int Width { get; }
+            public int Height { get; }
+            public bool IsIndexed => false;
+            public bool Disposed { get; private set; }
+            byte[] _pixels;
+
+            public TrackingImage(int w, int h)
+            {
+                Width = w;
+                Height = h;
+                _pixels = new byte[w * h * 4];
+            }
+
+            public byte[] GetPixelData() => _pixels;
+            public void SetPixelData(byte[] data) { _pixels = data; }
+            public byte[] GetPaletteGBA() => Array.Empty<byte>();
+            public void SetPaletteGBA(byte[] p) { }
+            public byte[] GetPaletteRGBA() => Array.Empty<byte>();
+            public void Save(string f) { }
+            public byte[] EncodePng() => Array.Empty<byte>();
+            public void Dispose() { Disposed = true; }
+        }
+
+        sealed class TrackingImageService : IImageService
+        {
+            public System.Collections.Generic.List<TrackingImage> Created { get; } = new();
+
+            public IImage CreateImage(int w, int h)
+            {
+                var img = new TrackingImage(w, h);
+                Created.Add(img);
+                return img;
+            }
+            public IImage CreateIndexedImage(int w, int h, byte[] p, int c) => CreateImage(w, h);
+            public IImage LoadImage(string f) => null;
+            public IImage LoadImageFromBytes(byte[] d) => null;
+            public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
+            {
+                r = (byte)((gbaColor & 0x1F) << 3);
+                g = (byte)(((gbaColor >> 5) & 0x1F) << 3);
+                b = (byte)(((gbaColor >> 10) & 0x1F) << 3);
+            }
+            public ushort RGBAToGBAColor(byte r, byte g, byte b) => 0;
+            public IImage Decode4bppTiles(byte[] t, int o, int w, int h, byte[] p) => CreateImage(w, h);
+            public IImage Decode8bppTiles(byte[] t, int o, int w, int h, byte[] p) => CreateImage(w, h);
+            public IImage Decode8bppLinear(byte[] d, int o, int w, int h, byte[] p) => CreateImage(w, h);
+            public byte[] Encode4bppTiles(IImage i) => null;
+            public byte[] Encode8bppTiles(IImage i) => null;
+            public byte[] GBAPaletteToRGBA(byte[] p, int c) => null;
+            public byte[] RGBAPaletteToGBA(byte[] p, int c) => null;
+        }
+
+        /// <summary>
+        /// Like <see cref="MakeAnimeRom"/> but the graphics tile is fully
+        /// transparent (color index 0), so every rendered frame's crop is blank
+        /// and RenderSampleBattleAnime takes the no-content (null) path.
+        /// </summary>
+        static ROM MakeBlankGraphicsAnimeRom()
+        {
+            ROM rom = MakeAnimeRom();
+            // Overwrite both graphics with an all-index-0 (transparent) tile.
+            PlantCompressed(rom, GFX_GREEN, SolidTileIndex(0));
+            PlantCompressed(rom, GFX_RED,   SolidTileIndex(0));
+            return rom;
         }
     }
 }
