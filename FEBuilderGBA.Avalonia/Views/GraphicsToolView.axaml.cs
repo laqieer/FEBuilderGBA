@@ -205,6 +205,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
             catch { /* keep the view usable even if Draw fails */ }
+
+            // Intentional enable-on-Jump pattern (#860 regression anchor):
+            // Initial state is disabled (no TSA context — axaml IsEnabled="False").
+            // Jump() enables it once image/TSA/palette context is loaded.
+            // Do NOT default to enabled — TSAEditor_Click requires _tsaNavReady.
+            // Real callers (ImageBattleBGView, ImageBGView) call Open<GraphicsToolView>()
+            // then Jump(); the standalone menu path (OpenGraphicsTool_Click) has no
+            // TSA context so the button stays disabled. Both behaviors are CORRECT.
             TSAEditorButton.IsEnabled = _tsaNavReady;
         }
 
