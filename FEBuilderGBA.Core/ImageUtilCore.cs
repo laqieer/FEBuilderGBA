@@ -247,6 +247,173 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Decode the FE8 World Map "big field map" image: 4bpp tiles whose
+        /// per-tile 16-color sub-palette is selected by a linear PALETTE-MAP
+        /// nibble stream, blitted left-to-right then top-to-bottom into a single
+        /// 256-color palette. PURE pixel math — does ZERO decompression
+        /// (the caller LZ77-decompresses the palette-map and passes image +
+        /// palette RAW). Mirrors WinForms
+        /// <c>ImageUtil.ByteToImage16TilePaletteMap</c> (ImageUtil.cs:399) used
+        /// only by FE8 <c>ImageUtilMap.DrawWorldMap</c>.
+        ///
+        /// <para><b>Tile layout (verified WF ImageUtil.cs:430-447).</b> The
+        /// <paramref name="image"/> stream is consumed SEQUENTIALLY (32 bytes =
+        /// one 8x8 4bpp tile, row-major: byte at <c>tileBase + y8*4 + x8/2</c>,
+        /// low nibble = left pixel). Each consumed tile is placed at the running
+        /// (x, y); after a tile x advances by 8, and at the end of a visible row
+        /// (x &gt;= <paramref name="width"/>) x resets to 0 and y advances by
+        /// 8.</para>
+        ///
+        /// <para><b>Palette-map (verified WF :419-428).</b> ONE nibble per tile,
+        /// two tiles per byte: byte index <c>paletteMapIndex / 2</c>, even index
+        /// =&gt; low nibble, odd index =&gt; high nibble. That nibble (0..15) ×
+        /// 0x10 is the sub-palette base ADDED to every 4bpp pixel index, then
+        /// the color is read from the 256-color <paramref name="gbaPalette"/> at
+        /// <c>(nibble*16 + pixelIndex)</c>. Out-of-range palette-map reads return
+        /// 0 (WF uses <c>U.at</c>) — never throws.</para>
+        ///
+        /// <para><b>The <c>+4</c> per-row quirk (verified WF :452-457).</b> At
+        /// the end of EACH visible row the palette-map index advances by an EXTRA
+        /// 4 (on top of the per-tile +1): the world-map palette-map has an
+        /// off-screen right margin of 4 nibbles, so the row STRIDE is
+        /// (tilesPerRow + 4) nibbles for tilesPerRow visible tiles (WF comment:
+        /// "like HEADERTSA, there is off-screen margin").</para>
+        ///
+        /// <para><b>Partial render, NOT a throw (verified WF :411-412,
+        /// 442-446).</b> The image length is clamped to
+        /// <c>min(width*height/2, image.Length)</c>; if the stream runs out
+        /// mid-tile the already-written pixels are returned as a PARTIAL image
+        /// (the remaining pixels stay at their zero/transparent default). A SHORT
+        /// image must NEVER throw — the <c>TryRenderMainFieldMap</c> region guard,
+        /// not this primitive, is responsible for rejecting truncated inputs.</para>
+        ///
+        /// <para>Every decoded pixel is OPAQUE (alpha 255) — the big field map is
+        /// a full background image, NOT a sprite, so index 0 is a real color
+        /// here (unlike the TSA/sprite decoders where index 0 is transparent).</para>
+        /// </summary>
+        /// <param name="image">RAW (already-decompressed) 4bpp tile bytes.</param>
+        /// <param name="paletteMap">RAW (already-LZ77-decompressed) palette-map
+        /// nibble stream (one nibble per tile + the 4-nibble off-screen margin
+        /// per row).</param>
+        /// <param name="gbaPalette">RAW 256-color palette (512 bytes, BGR555 LE,
+        /// 2 bytes/color).</param>
+        /// <param name="width">Output width in pixels (default 480 = 60 tiles).</param>
+        /// <param name="height">Output height in pixels (default 320 = 40 tiles).</param>
+        /// <returns>An RGBA <see cref="IImage"/> of <paramref name="width"/> ×
+        /// <paramref name="height"/>, or <c>null</c> only when there is no
+        /// <see cref="CoreState.ImageService"/> or the args are degenerate
+        /// (null buffers / non-positive dims). A short image yields a
+        /// PARTIAL image, not null.</returns>
+        public static IImage ByteToImage16TilePaletteMap(byte[] image, byte[] paletteMap,
+            byte[] gbaPalette, int width = 480, int height = 320)
+        {
+            if (CoreState.ImageService == null) return null;
+            if (image == null || paletteMap == null || gbaPalette == null) return null;
+            if (width <= 0 || height <= 0) return null;
+
+            var img = CoreState.ImageService.CreateImage(width, height);
+            byte[] pixels = new byte[width * height * 4]; // RGBA
+
+            // WF clamps the END of the image stream to image.Length so a short
+            // image renders partially instead of throwing (ImageUtil.cs:411-412).
+            int length = (width * height) / 2;
+            if (length > image.Length) length = image.Length;
+
+            int x = 0;
+            int y = 0;
+            int paletteMapIndex = 0;
+
+            // Iterate the image stream one 8x8 4bpp tile (32 bytes) at a time,
+            // exactly like WF's outer `for (int i = image_pos; i < length; )`
+            // with the inner y8/x8 byte-advance (so the partial cutoff can land
+            // mid-tile — see the inner length check).
+            int i = 0;
+            while (i < length)
+            {
+                // --- Select this tile's sub-palette from the palette-map nibble
+                // (two tiles per byte; even index = low nibble). U.at-safe:
+                // out-of-range reads return 0, never throw (WF :419). ---
+                uint subPaletteCap = U.at(paletteMap, paletteMapIndex / 2, 0);
+                if ((paletteMapIndex & 0x1) > 0)
+                    subPaletteCap = (subPaletteCap >> 4) & 0xF;
+                else
+                    subPaletteCap = subPaletteCap & 0xF;
+                subPaletteCap = subPaletteCap * 0x10; // sub-palette base index
+
+                // --- Decode the 8x8 4bpp tile (two pixels per byte), blitting at
+                // the running (x, y). Mirrors WF :430-447 including the mid-tile
+                // partial cutoff. ---
+                bool truncated = false;
+                for (int y8 = 0; y8 < 8 && !truncated; y8++)
+                {
+                    for (int x8 = 0; x8 < 8; x8 += 2)
+                    {
+                        byte a = image[i];
+                        int idx0 = (int)(((a & 0x0F) + subPaletteCap) & 0xFF);
+                        int idx1 = (int)((((a >> 4) & 0x0F) + subPaletteCap) & 0xFF);
+
+                        WritePalettePixel(pixels, width, x + x8 + 0, y + y8, gbaPalette, idx0);
+                        WritePalettePixel(pixels, width, x + x8 + 1, y + y8, gbaPalette, idx1);
+
+                        i++;
+                        if (i >= length)
+                        {
+                            // Out of image bytes mid-tile -> return the partial
+                            // image (WF :442-446 returns early here).
+                            truncated = true;
+                            break;
+                        }
+                    }
+                }
+
+                x += 8;
+                paletteMapIndex++;
+
+                if (x >= width)
+                {
+                    x = 0;
+                    y += 8;
+                    // The world-map palette-map has a 4-nibble off-screen right
+                    // margin, so skip 4 extra nibbles at each row end (WF :452-457).
+                    paletteMapIndex += 4;
+                }
+            }
+
+            img.SetPixelData(pixels);
+            return img;
+        }
+
+        /// <summary>
+        /// Write one OPAQUE palette-indexed pixel into an RGBA buffer for the big
+        /// field map. Bounds-safe on both the destination (x &gt;= width or
+        /// off-buffer is skipped) and the source palette (an out-of-range color
+        /// index is skipped, leaving the pixel at its zero default — mirrors WF's
+        /// <c>U.at</c> tolerance). Always alpha 255 (the big field map is an
+        /// opaque background, so index 0 is a real color, unlike sprite/TSA
+        /// decoders).
+        /// </summary>
+        static void WritePalettePixel(byte[] pixels, int imageWidth, int destX, int destY,
+            byte[] gbaPalette, int colorIndex)
+        {
+            if (CoreState.ImageService == null) return;
+            if (destX < 0 || destX >= imageWidth || destY < 0) return;
+
+            int palByteOffset = colorIndex * 2;
+            if (palByteOffset < 0 || palByteOffset + 2 > gbaPalette.Length) return;
+
+            ushort gbaColor = (ushort)(gbaPalette[palByteOffset] | (gbaPalette[palByteOffset + 1] << 8));
+            CoreState.ImageService.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte b);
+
+            int idx = (destY * imageWidth + destX) * 4;
+            if (idx < 0 || idx + 3 >= pixels.Length) return;
+
+            pixels[idx + 0] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
+            pixels[idx + 3] = 255; // opaque background
+        }
+
+        /// <summary>
         /// Apply a 1-pixel black outline (Fuchidori) around opaque regions of
         /// an 8bpp indexed-pixel buffer. Ports WinForms <c>ImageUtil.Fuchidori</c>:
         /// for every transparent pixel (index 0) that is adjacent to an opaque

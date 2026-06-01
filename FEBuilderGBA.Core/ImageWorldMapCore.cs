@@ -39,10 +39,18 @@
 //
 // All dereferences are pointer-to-pointer: p32 the RomInfo pointer FIRST to get
 // the data offset (matching the WF constructor). Every method is null-safe — a
-// bad / truncated / out-of-bounds pointer returns null (never throws). The main
-// field map (:120, NV5b) and county border (:406, NV5c) are deliberately NOT
-// here: they need a NEW Core primitive (ByteToImage16TilePaletteMap) and an
-// OAM-from-pointer blit respectively — separate follow-up issues.
+// bad / truncated / out-of-bounds pointer returns null (never throws).
+//
+// The MAIN FIELD MAP (:120, NV5b — #846) is rendered here via
+// TryRenderMainFieldMap: FE8-ONLY (WorldMapImageForm.DrawWorldMap routes
+// version 7 -> DrawWorldMapFE7 (TSA 12-split) and version 6 -> DrawWorldMapFE6
+// (256-color liner); ByteToImage16TilePaletteMap is reached only for FE8), it
+// resolves worldmap_big_{image,palette,palettemap}, LZ77-decompresses ONLY the
+// palette-map (image + palette are RAW), requires the FULL fixed regions
+// (image 76,800 B = 480*320/2; palette 512 B = 256*2), and calls the new pure
+// primitive ImageUtilCore.ByteToImage16TilePaletteMap. The county border
+// (:406, NV5c) is still deliberately NOT here: it needs an OAM-from-pointer
+// blit — a separate follow-up issue.
 
 using System;
 
@@ -77,6 +85,21 @@ namespace FEBuilderGBA
         // Event canvas dims (WF WMEvent = 32*8 x 20*8).
         const int EVENT_TILES_X = 32;
         const int EVENT_TILES_Y = 20;
+
+        // --- Main field map (#846, NV5b) — FE8-only. ---
+        // WF ImageUtilMap.DrawWorldMap renders the big field map at a FIXED
+        // 480x320 (ImageUtilMap.cs:522). The version that reaches
+        // ByteToImage16TilePaletteMap is FE8 (FE6/FE7 route elsewhere).
+        const int MAIN_FIELD_VERSION_FE8 = 8;     // ROMFEINFO.version for FE8J/FE8U
+        const int MAIN_FIELD_WIDTH  = 480;
+        const int MAIN_FIELD_HEIGHT = 320;
+        // image is RAW 4bpp -> width*height/2 = 76,800 bytes (must be fully
+        // in-bounds; a partial image would yield an incorrect non-null render).
+        const int MAIN_FIELD_IMAGE_BYTES = (MAIN_FIELD_WIDTH * MAIN_FIELD_HEIGHT) / 2;
+        // palette is RAW 256 colors -> 512 bytes (the palette-map nibble selects
+        // any of the 16 sub-palettes, so all 256 colors must be readable).
+        const int MAIN_FIELD_PALETTE_COLORS = 256;
+        const int MAIN_FIELD_PALETTE_BYTES  = MAIN_FIELD_PALETTE_COLORS * 2;
 
         // Largest possible header-TSA payload after decompression: 2 header bytes
         // + 32 x 32 u16 cells. (DecodeHeaderTSA accepts header dims up to 32x32.)
@@ -175,6 +198,79 @@ namespace FEBuilderGBA
                 rom?.RomInfo?.worldmap_road_tile_pointer ?? 0,
                 rom?.RomInfo?.worldmap_icon_palette_pointer ?? 0,
                 1, 15);
+
+        /// <summary>
+        /// Render the FE8 World Map MAIN FIELD MAP preview (WF tabPage1,
+        /// <c>ImageUtilMap.DrawWorldMap</c> -&gt;
+        /// <see cref="ImageUtilCore.ByteToImage16TilePaletteMap"/>) at a fixed
+        /// 480×320 px. Resolves the three <c>worldmap_big_*</c> pointers
+        /// pointer-to-pointer, LZ77-decompresses ONLY the palette-map (the image
+        /// and palette are read RAW), requires the FULL fixed regions (image
+        /// 76,800 B, palette 512 B), and composes via the new pure primitive.
+        /// Returns <c>null</c> (never throws) on any null / out-of-bounds /
+        /// corrupt / truncated input.
+        ///
+        /// <para><b>FE8-only (#846 correction #2).</b> WF
+        /// <c>WorldMapImageForm.DrawWorldMap</c> routes <c>version == 7</c> to
+        /// <c>DrawWorldMapFE7</c> (a TSA <c>ByteToImage16TileHeaderTSA</c>
+        /// 1024×688 renderer — FE7U's <c>worldmap_big_palettemap_pointer</c> is
+        /// documented as "TSA 12-split", NOT a palette-map) and
+        /// <c>version == 6</c> to <c>DrawWorldMapFE6</c> (a 256-color
+        /// <c>ByteToImage256Liner</c> 240×160 renderer — FE6's palettemap pointer
+        /// is <c>0x0</c>). <c>ByteToImage16TilePaletteMap</c> is reached ONLY for
+        /// FE8, so this method gates on <c>rom.RomInfo.version == 8</c> and
+        /// returns <c>null</c> for FE6/FE7 rather than feed their bytes through
+        /// the 16-tile palette-map decoder. (FE7/FE6 main-map previews are
+        /// separate future follow-ups.)</para>
+        ///
+        /// <para><b>LZ77 = palette-map ONLY (#846 correction #1).</b> Per WF
+        /// <c>ImageUtilMap.cs:520-526</c>: <c>palettemapUZ =
+        /// LZ77.decompress(...)</c> while the image and palette are passed RAW
+        /// (<c>Program.ROM.Data, (int)image</c> / <c>(int)palette</c>). The pure
+        /// primitive does ZERO decompression; this method LZ77-decompresses ONLY
+        /// the palette-map (behind the 4-byte-header + truncation guard on the
+        /// COMPRESSED stream) and passes the image + palette raw.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (FE8 only — see the FE8-only note).</param>
+        public static IImage TryRenderMainFieldMap(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            // CORRECTION 2 — FE8-only. FE6/FE7 route to DrawWorldMapFE6/FE7 (their
+            // palettemap pointer is 0x0 / a TSA-12-split, NOT a 16-tile
+            // palette-map), so return null rather than mis-decode their bytes.
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8) return null;
+
+            // Resolve the three big-field pointers (pointer-to-pointer).
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out uint imageAddr))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer, out uint paletteAddr))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palettemap_pointer, out uint paletteMapAddr))
+                return null;
+
+            // --- image: the FULL RAW 4bpp region (76,800 B). FIXED size, so an
+            // image pointer with fewer bytes to EOF is truncated/corrupt -> null
+            // (a partial read would otherwise make the primitive render a
+            // partial-but-non-null image and wrongly enable Export PNG). ---
+            byte[] image = ReadRawRegion(rom, imageAddr, MAIN_FIELD_IMAGE_BYTES);
+            if (image == null) return null;
+
+            // --- palette: the FULL RAW 256-color region (512 B). FIXED size, so
+            // a truncated/corrupt palette pointer -> null (same reasoning). ---
+            byte[] palette = ReadRawPalette(rom, paletteAddr, MAIN_FIELD_PALETTE_BYTES);
+            if (palette == null) return null;
+
+            // --- palette-map: CORRECTION 1 — the ONLY LZ77 stream. Guard the
+            // COMPRESSED stream (4-byte-header + truncation), then decompress.
+            // The decompressed length (~1280 B = 40*64 nibbles) is NOT size-
+            // guarded against the source — the primitive reads it U.at-safe. ---
+            if (!TryDecompressGuarded(rom, paletteMapAddr, out byte[] paletteMap)) return null;
+
+            return ImageUtilCore.ByteToImage16TilePaletteMap(
+                image, paletteMap, palette, MAIN_FIELD_WIDTH, MAIN_FIELD_HEIGHT);
+        }
 
         // ==================================================================
         // Shared LZ77-image + 16-color-palette path (mini / point1 / point2 /
@@ -278,10 +374,23 @@ namespace FEBuilderGBA
         /// region in-bounds (isSafetyOffset on the start + an explicit EOF check).
         /// </summary>
         static byte[] ReadRawPalette(ROM rom, uint paletteAddr, int sizeBytes)
+            => ReadRawRegion(rom, paletteAddr, sizeBytes);
+
+        /// <summary>
+        /// Read a FULL fixed-size <paramref name="sizeBytes"/> raw region from
+        /// <paramref name="addr"/>, or <c>null</c> if the whole
+        /// <c>[addr, addr+sizeBytes)</c> region is not in-bounds. Same fixed-size
+        /// contract as <see cref="ReadRawPalette"/> (a PARTIAL read near EOF is a
+        /// truncated / corrupt pointer, not a smaller-but-valid buffer — return
+        /// <c>null</c> so the preview is null and Export PNG stays disabled, never
+        /// a partial buffer that would yield an incorrect non-null image). Used
+        /// for the FE8 main field map's RAW image (76,800 B) and palette (512 B).
+        /// </summary>
+        static byte[] ReadRawRegion(ROM rom, uint addr, int sizeBytes)
         {
-            if (!IsRegionSafe(rom, paletteAddr, sizeBytes)) return null;
+            if (!IsRegionSafe(rom, addr, sizeBytes)) return null;
             byte[] buf = new byte[sizeBytes];
-            Array.Copy(rom.Data, paletteAddr, buf, 0, sizeBytes);
+            Array.Copy(rom.Data, addr, buf, 0, sizeBytes);
             return buf;
         }
 

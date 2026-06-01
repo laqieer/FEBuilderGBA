@@ -220,14 +220,20 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// Deferred affordances (image IMPORT, dark-map import/export,
-    /// decrease-color tool, open-source, select-source, and the two NV5b/NV5c
-    /// previews' export: main-field-map + border) must be disabled and
-    /// reference KnownGap in the tooltip. No follow-up issues per task scope
-    /// discipline.
+    /// Deferred affordances (image IMPORT round-trip, dark-map import/export,
+    /// decrease-color tool, open-source, select-source, and the border NV5c
+    /// preview's import/export) must be disabled and reference KnownGap in the
+    /// tooltip. No follow-up issues per task scope discipline.
     ///
-    /// NOTE (#843 NV5a): the five reuse-based preview EXPORT buttons
-    /// (Event / Mini / Point1 / Point2 / Road) are NO LONGER deferred — they
+    /// NOTE the Main tab keeps a DISTINCT pair of buttons: the full image
+    /// IMPORT/EXPORT round-trip (<c>WorldMapImage_Main_Import_Button</c> /
+    /// <c>WorldMapImage_Main_Export_Button</c>) is STILL deferred and asserted
+    /// here, while the NEW read-only <c>WorldMapImage_Main_ExportPng_Button</c>
+    /// (#846 NV5b) is a working CanExport-gated export asserted by
+    /// <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
+    ///
+    /// NOTE (#843 NV5a / #846 NV5b): the six preview EXPORT PNG buttons
+    /// (Main / Event / Mini / Point1 / Point2 / Road) are NOT deferred — they
     /// are working read-only Export PNG buttons gated by CanExport* and are
     /// asserted by <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
     /// </summary>
@@ -264,12 +270,14 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// #843 NV5a: the five reuse-based preview EXPORT buttons are working
-    /// read-only Export PNG buttons — gated by a CanExport* binding (set true
-    /// only after a successful render) and wired to an Export click handler.
-    /// They must NOT be IsEnabled="False" and must NOT reference KnownGap.
+    /// #843 NV5a + #846 NV5b: the read-only preview EXPORT PNG buttons are
+    /// working buttons — gated by a CanExport* binding (set true only after a
+    /// successful render) and wired to an Export click handler. They must NOT be
+    /// IsEnabled="False" and must NOT reference KnownGap. As of #846 the MAIN
+    /// FIELD MAP export joins the five reuse-based exports.
     /// </summary>
     [Theory]
+    [InlineData("WorldMapImage_Main_ExportPng_Button", "CanExportMain", "MainExport_Click")]
     [InlineData("WorldMapImage_Event_Export_Button", "CanExportEvent", "EventExport_Click")]
     [InlineData("WorldMapImage_Mini_Export_Button", "CanExportMini", "MiniExport_Click")]
     [InlineData("WorldMapImage_PointIcon_Point1Export_Button", "CanExportPoint1", "Point1Export_Click")]
@@ -302,21 +310,24 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// #843 NV5a: the five reuse-based previews must render via
-    /// ImageWorldMapCore (resolve + decode) into a GbaImageControl, and the two
-    /// follow-up previews (main-field-map NV5b, border NV5c) must NOT — they
-    /// keep their KnownGap Image placeholders. Asserts the five preview controls
-    /// are GbaImageControl and the NV5a "live bitmap preview pending Core
-    /// extraction" markers are gone for them while the NV5b/NV5c markers remain.
+    /// #843 NV5a + #846 NV5b: the live previews must render via ImageWorldMapCore
+    /// (resolve + decode) into a GbaImageControl. As of #846 the MAIN FIELD MAP
+    /// (NV5b, the new ByteToImage16TilePaletteMap primitive) joins the five
+    /// reuse-based previews (event / mini / point1 / point2 / road) — all six are
+    /// now GbaImageControls with their "live bitmap preview pending Core
+    /// extraction" marker gone. ONLY the county-border draw sample (NV5c — needs
+    /// an OAM-from-pointer blit) remains a deferred &lt;Image&gt; placeholder.
     /// </summary>
     [Fact]
     public void View_ReusePreviews_AreGbaImageControlsAndCoreWired()
     {
         string axaml = ReadAxaml();
 
-        // The five reuse previews are GbaImageControl (not <Image>).
+        // The six live previews are GbaImageControl (not <Image>): the five
+        // reuse-based (#843) + the main field map (#846 NV5b).
         foreach (string id in new[]
         {
+            "WorldMapImage_Main_Preview_Image",
             "WorldMapImage_Event_Preview_Image",
             "WorldMapImage_Mini_Preview_Image",
             "WorldMapImage_PointIcon_Point1Preview_Image",
@@ -331,11 +342,10 @@ public class WorldMapImageParityTests
             Assert.Contains("controls:GbaImageControl", head);
         }
 
-        // The main-field-map (NV5b) and border (NV5c) previews stay deferred:
-        // still <Image> with the KnownGap live-preview marker.
+        // ONLY the county-border (NV5c) preview stays deferred: still <Image>
+        // with the KnownGap live-preview marker (needs an OAM blit — follow-up).
         foreach (string id in new[]
         {
-            "WorldMapImage_Main_Preview_Image",
             "WorldMapImage_Border_DrawSample_Image",
         })
         {
@@ -347,10 +357,12 @@ public class WorldMapImageParityTests
             Assert.Contains("live bitmap preview pending Core extraction", element);
         }
 
-        // The view renders the reuse previews through the Core helper.
+        // The view renders the previews through the Core helper.
         string source = File.ReadAllText(ViewCodeBehindPath());
         Assert.Contains("RefreshPreviews", source);
         string vm = File.ReadAllText(ViewModelPath());
+        // #846 NV5b — the new FE8-only main field-map primitive.
+        Assert.Contains("ImageWorldMapCore.TryRenderMainFieldMap", vm);
         Assert.Contains("ImageWorldMapCore.TryRenderEvent", vm);
         Assert.Contains("ImageWorldMapCore.TryRenderMini", vm);
         Assert.Contains("ImageWorldMapCore.TryRenderPoint1", vm);
