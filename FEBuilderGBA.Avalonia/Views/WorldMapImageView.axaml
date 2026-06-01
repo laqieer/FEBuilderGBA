@@ -155,20 +155,25 @@
                     Content="Import Image"
                     IsEnabled="False"
                     ToolTip.Tip="KnownGap: pending Core extraction." />
+            <!-- #843: read-only Export PNG of the live event preview (mirrors WF
+                 ImageFormRef OnExportButton — decode + save). Enabled only after
+                 a successful render. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Event_Export_Button"
-                    Content="Export Image"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    Name="EventExportButton" Content="Export PNG"
+                    IsEnabled="{Binding CanExportEvent}"
+                    Click="EventExport_Click" />
             <Button AutomationProperties.AutomationId="WorldMapImage_Event_DecreaseColor_Button"
                     Content="Decrease Color Tool"
                     IsEnabled="False"
                     ToolTip.Tip="KnownGap: DecreaseColorTSAToolForm not yet ported." />
           </StackPanel>
 
+          <!-- #843: live event preview (32x20 tiles = 256x160) via
+               ImageWorldMapCore.TryRenderEvent (two LZ77 streams + 64-color
+               4-sub-palette). -->
           <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="6">
-            <Image AutomationProperties.AutomationId="WorldMapImage_Event_Preview_Image"
-                   Name="EventPreviewImage" Stretch="Uniform"
-                   ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_Event_Preview_Image"
+                                      Name="EventPreviewImage" MinWidth="256" MinHeight="160" />
           </Border>
         </Grid>
       </TabItem>
@@ -199,16 +204,18 @@
                     Content="Import Image"
                     IsEnabled="False"
                     ToolTip.Tip="KnownGap: pending Core extraction." />
+            <!-- #843: read-only Export PNG of the live mini-map preview. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Mini_Export_Button"
-                    Content="Export Image"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    Name="MiniExportButton" Content="Export PNG"
+                    IsEnabled="{Binding CanExportMini}"
+                    Click="MiniExport_Click" />
           </StackPanel>
 
+          <!-- #843: live mini-map preview (8x8 tiles = 64x64) via
+               ImageWorldMapCore.TryRenderMini (single LZ77 + 16-color palette). -->
           <Border Grid.Column="1" BorderBrush="Gray" BorderThickness="1" Margin="6">
-            <Image AutomationProperties.AutomationId="WorldMapImage_Mini_Preview_Image"
-                   Name="MiniPreviewImage" Stretch="Uniform"
-                   ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_Mini_Preview_Image"
+                                      Name="MiniPreviewImage" MinWidth="64" MinHeight="64" />
           </Border>
         </Grid>
       </TabItem>
@@ -231,10 +238,11 @@
                       Content="Import"
                       IsEnabled="False"
                       ToolTip.Tip="KnownGap: pending Core extraction." />
+              <!-- #843: read-only Export PNG of the live point-1 preview. -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Export_Button"
-                      Content="Export"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: pending Core extraction." />
+                      Name="Point1ExportButton" Content="Export PNG"
+                      IsEnabled="{Binding CanExportPoint1}"
+                      Click="Point1Export_Click" />
             </StackPanel>
 
             <!-- Point 2 -->
@@ -248,10 +256,11 @@
                       Content="Import"
                       IsEnabled="False"
                       ToolTip.Tip="KnownGap: pending Core extraction." />
+              <!-- #843: read-only Export PNG of the live point-2 preview. -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Export_Button"
-                      Content="Export"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: pending Core extraction." />
+                      Name="Point2ExportButton" Content="Export PNG"
+                      IsEnabled="{Binding CanExportPoint2}"
+                      Click="Point2Export_Click" />
             </StackPanel>
 
             <!-- Road -->
@@ -265,10 +274,11 @@
                       Content="Import"
                       IsEnabled="False"
                       ToolTip.Tip="KnownGap: pending Core extraction." />
+              <!-- #843: read-only Export PNG of the live road preview. -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadExport_Button"
-                      Content="Export"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: pending Core extraction." />
+                      Name="RoadExportButton" Content="Export PNG"
+                      IsEnabled="{Binding CanExportRoad}"
+                      Click="RoadExport_Click" />
             </StackPanel>
 
             <!-- Shared icon palette -->
@@ -280,23 +290,23 @@
           </StackPanel>
 
           <StackPanel Grid.Column="1" Margin="6" Spacing="4">
+            <!-- #843: live previews via ImageWorldMapCore (single LZ77 + shared
+                 16-color icon palette). Point1 = 32x8 tiles (256x64), Point2 =
+                 12x4 tiles (96x32), Road = 1x15 tiles (8x120). -->
             <Label Content="Point 1 Preview" FontWeight="SemiBold" />
             <Border BorderBrush="Gray" BorderThickness="1" MinHeight="80">
-              <Image AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Preview_Image"
-                     Name="Point1PreviewImage" Stretch="Uniform"
-                     ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Preview_Image"
+                                        Name="Point1PreviewImage" MinWidth="256" MinHeight="64" />
             </Border>
             <Label Content="Point 2 Preview" FontWeight="SemiBold" />
             <Border BorderBrush="Gray" BorderThickness="1" MinHeight="80">
-              <Image AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Preview_Image"
-                     Name="Point2PreviewImage" Stretch="Uniform"
-                     ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Preview_Image"
+                                        Name="Point2PreviewImage" MinWidth="96" MinHeight="32" />
             </Border>
             <Label Content="Road Preview" FontWeight="SemiBold" />
-            <Border BorderBrush="Gray" BorderThickness="1" MinHeight="80">
-              <Image AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadPreview_Image"
-                     Name="RoadPreviewImage" Stretch="Uniform"
-                     ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+            <Border BorderBrush="Gray" BorderThickness="1" MinHeight="120">
+              <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadPreview_Image"
+                                        Name="RoadPreviewImage" MinWidth="8" MinHeight="120" />
             </Border>
           </StackPanel>
         </Grid>

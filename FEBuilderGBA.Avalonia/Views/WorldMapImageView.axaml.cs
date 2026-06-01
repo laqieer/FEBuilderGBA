@@ -15,6 +15,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -32,6 +33,12 @@ namespace FEBuilderGBA.Avalonia.Views
         public WorldMapImageView()
         {
             InitializeComponent();
+            // #843: the five reuse-based preview "Export PNG" buttons bind their
+            // IsEnabled to the VM CanExport* gates, so the view needs a
+            // DataContext pointing at the VM. (The 13 pointer NUDs + two
+            // AddressLists are still pushed/read manually — only the new export
+            // gates use bindings.)
+            DataContext = _vm;
             Border_EntryList.SelectedAddressChanged += OnBorderSelected;
             IconData_EntryList.SelectedAddressChanged += OnIconSelected;
             Opened += (_, _) => LoadAll();
@@ -55,6 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 RefreshTopRowNuds();
                 LoadBorderList();
                 LoadIconList();
+                RefreshPreviews();
             }
             catch (Exception ex)
             {
@@ -494,6 +502,74 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
+        }
+
+        // ===================================================================
+        // Reuse-based live previews (#843 NV5a) — event / mini / point1 /
+        // point2 / road. Each renders via the matching ImageWorldMapCore
+        // resolver+decode into a GbaImageControl and gates its read-only Export
+        // PNG button. On any failure (no ROM, unset/corrupt/truncated pointer)
+        // the preview is cleared and the export gate is set false. Never throws.
+        // Mirrors ImageTSAEditorView.RefreshBattleCanvas. Main field map (NV5b)
+        // and county border (NV5c) are deliberately NOT rendered here.
+        // ===================================================================
+
+        void RefreshPreviews()
+        {
+            RenderInto(EventPreviewImage, _vm.TryRenderEvent, v => _vm.CanExportEvent = v, "Event");
+            RenderInto(MiniPreviewImage, _vm.TryRenderMini, v => _vm.CanExportMini = v, "Mini");
+            RenderInto(Point1PreviewImage, _vm.TryRenderPoint1, v => _vm.CanExportPoint1 = v, "Point1");
+            RenderInto(Point2PreviewImage, _vm.TryRenderPoint2, v => _vm.CanExportPoint2 = v, "Point2");
+            RenderInto(RoadPreviewImage, _vm.TryRenderRoad, v => _vm.CanExportRoad = v, "Road");
+        }
+
+        void RenderInto(GbaImageControl target, Func<IImage?> render,
+            Action<bool> setGate, string label)
+        {
+            try
+            {
+                IImage? img = render();
+                target.SetImage(img);
+                setGate(img != null);
+            }
+            catch (Exception ex)
+            {
+                target.SetImage(null);
+                setGate(false);
+                // Core Log.Error(params string[]) string.Joins its args (no {0}/{1}
+                // substitution), so pass a single interpolated string and include
+                // the full exception (stack trace) rather than just ex.Message.
+                Log.Error($"WorldMapImageView.Render{label} failed: {ex}");
+            }
+        }
+
+        async void EventExport_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(EventPreviewImage, "worldmap_event");
+
+        async void MiniExport_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(MiniPreviewImage, "worldmap_mini");
+
+        async void Point1Export_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(Point1PreviewImage, "worldmap_point1");
+
+        async void Point2Export_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(Point2PreviewImage, "worldmap_point2");
+
+        async void RoadExport_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(RoadPreviewImage, "worldmap_road");
+
+        async System.Threading.Tasks.Task ExportPreview(GbaImageControl target, string suggestedName)
+        {
+            try
+            {
+                await target.ExportPng(this, suggestedName);
+            }
+            catch (Exception ex)
+            {
+                // Single interpolated string + full exception (Core Log.Error does
+                // not apply {0}/{1} substitution — see RenderInto).
+                Log.Error($"WorldMapImageView.ExportPreview({suggestedName}) failed: {ex}");
+            }
         }
 
         // ===================================================================
