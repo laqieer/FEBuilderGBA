@@ -186,6 +186,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("WorldMapImageView.OnBorderSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
+            // #849 NV5c: render the border AP preview after loading the record.
+            RenderBorderPreview();
+        }
+
+        /// <summary>
+        /// Render the border AP preview into <c>BorderDrawSampleImage</c> and
+        /// update the <c>CanExportBorder</c> binding gate. Mirrors
+        /// <see cref="RenderInto"/> but uses the dedicated border VM method.
+        /// </summary>
+        void RenderBorderPreview()
+        {
+            RenderInto(BorderDrawSampleImage, _vm.TryRenderBorder,
+                v => _vm.CanExportBorder = v, "Border");
         }
 
         void BorderWrite_Click(object? sender, RoutedEventArgs e)
@@ -207,6 +220,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Reset dirty after successful Border save (Copilot bot
                 // inline review #4 on PR #592).
                 _vm.MarkClean();
+                // #849 NV5c: re-render preview after write (field values may have
+                // changed).
+                RenderBorderPreview();
             }
             catch (Exception ex)
             {
@@ -214,6 +230,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("WorldMapImageView.BorderWrite failed: {0}", ex.Message);
             }
         }
+
+        /// <summary>Export the border AP preview as PNG.</summary>
+        async void BorderExport_Click(object? sender, RoutedEventArgs e)
+            => await ExportPreview(BorderDrawSampleImage, "worldmap_border");
 
         // #668: routed event from the unified EditorTopBar control.
         void OnBorderTopBarReloadRequested(object? sender, RoutedEventArgs e)

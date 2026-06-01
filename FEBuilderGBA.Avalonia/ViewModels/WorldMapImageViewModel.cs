@@ -106,16 +106,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
         // ---- Reuse-based preview export gates (#843 NV5a) + main field map
-        // (#846 NV5b). Each is set true only after a successful render so the
-        // per-preview "Export PNG" button stays disabled when the preview could
-        // not be decoded. ----
-        bool _canExportMain, _canExportEvent, _canExportMini, _canExportPoint1, _canExportPoint2, _canExportRoad;
+        // (#846 NV5b) + county border (#849 NV5c). Each is set true only after a
+        // successful render so the per-preview "Export PNG" button stays disabled
+        // when the preview could not be decoded. ----
+        bool _canExportMain, _canExportEvent, _canExportMini, _canExportPoint1, _canExportPoint2, _canExportRoad, _canExportBorder;
         public bool CanExportMain { get => _canExportMain; set => SetField(ref _canExportMain, value); }
         public bool CanExportEvent { get => _canExportEvent; set => SetField(ref _canExportEvent, value); }
         public bool CanExportMini { get => _canExportMini; set => SetField(ref _canExportMini, value); }
         public bool CanExportPoint1 { get => _canExportPoint1; set => SetField(ref _canExportPoint1, value); }
         public bool CanExportPoint2 { get => _canExportPoint2; set => SetField(ref _canExportPoint2, value); }
         public bool CanExportRoad { get => _canExportRoad; set => SetField(ref _canExportRoad, value); }
+        public bool CanExportBorder { get => _canExportBorder; set => SetField(ref _canExportBorder, value); }
 
         // ===================================================================
         // Canonical pointer slots (load + write all 13 in one undo scope).
@@ -556,5 +557,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Render the ROAD preview (1x15 tiles = 8x120 px) via
         /// <see cref="ImageWorldMapCore.TryRenderRoad"/>. Null on any failure.</summary>
         public IImage TryRenderRoad() => ImageWorldMapCore.TryRenderRoad(CoreState.ROM);
+
+        /// <summary>
+        /// Render the COUNTY BORDER (国境) AP preview (256×160 px) via
+        /// <see cref="ImageWorldMapCore.TryRenderBorder"/>. FE8-only (FE6/FE7
+        /// have no county border — returns null). Uses the live VM field values
+        /// (<see cref="BorderP0"/> = image pointer, <see cref="BorderP4"/> = AP
+        /// pointer, <see cref="BorderW8"/> = x, <see cref="BorderW10"/> = y).
+        /// Null on any failure.
+        /// </summary>
+        public IImage TryRenderBorder()
+            => ImageWorldMapCore.TryRenderBorder(
+                CoreState.ROM,
+                BorderP0,
+                BorderP4,
+                (int)BorderW8,
+                (int)BorderW10);
+
+        /// <summary>
+        /// True when the county border can be exported — gates the Border Export
+        /// PNG button. Delegates to
+        /// <see cref="ImageWorldMapCore.CanExportBorder"/> (render is non-null).
+        /// </summary>
+        public bool CanExportBorderNow()
+            => ImageWorldMapCore.CanExportBorder(
+                CoreState.ROM,
+                BorderP0,
+                BorderP4,
+                (int)BorderW8,
+                (int)BorderW10);
     }
 }

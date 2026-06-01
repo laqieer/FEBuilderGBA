@@ -383,6 +383,150 @@ namespace FEBuilderGBA
             return img;
         }
 
+        // =========================================================================
+        // ByteToImage16Tile — pure 4bpp tile renderer with a SINGLE 16-color
+        // palette slice. Used by the border AP parts-sheet (#849, NV5c).
+        //
+        // WF original: ImageUtil.ByteToImage16Tile (ImageUtil.cs:327).
+        //   * Linear 4bpp tiles: 8x8, row-major, 2 pixels per byte (low=left).
+        //   * Single 16-color palette at palOffset: 16 colors * 2 bytes = 32 bytes.
+        //   * palette_count=0 (no paletteShift for the border parts sheet).
+        //   * Palette index 0 → alpha 0 (TRANSPARENT): per G4, BitBlt is called with
+        //     transparent_index=0 so index 0 is the transparent key — critical for
+        //     the AP OAM blit: source pixels at index 0 must NOT overwrite the
+        //     background.
+        //   * Partial render: if bin runs out mid-tile the partial image is returned
+        //     (WF :379-383 returns early; we match that).
+        //   * Degenerate (width<=0 / empty bin) → null without throw.
+        // =========================================================================
+
+        /// <summary>
+        /// Decode a raw 4bpp 8×8-tiled image as a single-palette RGBA sheet.
+        /// <para>Used by the border parts sheet (#849): the WF path calls
+        /// <c>ImageUtil.ByteToImage16Tile</c> with <c>palette_count=0</c>
+        /// (no palette shift) and <c>transparent_index=0</c> — palette index 0
+        /// is <b>transparent</b> (alpha 0) so the subsequent AP OAM blit skips
+        /// source pixels at index 0.</para>
+        ///
+        /// <para><b>Partial render, NOT throw.</b> If <paramref name="bin"/> runs
+        /// out mid-tile the already-written pixels are returned (mirrors WF :379-383
+        /// which returns the bitmap early on mid-tile truncation).</para>
+        ///
+        /// <para>Returns <c>null</c> when <see cref="CoreState.ImageService"/> is
+        /// null, <paramref name="width"/> &lt;= 0, <paramref name="height"/> &lt;= 0,
+        /// <paramref name="bin"/> is null/empty, or <paramref name="palette"/> is
+        /// null (degenerate inputs, never throws).</para>
+        /// </summary>
+        /// <param name="bin">Raw (uncompressed) 4bpp tile bytes.</param>
+        /// <param name="binOffset">Byte offset into <paramref name="bin"/> where
+        /// the first tile starts (matches WF <c>image_pos</c>).</param>
+        /// <param name="palette">Raw palette buffer in GBA BGR555 LE format
+        /// (2 bytes per color). The 16-color slice starts at
+        /// <paramref name="palOffset"/>.</param>
+        /// <param name="palOffset">Byte offset into <paramref name="palette"/>
+        /// where the 16-color palette slice starts (matches WF
+        /// <c>palette_pos</c>).</param>
+        /// <param name="width">Output width in pixels (must be a multiple of 8).</param>
+        /// <param name="height">Output height in pixels (must be a multiple of 8).</param>
+        /// <returns>RGBA <see cref="IImage"/> of <paramref name="width"/>×
+        /// <paramref name="height"/>, or <c>null</c> on degenerate input.</returns>
+        public static IImage ByteToImage16Tile(byte[] bin, int binOffset,
+            byte[] palette, int palOffset, int width, int height)
+        {
+            if (CoreState.ImageService == null) return null;
+            if (bin == null || bin.Length == 0) return null;
+            if (palette == null) return null;
+            if (width <= 0 || height <= 0) return null;
+
+            // Build the 16-color RGBA palette slice (index 0 → transparent).
+            // Each GBA color is 2 bytes (BGR555 LE); we decode up to 16 entries.
+            // Out-of-range palOffset or truncated palette → treat as default 0
+            // (mirrors WF U.at-style tolerance; never throw).
+            byte[] rgbaPal = new byte[16 * 4]; // RGBA
+            for (int ci = 0; ci < 16; ci++)
+            {
+                int off = palOffset + ci * 2;
+                if (off < 0 || off + 1 >= palette.Length)
+                    break; // remaining entries stay black/transparent
+                ushort gbaColor = (ushort)(palette[off] | (palette[off + 1] << 8));
+                CoreState.ImageService.GBAColorToRGBA(gbaColor, out byte r, out byte g, out byte b);
+                rgbaPal[ci * 4 + 0] = r;
+                rgbaPal[ci * 4 + 1] = g;
+                rgbaPal[ci * 4 + 2] = b;
+                // index 0 is TRANSPARENT (alpha=0); indices 1-15 are OPAQUE.
+                rgbaPal[ci * 4 + 3] = (ci == 0) ? (byte)0 : (byte)255;
+            }
+
+            var img = CoreState.ImageService.CreateImage(width, height);
+            byte[] pixels = new byte[width * height * 4]; // RGBA, default=transparent
+
+            // Iterate 4bpp tile stream (32 bytes per 8×8 tile, row-major across
+            // width/8 columns). Matches WF :365-395 outer loop.
+            int maxLen = binOffset + ((width * height) / 2);
+            if (maxLen > bin.Length) maxLen = bin.Length;
+
+            int x = 0;
+            int y = 0;
+            for (int i = binOffset; i < maxLen;)
+            {
+                for (int y8 = 0; y8 < 8; y8++)
+                {
+                    for (int x8 = 0; x8 < 8; x8 += 2)
+                    {
+                        byte a = bin[i];
+                        int idx0 = a & 0x0F;       // low nibble = left pixel
+                        int idx1 = (a >> 4) & 0x0F; // high nibble = right pixel
+
+                        WriteTransparentPixel(pixels, width, x + x8,     y + y8, rgbaPal, idx0);
+                        WriteTransparentPixel(pixels, width, x + x8 + 1, y + y8, rgbaPal, idx1);
+
+                        i++;
+                        if (i >= maxLen)
+                        {
+                            // Mid-tile truncation: return the partial image (WF :379-383).
+                            img.SetPixelData(pixels);
+                            return img;
+                        }
+                    }
+                }
+                x += 8;
+                if (x >= width)
+                {
+                    x = 0;
+                    y += 8;
+                }
+            }
+
+            img.SetPixelData(pixels);
+            return img;
+        }
+
+        /// <summary>
+        /// Write one pixel from the 16-color transparent-0 palette into an RGBA
+        /// buffer. Index 0 → skip (stays transparent). Bounds-safe (never throws).
+        /// Used by <see cref="ByteToImage16Tile"/> for the border parts sheet.
+        /// </summary>
+        static void WriteTransparentPixel(byte[] pixels, int imageWidth, int destX, int destY,
+            byte[] rgbaPal16, int colorIndex)
+        {
+            if (colorIndex == 0) return; // transparent — do NOT write
+            if (destX < 0 || destX >= imageWidth || destY < 0) return;
+            int palBase = colorIndex * 4;
+            if (palBase + 3 >= rgbaPal16.Length) return;
+
+            int idx = (destY * imageWidth + destX) * 4;
+            if (idx < 0 || idx + 3 >= pixels.Length) return;
+
+            pixels[idx + 0] = rgbaPal16[palBase + 0]; // R
+            pixels[idx + 1] = rgbaPal16[palBase + 1]; // G
+            pixels[idx + 2] = rgbaPal16[palBase + 2]; // B
+            pixels[idx + 3] = rgbaPal16[palBase + 3]; // A (255 for index 1-15)
+        }
+
+        // =========================================================================
+        // End ByteToImage16Tile
+        // =========================================================================
+
         /// <summary>
         /// Write one OPAQUE palette-indexed pixel into an RGBA buffer for the big
         /// field map. Bounds-safe on both the destination (x &gt;= width or

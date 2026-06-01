@@ -48,9 +48,21 @@
 // resolves worldmap_big_{image,palette,palettemap}, LZ77-decompresses ONLY the
 // palette-map (image + palette are RAW), requires the FULL fixed regions
 // (image 76,800 B = 480*320/2; palette 512 B = 256*2), and calls the new pure
-// primitive ImageUtilCore.ByteToImage16TilePaletteMap. The county border
-// (:406, NV5c) is still deliberately NOT here: it needs an OAM-from-pointer
-// blit — a separate follow-up issue.
+// primitive ImageUtilCore.ByteToImage16TilePaletteMap.
+//
+// The COUNTY BORDER (:406, NV5c — #849) is now rendered here via
+// TryRenderBorder: FE8-ONLY (worldmap_county_border_palette_pointer is 0x0 for
+// FE6/FE7; 0xC27A4/FE8U, 0xC755C/FE8JP). G5 gate: bail (null/false) when
+// rom.RomInfo.worldmap_county_border_palette_pointer==0.
+// WF path (ImageUtilBorderAP.DrawBorderImages + DrawBorderBitmap):
+//   1. LZ77-decompress the parts image; read 16-color palette RAW from the
+//      DIRECT offset worldmap_county_border_palette_pointer (NOT pointer-to-
+//      pointer — it IS the palette offset); CalcHeight guard.
+//   2. ByteToImage16Tile → parts sheet (palette index 0 = transparent, G4c).
+//   3. Parse AP at p32(apAddr), DrawFrame(layer,0)+DrawFrame(layer,1) → AP layer.
+//   4. Composite: TryRenderEvent as background; MakeTransparent (alpha-key the
+//      AP layer); draw AP layer over the background → 256×160 result.
+// Record fields: P0=image_addr, P4=ap_addr, W8=x, W10=y.
 
 using System;
 
@@ -410,6 +422,247 @@ namespace FEBuilderGBA
             if (bytes <= 0) return false;
             ulong lastByte = (ulong)addr + (ulong)bytes - 1UL;
             return lastByte < (ulong)rom.Data.Length;
+        }
+
+        // ==================================================================
+        // County Border — NV5c (#849). FE8-only.
+        //
+        // WF render path:
+        //   ImageUtilBorderAP.DrawBorderImages(image_addr, ap_addr, x, y)
+        //   → DrawBorderBitmap: decompress parts image; read 16-color palette
+        //     RAW from worldmap_county_border_palette_pointer (DIRECT offset,
+        //     NOT pointer-to-pointer); CalcHeight; ByteToImage16Tile.
+        //   → Parse AP (at U.toOffset(ap_addr)); DrawFrame(0)+DrawFrame(1)
+        //     onto a transparent Blank(256,160) canvas.
+        //   → composite: event worldmap as background; MakeTransparent on AP
+        //     layer; draw AP layer over background → 256×160 result.
+        //
+        // G5 gate: worldmap_county_border_palette_pointer==0 on FE6/FE7
+        // → return null immediately. Using that pointer on FE6/FE7 would
+        // p32(0x0) → garbage.
+        //
+        // P0 = image_addr (encoded GBA pointer → offset via U.toOffset)
+        // P4 = ap_addr   (encoded GBA pointer → offset via U.toOffset)
+        // W8 = x origin, W10 = y origin.
+        // ==================================================================
+
+        // 16-color palette size in bytes (border parts sheet is single-palette).
+        const int BORDER_PALETTE_BYTES = 16 * 2; // 32 bytes
+        // Minimum decompressed image size for CalcHeight to yield > 0.
+        // CalcHeight(256, bin.Length): bin.Length must be > 0.
+
+        /// <summary>
+        /// Returns <c>true</c> when the county border preview can be rendered
+        /// and exported: the ROM is FE8, the palette pointer is non-zero, the
+        /// parts image decompresses to a positive height, and the AP parse
+        /// succeeds.
+        /// </summary>
+        public static bool CanExportBorder(ROM rom, uint imageAddr, uint apAddr,
+            int x, int y)
+            => TryRenderBorder(rom, imageAddr, apAddr, x, y) != null;
+
+        /// <summary>
+        /// Render the COUNTY BORDER (国境) AP preview (256×160 px) matching WF
+        /// <c>ImageUtilBorderAP.DrawBorderImages(image_addr, ap_addr, x, y)</c>.
+        ///
+        /// <para><b>FE8-only (G5).</b> Returns <c>null</c> when
+        /// <c>rom.RomInfo.worldmap_county_border_palette_pointer == 0</c> (it is
+        /// 0x0 for FE6/FE7). FE6/FE7 do not have a county border — feeding their
+        /// ROM bytes through this path would p32(0x0) → garbage.</para>
+        ///
+        /// <para><b>Parts sheet:</b> LZ77-decompress the image at
+        /// <paramref name="imageAddr"/> (GBA-pointer-encoded; converted to offset
+        /// internally), read the 16-color palette RAW from the DIRECT offset
+        /// <c>worldmap_county_border_palette_pointer</c> (NOT pointer-to-pointer),
+        /// compute <c>height = CalcHeight(256, bin.Length)</c>; if ≤ 0 return
+        /// <c>null</c> (WF blank guard). Render via
+        /// <see cref="ImageUtilCore.ByteToImage16Tile"/> (palette index 0 =
+        /// transparent, G4c).</para>
+        ///
+        /// <para><b>AP frames:</b> parse the AP at
+        /// <paramref name="apAddr"/> (pointer-encoded); render frame 0 and frame 1
+        /// onto a transparent 256×160 canvas via
+        /// <see cref="ImageUtilAPCore.RenderFrame"/> with the parts sheet. Source
+        /// pixels at index 0 are skipped (transparent key, G4c). Returns
+        /// <c>null</c> on parse failure.</para>
+        ///
+        /// <para><b>Composite:</b> call <see cref="TryRenderEvent"/> for the
+        /// background (256×160 event world map); if <c>null</c>, use a blank opaque
+        /// 256×160 background (WF always draws a background). Compose the AP layer
+        /// over the background → return 256×160 RGBA result.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="imageAddr">Encoded GBA pointer to the parts image
+        /// (record field P0).</param>
+        /// <param name="apAddr">Encoded GBA pointer to the AP data
+        /// (record field P4).</param>
+        /// <param name="x">Origin X for the AP blit (record field W8).</param>
+        /// <param name="y">Origin Y for the AP blit (record field W10).</param>
+        /// <returns>RGBA <see cref="IImage"/> 256×160, or <c>null</c> on any
+        /// failure. Never throws.</returns>
+        public static IImage TryRenderBorder(ROM rom, uint imageAddr, uint apAddr,
+            int x, int y)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            // G5 — FE8-only gate.
+            uint paletteDirectOffset = rom.RomInfo.worldmap_county_border_palette_pointer;
+            if (paletteDirectOffset == 0) return null;
+
+            // ---- Step 1: render the parts sheet (DrawBorderBitmap) ----
+            // imageAddr is an encoded GBA pointer; convert to ROM offset.
+            uint imgOffset = U.toOffset(imageAddr);
+            if (!U.isSafetyOffset(imgOffset, rom)) return null;
+
+            // 4-byte LZ77 header guard + truncation guard.
+            if (!IsLZ77HeaderSafe(rom, imgOffset)) return null;
+            uint compressedSize = LZ77.getCompressedSize(rom.Data, imgOffset);
+            if (compressedSize == 0) return null;
+            if ((ulong)imgOffset + compressedSize > (ulong)rom.Data.Length) return null;
+
+            byte[] bin = LZ77.decompress(rom.Data, imgOffset);
+            if (bin == null || bin.Length == 0) return null;
+
+            // CalcHeight(32*8, bin.Length) — WF uses width=256 (32 tiles * 8 px).
+            int height = CalcHeight256(bin.Length);
+            if (height <= 0) return null; // WF returns Blank(256,32); we return null
+
+            // Read the 16-color palette RAW from the DIRECT offset (not pointer-to-pointer).
+            if (!IsRegionSafe(rom, paletteDirectOffset, BORDER_PALETTE_BYTES)) return null;
+            byte[] palette = new byte[BORDER_PALETTE_BYTES];
+            Array.Copy(rom.Data, paletteDirectOffset, palette, 0, BORDER_PALETTE_BYTES);
+
+            IImage parts = ImageUtilCore.ByteToImage16Tile(bin, 0, palette, 0, 256, height);
+            if (parts == null) return null;
+
+            // ---- Step 2: parse AP and render two frames onto an AP layer ----
+            uint apOffset = U.toOffset(apAddr);
+            if (!U.isSafetyOffset(apOffset, rom)) { parts.Dispose(); return null; }
+
+            var ap = new ImageUtilAPCore();
+            if (!ap.Parse(rom.Data, apOffset)) { parts.Dispose(); return null; }
+
+            // Frame 0: the border outline / fill.
+            IImage layer0 = ap.RenderFrame(parts, 0, x, y, 256, 160);
+            // Frame 1: the name text overlay.
+            IImage layer1 = ap.RenderFrame(parts, 1, x, y, 256, 160);
+
+            parts.Dispose();
+
+            // ---- Step 3: composite ----
+            // Background: the event world map (TryRenderEvent reuses CoreState.ROM;
+            // we must set it to the passed rom if it differs).
+            IImage bg = null;
+            if (CoreState.ROM == rom)
+            {
+                bg = TryRenderEvent(rom);
+            }
+            // If TryRenderEvent fails or CoreState.ROM is not this rom, use a blank
+            // opaque 256×160 background (WF always draws a background).
+            if (bg == null)
+            {
+                bg = MakeOpaqueBlank256x160();
+            }
+
+            IImage result = CompositeBorderLayers(bg, layer0, layer1);
+            bg.Dispose();
+            layer0?.Dispose();
+            layer1?.Dispose();
+            return result;
+        }
+
+        /// <summary>
+        /// Compose the AP layers over a background: draw <paramref name="layer0"/>
+        /// then <paramref name="layer1"/> on top of <paramref name="background"/>,
+        /// skipping pixels with alpha=0 in each layer (transparent key, G4c).
+        /// Returns a new 256×160 RGBA <see cref="IImage"/>. Never throws.
+        /// </summary>
+        static IImage CompositeBorderLayers(IImage background, IImage layer0, IImage layer1)
+        {
+            if (CoreState.ImageService == null) return null;
+            int w = 256, h = 160;
+            var result = CoreState.ImageService.CreateImage(w, h);
+
+            // Start from the background pixels.
+            byte[] pixels = background?.GetPixelData() ?? new byte[w * h * 4];
+            if (pixels.Length < w * h * 4)
+            {
+                byte[] padded = new byte[w * h * 4];
+                Array.Copy(pixels, padded, pixels.Length);
+                pixels = padded;
+            }
+
+            // Blit layer0 (frame 0 — border outline/fill).
+            BlitAlphaLayer(pixels, w, h, layer0);
+            // Blit layer1 (frame 1 — name text).
+            BlitAlphaLayer(pixels, w, h, layer1);
+
+            result.SetPixelData(pixels);
+            return result;
+        }
+
+        /// <summary>
+        /// Alpha-composite <paramref name="layer"/> (RGBA, 256×160) over
+        /// <paramref name="dst"/> in-place. Source pixels with alpha=0 are skipped.
+        /// </summary>
+        static void BlitAlphaLayer(byte[] dst, int dstW, int dstH, IImage layer)
+        {
+            if (layer == null) return;
+            byte[] src = layer.GetPixelData();
+            int pixCount = dstW * dstH;
+            int srcLen = src?.Length ?? 0;
+            for (int i = 0; i < pixCount; i++)
+            {
+                int si = i * 4;
+                if (si + 3 >= srcLen) break;
+                if (src[si + 3] == 0) continue; // transparent — skip
+                int di = i * 4;
+                if (di + 3 >= dst.Length) break;
+                dst[di + 0] = src[si + 0];
+                dst[di + 1] = src[si + 1];
+                dst[di + 2] = src[si + 2];
+                dst[di + 3] = src[si + 3];
+            }
+        }
+
+        /// <summary>
+        /// Create a blank opaque (alpha=255, all black) 256×160 image as the
+        /// fallback background when TryRenderEvent returns null.
+        /// </summary>
+        static IImage MakeOpaqueBlank256x160()
+        {
+            var img = CoreState.ImageService.CreateImage(256, 160);
+            byte[] pixels = new byte[256 * 160 * 4];
+            // All pixels black-opaque (R=0,G=0,B=0,A=255).
+            for (int i = 3; i < pixels.Length; i += 4)
+                pixels[i] = 255;
+            img.SetPixelData(pixels);
+            return img;
+        }
+
+        /// <summary>
+        /// WF <c>ImageUtil.CalcHeight(32*8, bin.Length)</c> for the border parts
+        /// sheet. WF formula (verified ImageUtil.cs:900-918):
+        /// <c>height = (bin.Length * 2) / width</c> in tiles, rounded up, then
+        /// aligned up to <c>align=1</c> (no real alignment for 16-color tiles). For
+        /// the border sheet width is always 256 = 32*8; in tiles = 32.
+        /// height_pixels = ((bin.Length * 2 + 31) / 32) * 8.
+        /// Returns ≤ 0 when bin.Length is 0.
+        /// </summary>
+        static int CalcHeight256(int binLength)
+        {
+            if (binLength <= 0) return 0;
+            // WF: tsa_size = (width * height) / 2; height = tsa_size / (width/8).
+            // Rearranging: height_tiles = (binLength * 2 + (width-1)) / width
+            //            = (binLength * 2 + 255) / 256 (in tiles, ceiling div)
+            // height_pixels = height_tiles * 8.
+            // But WF uses: CalcHeight(width, binLength) with align=8.
+            // Verified against WF code: "int height = tsa_size / (width / 8);" + round-up.
+            const int width = 256;
+            int tsa_size = binLength; // bin is 4bpp: 2 pixels per byte
+            int height_tiles = (tsa_size * 2 + (width - 1)) / width; // ceiling
+            return height_tiles * 8;
         }
     }
 }

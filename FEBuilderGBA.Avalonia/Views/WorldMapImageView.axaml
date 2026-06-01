@@ -423,20 +423,21 @@
               <Label AutomationProperties.AutomationId="WorldMapImage_Border_DrawSample_Label"
                      Content="Draw Example" FontWeight="SemiBold" Margin="0,6,0,0" />
               <Border BorderBrush="Gray" BorderThickness="1" MinHeight="120">
-                <Image AutomationProperties.AutomationId="WorldMapImage_Border_DrawSample_Image"
-                       Name="BorderDrawSampleImage" Stretch="Uniform"
-                       ToolTip.Tip="KnownGap: live bitmap preview pending Core extraction." />
+                <controls:GbaImageControl AutomationProperties.AutomationId="WorldMapImage_Border_DrawSample_Image"
+                                          Name="BorderDrawSampleImage" />
               </Border>
 
               <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                 <Button AutomationProperties.AutomationId="WorldMapImage_Border_Import_Button"
                         Content="Import Image"
                         IsEnabled="False"
-                        ToolTip.Tip="KnownGap: pending Core extraction." />
+                        ToolTip.Tip="Import is not supported in the cross-platform viewer (read-only)." />
                 <Button AutomationProperties.AutomationId="WorldMapImage_Border_Export_Button"
+                        Name="BorderExportButton"
                         Content="Export Image"
-                        IsEnabled="False"
-                        ToolTip.Tip="KnownGap: pending Core extraction." />
+                        IsEnabled="{Binding CanExportBorder}"
+                        Click="BorderExport_Click"
+                        ToolTip.Tip="Export the border AP preview to PNG." />
               </StackPanel>
             </StackPanel>
           </ScrollViewer>
