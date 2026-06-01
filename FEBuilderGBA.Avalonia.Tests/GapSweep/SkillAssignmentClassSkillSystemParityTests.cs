@@ -281,18 +281,31 @@ public class SkillAssignmentClassSkillSystemParityTests
         Assert.Contains("Click=\"N1ListExpand_Click\"", axaml);
     }
 
+    // #834: the spurious master Class-Skill List-Expand button was REMOVED.
+    // The master table is class-count-bound (WF Init builds its InputFormRef off
+    // ClassForm.DataCount() and does NOT subscribe PostAddressListExpandsEvent —
+    // SkillAssignmentClassSkillSystemForm.cs:75/77), so it has no expand
+    // semantics. Assert the button AND its stale "#500" marker are gone.
     [Fact]
-    public void View_HasListExpandButton_Wired()
+    public void View_MasterListExpandButton_Removed()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"SkillAssignmentClassSkillSystem_ListExpand_Button\"", axaml);
+        Assert.DoesNotContain("SkillAssignmentClassSkillSystem_ListExpand_Button", axaml);
+        Assert.DoesNotContain("Name=\"ListExpandButton\"", axaml);
+        // The stale "#500 / Pending Core extraction" marker must be gone too.
+        Assert.DoesNotContain("Pending Core extraction", axaml);
+        Assert.DoesNotContain("tracked by #500", axaml);
     }
 
+    // #834: the Independence button is now wired (was deferred with the #500
+    // marker). Assert it carries the Click handler and no longer carries the
+    // stale marker / IsEnabled="False".
     [Fact]
     public void View_HasIndependenceButton_Wired()
     {
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"SkillAssignmentClassSkillSystem_Independence_Button\"", axaml);
+        Assert.Contains("Click=\"Independence_Click\"", axaml);
     }
 
     [Fact]
@@ -390,6 +403,26 @@ public class SkillAssignmentClassSkillSystemParityTests
         string source = File.ReadAllText(sourcePath);
 
         Assert.Contains("_undoService.Begin(\"Expand Skill Assignment Level-up Table\")", source);
+    }
+
+    // #834: the Independence handler must run under the View-owned UndoService
+    // scope (Begin/Commit/Rollback) so the clone-block + the single pointer
+    // write are reverted together by one rollback.
+    [Fact]
+    public void View_IndependenceHandler_WrapsInUndoScope()
+    {
+        string repoRoot = FindRepoRoot();
+        string sourcePath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "SkillAssignmentClassSkillSystemView.axaml.cs");
+        string source = File.ReadAllText(sourcePath);
+
+        Assert.Contains("_undoService.Begin(\"Make Skill Assignment Class Independent\")", source);
+        Assert.Contains("void Independence_Click", source);
+        // It must call the VM single-slot helper, NOT *call* RepointAllReferences
+        // (a bare mention in an explanatory comment is fine; an actual call is
+        // forbidden — that would corrupt other sharing classes).
+        Assert.Contains("_vm.MakeIndependent(", source);
+        Assert.DoesNotContain("RepointAllReferences(", source);
     }
 
     [Fact]

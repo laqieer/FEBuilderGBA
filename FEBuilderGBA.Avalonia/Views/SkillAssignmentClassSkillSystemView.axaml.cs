@@ -335,6 +335,54 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // #834: "Make Selected Class Independent" — mirrors WF
+        // SkillAssignmentClassSkillSystemForm.IndependenceButton_Click
+        // (Form.cs:551-595) -> PatchUtil.WriteIndependence. Clones the SHARED
+        // level-up table into a fresh free-space block and repoints ONLY this
+        // class's pointer slot (a SINGLE write_p32, NOT RepointAllReferences),
+        // so every other sharing class stays on the intact original table.
+        // Mirror the WF empty-list confirm + ReloadList + JumpTo(classid).
+        void Independence_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+
+            // WF: when the list is empty, confirm before separating an empty
+            // table (Form.cs:576-583). Mirror that prompt; a "No" aborts.
+            if (_vm.IsSelectedLevelUpListEmpty())
+            {
+                bool yes = CoreState.Services?.ShowYesNo(R._(
+                    "The list is empty. Separating an empty list has no effect. Make it independent anyway?")) == true;
+                if (!yes) return;
+            }
+
+            _undoService.Begin("Make Skill Assignment Class Independent");
+            try
+            {
+                uint newPointer = _vm.MakeIndependent(_undoService.GetActiveUndoData());
+                if (newPointer == 0)
+                {
+                    _undoService.Rollback();
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Mirror WF ReloadList + InputFormRef.JumpTo(classid): refresh
+                // the master list and reselect the same class so the now-
+                // independent table is shown.
+                uint classId = _vm.SelectedId;
+                LoadList();
+                EntryList.SelectAddress(_vm.AssignClassBaseAddress + classId * _vm.MasterBlockSize);
+
+                CoreState.Services?.ShowInfo($"Class is now independent. New table: 0x{newPointer:X08}.");
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SkillAssignmentClassSkillSystemView.Independence failed: {0}", ex.Message);
+            }
+        }
+
         void N1B0_ValueChanged(object sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_suppressN1B0Change) return;
