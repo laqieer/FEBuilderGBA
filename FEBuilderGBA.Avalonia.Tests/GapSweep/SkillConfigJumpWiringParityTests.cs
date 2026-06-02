@@ -18,6 +18,7 @@
 // approved-plan correction: do not duplicate the manifest/button tests).
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
@@ -79,12 +80,17 @@ public class SkillConfigJumpWiringParityTests
     /// code-behind source text. Returns the substring between the handler's
     /// opening `{` and its matching `}` so source assertions are scoped to the
     /// single handler (not the whole file).
+    ///
+    /// The handler declaration is located by a regex on `void &lt;name&gt;(` rather
+    /// than a hard-coded full signature, so it stays robust to parameter
+    /// nullability/modifier/type changes (matches the regex-declaration style
+    /// the other GapSweep parity tests use, e.g. ClassOPDemoParityTests).
     /// </summary>
     static string ExtractHandlerBody(string source, string handlerName)
     {
-        string signature = $"void {handlerName}(object? sender, RoutedEventArgs e)";
-        int sigIdx = source.IndexOf(signature, StringComparison.Ordinal);
-        Assert.True(sigIdx >= 0, $"Handler '{handlerName}' not found in source");
+        Match decl = Regex.Match(source, $@"void\s+{Regex.Escape(handlerName)}\s*\(", RegexOptions.Compiled);
+        Assert.True(decl.Success, $"Handler '{handlerName}' not found in source");
+        int sigIdx = decl.Index;
 
         int openBrace = source.IndexOf('{', sigIdx);
         Assert.True(openBrace >= 0, $"Opening brace for '{handlerName}' not found");
