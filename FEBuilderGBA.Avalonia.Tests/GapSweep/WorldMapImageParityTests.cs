@@ -242,10 +242,10 @@ public class WorldMapImageParityTests
     /// is a separate follow-up).
     /// </summary>
     [Theory]
-    [InlineData("WorldMapImage_Main_Import_Button")]
+    // WorldMapImage_Main_Import_Button   — wired (#875, see View_ImportDarkButtons_AreWired)
+    // WorldMapImage_Main_DarkImport_Button — wired (#875)
+    // WorldMapImage_Main_DarkExport_Button — wired (#875)
     [InlineData("WorldMapImage_Main_Export_Button")]
-    [InlineData("WorldMapImage_Main_DarkImport_Button")]
-    [InlineData("WorldMapImage_Main_DarkExport_Button")]
     [InlineData("WorldMapImage_Main_DecreaseColor_Button")]
     [InlineData("WorldMapImage_Main_OpenSource_Button")]
     [InlineData("WorldMapImage_Main_SelectSource_Button")]
@@ -270,6 +270,42 @@ public class WorldMapImageParityTests
 
         Assert.Contains("IsEnabled=\"False\"", element);
         Assert.Contains("KnownGap", element);
+    }
+
+    /// <summary>
+    /// #875: Main Import, Dark Import, and Dark Export buttons are now wired
+    /// (previously KnownGap-disabled). Each must:
+    ///   * NOT be IsEnabled="False",
+    ///   * NOT reference KnownGap in its tooltip,
+    ///   * have an IsEnabled binding (CanImportMain / CanImportDark / CanExportDark), and
+    ///   * have a Click handler wired.
+    /// DecreaseColor + OpenSource + SelectSource STAY KnownGap-disabled (not wired).
+    /// </summary>
+    [Theory]
+    [InlineData("WorldMapImage_Main_Import_Button",     "CanImportMain", "MainImport_Click")]
+    [InlineData("WorldMapImage_Main_DarkImport_Button", "CanImportDark", "DarkImport_Click")]
+    [InlineData("WorldMapImage_Main_DarkExport_Button", "CanExportDark", "DarkExport_Click")]
+    public void View_ImportDarkButtons_AreWired(string automationId, string binding, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        // Wired button: gated by binding, wired to click handler, NOT a KnownGap stub.
+        Assert.Contains($"IsEnabled=\"{{Binding {binding}}}\"", element);
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("KnownGap", element);
+
+        // Click handler exists in the code-behind.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains(clickHandler, source);
     }
 
     /// <summary>

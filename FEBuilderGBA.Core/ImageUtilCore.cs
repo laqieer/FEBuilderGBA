@@ -750,5 +750,87 @@ namespace FEBuilderGBA
                 }
             }
         }
+
+        // =========================================================================
+        // EncodePaletteMap16Tile — EXACT INVERSE of ByteToImage16TilePaletteMap's
+        // nibble walk (#875, WF ImageUtil.ImageToPaletteMap:2211).
+        //
+        // The world-map palette-map is a nibble stream: one nibble per 8×8 tile
+        // selecting the sub-palette (0–15), stored two tiles per byte
+        //   even tile index → low nibble  (& 0x0F)
+        //   odd  tile index → high nibble (>> 4)
+        // plus a 4-nibble right-margin skip at each row end
+        //   nn += 4  per row (mirrors WF :2268  "nn += 4").
+        //
+        // Buffer size: (width/2 + 4) * height bytes (WF :2214).
+        // Encoding: per 8×8 tile, compute selectpalette = indexedPixels[any pixel
+        // in the tile] / 16 (the FIRST pixel at tile origin; the caller MUST have
+        // already validated all pixels in each tile use the SAME sub-palette —
+        // ByteToImage16TilePaletteMap round-trip test enforces this).
+        // Returns the encoded palette-map byte array (never null; empty on bad args).
+        // =========================================================================
+
+        /// <summary>
+        /// Encode a flat indexed-pixel buffer (1 byte/pixel, values 0–63 where
+        /// <c>value / 16</c> is the sub-palette index) into the GBA world-map
+        /// palette-map nibble stream — the EXACT inverse of
+        /// <see cref="ByteToImage16TilePaletteMap"/>'s nibble walk (#875).
+        ///
+        /// <para>Buffer layout: <c>(width/2 + 4) * height</c> bytes. Per 8×8 tile
+        /// the sub-palette is written as a nibble at position <c>nn/2</c>: even
+        /// tile counter → low nibble; odd → high nibble. A 4-nibble right-margin
+        /// gap is added at each row end (<c>nn += 4</c>), matching WF
+        /// <c>ImageUtil.ImageToPaletteMap :2268</c>.</para>
+        ///
+        /// <para>The caller is responsible for validating that each 8×8 tile is
+        /// mono-sub-palette before calling (WF validates and returns an error
+        /// string if not). This method reads the first pixel of each tile to
+        /// determine the sub-palette; the result is byte-exact for validated
+        /// inputs.</para>
+        /// </summary>
+        /// <param name="indexedPixels">1 byte per pixel, row-major (width*height
+        /// bytes). Each pixel value is a palette index 0–63 where
+        /// <c>value / 16</c> is the sub-palette.</param>
+        /// <param name="width">Image width in pixels (multiple of 8).</param>
+        /// <param name="height">Image height in pixels (multiple of 8).</param>
+        /// <returns>Encoded palette-map byte array of size
+        /// <c>(width/2 + 4) * height</c>; empty on degenerate input.</returns>
+        public static byte[] EncodePaletteMap16Tile(byte[] indexedPixels, int width, int height)
+        {
+            if (indexedPixels == null || width <= 0 || height <= 0) return new byte[0];
+            if (width % 8 != 0 || height % 8 != 0) return new byte[0];
+            if (indexedPixels.Length < width * height) return new byte[0];
+
+            // Buffer size: (width/2 + 4) * height  — mirrors WF :2214.
+            byte[] palettemap = new byte[(width / 2 + 4) * height];
+
+            int nn = 0; // nibble counter — same variable as WF :2220
+            for (int y = 0; y < height; y += 8)
+            {
+                for (int x = 0; x < width; x += 8)
+                {
+                    // Determine this tile's sub-palette from the first pixel
+                    // (all pixels must be the same sub-palette — validated by caller).
+                    int firstPixel = indexedPixels[y * width + x];
+                    uint selectpalette = (uint)(firstPixel / 16);
+
+                    // Write nibble: even nn → low nibble; odd nn → high nibble.
+                    // Mirrors WF :2255-2264.
+                    if ((nn & 0x01) > 0)
+                    {   // odd → high nibble
+                        byte a = palettemap[nn / 2];
+                        palettemap[nn / 2] = (byte)((a & 0x0F) | ((selectpalette & 0xF) << 4));
+                    }
+                    else
+                    {   // even → low nibble
+                        palettemap[nn / 2] = (byte)(selectpalette & 0xF);
+                    }
+                    nn++;
+                }
+                // 4-nibble right-margin gap per row — WF :2268 "nn += 4".
+                nn += 4;
+            }
+            return palettemap;
+        }
     }
 }

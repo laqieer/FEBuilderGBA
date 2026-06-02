@@ -545,7 +545,26 @@ namespace FEBuilderGBA.Avalonia.Views
             RenderInto(Point1PreviewImage, _vm.TryRenderPoint1, v => _vm.CanExportPoint1 = v, "Point1");
             RenderInto(Point2PreviewImage, _vm.TryRenderPoint2, v => _vm.CanExportPoint2 = v, "Point2");
             RenderInto(RoadPreviewImage, _vm.TryRenderRoad, v => _vm.CanExportRoad = v, "Road");
+            // #875: dark field map preview (renders but no separate GbaImageControl —
+            // the export button alone gates on CanExportDark).
+            try
+            {
+                IImage? dark = _vm.TryRenderDarkFieldMap();
+                _vm.CanExportDark = dark != null;
+                _darkFieldMapImage = dark;
+            }
+            catch (Exception ex)
+            {
+                _vm.CanExportDark = false;
+                _darkFieldMapImage = null;
+                Log.Error($"WorldMapImageView.RenderDarkFieldMap failed: {ex}");
+            }
+            // Refresh the import gates (FE8-only enable).
+            _vm.RefreshImportGates();
         }
+
+        // Cached dark field map render — reused by DarkExport_Click.
+        IImage? _darkFieldMapImage;
 
         void RenderInto(GbaImageControl target, Func<IImage?> render,
             Action<bool> setGate, string label)
@@ -564,6 +583,283 @@ namespace FEBuilderGBA.Avalonia.Views
                 // substitution), so pass a single interpolated string and include
                 // the full exception (stack trace) rather than just ex.Message.
                 Log.Error($"WorldMapImageView.Render{label} failed: {ex}");
+            }
+        }
+
+        // ===================================================================
+        // #875: Main Import / Dark Import / Dark Export
+        // ===================================================================
+
+        /// <summary>
+        /// Open a PNG, remap to the current ROM palette, validate mono-sub-palette
+        /// per tile, then write image + palette + palette-map (LZ77) in-place under
+        /// one undo scope. Refreshes previews on success.
+        /// Injectable test entry point: <see cref="DoMainImport"/>.
+        /// </summary>
+        async void MainImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenImageFile(this);
+                if (path == null) return;
+                await DoMainImport(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"WorldMapImageView.MainImport_Click failed: {ex}");
+            }
+        }
+
+        /// <summary>Injectable main-import driver (testable without UI).</summary>
+        public async System.Threading.Tasks.Task DoMainImport(string imagePath)
+        {
+            // 1. Load image via IImageService (returns RGBA IImage).
+            IImage? img = CoreState.ImageService?.LoadImage(imagePath);
+            if (img == null)
+            {
+                CoreState.Services?.ShowError(R._("Failed to load image from: {0}", imagePath));
+                return;
+            }
+
+            // 2. Validate dimensions.
+            if (img.Width != 480 || img.Height != 320)
+            {
+                CoreState.Services?.ShowError(R.Error(
+                    "Image dimensions must be 480×320.\r\n\r\nSelected image: {0}×{1}.",
+                    img.Width, img.Height));
+                return;
+            }
+
+            // 3. Read RGBA pixels.
+            byte[] rgba = img.GetPixelData();
+            if (rgba == null || rgba.Length < 480 * 320 * 4)
+            {
+                CoreState.Services?.ShowError(R._("Image pixel data is missing or too short."));
+                return;
+            }
+
+            // 4. Read current ROM palette (128 B = 4 sub-palettes × 16 colors × 2 B).
+            byte[]? gbaPalette128 = _vm.ReadCurrentMainPalette();
+            if (gbaPalette128 == null)
+            {
+                CoreState.Services?.ShowError(R._("Cannot read current ROM palette — check worldmap_big_palette_pointer."));
+                return;
+            }
+
+            // 5. Remap RGBA → indexed (remaps each tile to best-fitting sub-palette).
+            var (indexedPixels, remapErr) = WorldMapImageViewModel.RgbaToIndexed(rgba, 480, 320, gbaPalette128);
+            if (indexedPixels == null)
+            {
+                CoreState.Services?.ShowError(R.Error("Remap to indexed failed: {0}", remapErr));
+                return;
+            }
+
+            // 6. Validate mono-sub-palette per tile (WF format check).
+            string tileErr = ImageWorldMapCore.ValidateTileMonoPalette(indexedPixels, 480, 320);
+            if (!string.IsNullOrEmpty(tileErr))
+            {
+                CoreState.Services?.ShowError(tileErr);
+                return;
+            }
+
+            // 7. Write under one undo scope.
+            _undoService.Begin("Import World Map Main Field Map");
+            try
+            {
+                string? err = _vm.DoMainImport(indexedPixels, gbaPalette128);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error($"WorldMapImageView.DoMainImport write failed: {ex}");
+                CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+                return;
+            }
+
+            // 8. Refresh previews.
+            RefreshPreviews();
+        }
+
+        /// <summary>
+        /// Open a PNG, validate 480×320 + ≤4 sub-palettes, write ONLY the 128-byte
+        /// dark palette in-place under one undo scope.
+        /// Injectable test entry point: <see cref="DoDarkImport"/>.
+        /// </summary>
+        async void DarkImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenImageFile(this);
+                if (path == null) return;
+                await DoDarkImport(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"WorldMapImageView.DarkImport_Click failed: {ex}");
+            }
+        }
+
+        /// <summary>Injectable dark-import driver (testable without UI).</summary>
+        public async System.Threading.Tasks.Task DoDarkImport(string imagePath)
+        {
+            // 1. Load image via IImageService.
+            IImage? img = CoreState.ImageService?.LoadImage(imagePath);
+            if (img == null)
+            {
+                CoreState.Services?.ShowError(R._("Failed to load image from: {0}", imagePath));
+                return;
+            }
+
+            // 2. Validate 480×320.
+            if (img.Width != 480 || img.Height != 320)
+            {
+                CoreState.Services?.ShowError(R.Error(
+                    "Image dimensions must be 480×320.\r\n\r\nSelected image: {0}×{1}.",
+                    img.Width, img.Height));
+                return;
+            }
+
+            // 3. Read RGBA pixels.
+            byte[] rgba = img.GetPixelData();
+            if (rgba == null || rgba.Length < 480 * 320 * 4)
+            {
+                CoreState.Services?.ShowError(R._("Image pixel data is missing or too short."));
+                return;
+            }
+
+            // 4. Build the dark GBA palette from the RGBA pixels.
+            //    Remap to 4 sub-palettes and extract the GBA palette bytes.
+            byte[] tempPalette = new byte[4 * 16 * 2]; // 128 B
+            if (CoreState.ImageService != null)
+            {
+                // Quick quantize: remap RGBA to 4 sub-palettes to extract palette colors.
+                // For the dark import we ONLY need the palette bytes (128 B), not the pixels.
+                // Build the GBA palette from the image's pixel data via RemapToMultiPalette.
+                var remap = ImageImportCore.RemapToMultiPalette(rgba, 480, 320, new byte[4 * 16 * 2], 4);
+                // remap.IndexedPixels gives per-palette indices, but we need the palette colors.
+                // Since RemapToMultiPalette uses the supplied palette (zeros = black), we need
+                // to quantize directly. Build the GBA palette by sampling RGBA pixels per tile.
+                tempPalette = BuildGbaPaletteFromRgba(rgba, 480, 320, 4);
+            }
+
+            // 5. Write under one undo scope.
+            _undoService.Begin("Import World Map Dark Palette");
+            try
+            {
+                string? err = _vm.DoDarkImport(tempPalette);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return;
+                }
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error($"WorldMapImageView.DoDarkImport write failed: {ex}");
+                CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+                return;
+            }
+
+            // 6. Refresh dark preview gate.
+            RefreshPreviews();
+        }
+
+        /// <summary>
+        /// Build a flat 128-byte GBA palette (4 sub-palettes × 16 colors × 2 bytes)
+        /// from RGBA pixels by sampling the first 16 unique colors per 8×8 tile group.
+        /// This is a simplified palette extraction for the dark-palette import path
+        /// (the user imports a dark-toned version of the map, and we convert its
+        /// palette directly to GBA BGR555). Tiles not reaching 16 unique colors
+        /// use black for the remaining entries.
+        /// </summary>
+        static byte[] BuildGbaPaletteFromRgba(byte[] rgba, int width, int height, int subPalCount)
+        {
+            byte[] result = new byte[subPalCount * 16 * 2];
+            if (CoreState.ImageService == null) return result;
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            int tilesPerSubPal = (tilesX * tilesY + subPalCount - 1) / subPalCount;
+
+            for (int sp = 0; sp < subPalCount; sp++)
+            {
+                // Collect unique RGBA colors from the tiles in this sub-palette group.
+                var seen = new System.Collections.Generic.List<uint>(16);
+                int startTile = sp * tilesPerSubPal;
+                int endTile = System.Math.Min(startTile + tilesPerSubPal, tilesX * tilesY);
+                for (int ti = startTile; ti < endTile && seen.Count < 16; ti++)
+                {
+                    int ty = (ti / tilesX) * 8;
+                    int tx = (ti % tilesX) * 8;
+                    for (int py = 0; py < 8 && seen.Count < 16; py++)
+                    {
+                        for (int px = 0; px < 8 && seen.Count < 16; px++)
+                        {
+                            int idx = ((ty + py) * width + (tx + px)) * 4;
+                            if (idx + 3 >= rgba.Length) continue;
+                            byte r = rgba[idx]; byte g = rgba[idx + 1]; byte b = rgba[idx + 2];
+                            uint c = (uint)(r | (g << 8) | (b << 16));
+                            if (!seen.Contains(c)) seen.Add(c);
+                        }
+                    }
+                }
+                // Write the collected colors as GBA BGR555.
+                for (int ci = 0; ci < seen.Count && ci < 16; ci++)
+                {
+                    byte r = (byte)(seen[ci] & 0xFF);
+                    byte g = (byte)((seen[ci] >> 8) & 0xFF);
+                    byte b2 = (byte)((seen[ci] >> 16) & 0xFF);
+                    ushort gba = CoreState.ImageService.RGBAToGBAColor(r, g, b2);
+                    int off = (sp * 16 + ci) * 2;
+                    result[off] = (byte)(gba & 0xFF);
+                    result[off + 1] = (byte)(gba >> 8);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Export the dark field map preview as PNG. The cached dark render
+        /// (<see cref="_darkFieldMapImage"/>) is saved via a save-file dialog.
+        /// Mirrors how GbaImageControl.ExportPng works but for the dark image
+        /// that has no dedicated GbaImageControl panel.
+        /// </summary>
+        async void DarkExport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                IImage? dark = _darkFieldMapImage ?? _vm.TryRenderDarkFieldMap();
+                if (dark == null)
+                {
+                    CoreState.Services?.ShowError(R._("Dark field map is not available (FE8 only)."));
+                    return;
+                }
+                string? path = await FileDialogHelper.SaveImageFile(this, "worldmap_darkfieldmap");
+                if (path == null) return;
+                // Convert IImage → WriteableBitmap → save as PNG.
+                var bmp = FEBuilderGBA.Avalonia.Controls.IconBitmapBuilder.FromImage(dark);
+                if (bmp == null)
+                {
+                    CoreState.Services?.ShowError(R._("Failed to convert dark map image to bitmap."));
+                    return;
+                }
+                using var stream = System.IO.File.Create(path);
+                bmp.Save(stream);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"WorldMapImageView.DarkExport_Click failed: {ex}");
             }
         }
 

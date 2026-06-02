@@ -586,5 +586,150 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 BorderP4,
                 (int)BorderW8,
                 (int)BorderW10);
+
+        // ===================================================================
+        // Main Import / Dark Import / Dark Export (#875)
+        // ===================================================================
+
+        // ---- import gates ----
+
+        bool _canImportMain;
+        bool _canImportDark;
+
+        /// <summary>True when the FE8 main field map Import button should be enabled.
+        /// Set false once an import is in progress (prevents re-entry).</summary>
+        public bool CanImportMain { get => _canImportMain; set => SetField(ref _canImportMain, value); }
+
+        /// <summary>True when the FE8 dark palette Import button should be enabled.</summary>
+        public bool CanImportDark { get => _canImportDark; set => SetField(ref _canImportDark, value); }
+
+        bool _canExportDark;
+        /// <summary>True after a successful TryRenderDarkFieldMap — gates the Dark Export button.</summary>
+        public bool CanExportDark { get => _canExportDark; set => SetField(ref _canExportDark, value); }
+
+        /// <summary>
+        /// Refresh the CanImportMain / CanImportDark gates: both are enabled
+        /// only when a FE8 ROM is loaded (same gate as TryRenderMainFieldMap).
+        /// Called from LoadAll.
+        /// </summary>
+        public void RefreshImportGates()
+        {
+            bool isFE8 = CoreState.ROM?.RomInfo?.version == 8;
+            CanImportMain = isFE8;
+            CanImportDark = isFE8;
+        }
+
+        // ---- indexed-image load (platform-agnostic — reads EXISTING ROM indexed data) ----
+
+        /// <summary>
+        /// Convert raw RGBA pixel data + the existing 4-sub-palette GBA palette
+        /// to an indexed-pixel buffer (1 byte/pixel, values 0–63 where
+        /// <c>value / 16</c> is the sub-palette). Delegates to
+        /// <see cref="ImageImportCore.RemapToMultiPalette"/> then flattens
+        /// per-tile palette indices into absolute indices
+        /// (<c>localIndex + subPaletteIndex * 16</c>).
+        ///
+        /// <para>Used by the Avalonia import path to convert the PNG the user
+        /// opened (RGBA from SkiaSharp) into the indexed buffer
+        /// <see cref="ImportMainFieldMap"/> and
+        /// <see cref="ImageWorldMapCore.ValidateTileMonoPalette"/> expect.</para>
+        /// </summary>
+        public static (byte[] indexedPixels, string error) RgbaToIndexed(
+            byte[] rgbaPixels, int width, int height, byte[] gbaPalette128)
+        {
+            if (rgbaPixels == null || gbaPalette128 == null)
+                return (null, "Invalid input.");
+            if (rgbaPixels.Length < width * height * 4)
+                return (null, "RGBA pixel buffer too short.");
+
+            var remap = ImageImportCore.RemapToMultiPalette(
+                rgbaPixels, width, height, gbaPalette128, 4);
+            if (remap == null)
+                return (null, "Failed to remap to 4 sub-palettes.");
+
+            // Flatten: each pixel's absolute index = local index + subPalette * 16.
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            byte[] flat = new byte[width * height];
+            for (int ty = 0; ty < tilesY; ty++)
+            {
+                for (int tx = 0; tx < tilesX; tx++)
+                {
+                    int tileIdx = ty * tilesX + tx;
+                    int pal = remap.TilePaletteIndices[tileIdx];
+                    for (int py = 0; py < 8; py++)
+                    {
+                        for (int px = 0; px < 8; px++)
+                        {
+                            int i = (ty * 8 + py) * width + (tx * 8 + px);
+                            flat[i] = (byte)((remap.IndexedPixels[i] & 0x0F) + pal * 16);
+                        }
+                    }
+                }
+            }
+            return (flat, "");
+        }
+
+        /// <summary>
+        /// Read the existing GBA palette from the ROM's worldmap_big_palette_pointer
+        /// (128 bytes = 4 sub-palettes × 16 colors × 2 bytes). Returns null on any
+        /// pointer / region failure.
+        ///
+        /// <para>Used by the Avalonia import path to obtain the CURRENT ROM palette
+        /// so <see cref="RgbaToIndexed"/> can call
+        /// <see cref="ImageImportCore.RemapToMultiPalette"/> against it — the
+        /// imported PNG does not carry an indexed palette in SkiaSharp, so we re-
+        /// index against the existing ROM palette.</para>
+        /// </summary>
+        public byte[] ReadCurrentMainPalette()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            uint pointerSlot = rom.RomInfo.worldmap_big_palette_pointer;
+            if (pointerSlot == 0) return null;
+            // 4-byte bounds guard before u32 read.
+            if ((ulong)pointerSlot + 4 > (ulong)rom.Data.Length) return null;
+            uint encoded = rom.u32(pointerSlot);
+            if (!U.isPointer(encoded)) return null;
+            uint addr = U.toOffset(encoded);
+            if (!U.isSafetyOffset(addr, rom)) return null;
+            const int palBytes = 4 * 16 * 2; // 128
+            if ((ulong)addr + palBytes > (ulong)rom.Data.Length) return null;
+            byte[] pal = new byte[palBytes];
+            Array.Copy(rom.Data, addr, pal, 0, palBytes);
+            return pal;
+        }
+
+        /// <summary>
+        /// Import the main field map (image + palette + palette-map) under the given
+        /// indexed-pixel buffer + GBA palette. Caller wraps in UndoService.Begin/Commit/Rollback.
+        /// Returns null on success, or an error string on failure.
+        /// </summary>
+        public string DoMainImport(byte[] indexedPixels, byte[] gbaPalette128)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "ROM not loaded.";
+            var result = ImageWorldMapCore.ImportMainFieldMap(rom, indexedPixels, gbaPalette128);
+            return result.Success ? null : result.Error;
+        }
+
+        /// <summary>
+        /// Import only the dark palette (128 bytes) under the ambient undo scope.
+        /// Returns null on success, or an error string on failure.
+        /// </summary>
+        public string DoDarkImport(byte[] gbaDarkPalette128)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "ROM not loaded.";
+            var result = ImageWorldMapCore.ImportDarkPalette(rom, gbaDarkPalette128);
+            return result.Success ? null : result.Error;
+        }
+
+        /// <summary>
+        /// Render the FE8 dark field map preview via
+        /// <see cref="ImageWorldMapCore.TryRenderDarkFieldMap"/>.
+        /// FE8-only; returns null for FE6/FE7 or any bad pointer.
+        /// </summary>
+        public IImage TryRenderDarkFieldMap() => ImageWorldMapCore.TryRenderDarkFieldMap(CoreState.ROM);
     }
 }
