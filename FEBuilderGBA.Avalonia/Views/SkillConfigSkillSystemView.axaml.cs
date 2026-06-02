@@ -272,9 +272,13 @@ namespace FEBuilderGBA.Avalonia.Views
             Log.Debug("SkillConfigSkillSystemView.AnimationImport_Click invoked - disabled until Core extraction lands (#500)");
         }
 
-        void AnimationExport_Click(object? sender, RoutedEventArgs e)
+        // #910 — real animation export via the cross-platform
+        // SkillSystemsAnimeExportCore seam (.txt script + per-frame PNGs, or
+        // an animated GIF). Import stays WinForms-side (separate PR).
+        async void AnimationExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigSkillSystemView.AnimationExport_Click invoked - disabled until Core extraction lands (#500)");
+            if (!_vm.IsLoaded) return;
+            await SkillConfigAnimeExportHelper.ExportAsync(this, _vm.AnimationPointer, _vm.SelectedId);
         }
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)

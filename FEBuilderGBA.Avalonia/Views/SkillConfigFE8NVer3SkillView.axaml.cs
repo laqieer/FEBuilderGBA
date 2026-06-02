@@ -344,9 +344,11 @@ namespace FEBuilderGBA.Avalonia.Views
             Log.Debug("SkillConfigFE8NVer3SkillView.AnimationImport_Click invoked - disabled until Core extraction lands (#500)");
         }
 
-        void AnimationExport_Click(object? sender, RoutedEventArgs e)
+        // #910 — real animation export via SkillSystemsAnimeExportCore.
+        async void AnimationExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NVer3SkillView.AnimationExport_Click invoked - disabled until Core extraction lands (#500)");
+            if (!_vm.IsLoaded) return;
+            await SkillConfigAnimeExportHelper.ExportAsync(this, _vm.AnimationPointer, _vm.SelectedId);
         }
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)
