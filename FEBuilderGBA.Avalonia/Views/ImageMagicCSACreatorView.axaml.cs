@@ -704,8 +704,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Editor_Click(object? sender, RoutedEventArgs e)
         {
-            // Real cross-editor jump — opens ToolAnimationCreator. Mirrors
-            // ImageMagicFEditorView.JumpEditor_Click exactly (symmetric parity, #892).
+            // Real cross-editor jump — opens ToolAnimationCreator. Mirrors the
+            // behavior of ImageMagicFEditorView.JumpEditor_Click (symmetric parity, #892).
             // The full export-temp-file + Init(MagicAnime_CSACreator) flow is a
             // documented #500 follow-up for BOTH FEditor and CSACreator — symmetric.
             try

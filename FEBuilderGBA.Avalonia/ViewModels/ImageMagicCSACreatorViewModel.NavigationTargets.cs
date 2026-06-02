@@ -14,7 +14,7 @@
 // below points at #500 (open) so the jump-parity scanner reports
 // `KnownGap` rather than `MissingAvManifest`.
 //
-// This mirrors ImageMagicFEditorViewModel.NavigationTargets.cs exactly
+// This mirrors the behavior of ImageMagicFEditorViewModel.NavigationTargets.cs
 // (symmetric parity, #892 — last bucket-A gap).
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
