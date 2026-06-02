@@ -115,15 +115,49 @@ public class ImageMagicFEditorFramePreviewTests
     }
 
     // -------------------------------------------------------------------
-    // Deferred buttons remain disabled (import/source buttons out of scope)
+    // #878 PR1: Import still disabled; Export/OpenSource/SelectSource now wired
     // -------------------------------------------------------------------
 
+    /// <summary>
+    /// Import button remains disabled (#878 PR2 follow-up).
+    /// </summary>
+    [Fact]
+    public void View_ImportButton_StillDisabled()
+    {
+        string axaml = ReadAxaml();
+        const string id = "ImageMagicFEditor_MagicAnimeImport_Button";
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationId=""" + Regex.Escape(id) + @"""[^>]*?/>",
+            RegexOptions.Singleline);
+        var match = pattern.Match(axaml);
+        Assert.True(match.Success,
+            $"Expected a <Button AutomationId=\"{id}\" .../> element");
+        Assert.Contains("IsEnabled=\"False\"", match.Value);
+    }
+
+    /// <summary>
+    /// Export button is no longer marked IsEnabled="False" (#878 PR1 wired).
+    /// </summary>
+    [Fact]
+    public void View_ExportButton_NotDisabled()
+    {
+        string axaml = ReadAxaml();
+        const string id = "ImageMagicFEditor_MagicAnimeExport_Button";
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationId=""" + Regex.Escape(id) + @"""[^>]*?/>",
+            RegexOptions.Singleline);
+        var match = pattern.Match(axaml);
+        Assert.True(match.Success);
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
+    }
+
+    /// <summary>
+    /// OpenSource/SelectSource use IsVisible="False" (hidden until cached), not IsEnabled.
+    /// </summary>
     [Theory]
-    [InlineData("ImageMagicFEditor_MagicAnimeImport_Button")]
-    [InlineData("ImageMagicFEditor_MagicAnimeExport_Button")]
     [InlineData("ImageMagicFEditor_OpenSource_Button")]
     [InlineData("ImageMagicFEditor_SelectSource_Button")]
-    public void View_DeferredButton_StillDisabled(string id)
+    public void View_SourceButton_UsesIsVisibleNotIsEnabled(string id)
     {
         string axaml = ReadAxaml();
         var pattern = new Regex(
@@ -132,7 +166,9 @@ public class ImageMagicFEditorFramePreviewTests
         var match = pattern.Match(axaml);
         Assert.True(match.Success,
             $"Expected a <Button AutomationId=\"{id}\" .../> element");
-        Assert.Contains("IsEnabled=\"False\"", match.Value);
+        // Buttons are now hidden (IsVisible="False") not disabled.
+        Assert.Contains("IsVisible=\"False\"", match.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
     }
 
     // -------------------------------------------------------------------

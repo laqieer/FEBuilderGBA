@@ -192,27 +192,17 @@ public class ImageMagicFEditorParityTests
     }
 
     // -----------------------------------------------------------------
-    // Deferred buttons — disabled + tooltipped per scope discipline.
+    // #878 PR1: Import still deferred; Export/Source buttons now wired.
     // -----------------------------------------------------------------
 
-    [Theory]
-    [InlineData("ImageMagicFEditor_MagicAnimeImport_Button")]
-    [InlineData("ImageMagicFEditor_MagicAnimeExport_Button")]
-    [InlineData("ImageMagicFEditor_OpenSource_Button")]
-    [InlineData("ImageMagicFEditor_SelectSource_Button")]
-    // NOTE: MagicListExpand_Button is NO LONGER deferred — it was wired in #837
-    // (ExpandTableTo + RepointAllReferences all-reference path). See
-    // View_MagicListExpandButton_IsWired below.
-    public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string id)
+    /// <summary>
+    /// Import button is the only remaining deferred button (#878 PR2 follow-up).
+    /// </summary>
+    [Fact]
+    public void View_ImportButton_IsDisabledAndReferencesFollowupIssue()
     {
-        // Simple regex check on the raw AXAML text — looks at the
-        // Button element with the given AutomationId AutomationId and
-        // verifies the same element carries IsEnabled="False" plus a
-        // ToolTip.Tip attribute mentioning #500.
+        const string id = "ImageMagicFEditor_MagicAnimeImport_Button";
         string axaml = ReadAxaml();
-        // Match the <Button … AutomationId="<id>" … /> element body
-        // (everything between this opening tag's start and the next
-        // unrelated tag's start) so we can inspect its attributes.
         var pattern = new Regex(
             @"<Button[^>]*AutomationId=""" + Regex.Escape(id) + @"""[^>]*?/>",
             RegexOptions.Singleline);
@@ -220,8 +210,47 @@ public class ImageMagicFEditorParityTests
         Assert.True(match.Success,
             $"Expected a <Button AutomationId=\"{id}\" .../> element");
         Assert.Contains("IsEnabled=\"False\"", match.Value);
-        Assert.Contains("ToolTip.Tip=", match.Value);
-        Assert.Contains("#500", match.Value);
+        // References PR2 follow-up issue.
+        Assert.Contains("#878", match.Value);
+    }
+
+    /// <summary>
+    /// Export button is now wired in #878 PR1 — no longer disabled or #500-referenced.
+    /// </summary>
+    [Fact]
+    public void View_ExportButton_IsWired_NotDeferred()
+    {
+        const string id = "ImageMagicFEditor_MagicAnimeExport_Button";
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationId=""" + Regex.Escape(id) + @"""[^>]*?/>",
+            RegexOptions.Singleline);
+        var match = pattern.Match(axaml);
+        Assert.True(match.Success, "Export button must exist in AXAML");
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
+        Assert.DoesNotContain("#500", match.Value);
+        Assert.Contains("Click=\"MagicAnimeExport_Click\"", match.Value);
+    }
+
+    /// <summary>
+    /// OpenSource/SelectSource buttons use IsVisible="False" (hidden until cached)
+    /// and are no longer marked #500 deferred.
+    /// </summary>
+    [Theory]
+    [InlineData("ImageMagicFEditor_OpenSource_Button")]
+    [InlineData("ImageMagicFEditor_SelectSource_Button")]
+    public void View_SourceButtons_AreWired_UseIsVisible(string id)
+    {
+        string axaml = ReadAxaml();
+        var pattern = new Regex(
+            @"<Button[^>]*AutomationId=""" + Regex.Escape(id) + @"""[^>]*?/>",
+            RegexOptions.Singleline);
+        var match = pattern.Match(axaml);
+        Assert.True(match.Success,
+            $"Expected a <Button AutomationId=\"{id}\" .../> element");
+        Assert.Contains("IsVisible=\"False\"", match.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
+        Assert.DoesNotContain("#500", match.Value);
     }
 
     /// <summary>

@@ -23787,3 +23787,6 @@ KnownGap: 国境导入（OAM汇编）是单独的后续任务。
 
 :Export the border AP preview to PNG.
 将国境AP预览导出为PNG。
+
+:Import is a follow-up (#878 PR2).
+Import 是后续任务（#878 PR2）。

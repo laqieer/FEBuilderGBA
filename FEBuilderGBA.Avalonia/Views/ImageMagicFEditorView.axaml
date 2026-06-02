@@ -200,30 +200,26 @@
           </Grid>
         </Border>
 
-        <!-- File / shell / editor action buttons (deferred - tracked by #500) -->
+        <!-- File / shell / editor action buttons (#878 PR1: Export + OpenSource/SelectSource wired; Import is PR2) -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
           <Button AutomationProperties.AutomationId="ImageMagicFEditor_MagicAnimeImport_Button"
                   Name="MagicAnimeImportButton" Content="Import Magic Animation"
                   IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  ToolTip.Tip="Import is a follow-up (#878 PR2)."
                   Click="MagicAnimeImport_Click" />
           <Button AutomationProperties.AutomationId="ImageMagicFEditor_MagicAnimeExport_Button"
                   Name="MagicAnimeExportButton" Content="Export Magic Animation"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
                   Click="MagicAnimeExport_Click" />
           <Button AutomationProperties.AutomationId="ImageMagicFEditor_JumpEditor_Button"
                   Name="JumpEditorButton" Content="Editor"
                   Click="JumpEditor_Click" />
           <Button AutomationProperties.AutomationId="ImageMagicFEditor_OpenSource_Button"
                   Name="OpenSourceButton" Content="Open Source File"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  IsVisible="False"
                   Click="OpenSource_Click" />
           <Button AutomationProperties.AutomationId="ImageMagicFEditor_SelectSource_Button"
                   Name="SelectSourceButton" Content="Open Source Folder"
-                  IsEnabled="False"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500."
+                  IsVisible="False"
                   Click="SelectSource_Click" />
         </StackPanel>
       </StackPanel>
