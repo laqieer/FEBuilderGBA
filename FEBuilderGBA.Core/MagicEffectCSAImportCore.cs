@@ -205,8 +205,8 @@ namespace FEBuilderGBA
                     {
                         AppendU32(frameBytes, cmd.Command85Dword);
                         // Track script-side scale commands.
-                        if ((cmd.Command85Dword & 0x00FFFFu) == 0x000053u ||
-                            (cmd.Command85Dword & 0x0000FFu) == 0x53u)
+                        // Use low-byte check only — matches WF CSA import exactly.
+                        if ((cmd.Command85Dword & 0xFFu) == 0x53u)
                         {
                             bgScaleMode = BGScaleMode.SCRIPT_SCALE_MODE;
                         }
@@ -479,8 +479,11 @@ namespace FEBuilderGBA
                 }
 
                 // FIX 3: require explicit O + B + wait triple.
+                // FIX 1 (Phase-1 consistency): capture WaitValue and require > 0 so an
+                // O+B+wait=0 frame fails here in Phase 1, before assembling images.
+                // Mirrors Phase 3's waitVal==0 guard and WF's behavior.
                 string bgFn = null;
-                bool hasWait = false;
+                uint waitVal = 0;
                 int scanIdx = cmdIdx;
                 while (scanIdx < cmds.Count)
                 {
@@ -490,15 +493,15 @@ namespace FEBuilderGBA
                     if (s.Kind == MagicImportCmdKind.BgImage && bgFn == null)
                         bgFn = s.Filename;
                     if (s.Kind == MagicImportCmdKind.Wait)
-                        hasWait = true;
+                        waitVal = s.WaitValue;
                     scanIdx++;
-                    if (bgFn != null && hasWait) break;
+                    if (bgFn != null && waitVal > 0) break;
                 }
 
                 if (bgFn == null)
                     return $"BG image (B p- ...) is missing for frame after O: {objFn}";
-                if (!hasWait)
-                    return $"Wait time is missing for frame (need O + B + time triple): O: {objFn}";
+                if (waitVal == 0)
+                    return $"Wait time is missing or zero for frame (need O + B + time triple with time > 0): O: {objFn}";
 
                 // Load BG image if not cached.
                 if (!imageCache.ContainsKey("BG:" + bgFn))

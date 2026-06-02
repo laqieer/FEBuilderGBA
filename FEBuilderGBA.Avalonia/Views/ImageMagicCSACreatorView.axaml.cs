@@ -156,13 +156,13 @@ namespace FEBuilderGBA.Avalonia.Views
             ZoomComboBox.SelectedIndex = (int)_vm.Zoom;
             BinInfoBox.Text = _vm.BinInfo;
             // #886
-            UpdateExportButtonEnabled();
+            UpdateIoButtonsEnabled();
             UpdateSourceButtonVisibility();
         }
 
         // #886 — Export button enabled when CSA system is detected + entry selected.
-        // #889 — Import button enabled when CSA system is detected + entry selected.
-        void UpdateExportButtonEnabled()
+        // #889 — Import button also enabled here (both toggled by the same gate condition).
+        void UpdateIoButtonsEnabled()
         {
             bool csaAndSelected = _vm.MagicKind == MagicSystemKind.CsaCreator
                 && EntryList.SelectedOriginalIndex >= 0;

@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(0x85000000u, c00);
             }
 
-            // After 5 C00s, the 0x86 record begins (since OBJ has height=160 → no scale auto-insert).
+            // After 5 C00s, the 0x86 record begins (since BG has height=160, not 64 → no scale auto-insert).
             uint recOff = frameDataOff + 5 * 4;
             byte cmd = rom.Data[recOff + 3];
             Assert.Equal(0x86, cmd);
@@ -240,6 +240,32 @@ namespace FEBuilderGBA.Core.Tests
                 rom, magicBaseAddr, cmds, SyntheticCsaImageProvider);
 
             Assert.False(string.IsNullOrEmpty(err), "Should return error for missing wait");
+            Assert.True(rom.Data.SequenceEqual(originalData), "ROM must be unchanged on error");
+        }
+
+        // =================================================================
+        // Test 3b2 — Wait=0 → error + NO mutation (Phase-1 consistency fix)
+        // =================================================================
+
+        [Fact]
+        public void ImportCsaMagicScript_WaitZero_ReturnsError_NoMutation()
+        {
+            var rom = MakeSyntheticCsaRom(out uint magicBaseAddr);
+            CoreState.ROM = rom;
+            byte[] originalData = (byte[])rom.Data.Clone();
+
+            // O + B + wait=0 — should fail in Phase 1 before assembling images.
+            var cmds = new List<MagicFrameCommand>
+            {
+                new MagicFrameCommand { Kind = MagicImportCmdKind.ObjImage, Filename = "obj.png" },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.BgImage,  Filename = "bg.png"  },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Wait,     WaitValue = 0        }, // explicit zero
+            };
+
+            string err = MagicEffectCSAImportCore.ImportCsaMagicScript(
+                rom, magicBaseAddr, cmds, SyntheticCsaImageProvider);
+
+            Assert.False(string.IsNullOrEmpty(err), "Should return error for wait=0 (time must be > 0)");
             Assert.True(rom.Data.SequenceEqual(originalData), "ROM must be unchanged on error");
         }
 
@@ -449,7 +475,7 @@ namespace FEBuilderGBA.Core.Tests
 
         /// <summary>
         /// Image provider: returns minimal 480×160 indexed pixels for OBJ and
-        /// 256×160 for BG (both all-transparent palette index 0).
+        /// 240×160 for BG (CSA BG is 240px wide per CSA_BG_EXPORT_WIDTH=240; both all-transparent palette index 0).
         /// </summary>
         static (byte[] indexedPixels, int w, int h, byte[] gbaPalette)? SyntheticCsaImageProvider(string filename)
         {
