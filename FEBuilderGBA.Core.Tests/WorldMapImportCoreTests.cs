@@ -147,6 +147,10 @@ namespace FEBuilderGBA.Core.Tests
         // 2. Main Import round-trip — byte-equality
         // ==================================================================
 
+        // ==================================================================
+        // FIX E: Strengthened in-place write test asserts actual bytes written.
+        // ==================================================================
+
         [Fact]
         public void MainFieldMap_Import_WritesImageAndPaletteInPlace()
         {
@@ -155,25 +159,93 @@ namespace FEBuilderGBA.Core.Tests
                 // Plant the original image + palette + palette-map.
                 PlantMainFieldData(rom);
 
-                // Snapshot the original image and palette bytes.
                 uint imageAddr = rom.p32(rom.RomInfo.worldmap_big_image_pointer);
                 uint palAddr   = rom.p32(rom.RomInfo.worldmap_big_palette_pointer);
-                byte[] origImage = new byte[MAIN_IMAGE_BYTES];
-                Array.Copy(rom.Data, imageAddr, origImage, 0, MAIN_IMAGE_BYTES);
-                byte[] origPalette = new byte[PAL_BYTES];
-                Array.Copy(rom.Data, palAddr, origPalette, 0, PAL_BYTES);
+                uint pmPtrAddr = rom.RomInfo.worldmap_big_palettemap_pointer;
 
-                // Build an indexed pixel buffer that produces the SAME image + palette.
-                // For a round-trip test: use the same indexed data that was encoded
-                // into the ROM originally (sp0 for all tiles = all byte values 0..15).
+                // Build indexed pixels (sp0 for all tiles).
                 byte[] indexedPixels = BuildMonoSubPaletteIndexed(MAIN_W, MAIN_H, sp: 0);
-                byte[] gbaPalette128 = origPalette; // 128 B, same 4 sub-palettes
+
+                // Use a DIFFERENT palette from the planted ROM palette (planted is RED at idx1).
+                // FIX E: use GREEN so we can assert WRITTEN palette equals the passed palette.
+                byte[] gbaPalette128 = new byte[PAL_BYTES];
+                gbaPalette128[1 * 2]     = (byte)(GREEN & 0xFF);
+                gbaPalette128[1 * 2 + 1] = (byte)(GREEN >> 8);
+
+                // Pre-compute expected bytes.
+                byte[] expectedImage = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, MAIN_W, MAIN_H);
+                byte[] expectedPalMap = ImageUtilCore.EncodePaletteMap16Tile(indexedPixels, MAIN_W, MAIN_H);
 
                 // Import under ambient undo scope.
                 using var scope = ROM.BeginUndoScope(null);
                 var result = ImageWorldMapCore.ImportMainFieldMap(rom, indexedPixels, gbaPalette128);
 
                 Assert.True(result.Success, result.Error ?? "");
+
+                // FIX E: assert actual written bytes.
+
+                // 1. Image bytes match expected 4bpp encoding.
+                byte[] actualImage = new byte[MAIN_IMAGE_BYTES];
+                Array.Copy(rom.Data, imageAddr, actualImage, 0, MAIN_IMAGE_BYTES);
+                Assert.Equal(expectedImage, actualImage);
+
+                // 2. Palette bytes == passed palette (GREEN), not old ROM palette (RED).
+                byte[] actualPalette = new byte[PAL_BYTES];
+                Array.Copy(rom.Data, palAddr, actualPalette, 0, PAL_BYTES);
+                Assert.Equal(gbaPalette128, actualPalette);
+                ushort readBack = (ushort)(rom.Data[palAddr + 1 * 2] | (rom.Data[palAddr + 1 * 2 + 1] << 8));
+                Assert.Equal(GREEN, readBack);
+
+                // 3. Decompressed palette-map == EncodePaletteMap16Tile(pixels).
+                uint pmAddr = rom.p32(pmPtrAddr);
+                Assert.True(pmAddr != 0 && pmAddr < (uint)rom.Data.Length,
+                    "Palette-map pointer must be in ROM after write.");
+                byte[] actualPalMap = LZ77.decompress(rom.Data, pmAddr);
+                Assert.Equal(expectedPalMap, actualPalMap);
+            });
+        }
+
+        /// <summary>
+        /// FIX A regression test: import indexed pixels with a palette that DIFFERS
+        /// from the existing ROM palette. The written palette must equal the new
+        /// palette, not the old ROM palette. Under the old remap-to-existing behavior
+        /// this test would FAIL (old ROM palette written unchanged).
+        /// </summary>
+        [Fact]
+        public void MainFieldMap_Import_DifferentPalette_WritesNewPalette()
+        {
+            WithRom(rom =>
+            {
+                PlantMainFieldData(rom);  // plants RED in bank0 idx1
+
+                // Snapshot the OLD ROM palette (has RED at bank0 idx1).
+                uint palAddr = rom.p32(rom.RomInfo.worldmap_big_palette_pointer);
+                byte[] oldPalette = new byte[PAL_BYTES];
+                Array.Copy(rom.Data, palAddr, oldPalette, 0, PAL_BYTES);
+                ushort oldColor = (ushort)(oldPalette[1 * 2] | (oldPalette[1 * 2 + 1] << 8));
+                Assert.Equal(RED, oldColor); // sanity: ROM has RED
+
+                // Build indexed buffer with sp1 (different sub-palette).
+                byte[] indexedPixels = BuildMonoSubPaletteIndexed(MAIN_W, MAIN_H, sp: 1);
+                // Build a NEW palette with BLUE in bank1 idx1.
+                byte[] newPalette = new byte[PAL_BYTES];
+                newPalette[(1 * 16 + 1) * 2]     = (byte)(BLUE & 0xFF);
+                newPalette[(1 * 16 + 1) * 2 + 1] = (byte)(BLUE >> 8);
+
+                using var scope = ROM.BeginUndoScope(null);
+                var result = ImageWorldMapCore.ImportMainFieldMap(rom, indexedPixels, newPalette);
+                Assert.True(result.Success, result.Error ?? "");
+
+                // Written palette must be newPalette (BLUE in bank1 idx1), not old (RED in bank0 idx1).
+                byte[] writtenPalette = new byte[PAL_BYTES];
+                Array.Copy(rom.Data, palAddr, writtenPalette, 0, PAL_BYTES);
+
+                ushort written11 = (ushort)(writtenPalette[(1 * 16 + 1) * 2] | (writtenPalette[(1 * 16 + 1) * 2 + 1] << 8));
+                Assert.Equal(BLUE, written11);
+
+                // Old RED must NOT be in bank0 idx1 (newPalette has 0 there).
+                ushort written01 = (ushort)(writtenPalette[1 * 2] | (writtenPalette[1 * 2 + 1] << 8));
+                Assert.NotEqual(RED, written01);
             });
         }
 

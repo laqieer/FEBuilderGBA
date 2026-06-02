@@ -415,8 +415,17 @@ namespace FEBuilderGBA
             // Write image RAW in-place (fixed 76,800 B — NO realloc/repoint).
             rom.write_range(imageAddr, imageBytes);
 
-            // Write palette RAW in-place (fixed 128 B — NO realloc/repoint).
-            rom.write_range(paletteAddr, gbaPalette128);
+            // Write palette RAW in-place — exactly 128 bytes.
+            // FIX B: gbaPalette128 is validated as >= 128 B; writing the full buffer
+            // would overwrite past the 128-byte slot if the caller passed a longer
+            // array. Slice to exactly MAIN_IMPORT_PALETTE_BYTES (128 B).
+            byte[] paletteToWrite = gbaPalette128;
+            if (paletteToWrite.Length != MAIN_IMPORT_PALETTE_BYTES)
+            {
+                paletteToWrite = new byte[MAIN_IMPORT_PALETTE_BYTES];
+                Array.Copy(gbaPalette128, paletteToWrite, MAIN_IMPORT_PALETTE_BYTES);
+            }
+            rom.write_range(paletteAddr, paletteToWrite);
 
             // Write palette-map LZ77 (in-place if it fits, else free-space + repoint).
             // Mirrors WF WriteImageData(WMPaletteMap, …, useLZ77=true).
@@ -455,8 +464,15 @@ namespace FEBuilderGBA
             if (!IsRegionSafe(rom, dPaletteAddr, MAIN_IMPORT_PALETTE_BYTES))
                 return ImportResult.Fail("Dark palette region does not fit in ROM (truncated?).");
 
-            // Write only the 128-byte dark palette RAW in-place (NO realloc/repoint).
-            rom.write_range(dPaletteAddr, gbaDarkPalette128);
+            // Write only the 128-byte dark palette RAW in-place — exactly 128 bytes.
+            // FIX B: same exact-length guard as the main palette write.
+            byte[] darkToWrite = gbaDarkPalette128;
+            if (darkToWrite.Length != MAIN_IMPORT_PALETTE_BYTES)
+            {
+                darkToWrite = new byte[MAIN_IMPORT_PALETTE_BYTES];
+                Array.Copy(gbaDarkPalette128, darkToWrite, MAIN_IMPORT_PALETTE_BYTES);
+            }
+            rom.write_range(dPaletteAddr, darkToWrite);
             return ImportResult.Ok();
         }
 
