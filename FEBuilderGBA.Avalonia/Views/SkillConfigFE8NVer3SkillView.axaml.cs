@@ -286,14 +286,56 @@ namespace FEBuilderGBA.Avalonia.Views
         // #500 / #374. Mirrors the exact pattern used by PR #598.
         // -----------------------------------------------------------
 
-        void ImageImport_Click(object? sender, RoutedEventArgs e)
+        // #898 — real skill-icon Image Import/Export via the shared
+        // SkillConfigIconIoHelper. FE8N v3 icon storage mirrors v2 exactly:
+        // rom.p32(icon_pointer) + 128 * (0x100 + id), with the palette chosen
+        // on the per-skill W2/Palette field (==0 -> system_weapon_icon_palette,
+        // else icon_palette). All addresses re-derived fresh under the live ROM.
+        bool TryResolveIconAddrs(ROM rom, out uint iconByteAddr, out uint paletteAddr)
         {
-            Log.Debug("SkillConfigFE8NVer3SkillView.ImageImport_Click invoked - disabled until Core extraction lands (#500)");
+            iconByteAddr = 0;
+            paletteAddr = 0;
+            if (rom?.RomInfo == null) return false;
+            if (!U.isSafetyOffset(rom.RomInfo.icon_pointer + 3, rom)) return false;
+
+            uint iconBaseAddr = rom.p32(rom.RomInfo.icon_pointer);
+            if (!U.isSafetyOffset(iconBaseAddr, rom)) return false;
+            iconByteAddr = iconBaseAddr + SkillConfigIconIoHelper.IconByteSize * (0x100 + _vm.SelectedId);
+
+            uint palettePointerAddr = (_vm.Palette == 0)
+                ? rom.RomInfo.system_weapon_icon_palette_pointer
+                : rom.RomInfo.icon_palette_pointer;
+            if (!U.isSafetyOffset(palettePointerAddr + 3, rom)) return false;
+            paletteAddr = rom.p32(palettePointerAddr);
+            return U.isSafetyOffset(paletteAddr, rom);
         }
 
-        void ImageExport_Click(object? sender, RoutedEventArgs e)
+        async void ImageImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NVer3SkillView.ImageExport_Click invoked - disabled until Core extraction lands (#500)");
+            ROM rom = CoreState.ROM;
+            if (rom == null || !_vm.IsLoaded || _vm.SkillBaseAddress == 0) return;
+            if (!TryResolveIconAddrs(rom, out uint iconByteAddr, out uint paletteAddr)) return;
+
+            string err = await SkillConfigIconIoHelper.ImportIconAsync(
+                this, rom, iconByteAddr, paletteAddr, _undoService);
+            if (err != "")
+            {
+                Log.Notify("SkillConfigFE8NVer3SkillView.ImageImport_Click: " + err);
+                return;
+            }
+
+            UpdateUI();
+            LoadList();
+            EntryList.SelectAddress(_vm.CurrentAddr);
+        }
+
+        async void ImageExport_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || !_vm.IsLoaded || _vm.SkillBaseAddress == 0) return;
+            if (!TryResolveIconAddrs(rom, out uint iconByteAddr, out uint paletteAddr)) return;
+
+            await SkillConfigIconIoHelper.ExportIconAsync(this, rom, iconByteAddr, paletteAddr);
         }
 
         void AnimationImport_Click(object? sender, RoutedEventArgs e)

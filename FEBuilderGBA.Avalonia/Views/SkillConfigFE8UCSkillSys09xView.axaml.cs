@@ -202,14 +202,53 @@ namespace FEBuilderGBA.Avalonia.Views
         // ListExpand_Click.
         // -----------------------------------------------------------
 
-        void ImageImport_Click(object? sender, RoutedEventArgs e)
+        // CSkillSys uses the same fixed skill-palette pointer as SkillSystem
+        // (mirrors WinForms `SkillPalettePointer = 0x22370`).
+        const uint SKILL_PALETTE_POINTER = 0x22370;
+
+        // #898 — real skill-icon Image Import/Export via the shared
+        // SkillConfigIconIoHelper. Unlike the striped SkillSystem table, the
+        // CSkillSys icon address is a GBA pointer stored at entry+0. It MUST
+        // be re-dereferenced fresh here (never write through a pointer cached
+        // across a ROM reload): byteAddr = U.toOffset(rom.u32(CurrentAddr+0)).
+        async void ImageImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8UCSkillSys09xView.ImageImport_Click invoked - disabled until Core extraction lands (#500)");
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null || !_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+            if (!U.isSafetyOffset(_vm.CurrentAddr + 3, rom)) return;
+            if (!U.isSafetyOffset(SKILL_PALETTE_POINTER + 3, rom)) return;
+
+            uint iconGbaPointer = rom.u32(_vm.CurrentAddr + 0);
+            if (!U.isSafetyPointer(iconGbaPointer)) return;
+            uint iconByteAddr = U.toOffset(iconGbaPointer);
+            uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
+
+            string err = await SkillConfigIconIoHelper.ImportIconAsync(
+                this, rom, iconByteAddr, paletteAddr, _undoService);
+            if (err != "")
+            {
+                Log.Notify("SkillConfigFE8UCSkillSys09xView.ImageImport_Click: " + err);
+                return;
+            }
+
+            UpdateUI();
+            LoadList();
+            EntryList.SelectAddress(_vm.CurrentAddr);
         }
 
-        void ImageExport_Click(object? sender, RoutedEventArgs e)
+        async void ImageExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8UCSkillSys09xView.ImageExport_Click invoked - disabled until Core extraction lands (#500)");
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null || !_vm.IsLoaded || _vm.CurrentAddr == 0) return;
+            if (!U.isSafetyOffset(_vm.CurrentAddr + 3, rom)) return;
+            if (!U.isSafetyOffset(SKILL_PALETTE_POINTER + 3, rom)) return;
+
+            uint iconGbaPointer = rom.u32(_vm.CurrentAddr + 0);
+            if (!U.isSafetyPointer(iconGbaPointer)) return;
+            uint iconByteAddr = U.toOffset(iconGbaPointer);
+            uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
+
+            await SkillConfigIconIoHelper.ExportIconAsync(this, rom, iconByteAddr, paletteAddr);
         }
 
         void AnimationImport_Click(object? sender, RoutedEventArgs e)

@@ -492,14 +492,20 @@ namespace FEBuilderGBA.Avalonia.Views
         // #500. Mirrors the exact pattern used by PR #598 / #525 / #516.
         // -----------------------------------------------------------
 
+        // #898 — FE8N v1 is intentionally read-only for skill icons. The WF
+        // SkillConfigFE8NSkillForm has NO icon import/export (render-only),
+        // and this variant's icon address derivation lacks the 0x100 page
+        // offset that v2/v3 use, so wiring it to the shared
+        // SkillConfigIconIoHelper would write to the wrong slot. Left as a
+        // no-op on purpose — do NOT wire it to the helper.
         void ImageImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NSkillView.ImageImport_Click invoked - disabled until Core extraction lands (#500)");
+            Log.Debug("SkillConfigFE8NSkillView.ImageImport_Click invoked - read-only: this skill variant has no icon import/export in WinForms");
         }
 
         void ImageExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NSkillView.ImageExport_Click invoked - disabled until Core extraction lands (#500)");
+            Log.Debug("SkillConfigFE8NSkillView.ImageExport_Click invoked - read-only: this skill variant has no icon import/export in WinForms");
         }
 
         void AnimationImport_Click(object? sender, RoutedEventArgs e)

@@ -80,12 +80,12 @@
                   AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageImport_Button"
                   Name="ImageImportButton" Content="Image Import" Margin="8,0,0,0"
                   Click="ImageImport_Click"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+                  ToolTip.Tip="Import a 16x16 skill icon (128 raw 4bpp bytes, in-place, undoable)." />
           <Button Grid.Column="3"
                   AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_ImageExport_Button"
                   Name="ImageExportButton" Content="Image Export" Margin="8,0,0,0"
                   Click="ImageExport_Click"
-                  ToolTip.Tip="Pending Core extraction - tracked by #500." />
+                  ToolTip.Tip="Export the 16x16 skill icon as a PNG." />
           <Label Grid.Column="4"
                  AutomationProperties.AutomationId="SkillConfigFE8UCSkillSys09x_IconAddr_Label"
                  Name="IconAddrLabel" VerticalAlignment="Center" Margin="12,0,0,0"
