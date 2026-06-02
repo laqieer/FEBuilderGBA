@@ -880,6 +880,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
+                // Navigate the editor to the newly-allocated block so the user
+                // sees the new block's slots (turn/talk/object/always/...) rather
+                // than "No event data for this map" (WF parity: WF returns
+                // write_addr and the caller displays it directly, without
+                // re-reading the map-setting event-plist byte).
+                _vm.EventDataAddr = off;
+                UpdateTopBar();
                 ReloadRecordList();
                 _undoService.Commit();
                 CoreState.Services.ShowInfo("Precise event condition area allocated at 0x" + off.ToString("X08") + " and wired to PLIST " + plist.Value + ".");

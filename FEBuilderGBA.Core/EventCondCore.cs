@@ -130,7 +130,7 @@ namespace FEBuilderGBA
             if (rom?.RomInfo == null) return U.NOT_FOUND;
             if (plist == 0u) return U.NOT_FOUND;
 
-            uint limit = MapChangeCore.IsPlistSplit(rom) ? 256u : rom.RomInfo.map_map_pointer_list_default_size;
+            uint limit = MapChangeCore.GetPlistLimit(rom);
             if (limit == 0 || plist >= limit) return U.NOT_FOUND;
 
             uint basePointer = rom.RomInfo.map_event_pointer;
