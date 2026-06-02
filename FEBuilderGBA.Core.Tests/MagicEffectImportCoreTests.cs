@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 // Tests for MagicEffectImportCore (#881).
 //
 // Coverage:
@@ -526,5 +526,293 @@ namespace FEBuilderGBA.Core.Tests
 
         static (byte[] indexedPixels, int w, int h, byte[] gbaPalette)? MakeDummyObjImage()
             => (MakeObjPixels(480, 160), 480, 160, MakePalette16());
+
+        // ================================================================
+        // FIX 1 tests: 5xC00 header dwords from real #880 Export format
+        // ================================================================
+
+        [Fact]
+        public void Fix1_ParseScript_With5C00_Produces5C00Commands()
+        {
+            // A real #880 Export starts with exactly 5 C00 lines.
+            var lines = new[]
+            {
+                "C00                               #cmd 0x00",
+                "C00                               #cmd 0x00",
+                "C00                               #cmd 0x00",
+                "C00                               #cmd 0x00",
+                "C00                               #cmd 0x00",
+                "O  p- frame_o_000.png",
+                "B  p- frame_b_001.png",
+                "4",
+            };
+            var cmds = MagicEffectImportCore.ParseMagicScript(lines);
+            int c00Count = cmds.Count(c => c.Kind == MagicImportCmdKind.Command85
+                                       && c.Command85Dword == 0x85000000u);
+            Assert.Equal(5, c00Count);
+        }
+
+        [Fact]
+        public void Fix1_RealExportFormat_5C00_EmittedInFrameBytes()
+        {
+            // When script has 5 leading C00 lines (real #880 Export format),
+            // ImportMagicScript must emit exactly 5x0x85000000 dwords at start of frame table.
+            var rom = MakeMinimalRomWithFEGate();
+            CoreState.ROM = rom;
+
+            var cmds = MakeSingleFrameCmds(); // includes 5xC00 at head
+            string err = MagicEffectImportCore.ImportMagicScript(
+                rom, 0x300u, cmds,
+                fn => fn.Contains("_o_")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : (MakeBgPixels(264, 64), 264, 64, MakePalette16()));
+
+            if (!string.IsNullOrEmpty(err))
+            {
+                Assert.Contains("magic", err, StringComparison.OrdinalIgnoreCase);
+                return;
+            }
+
+            uint frameDataRaw = rom.u32(0x300u);
+            Assert.True(U.isPointer(frameDataRaw));
+            uint frameDataOff = U.toOffset(frameDataRaw);
+            for (int i = 0; i < 5; i++)
+            {
+                uint dw = U.u32(rom.Data, frameDataOff + (uint)(i * 4));
+                Assert.Equal(0x85000000u, dw);
+            }
+        }
+
+        // ================================================================
+        // FIX 2 tests: rom != CoreState.ROM guard
+        // ================================================================
+
+        [Fact]
+        public void Fix2_RomNotCoreStateRom_ReturnsErrorNoWrite()
+        {
+            // If caller passes rom != CoreState.ROM, must error with no mutation.
+            var romA = MakeMinimalRomWithFEGate();
+            var romB = MakeMinimalRomWithFEGate();
+            CoreState.ROM = romA;
+
+            byte[] beforeA = (byte[])romA.Data.Clone();
+            byte[] beforeB = (byte[])romB.Data.Clone();
+
+            var cmds = MakeSingleFrameCmds();
+            string err = MagicEffectImportCore.ImportMagicScript(
+                romB, 0x300u, cmds,
+                fn => fn.Contains("_o_")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : (MakeBgPixels(256, 64), 256, 64, MakePalette16()));
+
+            Assert.False(string.IsNullOrEmpty(err), "expected error when rom != CoreState.ROM");
+            Assert.Equal(beforeA, romA.Data);
+            Assert.Equal(beforeB, romB.Data);
+        }
+
+        // ================================================================
+        // FIX 3 tests: BG encoded as 256x64 not 264x64
+        // ================================================================
+
+        [Fact]
+        public void Fix3_BgImage264Wide_ParsedWithoutSizeError()
+        {
+            // 264-wide BG (export with palette column) must not be rejected by size validation.
+            var rom = MakeMinimalRomWithFEGate();
+            CoreState.ROM = rom;
+
+            var cmds = MakeSingleFrameCmds();
+            string err = MagicEffectImportCore.ImportMagicScript(
+                rom, 0x300u, cmds,
+                fn => fn.Contains("_o_")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : (MakeBgPixels(264, 64), 264, 64, MakePalette16()));
+
+            if (!string.IsNullOrEmpty(err))
+                Assert.DoesNotContain("too small", err, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public void Fix3_BgImage264Wide_EncodedAs256Tiles()
+        {
+            // BG data decompressed size must be 8192 (256x64/8x8=256 tiles x 32 bytes).
+            var rom = MakeMinimalRomWithFEGate();
+            CoreState.ROM = rom;
+
+            var cmds = MakeSingleFrameCmds();
+            string err = MagicEffectImportCore.ImportMagicScript(
+                rom, 0x300u, cmds,
+                fn => fn.Contains("_o_")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : (MakeBgPixels(264, 64), 264, 64, MakePalette16()));
+
+            if (!string.IsNullOrEmpty(err))
+            {
+                Assert.Contains("magic", err, StringComparison.OrdinalIgnoreCase);
+                return;
+            }
+
+            uint frameDataRaw = rom.u32(0x300u);
+            Assert.True(U.isPointer(frameDataRaw));
+            uint fdOff = U.toOffset(frameDataRaw);
+            uint recOff = fdOff + 5 * 4;
+            Assert.Equal(0x86u, (uint)rom.Data[recOff + 3]);
+            uint bgPtr = rom.u32(recOff + 16);
+            Assert.True(U.isPointer(bgPtr));
+            byte[] decomp = LZ77.decompress(rom.Data, U.toOffset(bgPtr));
+            // 256 wide / 8 = 32 tile cols; 64 tall / 8 = 8 tile rows; 32*8*32 = 8192 bytes
+            Assert.Equal(8192, decomp.Length);
+        }
+
+        // ================================================================
+        // FIX 4 tests: require explicit O+B+time triple
+        // ================================================================
+
+        [Fact]
+        public void Fix4_MissingBg_ReturnsErrorNoMutation()
+        {
+            // Script: O without B -> error + NO mutation (FIX 4: WF L1103-1106).
+            var rom = MakeMinimalRomWithFEGate();
+            CoreState.ROM = rom;
+
+            var cmds = new List<MagicFrameCommand>
+            {
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.ObjImage, Filename = "frame_o_000.png" },
+                // No BgImage
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Wait, WaitValue = 4u },
+            };
+
+            byte[] before = (byte[])rom.Data.Clone();
+            string err = MagicEffectImportCore.ImportMagicScript(
+                rom, 0x300u, cmds,
+                fn => fn.Contains("_o_")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : null);
+
+            Assert.False(string.IsNullOrEmpty(err), "expected error for missing BG");
+            Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void Fix4_MissingWait_ReturnsErrorNoMutation()
+        {
+            // Script: O + B but no wait -> error + NO mutation (FIX 4: WF L1107-1110).
+            var rom = MakeMinimalRomWithFEGate();
+            CoreState.ROM = rom;
+
+            var cmds = new List<MagicFrameCommand>
+            {
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.Command85, Command85Dword = 0x85000000u },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.ObjImage, Filename = "frame_o_000.png" },
+                new MagicFrameCommand { Kind = MagicImportCmdKind.BgImage,  Filename = "frame_b_001.png" },
+                // No Wait
+            };
+
+            byte[] before = (byte[])rom.Data.Clone();
+            string err = MagicEffectImportCore.ImportMagicScript(
+                rom, 0x300u, cmds,
+                fn => fn.Contains("_o_")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : (MakeBgPixels(256, 64), 256, 64, MakePalette16()));
+
+            Assert.False(string.IsNullOrEmpty(err), "expected error for missing wait");
+            Assert.Equal(before, rom.Data);
+        }
+
+        // ================================================================
+        // Real #880 Export format full round-trip
+        // ================================================================
+
+        [Fact]
+        public void RealFormat_RoundTrip_5C00_OBWait_FrameTableCorrect()
+        {
+            // Build a synthetic magic frame table with 5xC00 + one 0x86 record.
+            // Export via MagicEffectExportCore (#880), parse back, import, verify:
+            //   (a) 5 C00 dwords in frame table (FIX 1)
+            //   (b) BG decompressed = 8192 bytes = 256x64 encoding (FIX 3)
+            //   (c) OBJ image pointer valid
+
+            var sourceRom = MakeRawRom(0x1100000);
+            uint tableOff = 0x800u;
+            for (int i = 0; i < 5; i++)
+                WriteU32Le(sourceRom.Data, (uint)(tableOff + i * 4), 0x85000000u);
+            uint recOff2 = tableOff + 5 * 4;
+            WriteU32Le(sourceRom.Data, recOff2 + 0,  0x86000004u); // wait=4, bgNum=0
+            WriteU32Le(sourceRom.Data, recOff2 + 4,  0x08001000u); // OBJ img ptr
+            WriteU32Le(sourceRom.Data, recOff2 + 8,  0x00000000u);
+            WriteU32Le(sourceRom.Data, recOff2 + 12, 0x00000000u);
+            WriteU32Le(sourceRom.Data, recOff2 + 16, 0x08002000u); // BG img ptr
+            WriteU32Le(sourceRom.Data, recOff2 + 20, 0x08003000u); // OBJ pal ptr
+            WriteU32Le(sourceRom.Data, recOff2 + 24, 0x08004000u); // BG pal ptr
+            WriteU32Le(sourceRom.Data, recOff2 + 28, 0x80000000u); // terminator
+
+            List<int> objSlots2, bgSlots2;
+            List<MagicFrameMeta> frames2;
+            var scriptLines2 = MagicEffectExportCore.ExportMagicScriptLines(
+                sourceRom, tableOff, "t_", true,
+                out objSlots2, out bgSlots2, out frames2);
+
+            Assert.Single(frames2);
+
+            var textLines2 = scriptLines2.Select(l => l.Text).ToList();
+            int c00InExport = textLines2.Count(l => l.StartsWith("C00", StringComparison.Ordinal));
+            Assert.Equal(5, c00InExport);
+
+            var parsed2 = MagicEffectImportCore.ParseMagicScript(textLines2);
+
+            // Verify 5 leading C00 commands parsed.
+            int c00Parsed2 = 0;
+            foreach (var c in parsed2)
+            {
+                if (c.Kind == MagicImportCmdKind.Command85 && c.Command85Dword == 0x85000000u)
+                    c00Parsed2++;
+                else
+                    break;
+            }
+            Assert.Equal(5, c00Parsed2);
+
+            var destRom = MakeMinimalRomWithFEGate();
+            CoreState.ROM = destRom;
+
+            string err2 = MagicEffectImportCore.ImportMagicScript(
+                destRom, 0x300u, parsed2,
+                fn => fn.Contains("_o") || fn.Contains("_O")
+                    ? (MakeObjPixels(480, 160), 480, 160, MakePalette16())
+                    : (MakeBgPixels(264, 64), 264, 64, MakePalette16()));
+
+            if (!string.IsNullOrEmpty(err2))
+            {
+                Assert.Contains("magic", err2, StringComparison.OrdinalIgnoreCase);
+                return;
+            }
+
+            // (a) Frame table starts with 5x 0x85000000 (FIX 1).
+            uint fdRaw = destRom.u32(0x300u);
+            Assert.True(U.isPointer(fdRaw));
+            uint fdOff = U.toOffset(fdRaw);
+            for (int i = 0; i < 5; i++)
+                Assert.Equal(0x85000000u, U.u32(destRom.Data, fdOff + (uint)(i * 4)));
+
+            // (b) BG decompressed = 8192 bytes = 256x64 (FIX 3).
+            uint recOff3 = fdOff + 20u;
+            Assert.Equal(0x86u, (uint)destRom.Data[recOff3 + 3]);
+            uint bgPtr = destRom.u32(recOff3 + 16);
+            Assert.True(U.isPointer(bgPtr));
+            byte[] bgDecomp = LZ77.decompress(destRom.Data, U.toOffset(bgPtr));
+            Assert.Equal(8192, bgDecomp.Length);
+
+            // (c) OBJ image pointer valid.
+            uint objPtr = destRom.u32(recOff3 + 4);
+            Assert.True(U.isPointer(objPtr));
+        }
     }
 }

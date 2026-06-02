@@ -278,6 +278,17 @@ namespace FEBuilderGBA
             if (cmds == null)  return "Command list is null";
             if (imageProvider == null) return "imageProvider is null";
 
+            // FIX 2: CoreState.ROM consistency guard.
+            // All ambient writes (write_p32, RecycleAddress.WriteAmbient, BlackOutAmbient)
+            // target CoreState.ROM internally.  If the caller passed a different ROM
+            // instance the writes would go to the WRONG ROM and the Data.Length range
+            // checks inside RecycleAddress would be applied to the wrong buffer.
+            // Pattern mirrors other Core mutators that reject rom != CoreState.ROM before any write.
+            if (CoreState.ROM == null)
+                return "CoreState.ROM is null";
+            if (!ReferenceEquals(rom, CoreState.ROM))
+                return "rom argument must be CoreState.ROM (ambient-undo writes always target CoreState.ROM)";
+
             // FE-gate: magic system must be present.
             var ms = ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _);
             if (ms == ImageUtilMagicCore.MagicSystem.No)
@@ -315,15 +326,23 @@ namespace FEBuilderGBA
 
             var frameBytes = new List<byte>();
 
-            // WF: C00 header — at least 5 C00 (0x85000000) entries at the start.
-            // Count how many C00 appear at the head of the command stream.
+            // FIX 1: WF C00 header (L917-944 of ImageUtilMagicFEditor.cs).
+            // WF appends EVERY leading C00 dword encountered in the script, THEN pads
+            // to reach 5 total.  The old code only padded the missing count (emitting
+            // zero dwords when the script already had >= 5 C00s).
+            // Mirror WF exactly: walk and emit each leading C<hex==0> entry, then pad.
             int c00Count = 0;
             foreach (var cmd in cmds)
             {
                 if (cmd.Kind != MagicImportCmdKind.Command85) break;
-                if (cmd.Command85Dword == 0x85000000u) c00Count++;
+                if (cmd.Command85Dword == 0x85000000u)
+                {
+                    AppendU32(frameBytes, 0x85000000u);  // emit the C00 we encountered
+                    c00Count++;
+                }
                 else break;
             }
+            // Pad up to 5 total (mirrors WF L940-943).
             for (int i = c00Count; i < 5; i++)
                 AppendU32(frameBytes, 0x85000000u);
 
@@ -399,11 +418,14 @@ namespace FEBuilderGBA
                     }
                 }
 
-                if (bgFn == null || waitVal == 0 && n < 2)
-                {
-                    // Tolerate missing BG or wait by using defaults (mirrors WF partial tolerance).
-                    bgFn  = bgFn ?? objFn;
-                }
+                // FIX 4: WF (L1099-1110) REQUIRES an explicit O + B + time triple.
+                // The old code silently fell back to bgFn ?? objFn which could crash with
+                // KeyNotFoundException (bgFn not in bgAssembled) and contradicts the WF error.
+                // Validate-before-mutate: return error if any part of the triple is missing.
+                if (bgFn == null)
+                    return "BG image (B p- ...) is missing for frame after O: " + objFn;
+                if (n < 2 || waitVal == 0)
+                    return "Wait time is missing for frame (need O + B + time triple): O: " + objFn;
 
                 // Assign OBJ slot index.
                 if (!objFilenameToSlot.TryGetValue(objFn, out int objSlot))
@@ -614,20 +636,30 @@ namespace FEBuilderGBA
                     imageCache["OBJ:" + objFn] = (idx, w, h, pal);
                 }
 
-                // Find BG filename in the stream.
+                // FIX 4 (validate phase): require explicit O + B + wait triple.
+                // Scan ahead for the B and wait lines (up to next O or Terminator).
                 string bgFn = null;
+                bool hasWait = false;
                 int scanIdx = cmdIdx;
-                while (scanIdx < cmds.Count && scanIdx < cmdIdx + 5)
+                while (scanIdx < cmds.Count)
                 {
-                    if (cmds[scanIdx].Kind == MagicImportCmdKind.BgImage)
-                    {
-                        bgFn = cmds[scanIdx].Filename;
-                        break;
-                    }
+                    var s = cmds[scanIdx];
+                    if (s.Kind == MagicImportCmdKind.ObjImage) break;    // next O — stop
+                    if (s.Kind == MagicImportCmdKind.Terminator) break;  // miss-term — stop
+                    if (s.Kind == MagicImportCmdKind.BgImage && bgFn == null)
+                        bgFn = s.Filename;
+                    if (s.Kind == MagicImportCmdKind.Wait)
+                        hasWait = true;
                     scanIdx++;
+                    if (bgFn != null && hasWait) break; // got both
                 }
 
-                if (bgFn != null && !imageCache.ContainsKey("BG:" + bgFn))
+                if (bgFn == null)
+                    return $"BG image (B p- ...) is missing for frame after O: {objFn}";
+                if (!hasWait)
+                    return $"Wait time is missing for frame (need O + B + time triple): O: {objFn}";
+
+                if (!imageCache.ContainsKey("BG:" + bgFn))
                 {
                     var result = imageProvider(bgFn);
                     if (!result.HasValue)
@@ -730,12 +762,25 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Encode indexed-pixel BG image (row-major, 1 byte/pixel) into 4bpp GBA tile format.
-        /// Mirrors WF <c>ImageUtil.ImageToByte16Tile</c>.
+        /// Mirrors WF <c>ImageUtil.ImageToByte16Tile</c> called with the cropped bitmap.
+        ///
+        /// <para><b>FIX 3:</b> WF <c>ImportBGImageToData</c> (L1269-1292) copies ONLY the
+        /// left <c>BG_SEAT_TILE_WIDTH*8 = 256</c> pixels wide and <c>BG_SEAT_TILE_HEIGHT*8 = 64</c>
+        /// pixels tall into a clean bitmap before encoding.  A 264-wide Export PNG has an
+        /// 8-pixel palette-mark column on the right; the old Core code encoded all 264 columns,
+        /// producing 33 tile columns (extra tiles + shifted BG indices).  We crop to exactly
+        /// 256×64 here, discarding anything beyond column 255.
+        /// Row stride in <paramref name="indexed"/> is still <paramref name="w"/> (may be 264+),
+        /// but we iterate only over the leftmost 256 columns and topmost 64 rows.</para>
         /// </summary>
         static byte[] EncodeBg4bpp(byte[] indexed, int w, int h)
         {
-            int tileW = w / 8;
-            int tileH = h / 8;
+            // FIX 3: always encode exactly BG_SEAT_WIDTH × BG_SEAT_HEIGHT pixels (256×64).
+            // This drops the 8-px palette-mark column that the Export PNG appends (264 wide).
+            int encW = Math.Min(w, BG_SEAT_WIDTH);   // crop to 256 columns
+            int encH = Math.Min(h, BG_SEAT_HEIGHT);  // crop to 64 rows
+            int tileW = encW / 8;
+            int tileH = encH / 8;
             int totalTiles = tileW * tileH;
             byte[] data = new byte[totalTiles * 32];
             int outIdx = 0;
@@ -747,7 +792,7 @@ namespace FEBuilderGBA
                 int baseY = ty * 8;
                 for (int py = 0; py < 8; py++)
                 {
-                    int rowBase = (baseY + py) * w + baseX;
+                    int rowBase = (baseY + py) * w + baseX;  // stride = w (original width)
                     for (int px = 0; px < 8; px += 2)
                     {
                         byte lo = (byte)(indexed[rowBase + px]     & 0x0F);
