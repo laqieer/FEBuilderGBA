@@ -98,6 +98,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // driven separately by UpdateListExpandVisibility (hidden once the
             // table is already expanded — mirrors WF MagicListExpandsButton).
             MagicListExpandButton.IsEnabled = ok;
+            // #881 Import button is gated on magic-system detection (mirrors WF
+            // MagicAnimeImportDirect guard). When no patch is detected the button
+            // is grayed out; clicking also shows an error via the FE-gate check in
+            // MagicEffectImportCore.ImportMagicScript.
+            MagicAnimeImportButton.IsEnabled = ok;
         }
 
         void UpdatePatchNotice()
@@ -379,9 +384,157 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Import is a follow-up (#878 PR2).
-        void MagicAnimeImport_Click(object? sender, RoutedEventArgs e)
-            => Log.Debug("ImageMagicFEditorView.MagicAnimeImport_Click - Import is a follow-up (#878 PR2)");
+        // #881 — Import Magic Animation (FEditor .txt script + per-frame PNGs → ROM write).
+        // Mirrors WF ImageUtilMagicFEditor.Import + ImageMagicFEditorForm.MagicAnimeImportDirect.
+        async void MagicAnimeImport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.MagicSystemDetected)
+            {
+                CoreState.Services?.ShowError(
+                    R._("FEditor / SCA_Creator magic-system patch not detected."));
+                return;
+            }
+
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Make sure an entry is selected.
+            uint magicBaseAddr = _vm.CurrentAddr;
+            if (magicBaseAddr == 0u)
+            {
+                CoreState.Services?.ShowError(R._("No magic-animation entry selected."));
+                return;
+            }
+
+            // File dialog: pick .txt script.
+            string txtPath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenFile(
+                this,
+                R._("Import magic animation script"),
+                "*.txt");
+
+            if (string.IsNullOrEmpty(txtPath)) return;
+
+            await DoImport(
+                txtPath,
+                filename => LoadIndexedImage(filename, txtPath));
+        }
+
+        /// <summary>
+        /// Injectable import entry point (used by tests to skip file-dialog and inject
+        /// indexed images directly).
+        /// </summary>
+        internal async Task<string> DoImport(
+            string txtPath,
+            Func<string, (byte[] indexedPixels, int w, int h, byte[] gbaPalette)?> pngLoader)
+        {
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return "ROM is null";
+
+            uint magicBaseAddr = _vm.CurrentAddr;
+            if (magicBaseAddr == 0u) return "No magic-animation entry selected.";
+
+            // Parse script.
+            string[] scriptLines;
+            try
+            {
+                scriptLines = File.ReadAllLines(txtPath, System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                string err = R._("Cannot read script file: {0}", ex.Message);
+                CoreState.Services?.ShowError(err);
+                return err;
+            }
+
+            var cmds = MagicEffectImportCore.ParseMagicScript(scriptLines);
+            if (cmds.Count == 0)
+            {
+                string err = R._("Script file is empty or contains no recognized commands.");
+                CoreState.Services?.ShowError(err);
+                return err;
+            }
+
+            // Snapshot ROM for rollback on failure (defensive — Core validate-before-mutate
+            // should prevent partial writes, but keep a byte-level snapshot as a safety net).
+            byte[] snapshot = (byte[])rom.Data.Clone();
+
+            // ONE ambient undo scope covers all writes atomically.
+            _undoService.Begin("Import Magic Animation (FEditor)");
+            string importErr;
+            try
+            {
+                importErr = MagicEffectImportCore.ImportMagicScript(
+                    rom, magicBaseAddr, cmds, pngLoader);
+            }
+            catch (Exception ex)
+            {
+                importErr = ex.Message;
+            }
+
+            if (!string.IsNullOrEmpty(importErr))
+            {
+                // Restore ROM from snapshot before rolling back undo (defensive).
+                Array.Copy(snapshot, rom.Data, snapshot.Length);
+                _undoService.Rollback();
+                CoreState.Services?.ShowError(R._("Magic animation import failed: {0}", importErr));
+                return importErr;
+            }
+
+            _undoService.Commit();
+
+            // Update resource cache so OpenSource/SelectSource buttons appear.
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource rcache)
+            {
+                string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+                rcache.Update(key, txtPath);
+                UpdateSourceButtonVisibility();
+            }
+
+            // Refresh preview to show newly imported data.
+            _vm.IsLoading = true;
+            try
+            {
+                // Re-read the current entry's fields from ROM (pointers changed).
+                AddrResult? sel = EntryList.SelectedItem;
+                if (sel != null) _vm.LoadEntry(sel.addr, sel.tag);
+                UpdateUI();
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+
+            CoreState.Services?.ShowInfo(R._("Magic animation imported successfully."));
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Load a PNG referenced by the script: resolves relative filenames against
+        /// the script's directory, loads as RGBA, quantizes to 16 colors, returns
+        /// indexed pixels + GBA palette. Returns null on any failure.
+        /// </summary>
+        static (byte[] indexedPixels, int w, int h, byte[] gbaPalette)? LoadIndexedImage(
+            string filename, string scriptTxtPath)
+        {
+            // Resolve relative path against script directory.
+            string dir = System.IO.Path.GetDirectoryName(scriptTxtPath) ?? ".";
+            string fullPath = System.IO.Path.IsPathRooted(filename)
+                ? filename
+                : System.IO.Path.Combine(dir, filename);
+
+            try
+            {
+                // Use zero expected dimensions (accept any size; validation done in Core).
+                var lr = FEBuilderGBA.Avalonia.Services.ImageImportService.LoadAndQuantizeFromFile(
+                    fullPath, 0, 0, maxColors: 16, strictSize: false);
+                if (lr == null || !lr.Success || lr.IndexedPixels == null)
+                    return null;
+                return (lr.IndexedPixels, lr.Width, lr.Height, lr.GBAPalette);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicFEditorView.LoadIndexedImage: {0}", ex.Message);
+                return null;
+            }
+        }
 
         // #878 PR1 — Export Magic Animation (txt + per-frame PNGs).
         // Mirrors WF ImageMagicFEditorForm.MagicAnimeExportButton_Click.

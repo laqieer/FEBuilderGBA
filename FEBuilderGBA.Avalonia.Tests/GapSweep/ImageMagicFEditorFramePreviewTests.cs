@@ -115,14 +115,15 @@ public class ImageMagicFEditorFramePreviewTests
     }
 
     // -------------------------------------------------------------------
-    // #878 PR1: Import still disabled; Export/OpenSource/SelectSource now wired
+    // #881: Import now wired; Export/OpenSource/SelectSource also wired
     // -------------------------------------------------------------------
 
     /// <summary>
-    /// Import button remains disabled (#878 PR2 follow-up).
+    /// Import button is now WIRED in #881 — no longer hard-coded disabled.
+    /// It is gated at runtime (magic-system presence via UpdateWriteControlsEnabled).
     /// </summary>
     [Fact]
-    public void View_ImportButton_StillDisabled()
+    public void View_ImportButton_IsWired_NotHardDisabled()
     {
         string axaml = ReadAxaml();
         const string id = "ImageMagicFEditor_MagicAnimeImport_Button";
@@ -132,7 +133,10 @@ public class ImageMagicFEditorFramePreviewTests
         var match = pattern.Match(axaml);
         Assert.True(match.Success,
             $"Expected a <Button AutomationId=\"{id}\" .../> element");
-        Assert.Contains("IsEnabled=\"False\"", match.Value);
+        // #881: The button must NOT have static IsEnabled="False".
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
+        // Must have a wired click handler.
+        Assert.Contains("Click=\"MagicAnimeImport_Click\"", match.Value);
     }
 
     /// <summary>

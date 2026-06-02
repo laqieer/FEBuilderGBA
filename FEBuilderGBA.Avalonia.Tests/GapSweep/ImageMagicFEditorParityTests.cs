@@ -192,14 +192,15 @@ public class ImageMagicFEditorParityTests
     }
 
     // -----------------------------------------------------------------
-    // #878 PR1: Import still deferred; Export/Source buttons now wired.
+    // #881: Import wired; Export/Source buttons also wired.
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// Import button is the only remaining deferred button (#878 PR2 follow-up).
+    /// Import button is now WIRED in #881 — no longer disabled or stub-referenced.
+    /// Gated at runtime by UpdateWriteControlsEnabled (magic-system patch required).
     /// </summary>
     [Fact]
-    public void View_ImportButton_IsDisabledAndReferencesFollowupIssue()
+    public void View_ImportButton_IsWired_NotDisabled()
     {
         const string id = "ImageMagicFEditor_MagicAnimeImport_Button";
         string axaml = ReadAxaml();
@@ -209,9 +210,41 @@ public class ImageMagicFEditorParityTests
         var match = pattern.Match(axaml);
         Assert.True(match.Success,
             $"Expected a <Button AutomationId=\"{id}\" .../> element");
-        Assert.Contains("IsEnabled=\"False\"", match.Value);
-        // References PR2 follow-up issue.
-        Assert.Contains("#878", match.Value);
+        // #881: Import is no longer hard-coded disabled.
+        Assert.DoesNotContain("IsEnabled=\"False\"", match.Value);
+        // Must have a wired click handler.
+        Assert.Contains("Click=\"MagicAnimeImport_Click\"", match.Value);
+    }
+
+    /// <summary>
+    /// #881 — Code-behind MagicAnimeImport_Click calls MagicEffectImportCore and uses
+    /// the undo service atomically (one Begin/Commit/Rollback scope per import).
+    /// </summary>
+    [Fact]
+    public void View_ImportHandler_CallsMagicEffectImportCore_AndUsesUndoService()
+    {
+        string source = ReadCodeBehind();
+        // Must call the Core import function.
+        Assert.Contains("MagicEffectImportCore.ImportMagicScript", source);
+        Assert.Contains("MagicEffectImportCore.ParseMagicScript", source);
+        // Must use atomic undo scope.
+        Assert.Contains("_undoService.Begin", source);
+        Assert.Contains("_undoService.Commit", source);
+        Assert.Contains("_undoService.Rollback", source);
+        // Must have the injectable DoImport entry point (used by tests).
+        Assert.Contains("DoImport", source);
+    }
+
+    /// <summary>
+    /// #881 — Code-behind has snapshot-restore logic on import failure.
+    /// Mirrors #871/#874/#877 pattern.
+    /// </summary>
+    [Fact]
+    public void View_ImportHandler_HasSnapshotRestoreOnFailure()
+    {
+        string source = ReadCodeBehind();
+        Assert.Contains("snapshot", source);
+        Assert.Contains("Array.Copy(snapshot", source);
     }
 
     /// <summary>
