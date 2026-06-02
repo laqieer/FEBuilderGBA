@@ -11,7 +11,7 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Generic Enemy Portraits" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto">
+        <Grid ColumnDefinitions="160,200" RowDefinitions="Auto,Auto,Auto">
           <!-- Row 0: Address -->
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImageGenericEnemyPortrait_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" Margin="0,2" />
@@ -19,7 +19,33 @@
           <!-- Row 1: Image Pointer (D0) -->
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Image Pointer:" VerticalAlignment="Center" Margin="0,2" />
           <TextBlock AutomationProperties.AutomationId="ImageGenericEnemyPortrait_ImagePtr_Label" Grid.Row="1" Grid.Column="1" Name="ImagePtrLabel" VerticalAlignment="Center" Margin="0,2" />
+
+          <!-- Row 2: Palette Pointer (fixed +0x20 slot) -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Palette Pointer:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="ImageGenericEnemyPortrait_PalettePtr_Label" Grid.Row="2" Grid.Column="1" Name="PalettePtrLabel" VerticalAlignment="Center" Margin="0,2" />
         </Grid>
+
+        <!-- Preview: the TSA-less 32x32 4bpp portrait rendered against its palette -->
+        <TextBlock Text="Preview" FontWeight="Bold" Margin="0,4,0,0" />
+        <Border BorderBrush="Gray" BorderThickness="1" Padding="4" HorizontalAlignment="Left">
+          <controls:GbaImageControl AutomationProperties.AutomationId="ImageGenericEnemyPortrait_Preview_Image" Name="PreviewImage" />
+        </Border>
+
+        <!-- Export / Import buttons (Image Import/Export parity with WF form) -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+          <Button AutomationProperties.AutomationId="ImageGenericEnemyPortrait_Export_Button"
+                  Name="ExportButton"
+                  Content="Export PNG"
+                  ToolTip.Tip="Export Image to PNG file"
+                  Click="ExportButton_Click"
+                  IsEnabled="{Binding IsLoaded}" />
+          <Button AutomationProperties.AutomationId="ImageGenericEnemyPortrait_Import_Button"
+                  Name="ImportButton"
+                  Content="Import Image"
+                  ToolTip.Tip="Import Image from PNG file"
+                  Click="ImportButton_Click"
+                  IsEnabled="{Binding IsLoaded}" />
+        </StackPanel>
       </StackPanel>
     </ScrollViewer>
   </Grid>

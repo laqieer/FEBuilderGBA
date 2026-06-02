@@ -20007,3 +20007,9 @@ KnownGap: border import (OAM assembly) is a separate follow-up.
 
 :Export the border AP preview to PNG.
 Export the border AP preview to PNG.
+
+:Export Image to PNG file
+Export Image to PNG file
+
+:Import Image from PNG file
+Import Image from PNG file
