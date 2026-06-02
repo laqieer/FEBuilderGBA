@@ -467,23 +467,122 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// KnownGap: MainImageImportExport. Mirrors WF image1_Import —
-        /// would call into ImageFormRef.ImportImageHandler which is
-        /// WinForms-only.
+        /// Main Image import (#901) — tilesheet-only, mirrors WF image1_Import.
+        ///
+        /// The WF TSA editor builds its main-image ImageFormRef with
+        /// tsa_pointer = 0 and only the ZIMAGE control wired, so Import encodes
+        /// the SAME-SIZE PNG to plain 4bpp tiles (ImageToByte16Tile), LZ77-
+        /// compresses, and repoints ONLY the ZImg pointer — TSA + palette are
+        /// never touched. We mirror that exactly:
+        ///   1. File dialog -> LoadAndRemapFromFile(strictSize) against the
+        ///      editor's active palette (import never writes the palette).
+        ///   2. TSAImageImportCore.ImportTSAImage under one UndoService scope.
+        ///   3. On error: Rollback + ShowError + restore the rendered previews.
+        ///   4. On success: Commit + MarkClean + refresh the previews.
+        /// Disabled until Init() (IsContextLoaded).
         /// </summary>
-        void MainImageImport_Click(object? sender, RoutedEventArgs e)
+        async void MainImageImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Notify("ImageTSAEditor MainImageImport - deferred (KnownGap: MainImageImportExport)");
+            if (!_vm.IsContextLoaded) return;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null) return;
+            if (_vm.ZImgPointer == U.NOT_FOUND) return;
+
+            // SAME-SIZE: the tilesheet dimensions are the natural ZImg size, NOT
+            // the (header-bumped) editor canvas. Derive them from Core so the
+            // file-dialog strict-size check matches what ImportTSAImage enforces.
+            if (!TSAImageImportCore.TryCalcTilesheetSize(rom, _vm.ZImgPointer,
+                    out int widthPx, out int heightPx))
+            {
+                CoreState.Services.ShowError(
+                    "TSA Main Image Import: could not determine the existing tilesheet size.");
+                return;
+            }
+
+            // Read the editor's active palette so the imported image is remapped
+            // to the current colors (import never writes the palette).
+            uint paletteAddr = _vm.ResolveActivePaletteAddress();
+            byte[]? existingPalette = ReadActivePaletteBytes(rom, paletteAddr);
+            if (existingPalette == null)
+            {
+                CoreState.Services.ShowError(
+                    "TSA Main Image Import: could not read the active palette.");
+                return;
+            }
+
+            string? filePath = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath)) return;
+
+            var loadResult = ImageImportService.LoadAndRemapFromFile(
+                filePath, widthPx, heightPx, existingPalette, 16, strictSize: true);
+            if (loadResult == null || !loadResult.Success)
+            {
+                string err = loadResult?.Error ?? "Unknown error";
+                CoreState.Services.ShowError($"TSA Main Image Import failed: {err}");
+                return;
+            }
+
+            _undoService.Begin("TSA Main Image Import");
+            string writeError;
+            try
+            {
+                writeError = TSAImageImportCore.ImportTSAImage(
+                    rom, loadResult.IndexedPixels, widthPx, heightPx, _vm.ZImgPointer);
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                // Snapshot-restore the rendered previews so a failed write never
+                // leaves the UI showing an unpersisted image (#871 lesson).
+                RefreshBattleCanvas();
+                RefreshChipList();
+                CoreState.Services.ShowError($"TSA Main Image Import failed: {ex.Message}");
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(writeError))
+            {
+                _undoService.Rollback();
+                RefreshBattleCanvas();
+                RefreshChipList();
+                CoreState.Services.ShowError($"TSA Main Image Import failed: {writeError}");
+                return;
+            }
+
+            _undoService.Commit();
+            _vm.MarkClean();
+            // The tilesheet changed -> re-render both read-only previews.
+            RefreshBattleCanvas();
+            RefreshChipList();
         }
 
         /// <summary>
-        /// KnownGap: MainImageImportExport. Mirrors WF image1_Export —
-        /// would call into ImageFormRef.ExportImageHandler which is
-        /// WinForms-only.
+        /// Read the 16-color (32-byte) palette slice the active palette address
+        /// points at, in RAW GBA BGR555 LE bytes, for LoadAndRemapFromFile's
+        /// closest-color remap. Returns null (no throw) when the range is
+        /// out of bounds.
+        /// </summary>
+        static byte[]? ReadActivePaletteBytes(ROM rom, uint paletteAddr)
+        {
+            if (rom == null || rom.Data == null) return null;
+            if (!U.isSafetyOffset(paletteAddr, rom)) return null;
+            if ((ulong)paletteAddr + 0x20UL > (ulong)rom.Data.Length) return null;
+            byte[] pal = new byte[0x20];
+            Array.Copy(rom.Data, (int)paletteAddr, pal, 0, 0x20);
+            return pal;
+        }
+
+        /// <summary>
+        /// KnownGap: MainImageExport. Mirrors WF image1_Export (the raw-
+        /// tilesheet PNG export) — would call into ImageFormRef.ExportImageHandler
+        /// which is WinForms-only. NOTE: the read-only TSA-composited Export PNG
+        /// (#808, BattleExportPng_Click) is a DIFFERENT, already-wired export;
+        /// this raw-tilesheet export stays deferred.
         /// </summary>
         void MainImageExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Notify("ImageTSAEditor MainImageExport - deferred (KnownGap: MainImageImportExport)");
+            Log.Notify("ImageTSAEditor MainImageExport - deferred (KnownGap: MainImageExport)");
         }
 
         /// <summary>

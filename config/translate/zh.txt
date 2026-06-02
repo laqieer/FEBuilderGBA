@@ -23811,3 +23811,6 @@ CSA魔法动画导入失败: {0}
 
 :Export the 16x16 skill icon as a PNG.
 将16x16技能图标导出为PNG。
+
+:Import a same-size image as the main tilesheet (palette and TSA are not changed).
+导入与主图块表相同尺寸的图像（不会更改调色板和TSA）。

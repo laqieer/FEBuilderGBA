@@ -19,7 +19,10 @@
 // Out-of-scope (KnownGap markers in the AXAML cover the labels-sweep audit):
 //   - TSAByteWrite          — ImageFormRef.WriteImageData pointer-aware realloc
 //   - PaletteToClipboard    — system clipboard interop (WinForms-only API)
-//   - MainImageImportExport — image1_Import / image1_Export through ImageFormRef
+//   - MainImageExport       — image1_Export raw-tilesheet PNG export (deferred)
+// RESOLVED (#901): MainImageImport — image1_Import wired tilesheet-only via
+//   TSAImageImportCore.ImportTSAImage (SAME-SIZE PNG -> EncodeDirectTiles4bpp
+//   -> LZ77 -> repoint ONLY the ZImg pointer; TSA + palette untouched).
 using System;
 using System.Collections.Generic;
 

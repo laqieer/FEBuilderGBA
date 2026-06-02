@@ -34,7 +34,8 @@
   <!-- ChipsetListRender RESOLVED (#819): the chip-list thumbnail (WF MakeCHIPLIST / PATHCHIPLIST_Paint) is now rendered cross-platform via ImageTSAEditorCore.RenderChipList into ChipListPreview — the main-image tiles in WF's 4-column (orig / Hflip / Vflip / HVflip) single-palette-bank-0 strip, read-only. Follow-up to #808/#810 (shared TSA tile/palette loader) and #807 (the 8-col/2-bank battle-screen sibling). -->
   <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. Deferred; only the palette-write path is exercised by the Write button in this PR. -->
   <!-- KnownGap: PaletteToClipboard reason=System.Windows.Forms.Clipboard interop is WinForms-only; Avalonia equivalent (TopLevel.Clipboard async API) is a separate cross-cutting refactor not in scope here. The Clipboard button (label クリップボード) renders as a disabled stub so the labels audit still passes. -->
-  <!-- KnownGap: MainImageImportExport reason=image1_Import / image1_Export call into ImageFormRef.ImportImageHandler / ExportImageHandler which depend on the full WinForms ImageFormRef ROM-write pipeline; deferred consistent with #513's BatchPng deferral. The Image Import / Image Export buttons (labels 画像読込 / 画像取出) render as disabled stubs so the labels audit still passes. -->
+  <!-- RESOLVED (#901): MainImageImport — image1_Import is now wired (tilesheet-only). The WF TSA editor builds its main-image ImageFormRef with tsa_pointer=0 and only the ZIMAGE control, so Import encodes a SAME-SIZE PNG to plain 4bpp tiles (ImageToByte16Tile via ImageImportCore.EncodeDirectTiles4bpp), LZ77-compresses, and repoints ONLY the ZImg pointer — TSA + palette are untouched. See TSAImageImportCore.ImportTSAImage + MainImageImport_Click. -->
+  <!-- KnownGap: MainImageExport reason=image1_Export calls into ImageFormRef.ExportImageHandler (the WinForms raw-tilesheet PNG export); deferred. The read-only TSA-composited Export PNG (#808, ImageTSAEditor_Battle_ExportPng_Button) is a DIFFERENT, already-wired export. The Image Export button (label 画像取出) renders as a disabled stub so the labels audit still passes. -->
 
 
   <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
@@ -419,12 +420,15 @@
                              Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
             </StackPanel>
 
-            <!-- Import + Export buttons (mirrors WF image1_Import=画像読込 + image1_Export=画像取出).
-                 IsEnabled=False stubs - KnownGap: MainImageImportExport. -->
+            <!-- Import button (RESOLVED #901): mirrors WF image1_Import=画像読込 —
+                 tilesheet-only, repoints ONLY the ZImg pointer (TSA + palette
+                 untouched). Gated on IsContextLoaded.
+                 Export remains an IsEnabled=False stub - KnownGap: MainImageExport. -->
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Import_Button"
                       Name="MainImageImportButton" Content="Image Import"
-                      Click="MainImageImport_Click" IsEnabled="False" Width="167" />
+                      ToolTip.Tip="Import a same-size image as the main tilesheet (palette and TSA are not changed)."
+                      Click="MainImageImport_Click" IsEnabled="{Binding IsContextLoaded}" Width="167" />
               <Button AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Export_Button"
                       Name="MainImageExportButton" Content="Image Export"
                       Click="MainImageExport_Click" IsEnabled="False" Width="167" />
