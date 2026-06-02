@@ -9979,3 +9979,6 @@ CSA Creatorのマジックシステムが検出されません。先にパッチ
 
 :Export the 16x16 skill icon as a PNG.
 16x16のスキルアイコンをPNGとしてエクスポートします。
+
+:Import a same-size image as the main tilesheet (palette and TSA are not changed).
+メイン画像のタイルシートに同じサイズの画像をインポートします（パレットとTSAは変更されません）。

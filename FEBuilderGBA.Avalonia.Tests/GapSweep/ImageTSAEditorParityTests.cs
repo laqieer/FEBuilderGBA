@@ -206,8 +206,12 @@ public class ImageTSAEditorParityTests
         Assert.Contains("IsEnabled=\"False\"", m.Value);
     }
 
+    /// <summary>
+    /// #901: the Main Image Import button is now WIRED (tilesheet-only import)
+    /// and context-gated on IsContextLoaded — it is no longer an inert stub.
+    /// </summary>
     [Fact]
-    public void View_MainImageImportButton_IsExplicitlyInert()
+    public void View_MainImageImportButton_IsContextGated()
     {
         string axaml = ReadAxaml();
         var rx = new Regex(
@@ -215,7 +219,33 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled);
         Match m = rx.Match(axaml);
         Assert.True(m.Success, "MainImage Import button tag not found");
-        Assert.Contains("IsEnabled=\"False\"", m.Value);
+        Assert.Contains("Click=\"MainImageImport_Click\"", m.Value);
+        Assert.Contains("IsEnabled=\"{Binding IsContextLoaded}\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// #901: the MainImageImport_Click handler must call into
+    /// TSAImageImportCore.ImportTSAImage (the tilesheet-only Core entry point)
+    /// and no longer be a Log.Notify stub. Regex-declaration style so a
+    /// signature tweak (async void) does not break the assertion.
+    /// </summary>
+    [Fact]
+    public void View_MainImageImportHandler_CallsTSAImageImportCore()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"void\s+MainImageImport_Click[\s\S]*?TSAImageImportCore",
+            RegexOptions.Compiled), source);
+        // The handler must wrap the write in the UndoService and roll back
+        // on a non-empty error string.
+        Assert.Matches(new Regex(
+            @"void\s+MainImageImport_Click[\s\S]*?_undoService\.Begin[\s\S]*?_undoService\.(Commit|Rollback)",
+            RegexOptions.Compiled), source);
+        // It must no longer be the old Log.Notify deferral stub.
+        Assert.DoesNotMatch(new Regex(
+            @"void\s+MainImageImport_Click[\s\S]*?Log\.Notify\([^)]*MainImageImportExport",
+            RegexOptions.Compiled), source);
     }
 
     [Fact]
