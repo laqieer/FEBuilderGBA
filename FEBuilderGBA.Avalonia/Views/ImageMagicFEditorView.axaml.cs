@@ -3,12 +3,16 @@
 // fix (#418) - rebuilds this view from a 3-control stub into a full
 // editor surface mirroring the WF panel3 / panel5 / panel8 /
 // DragTargetPanel layout.
+// #878 PR1: Export + OpenSource/SelectSource wired. Import is PR2.
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -170,6 +174,39 @@ namespace FEBuilderGBA.Avalonia.Views
             P16Box.Value = _vm.P16;
             FrameBox.Value = _vm.Frame;
             RenderPreview();
+            UpdateSourceButtonVisibility();
+            UpdateExportButtonEnabled();
+        }
+
+        // #878 PR1 — Source-button show/hide (mirrors WF
+        // AddressList_SelectedIndexChanged ~lines 169-179).
+        // Buttons are visible only when a cached source filename exists for
+        // the currently selected slot and the file is on disk.
+        void UpdateSourceButtonVisibility()
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0)
+            {
+                OpenSourceButton.IsVisible = false;
+                SelectSourceButton.IsVisible = false;
+                return;
+            }
+            // WF key: "MagicAnimation_" + U.ToHexString(selectedIndex+1)
+            uint id = (uint)(idx + 1);
+            string key = "MagicAnimation_" + U.ToHexString(id);
+            bool hasFile = CoreState.ResourceCache is EtcCacheResource rcache
+                && rcache.TryGetValue(key, out string? path)
+                && !string.IsNullOrEmpty(path)
+                && File.Exists(path);
+            OpenSourceButton.IsVisible = hasFile;
+            SelectSourceButton.IsVisible = hasFile;
+        }
+
+        // Export button is enabled when magic system is detected and an entry is selected.
+        void UpdateExportButtonEnabled()
+        {
+            MagicAnimeExportButton.IsEnabled =
+                _vm.MagicSystemDetected && EntryList.SelectedOriginalIndex >= 0;
         }
 
         /// <summary>
@@ -342,18 +379,242 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Deferred file/shell actions - tracked by #500.
+        // Import is a follow-up (#878 PR2).
         void MagicAnimeImport_Click(object? sender, RoutedEventArgs e)
-            => Log.Debug("ImageMagicFEditorView.MagicAnimeImport_Click - disabled until #500 lands");
+            => Log.Debug("ImageMagicFEditorView.MagicAnimeImport_Click - Import is a follow-up (#878 PR2)");
 
-        void MagicAnimeExport_Click(object? sender, RoutedEventArgs e)
-            => Log.Debug("ImageMagicFEditorView.MagicAnimeExport_Click - disabled until #500 lands");
+        // #878 PR1 — Export Magic Animation (txt + per-frame PNGs).
+        // Mirrors WF ImageMagicFEditorForm.MagicAnimeExportButton_Click.
+        // Filter 0 = txt with comments, Filter 1 = txt without comments (FIX 4).
+        async void MagicAnimeExport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.MagicSystemDetected)
+            {
+                CoreState.Services?.ShowError(
+                    R._("FEditor / SCA_Creator magic-system patch not detected."));
+                return;
+            }
 
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // FIX 4: use SaveFileWithFilterIndex so enableComment is driven by the
+            // chosen filter index (0 = with comments, 1 = no comments), not the
+            // filename heuristic. The _nc suffix heuristic is removed.
+            var (filename, filterIndex) = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.SaveFileWithFilterIndex(
+                this,
+                R._("Save magic animation script"),
+                new (string, string)[]
+                {
+                    (R._("Magic Animation (with comments)"), "*.txt"),
+                    (R._("Magic Animation (no comments)"), "*.txt"),
+                },
+                "magic_" + U.ToHexString((uint)(EntryList.SelectedOriginalIndex + 1)) + ".txt");
+
+            if (string.IsNullOrEmpty(filename)) return;
+
+            // filterIndex 0 = with comments, 1+ = without (FIX 4).
+            bool enableComment = (filterIndex == 0);
+
+            await ExportMagicAnimationAsync(rom, filename, enableComment);
+        }
+
+        async Task ExportMagicAnimationAsync(ROM rom, string filename, bool enableComment)
+        {
+            try
+            {
+                uint frameDataAddr = _vm.P0;
+                uint objRtoL = _vm.P4;
+                uint objBGRtoL = _vm.P12;
+
+                // FIX 3: Single ordered walk via ExportMagicScriptLines — replaces
+                // the split ScanMagicFrames + ExportMagicScript + DetectMissContinuation
+                // trio (DetectMissContinuation is removed entirely).
+                // FIX 1+2: Shared anime-hash for OBJ+BG, inline ~~~ emission.
+                string basename = System.IO.Path.GetFileNameWithoutExtension(filename) + "_";
+                List<int> sharedObjSlots, sharedBgSlots;
+                List<MagicFrameMeta> frames;
+                var scriptLines = MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, frameDataAddr, basename, enableComment,
+                    out sharedObjSlots, out sharedBgSlots, out frames);
+
+                if (frames.Count == 0 && scriptLines.Count <= 2)
+                {
+                    // Only Start/End markers — bad frame-data pointer.
+                    CoreState.Services?.ShowError(
+                        R._("Magic animation scan failed — bad frame-data pointer."));
+                    return;
+                }
+
+                string basedir = System.IO.Path.GetDirectoryName(filename) ?? ".";
+
+                // Render and save unique OBJ frames (shared-index filenames — FIX 1).
+                int objSlotCount = MagicEffectExportCore.CountUniqueObjSlots(frames);
+                for (int s = 0; s < objSlotCount; s++)
+                {
+                    IImage? img = MagicEffectExportCore.RenderObjFrameSlot(
+                        rom, frames, s, objRtoL, objBGRtoL);
+                    string pngPath = System.IO.Path.Combine(
+                        basedir, basename + "o_" + s.ToString("000") + ".png");
+                    if (img != null)
+                    {
+                        try { img.Save(pngPath); }
+                        catch (Exception ex)
+                        {
+                            Log.Error("MagicExport: save OBJ slot " + s + ": " + ex.Message);
+                        }
+                    }
+                    else
+                    {
+                        SaveDummyPng(pngPath,
+                            MagicEffectExportCore.OBJ_EXPORT_WIDTH,
+                            MagicEffectExportCore.OBJ_EXPORT_HEIGHT);
+                    }
+                }
+
+                // Render and save unique BG frames (shared-index filenames — FIX 1).
+                int bgSlotCount = MagicEffectExportCore.CountUniqueBgSlots(frames);
+                for (int s = 0; s < bgSlotCount; s++)
+                {
+                    IImage? img = MagicEffectExportCore.RenderBgFrameSlot(rom, frames, s);
+                    string pngPath = System.IO.Path.Combine(
+                        basedir, basename + "b_" + s.ToString("000") + ".png");
+                    if (img != null)
+                    {
+                        try { img.Save(pngPath); }
+                        catch (Exception ex)
+                        {
+                            Log.Error("MagicExport: save BG slot " + s + ": " + ex.Message);
+                        }
+                    }
+                    else
+                    {
+                        SaveDummyPng(pngPath,
+                            MagicEffectExportCore.BG_EXPORT_WIDTH,
+                            MagicEffectExportCore.BG_EXPORT_HEIGHT);
+                    }
+                }
+
+                // Write the .txt script.
+                var textLines = new List<string>(scriptLines.Count);
+                foreach (var line in scriptLines)
+                    textLines.Add(line.Text);
+                File.WriteAllLines(filename, textLines, System.Text.Encoding.UTF8);
+
+                // Update resource cache so OpenSource/SelectSource buttons appear.
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource rcache)
+                {
+                    string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+                    rcache.Update(key, filename);
+                    UpdateSourceButtonVisibility();
+                }
+
+                // Reveal file in explorer (mirrors WF U.SelectFileByExplorer).
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = System.IO.Path.GetDirectoryName(filename),
+                        UseShellExecute = true,
+                    });
+                }
+                catch { /* best-effort */ }
+
+                CoreState.Services?.ShowInfo(
+                    R._("Exported {0} OBJ + {1} BG frames to {2}",
+                        objSlotCount, bgSlotCount, filename));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MagicAnimeExport: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
+            }
+        }
+
+        // Save a minimal transparent PNG placeholder.
+        static void SaveDummyPng(string path, int width, int height)
+        {
+            try
+            {
+                IImageService? svc = CoreState.ImageService;
+                if (svc == null) return;
+                var img = svc.CreateImage(width, height);
+                img.SetPixelData(new byte[width * height * 4]);
+                img.Save(path);
+            }
+            catch (Exception ex) { Log.Error("SaveDummyPng: {0}", ex.Message); }
+        }
+
+        // #878 PR1 — Open Source File (mirrors WF OpenSourceButton_Click).
         void OpenSource_Click(object? sender, RoutedEventArgs e)
-            => Log.Debug("ImageMagicFEditorView.OpenSource_Click - disabled until #500 lands");
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0) return;
+            string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+            if (CoreState.ResourceCache is EtcCacheResource cache
+                && cache.TryGetValue(key, out string? path)
+                && !string.IsNullOrEmpty(path)
+                && File.Exists(path))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImageMagicFEditorView.OpenSource: {0}", ex.Message);
+                    CoreState.Services?.ShowError(
+                        R._("Cannot open file: {0}", ex.Message));
+                }
+            }
+            else
+            {
+                CoreState.Services?.ShowError(R._("Source file not recorded or not found."));
+            }
+        }
 
+        // #878 PR1 — Open Source Folder / reveal in file manager
+        // (mirrors WF SelectSourceButton_Click).
         void SelectSource_Click(object? sender, RoutedEventArgs e)
-            => Log.Debug("ImageMagicFEditorView.SelectSource_Click - disabled until #500 lands");
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0) return;
+            string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+            if (CoreState.ResourceCache is EtcCacheResource cache
+                && cache.TryGetValue(key, out string? path)
+                && !string.IsNullOrEmpty(path)
+                && File.Exists(path))
+            {
+                try
+                {
+                    // Reveal in file manager: open the containing directory.
+                    string? dir = System.IO.Path.GetDirectoryName(path);
+                    if (dir != null)
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = dir,
+                            UseShellExecute = true,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImageMagicFEditorView.SelectSource: {0}", ex.Message);
+                    CoreState.Services?.ShowError(
+                        R._("Cannot open folder: {0}", ex.Message));
+                }
+            }
+            else
+            {
+                CoreState.Services?.ShowError(R._("Source file not recorded or not found."));
+            }
+        }
 
         void JumpEditor_Click(object? sender, RoutedEventArgs e)
         {
