@@ -47,8 +47,17 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>
         /// Load image from file path, validate dimensions, quantize.
         /// </summary>
+        /// <param name="requireTileMultiple">
+        /// When <c>true</c> (default), the image width and height must both be
+        /// multiples of 8 - required for tile-based sprite/graphic import.
+        /// Pass <c>false</c> for palette-only import where any image size is
+        /// acceptable (mirrors WinForms <c>PaletteFormRef.MakePaletteBitmapToUI</c>
+        /// which extracts <c>ColorPalette</c> from any bitmap with no dimension
+        /// restriction). Does NOT override <paramref name="strictSize"/> - both
+        /// flags apply independently. FIX 1 (#871).
+        /// </param>
         public static LoadResult LoadAndQuantizeFromFile(string filePath, int expectedWidth, int expectedHeight,
-            int maxColors = 16, bool strictSize = false)
+            int maxColors = 16, bool strictSize = false, bool requireTileMultiple = true)
         {
             var result = new LoadResult();
             var imgService = CoreState.ImageService;
@@ -77,7 +86,10 @@ namespace FEBuilderGBA.Avalonia.Services
                     return result;
                 }
 
-                if (image.Width % 8 != 0 || image.Height % 8 != 0)
+                // FIX 1 (#871): skip the tile-size check for palette-only import.
+                // Mirrors WF PaletteFormRef.MakePaletteBitmapToUI which extracts
+                // ColorPalette from any image with no dimension restriction.
+                if (requireTileMultiple && (image.Width % 8 != 0 || image.Height % 8 != 0))
                 {
                     result.Error = $"Image dimensions must be multiples of 8 (got {image.Width}x{image.Height})";
                     return result;

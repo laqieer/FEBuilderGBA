@@ -458,7 +458,8 @@ namespace FEBuilderGBA.Avalonia.Views
             var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath,
                 expectedWidth: 0, expectedHeight: 0,
                 maxColors: ImageBattleAnimePaletteCore.ColorsPerSlot,
-                strictSize: false);
+                strictSize: false,
+                requireTileMultiple: false); // FIX 1 (#871): palette-only accepts any image size
 
             if (loadResult == null || !loadResult.Success)
             {
@@ -469,6 +470,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Pad to exactly 32 bytes if fewer than 16 colors quantized.
             byte[] gbaPalette = PadGBAPaletteTo16(loadResult.GBAPalette);
+
+            // FIX 2 (#871): snapshot VM palette BEFORE DoImport so we can
+            // restore the VM/UI if the ROM write later fails or returns
+            // U.NOT_FOUND. Without this, the ROM is rolled back by
+            // UndoService but the VM still shows the imported (unpersisted)
+            // palette -- an inconsistent UI state.
+            byte[] rSnap = new byte[16], gSnap = new byte[16], bSnap = new byte[16];
+            for (int si = 0; si < 16; si++)
+            {
+                rSnap[si] = _vm.GetR(si);
+                gSnap[si] = _vm.GetG(si);
+                bSnap[si] = _vm.GetB(si);
+            }
 
             bool applied = _vm.DoImport(gbaPalette);
             if (!applied)
@@ -491,6 +505,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("Import_Click: Write threw: {0}", ex.Message);
                 _undoService.Rollback();
+                // FIX 2: restore pre-import VM state so the UI matches the rolled-back ROM.
+                RestorePaletteSnapshot(rSnap, gSnap, bSnap);
                 return;
             }
 
@@ -498,6 +514,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Notify("Import_Click: write failed; rollback applied.");
+                // FIX 2: restore pre-import VM state so the UI matches the rolled-back ROM.
+                RestorePaletteSnapshot(rSnap, gSnap, bSnap);
                 return;
             }
 
@@ -510,19 +528,33 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Pad or truncate a GBA palette byte array to exactly
+        /// Restore the VM R/G/B arrays from a pre-import snapshot and refresh
+        /// the spinners/swatches. Called when a ROM write fails so the UI stays
+        /// in sync with the rolled-back ROM state. FIX 2 (#871).
+        /// </summary>
+        void RestorePaletteSnapshot(byte[] rSnap, byte[] gSnap, byte[] bSnap)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                _vm.SetR(i, rSnap[i]);
+                _vm.SetG(i, gSnap[i]);
+                _vm.SetB(i, bSnap[i]);
+            }
+            PopulateAllSpinnersAndSwatches();
+        }
+
+        /// <summary>
+        /// Pad <em>or truncate</em> a GBA palette byte array to exactly
         /// <see cref="ImageBattleAnimePaletteCore.SlotByteSize"/> (32) bytes.
         /// Required because <see cref="DecreaseColorCore.Quantize"/> may
         /// return fewer than 16 colors when the source image has few
-        /// distinct hues. Extra bytes are zero-filled.
+        /// distinct hues; extra colors beyond 16 are dropped. FIX 3 (#871).
         /// </summary>
         static byte[] PadGBAPaletteTo16(byte[] gbaPalette)
         {
             int needed = ImageBattleAnimePaletteCore.SlotByteSize; // 32
-            if (gbaPalette != null && gbaPalette.Length >= needed)
-            {
-                return gbaPalette; // Already big enough.
-            }
+            // FIX 3 (#871): always copy into a fresh 32-byte buffer (truncate when longer,
+            // zero-fill when shorter or null). Prior impl returned array unchanged >= 32 bytes.
             byte[] padded = new byte[needed];
             if (gbaPalette != null)
             {

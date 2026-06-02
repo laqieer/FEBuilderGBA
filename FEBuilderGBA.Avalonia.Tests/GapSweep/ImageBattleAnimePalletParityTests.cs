@@ -1109,6 +1109,115 @@ public class ImageBattleAnimePalletParityTests
         return (rom, paletteOff, sourceSlot);
     }
 
+    // -----------------------------------------------------------------
+    // #871 FIX 1 - palette import does not require tile-size multiples.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ImageImportService_RequireTileMultipleParam_ControlsDimensionCheck()
+    {
+        string svcCode = System.IO.File.ReadAllText(
+            FindRepoRoot() + "/FEBuilderGBA.Avalonia/Services/ImageImportService.cs");
+        Assert.Contains("bool requireTileMultiple = true", svcCode);
+        Assert.Contains("requireTileMultiple && (image.Width % 8", svcCode);
+        // DecreaseColorCore.Quantize handles arbitrary (non-8-multiple) dims.
+        byte[] rgba = new byte[10 * 10 * 4];
+        for (int i = 0; i < rgba.Length; i += 4) { rgba[i] = 255; rgba[i+3] = 255; }
+        var qr = DecreaseColorCore.Quantize(rgba, 10, 10, 16);
+        Assert.NotNull(qr);
+        byte[] padded = PadHelper(qr.GBAPalette);
+        Assert.Equal(32, padded.Length);
+    }
+
+    [Fact]
+    public void View_DoImportFromFile_PassesRequireTileMultipleFalse()
+    {
+        string code = System.IO.File.ReadAllText(CodeBehindPath());
+        Assert.Contains("requireTileMultiple: false", code);
+    }
+
+    // -----------------------------------------------------------------
+    // #871 FIX 2 - snapshot before DoImport; restore on write failure.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_DoImportFromFile_HasSnapshotAndRestoreBoilerplate()
+    {
+        string code = System.IO.File.ReadAllText(CodeBehindPath());
+        Assert.Contains("byte[] rSnap", code);
+        Assert.Contains("gSnap[si] = _vm.GetG(si)", code);
+        var matches = System.Text.RegularExpressions.Regex.Matches(code, "RestorePaletteSnapshot");
+        Assert.True(matches.Count >= 3,
+            $"RestorePaletteSnapshot must appear >= 3 times, got {matches.Count}");
+    }
+
+    [Fact]
+    public void ViewModel_DoImport_ThenWriteFails_VmStillHoldsImportedState()
+    {
+        var (rom, paletteOffset, sourceSlot) = MakeRomWithSingleSlotPalette(new ushort[16]);
+        var prevRom = CoreState.ROM; var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom; CoreState.Undo = new Undo();
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+            Assert.Equal(0, vm.GetR(0));
+            byte[] importPal = new byte[32];
+            importPal[0] = 0x1F; importPal[1] = 0x00;
+            bool applied = vm.DoImport(importPal);
+            Assert.True(applied);
+            Assert.Equal(248, vm.GetR(0));
+            vm.SetWriterOverrideForTests((r, data) => U.NOT_FOUND);
+            var undoService = new UndoService();
+            undoService.Begin("test fail");
+            uint result = vm.Write();
+            Assert.Equal(U.NOT_FOUND, result);
+            undoService.Rollback();
+            Assert.Equal(248, vm.GetR(0)); // VM holds imported; view restores it
+        }
+        finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+    }
+
+    // -----------------------------------------------------------------
+    // #871 FIX 3 - PadGBAPaletteTo16 returns exactly 32 bytes.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_PadGBAPaletteTo16_TruncatesOversizedInput_Returns32Bytes()
+    {
+        var method = typeof(ImageBattleAnimePalletView).GetMethod("PadGBAPaletteTo16",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+        byte[] input = new byte[64];
+        for (int i = 0; i < 64; i++) input[i] = (byte)((i + 1) % 256);
+        byte[] result = (byte[])method.Invoke(null, new object[] { input });
+        Assert.Equal(32, result.Length);
+        for (int i = 0; i < 32; i++) Assert.Equal(input[i], result[i]);
+    }
+
+    [Fact]
+    public void View_PadGBAPaletteTo16_PadsShortInput_Returns32Bytes()
+    {
+        var method = typeof(ImageBattleAnimePalletView).GetMethod("PadGBAPaletteTo16",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+        byte[] input = new byte[10];
+        input[0] = 0x1F;
+        byte[] result = (byte[])method.Invoke(null, new object[] { input });
+        Assert.Equal(32, result.Length);
+        Assert.Equal(0x1F, result[0]);
+        for (int i = 10; i < 32; i++) Assert.Equal(0, result[i]);
+    }
+
+    static byte[] PadHelper(byte[] gbaPalette)
+    {
+        const int needed = 32;
+        byte[] padded = new byte[needed];
+        if (gbaPalette != null)
+            System.Array.Copy(gbaPalette, padded, System.Math.Min(gbaPalette.Length, needed));
+        return padded;
+    }
+
     static void PlantLZ77(ROM rom, uint offset, byte[] raw)
     {
         byte[] comp = LZ77.compress(raw);
