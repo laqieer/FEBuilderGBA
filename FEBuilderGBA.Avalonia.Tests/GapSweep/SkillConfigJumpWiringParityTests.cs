@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// #895 — navigate-only SkillConfig Jump-button wiring parity tests.
+//
+// Mirrors the merged ImageMagicFEditorView.JumpEditor_Click (#894)
+// navigate-only pattern across the 5 SkillConfig views:
+//   - JumpToEditor_Click  → WindowManager.Instance.Open<ToolAnimationCreatorView>()
+//   - JumpToCombatArt_Click (FE8NVer3 only) → WindowManager.Instance.Open<PatchManagerView>()
+//
+// These are Roslyn-static source-text assertions (no Avalonia head, no ROM):
+// each view's `.axaml.cs` JumpToEditor_Click body must now contain the
+// `WindowManager.Instance.Open<ToolAnimationCreatorView>` open call and must NO
+// LONGER contain a `Log.Debug` no-op for that handler. FE8NVer3's
+// JumpToCombatArt_Click must open PatchManagerView.
+//
+// NOTE: the NavigationTargets manifest / IssueRef KnownGap / button-wired
+// AutomationId tests already exist in the per-view parity files — this file
+// adds ONLY the new handler-body open-source assertion value (per the #895
+// approved-plan correction: do not duplicate the manifest/button tests).
+using System;
+using System.IO;
+using Xunit;
+
+namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
+
+public class SkillConfigJumpWiringParityTests
+{
+    // -----------------------------------------------------------------
+    // JumpToEditor_Click → ToolAnimationCreatorView (all 5 views).
+    // -----------------------------------------------------------------
+
+    [Theory]
+    [InlineData("SkillConfigFE8NSkillView.axaml.cs")]
+    [InlineData("SkillConfigFE8NVer2SkillView.axaml.cs")]
+    [InlineData("SkillConfigFE8NVer3SkillView.axaml.cs")]
+    [InlineData("SkillConfigFE8UCSkillSys09xView.axaml.cs")]
+    [InlineData("SkillConfigSkillSystemView.axaml.cs")]
+    public void JumpToEditor_OpensAnimationCreator_NotLogDebugNoop(string viewFile)
+    {
+        string body = ExtractHandlerBody(ReadViewSource(viewFile), "JumpToEditor_Click");
+
+        // The body must now perform the navigate-only open via WindowManager.
+        Assert.Matches(@"WindowManager\.Instance\.Open<", body);
+        Assert.Contains("WindowManager.Instance.Open<ToolAnimationCreatorView>", body);
+
+        // The stub Log.Debug no-op must be gone from THIS handler.
+        Assert.DoesNotContain("Log.Debug", body);
+    }
+
+    // -----------------------------------------------------------------
+    // JumpToCombatArt_Click → PatchManagerView (FE8NVer3 only).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void FE8NVer3_JumpToCombatArt_OpensPatchManager_NotLogDebugNoop()
+    {
+        string body = ExtractHandlerBody(
+            ReadViewSource("SkillConfigFE8NVer3SkillView.axaml.cs"),
+            "JumpToCombatArt_Click");
+
+        Assert.Matches(@"WindowManager\.Instance\.Open<", body);
+        Assert.Contains("WindowManager.Instance.Open<PatchManagerView>", body);
+        Assert.DoesNotContain("Log.Debug", body);
+    }
+
+    // -----------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------
+
+    static string ReadViewSource(string viewFile)
+    {
+        string repoRoot = FindRepoRoot();
+        string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views", viewFile);
+        Assert.True(File.Exists(path), $"View source not found at {path}");
+        return File.ReadAllText(path);
+    }
+
+    /// <summary>
+    /// Extract the brace-balanced body of the named click handler from the
+    /// code-behind source text. Returns the substring between the handler's
+    /// opening `{` and its matching `}` so source assertions are scoped to the
+    /// single handler (not the whole file).
+    /// </summary>
+    static string ExtractHandlerBody(string source, string handlerName)
+    {
+        string signature = $"void {handlerName}(object? sender, RoutedEventArgs e)";
+        int sigIdx = source.IndexOf(signature, StringComparison.Ordinal);
+        Assert.True(sigIdx >= 0, $"Handler '{handlerName}' not found in source");
+
+        int openBrace = source.IndexOf('{', sigIdx);
+        Assert.True(openBrace >= 0, $"Opening brace for '{handlerName}' not found");
+
+        int depth = 0;
+        for (int i = openBrace; i < source.Length; i++)
+        {
+            char c = source[i];
+            if (c == '{') depth++;
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0)
+                    return source.Substring(openBrace + 1, i - openBrace - 1);
+            }
+        }
+        throw new InvalidOperationException(
+            $"Unbalanced braces extracting '{handlerName}' body");
+    }
+
+    /// <summary>
+    /// Walk parent directories from the test bin/ folder until we find the
+    /// repo root (identified by FEBuilderGBA.sln). Mirrors the existing
+    /// per-view parity tests' FindRepoRoot helper.
+    /// </summary>
+    static string FindRepoRoot()
+    {
+        string? dir = AppContext.BaseDirectory;
+        while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+        {
+            dir = Path.GetDirectoryName(dir);
+        }
+        if (dir == null)
+            throw new InvalidOperationException("Could not find FEBuilderGBA.sln from test base directory");
+        return dir;
+    }
+}
