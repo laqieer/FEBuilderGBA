@@ -771,6 +771,17 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Public wrapper around <see cref="TryLoadRawPalette"/> for callers
+        /// outside the Core assembly (e.g. the Avalonia view's per-image import
+        /// path, #872). Reads the RAW 16-bank battle-screen palette (512 bytes,
+        /// NOT LZ77) directly at <c>battle_screen_palette_pointer</c>.
+        /// Returns <c>false</c> (null output) if the pointer or its 512-byte
+        /// span is out of bounds.
+        /// </summary>
+        public static bool TryLoadRawPalettePublic(ROM rom, out byte[] gbaPalette)
+            => TryLoadRawPalette(rom, out gbaPalette);
+
+        /// <summary>
         /// Read the image pointer stored at <paramref name="pointerSlot"/>
         /// (e.g. <c>RomInfo.battle_screen_image1_pointer</c>). Returns the
         /// resolved ROM offset (0x... without the 0x08 prefix). Returns 0
@@ -797,6 +808,59 @@ namespace FEBuilderGBA
             // the 4-byte span before writing so we don't throw mid-undo-scope.
             if (!IsRegionSafe(rom, pointerSlot, 4)) return false;
             rom.write_p32(pointerSlot, newAddr);
+            return true;
+        }
+
+        /// <summary>
+        /// Import a single battle-screen image strip (imageIndex 0..4) by
+        /// writing new LZ77-compressed 4bpp tile data to ROM free space and
+        /// repointing the corresponding image pointer slot.
+        ///
+        /// This mirrors the WF <c>RevChipImage</c> per-iteration write path:
+        ///   1. The caller provides indexed pixel data already mapped to the
+        ///      shared battle-screen palette (palette is NOT written by this
+        ///      method -- it is shared across all 5 strips).
+        ///   2. The pixels are encoded to raw 4bpp tiles via
+        ///      <see cref="ImageImportCore.EncodeDirectTiles4bpp"/> (no TSA
+        ///      dedup -- each strip is a plain tile sheet laid out at the
+        ///      per-image width, exactly how
+        ///      <c>ByteToImage16Tile</c>/<c>DecodeTileToPixels</c> reads them).
+        ///   3. The tile bytes are LZ77-compressed and written to free space.
+        ///   4. The image pointer slot is updated to the new address.
+        ///
+        /// All writes run under the caller's ambient undo scope
+        /// (<see cref="ROM.BeginUndoScope"/>). Caller MUST wrap in
+        /// <c>UndoService.Begin/Commit/Rollback</c>. Returns <c>true</c> on
+        /// success; <c>false</c> on any validation or write failure (no partial
+        /// ROM state on false -- the undo scope reverts all writes so far).
+        ///
+        /// <paramref name="imageIndex"/> must be in [0..4]. Out-of-range or
+        /// null ROM/pixels returns false immediately without touching ROM.
+        /// </summary>
+        public static bool WritePerImageStrip(ROM rom, int imageIndex, byte[] indexedPixels,
+            int widthPx, int heightPx)
+        {
+            if (rom == null || rom.RomInfo == null) return false;
+            if (imageIndex < 0 || imageIndex > 4) return false;
+            if (indexedPixels == null) return false;
+            if (widthPx <= 0 || heightPx <= 0) return false;
+            if (widthPx % 8 != 0 || heightPx % 8 != 0) return false;
+            if (indexedPixels.Length != widthPx * heightPx) return false;
+
+            uint[] slots = ImagePointerSlots(rom);
+            uint pointerSlot = slots[imageIndex];
+
+            // Encode indexed pixels to raw 4bpp tile bytes (no TSA dedup --
+            // strips are plain tile sheets, matching DecodeTileToPixels layout).
+            byte[] tileBytes = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, widthPx, heightPx);
+            if (tileBytes == null || tileBytes.Length == 0) return false;
+
+            // LZ77-compress and write to ROM free space + update pointer.
+            // ImageImportCore.WriteCompressedToROM uses the ambient undo scope
+            // and returns U.NOT_FOUND on failure.
+            uint newAddr = ImageImportCore.WriteCompressedToROM(rom, tileBytes, pointerSlot);
+            if (newAddr == U.NOT_FOUND) return false;
+
             return true;
         }
     }

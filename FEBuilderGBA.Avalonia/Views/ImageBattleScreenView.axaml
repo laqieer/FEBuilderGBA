@@ -383,11 +383,13 @@
                              Name="Image1ZImage" Width="160" Minimum="0" Maximum="4294967295"
                              FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image1_Import_Button"
-                      Content="Image Import" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image LZ77 Import (ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByte16Tile) is WinForms-coupled (#393)." />
+                      Name="Image1ImportButton"
+                      Content="Image Import" Width="140"
+                      Click="Image1Import_Click" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image1_Export_Button"
-                      Content="Image Export" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image PNG Export (ImageFormRef.ExportImage) is WinForms-coupled (#393)." />
+                      Name="Image1ExportButton"
+                      Content="Image Export" Width="140"
+                      Click="Image1Export_Click" />
             </StackPanel>
             <!-- Image1 per-image preview (#816): rendered at its NATURAL W x H
                  (ImageBattleScreenCore.RenderSingleImagePreview(0), palette
@@ -416,11 +418,13 @@
                              Name="Image2ZImage" Width="160" Minimum="0" Maximum="4294967295"
                              FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image2_Import_Button"
-                      Content="Image Import" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+                      Name="Image2ImportButton"
+                      Content="Image Import" Width="140"
+                      Click="Image2Import_Click" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image2_Export_Button"
-                      Content="Image Export" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+                      Name="Image2ExportButton"
+                      Content="Image Export" Width="140"
+                      Click="Image2Export_Click" />
               <!-- Image2 per-image preview (#816): liner-width x 8px row
                    (RenderSingleImagePreview(1), palette bank 0, index 0 opaque). -->
               <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
@@ -439,11 +443,13 @@
                              Name="Image3ZImage" Width="160" Minimum="0" Maximum="4294967295"
                              FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image3_Import_Button"
-                      Content="Image Import" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+                      Name="Image3ImportButton"
+                      Content="Image Import" Width="140"
+                      Click="Image3Import_Click" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image3_Export_Button"
-                      Content="Image Export" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+                      Name="Image3ExportButton"
+                      Content="Image Export" Width="140"
+                      Click="Image3Export_Click" />
               <!-- Image3 per-image preview (#816): liner-width x 8px row
                    (RenderSingleImagePreview(2), palette bank 0, index 0 opaque). -->
               <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
@@ -469,11 +475,13 @@
                              Name="Image4ZImage" Width="160" Minimum="0" Maximum="4294967295"
                              FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image4_Import_Button"
-                      Content="Image Import" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+                      Name="Image4ImportButton"
+                      Content="Image Import" Width="140"
+                      Click="Image4Import_Click" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image4_Export_Button"
-                      Content="Image Export" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+                      Name="Image4ExportButton"
+                      Content="Image Export" Width="140"
+                      Click="Image4Export_Click" />
               <!-- Image4 per-image preview (#816): liner-width x 8px row
                    (RenderSingleImagePreview(3), palette bank 0, index 0 opaque). -->
               <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
@@ -492,11 +500,13 @@
                              Name="Image5ZImage" Width="160" Minimum="0" Maximum="4294967295"
                              FormatString="0" VerticalAlignment="Center" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image5_Import_Button"
-                      Content="Image Import" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image LZ77 Import is WinForms-coupled (#393)." />
+                      Name="Image5ImportButton"
+                      Content="Image Import" Width="140"
+                      Click="Image5Import_Click" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_Image5_Export_Button"
-                      Content="Image Export" Width="140" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: per-image PNG Export is WinForms-coupled (#393)." />
+                      Name="Image5ExportButton"
+                      Content="Image Export" Width="140"
+                      Click="Image5Export_Click" />
               <!-- Image5 per-image preview (#816): liner-width x 8px row
                    (RenderSingleImagePreview(4), palette bank 0, index 0 opaque). -->
               <Border BorderBrush="Gray" BorderThickness="1" Padding="4" MinHeight="40" Width="200"
