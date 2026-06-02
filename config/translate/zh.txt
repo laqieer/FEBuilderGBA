@@ -23814,3 +23814,15 @@ CSA魔法动画导入失败: {0}
 
 :Import a same-size image as the main tilesheet (palette and TSA are not changed).
 导入与主图块表相同尺寸的图像（不会更改调色板和TSA）。
+
+:Select a palette entry first.
+请先选择一个调色板条目。
+
+:Image service not initialized.
+图像服务未初始化。
+
+:The image must use 16 colors or fewer. Reduce its color count and try again.
+图像必须使用16种或更少的颜色。请减少颜色数量后重试。
+
+:Import failed:
+导入失败：

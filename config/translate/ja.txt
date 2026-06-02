@@ -9982,3 +9982,15 @@ CSA Creatorのマジックシステムが検出されません。先にパッチ
 
 :Import a same-size image as the main tilesheet (palette and TSA are not changed).
 メイン画像のタイルシートに同じサイズの画像をインポートします（パレットとTSAは変更されません）。
+
+:Select a palette entry first.
+先にパレットエントリを選択してください。
+
+:Image service not initialized.
+画像サービスが初期化されていません。
+
+:The image must use 16 colors or fewer. Reduce its color count and try again.
+画像は16色以下である必要があります。色数を減らして再度お試しください。
+
+:Import failed:
+インポートに失敗しました:

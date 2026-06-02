@@ -172,8 +172,8 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_NewAlloc_Button")!.IsEnabled);
             Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Expand_Button")!.IsEnabled);
             Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Clipboard_Button")!.IsEnabled);
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Export_Button")!.IsEnabled);
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Import_Button")!.IsEnabled);
+            // #904: Export/Import Image are now functional — they are no longer
+            // disabled KnownGap stubs.
             Assert.False(FindByAutomationId<ComboBox>(view, "ImageUnitPalette_Zoom_Combo")!.IsEnabled);
         }
 

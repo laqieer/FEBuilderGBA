@@ -337,6 +337,134 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        /// <summary>
+        /// #904: Export the rendered class battle-anime SAMPLE GRID preview as a
+        /// PNG. Delegates to <see cref="Controls.GbaImageControl.ExportPng"/> on
+        /// the SamplePreview control — that helper owns the Skia IImage backing
+        /// store, the save dialog, and the null-guard (no-ops when no preview is
+        /// rendered). Read-only: never touches the ROM. Mirrors WinForms
+        /// ImageUnitPaletteForm.ExportButton_Click (which exports DrawBitmap, the
+        /// same recolored sample grid).
+        /// </summary>
+        async void ExportImage_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await SamplePreview.ExportPng(this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.ExportImage: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// #904: Import a ≤16-color image's palette into the 16 R/G/B
+        /// NumericUpDowns, then write it back to ROM via the existing
+        /// <see cref="PaletteWrite_Click"/> path. Mirrors WinForms
+        /// ImageUnitPaletteForm.ImportButton_Click
+        /// (MakePaletteBitmapToUIEx -> PaletteWrite).
+        ///
+        /// CORRECTION 3a: rejects (with a localized error, NO change) any image
+        /// with more than 16 distinct colors — no quantization, which would
+        /// scramble the semantic index order.
+        /// CORRECTION 3b: extracts the 16 entries IN INDEX ORDER (index 0 =
+        /// transparent/backdrop) via <see cref="UnitPaletteImportCore"/>.
+        /// CORRECTION 2: populates the NumericUpDown controls (the source of
+        /// truth PaletteWrite_Click reads), NOT the VM channels.
+        /// </summary>
+        async void ImportImage_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Guard: require a selected palette entry (mirrors PaletteWrite).
+                if (_vm.CurrentAddr == 0)
+                {
+                    CoreState.Services?.ShowError(R._("Select a palette entry first."));
+                    return;
+                }
+                if (CoreState.ImageService == null)
+                {
+                    CoreState.Services?.ShowError(R._("Image service not initialized."));
+                    return;
+                }
+
+                string? path = await Dialogs.FileDialogHelper.OpenImageFile(this);
+                if (string.IsNullOrEmpty(path)) return; // user cancelled
+
+                ImportFromFile(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.ImportImage: {0}", ex.Message);
+                CoreState.Services?.ShowError($"{R._("Import failed:")} {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Dialog-free import core (testable seam): load the image, run the
+        /// ≤16-color guard + ordered extraction, populate the NumericUpDowns,
+        /// then reuse the ROM write. Returns <c>true</c> when the palette was
+        /// applied + written; <c>false</c> when the image was rejected (no UI
+        /// or ROM change). The <see cref="ImportImage_Click"/> handler owns the
+        /// pre-checks (selected entry, image service) + file dialog.
+        /// </summary>
+        internal bool ImportFromFile(string path)
+        {
+            if (_vm.CurrentAddr == 0) return false;
+            var imgService = CoreState.ImageService;
+            if (imgService == null) return false;
+
+            byte[] gbaPalette;
+            byte[] rgbaPixels;
+            using (IImage image = imgService.LoadImage(path))
+            {
+                // Prefer a loader-preserved indexed palette; fall back to the
+                // RGBA pixels (the SkiaSharp loader decodes to RGBA, so this is
+                // the common path). The Core helper handles both.
+                gbaPalette = image.IsIndexed ? image.GetPaletteGBA() : System.Array.Empty<byte>();
+                rgbaPixels = image.IsIndexed ? System.Array.Empty<byte>() : image.GetPixelData();
+            }
+
+            // CORRECTION 3a + 3b: ≤16-color guard + ordered extraction.
+            if (!UnitPaletteImportCore.TryExtractIndexOrdered(
+                    gbaPalette, rgbaPixels, out uint[] r, out uint[] g, out uint[] b))
+            {
+                CoreState.Services?.ShowError(
+                    R._("The image must use 16 colors or fewer. Reduce its color count and try again."));
+                return false; // NO change
+            }
+
+            // CORRECTION 2: populate the NumericUpDowns (NOT the VM channels).
+            // PaletteWrite_Click reads _rBoxes/_gBoxes/_bBoxes, so seeding the VM
+            // would cause a stale write. UI-only updates — no undo scope here
+            // (PaletteWrite_Click owns its own).
+            ApplyImportedChannels(r, g, b);
+
+            // Reuse the existing ROM write (owns its undo scope + LZ77/repoint).
+            PaletteWrite_Click(null, null);
+
+            // Refresh the sample preview to reflect the new palette.
+            RefreshSamplePreview();
+            return true;
+        }
+
+        /// <summary>
+        /// Push 16 index-ordered RGB555 channel triples into the swatch
+        /// NumericUpDowns (mirrors the <see cref="UpdateUI"/> swatch loop) and
+        /// repaint each swatch. UI-only; no undo scope.
+        /// </summary>
+        void ApplyImportedChannels(uint[] r, uint[] g, uint[] b)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                if (_rBoxes.Length > i && _rBoxes[i] != null) _rBoxes[i].Value = r[i];
+                if (_gBoxes.Length > i && _gBoxes[i] != null) _gBoxes[i].Value = g[i];
+                if (_bBoxes.Length > i && _bBoxes[i] != null) _bBoxes[i].Value = b[i];
+                RefreshSwatch(i);
+            }
+        }
+
         void Reload_Click(object? sender, RoutedEventArgs e) => LoadList();
 
         static uint ParseHexText(string? text)
