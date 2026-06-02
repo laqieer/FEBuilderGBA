@@ -850,6 +850,12 @@ namespace FEBuilderGBA
             uint[] slots = ImagePointerSlots(rom);
             uint pointerSlot = slots[imageIndex];
 
+            // Validate the pointer slot BEFORE encoding or allocating any data
+            // so a truncated/invalid ROM leaves the ROM completely untouched and
+            // the caller's undo/rollback has nothing to revert (#874 review fix).
+            // Mirrors WriteImagePointer's identical guard (Copilot PR #594 round 2).
+            if (!IsRegionSafe(rom, pointerSlot, 4)) return false;
+
             // Encode indexed pixels to raw 4bpp tile bytes (no TSA dedup --
             // strips are plain tile sheets, matching DecodeTileToPixels layout).
             byte[] tileBytes = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, widthPx, heightPx);

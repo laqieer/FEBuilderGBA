@@ -537,31 +537,34 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
 
         // Image1
-        void Image1Export_Click(object? sender, RoutedEventArgs e) => ImageExport_Click(0, Image1Preview, "battle_screen_image1");
+        async void Image1Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(0, Image1Preview, "battle_screen_image1");
         async void Image1Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(0);
 
         // Image2
-        void Image2Export_Click(object? sender, RoutedEventArgs e) => ImageExport_Click(1, Image2Preview, "battle_screen_image2");
+        async void Image2Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(1, Image2Preview, "battle_screen_image2");
         async void Image2Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(1);
 
         // Image3
-        void Image3Export_Click(object? sender, RoutedEventArgs e) => ImageExport_Click(2, Image3Preview, "battle_screen_image3");
+        async void Image3Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(2, Image3Preview, "battle_screen_image3");
         async void Image3Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(2);
 
         // Image4
-        void Image4Export_Click(object? sender, RoutedEventArgs e) => ImageExport_Click(3, Image4Preview, "battle_screen_image4");
+        async void Image4Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(3, Image4Preview, "battle_screen_image4");
         async void Image4Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(3);
 
         // Image5
-        void Image5Export_Click(object? sender, RoutedEventArgs e) => ImageExport_Click(4, Image5Preview, "battle_screen_image5");
+        async void Image5Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(4, Image5Preview, "battle_screen_image5");
         async void Image5Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(4);
 
         /// <summary>
         /// Export one per-image strip as PNG. Reads the current rendered IImage
         /// from the GbaImageControl (same surface shown in the preview, so what
         /// the user sees is what gets exported). Read-only; no ROM write.
+        /// Mirrors <see cref="BattleExportPng_Click"/>: awaits ExportPng and
+        /// logs/surfaces any File.Create / bitmap.Save exception so it is never
+        /// swallowed as an unobserved task exception (#874 review fix).
         /// </summary>
-        void ImageExport_Click(int imageIndex, Controls.GbaImageControl previewControl, string suggestedName)
+        internal async System.Threading.Tasks.Task ImageExport_Click(int imageIndex, Controls.GbaImageControl previewControl, string suggestedName)
         {
             if (previewControl == null) return;
             if (!previewControl.HasImage)
@@ -569,9 +572,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Notify($"ImageExport_Click({imageIndex}): no image rendered; cannot export.");
                 return;
             }
-            // ExportPng is async (file dialog) but we fire-and-forget here via
-            // async void at the public-facing thin wrappers (no result needed).
-            _ = previewControl.ExportPng(this, suggestedName);
+            try
+            {
+                await previewControl.ExportPng(this, suggestedName);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"ImageBattleScreenView.ImageExport_Click({imageIndex}) failed: {ex.Message}");
+            }
         }
 
         /// <summary>

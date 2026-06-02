@@ -372,6 +372,147 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ---------------------------------------------------------------------------
+        // FIX 1 (#874 review): ImageExport_Click must be async + awaited so
+        // File.Create / bitmap.Save exceptions are never swallowed.
+        // ---------------------------------------------------------------------------
+
+        [Fact]
+        public void CodeBehind_ImageExport_Click_IsAsyncAndAwaited()
+        {
+            string code = System.IO.File.ReadAllText(CodeBehindPath());
+            // The shared ImageExport_Click helper (internal Task) must be async.
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"async\s+.*?Task\s+ImageExport_Click\(",
+                System.Text.RegularExpressions.RegexOptions.Singleline), code);
+        }
+
+        [Fact]
+        public void CodeBehind_ImageExportWrappers_AwaitImageExport_Click()
+        {
+            string code = System.IO.File.ReadAllText(CodeBehindPath());
+            // All five thin wrappers (Image1..Image5Export_Click) must await
+            // ImageExport_Click rather than fire-and-forget.
+            for (int i = 1; i <= 5; i++)
+            {
+                Assert.Matches(new System.Text.RegularExpressions.Regex(
+                    $@"async\s+void\s+Image{i}Export_Click[\s\S]{{0,200}}await\s+ImageExport_Click\(",
+                    System.Text.RegularExpressions.RegexOptions.Singleline), code);
+            }
+        }
+
+        [Fact]
+        public void CodeBehind_ImageExport_Click_HasTryCatch()
+        {
+            string code = System.IO.File.ReadAllText(CodeBehindPath());
+            // The export handler must wrap ExportPng in a try/catch that logs
+            // failures (mirrors BattleExportPng_Click error-handling pattern).
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"await\s+previewControl\.ExportPng[\s\S]{0,200}catch\s*\(\s*Exception",
+                System.Text.RegularExpressions.RegexOptions.Singleline), code);
+        }
+
+        // ---------------------------------------------------------------------------
+        // FIX 2 (#874 review): WritePerImageStrip with an unsafe pointerSlot
+        // (zero / out-of-bounds) must return false and NOT throw or corrupt.
+        //
+        // Strategy: use a ROMFE0 ("NAZO") ROM whose battle_screen_image1_pointer
+        // defaults to 0 (uninitialized). isSafetyOffset(0, rom) is false because
+        // 0 < 0x200, so IsRegionSafe(rom, 0, 4) returns false — the guard fires
+        // before any data is encoded or written.
+        // ---------------------------------------------------------------------------
+
+        /// <summary>
+        /// Build a NAZO ROM (ROMFE0) whose pointer properties are zero-initialized
+        /// so the image pointer slots are 0, which is below the isSafetyOffset
+        /// lower-bound (0x200) and therefore rejected by IsRegionSafe.
+        /// </summary>
+        static ROM MakeUnsafeSlotRom()
+        {
+            var rom = new ROM();
+            // NAZO version requires any size (no minimum). Use 1 MB.
+            byte[] data = new byte[0x100000];
+            // Fill with 0xFF so there are no false free-space hits.
+            Array.Fill(data, (byte)0xFF);
+            rom.LoadLow("nazo.gba", data, "NAZO");
+            // ROMFE0.battle_screen_image1_pointer == 0 (default for unset uint).
+            return rom;
+        }
+
+        [Fact]
+        public void WritePerImageStrip_UnsafePointerSlot_ReturnsFalseNoThrow()
+        {
+            // The NAZO ROM has battle_screen_image1_pointer == 0, which fails
+            // IsRegionSafe (0 < 0x200). WritePerImageStrip must return false
+            // without throwing and without calling WriteCompressedToROM.
+            ROM rom = MakeUnsafeSlotRom();
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+
+                int w = 8, h = 8;
+                byte[] pixels = MakeSolidIndexedPixels(w, h, palIndex: 1);
+
+                bool result = true; // set to true so we can detect it going false
+                var ex = Record.Exception(() =>
+                {
+                    Undo.UndoData ud = CoreState.Undo.NewUndoData("test unsafe slot");
+                    using (ROM.BeginUndoScope(ud))
+                    {
+                        result = ImageBattleScreenCore.WritePerImageStrip(rom, 0, pixels, w, h);
+                    }
+                });
+                Assert.Null(ex);
+                Assert.False(result);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        [Fact]
+        public void WritePerImageStrip_UnsafePointerSlot_DoesNotCorruptROM()
+        {
+            // Same NAZO ROM. Verifies that NO ROM bytes change when the guard
+            // fires (early return before EncodeDirectTiles4bpp means
+            // WriteCompressedToROM is never reached).
+            ROM rom = MakeUnsafeSlotRom();
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+
+                // Snapshot ALL bytes.
+                byte[] before = (byte[])rom.Data.Clone();
+
+                int w = 8, h = 8;
+                byte[] pixels = MakeSolidIndexedPixels(w, h, palIndex: 2);
+
+                Undo.UndoData ud = CoreState.Undo.NewUndoData("test corrupt guard");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    ImageBattleScreenCore.WritePerImageStrip(rom, 0, pixels, w, h);
+                }
+
+                // Every byte must be byte-for-byte identical — no partial write.
+                Assert.Equal(before.Length, rom.Data.Length);
+                for (int i = 0; i < before.Length; i++)
+                    Assert.Equal(before[i], rom.Data[i]);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // ---------------------------------------------------------------------------
         // Helpers
         // ---------------------------------------------------------------------------
 
