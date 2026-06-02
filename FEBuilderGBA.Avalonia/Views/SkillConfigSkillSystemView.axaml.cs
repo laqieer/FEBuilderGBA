@@ -243,7 +243,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigSkillSystemView.JumpToEditor_Click invoked - disabled until ToolAnimationCreatorView.Init lands (#500)");
+            // Navigate-only open; full Init/struct-jump context is the
+            // symmetric #500/#374 follow-up. Mirrors the merged
+            // ImageMagicFEditorView.JumpEditor_Click (#894) pattern.
+            try
+            {
+                WindowManager.Instance.Open<ToolAnimationCreatorView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SkillConfigSkillSystemView.JumpToEditor_Click failed: {0}", ex.Message);
+            }
         }
 
         void BulkImport_Click(object? sender, RoutedEventArgs e)
