@@ -368,8 +368,8 @@
                   Click="Clipboard_Click" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Import_Button"
                   Name="ImportButton" Content="Import Image" Width="140"
-                  IsEnabled="False"
-                  ToolTip.Tip="Deferred KnownGap: Import requires the rendered sample bitmap (WinForms-coupled DrawBattleAnime via PaletteFormRef.MakePaletteBitmapToUIEx) (#399)." />
+                  IsEnabled="True"
+                  Click="Import_Click" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Export_Button"
                   Name="ExportButton" Content="Export Image" Width="140"
                   IsEnabled="False"

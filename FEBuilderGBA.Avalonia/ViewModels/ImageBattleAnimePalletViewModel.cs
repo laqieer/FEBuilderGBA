@@ -293,6 +293,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Apply a 16-color GBA palette (32 bytes, RGB555 u16 LE pairs) to
+        /// the VM R/G/B arrays. Mirrors WinForms
+        /// <c>PaletteFormRef.MakePaletteBitmapToUI(bitmap, palette_index:0)</c>.
+        ///
+        /// <para>This is the injectable seam used by the file-import path and
+        /// by unit tests (pass a hand-crafted 32-byte array instead of a
+        /// file-dialog result). Caller wraps <see cref="Write"/> in
+        /// <c>UndoService.Begin/Commit/Rollback</c> after this; this method
+        /// itself is pure-state (no ROM writes).</para>
+        /// </summary>
+        /// <param name="gbaPalette16">
+        /// 32 bytes: 16 GBA u16 colors in little-endian RGB555 format.
+        /// Must be non-null and at least 32 bytes. Excess bytes are ignored.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> on success; <c>false</c> if null or shorter than 32 bytes.
+        /// </returns>
+        public bool DoImport(byte[] gbaPalette16)
+        {
+            if (gbaPalette16 == null || gbaPalette16.Length < ImageBattleAnimePaletteCore.SlotByteSize)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < ImageBattleAnimePaletteCore.ColorsPerSlot; i++)
+            {
+                ushort gba = (ushort)(gbaPalette16[i * 2] | (gbaPalette16[i * 2 + 1] << 8));
+                _r[i] = (byte)(((gba) & 0x1F) << 3);
+                _g[i] = (byte)(((gba >> 5) & 0x1F) << 3);
+                _b[i] = (byte)(((gba >> 10) & 0x1F) << 3);
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Pack the UI R/G/B rows into GBA u16 colors and call
         /// <see cref="ImageBattleAnimePaletteCore.WritePalette"/>. Caller
         /// must wrap this in <c>UndoService.Begin/Commit/Rollback</c>.
