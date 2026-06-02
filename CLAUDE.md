@@ -381,6 +381,17 @@ Specialized utilities for different graphic types:
   Used by both WinForms `ToolLZ77Form` and Avalonia `ToolLZ77ViewModel`.
   Uses ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search
   (event-aware path is explicitly out of scope — `MissingEventAwareCoverage` flag always set).
+- `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) - Cross-platform EXPORT seam for
+  SkillSystems skill animations (ported from WinForms `ImageUtilSkillSystemsAnimeCreator.Export`).
+  `SkipCode(rom, animeAddr, out isDefender)` resolves the anime-config (FE8J direct;
+  FE8U skips the embedded `config/patch2/FE8U/skill/skillanimtemplate*.dmp` program and
+  flags the defender variant); `ExportSkillAnimation` walks frames to the `0xFFFF`
+  terminator, LZ77-decompresses OBJ+TSA, renders each 240×(≥160) via
+  `ImageUtilCore.DecodeTSA` (TILE-unit args, `opaqueIndex0:true` to match WF
+  `ByteToImage16Tile`); `BuildScriptLines` emits the `.txt` script. The shared
+  Avalonia `SkillConfigAnimeExportHelper` writes `.txt`+PNGs or an animated GIF
+  (`U.GameFrameSecToGifFrameSec` delays) for the 4 animation-bearing SkillConfig
+  views (FE8N Ver1 stays a stub; import remains WinForms-only) (#910).
 
 ### Caching System
 
