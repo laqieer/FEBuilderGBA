@@ -10,6 +10,7 @@ using System.Globalization;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -408,6 +409,158 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("ImageBattleAnimePalletView.RefreshListPreservingSelection failed: {0}", ex.Message);
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Import path — mirrors WF PaletteFormRef.MakePaletteBitmapToUIEx
+        // (file-picker → quantize → load palette into VM → write to ROM).
+        // No dependency on DrawBattleAnime — the WF tooltip was wrong.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Open a file picker, load and quantize the chosen image to 16 GBA
+        /// RGB555 colors, apply them to the VM, then write to ROM under a
+        /// single <see cref="UndoService"/> scope. Mirrors WinForms
+        /// <c>ImportButton_Click</c>: PaletteFormRef.MakePaletteBitmapToUIEx
+        /// (file open → palette extract) + PaletteWriteButton.PerformClick().
+        /// </summary>
+        async void Import_Click(object sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded || _vm.PaletteAddress == 0)
+            {
+                Log.Notify("Import_Click: no palette loaded.");
+                return;
+            }
+
+            // Open file dialog — mirrors WF ImageFormRef.OpenFilenameDialogFullColor.
+            string filePath = await FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath))
+            {
+                return; // User cancelled.
+            }
+
+            DoImportFromFile(filePath);
+        }
+
+        /// <summary>
+        /// Load, quantize, apply, and write the palette from
+        /// <paramref name="filePath"/>. Extracted so tests can inject a path
+        /// without a file dialog (injectable seam — calls <see cref="_vm.DoImport"/>
+        /// which is the VM-level seam).
+        /// </summary>
+        internal void DoImportFromFile(string filePath)
+        {
+            // Quantize to 16 GBA colors — no dimension validation needed;
+            // only the palette matters for this editor.
+            // Use a 1x1 dummy size to skip the "must be multiples of 8" guard
+            // by passing 0 for expected dimensions (ImageImportService skips
+            // the strict-size check when strictSize=false and expectedWidth/Height=0).
+            var loadResult = ImageImportService.LoadAndQuantizeFromFile(filePath,
+                expectedWidth: 0, expectedHeight: 0,
+                maxColors: ImageBattleAnimePaletteCore.ColorsPerSlot,
+                strictSize: false,
+                requireTileMultiple: false); // FIX 1 (#871): palette-only accepts any image size
+
+            if (loadResult == null || !loadResult.Success)
+            {
+                string err = loadResult?.Error ?? "Unknown error";
+                Log.Error("Import_Click: image load/quantize failed: {0}", err);
+                return;
+            }
+
+            // Pad to exactly 32 bytes if fewer than 16 colors quantized.
+            byte[] gbaPalette = PadGBAPaletteTo16(loadResult.GBAPalette);
+
+            // FIX 2 (#871): snapshot VM palette BEFORE DoImport so we can
+            // restore the VM/UI if the ROM write later fails or returns
+            // U.NOT_FOUND. Without this, the ROM is rolled back by
+            // UndoService but the VM still shows the imported (unpersisted)
+            // palette -- an inconsistent UI state.
+            byte[] rSnap = new byte[16], gSnap = new byte[16], bSnap = new byte[16];
+            for (int si = 0; si < 16; si++)
+            {
+                rSnap[si] = _vm.GetR(si);
+                gSnap[si] = _vm.GetG(si);
+                bSnap[si] = _vm.GetB(si);
+            }
+
+            bool applied = _vm.DoImport(gbaPalette);
+            if (!applied)
+            {
+                Log.Error("Import_Click: DoImport rejected palette bytes (null or < 32 bytes)");
+                return;
+            }
+
+            // Sync spinners + swatches to the new VM colors before writing.
+            PopulateAllSpinnersAndSwatches();
+
+            // Write to ROM under a single undo scope — same flow as PaletteWrite_Click.
+            _undoService.Begin("Import Battle Anime Palette");
+            uint newOffset;
+            try
+            {
+                newOffset = _vm.Write();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Import_Click: Write threw: {0}", ex.Message);
+                _undoService.Rollback();
+                // FIX 2: restore pre-import VM state so the UI matches the rolled-back ROM.
+                RestorePaletteSnapshot(rSnap, gSnap, bSnap);
+                return;
+            }
+
+            if (newOffset == U.NOT_FOUND)
+            {
+                _undoService.Rollback();
+                Log.Notify("Import_Click: write failed; rollback applied.");
+                // FIX 2: restore pre-import VM state so the UI matches the rolled-back ROM.
+                RestorePaletteSnapshot(rSnap, gSnap, bSnap);
+                return;
+            }
+
+            _undoService.Commit();
+            AddressBox.Value = _vm.PaletteAddress;
+            if (newOffset != U.NOT_FOUND)
+            {
+                RefreshListPreservingSelection();
+            }
+        }
+
+        /// <summary>
+        /// Restore the VM R/G/B arrays from a pre-import snapshot and refresh
+        /// the spinners/swatches. Called when a ROM write fails so the UI stays
+        /// in sync with the rolled-back ROM state. FIX 2 (#871).
+        /// </summary>
+        void RestorePaletteSnapshot(byte[] rSnap, byte[] gSnap, byte[] bSnap)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                _vm.SetR(i, rSnap[i]);
+                _vm.SetG(i, gSnap[i]);
+                _vm.SetB(i, bSnap[i]);
+            }
+            PopulateAllSpinnersAndSwatches();
+        }
+
+        /// <summary>
+        /// Pad <em>or truncate</em> a GBA palette byte array to exactly
+        /// <see cref="ImageBattleAnimePaletteCore.SlotByteSize"/> (32) bytes.
+        /// Required because <see cref="DecreaseColorCore.Quantize"/> may
+        /// return fewer than 16 colors when the source image has few
+        /// distinct hues; extra colors beyond 16 are dropped. FIX 3 (#871).
+        /// </summary>
+        static byte[] PadGBAPaletteTo16(byte[] gbaPalette)
+        {
+            int needed = ImageBattleAnimePaletteCore.SlotByteSize; // 32
+            // FIX 3 (#871): always copy into a fresh 32-byte buffer (truncate when longer,
+            // zero-fill when shorter or null). Prior impl returned array unchanged >= 32 bytes.
+            byte[] padded = new byte[needed];
+            if (gbaPalette != null)
+            {
+                System.Array.Copy(gbaPalette, padded, Math.Min(gbaPalette.Length, needed));
+            }
+            return padded;
         }
 
         void Clipboard_Click(object sender, RoutedEventArgs e)
