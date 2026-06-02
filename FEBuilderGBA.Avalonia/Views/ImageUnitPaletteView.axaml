@@ -347,11 +347,9 @@
                         Content="Clipboard" IsEnabled="False"
                         ToolTip.Tip="KnownGap" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Export_Button"
-                        Content="Export Image" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        Content="Export Image" Name="ExportImageButton" Click="ExportImage_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Import_Button"
-                        Content="Import Image" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        Content="Import Image" Name="ImportImageButton" Click="ImportImage_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_UNDO_Button"
                         Content="UNDO" IsEnabled="False"
                         ToolTip.Tip="KnownGap" />
