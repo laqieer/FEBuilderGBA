@@ -5,13 +5,20 @@
 // `ExportOBjFrameImage()` (~lines 63-162), `ExportBGFrameImage()`
 // (~lines 164-231).
 //
+// CSA Creator extension (#886): CSA_Creator frames have an EXTRA +28 TSA
+// pointer beyond the standard 28-byte FEditor layout (total 32 bytes per
+// frame record). `ExportMagicScriptLines` reads +28 when `isCsa=true`;
+// `RenderCsaBgFrameSlot` uses the TSA to composite the BG via plain
+// `ByteToImage16Tile` (not headerTSA). BG hash for CSA = rawBgPtr+rawTsaPtr.
+// OBJ render and .txt format are IDENTICAL to FEditor → shared API is reused.
+//
 // This file is read-only (ZERO ROM mutation). The Avalonia view calls
 // ExportMagicScriptLines() to get the .txt lines + ordered PNG slot list,
-// RenderObjFrameSlot() / RenderBgFrameSlot() to get per-frame PNG bytes,
-// and writes them to disk itself.
+// RenderObjFrameSlot() / RenderCsaBgFrameSlot() / RenderBgFrameSlot() to
+// get per-frame PNG bytes, and writes them to disk itself.
 //
 // Import (frame table + per-frame LZ77 images + palettes + OAM) is a
-// follow-up tracked by #878 PR2.
+// follow-up tracked by #878 PR2 / #886.
 //
 // Frame layout (mirrors WF comments in DrawFrameImage / ExportOBjFrameImage):
 //   +0  frame header u32  (byte[3] == 0x86)
@@ -21,9 +28,12 @@
 //   +16 bgImagePointer    (GBA pointer, LZ77)
 //   +20 objPalettePointer (GBA pointer, RAW 0x20 bytes)
 //   +24 bgPalettePointer  (GBA pointer, RAW 0x20 bytes)
+//   +28 bgTSAPointer      (GBA pointer, LZ77 — CSA Creator ONLY)
 //
-// Frame stride = 28 bytes (4-byte header + 24-byte body); loop advances
-// n+=24 inside (then the outer n+=4 makes 28 total) — mirrors WF exactly.
+// Frame stride:
+//   FEditor: 28 bytes (4-byte header + 24-byte body)
+//   CSA Creator: 32 bytes (4-byte header + 28-byte body, includes +28 TSA)
+//   Loop advances n+=24 (FEditor) or n+=28 (CSA) inside (outer n+=4 = 28/32).
 //
 // WF Export() loop ordering (the single walk this file mirrors):
 //   0x86 → ExportOBjFrameImage(animeHash) → "O  p- <file>"
@@ -37,7 +47,9 @@
 //
 // Single shared anime-hash (FIX 1): WF passes ONE List<uint> animeHash
 // to BOTH ExportOBjFrameImage and ExportBGFrameImage. OBJ hash =
-// (rawObjImagePtr<<8)|(OAMAbsoStart&0xFF); BG hash = rawBgImagePtr.
+// (rawObjImagePtr<<8)|(OAMAbsoStart&0xFF);
+// BG hash (FEditor) = rawBgImagePtr;
+// BG hash (CSA)     = rawBgImagePtr + rawBgTsaPtr (mirrors WF CSA ExportBGFrameImage).
 // Both call animeHash.IndexOf()/.Count on the SAME list so a BG slot is
 // numbered AFTER any OBJ slots (e.g. frame 0 new OBJ → slot 0, new BG
 // → slot 1).
@@ -73,6 +85,12 @@ namespace FEBuilderGBA
         public uint RawBgImagePtr;
         public uint RawObjPalPtr;
         public uint RawBgPalPtr;
+        /// <summary>GBA pointer to the LZ77-compressed BG TSA arrangement
+        /// (CSA Creator frame layout +28 only; 0 for FEditor frames).</summary>
+        public uint RawBgTsaPtr;
+        /// <summary>ROM offset of the LZ77-compressed BG TSA arrangement
+        /// (CSA Creator frames only; 0 for FEditor frames).</summary>
+        public uint BgTsaOffset;
     }
 
     /// <summary>
@@ -165,8 +183,11 @@ namespace FEBuilderGBA
         /// handled entirely by this single walk; the view's buggy
         /// <c>DetectMissContinuation</c> is removed.</para>
         ///
-        /// <para>EOF-safe: guards n+4 and n+28 before every read.</para>
+        /// <para>EOF-safe: guards n+4 and n+28 (or n+32 for CSA) before every read.</para>
         /// </summary>
+        /// <param name="isCsa">When <c>true</c> reads the +28 TSA pointer (CSA Creator
+        /// frame layout, 32-byte record). When <c>false</c> uses the standard 28-byte
+        /// FEditor record with no TSA.</param>
         public static List<MagicScriptLine> ExportMagicScriptLines(
             ROM rom,
             uint frameDataAddr,
@@ -174,7 +195,8 @@ namespace FEBuilderGBA
             bool enableComment,
             out List<int> sharedObjSlots,
             out List<int> sharedBgSlots,
-            out List<MagicFrameMeta> frames)
+            out List<MagicFrameMeta> frames,
+            bool isCsa = false)
         {
             sharedObjSlots = new List<int>();
             sharedBgSlots  = new List<int>();
@@ -274,7 +296,9 @@ namespace FEBuilderGBA
                 }
 
                 if (cmd != 0x86) break;
-                if (n + 28 > dataLen) break;
+                // CSA frames are 32 bytes (adds +28 TSA); FEditor frames are 28 bytes.
+                uint minFrameBytes = isCsa ? 32u : 28u;
+                if (n + minFrameBytes > dataLen) break;
 
                 uint wait      = U.u16(data, n);
                 uint rawObjImg = U.u32(data, n + 4);
@@ -283,6 +307,8 @@ namespace FEBuilderGBA
                 uint rawBgImg  = U.u32(data, n + 16);
                 uint rawObjPal = U.u32(data, n + 20);
                 uint rawBgPal  = U.u32(data, n + 24);
+                // +28: CSA only — LZ77-compressed BG TSA arrangement.
+                uint rawBgTsa  = isCsa ? U.u32(data, n + 28) : 0u;
 
                 frames.Add(new MagicFrameMeta
                 {
@@ -298,6 +324,9 @@ namespace FEBuilderGBA
                     RawBgImagePtr    = rawBgImg,
                     RawObjPalPtr     = rawObjPal,
                     RawBgPalPtr      = rawBgPal,
+                    RawBgTsaPtr      = rawBgTsa,
+                    BgTsaOffset      = (rawBgTsa != 0 && U.isPointer(rawBgTsa))
+                                           ? U.toOffset(rawBgTsa) : rawBgTsa,
                 });
 
                 // OBJ — shared hash (FIX 1)
@@ -313,7 +342,9 @@ namespace FEBuilderGBA
                 });
 
                 // BG — shared hash (FIX 1)
-                uint bgHash = rawBgImg;
+                // CSA: hash = rawBgImg + rawBgTsa (mirrors WF ExportBGFrameImage CSA path).
+                // FEditor: hash = rawBgImg only.
+                uint bgHash = isCsa ? (rawBgImg + rawBgTsa) : rawBgImg;
                 int bgSlot = animeHash.IndexOf(bgHash);
                 if (bgSlot < 0) { bgSlot = animeHash.Count; animeHash.Add(bgHash); }
                 sharedBgSlots.Add(bgSlot);
@@ -325,7 +356,8 @@ namespace FEBuilderGBA
                 });
 
                 lines.Add(L(MagicScriptLineKind.Wait, wait.ToString()));
-                n += 24; // + 4 from loop = 28 total
+                // CSA: advance 28 (inside) + 4 (outer) = 32; FEditor: 24+4=28.
+                n += isCsa ? 28u : 24u; // + 4 from outer loop
             }
 
             // WF L679: trailing ~~~ commented out — not emitted.
@@ -604,6 +636,55 @@ namespace FEBuilderGBA
         }
 
         // -----------------------------------------------------------------------
+        // RenderCsaBgFrameSlot — CSA Creator BG with TSA-composite render (#886)
+        // -----------------------------------------------------------------------
+
+        /// <summary>
+        /// Render the CSA Creator BG frame image for the given shared slot index.
+        /// Unlike <see cref="RenderBgFrameSlot"/> (which renders a plain 264×64
+        /// FEditor BG tilesheet), this method composites the BG via the +28
+        /// LZ77-compressed TSA arrangement, mirroring WF
+        /// <c>ImageUtilMagicCSACreator.ExportBGFrameImage</c>.
+        ///
+        /// <para>BG hash for CSA = <c>rawBgImagePtr + rawBgTsaPtr</c> (mirrors WF
+        /// <c>imageHash = bgPointer + bgTSAPointer</c>).</para>
+        ///
+        /// <para>Output dimensions:
+        ///   <c>width = 240</c> (256 − 8 − 8);
+        ///   <c>height = CalcHeightbyTSA(240, tsa.Length)</c> capped at 160 if
+        ///   ≥ 160, otherwise 64 (mirrors WF ExportBGFrameImage height logic).</para>
+        /// </summary>
+        public static IImage RenderCsaBgFrameSlot(
+            ROM rom,
+            List<MagicFrameMeta> frames,
+            int slotIndex)
+        {
+            if (rom == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (frames == null || slotIndex < 0) return null;
+
+            var sharedHash = new List<uint>();
+            MagicFrameMeta target = null;
+            foreach (var f in frames)
+            {
+                uint objHash = (f.RawObjImagePtr << 8) | (f.OamAbsoStart & 0xFF);
+                if (sharedHash.IndexOf(objHash) < 0) sharedHash.Add(objHash);
+
+                // CSA BG hash = rawBgImg + rawBgTsa (mirrors WF ExportBGFrameImage).
+                uint bgHash = f.RawBgImagePtr + f.RawBgTsaPtr;
+                int s = sharedHash.IndexOf(bgHash);
+                if (s < 0)
+                {
+                    s = sharedHash.Count;
+                    sharedHash.Add(bgHash);
+                    if (s == slotIndex) { target = f; break; }
+                }
+            }
+            if (target == null) return null;
+            return RenderCsaBgFrameInternal(rom, target);
+        }
+
+        // -----------------------------------------------------------------------
         // Convenience slot counters (shared-hash aware — FIX 1)
         // -----------------------------------------------------------------------
 
@@ -623,8 +704,10 @@ namespace FEBuilderGBA
             return count;
         }
 
-        /// <summary>Count unique BG slots (shared-hash ordering, offset after OBJ slots).</summary>
-        public static int CountUniqueBgSlots(List<MagicFrameMeta> frames)
+        /// <summary>Count unique BG slots (shared-hash ordering, offset after OBJ slots).
+        /// For FEditor frames: hash = rawBgImagePtr.
+        /// For CSA frames: hash = rawBgImagePtr + rawBgTsaPtr (mirrors WF).</summary>
+        public static int CountUniqueBgSlots(List<MagicFrameMeta> frames, bool isCsa = false)
         {
             if (frames == null) return 0;
             var sharedHash = new List<uint>();
@@ -633,7 +716,7 @@ namespace FEBuilderGBA
             {
                 uint obj = (f.RawObjImagePtr << 8) | (f.OamAbsoStart & 0xFF);
                 if (sharedHash.IndexOf(obj) < 0) sharedHash.Add(obj);
-                uint bg = f.RawBgImagePtr;
+                uint bg = isCsa ? (f.RawBgImagePtr + f.RawBgTsaPtr) : f.RawBgImagePtr;
                 if (sharedHash.IndexOf(bg) < 0) { sharedHash.Add(bg); count++; }
             }
             return count;
@@ -726,6 +809,158 @@ namespace FEBuilderGBA
             var image = svc.CreateImage(BG_EXPORT_WIDTH, BG_EXPORT_HEIGHT);
             image.SetPixelData(canvas);
             return image;
+        }
+
+        // CSA_Creator BG export dimensions (mirrors WF ExportBGFrameImage).
+        // width = 256 - 8 - 8 = 240; height capped at 160 (or 64 if < 160).
+        public const int CSA_BG_EXPORT_WIDTH  = 240; // 256 - 8 - 8
+        public const int CSA_BG_EXPORT_HEIGHT_FULL = 160;
+        public const int CSA_BG_EXPORT_HEIGHT_SMALL = 64;
+
+        /// <summary>
+        /// CSA Creator BG render (mirrors WF
+        /// <c>ImageUtilMagicCSACreator.ExportBGFrameImage</c>):
+        /// decompress bg tilesheet + TSA, composite via plain
+        /// <c>ImageUtilCore.DecodeTSA</c>-equivalent, output 240×160 (or 240×64).
+        /// </summary>
+        static IImage RenderCsaBgFrameInternal(ROM rom, MagicFrameMeta frame)
+        {
+            IImageService svc = CoreState.ImageService;
+
+            if (frame.BgPaletteOffset + 0x20 > (uint)rom.Data.Length) return null;
+            byte[] bgPalette = rom.getBinaryData(frame.BgPaletteOffset, 0x20);
+
+            if (!U.isSafetyOffset(frame.BgImageOffset, rom)) return null;
+            byte[] bgDecomp = LZ77.decompress(rom.Data, frame.BgImageOffset);
+            if (bgDecomp == null || bgDecomp.Length == 0)
+            {
+                Log.Error("MagicEffectExportCore: CSA bg LZ77 decompress failed at",
+                    "0x" + frame.BgImageOffset.ToString("X08"));
+                return null;
+            }
+
+            if (frame.BgTsaOffset == 0 || !U.isSafetyOffset(frame.BgTsaOffset, rom))
+                return null;
+            byte[] tsaDecomp = LZ77.decompress(rom.Data, frame.BgTsaOffset);
+            if (tsaDecomp == null || tsaDecomp.Length == 0)
+            {
+                Log.Error("MagicEffectExportCore: CSA TSA LZ77 decompress failed at",
+                    "0x" + frame.BgTsaOffset.ToString("X08"));
+                return null;
+            }
+
+            // Height logic mirrors WF ExportBGFrameImage:
+            //   CalcHeightbyTSA(240, tsaLen) → if >= 160: height=160, else height=64.
+            int width = CSA_BG_EXPORT_WIDTH;
+            int height = CalcHeightByTsa(width, tsaDecomp.Length);
+            if (height >= CSA_BG_EXPORT_HEIGHT_FULL)
+                height = CSA_BG_EXPORT_HEIGHT_FULL;
+            else
+                height = CSA_BG_EXPORT_HEIGHT_SMALL;
+
+            // Decode the tilesheet to RGBA pixels (same as DecodeSheet but only
+            // covers the tiles actually needed by the TSA arrangement).
+            int bgSheetHeight = CalcTileSheetHeight(BG_SHEET_ROM_WIDTH, bgDecomp.Length);
+            if (bgSheetHeight < height) bgSheetHeight = height;
+            byte[] bgSheet = DecodeSheet(bgDecomp, bgPalette, BG_SHEET_ROM_WIDTH, bgSheetHeight);
+
+            // Composite via TSA: each TSA entry = u16, bits 0-9 = tile index,
+            // bit 10 = hflip, bit 11 = vflip (4bpp GBA tile format).
+            byte[] canvas = new byte[width * height * 4];
+            byte[] bgColor = GBAPaletteColor0(bgPalette, svc);
+            FillBackground(canvas, width, height, bgColor);
+            DecodeTSAIntoCanvas(bgSheet, BG_SHEET_ROM_WIDTH, bgSheetHeight,
+                tsaDecomp, bgPalette, canvas, width, height);
+
+            var image = svc.CreateImage(width, height);
+            image.SetPixelData(canvas);
+            return image;
+        }
+
+        /// <summary>
+        /// Calculate the output height given a tilesheet width and tile-data
+        /// byte count (mirrors WF <c>ImageUtil.CalcHeightbyTSA</c>).
+        /// Each tile = 32 bytes (4bpp, 8×8); tiles arranged in <paramref name="width"/>÷8
+        /// columns.
+        /// </summary>
+        static int CalcHeightByTsa(int width, int tsaByteLen)
+        {
+            if (width <= 0) return 8;
+            int tilesPerRow = width / TILE_SIZE;
+            if (tilesPerRow <= 0) return TILE_SIZE;
+            // TSA entry = 2 bytes; number of tile references = tsaByteLen / 2.
+            int tileCount = tsaByteLen / 2;
+            int rows = (tileCount + tilesPerRow - 1) / tilesPerRow;
+            return rows * TILE_SIZE;
+        }
+
+        /// <summary>
+        /// Calculate the pixel height of a tilesheet from raw tile bytes
+        /// (mirrors WF <c>ImageUtil.CalcHeight</c>).
+        /// </summary>
+        static int CalcTileSheetHeight(int width, int tileDataLen)
+        {
+            if (width <= 0) return TILE_SIZE;
+            int tilesPerRow = width / TILE_SIZE;
+            if (tilesPerRow <= 0) return TILE_SIZE;
+            int tileCount = tileDataLen / BYTES_PER_TILE_4BPP;
+            int rows = (tileCount + tilesPerRow - 1) / tilesPerRow;
+            return Math.Max(rows * TILE_SIZE, TILE_SIZE);
+        }
+
+        /// <summary>
+        /// Composite the BG tilesheet via a plain (non-header) TSA arrangement
+        /// into <paramref name="canvas"/>. Mirrors WF
+        /// <c>ImageUtil.ByteToImage16Tile(w, h, bgData, 0, pal, 0, tsaData, 0, 0)</c>.
+        /// Each TSA entry is a u16: bits 0-9 = tile index (0-based in the
+        /// decoded tilesheet), bit 10 = horizontal flip, bit 11 = vertical flip.
+        /// </summary>
+        static void DecodeTSAIntoCanvas(
+            byte[] sheet, int sheetW, int sheetH,
+            byte[] tsa, byte[] gbaPalette,
+            byte[] canvas, int canvasW, int canvasH)
+        {
+            int tilesPerRow = canvasW / TILE_SIZE;
+            int sheetTilesPerRow = sheetW / TILE_SIZE;
+            int tsaCount = tsa.Length / 2;
+
+            for (int t = 0; t < tsaCount; t++)
+            {
+                int destCol = t % tilesPerRow;
+                int destRow = t / tilesPerRow;
+                int destX = destCol * TILE_SIZE;
+                int destY = destRow * TILE_SIZE;
+                if (destX + TILE_SIZE > canvasW) continue;
+                if (destY + TILE_SIZE > canvasH) continue;
+
+                ushort entry = (ushort)(tsa[t * 2] | (tsa[t * 2 + 1] << 8));
+                int tileIdx = entry & 0x3FF;
+                bool hflip  = (entry & 0x0400) != 0;
+                bool vflip  = (entry & 0x0800) != 0;
+
+                int srcCol = tileIdx % sheetTilesPerRow;
+                int srcRow = tileIdx / sheetTilesPerRow;
+                int srcX   = srcCol * TILE_SIZE;
+                int srcY   = srcRow * TILE_SIZE;
+                if (srcX + TILE_SIZE > sheetW) continue;
+                if (srcY + TILE_SIZE > sheetH) continue;
+
+                // Copy one 8×8 tile from sheet RGBA → canvas RGBA, applying flips.
+                for (int py = 0; py < TILE_SIZE; py++)
+                for (int px = 0; px < TILE_SIZE; px++)
+                {
+                    int sx = srcX + (hflip ? (TILE_SIZE - 1 - px) : px);
+                    int sy = srcY + (vflip ? (TILE_SIZE - 1 - py) : py);
+                    int si = (sy * sheetW + sx) * 4;
+                    int di = ((destY + py) * canvasW + (destX + px)) * 4;
+                    if (si + 3 >= sheet.Length)  continue;
+                    if (di + 3 >= canvas.Length) continue;
+                    canvas[di]     = sheet[si];
+                    canvas[di + 1] = sheet[si + 1];
+                    canvas[di + 2] = sheet[si + 2];
+                    canvas[di + 3] = sheet[si + 3];
+                }
+            }
         }
 
         // -----------------------------------------------------------------------

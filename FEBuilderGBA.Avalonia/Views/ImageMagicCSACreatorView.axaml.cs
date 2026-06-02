@@ -1,7 +1,12 @@
+// #886 — Export + OpenSource/SelectSource wired.
+// Import + Editor remain stubs (follow-up to #886 part 2 / #500).
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -149,6 +154,52 @@ namespace FEBuilderGBA.Avalonia.Views
             FrameBox.Value = _vm.Frame;
             ZoomComboBox.SelectedIndex = (int)_vm.Zoom;
             BinInfoBox.Text = _vm.BinInfo;
+            // #886
+            UpdateExportButtonEnabled();
+            UpdateSourceButtonVisibility();
+        }
+
+        // #886 — Export button enabled when CSA system is detected + entry selected.
+        void UpdateExportButtonEnabled()
+        {
+            ExportButton.IsEnabled =
+                _vm.MagicKind == MagicSystemKind.CsaCreator
+                && EntryList.SelectedOriginalIndex >= 0;
+        }
+
+        // #886 — Source buttons visible when a cached source file exists on disk.
+        // Mirrors FEditor UpdateSourceButtonVisibility. Same key scheme:
+        // "MagicAnimation_" + U.ToHexString(selectedIndex+1).
+        void UpdateSourceButtonVisibility()
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0)
+            {
+                OpenSourceButton.IsVisible   = false;
+                SelectSourceButton.IsVisible = false;
+                return;
+            }
+            string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+            bool hasFile = CoreState.ResourceCache is EtcCacheResource rcache
+                && rcache.TryGetValue(key, out string? path)
+                && !string.IsNullOrEmpty(path)
+                && File.Exists(path);
+            OpenSourceButton.IsVisible   = hasFile;
+            SelectSourceButton.IsVisible = hasFile;
+        }
+
+        // Save a minimal transparent PNG placeholder.
+        static void SaveDummyPng(string path, int width, int height)
+        {
+            try
+            {
+                IImageService? svc = CoreState.ImageService;
+                if (svc == null) return;
+                var img = svc.CreateImage(width, height);
+                img.SetPixelData(new byte[width * height * 4]);
+                img.Save(path);
+            }
+            catch (Exception ex) { Log.Error("CSA SaveDummyPng: {0}", ex.Message); }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -260,20 +311,255 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // Import: follow-up to #886 part 2
         void Import_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.Import_Click invoked - disabled until #500 lands");
+            Log.Debug("ImageMagicCSACreatorView.Import_Click - Import is a follow-up to #886 part 2");
 
-        void Export_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.Export_Click invoked - disabled until #500 lands");
+        // #886 — Export Magic Animation (CSA .txt + per-frame OBJ/BG PNGs).
+        // CSA BG is TSA-composited via RenderCsaBgFrameSlot; OBJ reuses FEditor path.
+        async void Export_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.MagicKind != MagicSystemKind.CsaCreator)
+            {
+                CoreState.Services?.ShowError(
+                    R._("CSA Creator magic-system not detected. Install the patch first."));
+                return;
+            }
 
-        void OpenSource_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.OpenSource_Click invoked - disabled until #500 lands");
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return;
 
-        void SelectSource_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.SelectSource_Click invoked - disabled until #500 lands");
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0)
+            {
+                CoreState.Services?.ShowError(R._("No magic-animation entry selected."));
+                return;
+            }
 
+            var (filename, filterIndex) = await FileDialogHelper.SaveFileWithFilterIndex(
+                this,
+                R._("Save CSA magic animation script"),
+                new (string, string)[]
+                {
+                    (R._("Magic Animation (with comments)"), "*.txt"),
+                    (R._("Magic Animation (no comments)"), "*.txt"),
+                },
+                "csa_" + U.ToHexString((uint)(idx + 1)) + ".txt");
+
+            if (string.IsNullOrEmpty(filename)) return;
+
+            bool enableComment = (filterIndex == 0);
+            await DoExport(filename, enableComment);
+        }
+
+        /// <summary>
+        /// Injectable export entry point for tests (bypasses file dialog).
+        /// </summary>
+        internal async Task<string> DoExport(string filename, bool enableComment = true)
+        {
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return "ROM is null";
+
+            if (_vm.MagicKind != MagicSystemKind.CsaCreator)
+                return "CSA magic system not detected";
+
+            try
+            {
+                uint frameDataAddr = _vm.P0;   // FrameData pointer
+                uint objRtoL       = _vm.P4;   // OBJRightToLeft OAM
+                uint objBGRtoL     = _vm.P12;  // OBJBGRightToLeft OAM
+
+                string basename = Path.GetFileNameWithoutExtension(filename) + "_";
+                string basedir  = Path.GetDirectoryName(filename) ?? ".";
+
+                // Single ordered walk (isCsa=true reads +28 TSA, uses bgPtr+tsaPtr hash).
+                List<int> sharedObjSlots, sharedBgSlots;
+                List<MagicFrameMeta> frames;
+                var scriptLines = MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, frameDataAddr, basename, enableComment,
+                    out sharedObjSlots, out sharedBgSlots, out frames,
+                    isCsa: true);
+
+                if (frames.Count == 0 && scriptLines.Count <= 2)
+                {
+                    string err = R._("CSA animation scan failed — bad frame-data pointer.");
+                    CoreState.Services?.ShowError(err);
+                    return err;
+                }
+
+                // Render and save unique OBJ frames (same as FEditor — OBJ render is shared).
+                int objSlotCount = MagicEffectExportCore.CountUniqueObjSlots(frames);
+                for (int s = 0; s < objSlotCount; s++)
+                {
+                    IImage? img = MagicEffectExportCore.RenderObjFrameSlot(
+                        rom, frames, s, objRtoL, objBGRtoL);
+                    string pngPath = Path.Combine(
+                        basedir, basename + "o_" + s.ToString("000") + ".png");
+                    if (img != null)
+                    {
+                        try { img.Save(pngPath); }
+                        catch (Exception ex)
+                        {
+                            Log.Error("CSAExport: save OBJ slot " + s + ": " + ex.Message);
+                        }
+                    }
+                    else
+                    {
+                        SaveDummyPng(pngPath,
+                            MagicEffectExportCore.OBJ_EXPORT_WIDTH,
+                            MagicEffectExportCore.OBJ_EXPORT_HEIGHT);
+                    }
+                }
+
+                // Render and save unique CSA BG frames (TSA-composited).
+                // #886 fix: enumerate the SHARED-space slot indices from sharedBgSlots
+                // (deduplicated, insertion-order), not a fresh 0-based counter.
+                // RenderCsaBgFrameSlot and the b_NNN.png filenames BOTH use the shared
+                // index space (OBJ slots registered first — e.g. 1 OBJ → BG slot 1,
+                // not slot 0). This mirrors ExportMagicScriptLines's b_NNN naming and
+                // the #880 FEditor approach where animeHash is a single shared list.
+                var seenBgSlots = new System.Collections.Generic.HashSet<int>();
+                var uniqueBgSharedIndices = new System.Collections.Generic.List<int>();
+                foreach (int si in sharedBgSlots)
+                {
+                    if (seenBgSlots.Add(si))
+                        uniqueBgSharedIndices.Add(si);
+                }
+                int bgSlotCount = uniqueBgSharedIndices.Count;
+                foreach (int sharedSlot in uniqueBgSharedIndices)
+                {
+                    // Pass the SHARED-space index to RenderCsaBgFrameSlot so it
+                    // locates the correct BG frame in the OBJ+BG shared hash.
+                    IImage? img = MagicEffectExportCore.RenderCsaBgFrameSlot(rom, frames, sharedSlot);
+                    // Filename uses the same shared-space index as the .txt script
+                    // (e.g. b_001.png when OBJ has slot 0 and this BG has slot 1).
+                    string pngPath = Path.Combine(
+                        basedir, basename + "b_" + sharedSlot.ToString("000") + ".png");
+                    if (img != null)
+                    {
+                        try { img.Save(pngPath); }
+                        catch (Exception ex)
+                        {
+                            Log.Error("CSAExport: save BG slot " + sharedSlot + ": " + ex.Message);
+                        }
+                    }
+                    else
+                    {
+                        // Fallback dummy: use full 240×160 or 240×64 depending on TSA.
+                        SaveDummyPng(pngPath,
+                            MagicEffectExportCore.CSA_BG_EXPORT_WIDTH,
+                            MagicEffectExportCore.CSA_BG_EXPORT_HEIGHT_FULL);
+                    }
+                }
+
+                // Write .txt script.
+                var textLines = new List<string>(scriptLines.Count);
+                foreach (var line in scriptLines)
+                    textLines.Add(line.Text);
+                File.WriteAllLines(filename, textLines, System.Text.Encoding.UTF8);
+
+                // Update resource cache so OpenSource/SelectSource become visible.
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource rcache)
+                {
+                    string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+                    rcache.Update(key, filename);
+                    UpdateSourceButtonVisibility();
+                }
+
+                // Reveal in file manager (best-effort, mirrors FEditor export).
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = basedir,
+                        UseShellExecute = true,
+                    });
+                }
+                catch { /* best-effort */ }
+
+                CoreState.Services?.ShowInfo(
+                    R._("Exported {0} OBJ + {1} BG frames to {2}",
+                        objSlotCount, bgSlotCount, filename));
+                return string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("CSAExport: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
+                return ex.Message;
+            }
+        }
+
+        // #886 — OpenSource (mirrors FEditor view OpenSource_Click).
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0) return;
+            string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+            if (CoreState.ResourceCache is EtcCacheResource cache
+                && cache.TryGetValue(key, out string? path)
+                && !string.IsNullOrEmpty(path)
+                && File.Exists(path))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true,
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImageMagicCSACreatorView.OpenSource: {0}", ex.Message);
+                    CoreState.Services?.ShowError(R._("Cannot open file: {0}", ex.Message));
+                }
+            }
+            else
+            {
+                CoreState.Services?.ShowError(R._("Source file not recorded or not found."));
+            }
+        }
+
+        // #886 — SelectSource: reveal containing folder in file manager.
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx < 0) return;
+            string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+            if (CoreState.ResourceCache is EtcCacheResource cache
+                && cache.TryGetValue(key, out string? path)
+                && !string.IsNullOrEmpty(path)
+                && File.Exists(path))
+            {
+                try
+                {
+                    string? dir = Path.GetDirectoryName(path);
+                    if (dir != null)
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = dir,
+                            UseShellExecute = true,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("ImageMagicCSACreatorView.SelectSource: {0}", ex.Message);
+                    CoreState.Services?.ShowError(R._("Cannot open folder: {0}", ex.Message));
+                }
+            }
+            else
+            {
+                CoreState.Services?.ShowError(R._("Source file not recorded or not found."));
+            }
+        }
+
+        // Editor: follow-up to #500
         void Editor_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.Editor_Click invoked - disabled until #500 lands");
+            Log.Debug("ImageMagicCSACreatorView.Editor_Click - follow-up to #500");
 
         static uint ParseHexText(string? text)
         {
