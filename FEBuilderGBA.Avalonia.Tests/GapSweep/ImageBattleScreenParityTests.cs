@@ -396,17 +396,32 @@ public class ImageBattleScreenParityTests
             RegexOptions.Singleline), axaml);
     }
 
+    /// <summary>
+    /// #872: per-image Import/Export buttons (Image1..5) are now fully wired —
+    /// they carry Click handlers (not IsEnabled="False" stubs). This replaces the
+    /// old "IsHonestlyDeferredKnownGap" assertion.
+    /// </summary>
     [Fact]
-    public void View_PerImageImportExport_IsHonestlyDeferredKnownGap()
+    public void View_PerImageImportExport_IsWiredAndEnabled()
     {
-        // Per-image Import/Export buttons (image1..5) are also WF-coupled.
+        // Per #872: buttons are wired with Click handlers and must NOT carry
+        // the old KnownGap IsEnabled="False" stub marker.
         string axaml = ReadAxaml();
         for (int i = 1; i <= 5; i++)
         {
+            // Import button must have a Click handler.
             Assert.Matches(new Regex(
+                $@"AutomationId=""ImageBattleScreen_Image{i}_Import_Button""[\s\S]{{0,200}}Click=""Image{i}Import_Click""",
+                RegexOptions.Singleline), axaml);
+            // Export button must have a Click handler.
+            Assert.Matches(new Regex(
+                $@"AutomationId=""ImageBattleScreen_Image{i}_Export_Button""[\s\S]{{0,200}}Click=""Image{i}Export_Click""",
+                RegexOptions.Singleline), axaml);
+            // The KnownGap IsEnabled="False" stub must be gone.
+            Assert.DoesNotMatch(new Regex(
                 $@"AutomationId=""ImageBattleScreen_Image{i}_Import_Button""[\s\S]{{0,400}}IsEnabled=""False""",
                 RegexOptions.Singleline), axaml);
-            Assert.Matches(new Regex(
+            Assert.DoesNotMatch(new Regex(
                 $@"AutomationId=""ImageBattleScreen_Image{i}_Export_Button""[\s\S]{{0,400}}IsEnabled=""False""",
                 RegexOptions.Singleline), axaml);
         }
