@@ -9970,3 +9970,6 @@ CSAマジックアニメーションのインポートに失敗しました: {0}
 
 :CSA Creator magic-system not detected. Install the patch first.
 CSA Creatorのマジックシステムが検出されません。先にパッチをインストールしてください。
+
+:Import a CSA magic animation (.txt script + PNGs) into the selected slot.
+選択中のスロットにCSA魔法アニメ（.txtスクリプト + PNG）をインポートします。
