@@ -493,11 +493,12 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ConvertToLeftToRightOAM_SetsHFlipBit()
+        public void ConvertToLeftToRightOAM_SetsAreaBit0x10()
         {
+            // WF ImageUtilOAM.ConvertLeftToRightOAM (line 1416) ORs 0x10 into area byte[3].
             // Build a minimal OAM: one 1×1 square sprite + terminator
             byte[] oam = new byte[24];
-            // Entry 0: normal 1×1 square sprite at vramX=10, vramY=20
+            // Entry 0: normal 1×1 square sprite at vramX=10
             oam[0] = 0x00;   // normal
             oam[1] = 0x00;   // align: square
             oam[2] = 0x00;
@@ -514,8 +515,10 @@ namespace FEBuilderGBA.Core.Tests
             var ltr = BattleAnimeOAMImportCore.ConvertToLeftToRightOAM(oam);
 
             Assert.NotNull(ltr);
-            // H-flip bit (bit 5 of byte[3]) should be set
-            Assert.True((ltr[3] & 0x20) != 0, "H-flip bit should be set");
+            // Must set bit 0x10 — matches WF line 1416: leftToRight[i+3] = (byte)(... | 0x10)
+            Assert.True((ltr[3] & 0x10) != 0, "Area bit 0x10 must be set (WF fidelity: ConvertLeftToRightOAM | 0x10)");
+            // Must NOT set 0x20 (that was the pre-fix wrong bit)
+            Assert.True((ltr[3] & 0x20) == 0, "Area bit 0x20 must NOT be set (WF uses 0x10, not 0x20)");
             // vramX should be negated: -(1*8) - 10 = -18
             short newVramX = (short)(ltr[6] | (ltr[7] << 8));
             Assert.Equal(-18, newVramX);
@@ -626,6 +629,96 @@ namespace FEBuilderGBA.Core.Tests
                 }
             }
             return pixels;
+        }
+
+        // ============================================================
+        // GrepBlockInSeat — exclusive scan-bound fidelity (WF parity)
+        // ============================================================
+
+        /// <summary>
+        /// WF GrepTileBitmap uses EXCLUSIVE upper bounds:
+        ///   int width  = rect.Width  - needrect.Width;   // line 2383
+        ///   int height = rect.Height - needrect.Height;  // line 2384
+        ///   for (int y = 0; y &lt; height; y+=8)          // line 2394
+        ///   for (int x = 0; x &lt; width;  x+=8)          // line 2396
+        ///
+        /// A block placed exactly at (searchW, searchH) in the seat
+        /// must NOT be found — Core's scan must stop before that position.
+        /// </summary>
+        [Fact]
+        public void GrepBlockInSeat_DoesNotScanExclusiveEdge_Y()
+        {
+            // Seat: 2 tiles wide × 2 tiles tall = 16×16 px
+            // Block: 8×8 (1 tile)
+            // searchH = seat.PixH - blockH = 16 - 8 = 8
+            // WF loops: y < 8  → only y=0 is visited; y=8 is EXCLUDED
+            // Place a unique pattern only at y=8 (the excluded row).
+            // GrepBlockInSeat must return false.
+            var seat = new BattleAnimeOAMImportCore.Seat(tileW: 2, tileH: 2);
+            int blockW = 8, blockH = 8;
+            // Fill the block with marker value 7
+            var block = new byte[blockW * blockH];
+            for (int i = 0; i < block.Length; i++) block[i] = 7;
+
+            // Place identical marker only at pixel row sy=8 in the seat (the excluded row)
+            for (int py = 0; py < blockH; py++)
+            for (int px = 0; px < blockW; px++)
+                seat.Pixels[(8 + py) * seat.PixW + (0 + px)] = 7;
+
+            bool found = BattleAnimeOAMImportCore.GrepBlockInSeat(
+                seat, block, blockW, blockH,
+                out int tx, out int ty);
+
+            Assert.False(found,
+                "GrepBlockInSeat must NOT find a block at the exclusive edge row " +
+                "(sy == searchH = seat.PixH - blockH). WF GrepTileBitmap uses y < height (exclusive).");
+        }
+
+        [Fact]
+        public void GrepBlockInSeat_DoesNotScanExclusiveEdge_X()
+        {
+            // Seat: 2×2 tiles = 16×16 px, block 8×8
+            // searchW = 16 - 8 = 8; WF loops x < 8 → only x=0 visited; x=8 excluded
+            var seat = new BattleAnimeOAMImportCore.Seat(tileW: 2, tileH: 2);
+            int blockW = 8, blockH = 8;
+            var block = new byte[blockW * blockH];
+            for (int i = 0; i < block.Length; i++) block[i] = 5;
+
+            // Place identical marker only at pixel column sx=8 (the excluded column)
+            for (int py = 0; py < blockH; py++)
+            for (int px = 0; px < blockW; px++)
+                seat.Pixels[(0 + py) * seat.PixW + (8 + px)] = 5;
+
+            bool found = BattleAnimeOAMImportCore.GrepBlockInSeat(
+                seat, block, blockW, blockH,
+                out int tx, out int ty);
+
+            Assert.False(found,
+                "GrepBlockInSeat must NOT find a block at the exclusive edge column " +
+                "(sx == searchW = seat.PixW - blockW). WF GrepTileBitmap uses x < width (exclusive).");
+        }
+
+        [Fact]
+        public void GrepBlockInSeat_FindsBlockWithinBounds()
+        {
+            // Sanity: a block placed at (0,0) IS found.
+            var seat = new BattleAnimeOAMImportCore.Seat(tileW: 2, tileH: 2);
+            int blockW = 8, blockH = 8;
+            var block = new byte[blockW * blockH];
+            for (int i = 0; i < block.Length; i++) block[i] = 3;
+
+            // Place identical pattern at seat origin
+            for (int py = 0; py < blockH; py++)
+            for (int px = 0; px < blockW; px++)
+                seat.Pixels[py * seat.PixW + px] = 3;
+
+            bool found = BattleAnimeOAMImportCore.GrepBlockInSeat(
+                seat, block, blockW, blockH,
+                out int tx, out int ty);
+
+            Assert.True(found, "GrepBlockInSeat must find a block placed at (0,0) within scan bounds.");
+            Assert.Equal(0, tx);
+            Assert.Equal(0, ty);
         }
 
         static string Hex(byte[] data)

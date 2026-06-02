@@ -475,16 +475,19 @@ namespace FEBuilderGBA
         ///
         /// Ports WF <c>ImageUtil.GrepTileBitmap</c>.
         /// </summary>
-        static bool GrepBlockInSeat(
+        internal static bool GrepBlockInSeat(
             Seat   seat,
             byte[] block, int blockW, int blockH,
             out int outSeatTileX, out int outSeatTileY)
         {
+            // searchW/searchH = rect.Width/Height - needrect.Width/Height (mirrors WF GrepTileBitmap line 2383-2384)
+            // Loops use EXCLUSIVE upper bounds (y < height, x < width) as in WF GrepTileBitmap lines 2394/2396:
+            //   for (int y = 0; y < height; y+=8)  /  for (int x = 0; x < width; x+=8)
             int searchW = seat.PixW - blockW;
             int searchH = seat.PixH - blockH;
 
-            for (int sy = 0; sy <= searchH; sy += 8)
-            for (int sx = 0; sx <= searchW; sx += 8)
+            for (int sy = 0; sy < searchH; sy += 8)
+            for (int sx = 0; sx < searchW; sx += 8)
             {
                 // Compare block against seat at (sx, sy)
                 bool match = true;
@@ -685,8 +688,9 @@ namespace FEBuilderGBA
                 // Decode sprite width in tiles
                 GetSpriteSize(align, area, out int widthTiles, out _);
 
-                // Set horizontal-flip bit (bit 5 of area byte)
-                result[i + 3] |= 0x20;
+                // Set flip bit (bit 4 of area byte = 0x10) — matches WF ImageUtilOAM.ConvertLeftToRightOAM line 1416:
+                //   leftToRight[i + 3] = (byte)(leftToRight[i + 3] | 0x10);
+                result[i + 3] |= 0x10;
 
                 // Negate vramX: new_vramX = -(width*8) - old_vramX
                 short oldVramX = (short)(result[i + 6] | (result[i + 7] << 8));
