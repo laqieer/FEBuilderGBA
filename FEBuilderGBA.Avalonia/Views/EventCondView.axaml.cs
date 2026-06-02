@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -845,19 +845,44 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void PreciseAlloc_Click(object? sender, RoutedEventArgs e)
+        async void PreciseAlloc_Click(object? sender, RoutedEventArgs e)
         {
-            // Opens the MapPointerNewPLISTPopupView. The commit-back state-machine
-            // (writing the selected PLIST back to the current map's event PLIST)
-            // is documented as KnownGap in #386 — the popup opens so users see
-            // the new-allocation UI, but the WF-equivalent state restoration is
-            // deferred. The undo scope still wraps the open in case the popup
-            // itself decides to mutate anything before close.
-            _undoService.Begin("Open PLIST Allocation Popup");
+            // Mirror WF EventCondForm.PreciseEevntCondArea (lines 3117-3247):
+            // show PLIST picker, allocate version-exact block, write slot back.
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return;
+
+            var popup = new MapPointerNewPLISTPopupView();
+            uint? plist = await popup.ShowDialog<uint?>(this);
+
+            // WF guard: plist == 0 means cancelled or reserved sentinel slot.
+            if (plist is null || plist == 0) return;
+
+            // Open undo scope AFTER the modal returns (not around it).
+            // _undoService.Begin already calls ROM.BeginUndoScope internally,
+            // so EventCondCore ambient write_p32 calls are tracked automatically.
+            _undoService.Begin("Precise EventCondArea");
+            uint off = U.NOT_FOUND;
             try
             {
-                WindowManager.Instance.Navigate<MapPointerNewPLISTPopupView>(0);
+                off = EventCondCore.AllocNewEventCondBlock(rom, 0);
+                if (off == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowInfo("Could not allocate free space for the event condition block.");
+                    return;
+                }
+
+                if (!EventCondCore.WriteEventPLIST(rom, plist.Value, off))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowInfo("Could not write the event PLIST slot (plist=0 or slot unsafe).");
+                    return;
+                }
+
+                ReloadRecordList();
                 _undoService.Commit();
+                CoreState.Services.ShowInfo("Precise event condition area allocated at 0x" + off.ToString("X08") + " and wired to PLIST " + plist.Value + ".");
             }
             catch (Exception ex)
             {
