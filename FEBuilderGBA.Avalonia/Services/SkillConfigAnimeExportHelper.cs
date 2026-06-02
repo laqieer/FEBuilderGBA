@@ -99,13 +99,23 @@ namespace FEBuilderGBA.Avalonia.Services
 
             var lines = SkillSystemsAnimeExportCore.BuildScriptLines(result, basename, songName);
 
-            // Write one PNG per unique id (matches WF animeHash dedup).
+            // The save dialog may return a path in a folder the user just typed
+            // that doesn't exist yet — create it up-front so Save/WriteAllLines
+            // don't throw (GetFullPath guards null/relative edge cases).
+            string fullDir = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(fullDir))
+                Directory.CreateDirectory(fullDir);
+
+            // Write one PNG per unique id (matches WF animeHash dedup). The Core
+            // export returns IImage (IDisposable); dispose each unique image
+            // right after saving it to avoid leaking on repeated exports.
             var written = new HashSet<uint>();
             foreach (var f in result.Frames)
             {
                 if (!written.Add(f.Id)) continue;
                 string imagefilename = basename.Replace(" ", "_") + "g" + f.Id.ToString("000") + ".png";
                 f.Image.Save(Path.Combine(basedir, imagefilename));
+                f.Image.Dispose();
             }
 
             File.WriteAllLines(path, lines);
@@ -113,7 +123,17 @@ namespace FEBuilderGBA.Avalonia.Services
 
         static void ExportGif(SkillAnimeExportResult result, string path)
         {
+            // Ensure the (possibly newly-typed) output folder exists before we
+            // encode, so GifEncoderCore.Encode doesn't throw on a missing dir.
+            string fullDir = Path.GetDirectoryName(Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(fullDir))
+                Directory.CreateDirectory(fullDir);
+
             var gifFrames = new List<GifEncoderCore.GifFrame>();
+            // The Core export caches one IImage per OBJ id, so duplicate frames
+            // share the same instance — dispose each UNIQUE image exactly once
+            // (by reference) after its RGBA buffer has been read.
+            var seen = new HashSet<IImage>();
             foreach (var f in result.Frames)
             {
                 IImage img = f.Image;
@@ -141,6 +161,13 @@ namespace FEBuilderGBA.Avalonia.Services
             }
 
             GifEncoderCore.Encode(gifFrames, path);
+
+            // Dispose each unique image after encoding (RGBA already copied).
+            foreach (var f in result.Frames)
+            {
+                if (seen.Add(f.Image))
+                    f.Image.Dispose();
+            }
         }
     }
 }

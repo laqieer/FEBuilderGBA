@@ -111,8 +111,12 @@ namespace FEBuilderGBA
             }
 
             // FE8U: a program template is embedded at the head of the anime.
-            // We need 0x150 bytes to compare against the longer template.
-            if (!U.isSafetyOffset(animeAddress + 0x150, rom)) return U.NOT_FOUND;
+            // We need 0x150 bytes to compare against the longer template. Guard
+            // the LAST byte of that window (animeAddress + 0x150 - 1), not the
+            // byte AFTER it — otherwise a valid window ending exactly at EOF
+            // (start == len - 0x150) is wrongly rejected (codebase multi-byte
+            // read-guard pattern).
+            if (!U.isSafetyOffset(animeAddress + 0x150 - 1, rom)) return U.NOT_FOUND;
             byte[] bin = rom.getBinaryData(animeAddress, 0x150);
 
             foreach (string name in TemplateFiles)

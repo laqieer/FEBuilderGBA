@@ -302,6 +302,46 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = prevRom; }
         }
 
+        [Fact]
+        public void SkipCode_FE8U_TemplateWindowEndsExactlyAtEOF_Accepted()
+        {
+            // Regression for the off-by-one EOF guard (#912 review thread 1):
+            // a 0x150-byte window whose LAST byte is the final ROM byte
+            // (start == len - 0x150) must be accepted, not rejected.
+            string baseDir = FindRepoRoot();
+            string dmp = Path.Combine(baseDir, "config", "patch2", "FE8U",
+                "skill", "skillanimtemplate_2016_11_04.dmp");
+            if (!File.Exists(dmp))
+            {
+                throw new InvalidOperationException(
+                    "config/patch2 submodule not checked out — needed for the SkipCode EOF test.");
+            }
+            byte[] template = File.ReadAllBytes(dmp);
+
+            var prevRom = CoreState.ROM;
+            var prevBase = CoreState.BaseDirectory;
+            try
+            {
+                CoreState.BaseDirectory = baseDir;
+
+                // Use a full-size FE8U ROM (so version detection succeeds) but
+                // place the template so the 0x150 read window ends EXACTLY at
+                // EOF: start == len - 0x150. The old guard
+                // (isSafetyOffset(start + 0x150)) wrongly rejected this; the
+                // fixed last-byte guard accepts it.
+                ROM rom = MakeFE8URom();
+                CoreState.ROM = rom;
+                uint start = (uint)(rom.Data.Length - 0x150);
+
+                Array.Copy(template, 0, rom.Data, (int)start, template.Length);
+
+                uint cfg = SkillSystemsAnimeExportCore.SkipCode(rom, start, out bool isDef);
+                Assert.Equal(start + (uint)template.Length, cfg);
+                Assert.False(isDef);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.BaseDirectory = prevBase; }
+        }
+
         // ===============================================================
         // Helpers
         // ===============================================================
@@ -368,7 +408,7 @@ namespace FEBuilderGBA.Core.Tests
             }
 
             // OBJ + TSA LZ77 (small zero-filled buffers). 60 TSA entries (120
-            // bytes) → CalcHeightByTsa(240,120)=64, then clamped to 160.
+            // bytes) → CalcHeightByTsa(240,120)=80, then clamped to 160.
             PlantZeroLZ77(data, objLz, 0x800);
             PlantZeroLZ77(data, tsaLz, 120);
             PlantPalette(data, palOff);
