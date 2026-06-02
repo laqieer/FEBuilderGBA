@@ -310,9 +310,18 @@ namespace FEBuilderGBA.Avalonia.Views
             await SkillConfigIconIoHelper.ExportIconAsync(this, rom, iconByteAddr, paletteAddr);
         }
 
-        void AnimationImport_Click(object? sender, RoutedEventArgs e)
+        // #913 SLICE 1 — real skill-anime import via SkillSystemsAnimeImportCore
+        // (FE8J path; FE8U shows a clean not-supported message, ZERO mutation).
+        async void AnimationImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NVer2SkillView.AnimationImport_Click invoked - disabled until Core extraction lands (#500)");
+            if (!_vm.IsLoaded) return;
+            bool ok = await SkillConfigAnimeImportHelper.ImportAsync(
+                this, _vm.AnimationPointer, _undoService);
+            if (!ok) return;
+
+            OnSelected(_vm.CurrentAddr);
+            LoadList();
+            EntryList.SelectAddress(_vm.CurrentAddr);
         }
 
         // #910 — real animation export via SkillSystemsAnimeExportCore.

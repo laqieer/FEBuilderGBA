@@ -391,7 +391,25 @@ Specialized utilities for different graphic types:
   `ByteToImage16Tile`); `BuildScriptLines` emits the `.txt` script. The shared
   Avalonia `SkillConfigAnimeExportHelper` writes `.txt`+PNGs or an animated GIF
   (`U.GameFrameSecToGifFrameSec` delays) for the 4 animation-bearing SkillConfig
-  views (FE8N Ver1 stays a stub; import remains WinForms-only) (#910).
+  views (FE8N Ver1 stays a stub) (#910).
+- `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) - Cross-platform IMPORT seam
+  for SkillSystems skill animations (SLICE 1 of #913; ported from WinForms
+  `ImageUtilSkillSystemsAnimeCreator.Import`). **FE8J path only** — FE8U returns a
+  clean not-supported error with ZERO mutation (Slice 2 re-emits the per-skill
+  `skillanimtemplate*.dmp` program code). `ParseScript` handles `D`/`S{hex}`/`{wait}
+  {png}` lines (sound-id default `0x3d1`); `ImportSkillAnimation` validates EVERYTHING
+  before any mutation, encodes each UNIQUE frame (dedup by **filename**) via
+  `ImageImportCore.EncodeTSA` + `LZ77.compress` (tiles + TSA) while keeping the
+  **palette RAW 0x20 bytes (NEVER compressed)**, forces 240×160, builds the frames
+  table terminated by a **4-byte `0xFFFF,0xFFFF`**, writes the 5-word config block
+  (frames/tsalist/imagelist/pallist as `U.toPointer`, then `sound_id` as a **RAW u32**),
+  and repoints the slot via `RecycleAddress.WriteAndWritePointerAmbient` LAST — all
+  under one `ROM.BeginUndoScope`, with a defensive `rom.Data` snapshot restored
+  in-place on ANY fault so a partial write never half-flips the slot or leaks
+  freespace bytes. The shared Avalonia `SkillConfigAnimeImportHelper` wires the 4
+  SkillConfig views' Animation Import buttons (FE8N Ver1 stays a stub). PARITY GAP
+  (intentional): WF's `RecycleOldAnime` is NOT ported — always fresh-allocates
+  (safer, but leaks the old anime region per import; follow-up issue to file) (#913).
 
 ### Caching System
 
