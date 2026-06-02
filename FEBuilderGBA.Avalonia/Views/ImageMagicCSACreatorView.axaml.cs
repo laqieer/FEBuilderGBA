@@ -1,5 +1,6 @@
 // #886 — Export + OpenSource/SelectSource wired.
-// Import + Editor remain stubs (follow-up to #886 part 2 / #500).
+// #889 — Import wired (closes #889, completes #500 image-import).
+// Editor remains a stub (follow-up to #500).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -160,11 +161,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // #886 — Export button enabled when CSA system is detected + entry selected.
+        // #889 — Import button enabled when CSA system is detected + entry selected.
         void UpdateExportButtonEnabled()
         {
-            ExportButton.IsEnabled =
-                _vm.MagicKind == MagicSystemKind.CsaCreator
+            bool csaAndSelected = _vm.MagicKind == MagicSystemKind.CsaCreator
                 && EntryList.SelectedOriginalIndex >= 0;
+            ExportButton.IsEnabled = csaAndSelected;
+            ImportButton.IsEnabled = csaAndSelected;
         }
 
         // #886 — Source buttons visible when a cached source file exists on disk.
@@ -311,9 +314,151 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Import: follow-up to #886 part 2
-        void Import_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.Import_Click - Import is a follow-up to #886 part 2");
+        // #889 — Import Magic Animation (CSA .txt script + per-frame PNGs → ROM write).
+        // Mirrors WF ImageUtilMagicCSACreator.Import + ImageMagicCSACreatorForm import handler.
+        async void Import_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.MagicKind != MagicSystemKind.CsaCreator)
+            {
+                CoreState.Services?.ShowError(
+                    R._("CSA Creator magic-system not detected. Install the patch first."));
+                return;
+            }
+
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return;
+
+            uint magicBaseAddr = _vm.CurrentAddr;
+            if (magicBaseAddr == 0u)
+            {
+                CoreState.Services?.ShowError(R._("No magic-animation entry selected."));
+                return;
+            }
+
+            // File dialog: pick .txt script.
+            string txtPath = await FileDialogHelper.OpenFile(
+                this,
+                R._("Import CSA magic animation script"),
+                "*.txt");
+
+            if (string.IsNullOrEmpty(txtPath)) return;
+
+            await DoImport(
+                txtPath,
+                filename => LoadIndexedImage(filename, txtPath));
+        }
+
+        /// <summary>
+        /// Injectable import entry point for tests (bypasses file dialog + image loader).
+        /// </summary>
+        internal async Task<string> DoImport(
+            string txtPath,
+            Func<string, (byte[] indexedPixels, int w, int h, byte[] gbaPalette)?> pngLoader)
+        {
+            ROM? rom = CoreState.ROM;
+            if (rom == null) return "ROM is null";
+
+            uint magicBaseAddr = _vm.CurrentAddr;
+            if (magicBaseAddr == 0u) return "No magic-animation entry selected.";
+
+            // Parse script (reuse shared ParseMagicScript from FEditor import #885).
+            string[] scriptLines;
+            try
+            {
+                scriptLines = File.ReadAllLines(txtPath, System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                string err = R._("Cannot read script file: {0}", ex.Message);
+                CoreState.Services?.ShowError(err);
+                return err;
+            }
+
+            var cmds = MagicEffectImportCore.ParseMagicScript(scriptLines);
+            if (cmds.Count == 0)
+            {
+                string err = R._("Script file is empty or contains no recognized commands.");
+                CoreState.Services?.ShowError(err);
+                return err;
+            }
+
+            // Snapshot ROM for rollback on failure (defensive safety net).
+            byte[] snapshot = (byte[])rom.Data.Clone();
+
+            // ONE ambient undo scope covers all writes atomically.
+            _undoService.Begin("Import CSA Magic Animation (#889)");
+            string importErr;
+            try
+            {
+                importErr = MagicEffectCSAImportCore.ImportCsaMagicScript(
+                    rom, magicBaseAddr, cmds, pngLoader);
+            }
+            catch (Exception ex)
+            {
+                importErr = ex.Message;
+            }
+
+            if (!string.IsNullOrEmpty(importErr))
+            {
+                // Restore ROM from snapshot before rolling back undo (defensive).
+                Array.Copy(snapshot, rom.Data, snapshot.Length);
+                _undoService.Rollback();
+                CoreState.Services?.ShowError(R._("CSA magic animation import failed: {0}", importErr));
+                return importErr;
+            }
+
+            _undoService.Commit();
+
+            // Update resource cache so OpenSource/SelectSource buttons appear.
+            int idx = EntryList.SelectedOriginalIndex;
+            if (idx >= 0 && CoreState.ResourceCache is EtcCacheResource rcache)
+            {
+                string key = "MagicAnimation_" + U.ToHexString((uint)(idx + 1));
+                rcache.Update(key, txtPath);
+                UpdateSourceButtonVisibility();
+            }
+
+            // Refresh preview to show newly imported data.
+            _vm.IsLoading = true;
+            try
+            {
+                AddrResult? sel = EntryList.SelectedItem;
+                if (sel != null) _vm.LoadEntry(sel.addr, sel.tag);
+                UpdateUI();
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
+
+            CoreState.Services?.ShowInfo(R._("CSA magic animation imported successfully."));
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Load a PNG referenced by the CSA script: resolves relative filenames against the
+        /// script's directory, loads as RGBA, quantizes to 16 colors, returns
+        /// indexed pixels + GBA palette. Returns null on any failure.
+        /// </summary>
+        static (byte[] indexedPixels, int w, int h, byte[] gbaPalette)? LoadIndexedImage(
+            string filename, string scriptTxtPath)
+        {
+            string dir = Path.GetDirectoryName(scriptTxtPath) ?? ".";
+            string fullPath = Path.IsPathRooted(filename)
+                ? filename
+                : Path.Combine(dir, filename);
+
+            try
+            {
+                var lr = ImageImportService.LoadAndQuantizeFromFile(
+                    fullPath, 0, 0, maxColors: 16, strictSize: false);
+                if (lr == null || !lr.Success || lr.IndexedPixels == null)
+                    return null;
+                return (lr.IndexedPixels, lr.Width, lr.Height, lr.GBAPalette);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicCSACreatorView.LoadIndexedImage: {0}", ex.Message);
+                return null;
+            }
+        }
 
         // #886 — Export Magic Animation (CSA .txt + per-frame OBJ/BG PNGs).
         // CSA BG is TSA-composited via RenderCsaBgFrameSlot; OBJ reuses FEditor path.

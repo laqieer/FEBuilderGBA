@@ -149,10 +149,11 @@
 
         <!-- Animation import/export + source actions (mirrors WF bottom row) -->
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-          <!-- Import: follow-up to #886 part 2 -->
+          <!-- Import: wired in #889 -->
           <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Import_Button"
                   Name="ImportButton" Content="Import Magic Animation"
                   IsEnabled="False"
+                  ToolTip.Tip="Import a CSA magic animation (.txt script + PNGs) into the selected slot."
                   Click="Import_Click" />
           <!-- Export: wired in #886 -->
           <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Export_Button"

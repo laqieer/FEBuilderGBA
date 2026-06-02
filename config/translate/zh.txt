@@ -23790,3 +23790,15 @@ KnownGap: 国境导入（OAM汇编）是单独的后续任务。
 
 :Import is a follow-up (#878 PR2).
 Import 是后续任务（#878 PR2）。
+
+:Import CSA magic animation script
+导入CSA魔法动画脚本
+
+:CSA magic animation imported successfully.
+CSA魔法动画导入成功。
+
+:CSA magic animation import failed: {0}
+CSA魔法动画导入失败: {0}
+
+:CSA Creator magic-system not detected. Install the patch first.
+未检测到CSA Creator魔法系统，请先安装补丁。
