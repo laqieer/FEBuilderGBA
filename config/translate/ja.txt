@@ -9994,3 +9994,9 @@ CSA Creatorのマジックシステムが検出されません。先にパッチ
 
 :Import failed:
 インポートに失敗しました:
+
+:Export Image to PNG file
+画像をPNGファイルにエクスポートします
+
+:Import Image from PNG file
+PNGファイルから画像をインポートします

@@ -276,7 +276,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 154 | ImageUnitWaitIconView | ImageUnitWaitIconViewModel | Unit wait/idle icon editor |
 | 155 | ImageUnitMoveIconView | ImageUnitMoveIconViewModel | Unit move icon editor |
 | 156 | ImageSystemAreaView | ImageSystemAreaViewModel | System area graphics editor |
-| 157 | ImageGenericEnemyPortraitView | ImageGenericEnemyPortraitViewModel | Generic enemy portrait editor |
+| 157 | ImageGenericEnemyPortraitView | ImageGenericEnemyPortraitViewModel | Generic enemy portrait editor (preview + PNG Export / Image Import) |
 | 158 | ImageRomAnimeView | ImageRomAnimeViewModel | ROM-stored animation editor |
 | 159 | ImageTSAEditorView | ImageTSAEditorViewModel | Tile Screen Arrangement editor |
 | 160 | ImageTSAAnimeView | ImageTSAAnimeViewModel | TSA animation editor |

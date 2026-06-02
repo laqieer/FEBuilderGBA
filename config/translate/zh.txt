@@ -23826,3 +23826,9 @@ CSA魔法动画导入失败: {0}
 
 :Import failed:
 导入失败：
+
+:Export Image to PNG file
+将图像导出为PNG文件
+
+:Import Image from PNG file
+从PNG文件导入图像
