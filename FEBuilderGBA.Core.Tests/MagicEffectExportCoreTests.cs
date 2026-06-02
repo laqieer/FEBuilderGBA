@@ -756,5 +756,288 @@ namespace FEBuilderGBA.Core.Tests
             data[offset + 3] = (byte)((value >> 24) & 0xFF);
         }
 
+        // ---------------------------------------------------------------
+        // CSA Creator (#886) — ExportMagicScriptLines(isCsa=true)
+        // ---------------------------------------------------------------
+
+        // Build a 32-byte CSA frame record (adds +28 TSA pointer).
+        static void BuildCsa86Record(byte[] data, uint baseOffset, int frameCount)
+        {
+            for (int i = 0; i < frameCount; i++)
+            {
+                uint off = baseOffset + (uint)(i * 32);
+                if (off + 32 > data.Length) break;
+                data[off + 3] = 0x86;
+                WriteU32Le(data, off + 4,  0x08000100u); // OBJ img
+                WriteU32Le(data, off + 8,  0u);          // OAMAbsoStart
+                WriteU32Le(data, off + 12, 0u);          // OAMBGAbsoStart
+                WriteU32Le(data, off + 16, 0x08000200u); // BG img
+                WriteU32Le(data, off + 20, 0x08000300u); // OBJ pal
+                WriteU32Le(data, off + 24, 0x08000400u); // BG pal
+                WriteU32Le(data, off + 28, 0x08000500u); // TSA (+28 — CSA only)
+            }
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_CsaMode_Reads28TsaPointer()
+        {
+            // CSA frame records are 32 bytes: the +28 TSA pointer must be read
+            // into MagicFrameMeta.RawBgTsaPtr and BgTsaOffset.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0xC00u;
+            BuildCsa86Record(rom.Data, baseOff, 1);
+            rom.Data[baseOff + 32 + 3] = 0x80; // terminator after one 32-byte frame
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: true);
+
+            Assert.Single(frames);
+            Assert.Equal(0x08000500u, frames[0].RawBgTsaPtr);
+            // BgTsaOffset = toOffset(0x08000500) = 0x500
+            Assert.Equal(0x500u, frames[0].BgTsaOffset);
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_CsaMode_BgHashUsesBgPlusTsa()
+        {
+            // CSA BG hash = rawBgPtr + rawTsaPtr (mirrors WF ExportBGFrameImage).
+            // Two CSA frames sharing the same BG+TSA pointers → same BG slot.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0xD00u;
+            BuildCsa86Record(rom.Data, baseOff, 2); // 2 frames, both same ptrs
+            rom.Data[baseOff + 64 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: true);
+
+            Assert.Equal(2, frames.Count);
+            // Both frames have the same BG+TSA hash → same BG slot index.
+            Assert.Equal(2, bgSlots.Count);
+            Assert.Equal(bgSlots[0], bgSlots[1]);
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_CsaMode_DiffBgOrTsa_DiffSlot()
+        {
+            // Two CSA frames differing only in TSA pointer → different BG slots.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0xE00u;
+
+            // Frame 0: BG=0x08000200, TSA=0x08000500
+            uint off0 = baseOff;
+            rom.Data[off0 + 3] = 0x86;
+            WriteU32Le(rom.Data, off0 + 4,  0x08000100u);
+            WriteU32Le(rom.Data, off0 + 16, 0x08000200u);
+            WriteU32Le(rom.Data, off0 + 20, 0x08000300u);
+            WriteU32Le(rom.Data, off0 + 24, 0x08000400u);
+            WriteU32Le(rom.Data, off0 + 28, 0x08000500u); // TSA A
+
+            // Frame 1: same BG, different TSA
+            uint off1 = baseOff + 32;
+            rom.Data[off1 + 3] = 0x86;
+            WriteU32Le(rom.Data, off1 + 4,  0x08000100u);
+            WriteU32Le(rom.Data, off1 + 16, 0x08000200u); // same BG
+            WriteU32Le(rom.Data, off1 + 20, 0x08000300u);
+            WriteU32Le(rom.Data, off1 + 24, 0x08000400u);
+            WriteU32Le(rom.Data, off1 + 28, 0x08000600u); // TSA B (different)
+
+            rom.Data[off1 + 32 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: true);
+
+            Assert.Equal(2, frames.Count);
+            Assert.NotEqual(bgSlots[0], bgSlots[1]);
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_CsaMode_StrideIs32Bytes()
+        {
+            // CSA frame stride is 32 bytes; a terminator placed at offset+32
+            // (not offset+28) must be found after exactly one frame.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0xF00u;
+            BuildCsa86Record(rom.Data, baseOff, 1);
+            // Terminator at baseOff+32 (would be missed if stride=28 were used).
+            rom.Data[baseOff + 32 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: true);
+
+            Assert.Single(frames);
+        }
+
+        [Fact]
+        public void CountUniqueBgSlots_CsaMode_UsesHashBgPlusTsa()
+        {
+            // isCsa=true: hash = rawBgPtr + rawBgTsaPtr.
+            // Two frames with same BG but different TSA → 2 unique BG slots.
+            var frames = new List<MagicFrameMeta>
+            {
+                new MagicFrameMeta { RawBgImagePtr = 0x08000200u, RawBgTsaPtr = 0x08000500u },
+                new MagicFrameMeta { RawBgImagePtr = 0x08000200u, RawBgTsaPtr = 0x08000600u },
+            };
+            Assert.Equal(2, MagicEffectExportCore.CountUniqueBgSlots(frames, isCsa: true));
+        }
+
+        [Fact]
+        public void CountUniqueBgSlots_CsaMode_SameBgSameTsa_Returns1()
+        {
+            var frames = new List<MagicFrameMeta>
+            {
+                new MagicFrameMeta { RawBgImagePtr = 0x08000200u, RawBgTsaPtr = 0x08000500u },
+                new MagicFrameMeta { RawBgImagePtr = 0x08000200u, RawBgTsaPtr = 0x08000500u },
+            };
+            Assert.Equal(1, MagicEffectExportCore.CountUniqueBgSlots(frames, isCsa: true));
+        }
+
+        [Fact]
+        public void RenderCsaBgFrameSlot_ValidSyntheticRom_ReturnsCorrectDims()
+        {
+            // Synthetic CSA frame with LZ77 BG tilesheet + LZ77 TSA.
+            // 240x160 output: CalcHeightByTsa(240, tsaLen) >= 160 → height=160.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                // BG tilesheet at 0x500 (240x160 = 38400 pixels, 4bpp = 19200 bytes of tile data).
+                PlantSmallLZ77(rom.Data, 0x500u, 19200);
+                // TSA at 0x2000: 240/8 * 160/8 = 30*20 = 600 entries * 2 bytes = 1200 bytes.
+                // CalcHeightByTsa(240, 1200) = (1200/2 / 30) * 8 = 160
+                PlantSmallLZ77(rom.Data, 0x2000u, 1200);
+                PlantRawPalette(rom.Data, 0x800u);
+
+                var frames = new List<MagicFrameMeta>
+                {
+                    new MagicFrameMeta
+                    {
+                        RawObjImagePtr  = 0x08000100u,
+                        OamAbsoStart    = 0u,
+                        RawBgImagePtr   = 0x08000500u,
+                        BgImageOffset   = 0x500u,
+                        RawBgTsaPtr     = 0x08002000u,
+                        BgTsaOffset     = 0x2000u,
+                        BgPaletteOffset = 0x800u,
+                        RawBgPalPtr     = 0x08000800u,
+                    }
+                };
+
+                // Slot index for the unique BG in CSA mode:
+                // OBJ hash added first (slot 0), BG hash = rawBg+rawTsa → slot 1.
+                var img = MagicEffectExportCore.RenderCsaBgFrameSlot(rom, frames, 1);
+
+                Assert.NotNull(img);
+                Assert.Equal(MagicEffectExportCore.CSA_BG_EXPORT_WIDTH, img.Width);
+                Assert.Equal(MagicEffectExportCore.CSA_BG_EXPORT_HEIGHT_FULL, img.Height);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaBgFrameSlot_SmallTsa_Returns64Height()
+        {
+            // When CalcHeightByTsa < 160 → output height = 64.
+            // TSA for 240x64: 30*8=240 entries * 2 = 480 bytes.
+            // CalcHeightByTsa(240, 480) = (480/2 / 30)*8 = 64 < 160 → height=64.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                PlantSmallLZ77(rom.Data, 0x500u, 8192);  // BG tilesheet
+                PlantSmallLZ77(rom.Data, 0x3000u, 480);  // small TSA → 64px height
+                PlantRawPalette(rom.Data, 0x800u);
+
+                var frames = new List<MagicFrameMeta>
+                {
+                    new MagicFrameMeta
+                    {
+                        RawObjImagePtr  = 0x08000100u,
+                        OamAbsoStart    = 0u,
+                        RawBgImagePtr   = 0x08000500u,
+                        BgImageOffset   = 0x500u,
+                        RawBgTsaPtr     = 0x08003000u,
+                        BgTsaOffset     = 0x3000u,
+                        BgPaletteOffset = 0x800u,
+                        RawBgPalPtr     = 0x08000800u,
+                    }
+                };
+
+                var img = MagicEffectExportCore.RenderCsaBgFrameSlot(rom, frames, 1);
+
+                Assert.NotNull(img);
+                Assert.Equal(MagicEffectExportCore.CSA_BG_EXPORT_WIDTH, img.Width);
+                Assert.Equal(MagicEffectExportCore.CSA_BG_EXPORT_HEIGHT_SMALL, img.Height);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaBgFrameSlot_OutOfRangeSlot_ReturnsNull()
+        {
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new StubImageService();
+                var frames = new List<MagicFrameMeta>
+                {
+                    new MagicFrameMeta
+                    {
+                        RawBgImagePtr = 0x08000200u, RawBgTsaPtr = 0x08000500u
+                    }
+                };
+                // Only slot 1 (after OBJ slot 0) — requesting slot 5 → null.
+                var result = MagicEffectExportCore.RenderCsaBgFrameSlot(
+                    MakeMinimalRom(), frames, 5);
+                Assert.Null(result);
+            }
+            finally { CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_CsaObjLines_MatchFEditorFormat()
+        {
+            // OBJ render and script lines for CSA must be identical to FEditor
+            // (same "O  p- basename_o_NNN.png" prefix).
+            var rom = MakeMinimalRom();
+            uint baseOff = 0x1000u;
+            BuildCsa86Record(rom.Data, baseOff, 1);
+            rom.Data[baseOff + 32 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            var csaLines = MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: true);
+
+            var objLine = csaLines.Find(l => l.Kind == MagicScriptLineKind.ObjImage);
+            Assert.NotNull(objLine);
+            Assert.StartsWith("O  p- t_o_", objLine.Text);
+        }
+
     }
 }
