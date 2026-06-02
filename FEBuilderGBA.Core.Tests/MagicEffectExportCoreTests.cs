@@ -1039,5 +1039,110 @@ namespace FEBuilderGBA.Core.Tests
             Assert.StartsWith("O  p- t_o_", objLine.Text);
         }
 
+
+        // ---------------------------------------------------------------
+        // #886 integration: shared-space BG slot index matches filename + renderer
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Regression test for #886: the BG export loop MUST pass the SHARED-space
+        /// slot index (from sharedBgSlots) to RenderCsaBgFrameSlot, NOT a 0-based BG
+        /// counter. With 1 OBJ + 1 BG frame, the BG gets shared-space index 1
+        /// (OBJ took slot 0), the .txt script says "b_001.png", and the renderer
+        /// must be invoked with slotIndex=1 (not 0).
+        ///
+        /// The fix in DoExport: enumerate uniqueBgSharedIndices from sharedBgSlots
+        /// (dedup, insertion-order) and pass each sharedSlot to RenderCsaBgFrameSlot.
+        /// </summary>
+        [Fact]
+        public void CsaExport_BgSharedSlotIndex_MatchesFilenameAndRenderer_Integration()
+        {
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                // Plant LZ77 BG tilesheet at 0x500 and TSA at 0x2000.
+                // TSA for 240x160: 30*20=600 entries * 2 = 1200 bytes.
+                PlantSmallLZ77(rom.Data, 0x500u, 19200);
+                PlantSmallLZ77(rom.Data, 0x2000u, 1200);
+                PlantRawPalette(rom.Data, 0x800u);
+
+                // One CSA frame: distinct OBJ ptr + BG ptr + TSA ptr.
+                var frames = new System.Collections.Generic.List<MagicFrameMeta>
+                {
+                    new MagicFrameMeta
+                    {
+                        RawObjImagePtr  = 0x08000100u,  // OBJ hash → slot 0
+                        OamAbsoStart    = 0u,
+                        RawBgImagePtr   = 0x08000500u,  // BG+TSA hash → slot 1
+                        BgImageOffset   = 0x500u,
+                        RawBgTsaPtr     = 0x08002000u,
+                        BgTsaOffset     = 0x2000u,
+                        BgPaletteOffset = 0x800u,
+                        RawBgPalPtr     = 0x08000800u,
+                    }
+                };
+
+                // Step 1: ExportMagicScriptLines returns sharedBgSlots.
+                // For 1 OBJ + 1 BG, the BG must occupy shared-space index 1 (not 0).
+                // This is the same slot index used in the "b_001.png" filename.
+                // Build the frame data in ROM for the scan.
+                uint baseOff = 0x1200u;
+                BuildCsa86Record(rom.Data, baseOff, 1);
+                // Override BG+TSA pointers in the on-ROM record.
+                WriteU32Le(rom.Data, baseOff + 16, 0x08000500u);
+                WriteU32Le(rom.Data, baseOff + 28, 0x08002000u);
+                rom.Data[baseOff + 32 + 3] = 0x80;
+
+                System.Collections.Generic.List<int> sharedObjSlots, sharedBgSlots;
+                System.Collections.Generic.List<MagicFrameMeta> scannedFrames;
+                var scriptLines = MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, baseOff, "t_", false,
+                    out sharedObjSlots, out sharedBgSlots, out scannedFrames,
+                    isCsa: true);
+
+                // Assert: OBJ got slot 0, BG got slot 1 (shared-space, not 0-based BG counter).
+                Assert.Single(sharedObjSlots);
+                Assert.Equal(0, sharedObjSlots[0]);
+                Assert.Single(sharedBgSlots);
+                Assert.Equal(1, sharedBgSlots[0]); // NOT 0 — the bug was passing 0 here
+
+                // Assert: the .txt script references "b_001.png" (slot 1, not b_000).
+                var bgLine = scriptLines.Find(l => l.Kind == MagicScriptLineKind.BgImage);
+                Assert.NotNull(bgLine);
+                Assert.Contains("b_001.png", bgLine.Text);
+                Assert.DoesNotContain("b_000.png", bgLine.Text);
+
+                // Step 2: RenderCsaBgFrameSlot with the CORRECT shared-space index (1)
+                // must succeed, while with the buggy index (0) it must return null
+                // (slot 0 is the OBJ hash, not a BG hash).
+                // This proves that passing s=0 (old buggy code) renders the WRONG slot.
+                var imgCorrect = MagicEffectExportCore.RenderCsaBgFrameSlot(
+                    rom, scannedFrames, sharedBgSlots[0]); // correct: slot 1
+                Assert.NotNull(imgCorrect);
+
+                var imgWrong = MagicEffectExportCore.RenderCsaBgFrameSlot(
+                    rom, scannedFrames, 0); // buggy: slot 0 (OBJ slot) → no BG frame at slot 0
+                Assert.Null(imgWrong); // slot 0 is the OBJ hash, BG is at slot 1
+
+                // Step 3: Simulate the fixed export-loop logic — deduplicate sharedBgSlots
+                // to get unique shared-space indices (mirrors the view's DoExport fix).
+                var seenBgSlots = new System.Collections.Generic.HashSet<int>();
+                var uniqueBgSharedIndices = new System.Collections.Generic.List<int>();
+                foreach (int si in sharedBgSlots)
+                {
+                    if (seenBgSlots.Add(si))
+                        uniqueBgSharedIndices.Add(si);
+                }
+                Assert.Single(uniqueBgSharedIndices);
+                Assert.Equal(1, uniqueBgSharedIndices[0]); // shared-space index, not 0
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
     }
 }

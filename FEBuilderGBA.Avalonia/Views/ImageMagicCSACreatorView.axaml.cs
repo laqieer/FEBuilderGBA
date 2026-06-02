@@ -412,19 +412,35 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 // Render and save unique CSA BG frames (TSA-composited).
-                int bgSlotCount = MagicEffectExportCore.CountUniqueBgSlots(frames, isCsa: true);
-                for (int s = 0; s < bgSlotCount; s++)
+                // #886 fix: enumerate the SHARED-space slot indices from sharedBgSlots
+                // (deduplicated, insertion-order), not a fresh 0-based counter.
+                // RenderCsaBgFrameSlot and the b_NNN.png filenames BOTH use the shared
+                // index space (OBJ slots registered first — e.g. 1 OBJ → BG slot 1,
+                // not slot 0). This mirrors ExportMagicScriptLines's b_NNN naming and
+                // the #880 FEditor approach where animeHash is a single shared list.
+                var seenBgSlots = new System.Collections.Generic.HashSet<int>();
+                var uniqueBgSharedIndices = new System.Collections.Generic.List<int>();
+                foreach (int si in sharedBgSlots)
                 {
-                    // RenderCsaBgFrameSlot uses CSA hash (bgPtr+tsaPtr) to find the frame.
-                    IImage? img = MagicEffectExportCore.RenderCsaBgFrameSlot(rom, frames, s);
+                    if (seenBgSlots.Add(si))
+                        uniqueBgSharedIndices.Add(si);
+                }
+                int bgSlotCount = uniqueBgSharedIndices.Count;
+                foreach (int sharedSlot in uniqueBgSharedIndices)
+                {
+                    // Pass the SHARED-space index to RenderCsaBgFrameSlot so it
+                    // locates the correct BG frame in the OBJ+BG shared hash.
+                    IImage? img = MagicEffectExportCore.RenderCsaBgFrameSlot(rom, frames, sharedSlot);
+                    // Filename uses the same shared-space index as the .txt script
+                    // (e.g. b_001.png when OBJ has slot 0 and this BG has slot 1).
                     string pngPath = Path.Combine(
-                        basedir, basename + "b_" + s.ToString("000") + ".png");
+                        basedir, basename + "b_" + sharedSlot.ToString("000") + ".png");
                     if (img != null)
                     {
                         try { img.Save(pngPath); }
                         catch (Exception ex)
                         {
-                            Log.Error("CSAExport: save BG slot " + s + ": " + ex.Message);
+                            Log.Error("CSAExport: save BG slot " + sharedSlot + ": " + ex.Message);
                         }
                     }
                     else
