@@ -287,8 +287,9 @@ namespace FEBuilderGBA.Avalonia.Views
             if (rom == null || !_vm.IsLoaded || _vm.SkillBaseAddress == 0) return;
             if (!TryResolveIconAddrs(rom, out uint iconByteAddr, out uint paletteAddr)) return;
 
-            string err = await SkillConfigIconIoHelper.ImportIconAsync(
+            string? err = await SkillConfigIconIoHelper.ImportIconAsync(
                 this, rom, iconByteAddr, paletteAddr, _undoService);
+            if (err == null) return; // user cancelled — do not refresh.
             if (err != "")
             {
                 Log.Notify("SkillConfigFE8NVer2SkillView.ImageImport_Click: " + err);

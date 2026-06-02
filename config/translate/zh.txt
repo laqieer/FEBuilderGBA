@@ -23805,3 +23805,9 @@ CSA魔法动画导入失败: {0}
 
 :Import a CSA magic animation (.txt script + PNGs) into the selected slot.
 将CSA魔法动画（.txt脚本 + PNG）导入选中的槽位。
+
+:Import a 16x16 skill icon (128 raw 4bpp bytes, in-place, undoable).
+导入16x16技能图标（128字节原始4bpp，原地覆盖，可撤销）。
+
+:Export the 16x16 skill icon as a PNG.
+将16x16技能图标导出为PNG。

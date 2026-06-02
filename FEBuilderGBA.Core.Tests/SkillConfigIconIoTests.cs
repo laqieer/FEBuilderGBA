@@ -20,10 +20,28 @@ using FEBuilderGBA;
 namespace FEBuilderGBA.Core.Tests
 {
     [Collection("SharedState")]
-    public class SkillConfigIconIoTests
+    public class SkillConfigIconIoTests : IDisposable
     {
         const int W = 16, H = 16;
         const int IconBytes = 128; // 16x16 4bpp = 128 bytes
+
+        // Save/restore the shared CoreState the tests mutate so they don't leak
+        // a stale ROM/Undo into later [Collection("SharedState")] tests (same
+        // discipline as BattleAnimeOAMImportCoreTests / the sibling import tests).
+        readonly ROM _prevRom;
+        readonly Undo _prevUndo;
+
+        public SkillConfigIconIoTests()
+        {
+            _prevRom = CoreState.ROM;
+            _prevUndo = CoreState.Undo;
+        }
+
+        public void Dispose()
+        {
+            CoreState.ROM = _prevRom;
+            CoreState.Undo = _prevUndo;
+        }
 
         static ROM CreateTestRom(int size = 0x200000)
         {

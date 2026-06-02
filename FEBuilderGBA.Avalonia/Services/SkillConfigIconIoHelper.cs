@@ -50,16 +50,24 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Import a 16x16 PNG/BMP as the skill icon, writing 128 raw 4bpp
         /// bytes in-place at <paramref name="iconByteAddr"/>.
         ///
-        /// Returns "" on success, or a non-empty (localized) error string on
-        /// failure. On any failure that occurs after a partial ROM mutation,
-        /// the undo scope is rolled back so no half-written icon is left.
+        /// Return contract (so callers can tell cancel from success):
+        ///   <list type="bullet">
+        ///     <item><c>null</c> — the user cancelled the file dialog. Callers
+        ///       must NOT refresh the icon/list (nothing was written).</item>
+        ///     <item><c>""</c> — success. The 128 bytes were written; callers
+        ///       should refresh the icon preview + list.</item>
+        ///     <item>non-empty — a localized error message (nothing written, or
+        ///       the partial write was rolled back).</item>
+        ///   </list>
+        /// On any failure that occurs after a partial ROM mutation, the undo
+        /// scope is rolled back so no half-written icon is left.
         /// </summary>
         /// <param name="owner">Window to parent the file dialog.</param>
         /// <param name="rom">Target ROM (must be the live CoreState.ROM).</param>
         /// <param name="iconByteAddr">ROM byte-offset of the 128-byte icon block.</param>
         /// <param name="paletteAddr">ROM byte-offset of the 16-color skill palette.</param>
         /// <param name="undo">Active editor undo service (the helper opens its own scope).</param>
-        public static async Task<string> ImportIconAsync(
+        public static async Task<string?> ImportIconAsync(
             Window owner, ROM rom, uint iconByteAddr, uint paletteAddr, UndoService undo)
         {
             if (owner == null || rom == null || rom.Data == null || undo == null)
@@ -74,7 +82,7 @@ namespace FEBuilderGBA.Avalonia.Services
             // File dialog + load + strict 16x16 size enforcement + remap.
             string filePath = await FileDialogHelper.OpenImageFile(owner);
             if (string.IsNullOrEmpty(filePath))
-                return ""; // user cancelled — not an error.
+                return null; // user cancelled — distinct from success ("").
 
             var loadResult = ImageImportService.LoadAndRemapFromFile(
                 filePath, IconWidth, IconHeight, palette, 16, strictSize: true);

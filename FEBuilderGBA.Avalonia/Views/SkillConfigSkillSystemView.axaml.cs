@@ -239,8 +239,9 @@ namespace FEBuilderGBA.Avalonia.Views
             uint iconByteAddr = _vm.IconBaseAddress + SkillConfigIconIoHelper.IconByteSize * _vm.SelectedId;
             uint paletteAddr = rom.p32(SKILL_PALETTE_POINTER);
 
-            string err = await SkillConfigIconIoHelper.ImportIconAsync(
+            string? err = await SkillConfigIconIoHelper.ImportIconAsync(
                 this, rom, iconByteAddr, paletteAddr, _undoService);
+            if (err == null) return; // user cancelled — do not refresh.
             if (err != "")
             {
                 Log.Notify("SkillConfigSkillSystemView.ImageImport_Click: " + err);
