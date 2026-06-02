@@ -146,5 +146,89 @@ namespace FEBuilderGBA.Core.Tests
                 gba, System.Array.Empty<byte>(), out _, out _, out _);
             Assert.False(ok);
         }
+
+        // ----- #906: premultiplied-alpha un-premultiply -----
+
+        // Premultiply a straight (r,g,b,a) color the way the SkiaSharp
+        // SKAlphaType.Premul loader stores it: channel * a / 255 (rounded).
+        static (byte r, byte g, byte b, byte a) Premul(byte r, byte g, byte b, byte a)
+            => ((byte)((r * a + 127) / 255), (byte)((g * a + 127) / 255),
+                (byte)((b * a + 127) / 255), a);
+
+        static byte[] RgbaPixelsPremul(params (byte r, byte g, byte b, byte a)[] colors)
+        {
+            var buf = new byte[colors.Length * 4];
+            for (int i = 0; i < colors.Length; i++)
+            {
+                buf[i * 4 + 0] = colors[i].r;
+                buf[i * 4 + 1] = colors[i].g;
+                buf[i * 4 + 2] = colors[i].b;
+                buf[i * 4 + 3] = colors[i].a;
+            }
+            return buf;
+        }
+
+        [Fact]
+        public void ExtractFromRgba_SemiTransparentEdges_StillExtractsSixteenInOrder_NoSpuriousReject()
+        {
+            // 16 intended straight colors. We render each with a DUPLICATE
+            // semi-transparent edge pixel (same straight color, alpha 0x80 =
+            // 50%): premultiplied, that edge pixel's stored RGB is roughly HALF
+            // the opaque pixel's RGB — WITHOUT un-premultiply it would read as an
+            // EXTRA distinct color (pushing distinct count to 32 -> false
+            // reject). After un-premultiply, the edge pixel resolves to the SAME
+            // RGB555 as its opaque twin, so exactly 16 colors survive, in order.
+            //
+            // Each channel is a 5-bit BUCKET CENTER (bucket*8 + 4) so the small
+            // premul/un-premul rounding error stays inside the bucket — isolating
+            // the test to the un-premultiply behavior, not RGB555 boundary
+            // rounding. (Premul into an 8-bit byte is inherently lossy at very
+            // low alpha; that is the real GBA-import limit, not a bug here.)
+            var straight = new (byte r, byte g, byte b)[16];
+            for (int i = 0; i < 16; i++)
+                straight[i] = ((byte)(i * 8 + 4),                 // r: bucket i center (unique)
+                               (byte)((15 - i) * 8 + 4),          // g: bucket 15-i center
+                               (byte)(((i * 5) % 16) * 8 + 4));   // b: scrambled bucket center
+
+            // Interleave: opaque pixel then a 50%-alpha twin of the same color.
+            var pixels = new (byte, byte, byte, byte)[32];
+            for (int i = 0; i < 16; i++)
+            {
+                var (r, g, b) = straight[i];
+                pixels[i * 2 + 0] = (r, g, b, 0xFF);              // opaque (straight == premul)
+                pixels[i * 2 + 1] = Premul(r, g, b, 0x80);        // semi-transparent edge twin
+            }
+
+            bool ok = UnitPaletteImportCore.TryExtractIndexOrdered(
+                System.Array.Empty<byte>(), RgbaPixelsPremul(pixels),
+                out uint[] rr, out uint[] gg, out uint[] bb);
+
+            Assert.True(ok); // no spurious >16 rejection
+            // Exactly 16 colors, IN ORDER, each matching the straight RGB555.
+            for (int i = 0; i < 16; i++)
+            {
+                Assert.Equal(Ch5(straight[i].r), rr[i]);
+                Assert.Equal(Ch5(straight[i].g), gg[i]);
+                Assert.Equal(Ch5(straight[i].b), bb[i]);
+            }
+        }
+
+        [Fact]
+        public void ExtractFromRgba_FullyTransparentPixel_MapsToCanonicalTransparentEntry()
+        {
+            // A fully-transparent pixel (a == 0) carries no color -> RGB555 0,
+            // and must not divide by zero. Here it appears first, so index 0 = 0,
+            // then one opaque red.
+            byte[] px = RgbaPixelsPremul(
+                (0x12, 0x34, 0x56, 0x00),   // fully transparent -> canonical 0
+                (0xF8, 0x00, 0x00, 0xFF));  // red
+
+            bool ok = UnitPaletteImportCore.TryExtractIndexOrdered(
+                System.Array.Empty<byte>(), px, out uint[] r, out uint[] g, out uint[] b);
+
+            Assert.True(ok);
+            Assert.Equal(0u, r[0]); Assert.Equal(0u, g[0]); Assert.Equal(0u, b[0]);
+            Assert.Equal(Ch5(0xF8), r[1]); Assert.Equal(0u, g[1]); Assert.Equal(0u, b[1]);
+        }
     }
 }

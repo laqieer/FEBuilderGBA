@@ -279,18 +279,28 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ImageUnitPaletteView.Write: {0}", ex.Message); }
         }
 
+        /// <summary>Palette Write button handler — delegates to
+        /// <see cref="PerformPaletteWrite"/>.</summary>
+        void PaletteWrite_Click(object? sender, RoutedEventArgs e) => PerformPaletteWrite();
+
         /// <summary>
         /// Functional palette write-back using <see cref="UnitPaletteWriteCore"/>.
         /// Reads the 16 RGB NumericUpDowns, compresses the new palette via LZ77,
         /// writes in-place when it fits or reallocates at ROM end and patches
-        /// the P12 slot under the same undo scope.
+        /// the P12 slot under the same (single) undo scope.
+        ///
+        /// Sender/args-free so it can be reused programmatically (e.g. from the
+        /// import path) WITHOUT invoking the event handler with null
+        /// <see cref="RoutedEventArgs"/> (the #906 review fix). Returns
+        /// <c>true</c> on a successful write; <c>false</c> when there is no
+        /// selected entry or the core write failed/rolled back.
         /// </summary>
-        void PaletteWrite_Click(object? sender, RoutedEventArgs e)
+        bool PerformPaletteWrite()
         {
             if (_vm.CurrentAddr == 0)
             {
                 Log.Error("ImageUnitPaletteView.PaletteWrite: no selected entry.");
-                return;
+                return false;
             }
             var r = new uint[16];
             var g = new uint[16];
@@ -322,18 +332,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND (invalid pointer or LZ77 stream).");
-                    return;
+                    return false;
                 }
                 _vm.PalettePointer = newP12;
                 PalettePointerBox.Text = $"0x{newP12:X08}";
                 PaletteAddressBox.Text = $"0x{newP12:X08}";
                 _undoService.Commit();
                 _vm.MarkClean();
+                return true;
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.Error("ImageUnitPaletteView.PaletteWrite: {0}", ex.Message);
+                return false;
             }
         }
 
@@ -441,8 +453,10 @@ namespace FEBuilderGBA.Avalonia.Views
             // (PaletteWrite_Click owns its own).
             ApplyImportedChannels(r, g, b);
 
-            // Reuse the existing ROM write (owns its undo scope + LZ77/repoint).
-            PaletteWrite_Click(null, null);
+            // Reuse the existing ROM write (owns its single undo scope +
+            // LZ77/repoint). #906 review: call the sender/args-free core method,
+            // NOT the event handler with null RoutedEventArgs.
+            PerformPaletteWrite();
 
             // Refresh the sample preview to reflect the new palette.
             RefreshSamplePreview();

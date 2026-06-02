@@ -38,9 +38,14 @@ namespace FEBuilderGBA
         ///      (2 bytes per color, GBA RGB555) with ≤16 colors, decode it
         ///      verbatim — the loader already preserved index order.
         ///   2. Otherwise scan <paramref name="rgbaPixels"/> (4 bytes/pixel:
-        ///      R,G,B,A) and collect the distinct opaque-ish colors in
-        ///      first-appearance order. Alpha is ignored for distinctness
-        ///      (GBA palettes have no per-color alpha) but the scan still
+        ///      R,G,B,A, <b>premultiplied-alpha</b> as produced by the SkiaSharp
+        ///      loader) and collect the distinct colors in first-appearance
+        ///      order. Each pixel is <b>un-premultiplied</b> back to straight
+        ///      RGB before the RGB555 quantize (#906), so semi-transparent edge
+        ///      pixels do not invent spurious distinct colors; a fully
+        ///      transparent pixel maps to the canonical transparent entry
+        ///      (RGB555 = 0). GBA palettes carry no per-color alpha, so only the
+        ///      resulting RGB participates in distinctness — but the scan still
         ///      preserves the top-left-first ordering.
         ///
         /// Output: 16 RGB555 channel arrays (0-31). When fewer than 16 distinct
@@ -94,6 +99,17 @@ namespace FEBuilderGBA
             if (rgbaPixels == null || rgbaPixels.Length < 4) return false;
 
             // First-appearance ordered distinct list of RGB555 colors.
+            //
+            // IMPORTANT (#906 review): the RGBA bytes from the SkiaSharp loader
+            // are PREMULTIPLIED-alpha (the SKBitmap is SKAlphaType.Premul, so its
+            // R/G/B channels are already scaled by A/255). Treating the
+            // premultiplied RGB as the original color would invent EXTRA distinct
+            // RGB555 values for semi-transparent edge pixels — spuriously pushing
+            // the distinct count >16 (false rejection) or perturbing the index
+            // order. Un-premultiply each pixel back to straight-alpha RGB BEFORE
+            // the RGB555 quantize. A fully-transparent pixel (a == 0) carries no
+            // meaningful color, so map it to a canonical transparent entry
+            // (RGB555 = 0) rather than dividing by zero.
             var order = new List<ushort>();
             var seen = new HashSet<ushort>();
             for (int p = 0; p + 3 < rgbaPixels.Length; p += 4)
@@ -101,9 +117,29 @@ namespace FEBuilderGBA
                 byte r8 = rgbaPixels[p + 0];
                 byte g8 = rgbaPixels[p + 1];
                 byte b8 = rgbaPixels[p + 2];
-                ushort c = (ushort)(((r8 >> 3) & 0x1F)
-                                  | (((g8 >> 3) & 0x1F) << 5)
-                                  | (((b8 >> 3) & 0x1F) << 10));
+                byte a8 = rgbaPixels[p + 3];
+
+                ushort c;
+                if (a8 == 0)
+                {
+                    // Fully transparent: no color information. Canonical entry.
+                    c = 0;
+                }
+                else
+                {
+                    if (a8 < 255)
+                    {
+                        // Un-premultiply: straight = premultiplied * 255 / alpha,
+                        // clamped to the 0..255 byte range.
+                        r8 = (byte)System.Math.Min(255, (r8 * 255 + a8 / 2) / a8);
+                        g8 = (byte)System.Math.Min(255, (g8 * 255 + a8 / 2) / a8);
+                        b8 = (byte)System.Math.Min(255, (b8 * 255 + a8 / 2) / a8);
+                    }
+                    c = (ushort)(((r8 >> 3) & 0x1F)
+                              | (((g8 >> 3) & 0x1F) << 5)
+                              | (((b8 >> 3) & 0x1F) << 10));
+                }
+
                 if (seen.Add(c))
                 {
                     order.Add(c);
