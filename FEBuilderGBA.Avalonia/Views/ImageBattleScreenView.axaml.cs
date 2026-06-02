@@ -4,11 +4,13 @@
 // `ImageBattleScreenCore` helper (which delegates palette I/O to PaletteCore)
 // for the TSA + palette + image-pointer write paths under the ambient
 // UndoService scope.
+// Per-image Import/Export wired in #872.
 using System;
 using System.Globalization;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -514,6 +516,180 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("BulkUndo_Click failed: {0}", ex.Message);
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Per-image Import/Export handlers (Image1..Image5, #872).
+        //
+        // Export: render the image strip via ImageBattleScreenCore
+        //   → GbaImageControl.ExportPng → save PNG.
+        //   Read-only; no ROM write; no undo scope needed.
+        //
+        // Import: open file dialog → LoadAndQuantizeFromFile (maps user pixels
+        //   to existing shared palette) → ImageBattleScreenCore.WritePerImageStrip
+        //   (EncodeDirectTiles4bpp → LZ77 → free-space write + repoint) → refresh
+        //   all previews. Wrapped in _undoService.Begin/Commit/Rollback so a
+        //   failed write leaves the ROM in the pre-import state.
+        //
+        // The shared palette is read-only during per-image import (it is shared
+        // across all 5 image strips -- mirroring the WF RevChipImage path which
+        // never writes the palette). The user must use the Palette tab for that.
+        // -----------------------------------------------------------------
+
+        // Image1
+        async void Image1Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(0, Image1Preview, "battle_screen_image1");
+        async void Image1Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(0);
+
+        // Image2
+        async void Image2Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(1, Image2Preview, "battle_screen_image2");
+        async void Image2Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(1);
+
+        // Image3
+        async void Image3Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(2, Image3Preview, "battle_screen_image3");
+        async void Image3Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(2);
+
+        // Image4
+        async void Image4Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(3, Image4Preview, "battle_screen_image4");
+        async void Image4Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(3);
+
+        // Image5
+        async void Image5Export_Click(object? sender, RoutedEventArgs e) => await ImageExport_Click(4, Image5Preview, "battle_screen_image5");
+        async void Image5Import_Click(object? sender, RoutedEventArgs e) => await ImageImport_Click(4);
+
+        /// <summary>
+        /// Export one per-image strip as PNG. Reads the current rendered IImage
+        /// from the GbaImageControl (same surface shown in the preview, so what
+        /// the user sees is what gets exported). Read-only; no ROM write.
+        /// Mirrors <see cref="BattleExportPng_Click"/>: awaits ExportPng and
+        /// logs/surfaces any File.Create / bitmap.Save exception so it is never
+        /// swallowed as an unobserved task exception (#874 review fix).
+        /// </summary>
+        internal async System.Threading.Tasks.Task ImageExport_Click(int imageIndex, Controls.GbaImageControl previewControl, string suggestedName)
+        {
+            if (previewControl == null) return;
+            if (!previewControl.HasImage)
+            {
+                Log.Notify($"ImageExport_Click({imageIndex}): no image rendered; cannot export.");
+                return;
+            }
+            try
+            {
+                await previewControl.ExportPng(this, suggestedName);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"ImageBattleScreenView.ImageExport_Click({imageIndex}) failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Import a PNG/BMP file as one per-image strip (#872).
+        ///
+        /// Pipeline:
+        ///   1. Open file dialog.
+        ///   2. Read current strip dimensions from Core so the user-supplied
+        ///      image can be validated (strictSize=true).
+        ///   3. Quantize against the existing shared battle-screen palette
+        ///      (LoadAndRemapFromFile) -- import NEVER writes the palette.
+        ///   4. WritePerImageStrip under one UndoService scope.
+        ///   5. Reload the VM entry + refresh all previews so the new tiles
+        ///      appear immediately.
+        ///   6. On any failure, Rollback the scope and revert the VM state
+        ///      (snapshot-restore per the #871 lesson).
+        /// </summary>
+        internal async System.Threading.Tasks.Task ImageImport_Click(int imageIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null) return;
+            if (!_vm.IsLoaded)
+            {
+                Log.Notify($"ImageImport_Click({imageIndex}): no entry loaded; aborting.");
+                return;
+            }
+
+            // Resolve expected dimensions from Core (same as the preview render path).
+            if (!ImageBattleScreenCore.TryLoadSingleImageStrip(rom, imageIndex, out _, out int widthPx, out int heightPx))
+            {
+                Log.Notify($"ImageImport_Click({imageIndex}): could not determine strip dimensions; aborting.");
+                return;
+            }
+
+            // Read the shared battle-screen palette for quantization remapping.
+            // Returns null if the palette pointer is corrupt/out-of-bounds.
+            if (!ImageBattleScreenCore.TryLoadRawPalettePublic(rom, out byte[] gbaPalette))
+            {
+                Log.Notify($"ImageImport_Click({imageIndex}): could not read shared palette; aborting.");
+                return;
+            }
+
+            // Open file dialog and load+quantize (remap to existing palette so
+            // the user's image is forced to use the current battle-screen colors).
+            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath)) return;
+
+            var loadResult = ImageImportService.LoadAndRemapFromFile(
+                filePath, widthPx, heightPx, gbaPalette, 16, strictSize: true);
+            if (loadResult == null || !loadResult.Success)
+            {
+                string err = loadResult?.Error ?? "Unknown error";
+                Log.Error($"ImageImport_Click({imageIndex}): load/quantize failed: {err}");
+                return;
+            }
+
+            // Snapshot VM state for rollback on write failure (per the #871 lesson:
+            // never leave the UI showing an image that wasn't persisted to ROM).
+            uint[] prevPointers = new uint[]
+            {
+                _vm.Image1Pointer, _vm.Image2Pointer, _vm.Image3Pointer,
+                _vm.Image4Pointer, _vm.Image5Pointer,
+            };
+
+            _undoService.Begin($"Import Image{imageIndex + 1}");
+            bool ok;
+            try
+            {
+                ok = ImageBattleScreenCore.WritePerImageStrip(rom, imageIndex,
+                    loadResult.IndexedPixels, widthPx, heightPx);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"ImageImport_Click({imageIndex}): WritePerImageStrip threw: {ex.Message}");
+                _undoService.Rollback();
+                RestoreVmPointers(prevPointers);
+                return;
+            }
+
+            if (!ok)
+            {
+                Log.Notify($"ImageImport_Click({imageIndex}): write failed; rolling back.");
+                _undoService.Rollback();
+                RestoreVmPointers(prevPointers);
+                return;
+            }
+
+            _undoService.Commit();
+
+            // Reload so the VM reflects the new pointer written by WritePerImageStrip.
+            _vm.LoadEntry();
+            PopulateUI();
+            RefreshBattlePreview();
+            RefreshChipsetPreview();
+            RefreshImagePreviews();
+        }
+
+        /// <summary>
+        /// Restore VM image-pointer properties from a snapshot (snapshot-restore
+        /// per the #871 lesson: a failed write must not leave the UI showing an
+        /// unpersisted image). Called from the import failure paths.
+        /// </summary>
+        void RestoreVmPointers(uint[] snapshot)
+        {
+            if (snapshot == null || snapshot.Length < 5) return;
+            _vm.Image1Pointer = snapshot[0];
+            _vm.Image2Pointer = snapshot[1];
+            _vm.Image3Pointer = snapshot[2];
+            _vm.Image4Pointer = snapshot[3];
+            _vm.Image5Pointer = snapshot[4];
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
