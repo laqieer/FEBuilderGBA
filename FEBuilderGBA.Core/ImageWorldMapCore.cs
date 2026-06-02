@@ -287,6 +287,238 @@ namespace FEBuilderGBA
         }
 
         // ==================================================================
+        // Main Field Map import / Dark Palette import / Dark render (#875)
+        // ==================================================================
+
+        // Main palette for import is 4 sub-palettes × 16 colors × 2 bytes = 128 B.
+        const int MAIN_IMPORT_PALETTE_BYTES = 4 * 16 * 2;   // 128
+
+        /// <summary>
+        /// Result of <see cref="ImportMainFieldMap"/> or
+        /// <see cref="ImportDarkPalette"/>: success flag + optional error string.
+        /// </summary>
+        public class ImportResult
+        {
+            public bool Success { get; }
+            public string Error { get; }
+            ImportResult(bool ok, string err) { Success = ok; Error = err; }
+            public static ImportResult Ok() => new ImportResult(true, null);
+            public static ImportResult Fail(string err) => new ImportResult(false, err);
+        }
+
+        /// <summary>
+        /// Validate that every pixel in each 8×8 tile of
+        /// <paramref name="indexedPixels"/> uses the SAME sub-palette
+        /// (<c>pixelValue / 16</c> is uniform across the tile).
+        /// Returns an empty string on success, or a WF-style error message
+        /// naming the violating tile/pixel — caller shows this to the user and
+        /// MUST NOT write anything on a non-empty return.
+        /// Mirrors WF <c>ImageUtil.ImageToPaletteMap :2236-2239</c> error path.
+        /// </summary>
+        public static string ValidateTileMonoPalette(byte[] indexedPixels, int width, int height)
+        {
+            if (indexedPixels == null || width <= 0 || height <= 0) return "Invalid image data.";
+            if (width % 8 != 0 || height % 8 != 0) return "Image dimensions must be multiples of 8.";
+            if (indexedPixels.Length < width * height) return "Pixel buffer is too short.";
+
+            for (int y = 0; y < height; y += 8)
+            {
+                for (int x = 0; x < width; x += 8)
+                {
+                    int expectedPalette = -1; // negative = unset
+                    for (int y8 = 0; y8 < 8; y8++)
+                    {
+                        for (int x8 = 0; x8 < 8; x8++)
+                        {
+                            int pixVal = indexedPixels[(y + y8) * width + (x + x8)];
+                            int palette = pixVal / 16;
+                            if (expectedPalette < 0)
+                            {
+                                expectedPalette = palette;
+                            }
+                            else if (palette != expectedPalette)
+                            {
+                                // Mirrors WF R.Error("TSAフォーマット違反...") path.
+                                return R.Error(
+                                    "TSA format violation. Starting at X:{0} Y:{1}, within the 8x8 region, pixel at X:{2} Y:{3} uses a different palette number {4}. Others use palette number {5}.\r\n\r\nFix manually, or use the Decrease Color tool.",
+                                    x, y, x + x8, y + y8, palette, expectedPalette);
+                            }
+                        }
+                    }
+                }
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// Import the FE8 main field map (image + palette + palette-map) in-place.
+        /// Requires <paramref name="indexedPixels"/> to be a 480×320 mono-sub-palette-
+        /// per-tile indexed buffer (already validated by caller via
+        /// <see cref="ValidateTileMonoPalette"/>);
+        /// <paramref name="gbaPalette128"/> = 128 bytes (4×16×2).
+        ///
+        /// <para><b>Write contract (byte-exact match to WF ImportButton_Click):</b>
+        /// <list type="bullet">
+        ///   <item>image (76,800 B) → RAW in-place at
+        ///     p32(<c>worldmap_big_image_pointer</c>) via <c>rom.write_range</c>
+        ///     (fixed size, NO realloc/repoint).</item>
+        ///   <item>palette (128 B) → RAW in-place at
+        ///     p32(<c>worldmap_big_palette_pointer</c>) via <c>rom.write_range</c>.</item>
+        ///   <item>palette-map → LZ77-compressed; in-place if the compressed stream
+        ///     fits, otherwise allocated in free space + pointer updated. Mirrors
+        ///     WF <c>WriteImageData(WMPaletteMap, …, useLZ77=true)</c> via
+        ///     <see cref="ImageImportCore.WriteCompressedToROM"/>.</item>
+        /// </list>
+        /// All writes land in the ambient undo scope opened by
+        /// <c>ROM.BeginUndoScope</c> (no explicit undodata parameter needed).</para>
+        ///
+        /// <para><b>FE8-only.</b> Returns a failure result for non-FE8 ROMs.</para>
+        /// </summary>
+        public static ImportResult ImportMainFieldMap(ROM rom,
+            byte[] indexedPixels, byte[] gbaPalette128)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+                return ImportResult.Fail("ROM not loaded.");
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8)
+                return ImportResult.Fail(R.Error("The main field map import is only supported for FE8."));
+            if (indexedPixels == null)
+                return ImportResult.Fail("Invalid image data.");
+            if (indexedPixels.Length < MAIN_FIELD_WIDTH * MAIN_FIELD_HEIGHT)
+                return ImportResult.Fail("Image pixel buffer too short.");
+            if (gbaPalette128 == null || gbaPalette128.Length < MAIN_IMPORT_PALETTE_BYTES)
+                return ImportResult.Fail("Palette buffer must be 128 bytes (4 sub-palettes × 16 colors × 2 bytes).");
+
+            // Resolve image pointer (pointer-to-pointer), must have FULL 76,800 B region.
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out uint imageAddr))
+                return ImportResult.Fail("worldmap_big_image_pointer is invalid or out of ROM.");
+            if (!IsRegionSafe(rom, imageAddr, MAIN_FIELD_IMAGE_BYTES))
+                return ImportResult.Fail("Image region does not fit in ROM (truncated?).");
+
+            // Resolve palette pointer, must have FULL 128 B region.
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palette_pointer, out uint paletteAddr))
+                return ImportResult.Fail("worldmap_big_palette_pointer is invalid or out of ROM.");
+            if (!IsRegionSafe(rom, paletteAddr, MAIN_IMPORT_PALETTE_BYTES))
+                return ImportResult.Fail("Palette region does not fit in ROM (truncated?).");
+
+            // Encode image — 4bpp tiles, plain (no TSA dedup), 480×320.
+            // Mirrors WF ImageUtil.ImageToByte16Tile (ImageUtil.cs :1664).
+            byte[] imageBytes = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, MAIN_FIELD_WIDTH, MAIN_FIELD_HEIGHT);
+            if (imageBytes == null || imageBytes.Length != MAIN_FIELD_IMAGE_BYTES)
+                return ImportResult.Fail("Failed to encode 4bpp tile data.");
+
+            // Encode palette-map nibble stream (EXACT inverse of ByteToImage16TilePaletteMap).
+            // Mirrors WF ImageUtil.ImageToPaletteMap (ImageUtil.cs :2211).
+            byte[] paletteMap = ImageUtilCore.EncodePaletteMap16Tile(indexedPixels, MAIN_FIELD_WIDTH, MAIN_FIELD_HEIGHT);
+            if (paletteMap == null || paletteMap.Length == 0)
+                return ImportResult.Fail("Failed to encode palette-map.");
+
+            // Write image RAW in-place (fixed 76,800 B — NO realloc/repoint).
+            rom.write_range(imageAddr, imageBytes);
+
+            // Write palette RAW in-place — exactly 128 bytes.
+            // FIX B: gbaPalette128 is validated as >= 128 B; writing the full buffer
+            // would overwrite past the 128-byte slot if the caller passed a longer
+            // array. Slice to exactly MAIN_IMPORT_PALETTE_BYTES (128 B).
+            byte[] paletteToWrite = gbaPalette128;
+            if (paletteToWrite.Length != MAIN_IMPORT_PALETTE_BYTES)
+            {
+                paletteToWrite = new byte[MAIN_IMPORT_PALETTE_BYTES];
+                Array.Copy(gbaPalette128, paletteToWrite, MAIN_IMPORT_PALETTE_BYTES);
+            }
+            rom.write_range(paletteAddr, paletteToWrite);
+
+            // Write palette-map LZ77 (in-place if it fits, else free-space + repoint).
+            // Mirrors WF WriteImageData(WMPaletteMap, …, useLZ77=true).
+            uint pmAddr = ImageImportCore.WriteCompressedToROM(rom, paletteMap,
+                rom.RomInfo.worldmap_big_palettemap_pointer);
+            if (pmAddr == U.NOT_FOUND)
+                return ImportResult.Fail("Failed to write compressed palette-map (no free space?).");
+
+            return ImportResult.Ok();
+        }
+
+        /// <summary>
+        /// Import only the 128-byte dark palette for the FE8 main field map.
+        /// Writes ONLY <c>worldmap_big_dpalette_pointer</c> — does NOT touch the
+        /// image or palette-map. Mirrors WF <c>DarkMAPImportButton_Click</c>:
+        /// <c>ImageToPalette(bitmap, 4)</c> → <c>WriteImageData(WMdPalette, …,
+        /// useLZ77=false)</c> → RAW in-place.
+        ///
+        /// <para><b>FE8-only.</b> Returns a failure result for non-FE8 ROMs.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="gbaDarkPalette128">128 bytes (4 sub-palettes × 16 colors
+        /// × 2 bytes) — the dark variant palette.</param>
+        public static ImportResult ImportDarkPalette(ROM rom, byte[] gbaDarkPalette128)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+                return ImportResult.Fail("ROM not loaded.");
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8)
+                return ImportResult.Fail(R.Error("The dark palette import is only supported for FE8."));
+            if (gbaDarkPalette128 == null || gbaDarkPalette128.Length < MAIN_IMPORT_PALETTE_BYTES)
+                return ImportResult.Fail("Dark palette buffer must be 128 bytes (4 sub-palettes × 16 colors × 2 bytes).");
+
+            // Resolve the dark palette pointer (pointer-to-pointer).
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_dpalette_pointer, out uint dPaletteAddr))
+                return ImportResult.Fail("worldmap_big_dpalette_pointer is invalid or out of ROM.");
+            if (!IsRegionSafe(rom, dPaletteAddr, MAIN_IMPORT_PALETTE_BYTES))
+                return ImportResult.Fail("Dark palette region does not fit in ROM (truncated?).");
+
+            // Write only the 128-byte dark palette RAW in-place — exactly 128 bytes.
+            // FIX B: same exact-length guard as the main palette write.
+            byte[] darkToWrite = gbaDarkPalette128;
+            if (darkToWrite.Length != MAIN_IMPORT_PALETTE_BYTES)
+            {
+                darkToWrite = new byte[MAIN_IMPORT_PALETTE_BYTES];
+                Array.Copy(gbaDarkPalette128, darkToWrite, MAIN_IMPORT_PALETTE_BYTES);
+            }
+            rom.write_range(dPaletteAddr, darkToWrite);
+            return ImportResult.Ok();
+        }
+
+        /// <summary>
+        /// Render the FE8 World Map DARK FIELD MAP preview — exactly like
+        /// <see cref="TryRenderMainFieldMap"/> but using
+        /// <c>worldmap_big_dpalette_pointer</c> for the palette. Mirrors WF
+        /// <c>WorldMapImageForm.DrawDarkWorldMap</c>:
+        /// image = <c>worldmap_big_image_pointer</c>, palette =
+        /// <c>worldmap_big_dpalette_pointer</c>, palettemap =
+        /// <c>worldmap_big_palettemap_pointer</c>. FE8-only; returns null for
+        /// FE6/FE7 or any bad pointer.
+        /// </summary>
+        public static IImage TryRenderDarkFieldMap(ROM rom)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8) return null;
+
+            // Resolve image + dark palette + palette-map (pointer-to-pointer).
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_image_pointer, out uint imageAddr))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_dpalette_pointer, out uint dPaletteAddr))
+                return null;
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_big_palettemap_pointer, out uint paletteMapAddr))
+                return null;
+
+            // image: RAW 76,800 B (fixed).
+            byte[] image = ReadRawRegion(rom, imageAddr, MAIN_FIELD_IMAGE_BYTES);
+            if (image == null) return null;
+
+            // dark palette: the slot holds only 128 B (4 sub-palettes), but
+            // ByteToImage16TilePaletteMap reads up to 512 B (16 sub-palettes).
+            // Read the available 128 B and zero-pad to 512 B (unused banks = black).
+            byte[] dPaletteRaw = new byte[MAIN_FIELD_PALETTE_BYTES]; // 512 B, zero-filled
+            if (!IsRegionSafe(rom, dPaletteAddr, MAIN_IMPORT_PALETTE_BYTES)) return null;
+            Array.Copy(rom.Data, dPaletteAddr, dPaletteRaw, 0, MAIN_IMPORT_PALETTE_BYTES);
+
+            // palette-map: LZ77 (only the palette-map is compressed — CORRECTION 1).
+            if (!TryDecompressGuarded(rom, paletteMapAddr, out byte[] paletteMap)) return null;
+
+            return ImageUtilCore.ByteToImage16TilePaletteMap(
+                image, paletteMap, dPaletteRaw, MAIN_FIELD_WIDTH, MAIN_FIELD_HEIGHT);
+        }
+
+        // ==================================================================
         // Shared LZ77-image + 16-color-palette path (mini / point1 / point2 /
         // road). Mirrors the WF no-TSA ByteToImage16Tile branch via the existing
         // Core primitive LoadROMTiles4bpp (isCompressed:true). The 4-byte LZ77

@@ -79,10 +79,11 @@
                              Minimum="0" Maximum="4294967295" />
             </StackPanel>
 
+            <!-- #875: Main Import — enabled on FE8 (CanImportMain gate); disabled on FE6/FE7. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_Import_Button"
-                    Content="Import Image"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    Name="MainImportButton" Content="Import Image"
+                    IsEnabled="{Binding CanImportMain}"
+                    Click="MainImport_Click" />
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_Export_Button"
                     Content="Export Image"
                     IsEnabled="False"
@@ -97,14 +98,17 @@
 
             <Label AutomationProperties.AutomationId="WorldMapImage_Main_DarkSection_Label"
                    Content="Dark Map" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <!-- #875: Dark Import — enabled on FE8 (CanImportDark gate). -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_DarkImport_Button"
-                    Content="Dark Map Import (Palette)"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    Name="DarkImportButton" Content="Dark Map Import (Palette)"
+                    IsEnabled="{Binding CanImportDark}"
+                    Click="DarkImport_Click" />
+            <!-- #875: Dark Export — enabled after a successful TryRenderDarkFieldMap. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_DarkExport_Button"
-                    Content="Dark Map Export"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    Name="DarkExportButton" Content="Dark Map Export"
+                    IsEnabled="{Binding CanExportDark}"
+                    Click="DarkExport_Click" />
+            <!-- Col 1 dark preview (no panel — just export). -->
 
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_DecreaseColor_Button"
                     Content="Decrease Color Tool"
