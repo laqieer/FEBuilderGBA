@@ -3,7 +3,7 @@
 // (.txt script + per-frame OBJ/BG PNG byte arrays) — issue #889.
 //
 // CSA Import = FEditor Import (#881 / MagicEffectImportCore) + TWO CSA-specific additions:
-//   1. BG tiles: use ImageImportCore.EncodeTSA (256×64 → deduplicated tiles + TSA map),
+//   1. BG tiles: use ImageImportCore.EncodeTSA (240px wide CSA BG → deduplicated tiles + TSA map),
 //      both LZ77-compressed. FEditor uses plain 4bpp direct encoding with no TSA.
 //   2. 32-byte 0x86 frame record: the 28-byte FEditor layout plus TSA pointer at +28.
 //   3. BGScaleMode: auto-insert a 0x53 scale command at the first 64px-BG frame and
@@ -11,7 +11,7 @@
 //
 // All five #885 lessons applied:
 //   FIX 1 - 5×C00 leading header: emit each leading C00 encountered THEN pad to 5.
-//   FIX 2 - BG 256-wide crop: encode only the left 256×64 pixels (drop palette-mark col).
+//   FIX 2 - 240-wide CSA BG: encode only the left 240px (MagicEffectExportCore.CSA_BG_EXPORT_WIDTH) of the BG (not 256-wide FEditor crop).
 //   FIX 3 - Explicit O+B+time triple required (no silent fallback).
 //   FIX 4 - CoreState.ROM guard: if (!ReferenceEquals(rom, CoreState.ROM)) → error.
 //   FIX 5 - Validate-before-mutate; ONE atomic ambient-undo reverts ALL writes.
@@ -62,9 +62,9 @@ namespace FEBuilderGBA
     /// </summary>
     public static class MagicEffectCSAImportCore
     {
-        // BG encoding dimensions (256px wide × 64px or 160px tall).
-        // FIX 2: always crop to exactly 256 columns to drop the 8-px palette-mark column.
-        public const int CSA_BG_ENCODE_WIDTH  = 256;
+        // BG encoding width: use MagicEffectExportCore.CSA_BG_EXPORT_WIDTH=240 (CSA BG is 240px wide, not 256).
+        // CSA BG = 240px wide (30 tiles), NOT 256. 240x160 = 30x20 = 600 TSA entries = 1200 bytes.
+        // CSA_BG_ENCODE_WIDTH removed: use MagicEffectExportCore.CSA_BG_EXPORT_WIDTH (= 240) instead.
         public const int CSA_BG_ENCODE_HEIGHT_SMALL = 64;
         public const int CSA_BG_ENCODE_HEIGHT_FULL  = 160;
 
@@ -590,11 +590,11 @@ namespace FEBuilderGBA
                     {
                         var (idx, w, h, pal) = imageCache["BG:" + bgFn];
 
-                        // FIX 2: crop to 256×min(h,160) — drops palette-mark column.
-                        int encW = Math.Min(w, CSA_BG_ENCODE_WIDTH);
+                        // FIX 2: crop to CSA_BG_EXPORT_WIDTH=240 (not 256) — CSA BG is 240px wide (30 tiles).
+                        int encW = Math.Min(w, MagicEffectExportCore.CSA_BG_EXPORT_WIDTH);
                         int encH = h; // 64 or 160 — keep as-is (already validated)
 
-                        // EncodeTSA: 256-wide indexed pixels → deduplicated tiles + TSA map.
+                        // EncodeTSA: 240-wide (MagicEffectExportCore.CSA_BG_EXPORT_WIDTH) indexed pixels → tiles + TSA map.
                         // We need to crop the indexed pixel buffer to encW wide.
                         byte[] croppedIdx = CropIndexedPixels(idx, w, h, encW, encH);
 

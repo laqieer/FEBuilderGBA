@@ -105,9 +105,10 @@ namespace FEBuilderGBA.Core.Tests
             var tsaData = LZ77.decompress(rom.Data, tsaOff);
             Assert.True(tsaData.Length > 0, "TSA LZ77 data must decompress to non-empty data");
 
-            // Verify the TSA encodes a 256×160 image: 32×20 tiles = 640 entries × 2 bytes = 1280 bytes.
+            // Verify the TSA encodes a 240×160 image: 30×20 tiles = 600 entries × 2 bytes = 1200 bytes.
             // (We use 160px BG in this test.)
-            Assert.Equal(640 * 2, tsaData.Length);
+            // 240px wide = 30 tiles; 160px tall = 20 tiles; 30*20=600 TSA entries * 2 bytes = 1200 bytes.
+            Assert.Equal(600 * 2, tsaData.Length);  // 240x160 = 30x20 = 600 entries, matches MagicEffectExportCore.CSA_BG_EXPORT_WIDTH
         }
 
         // =================================================================
@@ -465,13 +466,13 @@ namespace FEBuilderGBA.Core.Tests
 
         static (byte[] indexedPixels, int w, int h, byte[] gbaPalette)? SyntheticBgImage160px()
         {
-            int w = 256, h = 160;
+            int w = 240, h = 160;  // CSA BG is 240px wide (MagicEffectExportCore.CSA_BG_EXPORT_WIDTH)
             return (new byte[w * h], w, h, new byte[0x20]);
         }
 
         static (byte[] indexedPixels, int w, int h, byte[] gbaPalette)? SyntheticBgImage64px()
         {
-            int w = 256, h = 64;
+            int w = 240, h = 64;   // CSA BG is 240px wide (MagicEffectExportCore.CSA_BG_EXPORT_WIDTH)
             return (new byte[w * h], w, h, new byte[0x20]);
         }
 
