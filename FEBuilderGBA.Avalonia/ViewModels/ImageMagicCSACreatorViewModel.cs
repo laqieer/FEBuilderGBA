@@ -15,7 +15,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// Gap-sweep fix (#417) raises density from 3 to MEDIUM verdict and
     /// wires the tag-aware Dim/NoDim/Empty round-trip.
     /// </summary>
-    public class ImageMagicCSACreatorViewModel : ViewModelBase, IDataVerifiable
+    public partial class ImageMagicCSACreatorViewModel : ViewModelBase, IDataVerifiable
     {
         // Block size for the CSA struct: 5 x 4-byte pointers = 20 bytes.
         public const uint BLOCK_SIZE = 20;

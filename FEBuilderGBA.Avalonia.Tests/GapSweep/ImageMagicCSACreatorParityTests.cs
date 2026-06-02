@@ -138,18 +138,18 @@ public class ImageMagicCSACreatorParityTests
 
     // -----------------------------------------------------------------
     // Deferred affordances (#886 wired Export/OpenSource/SelectSource;
-    // Import + Editor remain stubs).
+    // #892 wired Editor; Import remains stub).
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// Import (#886 part 2) and Editor (#500) are still stubs — must be
+    /// Import (#886 part 2) is still a stub — must be
     /// IsEnabled="False" in the AXAML element (no tooltip text required).
     /// </summary>
     [Theory]
     [InlineData("ImageMagicCSACreator_Import_Button")]
-    [InlineData("ImageMagicCSACreator_Editor_Button")]
     // NOTE: ListExpand_Button is NO LONGER deferred — wired in #837.
     // Export/OpenSource/SelectSource are NO LONGER deferred — wired in #886.
+    // Editor is NO LONGER deferred — wired in #892.
     public void View_StubButton_IsDisabled(string automationId)
     {
         string axaml = ReadAxaml();
@@ -163,6 +163,28 @@ public class ImageMagicCSACreatorParityTests
         string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
 
         Assert.Contains("IsEnabled=\"False\"", element);
+    }
+
+    /// <summary>
+    /// #892 — Editor button is now wired: AXAML element must NOT hard-code
+    /// IsEnabled="False" and must have the Click handler.
+    /// Mirrors the FEditor JumpEditor_Click parity (symmetric).
+    /// </summary>
+    [Fact]
+    public void View_EditorButton_IsWired()
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf("AutomationId=\"ImageMagicCSACreator_Editor_Button\"",
+            StringComparison.Ordinal);
+        Assert.True(idx >= 0, "Editor button AutomationId not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = axaml.IndexOf("/>", idx, StringComparison.Ordinal);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 2);
+
+        // #892: Editor button must NOT be permanently disabled (mirrors FEditor JumpEditorButton).
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.Contains("Click=\"Editor_Click\"", element);
     }
 
     /// <summary>
@@ -235,6 +257,29 @@ public class ImageMagicCSACreatorParityTests
         Assert.DoesNotContain("IsEnabled=\"False\"", element);
         Assert.DoesNotContain("#500", element);
         Assert.Contains("Click=\"ListExpand_Click\"", element);
+    }
+
+    // -----------------------------------------------------------------
+    // #892 — NavigationTargets manifest (parity with FEditor).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #892: CSA Creator ViewModel must expose INavigationTargetSource with
+    /// a single JumpToToolAnimationCreator entry, exactly mirroring
+    /// ImageMagicFEditorViewModel.GetNavigationTargets().
+    /// </summary>
+    [Fact]
+    public void ViewModel_NavigationTargets_HasJumpToToolAnimationCreator()
+    {
+        var vm = new ImageMagicCSACreatorViewModel();
+        var source = (INavigationTargetSource)vm;
+        var targets = source.GetNavigationTargets();
+
+        Assert.Single(targets);
+        var t = targets[0];
+        Assert.Equal("JumpToToolAnimationCreator", t.CommandName);
+        Assert.Equal("ToolAnimationCreatorView", t.TargetViewType.Name);
+        Assert.Equal("#500", t.IssueRef);
     }
 
     // -----------------------------------------------------------------
