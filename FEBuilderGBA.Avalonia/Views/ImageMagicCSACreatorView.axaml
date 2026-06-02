@@ -153,7 +153,6 @@
           <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Import_Button"
                   Name="ImportButton" Content="Import Magic Animation"
                   IsEnabled="False"
-                  ToolTip.Tip="Import is a follow-up to #886."
                   Click="Import_Click" />
           <!-- Export: wired in #886 -->
           <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Export_Button"
@@ -173,7 +172,6 @@
           <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Editor_Button"
                   Name="EditorButton" Content="Editor"
                   IsEnabled="False"
-                  ToolTip.Tip="ToolAnimationCreator wiring is a follow-up to #500."
                   Click="Editor_Click" />
         </StackPanel>
       </StackPanel>

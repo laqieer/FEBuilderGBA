@@ -137,19 +137,20 @@ public class ImageMagicCSACreatorParityTests
     }
 
     // -----------------------------------------------------------------
-    // Deferred affordances must reference open follow-up #500
-    // (Copilot CLI plan review #3).
+    // Deferred affordances (#886 wired Export/OpenSource/SelectSource;
+    // Import + Editor remain stubs).
     // -----------------------------------------------------------------
 
+    /// <summary>
+    /// Import (#886 part 2) and Editor (#500) are still stubs — must be
+    /// IsEnabled="False" in the AXAML element (no tooltip text required).
+    /// </summary>
     [Theory]
     [InlineData("ImageMagicCSACreator_Import_Button")]
-    [InlineData("ImageMagicCSACreator_Export_Button")]
-    [InlineData("ImageMagicCSACreator_OpenSource_Button")]
-    [InlineData("ImageMagicCSACreator_SelectSource_Button")]
     [InlineData("ImageMagicCSACreator_Editor_Button")]
-    // NOTE: ListExpand_Button is NO LONGER deferred — wired in #837. See
-    // View_ListExpandButton_IsWired below.
-    public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string automationId)
+    // NOTE: ListExpand_Button is NO LONGER deferred — wired in #837.
+    // Export/OpenSource/SelectSource are NO LONGER deferred — wired in #886.
+    public void View_StubButton_IsDisabled(string automationId)
     {
         string axaml = ReadAxaml();
         int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
@@ -162,7 +163,53 @@ public class ImageMagicCSACreatorParityTests
         string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
 
         Assert.Contains("IsEnabled=\"False\"", element);
-        Assert.Contains("#500", element);
+    }
+
+    /// <summary>
+    /// Export is wired in #886 — AXAML element must NOT hard-code
+    /// IsEnabled="False" (enablement is driven at runtime by
+    /// UpdateExportButtonEnabled) and must have the Click handler.
+    /// </summary>
+    [Fact]
+    public void View_ExportButton_IsWired()
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf("AutomationId=\"ImageMagicCSACreator_Export_Button\"",
+            StringComparison.Ordinal);
+        Assert.True(idx >= 0, "Export button AutomationId not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = axaml.IndexOf("/>", idx, StringComparison.Ordinal);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 2);
+
+        // #886: Export button must NOT be permanently disabled.
+        // Runtime enablement (UpdateExportButtonEnabled) gates it on CSA detection.
+        Assert.DoesNotContain("ToolTip.Tip=\"Pending", element);
+        Assert.Contains("Click=\"Export_Click\"", element);
+    }
+
+    /// <summary>
+    /// OpenSource and SelectSource are wired in #886 — their AXAML elements
+    /// must use IsVisible (not IsEnabled) for their initial hidden state.
+    /// </summary>
+    [Theory]
+    [InlineData("ImageMagicCSACreator_OpenSource_Button")]
+    [InlineData("ImageMagicCSACreator_SelectSource_Button")]
+    public void View_SourceButton_IsWired_WithIsVisible(string automationId)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"",
+            StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = axaml.IndexOf("/>", idx, StringComparison.Ordinal);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 2);
+
+        // Wired in #886: use IsVisible="False" for initial hidden state.
+        Assert.Contains("IsVisible=\"False\"", element);
+        // No longer permanently disabled.
+        Assert.DoesNotContain("ToolTip.Tip=\"Pending", element);
     }
 
     /// <summary>
