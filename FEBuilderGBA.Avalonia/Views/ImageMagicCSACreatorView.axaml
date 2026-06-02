@@ -169,10 +169,8 @@
                   Name="SelectSourceButton" Content="Open Source Folder"
                   IsVisible="False"
                   Click="SelectSource_Click" />
-          <!-- Editor: follow-up to #500 -->
           <Button AutomationProperties.AutomationId="ImageMagicCSACreator_Editor_Button"
                   Name="EditorButton" Content="Editor"
-                  IsEnabled="False"
                   Click="Editor_Click" />
         </StackPanel>
       </StackPanel>

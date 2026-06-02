@@ -702,9 +702,21 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        // Editor: follow-up to #500
-        void Editor_Click(object? sender, RoutedEventArgs e) =>
-            Log.Debug("ImageMagicCSACreatorView.Editor_Click - follow-up to #500");
+        void Editor_Click(object? sender, RoutedEventArgs e)
+        {
+            // Real cross-editor jump — opens ToolAnimationCreator. Mirrors the
+            // behavior of ImageMagicFEditorView.JumpEditor_Click (symmetric parity, #892).
+            // The full export-temp-file + Init(MagicAnime_CSACreator) flow is a
+            // documented #500 follow-up for BOTH FEditor and CSACreator — symmetric.
+            try
+            {
+                WindowManager.Instance.Open<ToolAnimationCreatorView>();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicCSACreatorView.Editor_Click: {0}", ex.Message);
+            }
+        }
 
         static uint ParseHexText(string? text)
         {
