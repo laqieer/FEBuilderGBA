@@ -385,7 +385,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // #878 PR1 — Export Magic Animation (txt + per-frame PNGs).
         // Mirrors WF ImageMagicFEditorForm.MagicAnimeExportButton_Click.
-        // Filter 1 = txt with comments, Filter 2 = txt without comments, Filter 3 = GIF (deferred).
+        // Filter 0 = txt with comments, Filter 1 = txt without comments (FIX 4).
         async void MagicAnimeExport_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.MagicSystemDetected)
@@ -398,8 +398,10 @@ namespace FEBuilderGBA.Avalonia.Views
             ROM? rom = CoreState.ROM;
             if (rom == null) return;
 
-            // Choose format via SaveFilePicker (txt-with-comments / txt-without / GIF).
-            string? filename = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.SaveFile(
+            // FIX 4: use SaveFileWithFilterIndex so enableComment is driven by the
+            // chosen filter index (0 = with comments, 1 = no comments), not the
+            // filename heuristic. The _nc suffix heuristic is removed.
+            var (filename, filterIndex) = await FEBuilderGBA.Avalonia.Dialogs.FileDialogHelper.SaveFileWithFilterIndex(
                 this,
                 R._("Save magic animation script"),
                 new (string, string)[]
@@ -411,12 +413,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (string.IsNullOrEmpty(filename)) return;
 
-            // Resolve whether to include comments from the extension/filter heuristic:
-            // use enableComment=true by default (user chose first filter or all-files).
-            // We can't distinguish filters in Avalonia's StorageProvider API cleanly;
-            // use filename suffix heuristic: no-comment if basename ends with "_nc".
-            bool enableComment = !System.IO.Path.GetFileNameWithoutExtension(filename)
-                .EndsWith("_nc", StringComparison.OrdinalIgnoreCase);
+            // filterIndex 0 = with comments, 1+ = without (FIX 4).
+            bool enableComment = (filterIndex == 0);
 
             await ExportMagicAnimationAsync(rom, filename, enableComment);
         }
@@ -429,48 +427,37 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint objRtoL = _vm.P4;
                 uint objBGRtoL = _vm.P12;
 
-                // Scan frame stream.
+                // FIX 3: Single ordered walk via ExportMagicScriptLines — replaces
+                // the split ScanMagicFrames + ExportMagicScript + DetectMissContinuation
+                // trio (DetectMissContinuation is removed entirely).
+                // FIX 1+2: Shared anime-hash for OBJ+BG, inline ~~~ emission.
+                string basename = System.IO.Path.GetFileNameWithoutExtension(filename) + "_";
+                List<int> sharedObjSlots, sharedBgSlots;
                 List<MagicFrameMeta> frames;
-                List<MagicCommandMeta> cmds;
-                bool hadContinuation = false;
+                var scriptLines = MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, frameDataAddr, basename, enableComment,
+                    out sharedObjSlots, out sharedBgSlots, out frames);
 
-                // Check for continuation terminator by doing a quick scan.
-                // ScanMagicFrames internally detects it; we pass the flag out.
-                bool ok = MagicEffectExportCore.ScanMagicFrames(
-                    rom, frameDataAddr, objRtoL, objBGRtoL,
-                    out frames, out cmds);
-
-                if (!ok && frames.Count == 0)
+                if (frames.Count == 0 && scriptLines.Count <= 2)
                 {
+                    // Only Start/End markers — bad frame-data pointer.
                     CoreState.Services?.ShowError(
                         R._("Magic animation scan failed — bad frame-data pointer."));
                     return;
                 }
 
-                // Detect miss-terminator (0x00 0x01 0x00 0x80) by rescanning.
-                // We peek at the raw data to see if [n+1]==0x01 at the first 0x80 hit.
-                hadContinuation = DetectMissContinuation(rom, frameDataAddr);
-
-                // Build script lines.
-                string basename = System.IO.Path.GetFileNameWithoutExtension(filename) + "_";
-                List<int> objIndices, bgIndices;
-                var scriptLines = MagicEffectExportCore.ExportMagicScript(
-                    rom, frames, cmds, basename, enableComment,
-                    hadContinuation,
-                    out objIndices, out bgIndices);
-
                 string basedir = System.IO.Path.GetDirectoryName(filename) ?? ".";
 
-                // Render and save unique OBJ frames.
+                // Render and save unique OBJ frames (shared-index filenames — FIX 1).
                 int objSlotCount = MagicEffectExportCore.CountUniqueObjSlots(frames);
                 for (int s = 0; s < objSlotCount; s++)
                 {
                     IImage? img = MagicEffectExportCore.RenderObjFrameSlot(
                         rom, frames, s, objRtoL, objBGRtoL);
+                    string pngPath = System.IO.Path.Combine(
+                        basedir, basename + "o_" + s.ToString("000") + ".png");
                     if (img != null)
                     {
-                        string pngPath = System.IO.Path.Combine(
-                            basedir, basename + "o_" + s.ToString("000") + ".png");
                         try { img.Save(pngPath); }
                         catch (Exception ex)
                         {
@@ -479,24 +466,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     else
                     {
-                        // Broken frame — save a placeholder.
-                        string pngPath = System.IO.Path.Combine(
-                            basedir, basename + "o_" + s.ToString("000") + ".png");
                         SaveDummyPng(pngPath,
                             MagicEffectExportCore.OBJ_EXPORT_WIDTH,
                             MagicEffectExportCore.OBJ_EXPORT_HEIGHT);
                     }
                 }
 
-                // Render and save unique BG frames.
+                // Render and save unique BG frames (shared-index filenames — FIX 1).
                 int bgSlotCount = MagicEffectExportCore.CountUniqueBgSlots(frames);
                 for (int s = 0; s < bgSlotCount; s++)
                 {
                     IImage? img = MagicEffectExportCore.RenderBgFrameSlot(rom, frames, s);
+                    string pngPath = System.IO.Path.Combine(
+                        basedir, basename + "b_" + s.ToString("000") + ".png");
                     if (img != null)
                     {
-                        string pngPath = System.IO.Path.Combine(
-                            basedir, basename + "b_" + s.ToString("000") + ".png");
                         try { img.Save(pngPath); }
                         catch (Exception ex)
                         {
@@ -505,8 +489,6 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     else
                     {
-                        string pngPath = System.IO.Path.Combine(
-                            basedir, basename + "b_" + s.ToString("000") + ".png");
                         SaveDummyPng(pngPath,
                             MagicEffectExportCore.BG_EXPORT_WIDTH,
                             MagicEffectExportCore.BG_EXPORT_HEIGHT);
@@ -548,33 +530,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("MagicAnimeExport: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Export failed: {0}", ex.Message));
             }
-        }
-
-        // Detect whether a miss-terminator (0x00 0x01 0x00 0x80) is present
-        // before the first frame in the stream. Mirrors WF Export() termCount==1 branch.
-        static bool DetectMissContinuation(ROM rom, uint frameDataAddr)
-        {
-            if (rom == null || rom.Data == null) return false;
-            uint offset = U.isSafetyPointer(frameDataAddr)
-                ? U.toOffset(frameDataAddr) : frameDataAddr;
-            if (!U.isSafetyOffset(offset, rom)) return false;
-
-            uint limiter = offset + 1024 * 1024;
-            if (limiter > (uint)rom.Data.Length) limiter = (uint)rom.Data.Length;
-
-            for (uint n = offset; n < limiter; n += 4)
-            {
-                if (n + 4 > (uint)rom.Data.Length) break;
-                byte cmd = rom.Data[n + 3];
-                if (cmd == 0x80)
-                {
-                    return n + 2 <= (uint)rom.Data.Length && rom.Data[n + 1] == 0x01;
-                }
-                if (cmd == 0x86) return false; // no continuation before first frame
-                if (cmd == 0x85) continue;
-                break;
-            }
-            return false;
         }
 
         // Save a minimal transparent PNG placeholder.

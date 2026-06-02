@@ -415,7 +415,8 @@ namespace FEBuilderGBA.Core.Tests
                 PlantSmallLZ77(rom.Data, 0x600u, 8192);
                 PlantRawPalette(rom.Data, 0x800u);
 
-                var img = MagicEffectExportCore.RenderBgFrameSlot(rom, frames, 0);
+                // With the shared anime-hash (FIX 1), BG is at slot 1 (after OBJ slot 0).
+                var img = MagicEffectExportCore.RenderBgFrameSlot(rom, frames, 1);
 
                 Assert.NotNull(img);
                 Assert.Equal(MagicEffectExportCore.BG_EXPORT_WIDTH,  img.Width);
@@ -472,6 +473,215 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(2, MagicEffectExportCore.CountUniqueBgSlots(frames));
         }
 
+
+        // ---------------------------------------------------------------
+        // ExportMagicScriptLines — WF-exact single-walk API (FIX 1+2+3)
+        // ---------------------------------------------------------------
+
+        [Fact]
+        public void ExportMagicScriptLines_SharedHash_BgSlotAfterObjSlot()
+        {
+            // FIX 1: WF shared anime-hash: frame 0 new OBJ → slot 0 (o_000.png);
+            // frame 0 new BG → slot 1 (b_001.png) because OBJ slot 0 was already added.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0x700u;
+            // Write one 0x86 frame at baseOff with distinct OBJ/BG pointers.
+            rom.Data[baseOff + 3] = 0x86;
+            WriteU32Le(rom.Data, baseOff + 4,  0x08000100u); // OBJ ptr
+            WriteU32Le(rom.Data, baseOff + 8,  0u);          // OAMAbsoStart
+            WriteU32Le(rom.Data, baseOff + 12, 0u);
+            WriteU32Le(rom.Data, baseOff + 16, 0x08000200u); // BG ptr (different)
+            WriteU32Le(rom.Data, baseOff + 20, 0x08000300u);
+            WriteU32Le(rom.Data, baseOff + 24, 0x08000400u);
+            // Terminator
+            rom.Data[baseOff + 28 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            var lines = MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames);
+
+            // OBJ gets slot 0, BG gets slot 1 (shared index space — FIX 1).
+            Assert.Single(objSlots);
+            Assert.Equal(0, objSlots[0]);
+            Assert.Single(bgSlots);
+            Assert.Equal(1, bgSlots[0]); // NOT 0 — shared hash, BG follows OBJ
+
+            // Filenames in script must reflect shared indices.
+            var objLine = lines.Find(l => l.Kind == MagicScriptLineKind.ObjImage);
+            var bgLine  = lines.Find(l => l.Kind == MagicScriptLineKind.BgImage);
+            Assert.NotNull(objLine);
+            Assert.Contains("o_000.png", objLine.Text);
+            Assert.NotNull(bgLine);
+            Assert.Contains("b_001.png", bgLine.Text); // shared slot 1, not b_000
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_TwoFramesSameObjDiffBg_SharedIndices()
+        {
+            // FIX 1: Two frames sharing OBJ hash (slot 0) but different BG hash.
+            // Frame 0: OBJ → slot 0, BG (ptr A) → slot 1.
+            // Frame 1: OBJ → slot 0 (same hash), BG (ptr B) → slot 2.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0x800u;
+
+            // Frame 0: OBJ 0x08000100, OAM 0, BG 0x08000200
+            rom.Data[baseOff + 3] = 0x86;
+            WriteU32Le(rom.Data, baseOff + 4,  0x08000100u);
+            WriteU32Le(rom.Data, baseOff + 8,  0u);
+            WriteU32Le(rom.Data, baseOff + 12, 0u);
+            WriteU32Le(rom.Data, baseOff + 16, 0x08000200u);
+            WriteU32Le(rom.Data, baseOff + 20, 0x08000300u);
+            WriteU32Le(rom.Data, baseOff + 24, 0x08000400u);
+
+            // Frame 1: OBJ 0x08000100 (same), OAM 0 (same), BG 0x08000300 (diff)
+            uint off1 = baseOff + 28;
+            rom.Data[off1 + 3] = 0x86;
+            WriteU32Le(rom.Data, off1 + 4,  0x08000100u); // same OBJ
+            WriteU32Le(rom.Data, off1 + 8,  0u);
+            WriteU32Le(rom.Data, off1 + 12, 0u);
+            WriteU32Le(rom.Data, off1 + 16, 0x08000300u); // different BG
+            WriteU32Le(rom.Data, off1 + 20, 0x08000300u);
+            WriteU32Le(rom.Data, off1 + 24, 0x08000400u);
+
+            rom.Data[off1 + 28 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames);
+
+            Assert.Equal(2, objSlots.Count);
+            Assert.Equal(0, objSlots[0]); // frame 0 OBJ: slot 0
+            Assert.Equal(0, objSlots[1]); // frame 1 OBJ: same slot (dedup)
+
+            Assert.Equal(2, bgSlots.Count);
+            Assert.Equal(1, bgSlots[0]); // frame 0 BG: slot 1 (after OBJ slot 0)
+            Assert.Equal(2, bgSlots[1]); // frame 1 BG: slot 2 (new)
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_MissContinuationInlineAfterFrames()
+        {
+            // FIX 2+3: ~~~ emitted INLINE at stream position of 0x00 0x01 0x00 0x80,
+            // even when it comes AFTER frames (not just before).
+            // Stream: [frame][frame][0x00 0x01 0x00 0x80][0x80]
+            // Expected lines: Start, O, B, wait, O, B, wait, ~~~, ~~~, End
+            var rom = MakeMinimalRom();
+            uint baseOff = 0x900u;
+
+            // Frame 0
+            rom.Data[baseOff + 3] = 0x86;
+            WriteU32Le(rom.Data, baseOff + 4,  0x08000100u);
+            WriteU32Le(rom.Data, baseOff + 8,  0u);
+            WriteU32Le(rom.Data, baseOff + 12, 0u);
+            WriteU32Le(rom.Data, baseOff + 16, 0x08000200u);
+            WriteU32Le(rom.Data, baseOff + 20, 0x08000300u);
+            WriteU32Le(rom.Data, baseOff + 24, 0x08000400u);
+
+            // Frame 1 (different OBJ ptr to get distinct slot)
+            uint off1 = baseOff + 28;
+            rom.Data[off1 + 3] = 0x86;
+            WriteU32Le(rom.Data, off1 + 4,  0x08000150u); // different OBJ
+            WriteU32Le(rom.Data, off1 + 8,  0u);
+            WriteU32Le(rom.Data, off1 + 12, 0u);
+            WriteU32Le(rom.Data, off1 + 16, 0x08000250u); // different BG
+            WriteU32Le(rom.Data, off1 + 20, 0x08000300u);
+            WriteU32Le(rom.Data, off1 + 24, 0x08000400u);
+
+            // Miss terminator (0x00 0x01 0x00 0x80) — comes AFTER two frames.
+            uint missOff = off1 + 28;
+            rom.Data[missOff + 0] = 0x00;
+            rom.Data[missOff + 1] = 0x01;
+            rom.Data[missOff + 2] = 0x00;
+            rom.Data[missOff + 3] = 0x80;
+
+            // Plain terminator (second 0x80).
+            rom.Data[missOff + 4 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            var lines = MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames);
+
+            // Must have found 2 frames.
+            Assert.Equal(2, frames.Count);
+
+            // ~~~ lines: only the miss terminator is emitted (WF L602-603 + L679).
+            // The subsequent plain 0x80 ([n+1] != 0x01) just breaks — no extra ~~~.
+            var termLines = lines.FindAll(l => l.Kind == MagicScriptLineKind.Terminator);
+            Assert.Single(termLines);
+            Assert.StartsWith("~~~", termLines[0].Text);
+
+            // The miss terminator ~~~ MUST appear AFTER the two frame blocks
+            // (i.e. after the second Wait line) — INLINE, not at start (FIX 2).
+            int lastWaitIdx  = lines.FindLastIndex(l => l.Kind == MagicScriptLineKind.Wait);
+            int firstTermIdx = lines.FindIndex(l => l.Kind == MagicScriptLineKind.Terminator);
+            Assert.True(firstTermIdx > lastWaitIdx,
+                $"~~~ (idx {firstTermIdx}) should come after last Wait (idx {lastWaitIdx})");
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_PlainFirstTerminator_NoTilde()
+        {
+            // Plain first 0x80 (no continuation byte) → no ~~~ emitted (WF L679 commented out).
+            var rom = MakeMinimalRom();
+            uint baseOff = 0xA00u;
+            Build86Record(rom.Data, baseOff, 1);
+            rom.Data[baseOff + 28 + 3] = 0x80; // plain terminator
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            var lines = MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames);
+
+            // No ~~~ line should be emitted for a plain first terminator.
+            var termLines = lines.FindAll(l => l.Kind == MagicScriptLineKind.Terminator);
+            Assert.Empty(termLines);
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_CountersMatchSharedHash()
+        {
+            // CountUniqueObjSlots / CountUniqueBgSlots must agree with shared hash.
+            // Two distinct frames, each with unique OBJ and BG: expect 2 OBJ, 2 BG slots.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0xB00u;
+
+            rom.Data[baseOff + 3] = 0x86;
+            WriteU32Le(rom.Data, baseOff + 4,  0x08000100u);
+            WriteU32Le(rom.Data, baseOff + 16, 0x08000200u);
+            WriteU32Le(rom.Data, baseOff + 20, 0x08000300u);
+            WriteU32Le(rom.Data, baseOff + 24, 0x08000400u);
+
+            uint off1 = baseOff + 28;
+            rom.Data[off1 + 3] = 0x86;
+            WriteU32Le(rom.Data, off1 + 4,  0x08000150u); // different OBJ
+            WriteU32Le(rom.Data, off1 + 16, 0x08000250u); // different BG
+            WriteU32Le(rom.Data, off1 + 20, 0x08000300u);
+            WriteU32Le(rom.Data, off1 + 24, 0x08000400u);
+
+            rom.Data[off1 + 28 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames);
+
+            Assert.Equal(2, MagicEffectExportCore.CountUniqueObjSlots(frames));
+            Assert.Equal(2, MagicEffectExportCore.CountUniqueBgSlots(frames));
+
+            // Shared hash: OBJ slots 0,2; BG slots 1,3 (interleaved in shared space).
+            Assert.Equal(0, objSlots[0]);
+            Assert.Equal(1, bgSlots[0]); // BG follows OBJ in shared hash
+            Assert.Equal(2, objSlots[1]);
+            Assert.Equal(3, bgSlots[1]);
+        }
         // ---------------------------------------------------------------
         // Helpers (mirrors MagicEffectRendererCoreTests helpers)
         // ---------------------------------------------------------------
