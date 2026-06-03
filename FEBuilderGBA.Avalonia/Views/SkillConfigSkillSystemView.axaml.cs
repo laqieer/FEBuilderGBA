@@ -3,6 +3,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media.Imaging;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -312,9 +313,66 @@ namespace FEBuilderGBA.Avalonia.Views
             Log.Debug("SkillConfigSkillSystemView.BulkImport_Click invoked - disabled until Core extraction lands (#500)");
         }
 
-        void BulkExport_Click(object? sender, RoutedEventArgs e)
+        // #920 SLICE 1 — real bulk EXPORT via the cross-platform READ-ONLY
+        // SkillConfigSkillSystemBulkExportCore seam. Writes a *.SkillConfig.tsv
+        // (one `textID<TAB>animePtr` row per skill) and, for each extended-area
+        // anime, an `anime{i:hex}/anime.txt` script + per-frame PNGs. Bulk
+        // IMPORT stays a no-op until SLICE 2 (#920) lands.
+        async void BulkExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigSkillSystemView.BulkExport_Click invoked - disabled until Core extraction lands (#500)");
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null || !_vm.IsLoaded) return;
+
+            string suggested = "skills.SkillConfig.tsv";
+            string? path = await FileDialogHelper.SaveFile(this,
+                R._("Bulk Export Skill Config"),
+                new[] { (R._("Skill Config TSV"), "*.SkillConfig.tsv") },
+                suggested);
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                string basedir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".";
+
+                // writeAnime: render each extended-area animation's frames to
+                // PNGs under `anime{i:hex}/` + write `anime.txt`. Dispose each
+                // UNIQUE IImage exactly once (the #912 hygiene lesson — the Core
+                // export caches one IImage per OBJ id, so duplicate frames share
+                // an instance).
+                Action<SkillConfigBulkAnimeEntry> writeAnime = entry =>
+                {
+                    string animedir = System.IO.Path.Combine(basedir, entry.AnimeDirName);
+                    System.IO.Directory.CreateDirectory(animedir);
+
+                    string basename = "anime_";
+                    var lines = SkillSystemsAnimeExportCore.BuildScriptLines(entry.Result, basename);
+
+                    var written = new System.Collections.Generic.HashSet<uint>();
+                    foreach (var f in entry.Result.Frames)
+                    {
+                        if (!written.Add(f.Id)) continue;
+                        string imagefilename = basename.Replace(" ", "_") + "g" + f.Id.ToString("000") + ".png";
+                        f.Image.Save(System.IO.Path.Combine(animedir, imagefilename));
+                        f.Image.Dispose();
+                    }
+
+                    System.IO.File.WriteAllLines(System.IO.Path.Combine(animedir, "anime.txt"), lines);
+                };
+
+                string err = SkillConfigSkillSystemBulkExportCore.ExportAll(
+                    rom, _vm.TextPointerLocation, _vm.AnimePointerLocation, path, writeAnime);
+
+                if (!string.IsNullOrEmpty(err))
+                {
+                    CoreState.Services?.ShowError(R._("Bulk export failed: {0}", err));
+                    return;
+                }
+                CoreState.Services?.ShowInfo(R._("Bulk exported to: {0}", path));
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Bulk export failed: {0}", ex.Message));
+            }
         }
 
         void ListExpand_Click(object? sender, RoutedEventArgs e)
