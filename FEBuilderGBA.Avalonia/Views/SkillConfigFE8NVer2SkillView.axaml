@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
+        xmlns:views="clr-namespace:FEBuilderGBA.Avalonia.Views"
         x:Class="FEBuilderGBA.Avalonia.Views.SkillConfigFE8NVer2SkillView"
         Title="Skill Configuration (FE8N v2)" Width="980" Height="780"
         SizeToContent="WidthAndHeight">
@@ -269,112 +270,39 @@
         </ScrollViewer>
       </TabItem>
 
-      <!-- Tab 2: Unit sub-list placeholder (KnownGap: tracked by #374) -->
+      <!-- Tab 2: Unit sub-list — editable via SkillSubListEditorView (#930) -->
       <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSkillList_Tab"
                Header="Unit Skill List">
-        <StackPanel Margin="16" Spacing="8">
-          <Label Content="Unit Skill Sub-list" FontSize="16" FontWeight="Bold" />
-          <Border Background="{DynamicResource WarningBackgroundBrush}"
-                  BorderBrush="{DynamicResource WarningBorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Padding="12">
-            <StackPanel Spacing="8">
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status_L1"
-                         Text="Per-skill unit sub-list editing is not yet implemented in Avalonia." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status_L2"
-                         Text="Use the WinForms editor to assign units to a skill." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Status_L3"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
-            </StackPanel>
-          </Border>
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_BaseAddr_Label"
-                 Name="UnitTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitTab_Count_Label"
-                 Name="UnitTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
-        </StackPanel>
+        <views:SkillSubListEditorView
+            AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_UnitSubEditor"
+            Name="UnitSubEditor" />
       </TabItem>
 
-      <!-- Tab 3: Class sub-list placeholder (KnownGap: tracked by #374) -->
+      <!-- Tab 3: Class sub-list — editable via SkillSubListEditorView (#930) -->
       <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSkillList_Tab"
                Header="Class Skill List">
-        <StackPanel Margin="16" Spacing="8">
-          <Label Content="Class Skill Sub-list" FontSize="16" FontWeight="Bold" />
-          <Border Background="{DynamicResource WarningBackgroundBrush}"
-                  BorderBrush="{DynamicResource WarningBorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Padding="12">
-            <StackPanel Spacing="8">
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status_L1"
-                         Text="Per-skill class sub-list editing is not yet implemented in Avalonia." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status_L2"
-                         Text="Use the WinForms editor to assign classes to a skill." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Status_L3"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
-            </StackPanel>
-          </Border>
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_BaseAddr_Label"
-                 Name="ClassTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassTab_Count_Label"
-                 Name="ClassTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
-        </StackPanel>
+        <views:SkillSubListEditorView
+            AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ClassSubEditor"
+            Name="ClassSubEditor" />
       </TabItem>
 
-      <!-- Tab 4: Item sub-list placeholder (KnownGap: tracked by #374) -->
+      <!-- Tab 4: Item sub-list — editable via SkillSubListEditorView (#930) -->
       <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemSkillList_Tab"
                Header="Item Skill List">
-        <StackPanel Margin="16" Spacing="8">
-          <Label Content="Item Skill Sub-list" FontSize="16" FontWeight="Bold" />
-          <Border Background="{DynamicResource WarningBackgroundBrush}"
-                  BorderBrush="{DynamicResource WarningBorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Padding="12">
-            <StackPanel Spacing="8">
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status_L1"
-                         Text="Per-skill item sub-list editing is not yet implemented in Avalonia." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status_L2"
-                         Text="Use the WinForms editor to assign items to a skill." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Status_L3"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
-            </StackPanel>
-          </Border>
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_BaseAddr_Label"
-                 Name="ItemTabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemTab_Count_Label"
-                 Name="ItemTabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
-        </StackPanel>
+        <views:SkillSubListEditorView
+            AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_ItemSubEditor"
+            Name="ItemSubEditor" />
       </TabItem>
 
-      <!-- Tab 5: Item2 sub-list placeholder (KnownGap: tracked by #374) -->
+      <!-- Tab 5: Item2 sub-list — editable via SkillSubListEditorView (#930).
+           Only present in the sizeof-20+ layout; the tab IsVisible AND the
+           editor's CanEdit are gated on HasItem2 (B2 — addr+16 is the next
+           row's first u32 in the sizeof-16 layout). -->
       <TabItem AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2SkillList_Tab"
                Header="Item2 Skill List" Name="Item2Tab" IsVisible="False">
-        <StackPanel Margin="16" Spacing="8">
-          <Label Content="Item2 Skill Sub-list (sizeof-20+ layout)" FontSize="16" FontWeight="Bold" />
-          <Border Background="{DynamicResource WarningBackgroundBrush}"
-                  BorderBrush="{DynamicResource WarningBorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Padding="12">
-            <StackPanel Spacing="8">
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status_L1"
-                         Text="Per-skill Item2 sub-list editing is not yet implemented in Avalonia." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status_L2"
-                         Text="Use the WinForms editor to assign second-item-skills to a skill." />
-              <TextBlock TextWrapping="Wrap"
-                         AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Status_L3"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
-            </StackPanel>
-          </Border>
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_BaseAddr_Label"
-                 Name="Item2TabBaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
-          <Label AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2Tab_Count_Label"
-                 Name="Item2TabCountLabel" Content="Entry count: -" FontFamily="Consolas" />
-        </StackPanel>
+        <views:SkillSubListEditorView
+            AutomationProperties.AutomationId="SkillConfigFE8NVer2Skill_Item2SubEditor"
+            Name="Item2SubEditor" />
       </TabItem>
 
     </TabControl>

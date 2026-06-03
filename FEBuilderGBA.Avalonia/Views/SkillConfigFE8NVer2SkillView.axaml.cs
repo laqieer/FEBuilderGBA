@@ -41,12 +41,67 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+
+            // #930 — wire the 4 embedded sub-list editors: inject the host's
+            // shared UndoService, set titles, and re-sync on any mutation (C1).
+            UnitSubEditor.UndoService = _undoService;
+            ClassSubEditor.UndoService = _undoService;
+            ItemSubEditor.UndoService = _undoService;
+            Item2SubEditor.UndoService = _undoService;
+            UnitSubEditor.SetTitle("Unit Skill Sub-list");
+            ClassSubEditor.SetTitle("Class Skill Sub-list");
+            ItemSubEditor.SetTitle("Item Skill Sub-list");
+            Item2SubEditor.SetTitle("Item2 Skill Sub-list");
+            UnitSubEditor.Changed += OnSubListChanged;
+            ClassSubEditor.Changed += OnSubListChanged;
+            ItemSubEditor.Changed += OnSubListChanged;
+            Item2SubEditor.Changed += OnSubListChanged;
+
             Opened += (_, _) => LoadList();
             Closed += (_, _) =>
             {
                 DisposeBitmap(ref _currentIconBitmap);
                 DisposeBitmap(ref _currentPreviewBitmap);
             };
+        }
+
+        /// <summary>
+        /// Load the 4 sub-list editors against the per-skill pointer slots.
+        /// Unit +4 / Class +8 / Item +12 / Item2 +16. Item2's canEdit is gated
+        /// on HasItem2: when stride &lt; 20, addr+16 is the next row's first u32,
+        /// so the editor is not loaded/editable (B2).
+        /// </summary>
+        void LoadSubEditors()
+        {
+            uint row = _vm.CurrentRowAddr;
+            if (row == 0) return;
+            UnitSubEditor.Load(row + 4, NameResolver.GetUnitName, true);
+            ClassSubEditor.Load(row + 8, NameResolver.GetClassName, true);
+            ItemSubEditor.Load(row + 12, NameResolver.GetItemName, true);
+            Item2SubEditor.Load(row + 16, NameResolver.GetItemName, _vm.HasItem2);
+        }
+
+        /// <summary>
+        /// C1 — after any sub-list op repoints a Px slot, re-run the host's
+        /// LoadEntry to re-read the now-updated Px offsets into its cache (so a
+        /// subsequent main-row Write is idempotent w.r.t. the repoint instead of
+        /// reverting it + orphaning the new array), then reload the editors.
+        /// </summary>
+        void OnSubListChanged()
+        {
+            uint row = _vm.CurrentRowAddr;
+            if (row == 0) return;
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.LoadEntry(row);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SkillConfigFE8NVer2SkillView.OnSubListChanged failed: {0}", ex.Message);
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         static void DisposeBitmap(ref Bitmap? bmp)
@@ -151,15 +206,9 @@ namespace FEBuilderGBA.Avalonia.Views
             Item2SkillPointerBox.Value = _vm.Item2SkillPointer;
             AnimationPointerBox.Value = _vm.AnimationPointer;
 
-            // Sub-list tab base addresses (informational only — actual sub-list
-            // editing is a KnownGap tracked by #374).
-            UnitTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.UnitSkillPointer:X08}";
-            ClassTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.ClassSkillPointer:X08}";
-            ItemTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.ItemSkillPointer:X08}";
-            if (_vm.HasItem2)
-            {
-                Item2TabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.Item2SkillPointer:X08}";
-            }
+            // Load the 4 embedded sub-list editors against the per-skill pointer
+            // SLOTs (CurrentRowAddr + 4/8/12/16). Item2 is gated on HasItem2 (B2).
+            LoadSubEditors();
 
             // Icon Image render.
             try
