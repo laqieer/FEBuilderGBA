@@ -515,13 +515,13 @@
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_ClassTab_StatusL1_Label"
-                         Text="Per-skill class sub-list editing is not yet implemented in Avalonia." />
+                         Text="The FE8N Ver1 Class/Item/Other tabs are the SAME shared 16 ext-bytes (B16..B31) already edited on the Unit tab — not a separate per-skill array." />
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_ClassTab_StatusL2_Label"
-                         Text="Use the WinForms editor to assign classes to a skill." />
+                         Text="WinForms shows them as 4 tabs of the same 16 bytes; Avalonia surfaces all 16 editable on the Unit tab. Edit them there (#930)." />
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_ClassTab_StatusL3_Label"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+                         Text="The editable per-skill sub-list arrays live in FE8N Ver2/Ver3 (Unit/Class/Item/Item2/Composite), not Ver1." />
             </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_ClassTab_BaseAddr_Label"
@@ -542,13 +542,13 @@
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_ItemTab_StatusL1_Label"
-                         Text="Per-skill item sub-list editing is not yet implemented in Avalonia." />
+                         Text="The FE8N Ver1 Class/Item/Other tabs are the SAME shared 16 ext-bytes (B16..B31) already edited on the Unit tab — not a separate per-skill array." />
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_ItemTab_StatusL2_Label"
-                         Text="Use the WinForms editor to assign items to a skill." />
+                         Text="WinForms shows them as 4 tabs of the same 16 bytes; Avalonia surfaces all 16 editable on the Unit tab. Edit them there (#930)." />
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_ItemTab_StatusL3_Label"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+                         Text="The editable per-skill sub-list arrays live in FE8N Ver2/Ver3 (Unit/Class/Item/Item2/Composite), not Ver1." />
             </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_ItemTab_BaseAddr_Label"
@@ -569,13 +569,13 @@
             <StackPanel Spacing="8">
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_OtherTab_StatusL1_Label"
-                         Text="Per-skill 'other' sub-list editing is not yet implemented in Avalonia." />
+                         Text="The FE8N Ver1 Class/Item/Other tabs are the SAME shared 16 ext-bytes (B16..B31) already edited on the Unit tab — not a separate per-skill array." />
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_OtherTab_StatusL2_Label"
-                         Text="The N03 sub-tab in WF holds 16 generic bytes (B16..B31) with no fixed semantics; the WF UI exposes them as unlabeled NumericUpDowns. The Avalonia view surfaces the base address so power users can drop down to the hex editor." />
+                         Text="The N03 sub-tab in WF holds 16 generic bytes (B16..B31) with no fixed semantics, shown there as unlabeled NumericUpDowns. Avalonia surfaces all 16 editable on the Unit tab; edit them there (#930)." />
               <TextBlock TextWrapping="Wrap"
                          AutomationProperties.AutomationId="SkillConfigFE8NSkill_OtherTab_StatusL3_Label"
-                         Text="KnownGap: depends on InputFormRef auto-wiring (tracked by #374)." />
+                         Text="The editable per-skill sub-list arrays live in FE8N Ver2/Ver3 (Unit/Class/Item/Item2/Composite), not Ver1." />
             </StackPanel>
           </Border>
           <Label AutomationProperties.AutomationId="SkillConfigFE8NSkill_OtherTab_BaseAddr_Label"
