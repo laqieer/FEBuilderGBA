@@ -327,26 +327,21 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 string basedir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".";
 
-                // Per-skill the Core seam asks animeScriptDirResolver(i) for the
-                // skill's anime dir, then loads each PNG named in that skill's
-                // anime.txt via imageProvider. The resolver records the current
-                // skill dir into a captured field so the imageProvider can
-                // resolve relative PNG names against it (the Core calls the
-                // resolver before loading that skill's frames, in both the
-                // validate and mutate passes).
-                string currentAnimeDir = basedir;
-
+                // The Core seam resolves each skill i's anime dir via this
+                // resolver, then SCOPES every relative frame-PNG name to THAT dir
+                // before calling the imageProvider (so two skills with distinct
+                // anime{i}/ dirs but same-named PNGs each load their own frames —
+                // #925 thread 1). The imageProvider therefore receives an already-
+                // scoped path; it just loads + quantizes it (rooted as-is; a bare
+                // relative fallback is resolved against basedir for safety).
                 Func<uint, string> dirResolver = i =>
-                {
-                    currentAnimeDir = System.IO.Path.Combine(basedir, "anime" + U.ToHexString(i));
-                    return currentAnimeDir;
-                };
+                    System.IO.Path.Combine(basedir, "anime" + U.ToHexString(i));
 
                 SkillSystemsAnimeImportCore.ImageProvider imageProvider = pngName =>
                 {
                     string full = System.IO.Path.IsPathRooted(pngName)
                         ? pngName
-                        : System.IO.Path.Combine(currentAnimeDir, pngName);
+                        : System.IO.Path.Combine(basedir, pngName);
                     try
                     {
                         var lr = ImageImportService.LoadAndQuantizeFromFile(

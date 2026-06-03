@@ -163,13 +163,18 @@ namespace FEBuilderGBA
             // nothing (a missing file between validate and mutate can't sneak a
             // partial write past us).
             // ==============================================================
+            // Per-skill anime DIRECTORY cache (resolved ONCE here so the validate
+            // and mutate passes scope PNGs against the SAME dir — the byte-identity
+            // guarantee depends on both passes reading identical bytes).
+            var animeDirCache = new Dictionary<uint, string>();
+
             var scriptCache = new Dictionary<uint, string[]>();
             foreach (var row in rows)
             {
                 if (row.AnimePtr == 0) continue; // 0 -> write_p32(slot,0); no script.
 
-                string dir = animeScriptDirResolver(row.Index);
-                string animeTxt = Path.Combine(dir ?? ".", "anime.txt");
+                string dir = animeScriptDirResolver(row.Index) ?? ".";
+                string animeTxt = Path.Combine(dir, "anime.txt");
                 if (!File.Exists(animeTxt))
                     continue; // No script for this slot -> keep the existing anime.
 
@@ -200,10 +205,18 @@ namespace FEBuilderGBA
                             + FE8USkillTemplate.FileFor(parsed.IsDefender);
                 }
 
+                // CRITICAL (#925 thread 1): scope every relative PNG name to THIS
+                // skill's anime{i:hex} dir. Without this, two skills with distinct
+                // anime{i}/ dirs but same-named PNGs (e.g. both "g000.png") would
+                // load the WRONG frames (the imageProvider would resolve against a
+                // single shared/last dir). The SAME scoped provider is reused in
+                // the mutate pass so validate and mutate read identical bytes.
+                var scopedProvider = ScopeProvider(imageProvider, dir);
+
                 // Validate EVERY referenced PNG (load, dims, <=16 colours).
                 foreach (var f in parsed.Frames)
                 {
-                    var loaded = imageProvider(f.PngName);
+                    var loaded = scopedProvider(f.PngName);
                     if (loaded == null)
                         return "Skill " + U.ToHexString(row.Index) + ": cannot load frame image: " + f.PngName;
                     var (idx, w, h, _) = loaded.Value;
@@ -222,6 +235,7 @@ namespace FEBuilderGBA
                 }
 
                 scriptCache[row.Index] = scriptLines;
+                animeDirCache[row.Index] = dir;
             }
 
             // ==============================================================
@@ -264,6 +278,14 @@ namespace FEBuilderGBA
 
                         if (scriptCache.TryGetValue(row.Index, out var scriptLines))
                         {
+                            // CRITICAL (#925 thread 1): reuse the SAME per-skill
+                            // dir-scoped provider the validate pass used, so the
+                            // mutate pass loads each PNG from THIS skill's
+                            // anime{i:hex} dir (not a shared/last dir) and reads
+                            // bytes identical to validation.
+                            var scopedProvider = ScopeProvider(
+                                imageProvider, animeDirCache[row.Index]);
+
                             // H2: ImportSkillAnimation returns a non-empty error on
                             // a per-skill fault (it does NOT only throw). Treat a
                             // returned error string as a FAULT and stop.
@@ -271,7 +293,7 @@ namespace FEBuilderGBA
                             try
                             {
                                 err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
-                                    rom, scriptLines, row.AnimeSlot, imageProvider,
+                                    rom, scriptLines, row.AnimeSlot, scopedProvider,
                                     faultInjector: faultInjector,
                                     manageSnapshot: false);
                             }
@@ -319,6 +341,28 @@ namespace FEBuilderGBA
             if (CoreState.Undo != null)
                 CoreState.Undo.Push(bulkUndoData);
             return "";
+        }
+
+        /// <summary>
+        /// Wrap a base image provider so a RELATIVE frame-PNG name is resolved
+        /// under <paramref name="animeDir"/> (the skill's <c>anime{i:hex}</c>
+        /// directory) before being handed to the base provider. An already-rooted
+        /// PNG name is passed through unchanged. This is what scopes each skill's
+        /// frames to ITS OWN directory in the bulk import (#925 thread 1): two
+        /// skills with distinct <c>anime{i}/</c> dirs but same-named PNGs each
+        /// load their own bytes. The SAME wrapper is reused by the validate and
+        /// mutate passes so both read identical bytes.
+        /// </summary>
+        static SkillSystemsAnimeImportCore.ImageProvider ScopeProvider(
+            SkillSystemsAnimeImportCore.ImageProvider baseProvider, string animeDir)
+        {
+            return name =>
+            {
+                string scoped = Path.IsPathRooted(name)
+                    ? name
+                    : Path.Combine(animeDir ?? ".", name);
+                return baseProvider(scoped);
+            };
         }
 
         sealed class Row

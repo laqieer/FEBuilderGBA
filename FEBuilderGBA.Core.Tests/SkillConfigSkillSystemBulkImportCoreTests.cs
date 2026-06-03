@@ -49,7 +49,9 @@ namespace FEBuilderGBA.Core.Tests
         readonly IImageService _prevSvc;
         readonly Undo _prevUndo;
         readonly string _prevBase;
-        string _tempDir;
+        // #925 thread 2: track EVERY temp dir created by MakeTempDir so Dispose
+        // deletes them all (the old single-field version leaked all but the first).
+        readonly List<string> _tempDirs = new List<string>();
 
         public SkillConfigSkillSystemBulkImportCoreTests()
         {
@@ -65,9 +67,12 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ImageService = _prevSvc;
             CoreState.Undo = _prevUndo;
             CoreState.BaseDirectory = _prevBase;
-            if (_tempDir != null && Directory.Exists(_tempDir))
+            foreach (string d in _tempDirs)
             {
-                try { Directory.Delete(_tempDir, true); } catch { /* swallow */ }
+                if (d != null && Directory.Exists(d))
+                {
+                    try { Directory.Delete(d, true); } catch { /* swallow */ }
+                }
             }
         }
 
@@ -147,6 +152,78 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0u, res.Frames[0].Id); Assert.Equal(3u, res.Frames[0].Wait);
             Assert.Equal(1u, res.Frames[1].Id); Assert.Equal(5u, res.Frames[1].Wait);
             Assert.Equal(0u, res.Frames[2].Id); Assert.Equal(9u, res.Frames[2].Wait);
+        }
+
+        // ===============================================================
+        // #925 thread 1 — per-skill anime dir scoping in BOTH passes.
+        // ===============================================================
+
+        [Fact]
+        public void BulkImport_TwoDistinctAnimeDirs_SameNamedPngs_ScopedPerSkill()
+        {
+            ROM rom = SetupRom();
+            string dir = MakeTempDir();
+
+            // TWO skills, each with its OWN anime{i}/ dir but the SAME PNG name
+            // ("g000.png") in each — with DISTINCT content per dir. If the import
+            // failed to scope PNGs per-skill it would load skill 1's frames from
+            // skill 0's dir (or a shared/last dir) -> cross-dir leakage.
+            WriteAnimeDir(dir, 0, new[] { "S0001", "1 g000.png" });
+            WriteAnimeDir(dir, 1, new[] { "S0002", "1 g000.png" });
+
+            // Materialize a DISTINCT marker file per skill dir so the provider can
+            // read the actual scoped path and report which dir it loaded from.
+            string dir0 = Path.Combine(dir, "anime" + U.ToHexString(0u));
+            string dir1 = Path.Combine(dir, "anime" + U.ToHexString(1u));
+            File.WriteAllText(Path.Combine(dir0, "g000.png"), "SKILL0");
+            File.WriteAllText(Path.Combine(dir1, "g000.png"), "SKILL1");
+
+            string tsv = Path.Combine(dir, "skills.SkillConfig.tsv");
+            File.WriteAllLines(tsv, new[]
+            {
+                U.ToHexString(0x100u) + "\t" + U.ToHexString(0x09000000u),
+                U.ToHexString(0x200u) + "\t" + U.ToHexString(0x09000000u),
+            });
+
+            // Recording provider: capture every scoped path it is asked to load,
+            // and return a frame whose distinguishing pixel encodes WHICH marker
+            // file (skill 0 vs skill 1) actually lives at that path. This proves
+            // the path reached the CORRECT per-skill dir end-to-end.
+            var requested = new List<string>();
+            SkillSystemsAnimeImportCore.ImageProvider recording = scopedPath =>
+            {
+                requested.Add(scopedPath);
+                string marker = File.Exists(scopedPath) ? File.ReadAllText(scopedPath) : "";
+                var idx = new byte[8 * 8];
+                idx[0] = (byte)(marker == "SKILL0" ? 3 : marker == "SKILL1" ? 4 : 0);
+                return (idx, 8, 8, MakePalette());
+            };
+
+            string err = SkillConfigSkillSystemBulkImportCore.ImportAll(
+                rom, TEXT_PTR_LOC, ANIME_PTR_LOC, tsv,
+                DirResolver(dir), recording, applyRecycle: false);
+            Assert.Equal("", err);
+
+            // Every requested path for skill 0 lives under anime0/ and resolves to
+            // the SKILL0 marker; likewise skill 1 under anime1/ -> SKILL1.
+            var skill0Paths = requested.FindAll(p => p.Contains(
+                Path.DirectorySeparatorChar + "anime" + U.ToHexString(0u) + Path.DirectorySeparatorChar));
+            var skill1Paths = requested.FindAll(p => p.Contains(
+                Path.DirectorySeparatorChar + "anime" + U.ToHexString(1u) + Path.DirectorySeparatorChar));
+
+            Assert.NotEmpty(skill0Paths);
+            Assert.NotEmpty(skill1Paths);
+            // No path may be scoped to the WRONG dir or an unscoped basedir-only
+            // location (the cross-dir leakage the bug would have caused).
+            foreach (string p in requested)
+            {
+                Assert.True(File.Exists(p), $"scoped path should exist: {p}");
+                string content = File.ReadAllText(p);
+                Assert.True(content == "SKILL0" || content == "SKILL1",
+                    $"path resolved to neither per-skill marker: {p} -> '{content}'");
+            }
+            foreach (string p in skill0Paths) Assert.Equal("SKILL0", File.ReadAllText(p));
+            foreach (string p in skill1Paths) Assert.Equal("SKILL1", File.ReadAllText(p));
         }
 
         // ===============================================================
@@ -622,9 +699,9 @@ namespace FEBuilderGBA.Core.Tests
             string d = Path.Combine(Path.GetTempPath(),
                 "skillbulk_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(d);
-            // Track the FIRST temp dir for cleanup; later ones nest under it not
-            // required — track each via a parent.
-            if (_tempDir == null) _tempDir = d;
+            // #925 thread 2: track EVERY created temp dir so Dispose deletes them
+            // all (some tests call MakeTempDir twice — e.g. the round-trip out dir).
+            _tempDirs.Add(d);
             return d;
         }
 
