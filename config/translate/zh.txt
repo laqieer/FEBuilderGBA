@@ -23862,3 +23862,21 @@ CSA魔法动画导入失败: {0}
 :Bulk exported to: {0}
 批量导出至: {0}
 
+:Set ID
+设置ID
+
+:Sub-list
+子列表
+
+:The FE8N Ver1 Class/Item/Other tabs are the SAME shared 16 ext-bytes (B16..B31) already edited on the Unit tab — not a separate per-skill array.
+FE8N Ver1 的 类别/物品/其他 标签页是与单位标签页上已可编辑的相同的共享 16 个扩展字节 (B16..B31) — 而非每个技能独立的数组。
+
+:WinForms shows them as 4 tabs of the same 16 bytes; Avalonia surfaces all 16 editable on the Unit tab. Edit them there (#930).
+WinForms 将相同的 16 个字节显示为 4 个标签页；Avalonia 在单位标签页上让全部 16 个可编辑。请在那里编辑 (#930)。
+
+:The N03 sub-tab in WF holds 16 generic bytes (B16..B31) with no fixed semantics, shown there as unlabeled NumericUpDowns. Avalonia surfaces all 16 editable on the Unit tab; edit them there (#930).
+WF 中的 N03 子标签页保存 16 个无固定语义的通用字节 (B16..B31)，在那里显示为无标签的数值框。Avalonia 在单位标签页上让全部 16 个可编辑；请在那里编辑 (#930)。
+
+:The editable per-skill sub-list arrays live in FE8N Ver2/Ver3 (Unit/Class/Item/Item2/Composite), not Ver1.
+可编辑的每个技能子列表数组位于 FE8N Ver2/Ver3 (单位/类别/物品/物品2/复合) 中，而不在 Ver1。
+

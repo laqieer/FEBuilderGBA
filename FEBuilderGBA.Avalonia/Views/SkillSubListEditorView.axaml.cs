@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Controls.Templates;
-using global::Avalonia.Data;
 using global::Avalonia.Interactivity;
-using global::Avalonia.Markup.Xaml;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -25,7 +24,7 @@ namespace FEBuilderGBA.Avalonia.Views
     /// offsets (C1 — the host's main-row Write would otherwise revert the
     /// repoint and orphan the new array).
     /// </summary>
-    public partial class SkillSubListEditorView : UserControl
+    public partial class SkillSubListEditorView : TranslatedUserControl
     {
         readonly SkillSubListEditorViewModel _vm = new();
 
@@ -67,14 +66,31 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.EditId = e.NewValue.HasValue ? (uint)e.NewValue.Value : 0u;
         }
 
-        void InitializeComponent() => AvaloniaXamlLoader.Load(this);
-
         /// <summary>
         /// Set the tab title (e.g. "Unit Skill Sub-list").
         /// </summary>
         public void SetTitle(string title)
         {
             TitleLabel.Content = title;
+        }
+
+        /// <summary>
+        /// Rewrite every internal control's AutomationId to a per-instance
+        /// prefix so multiple embedded editors in one host view don't collide
+        /// (each host embeds 4-5 of these). The host passes a unique prefix
+        /// (e.g. "SkillConfigFE8NVer2Skill_UnitSubEditor"); the suffix part is
+        /// preserved so the naming-convention test still passes.
+        /// </summary>
+        public void ApplyAutomationIdPrefix(string prefix)
+        {
+            AutomationProperties.SetAutomationId(TitleLabel, $"{prefix}_Title_Label");
+            AutomationProperties.SetAutomationId(EditIdBox, $"{prefix}_EditId_Input");
+            AutomationProperties.SetAutomationId(SetIdButton, $"{prefix}_SetId_Button");
+            AutomationProperties.SetAutomationId(AddButton, $"{prefix}_Add_Button");
+            AutomationProperties.SetAutomationId(RemoveButton, $"{prefix}_Remove_Button");
+            AutomationProperties.SetAutomationId(BaseAddrLabel, $"{prefix}_BaseAddr_Label");
+            AutomationProperties.SetAutomationId(CountLabel, $"{prefix}_Count_Label");
+            AutomationProperties.SetAutomationId(EntryList, $"{prefix}_Entry_List");
         }
 
         /// <summary>

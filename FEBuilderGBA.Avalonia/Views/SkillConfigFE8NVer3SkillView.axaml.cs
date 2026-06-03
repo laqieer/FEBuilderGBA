@@ -49,11 +49,18 @@ namespace FEBuilderGBA.Avalonia.Views
             ItemSubEditor.UndoService = _undoService;
             Item2SubEditor.UndoService = _undoService;
             CompositeSubEditor.UndoService = _undoService;
-            UnitSubEditor.SetTitle("Unit Skill Sub-list");
-            ClassSubEditor.SetTitle("Class Skill Sub-list");
-            ItemSubEditor.SetTitle("Item Skill Sub-list");
-            Item2SubEditor.SetTitle("Item2 Skill Sub-list");
-            CompositeSubEditor.SetTitle("Composite Skill Sub-list");
+            UnitSubEditor.SetTitle(R._("Unit Skill Sub-list"));
+            ClassSubEditor.SetTitle(R._("Class Skill Sub-list"));
+            ItemSubEditor.SetTitle(R._("Item Skill Sub-list"));
+            Item2SubEditor.SetTitle(R._("Item2 Skill Sub-list"));
+            CompositeSubEditor.SetTitle(R._("Composite Skill Sub-list"));
+            // Per-instance AutomationId prefixes so the 5 embedded editors don't
+            // collide within this view (the inner controls share static ids).
+            UnitSubEditor.ApplyAutomationIdPrefix("SkillConfigFE8NVer3Skill_UnitSubEditor");
+            ClassSubEditor.ApplyAutomationIdPrefix("SkillConfigFE8NVer3Skill_ClassSubEditor");
+            ItemSubEditor.ApplyAutomationIdPrefix("SkillConfigFE8NVer3Skill_ItemSubEditor");
+            Item2SubEditor.ApplyAutomationIdPrefix("SkillConfigFE8NVer3Skill_Item2SubEditor");
+            CompositeSubEditor.ApplyAutomationIdPrefix("SkillConfigFE8NVer3Skill_CompositeSubEditor");
             UnitSubEditor.Changed += OnSubListChanged;
             ClassSubEditor.Changed += OnSubListChanged;
             ItemSubEditor.Changed += OnSubListChanged;

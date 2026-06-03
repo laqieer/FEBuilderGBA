@@ -105,11 +105,18 @@ namespace FEBuilderGBA.Avalonia.GapSweep
         /// (Reload) = 7 controls. Hosts that hide a slot (e.g.
         /// ShowReadSize="False") still report 7 — the slot is just
         /// IsVisible=false, the controls still exist in the tree.
+        ///
+        /// SkillSubListEditorView (#930) inlines: 3 Labels (title + base + count),
+        /// 1 NumericUpDown (EditId), 3 Buttons (Set ID / Add / Remove), and 1
+        /// ListBox (entries) = 8 controls. The FE8N Ver2/Ver3 sub-list tabs each
+        /// host one instance in place of the former inline placeholder block, so
+        /// counting it as 8 keeps the density verdict honest post-migration.
         /// </summary>
         static readonly Dictionary<string, int> AvCompositeExpansions = new(StringComparer.Ordinal)
         {
             ["EditorTopBar"] = 9,
             ["EditorTopBarWithInputs"] = 7,
+            ["SkillSubListEditorView"] = 8,
         };
 
         /// <summary>
