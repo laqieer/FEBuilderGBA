@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Cross-platform, ROM-MUTATING Import helper for SkillSystems skill animations
-// (.txt script + per-frame PNGs → ROM write). SLICE 1 of issue #913 — ported
-// from WF `FEBuilderGBA/ImageUtilSkillSystemsAnimeCreator.cs` Import (:460-635).
+// (.txt script + per-frame PNGs → ROM write). SLICE 1 (#916, FE8J) + SLICE 2
+// (#917, FE8U program-code re-emit) of issue #913 — ported from WF
+// `FEBuilderGBA/ImageUtilSkillSystemsAnimeCreator.cs` Import (:460-635).
 //
-// SCOPE — FE8J path ONLY:
+// SCOPE — FE8J AND FE8U:
 //   * FE8J (is_multibyte): no per-skill program prefix; mainData begins at the
 //     5-word config block (frames/tsalist/imagelist/pallist/sound_id).
-//   * FE8U (NOT is_multibyte): returns a clean not-supported error with ZERO
-//     mutation. FE8U prepends a `skillanimtemplate*.dmp` program code block
-//     (WF :589-598) — re-emitting that is Slice 2.
+//   * FE8U (NOT is_multibyte): mainData is PREFIXED with the per-skill program
+//     template (`config/patch2/FE8U/skill/skillanimtemplate*.dmp`, defender vs
+//     attack selected by the leading `D` line; WF :589-598) BEFORE the 5-word
+//     config block. The template is read ONCE in the validate-before-mutate
+//     phase (GUARD A) and carried verbatim into the write (GUARD C). A
+//     missing/unreadable .dmp returns a clean no-mutation error. The repointed
+//     slot points to the template START, so the export `SkipCode` skips exactly
+//     this prefix on re-read. The dir + filenames are the SINGLE shared
+//     `FE8USkillTemplate` constants (GUARD E) used by BOTH this prepend and the
+//     export skip — they can never drift.
 //
 // THREE CRITICAL WF-parity invariants (each a compile-clean corruption trap):
 //   CRITICAL 1 — palette is RAW 0x20 bytes, NOT LZ77-compressed. WF :537-538
@@ -158,12 +166,15 @@ namespace FEBuilderGBA
         /// the slot at <paramref name="animePointerSlot"/> — all under one
         /// ambient undo scope.
         ///
-        /// <para><b>FE8J only.</b> FE8U returns a clean not-supported error with
-        /// ZERO mutation.</para>
+        /// <para><b>FE8J and FE8U.</b> FE8U prepends the per-skill program
+        /// template (defender/attack by the leading <c>D</c> line) read ONCE in
+        /// the validate phase; a missing template returns a clean no-mutation
+        /// error. FE8J prepends nothing.</para>
         ///
-        /// <para><b>Validate-before-mutate:</b> the script parse, every PNG load
-        /// + encode, and the slot-safety check all run BEFORE any ROM write. Any
-        /// failure returns a non-empty error and leaves the ROM byte-identical.</para>
+        /// <para><b>Validate-before-mutate:</b> the script parse, the FE8U
+        /// template read, every PNG load + encode, and the slot-safety check all
+        /// run BEFORE any ROM write. Any failure returns a non-empty error and
+        /// leaves the ROM byte-identical.</para>
         ///
         /// <para><b>Undo:</b> the caller MUST open an ambient undo scope (the
         /// Avalonia <c>UndoService.Begin</c>/<c>Commit</c>/<c>Rollback</c>) before
@@ -197,13 +208,41 @@ namespace FEBuilderGBA
             if (!ReferenceEquals(rom, CoreState.ROM))
                 return "Internal error: ROM is not the active CoreState.ROM.";
 
-            // FE8U deferral — clean, ZERO mutation (Slice 2 re-emits the program code).
-            if (!rom.RomInfo.is_multibyte)
-                return "FE8U skill-anime import is not yet supported (Slice 2: program-code re-emit).";
-
             // ---- VALIDATE script ----
+            // GUARD B (#917): ParseScript runs FIRST so script.IsDefender is known
+            // before the FE8U template is selected.
             SkillAnimeScript script = ParseScript(scriptLines);
             if (!string.IsNullOrEmpty(script.Error)) return script.Error;
+
+            // ---- GUARD A (#917): read the FE8U program template ONCE, in the
+            //   validate-before-mutate phase, BEFORE any ROM byte is touched. ----
+            // FE8U (NOT is_multibyte) prepends a per-skill program code block (WF
+            // :586-598). FE8J prepends nothing → empty prefix. We select the
+            // template by script.IsDefender (GUARD B) and File.ReadAllBytes it
+            // exactly once here; a missing/unreadable .dmp returns a clean
+            // no-mutation error AT THIS POINT, so a template failure mutates ZERO
+            // bytes. The bytes are carried VERBATIM into the mutate phase (GUARD C)
+            // — never re-read — so the validated bytes == the written bytes and the
+            // forced-failure byte-identity guarantee holds.
+            byte[] programTemplate = Array.Empty<byte>();
+            if (!rom.RomInfo.is_multibyte)
+            {
+                string templatePath = FE8USkillTemplate.PathFor(script.IsDefender);
+                try
+                {
+                    programTemplate = System.IO.File.ReadAllBytes(templatePath);
+                }
+                catch (Exception ex)
+                {
+                    return "Cannot read FE8U skill-anime program template '"
+                        + FE8USkillTemplate.FileFor(script.IsDefender) + "': " + ex.Message;
+                }
+                if (programTemplate == null || programTemplate.Length == 0)
+                {
+                    return "FE8U skill-anime program template is empty: "
+                        + FE8USkillTemplate.FileFor(script.IsDefender);
+                }
+            }
 
             // ---- VALIDATE slot ----
             uint slot = U.toOffset(animePointerSlot);
@@ -352,9 +391,21 @@ namespace FEBuilderGBA
                     uint palListOff  = ra.WriteAmbient(palListBytes.ToArray());
                     if (palListOff == U.NOT_FOUND) throw new InvalidOperationException("Cannot allocate space for palette list.");
 
-                    // mainData: frames, tsalist, imagelist, pallist (toPointer),
-                    // then sound_id (RAW u32, NOT toPointer — WF :616).
+                    // mainData: [FE8U program template prefix], frames, tsalist,
+                    // imagelist, pallist (toPointer), then sound_id (RAW u32, NOT
+                    // toPointer — WF :616).
                     var mainData = new List<byte>();
+
+                    // GUARD C (#917): prepend the FE8U program template VERBATIM —
+                    // no endian swap, no pad, no truncate (WF :592/:597
+                    // mainData.AddRange(File.ReadAllBytes(prog))). FE8J → empty
+                    // prefix (programTemplate.Length == 0), so the FE8J layout is
+                    // byte-identical to slice 1. The slot (repointed below) points
+                    // to the template START, so the export SkipCode skips exactly
+                    // this prefix on re-read.
+                    if (programTemplate.Length > 0)
+                        mainData.AddRange(programTemplate);
+
                     U.append_u32(mainData, U.toPointer(framesOff));
                     U.append_u32(mainData, U.toPointer(tsaListOff));
                     U.append_u32(mainData, U.toPointer(imageListOff));

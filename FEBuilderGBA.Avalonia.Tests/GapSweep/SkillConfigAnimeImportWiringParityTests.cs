@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// #913 SLICE 1 — wiring-parity tests proving the SkillConfig views route their
-// "Animation Import" button to the cross-platform SkillSystemsAnimeImportCore
-// seam via the shared SkillConfigAnimeImportHelper.
+// #913 SLICE 1 (#916 FE8J) + SLICE 2 (#917 FE8U) — wiring-parity tests proving
+// the SkillConfig views route their "Animation Import" button to the
+// cross-platform SkillSystemsAnimeImportCore seam via the shared
+// SkillConfigAnimeImportHelper.
 //
 // The 4 views that WF's ImageUtilSkillSystemsAnimeCreator.Import covers
 // (SkillSystem, FE8N Ver2, FE8N Ver3, FE8U-C SkillSys 0.9x) MUST call the
@@ -42,7 +43,7 @@ public class SkillConfigAnimeImportWiringParityTests
     }
 
     [Fact]
-    public void Helper_UsesCoreImportSeam_AndFE8JOnlyContract()
+    public void Helper_UsesCoreImportSeam_AndUndoContract()
     {
         string repoRoot = FindRepoRoot();
         string helper = File.ReadAllText(Path.Combine(repoRoot,
@@ -59,15 +60,23 @@ public class SkillConfigAnimeImportWiringParityTests
     }
 
     [Fact]
-    public void CoreSeam_FE8UDeferral_IsExplicit()
+    public void CoreSeam_FE8UProgramTemplate_IsReEmitted()
     {
-        // The Core import must short-circuit FE8U with a clean, ZERO-mutation
-        // not-supported error (Slice 2 re-emits the program code).
+        // SLICE 2 (#917): the Core import no longer short-circuits FE8U. It
+        // version-branches on is_multibyte and, for FE8U, prepends the per-skill
+        // program template (the shared FE8USkillTemplate constants) read ONCE in
+        // the validate-before-mutate phase.
         string repoRoot = FindRepoRoot();
         string core = File.ReadAllText(Path.Combine(repoRoot,
             "FEBuilderGBA.Core", "SkillSystemsAnimeImportCore.cs"));
         Assert.Contains("is_multibyte", core);
         Assert.Contains("FE8U", core);
+        // Shared-constants helper (GUARD E) drives the template selection.
+        Assert.Contains("FE8USkillTemplate", core);
+        // GUARD A: the template is read once, pre-mutation, and prepended.
+        Assert.Contains("programTemplate", core);
+        // The legacy "not yet supported" deferral string is GONE.
+        Assert.DoesNotContain("not yet supported", core);
     }
 
     static string ReadView(string fileName)

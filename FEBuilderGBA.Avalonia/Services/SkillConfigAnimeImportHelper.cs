@@ -10,8 +10,10 @@ namespace FEBuilderGBA.Avalonia.Services
     /// <summary>
     /// Shared helper that wires the SkillConfig views' "Animation Import" button
     /// to the cross-platform <see cref="FEBuilderGBA.SkillSystemsAnimeImportCore"/>
-    /// seam (SLICE 1 of #913). FE8J path only — FE8U shows a clean
-    /// "not yet supported" message and mutates ZERO bytes.
+    /// seam (SLICE 1 #916 FE8J + SLICE 2 #917 FE8U program-code re-emit). Both
+    /// FE8J and FE8U import; FE8U prepends the per-skill program template. The
+    /// Core surfaces any failure (e.g. a missing FE8U .dmp) as an error string
+    /// with ZERO mutation — this helper just relays it.
     ///
     /// Four SkillConfig views call this (SkillSystem, FE8N Ver2, FE8N Ver3,
     /// FE8U-C SkillSys 0.9x). FE8N Ver1 has no animation pointer and is NOT

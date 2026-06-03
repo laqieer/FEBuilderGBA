@@ -82,11 +82,10 @@ namespace FEBuilderGBA
 
         // The two FE8U per-skill program templates. Order matters only for the
         // defender-flag check (we test the longer/non-defender first, like WF).
-        static readonly string[] TemplateFiles = new string[]
-        {
-            "skillanimtemplate_2016_11_04.dmp",
-            "skillanimtemplate_defender_2017_01_24.dmp",
-        };
+        // GUARD E (#917): the dir + filenames live in ONE shared location
+        // (FE8USkillTemplate) so the EXPORT SkipCode (which skips the prepended
+        // template) and the IMPORT prepend (which re-emits it) can never drift.
+        static readonly string[] TemplateFiles = FE8USkillTemplate.TemplateFiles;
 
         /// <summary>
         /// Resolve the anime-config address from an anime address (mirrors WF
@@ -121,8 +120,7 @@ namespace FEBuilderGBA
 
             foreach (string name in TemplateFiles)
             {
-                string path = Path.Combine(
-                    CoreState.BaseDirectory, "config", "patch2", "FE8U", "skill", name);
+                string path = FE8USkillTemplate.PathFor(name);
                 if (!File.Exists(path)) continue;
 
                 byte[] template = File.ReadAllBytes(path);
