@@ -515,9 +515,310 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // ---------------------------------------------------------------
+        // #914 — old-region recycle on re-import
+        // ---------------------------------------------------------------
+
+        // A zero/garbage slot enumerates EMPTY: this is the no-op path that keeps
+        // every pre-existing zero-slot test regression-safe.
+        [Fact]
+        public void EnumerateOldAnimeRegions_ZeroSlot_ReturnsEmpty()
+        {
+            WithFE8J((rom, slot) =>
+            {
+                // The slot at 0x300 points at 0 in a fresh synthetic ROM.
+                Assert.Equal(0u, rom.p32(slot));
+                var pool = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot));
+                Assert.Empty(pool);
+                // Garbage (mid-ROM but no valid anime config there) also empties.
+                var pool2 = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, 0xABCDEFu);
+                // Either pre-walk guard rejects it (empty) or it bails partial; in
+                // a zero ROM the config pointers are 0 (unsafe) so it returns empty.
+                Assert.Empty(pool2);
+            });
+        }
+
+        // Seed a REAL old anime (import A) so the recycle pool is NON-EMPTY before
+        // the re-import (closes the false-green hole #5), then prove the recycle
+        // actually reclaims via the DIFFERENTIAL len(on) < len(off).
+        [Fact]
+        public void Import_FE8J_SecondImport_NonEmptyPool_AndRecyclesNoLeak()
+        {
+            string[] scriptA =
+            {
+                "S001A",
+                "3 g000.png",
+                "5 g001.png",
+                "9 g000.png",
+            };
+
+            // Non-empty-pool assertion: after seeding A, the slot's anime region
+            // enumerates a populated recycle pool (so the recycle path can never
+            // silently no-op and pass trivially).
+            WithFE8J((rom, slot) =>
+            {
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, scriptA, slot, FakeProvider);
+                Assert.Equal("", err);
+                var pool = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot));
+                Assert.True(pool.Count > 0, "recycle pool must be NON-EMPTY after seeding a real old anime");
+            });
+
+            // DIFFERENTIAL: run the SAME A -> A re-import sequence twice, once with
+            // recycle ON and once OFF, on two independently-constrained ROMs. The
+            // recycle-ON ROM reuses the freed old-A region (no resize); the
+            // recycle-OFF ROM must fresh-allocate into a ROM with no free space
+            // left, forcing a resize. So len(on) < len(off).
+            long lenOn = RunConstrainedReimport(scriptA, recycleOldRegion: true);
+            long lenOff = RunConstrainedReimport(scriptA, recycleOldRegion: false);
+            Assert.True(lenOn < lenOff,
+                $"recycle should reclaim: len(on)={lenOn} must be < len(off)={lenOff}");
+        }
+
+        // After a recycle re-import of a DIFFERENT script B, a re-export must still
+        // reproduce B exactly (logical correctness independent of placement).
+        [Fact]
+        public void Import_FE8J_SecondImport_RoundTripStillCorrect()
+        {
+            WithFE8J((rom, slot) =>
+            {
+                // Seed A first.
+                string[] scriptA = { "S0011", "2 g000.png", "4 g001.png" };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot, FakeProvider));
+                Assert.True(SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot)).Count > 0);
+
+                // Recycle re-import of a DIFFERENT script B (3 frames, dedup 0,1,0).
+                string[] scriptB =
+                {
+                    "S002B",
+                    "6 b000.png",
+                    "7 b001.png",
+                    "8 b000.png",
+                };
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, scriptB, slot, FakeProvider, recycleOldRegion: true);
+                Assert.Equal("", err);
+
+                // Re-export reproduces B.
+                uint animeAddr = rom.p32(slot);
+                var exported = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animeAddr);
+                Assert.Equal("", exported.Error);
+                Assert.Equal(0x2Bu, exported.SoundId);
+                Assert.Equal(3, exported.Frames.Count);
+                Assert.Equal(0u, exported.Frames[0].Id); Assert.Equal(6u, exported.Frames[0].Wait);
+                Assert.Equal(1u, exported.Frames[1].Id); Assert.Equal(7u, exported.Frames[1].Wait);
+                Assert.Equal(0u, exported.Frames[2].Id); Assert.Equal(8u, exported.Frames[2].Wait);
+            });
+        }
+
+        // #885 across recycle: seed a real anime A, assert the pool is non-empty,
+        // then a recycle:true import of B with a forced fault must leave rom.Data
+        // BYTE-IDENTICAL (length AND every byte) to the pre-B snapshot. Proves the
+        // in-place restore reverts the recycle-read + new-allocate + fault.
+        [Fact]
+        public void Import_FE8J_ForcedFault_WithPopulatedRecycle_ByteIdentical()
+        {
+            WithFE8J((rom, slot) =>
+            {
+                // Seed A.
+                string[] scriptA = { "S0001", "1 g000.png", "2 g001.png" };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot, FakeProvider));
+                Assert.True(SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot)).Count > 0,
+                    "pool must be populated so the fault test exercises the recycle path");
+
+                byte[] before = (byte[])rom.Data.Clone();
+                uint slotBefore = rom.u32(slot);
+
+                string[] scriptB = { "S0099", "3 b000.png", "4 b001.png", "5 b002.png" };
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, scriptB, slot, FakeProvider,
+                    faultInjector: () => throw new InvalidOperationException("injected fault"),
+                    recycleOldRegion: true);
+
+                Assert.NotEqual("", err);
+                Assert.Equal(slotBefore, rom.u32(slot));
+                Assert.Equal(before.Length, rom.Data.Length);
+                for (int i = 0; i < before.Length; i++)
+                {
+                    if (before[i] != rom.Data[i])
+                        Assert.Fail($"ROM byte {i} changed: {before[i]:X2} -> {rom.Data[i]:X2}");
+                }
+            });
+        }
+
+        // BULK envelope (#923/#885): drive ImportSkillAnimation(manageSnapshot:false,
+        // recycleOldRegion:true) under a CALLER-owned snapshot + ROM.BeginUndoScope,
+        // seed a real anime, force a fault, and assert the caller's single outer
+        // in-place (length-aware) restore leaves the ROM byte-identical.
+        [Fact]
+        public void Import_Bulk_ForcedFault_WithPopulatedRecycle_ByteIdentical()
+        {
+            WithFE8J((rom, slot) =>
+            {
+                // Seed A under a normal (managed) single import.
+                string[] scriptA = { "S0001", "1 g000.png", "2 g001.png" };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot, FakeProvider));
+                Assert.True(SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot)).Count > 0,
+                    "pool must be populated so the bulk fault exercises the recycle path");
+
+                // Caller-owned snapshot + ambient undo scope (the #923 envelope).
+                byte[] snap = (byte[])rom.Data.Clone();
+                var bulkUndo = CoreState.Undo != null
+                    ? CoreState.Undo.NewUndoData("BulkForcedFaultTest")
+                    : new Undo.UndoData();
+
+                string fault = null;
+                try
+                {
+                    using (ROM.BeginUndoScope(bulkUndo))
+                    {
+                        // recycleOldRegion:true here exercises enumeration-read +
+                        // recycle-writes under the caller's scope; manageSnapshot:false
+                        // means THIS method does NOT clone/restore — the caller does.
+                        string[] scriptB = { "S0099", "3 b000.png", "4 b001.png", "5 b002.png" };
+                        string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                            rom, scriptB, slot, FakeProvider,
+                            faultInjector: () => throw new InvalidOperationException("injected bulk fault"),
+                            manageSnapshot: false,
+                            recycleOldRegion: true);
+                        if (!string.IsNullOrEmpty(err)) fault = err;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    fault = "bulk threw: " + ex.Message;
+                }
+
+                Assert.NotNull(fault); // a fault DID occur
+
+                // The caller's single outer, length-aware in-place restore.
+                if (rom.Data.Length != snap.Length)
+                    rom.write_resize_data((uint)snap.Length);
+                Array.Copy(snap, rom.Data, snap.Length);
+
+                Assert.Equal(snap.Length, rom.Data.Length);
+                for (int i = 0; i < snap.Length; i++)
+                {
+                    if (snap[i] != rom.Data[i])
+                        Assert.Fail($"ROM byte {i} changed after bulk restore: {snap[i]:X2} -> {rom.Data[i]:X2}");
+                }
+            });
+        }
+
+        // FE8U variant: recycle works ACROSS the per-skill program-template prefix.
+        // The pool must be non-empty (SkipCode skips the prefix to find the config),
+        // and the re-import round-trips.
+        [Fact]
+        public void Import_FE8U_SecondImport_RecyclesAcrossTemplatePrefix()
+        {
+            WithFE8U((rom, slot) =>
+            {
+                // Seed A (attack template — no D line).
+                string[] scriptA =
+                {
+                    "S001A",
+                    "3 g000.png",
+                    "5 g001.png",
+                    "9 g000.png",
+                };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot, FakeProvider));
+
+                // The pool is NON-EMPTY across the template prefix (SkipCode skips it).
+                var pool = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot));
+                Assert.True(pool.Count > 0, "FE8U recycle pool must be non-empty across the template prefix");
+
+                // Recycle re-import of a DIFFERENT script B round-trips correctly.
+                string[] scriptB = { "S0042", "2 b000.png", "4 b001.png" };
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, scriptB, slot, FakeProvider, recycleOldRegion: true);
+                Assert.Equal("", err);
+
+                uint animeAddr = rom.p32(slot);
+                var exported = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animeAddr);
+                Assert.Equal("", exported.Error);
+                Assert.False(exported.IsDefender);
+                Assert.Equal(0x42u, exported.SoundId);
+                Assert.Equal(2, exported.Frames.Count);
+                Assert.Equal(0u, exported.Frames[0].Id); Assert.Equal(2u, exported.Frames[0].Wait);
+                Assert.Equal(1u, exported.Frames[1].Id); Assert.Equal(4u, exported.Frames[1].Wait);
+            });
+        }
+
         // ===============================================================
         // Helpers
         // ===============================================================
+
+        // Differential helper: import script A into a fresh FE8J ROM, then CONSTRAIN
+        // the ROM so the ONLY recyclable/free space is the old-A region itself, then
+        // re-import A with the given recycle flag and return the final rom.Data
+        // length. With recycle ON the freed old-A region is reused (no resize); with
+        // recycle OFF the import must fresh-allocate into a ROM with no free space,
+        // forcing a resize -> a larger length.
+        static long RunConstrainedReimport(string[] scriptA, bool recycleOldRegion)
+        {
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                ROM rom = MakeFE8JRom();
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                CoreState.Undo = new Undo();
+                uint slot = 0x300u;
+
+                // Seed A.
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot, FakeProvider);
+                Assert.Equal("", err);
+
+                // Snapshot the post-A ROM, then enumerate A's recyclable regions.
+                byte[] afterA = (byte[])rom.Data.Clone();
+                var pool = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot));
+                Assert.True(pool.Count > 0);
+
+                // Fill the ROM body (from 0x100, past the GBA header) with a
+                // non-free byte (0x55: neither 0x00 nor 0xFF, so FindFreeSpace skips
+                // it), wiping ALL free space. Then restore EXACTLY A's regions + the
+                // slot from afterA so (a) the enumeration during the re-import
+                // re-derives the same pool and (b) the recycle-ON path has those
+                // regions to reuse, while the recycle-OFF path finds NO free space
+                // anywhere and must resize (so its final length is strictly larger).
+                for (int i = 0x100; i < rom.Data.Length; i++)
+                    rom.Data[i] = 0x55;
+                RestoreRange(rom, afterA, slot, 4);
+                foreach (var a in pool)
+                    RestoreRange(rom, afterA, a.Addr, (int)a.Length);
+
+                // Re-import A with the recycle flag under test (single-import path).
+                string err2 = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, scriptA, slot, FakeProvider, recycleOldRegion: recycleOldRegion);
+                Assert.Equal("", err2);
+
+                // Return the final length. recycle ON reuses (most of) the freed
+                // old-A region so it grows by at most a little padding slack;
+                // recycle OFF must fresh-allocate the WHOLE footprint into a ROM
+                // with no free space, growing by far more. The caller asserts the
+                // differential len(on) < len(off) (the robust, padding-tolerant
+                // assertion the #914 review endorsed over brittle strict equality).
+                return rom.Data.Length;
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.ImageService = prevSvc;
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        // Copy [addr, addr+len) from src into rom.Data (bounds-clamped).
+        static void RestoreRange(ROM rom, byte[] src, uint addr, int len)
+        {
+            if (len <= 0) return;
+            // ROM size always fits int, so int indexing is safe here.
+            int end = (int)Math.Min((long)addr + len, rom.Data.Length);
+            for (int i = (int)addr; i < end; i++)
+                rom.Data[i] = src[i];
+        }
 
         // A deterministic provider: 8x8 indexed image (will be padded to 240×160
         // by the Core), with a 0x20 palette whose bytes are 0,1,2,...,0x1F.
