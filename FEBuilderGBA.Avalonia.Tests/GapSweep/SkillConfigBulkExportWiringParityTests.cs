@@ -25,8 +25,10 @@ public class SkillConfigBulkExportWiringParityTests
         Assert.Contains("_vm.AnimePointerLocation", source);
         // Per-extended-anime: builds the script via the merged #912 helper.
         Assert.Contains("SkillSystemsAnimeExportCore.BuildScriptLines", source);
-        // The #912 PNG-dispose hygiene lesson: each unique IImage is disposed.
-        Assert.Contains("f.Image.Dispose()", source);
+        // The #912 PNG-dispose hygiene lesson + #922 thread 2: each unique IImage
+        // is disposed in a finally so a mid-loop Save() throw can't leak bitmaps.
+        Assert.Contains("img.Dispose()", source);
+        Assert.Contains("finally", source);
         // The save filter is the *.SkillConfig.tsv documented contract.
         Assert.Contains("*.SkillConfig.tsv", source);
     }

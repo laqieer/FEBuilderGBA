@@ -89,6 +89,15 @@ namespace FEBuilderGBA
             if (textPointerLocation == U.NOT_FOUND || animePointerLocation == U.NOT_FOUND)
                 return "SkillSystems patch is not installed (text/anime pointer not found).";
 
+            // #922 review thread 1: validate the pointer LOCATIONS themselves are
+            // safe BEFORE dereferencing them, so a caller that passes an invalid
+            // (or zero) location can't make us p32-read garbage. The `+3` covers
+            // the full 4-byte read (mirrors the sibling
+            // SkillAssignmentClassSkillSystemCore pattern).
+            if (!U.isSafetyOffset(textPointerLocation + 3, rom)
+                || !U.isSafetyOffset(animePointerLocation + 3, rom))
+                return "Bad text/anime pointer location.";
+
             // MUST-FIX 1: deref BOTH pointer locations to their bases.
             uint textBase = rom.p32(textPointerLocation);
             uint animeBase = rom.p32(animePointerLocation);

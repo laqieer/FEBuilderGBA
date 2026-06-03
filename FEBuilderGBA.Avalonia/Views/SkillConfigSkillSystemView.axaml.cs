@@ -347,16 +347,32 @@ namespace FEBuilderGBA.Avalonia.Views
                     string basename = "anime_";
                     var lines = SkillSystemsAnimeExportCore.BuildScriptLines(entry.Result, basename);
 
-                    var written = new System.Collections.Generic.HashSet<uint>();
-                    foreach (var f in entry.Result.Frames)
+                    // #922 review thread 2: track every UNIQUE frame IImage (the
+                    // Core export caches one IImage per OBJ id, so duplicate
+                    // frames share an instance) and dispose them in a finally,
+                    // so a mid-loop Save() throw (IO/permission/disk full) can't
+                    // leak the remaining native bitmaps.
+                    var unique = new System.Collections.Generic.HashSet<IImage>();
+                    try
                     {
-                        if (!written.Add(f.Id)) continue;
-                        string imagefilename = basename.Replace(" ", "_") + "g" + f.Id.ToString("000") + ".png";
-                        f.Image.Save(System.IO.Path.Combine(animedir, imagefilename));
-                        f.Image.Dispose();
-                    }
+                        var written = new System.Collections.Generic.HashSet<uint>();
+                        foreach (var f in entry.Result.Frames)
+                        {
+                            unique.Add(f.Image);
+                            if (!written.Add(f.Id)) continue;
+                            string imagefilename = basename.Replace(" ", "_") + "g" + f.Id.ToString("000") + ".png";
+                            f.Image.Save(System.IO.Path.Combine(animedir, imagefilename));
+                        }
 
-                    System.IO.File.WriteAllLines(System.IO.Path.Combine(animedir, "anime.txt"), lines);
+                        System.IO.File.WriteAllLines(System.IO.Path.Combine(animedir, "anime.txt"), lines);
+                    }
+                    finally
+                    {
+                        foreach (var img in unique)
+                        {
+                            try { img.Dispose(); } catch { /* swallow */ }
+                        }
+                    }
                 };
 
                 string err = SkillConfigSkillSystemBulkExportCore.ExportAll(

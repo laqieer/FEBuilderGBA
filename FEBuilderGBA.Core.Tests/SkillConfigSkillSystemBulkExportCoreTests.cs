@@ -181,6 +181,38 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(File.Exists(tsvPath));
         }
 
+        [Theory]
+        [InlineData(0u)]                 // zero location
+        [InlineData(0xFFFFFFFEu)]        // huge location (past EOF, != NOT_FOUND)
+        public void ExportAll_UnsafePointerLocation_ReturnsCleanError_NoMutation(uint badLoc)
+        {
+            // #922 review thread 1: an invalid (or zero) pointer LOCATION must be
+            // caught BEFORE the p32 deref, returning a clean error with no TSV.
+            ROM rom = MakeRom();
+            CoreState.ROM = rom;
+            CoreState.ImageService = new StubImageService();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            string tsvPath = Path.Combine(Path.GetTempPath(),
+                "skillconfig_bulk_" + Guid.NewGuid().ToString("N") + ".SkillConfig.tsv");
+
+            // Bad TEXT location (anime location still valid).
+            string err = SkillConfigSkillSystemBulkExportCore.ExportAll(
+                rom, badLoc, ANIME_LOC, tsvPath, _ => { });
+            Assert.NotEqual("", err);
+            Assert.Contains("location", err, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(before, rom.Data);
+            Assert.False(File.Exists(tsvPath));
+
+            // Bad ANIME location (text location still valid) — same guard.
+            string err2 = SkillConfigSkillSystemBulkExportCore.ExportAll(
+                rom, TEXT_LOC, badLoc, tsvPath, _ => { });
+            Assert.NotEqual("", err2);
+            Assert.Contains("location", err2, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(before, rom.Data);
+            Assert.False(File.Exists(tsvPath));
+        }
+
         [Fact]
         public void ExportAll_UnsafeTextBase_ReturnsError()
         {
