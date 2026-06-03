@@ -29,9 +29,11 @@ public class SkillConfigFE8NSubListViewTests
     [AvaloniaFact]
     public void Ver2_View_FourSubEditorsExist_UnitLoads()
     {
-        // Prefer the real FE8N Ver2 ROM when present (manual/local runs);
-        // otherwise plant a synthetic stride-20 FE8N Ver2 ROM.
-        ROM rom = LoadFE8JSkillRom() ?? MakeFE8NVer2Rom(stride: 20);
+        // Prefer the real FE8N Ver2 ROM only when it actually has the FE8N Ver2
+        // patch installed (the stock roms/FE8J_skill.gba ships SkillSystems, NOT
+        // FE8N Ver2, so its LoadList is empty); otherwise plant a synthetic
+        // stride-20 FE8N Ver2 ROM that is guaranteed to expose the table.
+        ROM rom = LoadFE8NVer2RomOrSynthetic();
         var prevRom = CoreState.ROM;
         var prevUndo = CoreState.Undo;
         try
@@ -198,6 +200,38 @@ public class SkillConfigFE8NSubListViewTests
         {
             CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
         }
+    }
+
+    /// <summary>
+    /// Return roms/FE8J_skill.gba ONLY if it actually has the FE8N Ver2 skill
+    /// table installed (probed via a VM LoadList under a temporary CoreState
+    /// swap). The stock skill ROM ships SkillSystems (not FE8N Ver2), so this
+    /// falls back to the synthetic stride-20 FE8N Ver2 ROM in that (and the
+    /// no-ROM / CI) case so the view test always has a populated table.
+    /// </summary>
+    static ROM LoadFE8NVer2RomOrSynthetic()
+    {
+        ROM? real = LoadFE8JSkillRom();
+        if (real != null)
+        {
+            var prevRom = CoreState.ROM;
+            var prevEnc = CoreState.SystemTextEncoder;
+            try
+            {
+                CoreState.ROM = real;
+                EnsureSystemTextEncoder(real);
+                var probe = new SkillConfigFE8NVer2SkillViewModel();
+                if (probe.LoadList().Count >= 2)
+                    return real; // real ROM has FE8N Ver2 installed.
+            }
+            catch { /* fall through to synthetic */ }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                if (prevEnc != null) CoreState.SystemTextEncoder = prevEnc;
+            }
+        }
+        return MakeFE8NVer2Rom(stride: 20);
     }
 
     static ROM? LoadFE8JSkillRom()
