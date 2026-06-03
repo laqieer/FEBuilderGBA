@@ -74,9 +74,9 @@ public class SkillSubListEditorTests
             BitConverter.GetBytes(slotRaw).CopyTo(bytes, (int)SlotAddr);
         }
 
-        for (uint i = 0; i < 0x40000u; i++)
+        for (int i = 0; i < 0x40000; i++)
         {
-            bytes[FreeSpaceBase + i] = 0xFF;
+            bytes[(int)FreeSpaceBase + i] = 0xFF;
         }
 
         rom.LoadLow("synthetic-sublist.gba", bytes, "BE8E01");
@@ -298,10 +298,10 @@ public class SkillSubListEditorTests
             using (ROM.BeginUndoScope(undo)) { vm.AddEntry(undo); }
             CoreState.Undo.Push(undo);
 
-            // The ORIGINAL array bytes at ListBase are intact (fork-on-write).
-            Assert.Equal(0x07u, rom.u8(ListBase + 0));
-            Assert.Equal(0x08u, rom.u8(ListBase + 1));
-            Assert.Equal(0x00u, rom.u8(ListBase + 2));
+            // The ORIGINAL array bytes at ListBase are byte-for-byte intact
+            // (fork-on-write must NOT mutate the shared/original region in place).
+            byte[] afterListBytes = rom.getBinaryData(ListBase, 4);
+            Assert.Equal(origListBytes, afterListBytes);
             // And the slot moved away from ListBase.
             Assert.NotEqual(ListBase, rom.p32(SlotAddr));
         }

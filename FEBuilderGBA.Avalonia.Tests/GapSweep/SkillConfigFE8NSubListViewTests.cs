@@ -64,9 +64,18 @@ public class SkillConfigFE8NSubListViewTests
             uint rowAddr = items[1].addr;
             Invoke(view, "OnSelected", rowAddr);
 
-            // The Unit editor either populated (synthetic plants a 2-entry list)
-            // or is empty+CanEdit (real ROM may have an empty unit sub-list).
-            Assert.True(unit!.ViewModel.CanEdit || unit.ViewModel.Entries.Count >= 0);
+            // The Unit sub-editor's VM exists and was actually Load-ed by the
+            // OnSelected handler against the per-skill Unit slot (+4) — NOT left
+            // in its default/unloaded state. This holds for BOTH the synthetic
+            // (planted) and the real-ROM (possibly empty) cases:
+            //   * PointerSlotAddr == rowAddr + 4 proves Load ran with the real
+            //     per-skill Unit pointer slot (default unloaded VM => 0).
+            //   * CanEdit == true proves Load saw a live ROM + in-bounds slot
+            //     with canEdit:true (default unloaded VM => false). The Unit tab
+            //     is always editable on Ver2 (only Item2 @ +16 is stride-gated).
+            Assert.NotNull(unit!.ViewModel);
+            Assert.Equal(rowAddr + 4, unit.ViewModel.PointerSlotAddr);
+            Assert.True(unit.ViewModel.CanEdit);
 
             // B2: Item2 editor CanEdit == HasItem2.
             Assert.Equal(vm.HasItem2, item2!.ViewModel.CanEdit);

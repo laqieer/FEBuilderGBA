@@ -667,13 +667,13 @@ public class SkillConfigFE8NVer3SkillParityTests
         const uint slotAddr = 0x00800000u;
         const uint subListBase = 0x00F00000u;
         // slot → subListBase (GBA pointer).
-        bytes[slotAddr + 0] = (byte)(subListBase & 0xFF);
-        bytes[slotAddr + 1] = (byte)((subListBase >> 8) & 0xFF);
-        bytes[slotAddr + 2] = (byte)((subListBase >> 16) & 0xFF);
-        bytes[slotAddr + 3] = 0x08; // | 0x08000000
-        bytes[subListBase + 0] = 0x01;
-        bytes[subListBase + 1] = 0x02;
-        bytes[subListBase + 2] = 0x03;
+        bytes[(int)slotAddr + 0] = (byte)(subListBase & 0xFF);
+        bytes[(int)slotAddr + 1] = (byte)((subListBase >> 8) & 0xFF);
+        bytes[(int)slotAddr + 2] = (byte)((subListBase >> 16) & 0xFF);
+        bytes[(int)slotAddr + 3] = 0x08; // | 0x08000000
+        bytes[(int)subListBase + 0] = 0x01;
+        bytes[(int)subListBase + 1] = 0x02;
+        bytes[(int)subListBase + 2] = 0x03;
         // bytes[subListBase + 3] stays 0 -> terminator.
 
         var rom = new ROM();
