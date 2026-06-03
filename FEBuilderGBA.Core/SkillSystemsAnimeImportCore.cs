@@ -220,15 +220,24 @@ namespace FEBuilderGBA
         /// <param name="recycleOldRegion">
         ///   <c>true</c> (default, single-import #914): before the new writes,
         ///   build a recycle pool from the slot's CURRENT anime target via the
-        ///   READ-ONLY <see cref="EnumerateOldAnimeRegions"/> so the new
+        ///   READ-ONLY <see cref="EnumerateOldAnimeRegions(ROM, uint)"/> so the new
         ///   allocations REUSE the old anime's freed sub-regions instead of
         ///   leaking them. A zero/garbage slot enumerates EMPTY (no-op), so this
         ///   is a true superset of the fresh-allocate path.
-        ///   <para><c>false</c> (BULK #923): pass an EMPTY pool — always
-        ///   fresh-allocate. Bulk mutates many slots in one transaction where
-        ///   cross-slot shared sub-regions are most likely and WF skill-anime has
-        ///   NO SubConfilctArea de-dup pass to catch them, so bulk recycle is
-        ///   deferred pending a shared-region safety test (#914 follow-up).</para>
+        ///   <para><c>false</c>: pass an EMPTY pool — always fresh-allocate.</para>
+        /// </param>
+        /// <param name="excludeRegions">
+        ///   <c>null</c> (default, single-import): recycle EVERY enumerated
+        ///   sub-region. <para>When non-null (BULK #929): a set of normalized
+        ///   data addresses (<see cref="Address.Addr"/>) to EXCLUDE from the
+        ///   recycle pool — any per-frame image/TSA/palette region or
+        ///   config/list block whose data address is in this set is skipped, so
+        ///   a sub-region shared by another live skill slot is NEVER recycled +
+        ///   overwritten. The bulk caller computes this set ONCE from the
+        ///   original pre-mutation state via
+        ///   <see cref="BuildSkillAnimeRegionRefcount"/> (a region owned by
+        ///   &gt;1 slot is shared). Ignored when <paramref name="recycleOldRegion"/>
+        ///   is <c>false</c>.</para>
         /// </param>
         /// <returns>Empty string on success; a non-empty error on any rejection.</returns>
         public static string ImportSkillAnimation(
@@ -238,7 +247,8 @@ namespace FEBuilderGBA
             ImageProvider imageProvider,
             Action faultInjector = null,
             bool manageSnapshot = true,
-            bool recycleOldRegion = true)
+            bool recycleOldRegion = true,
+            IReadOnlySet<uint> excludeRegions = null)
         {
             // ---- Pre-flight guards (no mutation) ----
             if (rom == null || rom.Data == null) return "ROM is not loaded.";
@@ -295,7 +305,7 @@ namespace FEBuilderGBA
             //   superset of the fresh-allocate path. recycleOldRegion:false (bulk)
             //   keeps the empty pool — always fresh-allocate. ----
             List<Address> recyclePool = recycleOldRegion
-                ? EnumerateOldAnimeRegions(rom, rom.p32(slot))
+                ? EnumerateOldAnimeRegions(rom, rom.p32(slot), excludeRegions)
                 : new List<Address>();
 
             // ---- VALIDATE + ENCODE every UNIQUE frame (dedup by FILENAME — CRITICAL 2) ----
@@ -487,6 +497,100 @@ namespace FEBuilderGBA
         /// <returns>The recyclable regions (possibly empty / partial — see above).</returns>
         public static List<Address> EnumerateOldAnimeRegions(ROM rom, uint oldAnimeAddress)
         {
+            return EnumerateOldAnimeRegions(rom, oldAnimeAddress, null);
+        }
+
+        /// <summary>
+        /// Build a cross-slot refcount over the recyclable sub-regions of EVERY
+        /// skill animation in the table (#929), so the BULK importer can EXCLUDE
+        /// regions shared by &gt;1 slot from recycling (the
+        /// <c>SubConfilctArea</c>-equivalent skill-anime lacks). STRICTLY
+        /// READ-ONLY — runs the very same <see cref="EnumerateOldAnimeRegions(ROM, uint)"/>
+        /// the import path uses (so the pre-pass can never under-count a region
+        /// the import would later describe).
+        ///
+        /// <para><b>SLOT OWNERSHIP, not raw entries (B1):</b>
+        /// <see cref="EnumerateOldAnimeRegions(ROM, uint)"/> intentionally emits a
+        /// per-frame entry for every frame-table row, so a slot whose anime reuses
+        /// a frame id returns the same <see cref="Address.Addr"/> more than once. A
+        /// naive per-entry tally would mark that single-slot repeated region as
+        /// <c>count &gt; 1</c> ⇒ wrongly "shared" ⇒ recycle becomes a near no-op.
+        /// This method collects EACH slot's region data addresses into a per-slot
+        /// <see cref="HashSet{T}"/> first, then increments the global count ONCE
+        /// per slot per UNIQUE address. So a region owned by exactly one slot has
+        /// <c>count == 1</c> regardless of how many frames reuse it; only a region
+        /// owned by TWO OR MORE distinct slots reaches <c>count &gt; 1</c>.</para>
+        ///
+        /// <para><b>Conservative (B3):</b> the keys are exact normalized data
+        /// addresses (<see cref="Address.Addr"/>, NOT <see cref="Address.Pointer"/> —
+        /// different pointer slots referencing the SAME bytes is the normal sharing
+        /// case). The guarantee holds for WELL-FORMED, fully-enumerable slots;
+        /// malformed overlapping ranges with different start addresses and
+        /// partial/corrupt slots are best-effort (the same posture as the WF
+        /// recycle path).</para>
+        /// </summary>
+        /// <param name="rom">The active <see cref="CoreState.ROM"/>. A foreign ROM
+        ///   returns an EMPTY dict (the <c>Address.Add*</c> helpers dereference
+        ///   CoreState.ROM internally, mirroring the same guard in
+        ///   <see cref="EnumerateOldAnimeRegions(ROM, uint)"/>).</param>
+        /// <param name="animeBase">The anime-table base (a ROM offset or GBA
+        ///   pointer — <c>toOffset</c> is idempotent inside the slot reads).</param>
+        /// <param name="count">Number of skill slots to scan (the bulk caller's
+        ///   <c>getBlockDataCount</c> result).</param>
+        /// <returns>A map of normalized data address → number of DISTINCT slots
+        ///   that own that region. Empty for a foreign ROM.</returns>
+        public static Dictionary<uint, int> BuildSkillAnimeRegionRefcount(ROM rom, uint animeBase, uint count)
+        {
+            var refcount = new Dictionary<uint, int>();
+            if (rom == null || rom.Data == null) return refcount;
+            // The Address.Add* helpers (via EnumerateOldAnimeRegions) dereference
+            // CoreState.ROM internally, so a foreign rom would tally a mismatched
+            // pool — refuse it, exactly like the enumeration guard.
+            if (!ReferenceEquals(rom, CoreState.ROM)) return refcount;
+
+            for (uint i = 0; i < count; i++)
+            {
+                uint slot = animeBase + 4 * i;
+                // Guard the FULL 4-byte slot read (+3) before p32 (B2: do not
+                // under-count — but a slot we cannot even read safely can also
+                // not be enumerated by the import path, so nothing is lost).
+                if (!U.isSafetyOffset(slot + 3, rom)) continue;
+
+                uint oldAddr = rom.p32(slot);
+                List<Address> regions = EnumerateOldAnimeRegions(rom, oldAddr);
+
+                // PER-SLOT dedup (B1): a region is owned ONCE per slot regardless
+                // of how many per-frame entries (repeated ids) reference it.
+                var seen = new HashSet<uint>();
+                foreach (var region in regions)
+                {
+                    seen.Add(region.Addr);
+                }
+                foreach (uint addr in seen)
+                {
+                    refcount.TryGetValue(addr, out int c);
+                    refcount[addr] = c + 1;
+                }
+            }
+            return refcount;
+        }
+
+        /// <summary>
+        /// Exclude-aware overload of <see cref="EnumerateOldAnimeRegions(ROM, uint)"/>
+        /// (#929): identical behaviour, but any per-frame image/TSA/palette region
+        /// AND any config/list block whose already-read data address is in
+        /// <paramref name="excludeRegionAddrs"/> is SKIPPED (not added to the
+        /// recycle pool). A <c>null</c> set adds everything (the original
+        /// behaviour). Keeps ALL existing safety checks, the two-tier empty/partial
+        /// semantics, and the strictly-read-only invariant.
+        /// </summary>
+        /// <param name="rom">The active <see cref="CoreState.ROM"/>.</param>
+        /// <param name="oldAnimeAddress">The slot's current anime target.</param>
+        /// <param name="excludeRegionAddrs">Normalized data addresses
+        ///   (<see cref="Address.Addr"/>) to omit; <c>null</c> ⇒ omit nothing.</param>
+        /// <returns>The recyclable regions minus the excluded ones.</returns>
+        public static List<Address> EnumerateOldAnimeRegions(ROM rom, uint oldAnimeAddress, IReadOnlySet<uint> excludeRegionAddrs)
+        {
             const string basename = "OLDANIME";
             const bool isPointerOnly = false;
             var recycle = new List<Address>();
@@ -601,23 +705,37 @@ namespace FEBuilderGBA
                 // WF :733-750 — add the OBJ image (LZ77), TSA (LZ77) and palette
                 // (RAW 0x20) for THIS frame. Per-frame Add* (no unique-id dedup
                 // here — the RecycleAddress pool collapses repeated-id pointers).
-                Address.AddLZ77Pointer(recycle
-                    , objPointer
-                    , basename + "OBJ"
-                    , isPointerOnly
-                    , Address.DataTypeEnum.LZ77IMG);
+                // #929: skip any region whose already-read data address is
+                // EXCLUDED (a cross-slot shared region). The dereferenced offsets
+                // (objOffset/tsaOffset/palOffset) are exactly the Address.Addr the
+                // Add* helpers would store (toOffset is idempotent), so the key
+                // matches the refcount-pre-pass key.
+                if (!IsExcluded(excludeRegionAddrs, objOffset))
+                {
+                    Address.AddLZ77Pointer(recycle
+                        , objPointer
+                        , basename + "OBJ"
+                        , isPointerOnly
+                        , Address.DataTypeEnum.LZ77IMG);
+                }
 
-                Address.AddLZ77Pointer(recycle
-                    , tsaPointer
-                    , basename + "TSA"
-                    , isPointerOnly
-                    , Address.DataTypeEnum.LZ77TSA);
+                if (!IsExcluded(excludeRegionAddrs, tsaOffset))
+                {
+                    Address.AddLZ77Pointer(recycle
+                        , tsaPointer
+                        , basename + "TSA"
+                        , isPointerOnly
+                        , Address.DataTypeEnum.LZ77TSA);
+                }
 
-                Address.AddPointer(recycle
-                    , palPointer
-                    , 0x20   //16色*2バイト=0x20バイト
-                    , basename + "PAL"
-                    , Address.DataTypeEnum.PAL);
+                if (!IsExcluded(excludeRegionAddrs, palOffset))
+                {
+                    Address.AddPointer(recycle
+                        , palPointer
+                        , 0x20   //16色*2バイト=0x20バイト
+                        , basename + "PAL"
+                        , Address.DataTypeEnum.PAL);
+                }
             }
             // WF :752-755 — limiter hit (no terminator found) ⇒ return the
             // PARTIAL list, WITHOUT adding the trailing config/list blocks.
@@ -629,36 +747,69 @@ namespace FEBuilderGBA
             // WF :756-783 — the terminator was reached: add the program+config
             // region and the three pointer-list blocks. Block sizes mirror WF:
             // frames (count+1)*4, each list count*4.
-            Address.AddAddress(recycle
-                , anime_address
-                , anime_config_address - anime_address + (4 * 5)
-                , U.NOT_FOUND
-                , basename + "POINTER"
-                , Address.DataTypeEnum.POINTER);
+            // #929: skip any block whose data address is EXCLUDED (shared). The
+            // POINTER block's addr is anime_address; the list blocks' data
+            // addresses are the already-read config pointers (frames/tsalist/
+            // graphiclist/palettelist) — exactly the Address.Addr the Add*
+            // helpers would store.
+            if (!IsExcluded(excludeRegionAddrs, anime_address))
+            {
+                Address.AddAddress(recycle
+                    , anime_address
+                    , anime_config_address - anime_address + (4 * 5)
+                    , U.NOT_FOUND
+                    , basename + "POINTER"
+                    , Address.DataTypeEnum.POINTER);
+            }
 
-            Address.AddPointer(recycle
-                , anime_config_address + (4 * 0)
-                , (count + 1) * 4
-                , basename + "ROMANIMEFRAME"
-                , Address.DataTypeEnum.ROMANIMEFRAME);
+            if (!IsExcluded(excludeRegionAddrs, frames))
+            {
+                Address.AddPointer(recycle
+                    , anime_config_address + (4 * 0)
+                    , (count + 1) * 4
+                    , basename + "ROMANIMEFRAME"
+                    , Address.DataTypeEnum.ROMANIMEFRAME);
+            }
 
-            Address.AddPointer(recycle
-                , anime_config_address + (4 * 1)
-                , (count) * 4
-                , basename + "TSALIST"
-                , Address.DataTypeEnum.POINTER);
-            Address.AddPointer(recycle
-                , anime_config_address + (4 * 2)
-                , (count) * 4
-                , basename + "IMAGELIST"
-                , Address.DataTypeEnum.POINTER);
-            Address.AddPointer(recycle
-                , anime_config_address + (4 * 3)
-                , (count) * 4
-                , basename + "PALETTELIST"
-                , Address.DataTypeEnum.POINTER);
+            if (!IsExcluded(excludeRegionAddrs, tsalist))
+            {
+                Address.AddPointer(recycle
+                    , anime_config_address + (4 * 1)
+                    , (count) * 4
+                    , basename + "TSALIST"
+                    , Address.DataTypeEnum.POINTER);
+            }
+            if (!IsExcluded(excludeRegionAddrs, graphiclist))
+            {
+                Address.AddPointer(recycle
+                    , anime_config_address + (4 * 2)
+                    , (count) * 4
+                    , basename + "IMAGELIST"
+                    , Address.DataTypeEnum.POINTER);
+            }
+            if (!IsExcluded(excludeRegionAddrs, palettelist))
+            {
+                Address.AddPointer(recycle
+                    , anime_config_address + (4 * 3)
+                    , (count) * 4
+                    , basename + "PALETTELIST"
+                    , Address.DataTypeEnum.POINTER);
+            }
 
             return recycle;
+        }
+
+        /// <summary>
+        /// True when <paramref name="set"/> is non-null and contains the
+        /// normalized data address <paramref name="dataAddr"/> (#929). The key is
+        /// always normalized via <see cref="U.toOffset"/> so it matches the
+        /// <see cref="Address.Addr"/> the recycle-pool entries carry (the refcount
+        /// pre-pass keys on the SAME normalized address).
+        /// </summary>
+        static bool IsExcluded(IReadOnlySet<uint> set, uint dataAddr)
+        {
+            if (set == null) return false;
+            return set.Contains(U.toOffset(dataAddr));
         }
 
         /// <summary>

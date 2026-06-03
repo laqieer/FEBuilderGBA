@@ -239,6 +239,26 @@ namespace FEBuilderGBA
             }
 
             // ==============================================================
+            // #929: cross-slot shared-region exclusion. Build a STATIC, READ-ONLY
+            // refcount over EVERY slot's anime sub-regions from the ORIGINAL
+            // pre-mutation state. A region owned by >1 distinct slot is "shared"
+            // and must NOT be recycled (recycle+overwrite would corrupt a
+            // co-owning skill — skill-anime has no SubConfilctArea de-dup). The
+            // shared set is computed ONCE here, before any mutation, and is the
+            // SubConfilctArea-equivalent the #914 review asked for. Conservative
+            // (B3): anything shared in the ORIGINAL snapshot stays excluded for
+            // the WHOLE transaction — it may LEAK an originally-shared region even
+            // after all its owners are overwritten, but it can never corrupt a
+            // co-owner. Dynamic reclaim is out of scope.
+            // ==============================================================
+            var refcount = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase, count);
+            var shared = new HashSet<uint>();
+            foreach (var kv in refcount)
+            {
+                if (kv.Value > 1) shared.Add(kv.Key);
+            }
+
+            // ==============================================================
             // ONE snapshot + ONE ambient BeginUndoScope wrapping the whole loop.
             // ==============================================================
             byte[] snap = (byte[])rom.Data.Clone();
@@ -292,18 +312,23 @@ namespace FEBuilderGBA
                             string err;
                             try
                             {
-                                // #914 review finding #4: bulk recycle is DEFERRED
-                                // (recycleOldRegion:false). Bulk mutates many slots
-                                // in one transaction where cross-slot shared
-                                // sub-regions are most likely, and WF skill-anime
-                                // has NO SubConfilctArea de-dup pass to catch them —
-                                // so always fresh-allocate here until a shared-region
-                                // safety test exists (#914 follow-up).
+                                // #914 review finding #4 / #929: bulk now RECYCLES
+                                // only NON-SHARED regions. A conservative static
+                                // pre-pass (BuildSkillAnimeRegionRefcount, above)
+                                // computed `shared` = every region owned by >1 slot
+                                // in the ORIGINAL pre-mutation state; those are
+                                // EXCLUDED from the recycle pool for the whole
+                                // transaction (safe — may leak an originally-shared
+                                // region, never corrupts a co-owner; dynamic reclaim
+                                // is out of scope). Unshared old regions are
+                                // reclaimed so bulk re-import no longer grows the ROM
+                                // unboundedly.
                                 err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
                                     rom, scriptLines, row.AnimeSlot, scopedProvider,
                                     faultInjector: faultInjector,
                                     manageSnapshot: false,
-                                    recycleOldRegion: false);
+                                    recycleOldRegion: true,
+                                    excludeRegions: shared);
                             }
                             catch (Exception ex)
                             {
