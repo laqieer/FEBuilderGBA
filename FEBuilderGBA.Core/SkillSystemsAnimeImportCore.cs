@@ -36,12 +36,21 @@
 //   * WriteAndWritePointer(anime_pointer, mainData) is the LAST op (WF :620),
 //     and anime_pointer = U.toOffset(anime_pointer) first (WF :552).
 //
-// PARITY GAP (intentional, documented): WF calls RecycleOldAnime (:560) to reuse
-//   the overwritten anime region. This port does NOT — it always fresh-allocates
-//   from free space, which is strictly SAFER (never overwrites live data that
-//   another anime might share) but LEAKS the old anime region per import. A
-//   follow-up issue should add an event-aware recycle pass once the
-//   InputFormRef-free recycle enumeration is available in Core.
+// OLD-REGION RECYCLE (#914): WF calls RecycleOldAnime (:560) to reuse the
+//   overwritten anime sub-regions (image/tsa/pal/frames/lists + config) before
+//   allocating the new ones. This is now ported as the READ-ONLY Core
+//   enumeration EnumerateOldAnimeRegions (a literal port of WF
+//   RecycleOldAnime :637-784), threaded into WriteCore's RecycleAddress pool via
+//   the recycleOldRegion parameter (default true). The SINGLE-IMPORT parity gap
+//   is therefore CLOSED — re-importing the same skill reuses the freed region
+//   instead of leaking it. BULK import (SkillConfigSkillSystemBulkImportCore)
+//   still passes recycleOldRegion:false: it mutates many slots in one
+//   transaction where cross-slot shared sub-regions are most likely, and WF
+//   skill-anime has NO SubConfilctArea de-dup pass to catch them — so bulk
+//   recycle stays deferred pending a shared-region safety test (#914 follow-up).
+//   EnumerateOldAnimeRegions is STRICTLY READ-ONLY (no rom.write_*, no
+//   RecycleAddress writes): it runs in the validate phase BEFORE the defensive
+//   snapshot clone, so the in-place restore (#885) must never depend on it.
 //
 // WRITE discipline (#885): validate-EVERYTHING-before-mutate; ONE ambient
 //   ROM.BeginUndoScope wraps all writes; a defensive byte[] snapshot is restored
@@ -208,6 +217,19 @@ namespace FEBuilderGBA
         ///   restore handles the rollback. A thrown exception still propagates to
         ///   the bulk caller's try/catch.</para>
         /// </param>
+        /// <param name="recycleOldRegion">
+        ///   <c>true</c> (default, single-import #914): before the new writes,
+        ///   build a recycle pool from the slot's CURRENT anime target via the
+        ///   READ-ONLY <see cref="EnumerateOldAnimeRegions"/> so the new
+        ///   allocations REUSE the old anime's freed sub-regions instead of
+        ///   leaking them. A zero/garbage slot enumerates EMPTY (no-op), so this
+        ///   is a true superset of the fresh-allocate path.
+        ///   <para><c>false</c> (BULK #923): pass an EMPTY pool — always
+        ///   fresh-allocate. Bulk mutates many slots in one transaction where
+        ///   cross-slot shared sub-regions are most likely and WF skill-anime has
+        ///   NO SubConfilctArea de-dup pass to catch them, so bulk recycle is
+        ///   deferred pending a shared-region safety test (#914 follow-up).</para>
+        /// </param>
         /// <returns>Empty string on success; a non-empty error on any rejection.</returns>
         public static string ImportSkillAnimation(
             ROM rom,
@@ -215,7 +237,8 @@ namespace FEBuilderGBA
             uint animePointerSlot,
             ImageProvider imageProvider,
             Action faultInjector = null,
-            bool manageSnapshot = true)
+            bool manageSnapshot = true,
+            bool recycleOldRegion = true)
         {
             // ---- Pre-flight guards (no mutation) ----
             if (rom == null || rom.Data == null) return "ROM is not loaded.";
@@ -264,6 +287,16 @@ namespace FEBuilderGBA
             uint slot = U.toOffset(animePointerSlot);
             if (!IsRegionSafe(rom, slot, 4))
                 return "Animation pointer slot is out of range.";
+
+            // ---- OLD-REGION RECYCLE (#914): build the recycle pool from the
+            //   slot's CURRENT anime target, READ-ONLY, in the validate phase
+            //   BEFORE the snapshot clone / any mutation. A zero/garbage slot
+            //   enumerates EMPTY (no-op), so recycleOldRegion:true is a strict
+            //   superset of the fresh-allocate path. recycleOldRegion:false (bulk)
+            //   keeps the empty pool — always fresh-allocate. ----
+            List<Address> recyclePool = recycleOldRegion
+                ? EnumerateOldAnimeRegions(rom, rom.p32(slot))
+                : new List<Address>();
 
             // ---- VALIDATE + ENCODE every UNIQUE frame (dedup by FILENAME — CRITICAL 2) ----
             // uniqueNames preserves first-seen order = the id assignment order
@@ -364,7 +397,7 @@ namespace FEBuilderGBA
                 // returned string as a FAULT and runs its single outer restore.
                 // An exception still escapes to the bulk caller's try/catch.
                 return WriteCore(rom, slot, uniqueNames.Count, encImage, encTsa, encPal,
-                    framesData, programTemplate, script.SoundId, faultInjector);
+                    framesData, programTemplate, script.SoundId, recyclePool, faultInjector);
             }
 
             byte[] snapshot = (byte[])rom.Data.Clone();
@@ -377,7 +410,7 @@ namespace FEBuilderGBA
                 using (ROM.BeginUndoScope(undoData))
                 {
                     string werr = WriteCore(rom, slot, uniqueNames.Count, encImage, encTsa, encPal,
-                        framesData, programTemplate, script.SoundId, faultInjector);
+                        framesData, programTemplate, script.SoundId, recyclePool, faultInjector);
                     if (!string.IsNullOrEmpty(werr))
                         throw new InvalidOperationException(werr);
                 }
@@ -409,6 +442,220 @@ namespace FEBuilderGBA
             return string.Empty; // success
         }
 
+        // ================================================================
+        // EnumerateOldAnimeRegions (#914) — read-only recycle enumeration
+        // ================================================================
+
+        /// <summary>
+        /// Enumerate the recyclable sub-regions of the OLD skill animation the
+        /// slot currently points at, so a re-import can REUSE them instead of
+        /// leaking them. A literal, STRICTLY READ-ONLY port of WF
+        /// <c>ImageUtilSkillSystemsAnimeCreator.RecycleOldAnime</c> (:637-784):
+        /// the per-frame OBJ image (LZ77), TSA (LZ77) and palette (RAW 0x20)
+        /// pointers, plus the program+config region and the three pointer-list
+        /// blocks. Substitutes <paramref name="rom"/> for WF <c>Program.ROM</c>
+        /// and the Core <see cref="SkillSystemsAnimeExportCore.SkipCode"/> for
+        /// WF's <c>SkipCode</c>.
+        ///
+        /// <para><b>STRICTLY READ-ONLY:</b> performs ONLY reads
+        /// (<c>rom.p32/u16</c>) and <c>list.Add</c> via the <c>Address.Add*</c>
+        /// helpers — NO <c>rom.write_*</c>, NO RecycleAddress writes. It runs in
+        /// the validate phase BEFORE the defensive snapshot clone, so the #885
+        /// in-place restore must never depend on it.</para>
+        ///
+        /// <para><b>Two-tier WF semantics:</b> a PRE-walk guard failure (unsafe
+        /// <paramref name="oldAnimeAddress"/>; <c>SkipCode == NOT_FOUND</c>;
+        /// config block out of range; any of the 4 config pointers unsafe)
+        /// returns the list EMPTY — nothing has accumulated, so a zero/garbage
+        /// slot is a no-op. A MID-walk bail (an unsafe per-frame pointer or
+        /// dereferenced offset, OR <c>n &gt;= limitter</c>) returns the
+        /// PARTIALLY-populated list — NEVER cleared, exactly like WF and the
+        /// sibling <c>RecycleOldMagicSlot</c>.</para>
+        ///
+        /// <para><b>Per-frame <c>count</c>:</b> incremented once PER frame-table
+        /// entry (NOT per unique id); the freed pointer-list blocks are sized
+        /// <c>(count+1)*4</c> (frames) and <c>count*4</c> (each list), and the
+        /// per-frame <c>Add*</c> calls rely on the <c>RecycleAddress</c> pool's
+        /// own dedup to collapse repeated-id pointers — so freed lengths match WF
+        /// byte-for-byte.</para>
+        /// </summary>
+        /// <param name="rom">The ROM to read (must be the active CoreState.ROM —
+        ///   the <c>Address.Add*</c> helpers dereference via CoreState.ROM).</param>
+        /// <param name="oldAnimeAddress">The slot's current anime target
+        ///   (<c>rom.p32(slot)</c>); a GBA pointer or a ROM offset (toOffset is
+        ///   idempotent). 0 / garbage ⇒ empty list.</param>
+        /// <returns>The recyclable regions (possibly empty / partial — see above).</returns>
+        public static List<Address> EnumerateOldAnimeRegions(ROM rom, uint oldAnimeAddress)
+        {
+            const string basename = "OLDANIME";
+            const bool isPointerOnly = false;
+            var recycle = new List<Address>();
+
+            if (rom == null || rom.Data == null) return recycle;
+
+            // WF :639-643 — guard the anime address.
+            uint anime_address = U.toOffset(oldAnimeAddress);
+            if (!U.isSafetyOffset(anime_address, rom))
+            {
+                return recycle;
+            }
+
+            // WF :648-652 — resolve the config address (FE8J direct, FE8U skips
+            // the program template prefix). NOT_FOUND ⇒ empty list (pre-walk).
+            bool isDefender;
+            uint anime_config_address = SkillSystemsAnimeExportCore.SkipCode(rom, anime_address, out isDefender);
+            if (anime_config_address == U.NOT_FOUND)
+            {
+                return recycle;
+            }
+            // WF :653-656 — config block (5 words) must be in range.
+            if (anime_config_address + (4 * 5) > rom.Data.Length)
+            {//範囲外
+                return recycle;
+            }
+
+            // WF :663-667 — the 4 config pointers (frames/tsalist/graphiclist/
+            // palettelist); the 5th word is the raw sound id (not a pointer).
+            uint frames = rom.p32(anime_config_address + (4 * 0));
+            uint tsalist = rom.p32(anime_config_address + (4 * 1));
+            uint graphiclist = rom.p32(anime_config_address + (4 * 2));
+            uint palettelist = rom.p32(anime_config_address + (4 * 3));
+
+            // WF :669-684 — each of the 4 config pointers must be safe (pre-walk).
+            if (!U.isSafetyOffset(frames, rom))
+            {
+                return recycle;
+            }
+            if (!U.isSafetyOffset(tsalist, rom))
+            {
+                return recycle;
+            }
+            if (!U.isSafetyOffset(graphiclist, rom))
+            {
+                return recycle;
+            }
+            if (!U.isSafetyOffset(palettelist, rom))
+            {
+                return recycle;
+            }
+
+            // WF :686-688 — the frames table is uncompressed, so cap the scan at
+            // 1 MB (clamped to the ROM size) to avoid runaway on a corrupt table.
+            uint limitter = frames + 1024 * 1024; //1MBサーチしたらもうあきらめる.
+            limitter = (uint)Math.Min(limitter, rom.Data.Length);
+
+            // WF :690-751 — walk the [u16 id, u16 wait]* frames table to the
+            // 0xFFFF terminator. count is PER-FRAME (not per unique id).
+            uint count = 0;
+            uint n;
+            for (n = frames; n < limitter; n += 4)
+            {
+                uint id = rom.u16(n + 0);
+                //uint wait = rom.u16(n + 2);
+                if (id == 0xFFFF)
+                {
+                    break;
+                }
+
+                uint objPointer = graphiclist + (id * 4);
+                uint tsaPointer = tsalist + (id * 4);
+                uint palPointer = palettelist + (id * 4);
+                count++;
+
+                // WF :706-717 — each per-frame pointer SLOT (and its trailing
+                // word) must be safe; a mid-walk bail returns the PARTIAL list.
+                if (!U.isSafetyOffset(objPointer + 4, rom))
+                {
+                    return recycle;
+                }
+                if (!U.isSafetyOffset(tsaPointer + 4, rom))
+                {
+                    return recycle;
+                }
+                if (!U.isSafetyOffset(palPointer + 4, rom))
+                {
+                    return recycle;
+                }
+                uint objOffset = rom.p32(objPointer);
+                uint tsaOffset = rom.p32(tsaPointer);
+                uint palOffset = rom.p32(palPointer);
+                // WF :721-732 — each dereferenced offset must be safe.
+                if (!U.isSafetyOffset(objOffset, rom))
+                {
+                    return recycle;
+                }
+                if (!U.isSafetyOffset(tsaOffset, rom))
+                {
+                    return recycle;
+                }
+                if (!U.isSafetyOffset(palOffset + 0x20, rom))
+                {
+                    return recycle;
+                }
+
+                // WF :733-750 — add the OBJ image (LZ77), TSA (LZ77) and palette
+                // (RAW 0x20) for THIS frame. Per-frame Add* (no unique-id dedup
+                // here — the RecycleAddress pool collapses repeated-id pointers).
+                Address.AddLZ77Pointer(recycle
+                    , objPointer
+                    , basename + "OBJ"
+                    , isPointerOnly
+                    , Address.DataTypeEnum.LZ77IMG);
+
+                Address.AddLZ77Pointer(recycle
+                    , tsaPointer
+                    , basename + "TSA"
+                    , isPointerOnly
+                    , Address.DataTypeEnum.LZ77TSA);
+
+                Address.AddPointer(recycle
+                    , palPointer
+                    , 0x20   //16色*2バイト=0x20バイト
+                    , basename + "PAL"
+                    , Address.DataTypeEnum.PAL);
+            }
+            // WF :752-755 — limiter hit (no terminator found) ⇒ return the
+            // PARTIAL list, WITHOUT adding the trailing config/list blocks.
+            if (n >= limitter)
+            {
+                return recycle;
+            }
+
+            // WF :756-783 — the terminator was reached: add the program+config
+            // region and the three pointer-list blocks. Block sizes mirror WF:
+            // frames (count+1)*4, each list count*4.
+            Address.AddAddress(recycle
+                , anime_address
+                , anime_config_address - anime_address + (4 * 5)
+                , U.NOT_FOUND
+                , basename + "POINTER"
+                , Address.DataTypeEnum.POINTER);
+
+            Address.AddPointer(recycle
+                , anime_config_address + (4 * 0)
+                , (count + 1) * 4
+                , basename + "ROMANIMEFRAME"
+                , Address.DataTypeEnum.ROMANIMEFRAME);
+
+            Address.AddPointer(recycle
+                , anime_config_address + (4 * 1)
+                , (count) * 4
+                , basename + "TSALIST"
+                , Address.DataTypeEnum.POINTER);
+            Address.AddPointer(recycle
+                , anime_config_address + (4 * 2)
+                , (count) * 4
+                , basename + "IMAGELIST"
+                , Address.DataTypeEnum.POINTER);
+            Address.AddPointer(recycle
+                , anime_config_address + (4 * 3)
+                , (count) * 4
+                , basename + "PALETEELIST"
+                , Address.DataTypeEnum.POINTER);
+
+            return recycle;
+        }
+
         /// <summary>
         /// The raw ROM-write half of <see cref="ImportSkillAnimation"/>: allocate
         /// every per-frame region + the three parallel pointer lists + the 5-word
@@ -425,10 +672,12 @@ namespace FEBuilderGBA
             ROM rom, uint slot, int uniqueCount,
             List<byte[]> encImage, List<byte[]> encTsa, List<byte[]> encPal,
             byte[] framesData, byte[] programTemplate, uint soundId,
+            List<Address> recyclePool,
             Action faultInjector)
         {
-            // No recycle pool (intentional parity gap — always fresh-allocate).
-            var ra = new RecycleAddress(new List<Address>());
+            // Recycle pool from the slot's old anime region (#914). EMPTY ⇒
+            // always fresh-allocate (zero/garbage slot, or recycleOldRegion:false).
+            var ra = new RecycleAddress(recyclePool);
 
             var imagePtrs = new uint[uniqueCount];
             var tsaPtrs   = new uint[uniqueCount];

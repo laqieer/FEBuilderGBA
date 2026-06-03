@@ -292,10 +292,18 @@ namespace FEBuilderGBA
                             string err;
                             try
                             {
+                                // #914 review finding #4: bulk recycle is DEFERRED
+                                // (recycleOldRegion:false). Bulk mutates many slots
+                                // in one transaction where cross-slot shared
+                                // sub-regions are most likely, and WF skill-anime
+                                // has NO SubConfilctArea de-dup pass to catch them —
+                                // so always fresh-allocate here until a shared-region
+                                // safety test exists (#914 follow-up).
                                 err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
                                     rom, scriptLines, row.AnimeSlot, scopedProvider,
                                     faultInjector: faultInjector,
-                                    manageSnapshot: false);
+                                    manageSnapshot: false,
+                                    recycleOldRegion: false);
                             }
                             catch (Exception ex)
                             {

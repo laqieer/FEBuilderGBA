@@ -417,9 +417,23 @@ Specialized utilities for different graphic types:
   this prepend and the export `SkipCode` (which skips exactly this prefix on
   re-read — the repointed slot points to the template START), so the two seams
   can never drift. The shared Avalonia `SkillConfigAnimeImportHelper` wires the 4
-  SkillConfig views' Animation Import buttons (FE8N Ver1 stays a stub). PARITY GAP
-  (intentional): WF's `RecycleOldAnime` is NOT ported — always fresh-allocates
-  (safer, but leaks the old anime region per import; follow-up issue to file) (#913).
+  SkillConfig views' Animation Import buttons (FE8N Ver1 stays a stub) (#913).
+  OLD-REGION RECYCLE (#914): the former parity gap is now CLOSED for single-import.
+  `EnumerateOldAnimeRegions(rom, oldAnimeAddress)` is a literal, STRICTLY
+  READ-ONLY port of WF `RecycleOldAnime` (`:637-784`) — it enumerates the slot's
+  CURRENT anime sub-regions (per-frame OBJ/TSA LZ77 + RAW 0x20 palette + the
+  program/config block + the three pointer lists, `count` per-frame so freed
+  block lengths byte-match WF) with WF's two-tier semantics (pre-walk guard
+  failure → EMPTY list; mid-walk bail → PARTIAL list, never cleared). It runs in
+  the validate phase BEFORE the defensive snapshot clone, so #885 byte-identity
+  on fault never depends on it, and threads into `WriteCore`'s `RecycleAddress`
+  pool via the new `recycleOldRegion` parameter (default `true`). Single-import
+  (Avalonia helper) reuses the freed region; **bulk
+  (`SkillConfigSkillSystemBulkImportCore`) passes `recycleOldRegion:false`** —
+  always fresh-allocate — because bulk mutates many slots in one transaction
+  where cross-slot shared sub-regions are likely and skill-anime has no
+  `SubConfilctArea` de-dup pass; bulk recycle is deferred pending a shared-region
+  safety test (#914 follow-up).
 - `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) - Cross-platform BULK-EXPORT
   seam for the SkillSystems skill config (SLICE 1 of #920; ported from WinForms
   `SkillConfigSkillSystemForm.ExportAllData`). `ExportAll(rom, textPointerLocation,
