@@ -112,18 +112,27 @@ namespace FEBuilderGBA
         /// </summary>
         /// <returns>The new array base offset (a ROM offset, not a GBA pointer).</returns>
         /// <exception cref="InvalidOperationException">
-        /// Thrown when the owner pointer is not a ROM address or no free space large
-        /// enough is available (alloc failure). On any failure no relocation is
+        /// Thrown when the owner pointer is NON-zero but is not a ROM address, or when
+        /// no free space large enough is available (alloc failure). A NULL (<c>0</c>)
+        /// owner pointer is NOT an error — see remarks. On any failure no relocation is
         /// committed beyond the writes already recorded on <paramref name="undo"/>,
         /// which a single rollback reverts.
         /// </exception>
         /// <remarks>
+        /// A NULL (<c>0</c>) owner pointer is treated as an UNSET/empty list rather than
+        /// an error: the method allocates a fresh single-entry list
+        /// (<c>[0x01, 0x00]</c>) and repoints the owner to it. This lets the UI add the
+        /// FIRST entry to a skill whose FE8N Ver2/Ver3 sub-list pointer
+        /// (<c>P4/P8/P12/P16/P20</c>) is still <c>0</c>, and matches
+        /// <see cref="WriteByteList"/>, which also accepts a null owner.
+        /// <para>
         /// The array layout grows from <c>[a, b, 0]</c> to <c>[a, b, 1, 0]</c>: the
         /// appended slot is initialized to the non-zero placeholder (<c>0x01</c>) so
         /// it remains visible in <see cref="ScanByteList"/> after a reload (a
         /// <c>0</c> there would be the terminator and the new slot would be invisible
         /// to the UI). Callers can immediately edit the new slot at
         /// <c>newBase + oldCount</c>.
+        /// </para>
         /// <para>
         /// The original bytes at <c>oldBase</c> are intentionally LEFT INTACT so any
         /// other owners still pointing at <c>oldBase</c> keep working; this means
@@ -140,19 +149,38 @@ namespace FEBuilderGBA
                 throw new ArgumentOutOfRangeException(nameof(pointerAddr));
 
             uint oldPtr = rom.u32(pointerAddr);
-            if (!U.isPointer(oldPtr))
-                throw new InvalidOperationException("Owner pointer does not reference a ROM address.");
 
-            uint oldBase = U.toOffset(oldPtr);
-            if (oldBase >= (uint)rom.Data.Length)
-                throw new InvalidOperationException("Owner pointer references an out-of-range address.");
+            // Resolve the owner pointer into an existing list + a FindFreeSpace start
+            // hint. A NULL (0) owner pointer is a legitimate UNSET/empty state — FE8N
+            // Ver2/Ver3 per-skill sub-list pointers (P4/P8/P12/P16/P20) are 0 until the
+            // skill grows its first entry — so treat it as an empty list and allocate a
+            // fresh one (mirrors the 0x100 start hint WriteByteList already uses for a
+            // null owner). A NON-zero pointer that is not a ROM address is genuine
+            // garbage and still throws.
+            List<uint> oldList;
+            uint startHint;
+            if (oldPtr == 0)
+            {
+                oldList = new List<uint>();
+                startHint = 0x100;
+            }
+            else
+            {
+                if (!U.isPointer(oldPtr))
+                    throw new InvalidOperationException("Owner pointer does not reference a ROM address.");
 
-            var oldList = ScanByteList(rom, oldBase);
+                uint oldBase = U.toOffset(oldPtr);
+                if (oldBase >= (uint)rom.Data.Length)
+                    throw new InvalidOperationException("Owner pointer references an out-of-range address.");
+
+                oldList = ScanByteList(rom, oldBase);
+                startHint = oldBase;
+            }
             uint oldCount = (uint)oldList.Count;
 
             // New array layout: [old0, old1, ..., placeholder, 0]  (oldCount + 2 bytes)
             uint newSize = oldCount + 2;
-            uint newBase = rom.FindFreeSpace(oldBase, newSize);
+            uint newBase = rom.FindFreeSpace(startHint, newSize);
             if (newBase == U.NOT_FOUND)
                 newBase = rom.FindFreeSpace(0x100, newSize);
             if (newBase == U.NOT_FOUND)

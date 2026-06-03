@@ -290,6 +290,74 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void ExpandByteList_OnNullOwnerPointer_AllocatesFreshList()
+        {
+            // FE8N Ver2/Ver3 per-skill sub-list pointers (P4/P8/P12/P16/P20) are 0
+            // until the skill grows its first entry. ExpandByteList must treat a NULL
+            // owner pointer as an UNSET/empty list and allocate a fresh
+            // [placeholder, 0x00] list (mirrors WriteByteList) rather than throwing.
+            byte[] data = new byte[1024];
+            for (int i = 0; i < data.Length; i++) data[i] = 0xFF; // free space everywhere
+            WritePtr(data, 0, 0u); // owner pointer slot is NULL
+
+            var rom = MakeRom(data);
+            var prevRomState = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                var undo = NewUndo(rom);
+
+                uint newBase = 0;
+                var ex = Record.Exception(() =>
+                    newBase = NullTerminatedByteListCore.ExpandByteList(rom, pointerAddr: 0, undo: undo));
+                Assert.Null(ex); // does NOT throw on a null owner pointer
+
+                Assert.NotEqual(0u, newBase);
+                Assert.NotEqual(U.NOT_FOUND, newBase);
+
+                // Slot now points to the fresh array.
+                Assert.Equal(newBase | 0x08000000u, rom.u32(0));
+
+                // Fresh layout: [placeholder, 0x00] — one placeholder entry + terminator.
+                Assert.Equal((byte)NullTerminatedByteListCore.NewSlotPlaceholder, rom.Data[newBase + 0]);
+                Assert.Equal(0x00, rom.Data[newBase + 1]); // terminator present
+
+                // ScanByteList returns exactly [0x01] (count 1).
+                var scanned = NullTerminatedByteListCore.ScanByteList(rom, newBase);
+                Assert.Single(scanned);
+                Assert.Equal(NullTerminatedByteListCore.NewSlotPlaceholder, scanned[0]);
+            }
+            finally
+            {
+                CoreState.ROM = prevRomState;
+            }
+        }
+
+        [Fact]
+        public void ExpandByteList_OnGarbageNonNullPointer_Throws()
+        {
+            // A NON-zero owner pointer that is not a ROM address is genuine garbage and
+            // must still throw (the null relaxation does not weaken this guard).
+            byte[] data = new byte[1024];
+            for (int i = 0; i < data.Length; i++) data[i] = 0xFF;
+            WritePtr(data, 0, 0x12345678u); // non-zero, below 0x08000000 => not a pointer
+
+            var rom = MakeRom(data);
+            var prevRomState = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                var undo = NewUndo(rom);
+                Assert.Throws<InvalidOperationException>(() =>
+                    NullTerminatedByteListCore.ExpandByteList(rom, pointerAddr: 0, undo: undo));
+            }
+            finally
+            {
+                CoreState.ROM = prevRomState;
+            }
+        }
+
         // ---------------------------------------------------------------------
         // Shared-array preservation (implicit fork)
         // ---------------------------------------------------------------------
