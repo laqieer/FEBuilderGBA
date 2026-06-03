@@ -85,6 +85,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _statusMessage = "Skill system editors require the FE8N v3 skill patch to be installed.\nUse the Patch Manager to install it first.";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+
+        /// <summary>
+        /// The skill-row base address of the currently loaded entry (== the
+        /// <c>addr</c> last passed to <see cref="LoadEntry"/>). The host view's
+        /// embedded sub-list editors load their pointer SLOTs at
+        /// <c>CurrentRowAddr + 4/8/12/16/20</c>; after any sub-list op the view
+        /// re-runs <see cref="LoadEntry"/>(CurrentRowAddr) to re-sync the cached
+        /// Px offsets (issue #930 C1).
+        /// </summary>
+        public uint CurrentRowAddr => _currentAddr;
+
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint SelectedId { get => _selectedId; set => SetField(ref _selectedId, value); }
@@ -247,6 +258,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///   2) lookup via TextForm.Direct;
         ///   3) split on colon to extract the leading "Name" prefix.
         /// </summary>
+        /// <summary>
+        /// Public instance resolver for the Composite (N5) sub-list tab (issue
+        /// #930 B1). A composite-skill id indexes the SAME FE8N main-list table,
+        /// so it resolves to the main-list 『...』 skill text via
+        /// <see cref="ResolveSkillName"/> using the cached skill-table base
+        /// (<see cref="ReadStartAddress"/> / <see cref="SkillBaseAddress"/>) and
+        /// stride (<see cref="IconListSize"/>). This is deliberately NOT
+        /// <c>NameResolver.GetSkillName</c> (which delegates to the global
+        /// <c>CoreState.SkillNameResolver</c> and would mislabel). Returns an
+        /// empty string if the base/stride aren't resolved yet.
+        /// </summary>
+        public string ResolveCompositeName(uint id)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "";
+            uint baseAddr = _readStartAddress != 0 ? _readStartAddress : _skillBaseAddress;
+            if (baseAddr == 0) return "";
+            return ResolveSkillName(rom, baseAddr, id, _iconListSize);
+        }
+
         static string ResolveSkillName(ROM rom, uint baseAddr, uint id, uint stride)
         {
             if (rom == null) return "";

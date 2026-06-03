@@ -41,12 +41,73 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+
+            // #930 — wire the 5 embedded sub-list editors: inject the host's
+            // shared UndoService, set titles, and re-sync on any mutation (C1).
+            UnitSubEditor.UndoService = _undoService;
+            ClassSubEditor.UndoService = _undoService;
+            ItemSubEditor.UndoService = _undoService;
+            Item2SubEditor.UndoService = _undoService;
+            CompositeSubEditor.UndoService = _undoService;
+            UnitSubEditor.SetTitle("Unit Skill Sub-list");
+            ClassSubEditor.SetTitle("Class Skill Sub-list");
+            ItemSubEditor.SetTitle("Item Skill Sub-list");
+            Item2SubEditor.SetTitle("Item2 Skill Sub-list");
+            CompositeSubEditor.SetTitle("Composite Skill Sub-list");
+            UnitSubEditor.Changed += OnSubListChanged;
+            ClassSubEditor.Changed += OnSubListChanged;
+            ItemSubEditor.Changed += OnSubListChanged;
+            Item2SubEditor.Changed += OnSubListChanged;
+            CompositeSubEditor.Changed += OnSubListChanged;
+
             Opened += (_, _) => LoadList();
             Closed += (_, _) =>
             {
                 DisposeBitmap(ref _currentIconBitmap);
                 DisposeBitmap(ref _currentPreviewBitmap);
             };
+        }
+
+        /// <summary>
+        /// Load the 5 sub-list editors against the per-skill pointer slots.
+        /// Unit +4 / Class +8 / Item +12 / Item2 +16 / Composite +20. All are
+        /// real Px slots in the fixed v3 sizeof-24+ layout (no stride gate).
+        /// The Composite tab decorates ids via the VM's ResolveCompositeName
+        /// (the FE8N main-list 『...』 skill text), NOT NameResolver.GetSkillName
+        /// (B1).
+        /// </summary>
+        void LoadSubEditors()
+        {
+            uint row = _vm.CurrentRowAddr;
+            if (row == 0) return;
+            UnitSubEditor.Load(row + 4, NameResolver.GetUnitName, true);
+            ClassSubEditor.Load(row + 8, NameResolver.GetClassName, true);
+            ItemSubEditor.Load(row + 12, NameResolver.GetItemName, true);
+            Item2SubEditor.Load(row + 16, NameResolver.GetItemName, true);
+            CompositeSubEditor.Load(row + 20, _vm.ResolveCompositeName, true);
+        }
+
+        /// <summary>
+        /// C1 — after any sub-list op repoints a Px slot, re-run the host's
+        /// LoadEntry to re-read the now-updated Px offsets into its cache, then
+        /// reload the editors. Keeps a subsequent main-row Write idempotent
+        /// w.r.t. the repoint instead of reverting it + orphaning the new array.
+        /// </summary>
+        void OnSubListChanged()
+        {
+            uint row = _vm.CurrentRowAddr;
+            if (row == 0) return;
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.LoadEntry(row);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SkillConfigFE8NVer3SkillView.OnSubListChanged failed: {0}", ex.Message);
+            }
+            finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }
 
         static void DisposeBitmap(ref Bitmap? bmp)
@@ -148,22 +209,9 @@ namespace FEBuilderGBA.Avalonia.Views
             CompositeSkillPointerBox.Value = _vm.CompositeSkillPointer;
             AnimationPointerBox.Value = _vm.AnimationPointer;
 
-            // Sub-list tab base addresses + entry counts (informational only - actual
-            // sub-list editing is a KnownGap tracked by #374).
-            UnitTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.UnitSkillPointer:X08}";
-            ClassTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.ClassSkillPointer:X08}";
-            ItemTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.ItemSkillPointer:X08}";
-            Item2TabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.Item2SkillPointer:X08}";
-            CompositeTabBaseAddrLabel.Content = $"Sub-list base: 0x{_vm.CompositeSkillPointer:X08}";
-
-            // Entry counts derived by walking the sub-list u8 terminator (WF
-            // sub-list iteration predicate: terminate when u8(addr) == 0).
-            // Addresses Copilot CLI PR-review finding #2 (round 1).
-            UnitTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.UnitSkillPointer)}";
-            ClassTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.ClassSkillPointer)}";
-            ItemTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.ItemSkillPointer)}";
-            Item2TabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.Item2SkillPointer)}";
-            CompositeTabCountLabel.Content = $"Entry count: {CountSubListEntries(rom, _vm.CompositeSkillPointer)}";
+            // Load the 5 embedded sub-list editors against the per-skill pointer
+            // SLOTs (CurrentRowAddr + 4/8/12/16/20).
+            LoadSubEditors();
 
             // Icon Image render.
             try
@@ -228,35 +276,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("SkillConfigFE8NVer3SkillView.Write failed: {0}", ex.Message);
             }
-        }
-
-        /// <summary>
-        /// Count the entries in a sub-list pointed at by <paramref name="subListBase"/>.
-        /// WF iteration predicate (`SkillConfigFE8NVer3SkillForm.{N1..N5}_Init`
-        /// readCount callback) terminates when `u8(addr) == 0`. Returns 0 if
-        /// the pointer is null/unsafe or the table is empty.
-        /// Mirrors the WF N1..N5 InputFormRef block-size=1 iteration. Capped
-        /// at 256 entries to bound the walk.
-        ///
-        /// Addresses Copilot CLI PR-review finding #2 (round 1) - the AXAML
-        /// `Entry count: -` placeholder must be replaced with real counts so
-        /// the plan claim ("surface sub-list base + entry count") holds.
-        /// </summary>
-        static int CountSubListEntries(ROM rom, uint subListBase)
-        {
-            if (rom?.Data == null) return 0;
-            if (subListBase == 0) return 0;
-            if (!U.isSafetyOffset(subListBase, rom)) return 0;
-
-            int count = 0;
-            for (uint i = 0; i < 256; i++)
-            {
-                uint addr = subListBase + i;
-                if (addr >= (uint)rom.Data.Length) break;
-                if (rom.u8(addr) == 0) break;
-                count++;
-            }
-            return count;
         }
 
         void SetIconBitmap(Bitmap? bmp)
