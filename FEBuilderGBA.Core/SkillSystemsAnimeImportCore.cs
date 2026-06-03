@@ -533,8 +533,12 @@ namespace FEBuilderGBA
         ///   returns an EMPTY dict (the <c>Address.Add*</c> helpers dereference
         ///   CoreState.ROM internally, mirroring the same guard in
         ///   <see cref="EnumerateOldAnimeRegions(ROM, uint)"/>).</param>
-        /// <param name="animeBase">The anime-table base (a ROM offset or GBA
-        ///   pointer — <c>toOffset</c> is idempotent inside the slot reads).</param>
+        /// <param name="animeBase">The anime-table base. Normalized at the start
+        ///   via <see cref="U.toOffset"/>, so EITHER a ROM offset (the current
+        ///   bulk caller via <c>rom.p32</c>) OR a GBA pointer (0x08xxxxxx) is
+        ///   accepted: a GBA-pointer base would otherwise make every computed
+        ///   slot fail the <c>isSafetyOffset</c> guard, returning an EMPTY
+        ///   refcount that silently disables the shared-region exclusion safety.</param>
         /// <param name="count">Number of skill slots to scan (the bulk caller's
         ///   <c>getBlockDataCount</c> result).</param>
         /// <returns>A map of normalized data address → number of DISTINCT slots
@@ -547,6 +551,15 @@ namespace FEBuilderGBA
             // CoreState.ROM internally, so a foreign rom would tally a mismatched
             // pool — refuse it, exactly like the enumeration guard.
             if (!ReferenceEquals(rom, CoreState.ROM)) return refcount;
+
+            // Normalize the table base so a caller may pass EITHER a ROM offset
+            // (the current bulk caller via rom.p32) OR a GBA pointer (0x08xxxxxx).
+            // Without this, a GBA-pointer base makes every slot (slot = animeBase
+            // + 4*i) fail the U.isSafetyOffset(slot+3) guard below, so the
+            // refcount comes back EMPTY and the bulk importer silently disables
+            // its shared-region exclusion safety. U.toOffset is idempotent on an
+            // already-offset value and strips 0x08000000 from a GBA pointer.
+            animeBase = U.toOffset(animeBase);
 
             for (uint i = 0; i < count; i++)
             {

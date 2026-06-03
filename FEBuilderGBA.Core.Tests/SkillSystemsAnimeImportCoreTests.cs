@@ -814,6 +814,50 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // #932 review: BuildSkillAnimeRegionRefcount must normalize animeBase via
+        // U.toOffset so a caller may pass a GBA pointer (0x08xxxxxx) base, not just
+        // a ROM offset. Without normalization, slot = animeBase + 4*i would carry
+        // the 0x08000000 base, the isSafetyOffset(slot+3) guard would reject EVERY
+        // slot, and the refcount would come back EMPTY -> the shared-region
+        // exclusion safety silently disabled. Same two-slots-sharing-a-region
+        // scenario as BuildSkillAnimeRegionRefcount_TwoSlotsSharingRegion_CountsTwo,
+        // but the base is passed as a GBA pointer; the result must be IDENTICAL.
+        [Fact]
+        public void BuildSkillAnimeRegionRefcount_AcceptsGbaPointerBase_NormalizesToOffset()
+        {
+            WithTwoSlotTable((rom, animeBase, slot0, slot1, sharedPalRegion) =>
+            {
+                // Offset-base reference result (the existing, proven-correct path).
+                var byOffset = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase, 2);
+
+                // Same call but the base is a GBA pointer (0x08xxxxxx). U.toPointer
+                // is the canonical offset->pointer conversion; assert it really set
+                // the 0x08000000 base so the test proves the normalization, not a
+                // no-op.
+                uint gbaBase = U.toPointer(animeBase);
+                Assert.Equal(animeBase | 0x08000000u, gbaBase);
+                var byPointer = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, gbaBase, 2);
+
+                // The safety is NOT silently disabled: the shared region is still
+                // counted with exactly 2 owners.
+                Assert.True(byPointer.TryGetValue(sharedPalRegion, out int sharedCount),
+                    "the shared palette region must appear in the pointer-base refcount");
+                Assert.Equal(2, sharedCount);
+
+                // The pointer-base result is IDENTICAL to the offset-base result
+                // (same keys, same per-region owner counts) -> toOffset normalized
+                // the GBA pointer back to the offset the offset-base path used.
+                Assert.NotEmpty(byPointer);
+                Assert.Equal(byOffset.Count, byPointer.Count);
+                foreach (var kv in byOffset)
+                {
+                    Assert.True(byPointer.TryGetValue(kv.Key, out int c),
+                        $"offset-base addr 0x{kv.Key:X} missing from pointer-base refcount");
+                    Assert.Equal(kv.Value, c);
+                }
+            });
+        }
+
         // The exclude-aware overload must DROP every excluded address — covering
         // BOTH a per-frame region AND a config/list block — while KEEPING the
         // non-excluded regions.
