@@ -193,13 +193,29 @@ namespace FEBuilderGBA
         ///   exercises the partial-write corruption guard. Production callers
         ///   pass <c>null</c>.
         /// </param>
+        /// <param name="manageSnapshot">
+        ///   <c>true</c> (default, single-import #916/#919): manage undo + a
+        ///   defensive snapshot INTERNALLY — open a fresh <c>BeginUndoScope</c>,
+        ///   clone <c>rom.Data</c>, restore byte-for-byte on any fault, and
+        ///   <c>CoreState.Undo.Push</c> on success. This is the EXACT, unchanged
+        ///   behaviour the four single-import views depend on.
+        ///   <para><c>false</c> (BULK mode, #923/#885): the CALLER owns the undo
+        ///   scope + snapshot. This method then runs its writes into the caller's
+        ///   AMBIENT undo scope (it does NOT open its own), does NOT clone a
+        ///   snapshot, does NOT restore on fault, and does NOT push. On any
+        ///   per-skill failure it RETURNS the non-empty error string (validate-
+        ///   before-mutate still runs first) — the bulk caller's single outer
+        ///   restore handles the rollback. A thrown exception still propagates to
+        ///   the bulk caller's try/catch.</para>
+        /// </param>
         /// <returns>Empty string on success; a non-empty error on any rejection.</returns>
         public static string ImportSkillAnimation(
             ROM rom,
             string[] scriptLines,
             uint animePointerSlot,
             ImageProvider imageProvider,
-            Action faultInjector = null)
+            Action faultInjector = null,
+            bool manageSnapshot = true)
         {
             // ---- Pre-flight guards (no mutation) ----
             if (rom == null || rom.Data == null) return "ROM is not loaded.";
@@ -328,8 +344,29 @@ namespace FEBuilderGBA
             byte[] framesData = frames.ToArray();
 
             // ====================================================================
-            //  MUTATION begins. Snapshot first so any fault restores byte-identity.
+            //  MUTATION begins.
+            //
+            //  manageSnapshot == true  (single-import #916/#919): clone a
+            //    defensive snapshot, open a FRESH BeginUndoScope, restore on any
+            //    fault, and Push on success — EXACTLY the slice-1/2 behaviour.
+            //  manageSnapshot == false (BULK #923/#885): the CALLER already owns
+            //    the snapshot + the ambient BeginUndoScope. We DON'T clone, DON'T
+            //    open a scope (writes compose into the caller's ambient one),
+            //    DON'T restore (the bulk's single outer restore handles a fault),
+            //    DON'T push. A per-skill fault is signalled by RETURNING the
+            //    non-empty error; a thrown exception propagates to the caller.
             // ====================================================================
+            if (!manageSnapshot)
+            {
+                // BULK mode: run the write directly under the caller's ambient
+                // undo scope. WriteCore returns a non-empty error on any
+                // allocation fault (NOT_FOUND); the bulk caller treats that
+                // returned string as a FAULT and runs its single outer restore.
+                // An exception still escapes to the bulk caller's try/catch.
+                return WriteCore(rom, slot, uniqueNames.Count, encImage, encTsa, encPal,
+                    framesData, programTemplate, script.SoundId, faultInjector);
+            }
+
             byte[] snapshot = (byte[])rom.Data.Clone();
             var undoData = CoreState.Undo != null
                 ? CoreState.Undo.NewUndoData("SkillSystemsAnimeImportCore.Import")
@@ -339,83 +376,10 @@ namespace FEBuilderGBA
             {
                 using (ROM.BeginUndoScope(undoData))
                 {
-                    // No recycle pool (intentional parity gap — always fresh-allocate).
-                    var ra = new RecycleAddress(new List<Address>());
-
-                    int uniqueCount = uniqueNames.Count;
-                    var imagePtrs = new uint[uniqueCount];
-                    var tsaPtrs   = new uint[uniqueCount];
-                    var palPtrs   = new uint[uniqueCount];
-
-                    // Per-frame regions: image_lz77, tsa_lz77, pal_raw.
-                    for (int i = 0; i < uniqueCount; i++)
-                    {
-                        imagePtrs[i] = ra.WriteAmbient(encImage[i]);
-                        if (imagePtrs[i] == U.NOT_FOUND)
-                            throw new InvalidOperationException("Cannot allocate space for frame image " + i + ".");
-
-                        tsaPtrs[i] = ra.WriteAmbient(encTsa[i]);
-                        if (tsaPtrs[i] == U.NOT_FOUND)
-                            throw new InvalidOperationException("Cannot allocate space for frame TSA " + i + ".");
-
-                        palPtrs[i] = ra.WriteAmbient(encPal[i]);
-                        if (palPtrs[i] == U.NOT_FOUND)
-                            throw new InvalidOperationException("Cannot allocate space for frame palette " + i + ".");
-
-                        // Test-only fault hook: fire once after the first frame's
-                        // regions are written but before the slot is repointed, so
-                        // the corruption guard can assert byte-identity after a
-                        // genuine partial write.
-                        if (i == 0 && faultInjector != null)
-                            faultInjector();
-                    }
-
-                    // Three parallel pointer lists (image, tsa, pal) — each a
-                    // u32-pointer array (WF :565-578, order image/tsa/pal).
-                    var imageListBytes = new List<byte>();
-                    var tsaListBytes   = new List<byte>();
-                    var palListBytes   = new List<byte>();
-                    for (int i = 0; i < uniqueCount; i++)
-                    {
-                        U.append_u32(imageListBytes, U.toPointer(imagePtrs[i]));
-                        U.append_u32(tsaListBytes,   U.toPointer(tsaPtrs[i]));
-                        U.append_u32(palListBytes,   U.toPointer(palPtrs[i]));
-                    }
-
-                    uint framesOff   = ra.WriteAmbient(framesData);
-                    if (framesOff == U.NOT_FOUND) throw new InvalidOperationException("Cannot allocate space for frames table.");
-                    uint tsaListOff  = ra.WriteAmbient(tsaListBytes.ToArray());
-                    if (tsaListOff == U.NOT_FOUND) throw new InvalidOperationException("Cannot allocate space for TSA list.");
-                    uint imageListOff = ra.WriteAmbient(imageListBytes.ToArray());
-                    if (imageListOff == U.NOT_FOUND) throw new InvalidOperationException("Cannot allocate space for image list.");
-                    uint palListOff  = ra.WriteAmbient(palListBytes.ToArray());
-                    if (palListOff == U.NOT_FOUND) throw new InvalidOperationException("Cannot allocate space for palette list.");
-
-                    // mainData: [FE8U program template prefix], frames, tsalist,
-                    // imagelist, pallist (toPointer), then sound_id (RAW u32, NOT
-                    // toPointer — WF :616).
-                    var mainData = new List<byte>();
-
-                    // GUARD C (#917): prepend the FE8U program template VERBATIM —
-                    // no endian swap, no pad, no truncate (WF :592/:597
-                    // mainData.AddRange(File.ReadAllBytes(prog))). FE8J → empty
-                    // prefix (programTemplate.Length == 0), so the FE8J layout is
-                    // byte-identical to slice 1. The slot (repointed below) points
-                    // to the template START, so the export SkipCode skips exactly
-                    // this prefix on re-read.
-                    if (programTemplate.Length > 0)
-                        mainData.AddRange(programTemplate);
-
-                    U.append_u32(mainData, U.toPointer(framesOff));
-                    U.append_u32(mainData, U.toPointer(tsaListOff));
-                    U.append_u32(mainData, U.toPointer(imageListOff));
-                    U.append_u32(mainData, U.toPointer(palListOff));
-                    U.append_u32(mainData, script.SoundId);
-
-                    // LAST op: allocate mainData + repoint the slot (WF :620).
-                    uint mainOff = ra.WriteAndWritePointerAmbient(slot, mainData.ToArray());
-                    if (mainOff == U.NOT_FOUND)
-                        throw new InvalidOperationException("Cannot allocate space for the animation config block.");
+                    string werr = WriteCore(rom, slot, uniqueNames.Count, encImage, encTsa, encPal,
+                        framesData, programTemplate, script.SoundId, faultInjector);
+                    if (!string.IsNullOrEmpty(werr))
+                        throw new InvalidOperationException(werr);
                 }
             }
             catch (Exception ex)
@@ -428,6 +392,11 @@ namespace FEBuilderGBA
                 // byte-identical to the pre-import snapshot (Modified flag was
                 // already set by the partial writes — harmless and matches the
                 // "ROM may need re-save" semantics other import rollbacks share).
+                // (#923 H1 parity: a single-import that GREW rom.Data must also
+                // shrink it back before the in-place copy, else the trailing
+                // grown bytes survive. write_resize_data handles the down-resize.)
+                if (rom.Data.Length != snapshot.Length)
+                    rom.write_resize_data((uint)snapshot.Length);
                 Array.Copy(snapshot, rom.Data, snapshot.Length);
                 return "Skill animation import failed: " + ex.Message;
             }
@@ -438,6 +407,104 @@ namespace FEBuilderGBA
                 CoreState.Undo.Push(undoData);
             }
             return string.Empty; // success
+        }
+
+        /// <summary>
+        /// The raw ROM-write half of <see cref="ImportSkillAnimation"/>: allocate
+        /// every per-frame region + the three parallel pointer lists + the 5-word
+        /// config block (with the optional FE8U program prefix), then repoint the
+        /// slot LAST. Runs under whatever ambient undo scope the caller has open
+        /// (single-import opens its own; bulk reuses the bulk scope). Returns an
+        /// empty string on success or a non-empty error on an allocation fault
+        /// (so a NOT_FOUND surfaces as a returned string in BULK mode and as a
+        /// thrown InvalidOperationException in single-import mode). The
+        /// <paramref name="faultInjector"/> still fires once after the first
+        /// frame's regions (test-only).
+        /// </summary>
+        static string WriteCore(
+            ROM rom, uint slot, int uniqueCount,
+            List<byte[]> encImage, List<byte[]> encTsa, List<byte[]> encPal,
+            byte[] framesData, byte[] programTemplate, uint soundId,
+            Action faultInjector)
+        {
+            // No recycle pool (intentional parity gap — always fresh-allocate).
+            var ra = new RecycleAddress(new List<Address>());
+
+            var imagePtrs = new uint[uniqueCount];
+            var tsaPtrs   = new uint[uniqueCount];
+            var palPtrs   = new uint[uniqueCount];
+
+            // Per-frame regions: image_lz77, tsa_lz77, pal_raw.
+            for (int i = 0; i < uniqueCount; i++)
+            {
+                imagePtrs[i] = ra.WriteAmbient(encImage[i]);
+                if (imagePtrs[i] == U.NOT_FOUND)
+                    return "Cannot allocate space for frame image " + i + ".";
+
+                tsaPtrs[i] = ra.WriteAmbient(encTsa[i]);
+                if (tsaPtrs[i] == U.NOT_FOUND)
+                    return "Cannot allocate space for frame TSA " + i + ".";
+
+                palPtrs[i] = ra.WriteAmbient(encPal[i]);
+                if (palPtrs[i] == U.NOT_FOUND)
+                    return "Cannot allocate space for frame palette " + i + ".";
+
+                // Test-only fault hook: fire once after the first frame's
+                // regions are written but before the slot is repointed, so
+                // the corruption guard can assert byte-identity after a
+                // genuine partial write.
+                if (i == 0 && faultInjector != null)
+                    faultInjector();
+            }
+
+            // Three parallel pointer lists (image, tsa, pal) — each a
+            // u32-pointer array (WF :565-578, order image/tsa/pal).
+            var imageListBytes = new List<byte>();
+            var tsaListBytes   = new List<byte>();
+            var palListBytes   = new List<byte>();
+            for (int i = 0; i < uniqueCount; i++)
+            {
+                U.append_u32(imageListBytes, U.toPointer(imagePtrs[i]));
+                U.append_u32(tsaListBytes,   U.toPointer(tsaPtrs[i]));
+                U.append_u32(palListBytes,   U.toPointer(palPtrs[i]));
+            }
+
+            uint framesOff   = ra.WriteAmbient(framesData);
+            if (framesOff == U.NOT_FOUND) return "Cannot allocate space for frames table.";
+            uint tsaListOff  = ra.WriteAmbient(tsaListBytes.ToArray());
+            if (tsaListOff == U.NOT_FOUND) return "Cannot allocate space for TSA list.";
+            uint imageListOff = ra.WriteAmbient(imageListBytes.ToArray());
+            if (imageListOff == U.NOT_FOUND) return "Cannot allocate space for image list.";
+            uint palListOff  = ra.WriteAmbient(palListBytes.ToArray());
+            if (palListOff == U.NOT_FOUND) return "Cannot allocate space for palette list.";
+
+            // mainData: [FE8U program template prefix], frames, tsalist,
+            // imagelist, pallist (toPointer), then sound_id (RAW u32, NOT
+            // toPointer — WF :616).
+            var mainData = new List<byte>();
+
+            // GUARD C (#917): prepend the FE8U program template VERBATIM —
+            // no endian swap, no pad, no truncate (WF :592/:597
+            // mainData.AddRange(File.ReadAllBytes(prog))). FE8J → empty
+            // prefix (programTemplate.Length == 0), so the FE8J layout is
+            // byte-identical to slice 1. The slot (repointed below) points
+            // to the template START, so the export SkipCode skips exactly
+            // this prefix on re-read.
+            if (programTemplate.Length > 0)
+                mainData.AddRange(programTemplate);
+
+            U.append_u32(mainData, U.toPointer(framesOff));
+            U.append_u32(mainData, U.toPointer(tsaListOff));
+            U.append_u32(mainData, U.toPointer(imageListOff));
+            U.append_u32(mainData, U.toPointer(palListOff));
+            U.append_u32(mainData, soundId);
+
+            // LAST op: allocate mainData + repoint the slot (WF :620).
+            uint mainOff = ra.WriteAndWritePointerAmbient(slot, mainData.ToArray());
+            if (mainOff == U.NOT_FOUND)
+                return "Cannot allocate space for the animation config block.";
+
+            return string.Empty;
         }
 
         // ================================================================

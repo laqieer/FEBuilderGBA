@@ -435,7 +435,40 @@ Specialized utilities for different graphic types:
   `SkillConfigSkillSystemView.BulkExport_Click` provides `writeAnime` — it writes
   `anime{i:hex}/anime.txt` (via `SkillSystemsAnimeExportCore.BuildScriptLines`) +
   per-frame PNGs and disposes each unique `IImage` once. BULK IMPORT = SLICE 2
-  (separate PR) (#920).
+  (separate PR, #923).
+- `SkillConfigSkillSystemBulkImportCore.cs` (Core, ROM-MUTATING, BULK-ATOMIC) -
+  Cross-platform BULK-IMPORT seam for the SkillSystems skill config (SLICE 2 of
+  #923 / #885; ported from WinForms `SkillConfigSkillSystemForm.ImportAllData`).
+  `ImportAll(rom, textPointerLocation, animePointerLocation, tsvPath,
+  animeScriptDirResolver, imageProvider, applyRecycle=true) → string error`
+  reads a `*.SkillConfig.tsv` (one `textID<TAB>animePtr` hex row per skill, as
+  written by the export seam), derefs BOTH pointer LOCATIONS (after a `+3`
+  isSafetyOffset guard, #922 lesson), walks the `i < 255`-capped row count, and
+  for each skill with an `anime{i:hex}/anime.txt` re-imports the animation via
+  the merged `SkillSystemsAnimeImportCore.ImportSkillAnimation` (now with an
+  additive `manageSnapshot` param). The WHOLE multi-skill import is ONE ATOMIC
+  transaction: either every skill commits (exactly ONE undo record) or the ROM
+  is restored byte-identical to the pre-bulk snapshot (ZERO undo records). The
+  3 HIGH corruption fixes from the approved #923 plan: **H1** length-aware
+  restore — a per-skill anime import can GROW `rom.Data` (via RecycleAddress →
+  `write_resize_data`); the fault restore down-resizes back to `snap.Length`
+  BEFORE the in-place `Array.Copy`, so the trailing grown bytes can't survive.
+  **H2** return-value fault detection — `ImportSkillAnimation` signals failure
+  by RETURNING a non-empty string (not only by throwing); the bulk treats a
+  non-empty returned error OR a thrown exception OR a `NOT_FOUND` as a fault.
+  **H3** ONE `ROM.BeginUndoScope` wraps the whole loop, every per-skill import
+  runs with `manageSnapshot:false` (composing into the bulk scope instead of
+  opening its own non-reentrant scope), the scope is asserted alive across all
+  skills (`Rom.IsAmbientUndoScopeActive`), and exactly one record is pushed on
+  success. M/L: textID written ONLY when non-zero (M1); `applyRecycle` toggle
+  through the ported pure `SkillConfigSkillTextIDRecycle.Convert` (M2);
+  VALIDATE-ALL-BEFORE-MUTATE pre-loads every script + all PNGs (+ FE8U .dmp
+  template) so any validation failure mutates ZERO bytes (M3); malformed
+  `< 2`-field TSV rows skipped (L1); textID write uses the ambient `write_u16`
+  overload (L2). The Avalonia `SkillConfigSkillSystemView.BulkImport_Click`
+  wires it (reusing the single-import quantize loader for per-frame PNGs); the
+  Core seam OWNS the undo scope so the view does NOT open a UI UndoService scope
+  (that would clobber the non-reentrant ambient scope) (#923).
 
 ### Caching System
 

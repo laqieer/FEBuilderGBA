@@ -308,9 +308,91 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void BulkImport_Click(object? sender, RoutedEventArgs e)
+        // #923 SLICE 2 — real bulk IMPORT via the cross-platform BULK-ATOMIC
+        // SkillConfigSkillSystemBulkImportCore seam. Reads a *.SkillConfig.tsv
+        // (one `textID<TAB>animePtr` row per skill) and, for each skill with an
+        // `anime{i:hex}/anime.txt`, re-imports the animation. The whole multi-
+        // skill import is ONE atomic transaction (one undo record on success,
+        // byte-identical rollback on any fault).
+        async void BulkImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigSkillSystemView.BulkImport_Click invoked - disabled until Core extraction lands (#500)");
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null || !_vm.IsLoaded) return;
+
+            string? path = await FileDialogHelper.OpenFile(this,
+                R._("Bulk Import Skill Config"), "*.SkillConfig.tsv");
+            if (string.IsNullOrEmpty(path)) return;
+
+            try
+            {
+                string basedir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path)) ?? ".";
+
+                // The Core seam resolves each skill i's anime dir via this
+                // resolver, then SCOPES every relative frame-PNG name to THAT dir
+                // before calling the imageProvider (so two skills with distinct
+                // anime{i}/ dirs but same-named PNGs each load their own frames —
+                // #925 thread 1). The imageProvider therefore receives an already-
+                // scoped path; it just loads + quantizes it (rooted as-is; a bare
+                // relative fallback is resolved against basedir for safety).
+                Func<uint, string> dirResolver = i =>
+                    System.IO.Path.Combine(basedir, "anime" + U.ToHexString(i));
+
+                SkillSystemsAnimeImportCore.ImageProvider imageProvider = pngName =>
+                {
+                    string full = System.IO.Path.IsPathRooted(pngName)
+                        ? pngName
+                        : System.IO.Path.Combine(basedir, pngName);
+                    try
+                    {
+                        var lr = ImageImportService.LoadAndQuantizeFromFile(
+                            full, 0, 0, maxColors: 16, strictSize: false,
+                            requireTileMultiple: false);
+                        if (lr == null || !lr.Success || lr.IndexedPixels == null)
+                            return null;
+                        return (lr.IndexedPixels, lr.Width, lr.Height, lr.GBAPalette);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error("SkillConfigSkillSystemView.BulkImport image load failed: {0}", ex.Message);
+                        return null;
+                    }
+                };
+
+                // The Core seam OWNS the undo transaction: it opens its OWN single
+                // ambient BeginUndoScope wrapping the whole loop, restores the ROM
+                // byte-identical on any fault (pushing ZERO records), and pushes
+                // exactly ONE undo record on success. So we do NOT open a UI
+                // UndoService scope here (that would clobber the Core's ambient
+                // scope — BeginUndoScope is non-reentrant). #923 H3.
+                string err;
+                try
+                {
+                    err = SkillConfigSkillSystemBulkImportCore.ImportAll(
+                        rom, _vm.TextPointerLocation, _vm.AnimePointerLocation,
+                        path, dirResolver, imageProvider);
+                }
+                catch (Exception ex)
+                {
+                    err = ex.Message;
+                }
+
+                if (!string.IsNullOrEmpty(err))
+                {
+                    CoreState.Services?.ShowError(R._("Bulk import failed: {0}", err));
+                    return;
+                }
+
+                CoreState.Services?.ShowInfo(R._("Bulk imported from: {0}", path));
+
+                // Success: refresh the VM + reload the list/preview.
+                OnSelected(_vm.CurrentAddr);
+                LoadList();
+                EntryList.SelectAddress(_vm.CurrentAddr);
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError(R._("Bulk import failed: {0}", ex.Message));
+            }
         }
 
         // #920 SLICE 1 — real bulk EXPORT via the cross-platform READ-ONLY
