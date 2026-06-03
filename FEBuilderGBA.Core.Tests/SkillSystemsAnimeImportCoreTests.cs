@@ -1,29 +1,35 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 using System;
+using System.IO;
+using System.Reflection;
 using Xunit;
 
 namespace FEBuilderGBA.Core.Tests
 {
     /// <summary>
-    /// Tests for the cross-platform SkillSystems anime IMPORT seam (SLICE 1 of
-    /// #913). FE8J path only; FE8U returns a clean not-supported error with ZERO
-    /// mutation. All tests are fully synthetic — no real ROM file needed:
+    /// Tests for the cross-platform SkillSystems anime IMPORT seam (SLICE 1 #916
+    /// FE8J + SLICE 2 #917 FE8U program-code re-emit). The FE8J tests are fully
+    /// synthetic; the FE8U tests need the config/patch2 submodule checked out
+    /// (they read the real skillanimtemplate*.dmp via CoreState.BaseDirectory):
     ///
     ///   * Parse: D / S{hex} / {wait} {png} handling + 0x3d1 sound-id default.
-    ///   * Round-trip: import a script + synthetic PNGs into a synthetic FE8J
+    ///   * Round-trip: import a script + synthetic PNGs into a synthetic FE8J/8U
     ///     ROM, then EXPORT the written slot and assert the same frame count +
-    ///     (id,wait) sequence + dedup-by-filename id stability.
+    ///     (id,wait) sequence + dedup-by-filename id stability + sound id.
     ///   * Structural: frames-table ends with the 4-byte 0xFFFF,0xFFFF; each
     ///     palette region is 0x20 RAW (not LZ77); sound_id round-trips incl the
     ///     0x3d1 default; mainData word order; sound_id written RAW not pointer.
+    ///   * FE8U prefix (#917): the written anime region's PREFIX == the exact
+    ///     attack/defender .dmp bytes; the export SkipCode resolves the direction.
     ///   * Corruption guard: a forced fault BETWEEN a mid-write WriteAmbient and
-    ///     the final repoint leaves rom.Data BYTE-IDENTICAL to the pre-snapshot.
-    ///   * FE8U deferral: returns the not-supported error + ZERO bytes mutated.
+    ///     the final repoint leaves rom.Data BYTE-IDENTICAL to the pre-snapshot
+    ///     (FE8J AND FE8U — the template prepend opens no partial-write window).
+    ///   * GUARD A (#917): a missing selected .dmp → clean no-mutation error.
     ///   * Guards: foreign ROM refused; bad script rejected; >16-colour PNG
     ///     rejected — all with no mutation.
     ///
     /// [Collection("SharedState")] because the tests mutate CoreState.ROM /
-    /// CoreState.ImageService / CoreState.Undo.
+    /// CoreState.ImageService / CoreState.Undo / CoreState.BaseDirectory.
     /// </summary>
     [Collection("SharedState")]
     public class SkillSystemsAnimeImportCoreTests
@@ -233,21 +239,174 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ---------------------------------------------------------------
-        // FE8U deferral — zero mutation
+        // SLICE 2 (#917): FE8U program-template re-emit
         // ---------------------------------------------------------------
 
         [Fact]
-        public void Import_FE8U_NotSupported_ZeroMutation()
+        public void Import_FE8U_Attack_RoundTrip_PrefixIsAttackTemplate()
         {
+            byte[] attackDmp = ReadDmp("skillanimtemplate_2016_11_04.dmp");
+            WithFE8U((rom, slot) =>
+            {
+                // No D line → attack template. Two unique frames + a reused one.
+                string[] script =
+                {
+                    "S001A",
+                    "3 g000.png",
+                    "5 g001.png",
+                    "9 g000.png",
+                };
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, script, slot, FakeProvider);
+                Assert.Equal("", err);
+
+                // The slot points at the program-template START (the anime addr).
+                uint animeAddr = rom.p32(slot);
+
+                // GUARD C: the written region's PREFIX == the attack .dmp VERBATIM.
+                for (int i = 0; i < attackDmp.Length; i++)
+                    Assert.Equal(attackDmp[i], rom.Data[(uint)animeAddr + (uint)i]);
+
+                // Export resolves the config via SkipCode (which skips the prefix)
+                // and reproduces frames/(id,wait)/sound, attack direction.
+                var exported = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animeAddr);
+                Assert.Equal("", exported.Error);
+                Assert.False(exported.IsDefender);
+                Assert.Equal(0x1Au, exported.SoundId);
+                Assert.Equal(3, exported.Frames.Count);
+                Assert.Equal(0u, exported.Frames[0].Id);
+                Assert.Equal(3u, exported.Frames[0].Wait);
+                Assert.Equal(1u, exported.Frames[1].Id);
+                Assert.Equal(5u, exported.Frames[1].Wait);
+                Assert.Equal(0u, exported.Frames[2].Id);
+                Assert.Equal(9u, exported.Frames[2].Wait);
+            });
+        }
+
+        [Fact]
+        public void Import_FE8U_Defender_RoundTrip_PrefixIsDefenderTemplate()
+        {
+            byte[] defenderDmp = ReadDmp("skillanimtemplate_defender_2017_01_24.dmp");
+            WithFE8U((rom, slot) =>
+            {
+                // Leading D line → defender template.
+                string[] script =
+                {
+                    "D #is defender",
+                    "S0042",
+                    "2 g000.png",
+                };
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, script, slot, FakeProvider);
+                Assert.Equal("", err);
+
+                uint animeAddr = rom.p32(slot);
+
+                // GUARD C: PREFIX == the DEFENDER .dmp bytes VERBATIM.
+                for (int i = 0; i < defenderDmp.Length; i++)
+                    Assert.Equal(defenderDmp[i], rom.Data[(uint)animeAddr + (uint)i]);
+
+                // Export SkipCode resolves AnimeType.D (defender) on re-read.
+                var exported = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animeAddr);
+                Assert.Equal("", exported.Error);
+                Assert.True(exported.IsDefender);
+                Assert.Equal(0x42u, exported.SoundId);
+                Assert.Single(exported.Frames);
+                Assert.Equal(0u, exported.Frames[0].Id);
+                Assert.Equal(2u, exported.Frames[0].Wait);
+            });
+        }
+
+        [Fact]
+        public void Import_FE8U_AttackPrefixDiffersFromDefenderPrefix()
+        {
+            // Sanity: the two templates are distinct, so the direction-specific
+            // prefix asserts above are meaningful (not a constant the test would
+            // pass for either template).
+            byte[] attack = ReadDmp("skillanimtemplate_2016_11_04.dmp");
+            byte[] defender = ReadDmp("skillanimtemplate_defender_2017_01_24.dmp");
+            Assert.False(attack.Length == defender.Length &&
+                AreEqual(attack, defender));
+        }
+
+        [Fact]
+        public void Import_FE8U_StructuralLayout_ConfigAfterTemplate()
+        {
+            byte[] attackDmp = ReadDmp("skillanimtemplate_2016_11_04.dmp");
+            WithFE8U((rom, slot) =>
+            {
+                string[] script = { "S0042", "2 g000.png", "4 g001.png" };
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, script, slot, FakeProvider);
+                Assert.Equal("", err);
+
+                uint animeAddr = rom.p32(slot);
+                // The 5-word config block begins immediately AFTER the template.
+                uint cfg = animeAddr + (uint)attackDmp.Length;
+
+                uint framesOff   = rom.p32(cfg + 0);
+                uint pallistOff  = rom.p32(cfg + 12);
+                uint soundId     = rom.u32(cfg + 16);
+
+                // sound_id stored RAW: 0x0042, NOT 0x08000042.
+                Assert.Equal(0x0042u, soundId);
+                // frames terminator after 2 frames (2*4 bytes) is 0xFFFF,0xFFFF.
+                Assert.Equal(0xFFFFu, (uint)rom.u16(framesOff + 8));
+                Assert.Equal(0xFFFFu, (uint)rom.u16(framesOff + 10));
+                // Palette region is RAW 0x20 (not LZ77 header 0x10).
+                uint pal0 = rom.p32(pallistOff + 0);
+                Assert.NotEqual(0x10, rom.Data[pal0]);
+                for (int i = 0; i < 0x20; i++)
+                    Assert.Equal((byte)i, rom.Data[pal0 + (uint)i]);
+            });
+        }
+
+        [Fact]
+        public void Import_FE8U_ForcedFaultMidWrite_LeavesRomByteIdentical()
+        {
+            WithFE8U((rom, slot) =>
+            {
+                byte[] before = (byte[])rom.Data.Clone();
+                uint slotBefore = rom.u32(slot);
+
+                string[] script = { "S0001", "1 g000.png", "2 g001.png" };
+
+                // Fault fires after the first frame's regions are written but
+                // before the slot is repointed; the template prepend happens later
+                // (it is part of mainData, the LAST op), so it opens NO extra
+                // partial-write window. Snapshot-restore must roll everything back.
+                string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
+                    rom, script, slot, FakeProvider,
+                    faultInjector: () => throw new InvalidOperationException("injected fault"));
+
+                Assert.NotEqual("", err);
+                Assert.Equal(slotBefore, rom.u32(slot));
+                Assert.Equal(before.Length, rom.Data.Length);
+                for (int i = 0; i < before.Length; i++)
+                {
+                    if (before[i] != rom.Data[i])
+                        Assert.Fail($"ROM byte {i} changed: {before[i]:X2} -> {rom.Data[i]:X2}");
+                }
+            });
+        }
+
+        [Fact]
+        public void Import_FE8U_MissingTemplate_CleanError_NoMutation()
+        {
+            // GUARD A: point BaseDirectory at a dir with NO config/patch2/FE8U/skill
+            // .dmp → the pre-mutation template read fails → clean no-mutation error.
             var prevRom = CoreState.ROM;
             var prevSvc = CoreState.ImageService;
             var prevUndo = CoreState.Undo;
+            var prevBase = CoreState.BaseDirectory;
             try
             {
                 ROM rom = MakeFE8URom();
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
                 CoreState.Undo = new Undo();
+                CoreState.BaseDirectory = Path.Combine(Path.GetTempPath(),
+                    "fe8u_missing_dmp_" + Guid.NewGuid().ToString("N"));
 
                 byte[] before = (byte[])rom.Data.Clone();
                 uint slot = 0x300u;
@@ -255,8 +414,9 @@ namespace FEBuilderGBA.Core.Tests
                 string err = SkillSystemsAnimeImportCore.ImportSkillAnimation(
                     rom, new[] { "1 g000.png" }, slot, FakeProvider);
 
-                Assert.Contains("FE8U", err);
-                // ZERO bytes mutated.
+                Assert.NotEqual("", err);
+                Assert.Contains("template", err, StringComparison.OrdinalIgnoreCase);
+                // ZERO bytes mutated — the failure is BEFORE the snapshot/mutate.
                 Assert.Equal(before.Length, rom.Data.Length);
                 for (int i = 0; i < before.Length; i++)
                     Assert.Equal(before[i], rom.Data[i]);
@@ -266,6 +426,7 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ROM = prevRom;
                 CoreState.ImageService = prevSvc;
                 CoreState.Undo = prevUndo;
+                CoreState.BaseDirectory = prevBase;
             }
         }
 
@@ -400,6 +561,71 @@ namespace FEBuilderGBA.Core.Tests
                 CoreState.ImageService = prevSvc;
                 CoreState.Undo = prevUndo;
             }
+        }
+
+        // Run an action with a synthetic FE8U ROM wired into CoreState and
+        // BaseDirectory pointed at the repo root (so the FE8U program template
+        // .dmp reads resolve to config/patch2/FE8U/skill/). Slot at 0x300.
+        static void WithFE8U(Action<ROM, uint> body)
+        {
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            var prevUndo = CoreState.Undo;
+            var prevBase = CoreState.BaseDirectory;
+            try
+            {
+                ROM rom = MakeFE8URom();
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                CoreState.Undo = new Undo();
+                CoreState.BaseDirectory = FindRepoRoot();
+
+                uint slot = 0x300u;
+                body(rom, slot);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.ImageService = prevSvc;
+                CoreState.Undo = prevUndo;
+                CoreState.BaseDirectory = prevBase;
+            }
+        }
+
+        // Read a real FE8U skill program template .dmp from the checked-out
+        // config/patch2 submodule. Throws an explicit message if the submodule
+        // is missing so CI surfaces the dependency clearly.
+        static byte[] ReadDmp(string name)
+        {
+            string path = Path.Combine(FindRepoRoot(), "config", "patch2", "FE8U", "skill", name);
+            if (!File.Exists(path))
+            {
+                throw new InvalidOperationException(
+                    "config/patch2 submodule not checked out — needed for the FE8U "
+                    + "skill-anime import tests. Run: git submodule update --init config/patch2");
+            }
+            return File.ReadAllBytes(path);
+        }
+
+        static bool AreEqual(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i]) return false;
+            return true;
+        }
+
+        static string FindRepoRoot()
+        {
+            string asm = Assembly.GetExecutingAssembly().Location;
+            string dir = Path.GetDirectoryName(asm);
+            for (int i = 0; i < 12 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                    return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            throw new InvalidOperationException("Could not locate FEBuilderGBA.sln from " + asm);
         }
 
         static ROM MakeFE8JRom()
