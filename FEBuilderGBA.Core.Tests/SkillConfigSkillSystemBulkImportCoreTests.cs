@@ -612,8 +612,148 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ===============================================================
+        // #929 — bulk recycle excludes cross-slot shared regions.
+        // ===============================================================
+
+        // Skills A (slot 0) and B (slot 1) SHARE a palette region. Bulk-import A
+        // with recycle + the shared exclusion: (a) B's shared region bytes are
+        // byte-IDENTICAL after (it was NOT recycled/overwritten), and (b) A's
+        // UNSHARED regions are reclaimed (a SECOND identical bulk does NOT grow
+        // rom.Data — no unbounded leak).
+        [Fact]
+        public void BulkImport_RecyclesUnshared_PreservesLiveCoOwnerSharedRegion()
+        {
+            ROM rom = SetupRom();
+
+            // Pre-seed two anime slots that SHARE slot 0's palette region.
+            uint sharedPalRegion = SeedTwoSlotsSharingPalette(rom);
+            byte[] sharedBefore = rom.getBinaryData(sharedPalRegion, 0x20);
+
+            // The bulk re-imports skill 0 (it has an anime.txt); skill 1 has a
+            // NON-zero animePtr but NO anime.txt -> its slot is PRESERVED, so it
+            // stays the LIVE co-owner of the shared palette region.
+            string dir = MakeTempDir();
+            WriteAnimeDir(dir, 0, new[] { "S0055", "2 g000.png", "4 g001.png", "6 g000.png" });
+            // NOTE: no WriteAnimeDir for skill 1 -> the resolver points at a dir
+            // with no anime.txt, so skill 1 keeps its current anime.
+
+            string tsv = Path.Combine(dir, "skills.SkillConfig.tsv");
+            File.WriteAllLines(tsv, new[]
+            {
+                U.ToHexString(0x111u) + "\t" + U.ToHexString(rom.p32(ANIME_BASE + 0)),
+                U.ToHexString(0x222u) + "\t" + U.ToHexString(rom.p32(ANIME_BASE + 4)),
+            });
+
+            uint slot1Before = rom.p32(ANIME_BASE + 4);
+
+            string err = SkillConfigSkillSystemBulkImportCore.ImportAll(
+                rom, TEXT_PTR_LOC, ANIME_PTR_LOC, tsv,
+                DirResolver(dir), Provider(dir), applyRecycle: false);
+            Assert.Equal("", err);
+
+            // (a) skill 1's slot was preserved (no anime.txt) and still points at
+            // the same anime, and the SHARED palette region bytes are unchanged.
+            Assert.Equal(slot1Before, rom.p32(ANIME_BASE + 4));
+            byte[] sharedAfter = rom.getBinaryData(sharedPalRegion, 0x20);
+            Assert.Equal(sharedBefore, sharedAfter);
+
+            // (b) A's unshared regions were reclaimed: a SECOND identical bulk
+            // import does NOT grow rom.Data (the freed unshared regions are reused
+            // instead of leaking). Re-point skill 0's TSV row at its NEW anime.
+            int lenAfterFirst = rom.Data.Length;
+            File.WriteAllLines(tsv, new[]
+            {
+                U.ToHexString(0x111u) + "\t" + U.ToHexString(rom.p32(ANIME_BASE + 0)),
+                U.ToHexString(0x222u) + "\t" + U.ToHexString(rom.p32(ANIME_BASE + 4)),
+            });
+            string err2 = SkillConfigSkillSystemBulkImportCore.ImportAll(
+                rom, TEXT_PTR_LOC, ANIME_PTR_LOC, tsv,
+                DirResolver(dir), Provider(dir), applyRecycle: false);
+            Assert.Equal("", err2);
+            Assert.Equal(lenAfterFirst, rom.Data.Length);
+
+            // And the shared region is STILL byte-identical after the second run.
+            Assert.Equal(sharedBefore, rom.getBinaryData(sharedPalRegion, 0x20));
+        }
+
+        // Forced fault mid-bulk WITH a populated, exclusion-FILTERED recycle pool
+        // (skill 0 shares a region with skill 1, so the pool the recycle path
+        // builds for skill 0 EXCLUDES the shared region). The caller's single
+        // outer length-aware snapshot restore must leave rom.Data byte-identical.
+        [Fact]
+        public void BulkImport_ForcedFault_WithPopulatedRecyclePoolAndExclusions_ByteIdentical()
+        {
+            ROM rom = SetupRom();
+
+            // Pre-seed two slots sharing a palette region (so the refcount pre-pass
+            // produces a NON-EMPTY exclusion set and skill 0's recycle pool is
+            // populated-but-filtered).
+            SeedTwoSlotsSharingPalette(rom);
+
+            string dir = MakeTempDir();
+            WriteAnimeDir(dir, 0, new[] { "S0099", "3 g000.png", "4 g001.png", "5 g002.png" });
+            string tsv = Path.Combine(dir, "skills.SkillConfig.tsv");
+            File.WriteAllLines(tsv, new[]
+            {
+                U.ToHexString(0x111u) + "\t" + U.ToHexString(rom.p32(ANIME_BASE + 0)),
+                U.ToHexString(0x222u) + "\t" + U.ToHexString(rom.p32(ANIME_BASE + 4)),
+            });
+
+            byte[] before = (byte[])rom.Data.Clone();
+            int snapLength = rom.Data.Length;
+            int undoBefore = UndoBufferCount();
+
+            // Fault on skill 0's first frame (after the recycle pool is built and
+            // the first region is written) -> partial write through a populated,
+            // exclusion-filtered pool. The bulk's outer restore must roll it back.
+            Action fault = () => throw new InvalidOperationException("injected fault with filtered recycle pool");
+
+            string err = SkillConfigSkillSystemBulkImportCore.ImportAll(
+                rom, TEXT_PTR_LOC, ANIME_PTR_LOC, tsv,
+                DirResolver(dir), Provider(dir), applyRecycle: false, faultInjector: fault);
+
+            Assert.NotEqual("", err);
+            // Byte-identical (length + every byte) restore.
+            Assert.Equal(snapLength, rom.Data.Length);
+            for (int i = 0; i < before.Length; i++)
+            {
+                if (before[i] != rom.Data[i])
+                    Assert.Fail($"ROM byte {i} changed: {before[i]:X2} -> {rom.Data[i]:X2}");
+            }
+            // ZERO net undo records on a fault.
+            Assert.Equal(undoBefore, UndoBufferCount());
+        }
+
+        // ===============================================================
         // Helpers
         // ===============================================================
+
+        // Import two DISTINCT animes into anime-table slots 0 and 1, then redirect
+        // slot 1's palette-list[0] entry to slot 0's palette region so the two
+        // slots SHARE that one palette region (the canonical "different pointer
+        // slots referencing the same bytes" sharing case the refcount detects).
+        // Returns the shared palette region's normalized data address.
+        static uint SeedTwoSlotsSharingPalette(ROM rom)
+        {
+            uint slot0 = ANIME_BASE + 0;
+            uint slot1 = ANIME_BASE + 4;
+
+            string[] scriptA = { "S001A", "3 a000.png", "5 a001.png" };
+            string[] scriptB = { "S002B", "2 b000.png", "4 b001.png" };
+            Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot0, name => MakeFrame()));
+            Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptB, slot1, name => MakeFrame()));
+
+            uint cfg0 = rom.p32(slot0);
+            uint pallist0Off = rom.p32(cfg0 + 12);
+            uint slot0PalRegion = U.toOffset(rom.p32(pallist0Off + 0));
+
+            uint cfg1 = rom.p32(slot1);
+            uint pallist1Off = rom.p32(cfg1 + 12);
+            rom.write_p32(pallist1Off + 0, U.toPointer(slot0PalRegion));
+            Assert.Equal(slot0PalRegion, U.toOffset(rom.p32(pallist1Off + 0)));
+
+            return slot0PalRegion;
+        }
 
         ROM SetupRom(bool fe8u = false)
         {

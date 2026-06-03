@@ -428,12 +428,25 @@ Specialized utilities for different graphic types:
   the validate phase BEFORE the defensive snapshot clone, so #885 byte-identity
   on fault never depends on it, and threads into `WriteCore`'s `RecycleAddress`
   pool via the new `recycleOldRegion` parameter (default `true`). Single-import
-  (Avalonia helper) reuses the freed region; **bulk
-  (`SkillConfigSkillSystemBulkImportCore`) passes `recycleOldRegion:false`** —
-  always fresh-allocate — because bulk mutates many slots in one transaction
-  where cross-slot shared sub-regions are likely and skill-anime has no
-  `SubConfilctArea` de-dup pass; bulk recycle is deferred pending a shared-region
-  safety test (#914 follow-up).
+  (Avalonia helper) reuses the freed region.
+  CROSS-SLOT SHARED-REGION SAFETY (#929): the `SubConfilctArea`-equivalent
+  skill-anime lacked is now `BuildSkillAnimeRegionRefcount(rom, animeBase, count)`
+  — a STRICTLY READ-ONLY refcount over EVERY slot's recyclable regions, keyed by
+  normalized data address (`Address.Addr`, NOT `Address.Pointer` — different
+  pointer slots referencing the SAME bytes is the normal sharing case). It counts
+  SLOT OWNERSHIP (per-slot `HashSet<uint>` dedup) NOT raw per-frame entries, so a
+  slot reusing a frame id stays `count==1`; only a region owned by ≥2 distinct
+  slots reaches `count>1`. An exclude-aware overload
+  `EnumerateOldAnimeRegions(rom, addr, IReadOnlySet<uint> excludeRegionAddrs)`
+  SKIPS any per-frame region OR config/list block whose data address is excluded
+  (the original `(rom, addr)` overload delegates with `null` — no behavior
+  change), and `ImportSkillAnimation` gained a trailing `excludeRegions = null`
+  param threaded into the recycle-pool build. **Bulk
+  (`SkillConfigSkillSystemBulkImportCore`) now recycles NON-SHARED regions**: it
+  computes the shared set once from the ORIGINAL pre-mutation state and passes
+  `recycleOldRegion:true, excludeRegions:shared` — conservative (originally-shared
+  regions stay excluded for the whole transaction; may leak but never corrupts a
+  co-owner; dynamic reclaim out of scope).
 - `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) - Cross-platform BULK-EXPORT
   seam for the SkillSystems skill config (SLICE 1 of #920; ported from WinForms
   `SkillConfigSkillSystemForm.ExportAllData`). `ExportAll(rom, textPointerLocation,
@@ -483,6 +496,16 @@ Specialized utilities for different graphic types:
   wires it (reusing the single-import quantize loader for per-frame PNGs); the
   Core seam OWNS the undo scope so the view does NOT open a UI UndoService scope
   (that would clobber the non-reentrant ambient scope) (#923).
+  CROSS-SLOT RECYCLE (#929): bulk now RECYCLES old anime regions (closing the
+  #914 leak) — BEFORE the mutation loop it runs the read-only
+  `SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase,
+  count)` over the ORIGINAL state, builds `shared = {addr : count>1}`, and passes
+  `recycleOldRegion:true, excludeRegions:shared` into each per-skill
+  `ImportSkillAnimation`. A region owned by ≥2 distinct slots is NEVER recycled
+  (so a co-owning skill's bytes can't be overwritten); unshared old regions are
+  reclaimed so bulk re-import no longer grows the ROM unboundedly. Conservative
+  static pre-pass — an originally-shared region stays excluded for the whole
+  transaction (safe, may leak; dynamic reclaim out of scope).
 
 ### Caching System
 

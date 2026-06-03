@@ -744,9 +744,215 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // ---------------------------------------------------------------
+        // #929 — cross-slot shared-region refcount + exclude-aware enumeration
+        // ---------------------------------------------------------------
+
+        // B1: a SINGLE slot whose anime REUSES a frame id (so EnumerateOldAnime-
+        // Regions emits the same Address.Addr more than once) must count as a
+        // SINGLE owner — refcount == 1 for every one of its regions, NOT >1.
+        // Otherwise the bulk would wrongly treat a deduped frame as "shared" and
+        // recycle would become a near no-op.
+        [Fact]
+        public void BuildSkillAnimeRegionRefcount_RepeatedFrameInOneSlot_CountsAsSingleOwner()
+        {
+            WithFE8J((rom, slot) =>
+            {
+                // 3 frames, two referencing the SAME PNG -> ids 0,1,0. Frame id 0
+                // is reused, so its per-frame regions appear TWICE in the raw
+                // enumeration for this one slot.
+                string[] script = { "S001A", "3 g000.png", "5 g001.png", "9 g000.png" };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, script, slot, FakeProvider));
+
+                // The raw enumeration DOES contain a duplicate Addr (proves the
+                // dedup is load-bearing, not vacuously satisfied).
+                var regions = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot));
+                var distinct = new HashSet<uint>();
+                int dupes = 0;
+                foreach (var r in regions) { if (!distinct.Add(r.Addr)) dupes++; }
+                Assert.True(dupes > 0, "the reused-id slot must emit at least one duplicate region Addr");
+
+                // One slot at index 0; the rest of the table is empty. EVERY region
+                // is owned by exactly ONE slot -> count == 1 (never 2 for the
+                // reused frame's regions).
+                uint animeBase = slot; // single-slot table starts at the slot addr.
+                var refcount = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase, 1);
+                Assert.NotEmpty(refcount);
+                foreach (var kv in refcount)
+                    Assert.Equal(1, kv.Value);
+            });
+        }
+
+        // Two slots sharing a region (slot 1's palette-list entry redirected to
+        // slot 0's palette region) -> that region's refcount == 2; every other
+        // region (unshared) == 1.
+        [Fact]
+        public void BuildSkillAnimeRegionRefcount_TwoSlotsSharingRegion_CountsTwo()
+        {
+            WithTwoSlotTable((rom, animeBase, slot0, slot1, sharedPalRegion) =>
+            {
+                var refcount = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase, 2);
+
+                // The shared palette region is owned by BOTH slots -> count 2.
+                Assert.True(refcount.TryGetValue(sharedPalRegion, out int sharedCount),
+                    "the shared palette region must appear in the refcount");
+                Assert.Equal(2, sharedCount);
+
+                // At least one OTHER region exists and is unshared (count 1); no
+                // region exceeds 2.
+                int unsharedSeen = 0;
+                foreach (var kv in refcount)
+                {
+                    Assert.True(kv.Value <= 2, $"no region may exceed 2 owners (addr 0x{kv.Key:X} = {kv.Value})");
+                    if (kv.Key != sharedPalRegion)
+                    {
+                        Assert.Equal(1, kv.Value);
+                        unsharedSeen++;
+                    }
+                }
+                Assert.True(unsharedSeen > 0, "there must be at least one unshared (count==1) region");
+            });
+        }
+
+        // #932 review: BuildSkillAnimeRegionRefcount must normalize animeBase via
+        // U.toOffset so a caller may pass a GBA pointer (0x08xxxxxx) base, not just
+        // a ROM offset. Without normalization, slot = animeBase + 4*i would carry
+        // the 0x08000000 base, the isSafetyOffset(slot+3) guard would reject EVERY
+        // slot, and the refcount would come back EMPTY -> the shared-region
+        // exclusion safety silently disabled. Same two-slots-sharing-a-region
+        // scenario as BuildSkillAnimeRegionRefcount_TwoSlotsSharingRegion_CountsTwo,
+        // but the base is passed as a GBA pointer; the result must be IDENTICAL.
+        [Fact]
+        public void BuildSkillAnimeRegionRefcount_AcceptsGbaPointerBase_NormalizesToOffset()
+        {
+            WithTwoSlotTable((rom, animeBase, slot0, slot1, sharedPalRegion) =>
+            {
+                // Offset-base reference result (the existing, proven-correct path).
+                var byOffset = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase, 2);
+
+                // Same call but the base is a GBA pointer (0x08xxxxxx). U.toPointer
+                // is the canonical offset->pointer conversion; assert it really set
+                // the 0x08000000 base so the test proves the normalization, not a
+                // no-op.
+                uint gbaBase = U.toPointer(animeBase);
+                Assert.Equal(animeBase | 0x08000000u, gbaBase);
+                var byPointer = SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, gbaBase, 2);
+
+                // The safety is NOT silently disabled: the shared region is still
+                // counted with exactly 2 owners.
+                Assert.True(byPointer.TryGetValue(sharedPalRegion, out int sharedCount),
+                    "the shared palette region must appear in the pointer-base refcount");
+                Assert.Equal(2, sharedCount);
+
+                // The pointer-base result is IDENTICAL to the offset-base result
+                // (same keys, same per-region owner counts) -> toOffset normalized
+                // the GBA pointer back to the offset the offset-base path used.
+                Assert.NotEmpty(byPointer);
+                Assert.Equal(byOffset.Count, byPointer.Count);
+                foreach (var kv in byOffset)
+                {
+                    Assert.True(byPointer.TryGetValue(kv.Key, out int c),
+                        $"offset-base addr 0x{kv.Key:X} missing from pointer-base refcount");
+                    Assert.Equal(kv.Value, c);
+                }
+            });
+        }
+
+        // The exclude-aware overload must DROP every excluded address — covering
+        // BOTH a per-frame region AND a config/list block — while KEEPING the
+        // non-excluded regions.
+        [Fact]
+        public void EnumerateOldAnimeRegions_WithExclude_SkipsSharedPerFrameAndConfigBlocks()
+        {
+            WithFE8J((rom, slot) =>
+            {
+                string[] script = { "S0042", "2 g000.png", "4 g001.png" };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, script, slot, FakeProvider));
+
+                uint cfg = rom.p32(slot);
+                uint framesOff   = rom.p32(cfg + 0);   // a CONFIG/LIST block addr.
+                uint pallistOff  = rom.p32(cfg + 12);
+                uint pal0Region  = rom.p32(pallistOff + 0); // a PER-FRAME region addr.
+
+                // Full pool (no exclude) contains both addresses.
+                var full = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot), null);
+                Assert.Contains(full, a => a.Addr == U.toOffset(framesOff));
+                Assert.Contains(full, a => a.Addr == U.toOffset(pal0Region));
+
+                // Exclude one per-frame region (pal0) AND one config/list block
+                // (the frames table) -> both absent; everything else present.
+                var exclude = new HashSet<uint> { U.toOffset(pal0Region), U.toOffset(framesOff) };
+                var filtered = SkillSystemsAnimeImportCore.EnumerateOldAnimeRegions(rom, rom.p32(slot), exclude);
+
+                Assert.DoesNotContain(filtered, a => a.Addr == U.toOffset(pal0Region));
+                Assert.DoesNotContain(filtered, a => a.Addr == U.toOffset(framesOff));
+                // The filtered pool is strictly smaller but still non-empty (other
+                // regions — tsalist/imagelist/palettelist/pointer + other frames —
+                // survive).
+                Assert.True(filtered.Count > 0, "non-excluded regions must survive");
+                Assert.True(filtered.Count < full.Count, "excluding regions must shrink the pool");
+
+                // A SECOND pal region (id 1) that was NOT excluded is still present.
+                uint pal1Region = rom.p32(pallistOff + 4);
+                Assert.Contains(filtered, a => a.Addr == U.toOffset(pal1Region));
+            });
+        }
+
         // ===============================================================
         // Helpers
         // ===============================================================
+
+        // Build a 2-slot FE8J anime table where slot 1's anime shares slot 0's
+        // palette region (id-0 palette). Returns (rom, animeBase, slot0, slot1,
+        // sharedPalRegionAddr). The shared region is created by REDIRECTING slot
+        // 1's palette-list[0] entry to slot 0's palette region — the canonical
+        // "different pointer slots referencing the same bytes" sharing case.
+        static void WithTwoSlotTable(Action<ROM, uint, uint, uint, uint> body)
+        {
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                ROM rom = MakeFE8JRom();
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                CoreState.Undo = new Undo();
+
+                // A contiguous 2-entry anime table at 0x400 (each slot a u32).
+                uint animeBase = 0x400u;
+                uint slot0 = animeBase + 0;
+                uint slot1 = animeBase + 4;
+
+                // Import two DISTINCT animes into the two slots.
+                string[] scriptA = { "S001A", "3 a000.png", "5 a001.png" };
+                string[] scriptB = { "S002B", "2 b000.png", "4 b001.png" };
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptA, slot0, FakeProvider));
+                Assert.Equal("", SkillSystemsAnimeImportCore.ImportSkillAnimation(rom, scriptB, slot1, FakeProvider));
+
+                // Slot 0's palette region (id 0).
+                uint cfg0 = rom.p32(slot0);
+                uint pallist0Off = rom.p32(cfg0 + 12);
+                uint slot0PalRegion = U.toOffset(rom.p32(pallist0Off + 0));
+
+                // Redirect slot 1's palette-list[0] entry to slot 0's palette
+                // region -> the two slots now SHARE that one palette region.
+                uint cfg1 = rom.p32(slot1);
+                uint pallist1Off = rom.p32(cfg1 + 12);
+                rom.write_p32(pallist1Off + 0, U.toPointer(slot0PalRegion));
+
+                // Sanity: slot 1 really does reference slot 0's palette now.
+                Assert.Equal(slot0PalRegion, U.toOffset(rom.p32(pallist1Off + 0)));
+
+                body(rom, animeBase, slot0, slot1, slot0PalRegion);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.ImageService = prevSvc;
+                CoreState.Undo = prevUndo;
+            }
+        }
 
         // Differential helper: import script A into a fresh FE8J ROM, then CONSTRAIN
         // the ROM so the ONLY recyclable/free space is the old-A region itself, then
