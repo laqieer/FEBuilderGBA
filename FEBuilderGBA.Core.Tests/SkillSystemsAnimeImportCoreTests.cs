@@ -814,9 +814,9 @@ namespace FEBuilderGBA.Core.Tests
         static void RestoreRange(ROM rom, byte[] src, uint addr, int len)
         {
             if (len <= 0) return;
-            long end = (long)addr + len;
-            if (end > rom.Data.Length) end = rom.Data.Length;
-            for (long i = addr; i < end; i++)
+            // ROM size always fits int, so int indexing is safe here.
+            int end = (int)Math.Min((long)addr + len, rom.Data.Length);
+            for (int i = (int)addr; i < end; i++)
                 rom.Data[i] = src[i];
         }
 

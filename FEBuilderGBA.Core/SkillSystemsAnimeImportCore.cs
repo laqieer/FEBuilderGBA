@@ -493,6 +493,11 @@ namespace FEBuilderGBA
 
             if (rom == null || rom.Data == null) return recycle;
 
+            // The Address.Add* helpers below dereference CoreState.ROM internally,
+            // so a foreign rom would compute the recycle pool from mismatched data
+            // (mirrors the ReferenceEquals guard in ImportSkillAnimation).
+            if (!ReferenceEquals(rom, CoreState.ROM)) return new List<Address>();
+
             // WF :639-643 — guard the anime address.
             uint anime_address = U.toOffset(oldAnimeAddress);
             if (!U.isSafetyOffset(anime_address, rom))
@@ -650,7 +655,7 @@ namespace FEBuilderGBA
             Address.AddPointer(recycle
                 , anime_config_address + (4 * 3)
                 , (count) * 4
-                , basename + "PALETEELIST"
+                , basename + "PALETTELIST"
                 , Address.DataTypeEnum.POINTER);
 
             return recycle;
