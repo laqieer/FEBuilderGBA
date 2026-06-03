@@ -10000,3 +10000,21 @@ CSA Creatorのマジックシステムが検出されません。先にパッチ
 
 :Import Image from PNG file
 PNGファイルから画像をインポートします
+:No valid animation pointer to import into.
+インポート先の有効なアニメーションポインタがありません。
+
+:Import Skill Animation Script
+スキルアニメスクリプトをインポート
+
+:Skill Animation Script
+スキルアニメスクリプト
+
+:Cannot read script file: {0}
+スクリプトファイルを読み込めません: {0}
+
+:Skill animation import failed: {0}
+スキルアニメのインポートに失敗しました: {0}
+
+:Skill animation imported successfully.
+スキルアニメを正常にインポートしました。
+

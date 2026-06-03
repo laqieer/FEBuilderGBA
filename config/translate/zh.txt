@@ -23832,3 +23832,21 @@ CSA魔法动画导入失败: {0}
 
 :Import Image from PNG file
 从PNG文件导入图像
+:No valid animation pointer to import into.
+没有可导入的有效动画指针。
+
+:Import Skill Animation Script
+导入技能动画脚本
+
+:Skill Animation Script
+技能动画脚本
+
+:Cannot read script file: {0}
+无法读取脚本文件: {0}
+
+:Skill animation import failed: {0}
+技能动画导入失败: {0}
+
+:Skill animation imported successfully.
+技能动画导入成功。
+
