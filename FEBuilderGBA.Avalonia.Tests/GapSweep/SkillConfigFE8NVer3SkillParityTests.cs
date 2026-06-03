@@ -657,38 +657,42 @@ public class SkillConfigFE8NVer3SkillParityTests
     /// Addresses Copilot CLI PR-review finding #2 (round 1).
     /// </summary>
     [Fact]
-    public void View_CountSubListEntries_CountsUntilZeroTerminator()
+    public void View_SubListEditor_CountsUntilZeroTerminator()
     {
-        // Build a synthetic ROM that plants 3 nonzero bytes followed by 0
-        // at a known offset within the safety window.
+        // #930: the per-tab sub-list count is now surfaced by the reusable
+        // SkillSubListEditorViewModel (Load → ScanByteList), not the old
+        // read-only View.CountSubListEntries helper. Plant a slot → 3-entry
+        // null-terminated list and assert the editor VM reports 3.
         byte[] bytes = new byte[0x1000000];
+        const uint slotAddr = 0x00800000u;
         const uint subListBase = 0x00F00000u;
-        bytes[subListBase + 0] = 0x01;
-        bytes[subListBase + 1] = 0x02;
-        bytes[subListBase + 2] = 0x03;
+        // slot → subListBase (GBA pointer).
+        bytes[(int)slotAddr + 0] = (byte)(subListBase & 0xFF);
+        bytes[(int)slotAddr + 1] = (byte)((subListBase >> 8) & 0xFF);
+        bytes[(int)slotAddr + 2] = (byte)((subListBase >> 16) & 0xFF);
+        bytes[(int)slotAddr + 3] = 0x08; // | 0x08000000
+        bytes[(int)subListBase + 0] = 0x01;
+        bytes[(int)subListBase + 1] = 0x02;
+        bytes[(int)subListBase + 2] = 0x03;
         // bytes[subListBase + 3] stays 0 -> terminator.
 
         var rom = new ROM();
         rom.LoadLow("synthetic-fe8nver3-sublist.gba", bytes, "BE8E01");
-
-        // Invoke the static helper via reflection (it lives on the View
-        // class for code-locality reasons but is functionally pure).
-        var viewType = typeof(SkillConfigFE8NVer3SkillView);
-        var method = viewType.GetMethod("CountSubListEntries",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        Assert.NotNull(method);
 
         var prevRom = CoreState.ROM;
         try
         {
             CoreState.ROM = rom;
             // Case 1: planted 3-entry sub-list.
-            int count = (int)method!.Invoke(null, new object[] { rom, subListBase })!;
-            Assert.Equal(3, count);
+            var vm = new FEBuilderGBA.Avalonia.ViewModels.SkillSubListEditorViewModel();
+            vm.Load(slotAddr, id => "", canEdit: true);
+            Assert.Equal(3, vm.Entries.Count);
+            Assert.Contains("Entry count: 3", vm.CountDisplay);
 
-            // Case 2: null pointer (0) returns 0.
-            int nullCount = (int)method.Invoke(null, new object[] { rom, 0u })!;
-            Assert.Equal(0, nullCount);
+            // Case 2: null slot (0) -> empty list.
+            const uint nullSlot = 0x00810000u; // a zeroed 4-byte slot
+            vm.Load(nullSlot, id => "", canEdit: true);
+            Assert.Empty(vm.Entries);
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -799,26 +803,34 @@ public class SkillConfigFE8NVer3SkillParityTests
     }
 
     /// <summary>
-    /// `UpdateUI` calls `CountSubListEntries` and assigns the result to
-    /// the per-tab Count labels. Roslyn-static read of the code-behind
-    /// confirms the assignment is wired so the AXAML default `-` will be
-    /// replaced on every selection. Addresses Copilot CLI PR-review
-    /// finding #2 (round 1).
+    /// #930: `UpdateUI` now wires the 5 embedded SkillSubListEditorView
+    /// instances (Unit/Class/Item/Item2/Composite) via `LoadSubEditors`, which
+    /// Loads each editor against the per-skill pointer slot (+4/+8/+12/+16/+20)
+    /// — the editor itself surfaces the base + entry count (replacing the old
+    /// read-only per-tab count labels). Roslyn-static read of the code-behind
+    /// confirms the wiring exists, and that the Composite tab uses the VM's
+    /// ResolveCompositeName (B1), NOT NameResolver.GetSkillName.
     /// </summary>
     [Fact]
-    public void View_UpdateUI_PopulatesSubListEntryCounts()
+    public void View_UpdateUI_WiresFiveSubListEditors()
     {
         string repoRoot = FindRepoRoot();
         string sourcePath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "SkillConfigFE8NVer3SkillView.axaml.cs");
         string source = File.ReadAllText(sourcePath);
 
-        Assert.Contains("UnitTabCountLabel.Content", source);
-        Assert.Contains("ClassTabCountLabel.Content", source);
-        Assert.Contains("ItemTabCountLabel.Content", source);
-        Assert.Contains("Item2TabCountLabel.Content", source);
-        Assert.Contains("CompositeTabCountLabel.Content", source);
-        Assert.Contains("CountSubListEntries", source);
+        Assert.Contains("LoadSubEditors", source);
+        Assert.Contains("UnitSubEditor.Load(row + 4", source);
+        Assert.Contains("ClassSubEditor.Load(row + 8", source);
+        Assert.Contains("ItemSubEditor.Load(row + 12", source);
+        Assert.Contains("Item2SubEditor.Load(row + 16", source);
+        Assert.Contains("CompositeSubEditor.Load(row + 20", source);
+        // B1: Composite resolves via the VM's main-list resolver, not the
+        // global skill-name resolver. Check for the actual CALL form (with
+        // open paren) so the explanatory comment that names GetSkillName
+        // doesn't trip the assertion.
+        Assert.Contains("ResolveCompositeName", source);
+        Assert.DoesNotContain("NameResolver.GetSkillName(", source);
     }
 
     // -----------------------------------------------------------------

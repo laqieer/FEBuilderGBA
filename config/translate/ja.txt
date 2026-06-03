@@ -10030,3 +10030,21 @@ PNGファイルから画像をインポートします
 :Bulk exported to: {0}
 一括エクスポートしました: {0}
 
+:Set ID
+IDを設定
+
+:Sub-list
+サブリスト
+
+:The FE8N Ver1 Class/Item/Other tabs are the SAME shared 16 ext-bytes (B16..B31) already edited on the Unit tab — not a separate per-skill array.
+FE8N Ver1 のクラス/アイテム/その他タブは、ユニットタブで既に編集できる同じ共有16拡張バイト (B16..B31) です — スキルごとの別配列ではありません。
+
+:WinForms shows them as 4 tabs of the same 16 bytes; Avalonia surfaces all 16 editable on the Unit tab. Edit them there (#930).
+WinForms では同じ16バイトを4つのタブで表示します。Avalonia はユニットタブで16個すべてを編集可能にしています。そこで編集してください (#930)。
+
+:The N03 sub-tab in WF holds 16 generic bytes (B16..B31) with no fixed semantics, shown there as unlabeled NumericUpDowns. Avalonia surfaces all 16 editable on the Unit tab; edit them there (#930).
+WF の N03 サブタブは固定的な意味を持たない16個の汎用バイト (B16..B31) を保持し、ラベルのない NumericUpDown として表示されます。Avalonia はユニットタブで16個すべてを編集可能にしています。そこで編集してください (#930)。
+
+:The editable per-skill sub-list arrays live in FE8N Ver2/Ver3 (Unit/Class/Item/Item2/Composite), not Ver1.
+編集可能なスキルごとのサブリスト配列は FE8N Ver2/Ver3 (ユニット/クラス/アイテム/アイテム2/複合) にあり、Ver1 にはありません。
+

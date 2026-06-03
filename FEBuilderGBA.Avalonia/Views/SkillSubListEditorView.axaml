@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="FEBuilderGBA.Avalonia.Views.SkillSubListEditorView">
+  <DockPanel Margin="12">
+
+    <!-- Title -->
+    <Label DockPanel.Dock="Top"
+           AutomationProperties.AutomationId="SkillSubListEditor_Title_Label"
+           Name="TitleLabel" Content="Sub-list" FontSize="16" FontWeight="Bold"
+           Margin="0,0,0,6" />
+
+    <!-- Edit / Add / Remove controls -->
+    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,6">
+      <Label Content="ID:" VerticalAlignment="Center" />
+      <NumericUpDown AutomationProperties.AutomationId="SkillSubListEditor_EditId_Input"
+                     Name="EditIdBox" FormatString="0" Width="100"
+                     Minimum="0" Maximum="255" VerticalAlignment="Center" />
+      <Button AutomationProperties.AutomationId="SkillSubListEditor_SetId_Button"
+              Name="SetIdButton" Content="Set ID" Click="SetId_Click" />
+      <Button AutomationProperties.AutomationId="SkillSubListEditor_Add_Button"
+              Name="AddButton" Content="Add" Click="Add_Click" />
+      <Button AutomationProperties.AutomationId="SkillSubListEditor_Remove_Button"
+              Name="RemoveButton" Content="Remove" Click="Remove_Click" />
+    </StackPanel>
+
+    <!-- base / count labels -->
+    <StackPanel DockPanel.Dock="Bottom" Spacing="2" Margin="0,6,0,0">
+      <Label AutomationProperties.AutomationId="SkillSubListEditor_BaseAddr_Label"
+             Name="BaseAddrLabel" Content="Sub-list base: -" FontFamily="Consolas" />
+      <Label AutomationProperties.AutomationId="SkillSubListEditor_Count_Label"
+             Name="CountLabel" Content="Entry count: -" FontFamily="Consolas" />
+    </StackPanel>
+
+    <!-- Entry list -->
+    <Border BorderBrush="Gray" BorderThickness="1">
+      <ListBox AutomationProperties.AutomationId="SkillSubListEditor_Entry_List"
+               Name="EntryList" />
+    </Border>
+  </DockPanel>
+</UserControl>

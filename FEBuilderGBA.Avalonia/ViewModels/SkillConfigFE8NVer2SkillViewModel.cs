@@ -86,6 +86,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _statusMessage = "Skill system editors require the FE8N v2 skill patch to be installed.\nUse the Patch Manager to install it first.";
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+
+        /// <summary>
+        /// The skill-row base address of the currently loaded entry (== the
+        /// <c>addr</c> last passed to <see cref="LoadEntry"/>). The host view's
+        /// embedded sub-list editors load their pointer SLOTs at
+        /// <c>CurrentRowAddr + 4/8/12/16</c>; after any sub-list op the view
+        /// re-runs <see cref="LoadEntry"/>(CurrentRowAddr) to re-sync the cached
+        /// Px offsets (issue #930 C1). Mirrors <see cref="CurrentAddr"/> but is
+        /// exposed under the issue-plan name.
+        /// </summary>
+        public uint CurrentRowAddr => _currentAddr;
+
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
         public uint SelectedId { get => _selectedId; set => SetField(ref _selectedId, value); }
