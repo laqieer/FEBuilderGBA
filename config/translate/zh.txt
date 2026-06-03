@@ -23850,3 +23850,15 @@ CSA魔法动画导入失败: {0}
 :Skill animation imported successfully.
 技能动画导入成功。
 
+:Bulk Export Skill Config
+批量导出技能配置
+
+:Skill Config TSV
+技能配置TSV
+
+:Bulk export failed: {0}
+批量导出失败: {0}
+
+:Bulk exported to: {0}
+批量导出至: {0}
+

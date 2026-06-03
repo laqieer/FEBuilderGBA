@@ -420,6 +420,22 @@ Specialized utilities for different graphic types:
   SkillConfig views' Animation Import buttons (FE8N Ver1 stays a stub). PARITY GAP
   (intentional): WF's `RecycleOldAnime` is NOT ported — always fresh-allocates
   (safer, but leaks the old anime region per import; follow-up issue to file) (#913).
+- `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) - Cross-platform BULK-EXPORT
+  seam for the SkillSystems skill config (SLICE 1 of #920; ported from WinForms
+  `SkillConfigSkillSystemForm.ExportAllData`). `ExportAll(rom, textPointerLocation,
+  animePointerLocation, tsvPath, writeAnime) → string error` derefs BOTH pointer
+  LOCATIONS to bases (`rom.p32`), walks the `i < 255`-capped row count via
+  `Rom.getBlockDataCount`, writes a `*.SkillConfig.tsv` of `textID<TAB>animePtr`
+  hex rows, and for each EXTENDED-area anime (`animePtr != 0 && animePtr >=
+  U.toOffset(extends_address)`) renders via the merged
+  `SkillSystemsAnimeExportCore.ExportSkillAnimation` (#912) and hands the result +
+  the `anime{i:hex}` dir name to the `writeAnime` delegate (so Core stays free of
+  GUI image-save). Guards: CoreState.ROM-identity, NOT_FOUND locations (patch not
+  installed), unsafe bases. ZERO ROM mutation, no undo. The Avalonia
+  `SkillConfigSkillSystemView.BulkExport_Click` provides `writeAnime` — it writes
+  `anime{i:hex}/anime.txt` (via `SkillSystemsAnimeExportCore.BuildScriptLines`) +
+  per-frame PNGs and disposes each unique `IImage` once. BULK IMPORT = SLICE 2
+  (separate PR) (#920).
 
 ### Caching System
 

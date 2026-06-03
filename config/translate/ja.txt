@@ -10018,3 +10018,15 @@ PNGファイルから画像をインポートします
 :Skill animation imported successfully.
 スキルアニメを正常にインポートしました。
 
+:Bulk Export Skill Config
+スキル設定を一括エクスポート
+
+:Skill Config TSV
+スキル設定TSV
+
+:Bulk export failed: {0}
+一括エクスポートに失敗しました: {0}
+
+:Bulk exported to: {0}
+一括エクスポートしました: {0}
+
