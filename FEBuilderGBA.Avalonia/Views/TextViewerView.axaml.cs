@@ -506,13 +506,23 @@ namespace FEBuilderGBA.Avalonia.Views
             string toCode = ResolveLanguageCode(TranslateToCombo, ToolTranslateROMViewModel.ToLanguageItemsRaw);
 
             string text = EditTextBox.Text ?? "";
-            // No-op guards: nothing to translate, or source == target.
+            // No-op guards (each with a DISTINCT status so the user can tell
+            // which precondition failed):
+            //   1. nothing to translate,
+            //   2. missing/invalid language selection (e.g. a combo never got
+            //      populated or has no selection — empty parsed code),
+            //   3. source language == target language (both non-empty + equal).
             if (string.IsNullOrWhiteSpace(text))
             {
                 TranslateStatusLabel.Text = R._("(No text to translate)");
                 return;
             }
-            if (string.IsNullOrEmpty(fromCode) || string.IsNullOrEmpty(toCode) || fromCode == toCode)
+            if (string.IsNullOrEmpty(fromCode) || string.IsNullOrEmpty(toCode))
+            {
+                TranslateStatusLabel.Text = R._("(Select a source and target language)");
+                return;
+            }
+            if (fromCode == toCode)
             {
                 TranslateStatusLabel.Text = R._("(Source and target language are the same)");
                 return;

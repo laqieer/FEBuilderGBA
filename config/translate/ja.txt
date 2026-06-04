@@ -8004,6 +8004,9 @@ AI用に登場人物のヒントを追加
 :(No text to translate)
 (翻訳するテキストがありません)
 
+:(Select a source and target language)
+(翻訳元と翻訳先の言語を選択してください)
+
 :(Source and target language are the same)
 (翻訳元と翻訳先の言語が同じです)
 

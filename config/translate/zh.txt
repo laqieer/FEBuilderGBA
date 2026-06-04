@@ -21848,6 +21848,9 @@ ED 关系
 :(No text to translate)
 (没有可翻译的文本)
 
+:(Select a source and target language)
+(请选择源语言和目标语言)
+
 :(Source and target language are the same)
 (源语言与目标语言相同)
 
