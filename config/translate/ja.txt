@@ -8022,6 +8022,36 @@ AI用に登場人物のヒントを追加
 :Out-of-scope: requires UX review of SaaS-call disclaimer
 範囲外: SaaS 呼び出し免責事項の UX レビューが必要
 
+:Source language of the currently-selected text
+選択中のテキストの翻訳元言語
+
+:Target language to translate the selected text into
+選択中のテキストを翻訳する先の言語
+
+:Translate the selected text online; the result is placed in the Edit box for review before writing
+選択中のテキストをオンラインで翻訳します。結果は書き込み前に確認できるよう編集ボックスに表示されます
+
+:(No text to translate)
+(翻訳するテキストがありません)
+
+:(Select a source and target language)
+(翻訳元と翻訳先の言語を選択してください)
+
+:(Source and target language are the same)
+(翻訳元と翻訳先の言語が同じです)
+
+:Translating...
+翻訳中...
+
+:Translation failed: the service returned no result.
+翻訳に失敗しました: サービスから結果が返されませんでした。
+
+:Google translation returned an error. You may have sent too many requests.\r\n\r\n{0}
+Google翻訳がエラーを返しました。翻訳リクエストの送りすぎの可能性があります。\r\n\r\n{0}
+
+:Translation failed: {0}
+翻訳に失敗しました: {0}
+
 :Out-of-scope: requires UseTextIDCache.Update Core extraction
 範囲外: UseTextIDCache.Update Core 抽出が必要
 

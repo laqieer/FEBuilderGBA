@@ -157,7 +157,9 @@
         </ScrollViewer>
       </TabItem>
 
-      <!-- Tab 4: Translate — disabled stub (mirror WF translatePage) -->
+      <!-- Tab 4: Translate — online machine-translation of the selected text
+           (mirror WF translatePage). Combos are populated + defaults selected
+           in code-behind from the shared ToolTranslateROM language arrays. -->
       <TabItem Header="Translate" Name="TranslateTab" AutomationProperties.AutomationId="TextViewer_Translate_Tab">
         <ScrollViewer Margin="4">
           <StackPanel Spacing="10" Margin="8">
@@ -167,21 +169,25 @@
               <TextBlock AutomationProperties.AutomationId="TextViewer_TranslateFromPrefix_Label"
                          Text="Translate from:" VerticalAlignment="Center" Width="160" />
               <ComboBox AutomationProperties.AutomationId="TextViewer_TranslateFrom_Combo"
-                        Name="TranslateFromCombo" IsEnabled="False" Width="240"
-                        ToolTip.Tip="Out-of-scope: requires UX review of SaaS-call disclaimer" />
+                        Name="TranslateFromCombo" Width="240"
+                        ToolTip.Tip="Source language of the currently-selected text" />
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_TranslateToPrefix_Label"
                          Text="Translate to:" VerticalAlignment="Center" Width="160" />
               <ComboBox AutomationProperties.AutomationId="TextViewer_TranslateTo_Combo"
-                        Name="TranslateToCombo" IsEnabled="False" Width="240"
-                        ToolTip.Tip="Out-of-scope: requires UX review of SaaS-call disclaimer" />
+                        Name="TranslateToCombo" Width="240"
+                        ToolTip.Tip="Target language to translate the selected text into" />
             </StackPanel>
 
-            <Button AutomationProperties.AutomationId="TextViewer_Translate_Button"
-                    Name="TranslateButton" Content="Translate" IsEnabled="False"
-                    ToolTip.Tip="Out-of-scope: requires UX review of SaaS-call disclaimer" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button AutomationProperties.AutomationId="TextViewer_Translate_Button"
+                      Name="TranslateButton" Content="Translate"
+                      ToolTip.Tip="Translate the selected text online; the result is placed in the Edit box for review before writing" />
+              <TextBlock AutomationProperties.AutomationId="TextViewer_TranslateStatus_Label"
+                         Name="TranslateStatusLabel" VerticalAlignment="Center" Foreground="Gray" />
+            </StackPanel>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

@@ -6,9 +6,11 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using global::Avalonia;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.LogicalTree;
 using global::Avalonia.Media.Imaging;
 using global::Avalonia.Platform.Storage;
 using global::Avalonia.Threading;
@@ -952,6 +954,16 @@ namespace FEBuilderGBA.Avalonia.Views
                         }
                         catch { /* Not all editors have SelectFirstItem */ }
 
+                        // Optionally select a specific tab (by AutomationId) so a
+                        // non-default tab is shown in the PNG. Opt-in via
+                        // --screenshot-tab=<AutomationId>; editors without a
+                        // matching tab are captured unchanged.
+                        if (!string.IsNullOrEmpty(App.ScreenshotTabAutomationId)
+                            && SelectTabByAutomationId(window, App.ScreenshotTabAutomationId!))
+                        {
+                            await Task.Delay(100); // Let the tab content realize
+                        }
+
                         // Capture screenshot via RenderTargetBitmap
                         var pixelSize = new PixelSize(
                             Math.Max((int)window.Width, 100),
@@ -988,6 +1000,33 @@ namespace FEBuilderGBA.Avalonia.Views
                 Environment.ExitCode = failed > 0 ? 1 : 0;
                 Close();
             }, DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// Select the first <c>TabItem</c> in <paramref name="root"/> whose
+        /// <c>AutomationProperties.AutomationId</c> equals
+        /// <paramref name="automationId"/>, by walking the logical tree and
+        /// setting its parent <see cref="TabControl"/>'s <c>SelectedItem</c>.
+        /// Returns true when a matching tab was found + selected. Used by the
+        /// opt-in <c>--screenshot-tab=</c> screenshot mode.
+        /// </summary>
+        static bool SelectTabByAutomationId(Control root, string automationId)
+        {
+            foreach (var descendant in root.GetLogicalDescendants())
+            {
+                if (descendant is TabItem tab
+                    && AutomationProperties.GetAutomationId(tab) == automationId)
+                {
+                    if (tab.Parent is TabControl tc)
+                    {
+                        tc.SelectedItem = tab;
+                        return true;
+                    }
+                    tab.IsSelected = true;
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

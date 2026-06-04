@@ -21866,6 +21866,36 @@ ED 关系
 :Out-of-scope: requires UX review of SaaS-call disclaimer
 超出范围：需要 SaaS 调用免责声明的 UX 评审
 
+:Source language of the currently-selected text
+当前所选文本的源语言
+
+:Target language to translate the selected text into
+将所选文本翻译成的目标语言
+
+:Translate the selected text online; the result is placed in the Edit box for review before writing
+在线翻译所选文本；结果会放入编辑框，便于写入前检查
+
+:(No text to translate)
+(没有可翻译的文本)
+
+:(Select a source and target language)
+(请选择源语言和目标语言)
+
+:(Source and target language are the same)
+(源语言与目标语言相同)
+
+:Translating...
+正在翻译...
+
+:Translation failed: the service returned no result.
+翻译失败：服务未返回任何结果。
+
+:Google translation returned an error. You may have sent too many requests.\r\n\r\n{0}
+Google翻译返回了错误。你可能发送了过多请求。\r\n\r\n{0}
+
+:Translation failed: {0}
+翻译失败：{0}
+
 :Out-of-scope: requires UseTextIDCache.Update Core extraction
 超出范围：需要 UseTextIDCache.Update Core 提取
 

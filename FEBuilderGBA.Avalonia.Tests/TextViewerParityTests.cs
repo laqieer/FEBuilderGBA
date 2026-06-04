@@ -9,7 +9,8 @@
 //   - Search Tools tab: address-bar widgets (Read Start Address / Read Count /
 //     Size / Filter / Reload), Search Free Area button, status label.
 //   - Import/Export tab: filter combo + checkbox + limit text (DISABLED stubs).
-//   - Translate tab: from/to combos + Translate button (DISABLED stubs).
+//   - Translate tab: from/to combos populated from the shared ToolTranslateROM
+//     language arrays + ENABLED Translate button (#947 bug #12).
 //   - References tab: cross-references list, Add Reference button (DISABLED),
 //     status label.
 //   - Empty navigation manifest (no WF-side outgoing jumps wired by this PR).
@@ -211,33 +212,89 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_Translate_Tab"));
         }
 
+        // #947 bug #12: the Translate tab is no longer a disabled stub — the
+        // combos are enabled + populated from the shared ToolTranslateROM
+        // language arrays and the Translate button is enabled.
+
         [AvaloniaFact]
-        public void View_Hosts_TranslateFrom_Combo_DisabledByDefault()
+        public void View_Hosts_TranslateFrom_Combo_EnabledAndPopulated()
         {
             var view = new TextViewerView();
             var combo = FindByAutomationId<ComboBox>(view, "TextViewer_TranslateFrom_Combo");
             Assert.NotNull(combo);
-            Assert.False(combo!.IsEnabled);
+            Assert.True(combo!.IsEnabled);
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_TranslateFromPrefix_Label"));
+
+            // Populated from the SHARED FromLanguageItemsRaw (3 entries) — never
+            // a duplicated local list.
+            var items = combo.ItemsSource?.Cast<object>().ToList();
+            Assert.NotNull(items);
+            Assert.Equal(ToolTranslateROMViewModel.FromLanguageItemsRaw.Length, items!.Count);
+            Assert.Equal(3, items.Count);
+            // Default index resolves to a real selection.
+            Assert.InRange(combo.SelectedIndex, 0, items.Count - 1);
         }
 
         [AvaloniaFact]
-        public void View_Hosts_TranslateTo_Combo_DisabledByDefault()
+        public void View_Hosts_TranslateTo_Combo_EnabledAndPopulated()
         {
             var view = new TextViewerView();
             var combo = FindByAutomationId<ComboBox>(view, "TextViewer_TranslateTo_Combo");
             Assert.NotNull(combo);
-            Assert.False(combo!.IsEnabled);
+            Assert.True(combo!.IsEnabled);
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_TranslateToPrefix_Label"));
+
+            // Populated from the SHARED ToLanguageItemsRaw (11 entries).
+            var items = combo.ItemsSource?.Cast<object>().ToList();
+            Assert.NotNull(items);
+            Assert.Equal(ToolTranslateROMViewModel.ToLanguageItemsRaw.Length, items!.Count);
+            Assert.Equal(11, items.Count);
+            Assert.InRange(combo.SelectedIndex, 0, items.Count - 1);
         }
 
         [AvaloniaFact]
-        public void View_Hosts_Translate_Button_DisabledByDefault()
+        public void View_Hosts_Translate_Button_Enabled()
         {
             var view = new TextViewerView();
             var btn = FindByAutomationId<Button>(view, "TextViewer_Translate_Button");
             Assert.NotNull(btn);
-            Assert.False(btn!.IsEnabled);
+            Assert.True(btn!.IsEnabled);
+        }
+
+        [AvaloniaFact]
+        public void View_Hosts_TranslateStatus_Label()
+        {
+            var view = new TextViewerView();
+            Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_TranslateStatus_Label"));
+        }
+
+        [Fact]
+        public void TranslateCombos_Use_Shared_RawArrays_With_ParseableCodes()
+        {
+            // The view MUST reuse the same canonical language arrays as the
+            // ROM↔ROM translate tool (single source of truth). Verify the
+            // expected counts AND that ParseLanguageKey extracts the expected
+            // language code from a sample item's `code=label` prefix.
+            Assert.Equal(3, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length);
+            Assert.Equal(11, ToolTranslateROMViewModel.ToLanguageItemsRaw.Length);
+
+            Assert.Equal("ja", ToolTranslateROMCore.ParseLanguageKey(ToolTranslateROMViewModel.FromLanguageItemsRaw[0]));
+            Assert.Equal("en", ToolTranslateROMCore.ParseLanguageKey(ToolTranslateROMViewModel.FromLanguageItemsRaw[1]));
+            Assert.Equal("zh-CN", ToolTranslateROMCore.ParseLanguageKey(ToolTranslateROMViewModel.FromLanguageItemsRaw[2]));
+
+            Assert.Equal("ja", ToolTranslateROMCore.ParseLanguageKey(ToolTranslateROMViewModel.ToLanguageItemsRaw[0]));
+            Assert.Equal("zh-TW", ToolTranslateROMCore.ParseLanguageKey(ToolTranslateROMViewModel.ToLanguageItemsRaw[3]));
+        }
+
+        [Fact]
+        public void TranslateDefaultIndexes_Resolve_InRange()
+        {
+            // The view selects defaults via the SAME CalcDefaultLanguageIndexes
+            // logic. Verify the resolved indexes are valid for both arrays.
+            var (from, to) = ToolTranslateROMViewModel.CalcDefaultLanguageIndexes(
+                isMultibyte: false, CoreState.TextEncoding, CoreState.Language ?? "en");
+            Assert.InRange(from, 0, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length - 1);
+            Assert.InRange(to, 0, ToolTranslateROMViewModel.ToLanguageItemsRaw.Length - 1);
         }
 
         // ---- References tab ----
