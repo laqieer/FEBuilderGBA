@@ -236,7 +236,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadOPClassDemoList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                // #939: the row prefix is the row INDEX, not the class id. Key
+                // the icon off the real Display Weapon class id at entry+14
+                // (the value the row's class name is resolved from in the VM).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i, ClassIdOf));
                 if (CoreState.ROM?.RomInfo != null)
                 {
                     // #649: display via the unified EditorTopBar read-only slots.
@@ -535,6 +538,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo($"Table expanded. New base: 0x{result.NewBaseAddress:X08}, new count: {result.NewCount}.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error($"OPClassDemoViewerView.ListExpand: {ex.Message}"); }
+        }
+
+        // #939: resolve the real class id (Display Weapon, u8 at entry+14) for
+        // the list icon. Guards a null ROM by returning 0 → the loader returns
+        // null (no icon), never throws.
+        static uint ClassIdOf(AddrResult r)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            if (!U.isSafetyOffset(r.addr + 14, rom)) return 0;
+            return rom.u8(r.addr + 14);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

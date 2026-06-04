@@ -40,6 +40,33 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Load class wait icon using an explicit class-id selector instead of
+        /// parsing the list-item text prefix. Use this when the displayed row
+        /// prefix is the row INDEX (not the class id) but the list still wants
+        /// the correct class icon — the prefix and the entity id diverge for
+        /// OP Class Demo / Arena Class lists (#939). The selector reads the
+        /// real class id directly from the entry's ROM address.
+        /// </summary>
+        /// <param name="items">The address list items.</param>
+        /// <param name="index">Index into the list.</param>
+        /// <param name="classIdSelector">
+        /// Resolves the real class id for an entry (e.g.
+        /// <c>r =&gt; CoreState.ROM.u8(r.addr + 14)</c>). Should guard against a
+        /// null ROM and return 0 (the loader then returns null).
+        /// </param>
+        public static Bitmap? ClassIconLoader(List<AddrResult> items, int index, Func<AddrResult, uint> classIdSelector)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint id = classIdSelector(items[index]);
+                using var img = PreviewIconHelper.LoadClassWaitIconByClassId(id);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Load item icon by extracting item ID from the list item text prefix.
         /// Matches WinForms DrawItemAndText which uses U.atoh(text) to get the item ID.
         /// </summary>
@@ -55,6 +82,31 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 uint itemId = U.atoh(items[index].name);
                 using var img = PreviewIconHelper.LoadItemIconByItemId(itemId);
+                return ImageConversionHelper.ToAvaloniaBitmap(img);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// Load item icon using an explicit item-id selector instead of parsing
+        /// the list-item text prefix. Use when the displayed row prefix is the
+        /// row INDEX (not the item id) but the correct item icon is still
+        /// wanted (#939). The selector reads the real item id directly from the
+        /// entry's ROM address.
+        /// </summary>
+        /// <param name="items">The address list items.</param>
+        /// <param name="index">Index into the list.</param>
+        /// <param name="itemIdSelector">
+        /// Resolves the real item id for an entry. Should guard against a null
+        /// ROM and return 0 (the loader then returns null).
+        /// </param>
+        public static Bitmap? ItemIconLoader(List<AddrResult> items, int index, Func<AddrResult, uint> itemIdSelector)
+        {
+            if (index < 0 || index >= items.Count) return null;
+            try
+            {
+                uint id = itemIdSelector(items[index]);
+                using var img = PreviewIconHelper.LoadItemIconByItemId(id);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }
             catch { return null; }

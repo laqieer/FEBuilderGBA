@@ -46,7 +46,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadArenaClassList(typeIndex);
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                // #939: the row prefix is the row INDEX, not the class id. Key
+                // the icon off the real class id (u8 at entry+0 — the value
+                // already shown in the row's "(0x..)" suffix).
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i, ClassIdOf));
             }
             catch (Exception ex)
             {
@@ -91,6 +94,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 CoreState.Services?.ShowInfo("Arena Class data written.");
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("ArenaClassViewerView.Write: {0}", ex.Message); }
+        }
+
+        // #939: resolve the real class id (u8 at entry+0) for the list icon.
+        // Guards a null ROM by returning 0 → the loader returns null (no icon),
+        // never throws.
+        static uint ClassIdOf(AddrResult r)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            if (!U.isSafetyOffset(r.addr, rom)) return 0;
+            return rom.u8(r.addr);
         }
 
         // -- IdFieldControl handlers (#360) ----------------------------------
