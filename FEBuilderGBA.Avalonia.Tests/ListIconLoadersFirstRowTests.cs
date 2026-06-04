@@ -120,6 +120,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         // MUST return non-null. The OLD code returned null regardless.
         // ==================================================================
 
+        // #935: the row whose prefix parses to id 0 is the NULL entity. The
+        // loader must agree with the By*Id helper, and BOTH must now be null
+        // for id 0 (WinForms guards cid<=0 / item_id<=0 → blank). The old
+        // assertion (`slot field != 0 ⟹ NotNull` for id 0) is the slot==0
+        // behaviour #935 reverses, so it is removed here.
+
         [Theory]
         [MemberData(nameof(TestRomLocator.AllRoms), MemberType = typeof(TestRomLocator))]
         public void ClassIconLoader_FirstRowId0_MatchesPreviewIconHelper(string version, string? romPath)
@@ -134,24 +140,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                     new AddrResult(0x100, "00 PlaceholderClass", 0),
                 };
 
-                uint waitIcon = ReadClassWaitIconIndexForId0();
                 using var helperImg = PreviewIconHelper.LoadClassWaitIconByClassId(0);
                 using var bmp = ListIconLoaders.ClassIconLoader(items, 0);
 
-                // Differential: under old code, loader returned null even when
-                // helper would have returned an image. Their null-states MUST
-                // match post-fix.
+                // The loader resolves classId=0 from the "00" prefix and calls
+                // the By*Id helper; their null-states MUST match.
                 Assert.Equal(helperImg == null, bmp == null);
 
-                // Stronger differential: when ROM data is VALID (waitIcon
-                // non-zero), the loader must produce a real bitmap. Old code
-                // returned null here → would have failed.
-                if (waitIcon != 0)
-                {
-                    Assert.NotNull(helperImg);
-                    Assert.NotNull(bmp);
-                }
-                _output.WriteLine($"{version} ClassIconLoader(0): waitIcon=0x{waitIcon:X2}, " +
+                // #935: id 0 is the null class → both helper and loader null.
+                Assert.Null(helperImg);
+                Assert.Null(bmp);
+
+                _output.WriteLine($"{version} ClassIconLoader(0): id 0 → " +
                                   $"helper={(helperImg == null ? "null" : "Image")}, " +
                                   $"loader={(bmp == null ? "null" : "Bitmap")}");
             });
@@ -171,18 +171,16 @@ namespace FEBuilderGBA.Avalonia.Tests
                     new AddrResult(0x100, "00 NullItem", 0),
                 };
 
-                uint iconIndex = ReadItemIconIndexForId0();
                 using var helperImg = PreviewIconHelper.LoadItemIconByItemId(0);
                 using var bmp = ListIconLoaders.ItemIconLoader(items, 0);
 
                 Assert.Equal(helperImg == null, bmp == null);
 
-                if (iconIndex != 0)
-                {
-                    Assert.NotNull(helperImg);
-                    Assert.NotNull(bmp);
-                }
-                _output.WriteLine($"{version} ItemIconLoader(0): iconIdx=0x{iconIndex:X2}, " +
+                // #935: id 0 is the null item → both helper and loader null.
+                Assert.Null(helperImg);
+                Assert.Null(bmp);
+
+                _output.WriteLine($"{version} ItemIconLoader(0): id 0 → " +
                                   $"helper={(helperImg == null ? "null" : "Image")}, " +
                                   $"loader={(bmp == null ? "null" : "Bitmap")}");
             });
@@ -260,53 +258,94 @@ namespace FEBuilderGBA.Avalonia.Tests
             });
         }
 
+        // #935 NEW CONTRACT: the By*Id helpers now guard ONLY on entity id 0
+        // (matching WinForms ClassForm.DrawWaitIcon `cid<=0` / ItemForm.DrawIcon
+        // `item_id<=0`), NOT on the per-entity icon-SLOT field being 0. So:
+        //   * id 0 → always null (the new entity-id guard).
+        //   * a NONZERO entity whose slot field == 0 → must render icon-table
+        //     slot 0, i.e. equal the direct slot-0 loader (non-null whenever
+        //     slot 0 itself is renderable, null only when slot 0 is not).
+        // These two tests previously asserted the OLD slot==0 behaviour
+        // (By*Id(0) tracked ReadXIconIndexForId0()); they now lock in the fix.
+
         [Theory]
         [MemberData(nameof(TestRomLocator.AllRoms), MemberType = typeof(TestRomLocator))]
-        public void LoadClassWaitIconByClassId_Id0_RespectsRomData(string version, string? romPath)
+        public void LoadClassWaitIconByClassId_Id0_ReturnsNullAndSlot0EntityMatchesSlot0(string version, string? romPath)
         {
             if (romPath == null) { _output.WriteLine($"Skipping {version}: ROM not available"); return; }
 
             RomTestHelper.WithRom(version, () =>
             {
                 EnsureImageService();
-                uint waitIcon = ReadClassWaitIconIndexForId0();
-                using var c0 = PreviewIconHelper.LoadClassWaitIconByClassId(0);
 
-                if (waitIcon != 0)
-                {
-                    Assert.NotNull(c0);
-                }
-                else
+                // (1) id 0 → always null (new entity-id guard).
+                using (var c0 = PreviewIconHelper.LoadClassWaitIconByClassId(0))
                 {
                     Assert.Null(c0);
                 }
-                _output.WriteLine($"{version} LoadClassWaitIconByClassId(0): waitIcon=0x{waitIcon:X2}, " +
-                                  $"c0={(c0 == null ? "null" : "Image")}");
+
+                // (2) A nonzero class whose wait-icon SLOT field == 0 must
+                // render the SAME result as the direct slot-0 loader: non-null
+                // when slot 0 is renderable, null only when it is not.
+                using var slot0Direct = PreviewIconHelper.LoadClassWaitIcon(0);
+                bool slot0Renderable = slot0Direct != null;
+
+                uint nonzeroClassWithSlot0 = FindNonzeroClassWithWaitIcon0();
+                if (nonzeroClassWithSlot0 == 0)
+                {
+                    _output.WriteLine($"{version}: no nonzero class with waitIcon slot 0 — skipping slot-0 assertion");
+                    return;
+                }
+
+                using var entityImg = PreviewIconHelper.LoadClassWaitIconByClassId(nonzeroClassWithSlot0);
+                Assert.Equal(slot0Renderable, entityImg != null);
+                if (slot0Renderable)
+                {
+                    Assert.NotNull(entityImg);
+                }
+                _output.WriteLine($"{version} LoadClassWaitIconByClassId: id0=null OK; " +
+                                  $"class 0x{nonzeroClassWithSlot0:X} (slot0) → " +
+                                  $"{(entityImg == null ? "null" : "Image")}, slot0Renderable={slot0Renderable}");
             });
         }
 
         [Theory]
         [MemberData(nameof(TestRomLocator.AllRoms), MemberType = typeof(TestRomLocator))]
-        public void LoadItemIconByItemId_Id0_RespectsRomData(string version, string? romPath)
+        public void LoadItemIconByItemId_Id0_ReturnsNullAndSlot0EntityMatchesSlot0(string version, string? romPath)
         {
             if (romPath == null) { _output.WriteLine($"Skipping {version}: ROM not available"); return; }
 
             RomTestHelper.WithRom(version, () =>
             {
                 EnsureImageService();
-                uint iconIndex = ReadItemIconIndexForId0();
-                using var i0 = PreviewIconHelper.LoadItemIconByItemId(0);
 
-                if (iconIndex != 0)
-                {
-                    Assert.NotNull(i0);
-                }
-                else
+                // (1) id 0 → always null (new entity-id guard).
+                using (var i0 = PreviewIconHelper.LoadItemIconByItemId(0))
                 {
                     Assert.Null(i0);
                 }
-                _output.WriteLine($"{version} LoadItemIconByItemId(0): iconIdx=0x{iconIndex:X2}, " +
-                                  $"i0={(i0 == null ? "null" : "Image")}");
+
+                // (2) A nonzero item whose icon SLOT field == 0 must render the
+                // SAME result as the direct slot-0 loader.
+                using var slot0Direct = PreviewIconHelper.LoadItemIcon(0);
+                bool slot0Renderable = slot0Direct != null;
+
+                uint nonzeroItemWithSlot0 = FindNonzeroItemWithIcon0();
+                if (nonzeroItemWithSlot0 == 0)
+                {
+                    _output.WriteLine($"{version}: no nonzero item with icon slot 0 — skipping slot-0 assertion");
+                    return;
+                }
+
+                using var entityImg = PreviewIconHelper.LoadItemIconByItemId(nonzeroItemWithSlot0);
+                Assert.Equal(slot0Renderable, entityImg != null);
+                if (slot0Renderable)
+                {
+                    Assert.NotNull(entityImg);
+                }
+                _output.WriteLine($"{version} LoadItemIconByItemId: id0=null OK; " +
+                                  $"item 0x{nonzeroItemWithSlot0:X} (slot0) → " +
+                                  $"{(entityImg == null ? "null" : "Image")}, slot0Renderable={slot0Renderable}");
             });
         }
 
@@ -408,11 +447,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
-        /// Read the wait-icon index for class id 0 directly from ROM (the
-        /// same field <see cref="PreviewIconHelper.LoadClassWaitIconByClassId"/>
-        /// reads). Returns 0 if the lookup itself can't be performed.
+        /// Walk the class table and return the first class id &gt; 0 whose
+        /// wait-icon SLOT field (offset +6) is 0. This is the exact case the
+        /// #935 fix targets: a real (nonzero) class whose slot field happens to
+        /// be 0 must still render icon-table slot 0. Returns 0 if no such class
+        /// exists on the current ROM (caller skips the slot-0 assertion).
         /// </summary>
-        private static uint ReadClassWaitIconIndexForId0()
+        private static uint FindNonzeroClassWithWaitIcon0()
         {
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null) return 0;
@@ -422,16 +463,23 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!U.isSafetyOffset(classBase)) return 0;
             uint classSize = rom.RomInfo.class_datasize;
             if (classSize == 0) return 0;
-            uint classAddr = classBase + 0 * classSize;
-            if (classAddr + classSize > (uint)rom.Data.Length) return 0;
-            return rom.u8(classAddr + 6);
+            // Scan a generous upper bound; bail at the end of ROM data.
+            for (uint id = 1; id < 0x100; id++)
+            {
+                uint classAddr = classBase + id * classSize;
+                if (classAddr + classSize > (uint)rom.Data.Length) break;
+                if (rom.u8(classAddr + 6) == 0)
+                    return id;
+            }
+            return 0;
         }
 
         /// <summary>
-        /// Read the icon index for item id 0 directly from ROM (the same
-        /// field <see cref="PreviewIconHelper.LoadItemIconByItemId"/> reads).
+        /// Walk the item table and return the first item id &gt; 0 whose icon
+        /// SLOT field (offset +29) is 0. The #935 fix means such an item must
+        /// still render icon-table slot 0. Returns 0 if none found.
         /// </summary>
-        private static uint ReadItemIconIndexForId0()
+        private static uint FindNonzeroItemWithIcon0()
         {
             var rom = CoreState.ROM;
             if (rom?.RomInfo == null) return 0;
@@ -441,9 +489,14 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (!U.isSafetyOffset(itemBase)) return 0;
             uint itemSize = rom.RomInfo.item_datasize;
             if (itemSize == 0) return 0;
-            uint itemAddr = itemBase + 0 * itemSize;
-            if (itemAddr + itemSize > (uint)rom.Data.Length) return 0;
-            return rom.u8(itemAddr + 29);
+            for (uint id = 1; id < 0x100; id++)
+            {
+                uint itemAddr = itemBase + id * itemSize;
+                if (itemAddr + itemSize > (uint)rom.Data.Length) break;
+                if (rom.u8(itemAddr + 29) == 0)
+                    return id;
+            }
+            return 0;
         }
 
         /// <summary>

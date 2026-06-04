@@ -474,16 +474,20 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Load a class wait icon by class ID. Resolves class ID -> wait icon index (offset +6) -> loads icon.
         /// </summary>
         /// <remarks>
-        /// #654: removed <c>classId == 0</c> early return so class 0 (the
-        /// first row in every class-prefixed list) gets a lookup. The class
-        /// struct at offset 0 may legitimately have <c>waitIconIndex == 0</c>
-        /// (no map sprite), in which case we still bail — but for any other
-        /// class-0 row the icon now renders.
+        /// #935: mirrors WinForms <c>ClassForm.DrawWaitIcon</c>, which guards
+        /// only <c>cid &lt;= 0</c> (class 0 = the "null class" → blank) and then,
+        /// for any class &gt;= 1, reads the wait-icon-table slot from offset +6
+        /// and renders it directly — WITHOUT short-circuiting when that slot
+        /// value is 0. Slot 0 of the wait-icon table is a real sprite, so a
+        /// nonzero class whose <c>waitIconIndex</c> field happens to be 0 must
+        /// still render slot 0 (the old <c>waitIconIndex == 0</c> bail hid the
+        /// first real row's icon across ~30 class-prefixed list editors).
         /// </remarks>
         public static IImage LoadClassWaitIconByClassId(uint classId)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return null;
+            if (classId == 0) return null;
             try
             {
                 uint classPtr = rom.RomInfo.class_pointer;
@@ -494,7 +498,6 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint classAddr = classBase + classId * classSize;
                 if (classAddr + classSize > (uint)rom.Data.Length) return null;
                 uint waitIconIndex = rom.u8(classAddr + 6);
-                if (waitIconIndex == 0) return null;
                 return LoadClassWaitIcon(waitIconIndex);
             }
             catch { return null; }
@@ -504,17 +507,20 @@ namespace FEBuilderGBA.Avalonia.Services
         /// Load an item icon by item ID. Resolves item ID -> icon index (offset +29) -> loads icon.
         /// </summary>
         /// <remarks>
-        /// #654: removed <c>itemId == 0</c> early return. Item 0 (the first
-        /// row in every item-prefixed list) is a real ROM entry on every
-        /// supported version — for FE8U it is the "null item" placeholder
-        /// whose icon at offset +29 is 0 (we still bail when that happens),
-        /// but on FE6 / FE7 item 0 has a real icon and was incorrectly
-        /// hidden. Aligns with WinForms which never short-circuits on item ID.
+        /// #935: mirrors WinForms <c>ItemForm.DrawIcon</c>, which guards only
+        /// <c>item_id &lt;= 0</c> (item 0 = the "null item" → blank) and then,
+        /// for any item &gt;= 1, reads the icon-table slot from offset +29 and
+        /// renders it directly — WITHOUT short-circuiting when that slot value
+        /// is 0. Slot 0 of the icon table is a real icon, so a nonzero item
+        /// whose <c>iconIndex</c> field happens to be 0 must still render slot 0
+        /// (the old <c>iconIndex == 0</c> bail hid the first real row's icon
+        /// across the item-prefixed list editors).
         /// </remarks>
         public static IImage LoadItemIconByItemId(uint itemId)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return null;
+            if (itemId == 0) return null;
             try
             {
                 uint itemPtr = rom.RomInfo.item_pointer;
@@ -525,11 +531,6 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint itemAddr = itemBase + itemId * itemSize;
                 if (itemAddr + itemSize > (uint)rom.Data.Length) return null;
                 uint iconIndex = rom.u8(itemAddr + 29);
-                // The icon index at +29 is the per-item "icon slot" field;
-                // value 0 means "no icon" (null item placeholder). Bailing
-                // here matches the remarks above and prevents rendering a
-                // phantom icon from slot 0 of the icon table.
-                if (iconIndex == 0) return null;
                 return LoadItemIcon(iconIndex);
             }
             catch { return null; }
