@@ -15956,6 +15956,36 @@ CSA魔法创建器
 :Chapter ID:
 章节ID:
 
+:Route:
+路线
+
+:0x01 Prologue / Early:
+0x01 序盘
+
+:0x02 Eirika Route:
+0x02 艾里克线
+
+:0x03 Ephraim Route:
+0x03 艾夫拉姆线
+
+:0xFF Unconditional:
+0xFF 无条件
+
+:Achievement Flag:
+达成标志
+
+:Killer Unit (0x01):
+击杀者 (0x01)
+
+:Unknown (0x0A):
+未知 (0x0A)
+
+:Unknown (0x0B):
+未知 (0x0B)
+
+:Unknown (0x0E):
+未知 (0x0E)
+
 :Chapter Image Ptr:
 章节图像指针:
 

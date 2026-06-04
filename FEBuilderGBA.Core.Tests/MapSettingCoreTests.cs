@@ -325,6 +325,105 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // ---- GetMapNameById (#948 review: reject out-of-range / garbage) ----
+
+        [Fact]
+        public void GetMapNameById_WithNoRom_ReturnsEmpty()
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null;
+                Assert.Equal("", MapSettingCore.GetMapNameById(0));
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void GetMapNameById_ValidPointerBackedEntry_ReturnsName()
+        {
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+
+                // Map 0 at 0x200 — pointer in the first dword makes it a valid entry.
+                WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer, 0x08000200);
+                WriteU32(rom.Data, 0x200, 0x08000300);
+
+                // A valid entry must resolve without throwing; name may be "" if the
+                // text id is 0, but the call itself must succeed (no exception, no garbage).
+                string name = MapSettingCore.GetMapNameById(0);
+                Assert.NotNull(name);
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void GetMapNameById_OutOfRangeId_ReturnsEmpty_NotGarbage()
+        {
+            // Regression for #948: an out-of-range mapId lands on trailing data.
+            // The entry fails IsMapSettingValid, so GetMapNameById must return ""
+            // rather than reading a garbage chapter name (or throwing).
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+
+                uint baseAddr = 0x200;
+                WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer, 0x08000000 + baseAddr);
+                // Exactly ONE valid map (entry 0): pointer-backed first dword.
+                WriteU32(rom.Data, (int)baseAddr, 0x08000300);
+                // Entry 1 onward stays all-zero → IsMapSettingValid returns false
+                // (no pointer, zero PLISTs). A far out-of-range id resolves the same.
+                Assert.Equal("", MapSettingCore.GetMapNameById(1));
+                Assert.Equal("", MapSettingCore.GetMapNameById(50));
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
+        [Fact]
+        public void GetMapNameById_IdWhoseRecordRunsPastEof_ReturnsEmpty()
+        {
+            // The record START can be in-bounds while start+datasize runs past EOF.
+            // GetMapNameById must reject it (return "") instead of letting
+            // GetMapName's u8/u16 reads throw IndexOutOfRangeException. Use a
+            // full-size ROM (so the fixed ROM-info pointers are writable) but place
+            // the map table so the entry record overruns the buffer end.
+            var origRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("test.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+
+                // datasize 148 -> base + 148 must exceed Length (0x1000000).
+                uint baseAddr = 0xFFFFF0;
+                WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer, 0x08000000 + baseAddr);
+                WriteU32(rom.Data, (int)baseAddr, 0x08000100); // looks pointer-backed
+
+                // Must not throw; must return "" (record overruns EOF).
+                Assert.Equal("", MapSettingCore.GetMapNameById(0));
+            }
+            finally
+            {
+                CoreState.ROM = origRom;
+            }
+        }
+
         static void WriteU32(byte[] data, int offset, uint value)
         {
             data[offset + 0] = (byte)(value & 0xFF);

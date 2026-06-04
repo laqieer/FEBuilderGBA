@@ -197,6 +197,44 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolve a map/chapter ID to a human-readable name (e.g. "Ch1 Prologue")
+        /// using <c>CoreState.ROM</c>. Mirrors WinForms
+        /// <c>MapSettingForm.GetMapName(id)</c>. Returns "" when the ID is out of
+        /// range or the ROM is unavailable. Callers that need the WinForms "ANY"
+        /// sentinel rendering (FE7/8 0xFF, FE6 over-count) should apply that guard
+        /// themselves before calling this.
+        /// </summary>
+        public static string GetMapNameById(uint mapId) => GetMapNameById(CoreState.ROM, mapId);
+
+        /// <summary>
+        /// Resolve a map/chapter ID to a human-readable name using the given ROM.
+        /// Does NOT read <c>CoreState.ROM</c>. Returns "" for an out-of-range ID,
+        /// a table-terminator/garbage entry, an entry whose record extends past
+        /// EOF, or an unavailable ROM.
+        /// </summary>
+        public static string GetMapNameById(ROM rom, uint mapId)
+        {
+            if (rom == null || rom.RomInfo == null) return "";
+
+            uint addr = GetMapAddr(rom, mapId);
+            if (addr == U.NOT_FOUND || !U.isSafetyOffset(addr, rom)) return "";
+
+            // GetMapAddr only bounds-checks the START of the record, so an
+            // out-of-range mapId can land on trailing data (a garbage chapter
+            // name) or a record that runs past EOF (GetMapName's u8/u16 reads
+            // would then throw). Require the WHOLE record to be in-bounds AND
+            // pass the same terminator/safety heuristic the map-settings list
+            // builder uses, so the doc's "returns '' for out-of-range" holds and
+            // GetMapName cannot throw (no bare catch needed).
+            uint dataSize = rom.RomInfo.map_setting_datasize;
+            if (dataSize == 0) return "";
+            if ((ulong)addr + dataSize > (ulong)rom.Data.Length) return "";
+            if (!IsMapSettingValid(rom, addr)) return "";
+
+            return GetMapName(rom, addr);
+        }
+
+        /// <summary>
         /// Get a human-readable name for a map at the given address.
         /// </summary>
         static string GetMapName(ROM rom, uint addr)

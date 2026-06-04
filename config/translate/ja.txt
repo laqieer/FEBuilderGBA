@@ -1478,6 +1478,36 @@ Change ポインタ:
 :Chapter ID:
 ワープする章
 
+:Route:
+ルート
+
+:0x01 Prologue / Early:
+0x01 序盤
+
+:0x02 Eirika Route:
+0x02 エイリーク編
+
+:0x03 Ephraim Route:
+0x03 エフラム編
+
+:0xFF Unconditional:
+0xFF 無条件
+
+:Achievement Flag:
+達成フラグ
+
+:Killer Unit (0x01):
+殺害者 (0x01)
+
+:Unknown (0x0A):
+不明 (0x0A)
+
+:Unknown (0x0B):
+不明 (0x0B)
+
+:Unknown (0x0E):
+不明 (0x0E)
+
 :Chapter Image Ptr:
 章 画像 Ptr:
 
