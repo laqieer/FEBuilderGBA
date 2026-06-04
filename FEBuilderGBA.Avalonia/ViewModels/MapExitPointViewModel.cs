@@ -191,6 +191,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Reset the detail fields when the selected map has NO exit points,
+        /// so the panel doesn't show the previously-selected map's stale data
+        /// (#9). Gates the Write button via CanWrite=false.
+        /// </summary>
+        public void ClearExitPointEntry()
+        {
+            CurrentAddr = 0;
+            SelectedAddressDisplay = 0;
+            BlockSize = 0;
+            ExitX = 0;
+            ExitY = 0;
+            EscapeMethod = 0;
+            FlagId = 0;
+            CanWrite = false;
+        }
+
+        /// <summary>
         /// Write the detail fields back to the current row. Caller MUST have
         /// opened an undo scope (the View wraps this in
         /// `_undoService.Begin/Commit`).

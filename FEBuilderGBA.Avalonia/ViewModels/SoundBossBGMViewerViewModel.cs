@@ -47,7 +47,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint songId = rom.u32(addr + 4);
                 // 1-based ROM-stored unit ID.
                 string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
-                string name = $"{U.ToHexString(unitId)} {unitName} Song:0x{songId:X08}";
+                string name = $"{U.ToHexString(unitId)} {unitName} : {U.ToHexString(songId)}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

@@ -106,6 +106,14 @@ namespace FEBuilderGBA.Avalonia.Views
                     : _vm.CurrentExitPointAddr;
                 // Show NewAlloc affordance when the slot is unallocated.
                 NewAllocButton.IsVisible = _vm.IsBlank;
+                // #9: when the map has no exit points the sub-list is empty and
+                // no row-selection fires — clear the detail panel instead of
+                // leaving the previous map's stale values.
+                if (exits.Count == 0)
+                {
+                    _vm.ClearExitPointEntry();
+                    UpdateDetailUI();
+                }
             }
             catch (Exception ex)
             {
