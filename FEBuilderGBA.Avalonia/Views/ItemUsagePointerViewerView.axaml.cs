@@ -70,6 +70,32 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList(filterIndex);
+
+                // #943 bug #4: populate the L_0_COMBO equivalent BEFORE loading
+                // the address list. SetItemsWithIcons() calls SelectFirst()
+                // internally, which synchronously fires the row-selection chain
+                // (OnSelected -> UpdateUI) that needs _currentFunctionLines and
+                // FunctionCombo.ItemsSource already in place to resolve the
+                // matching function entry. If we populated the combo AFTER
+                // SetItemsWithIcons, UpdateUI ran with an empty
+                // _currentFunctionLines and a null ItemsSource, so the combo
+                // stayed blank (the later EntryList.SelectFirst() does not
+                // re-fire OnSelected because the index is already 0).
+                _currentFunctionLines = _vm.LoadFunctionLines(filterIndex);
+                _suppressFunctionComboChange = true;
+                try
+                {
+                    FunctionCombo.ItemsSource = _currentFunctionLines;
+                    FunctionCombo.SelectedItem = null;
+                }
+                finally
+                {
+                    // try/finally so an exception during the ItemsSource/SelectedItem
+                    // assignment can't leave the suppress flag stuck true, which would
+                    // permanently mute user-driven FunctionCombo writes for this view.
+                    _suppressFunctionComboChange = false;
+                }
+
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
 
                 // Refresh the read-only top/select bar indicators from VM state.
@@ -79,14 +105,6 @@ namespace FEBuilderGBA.Avalonia.Views
                 AsmSwitchBox.Text = _vm.AsmSwitchText;
                 BlockSizeBox.Text = _vm.BlockSize.ToString();
                 ItemAddressBox.Value = (decimal)_vm.CurrentArrayAddr;
-
-                // Populate the L_0_COMBO equivalent — named function entries
-                // for this filter (loaded from config/data/item_*_array_FE*.txt).
-                _currentFunctionLines = _vm.LoadFunctionLines(filterIndex);
-                _suppressFunctionComboChange = true;
-                FunctionCombo.ItemsSource = _currentFunctionLines;
-                FunctionCombo.SelectedIndex = -1;
-                _suppressFunctionComboChange = false;
 
                 // Promotion/StatBooster panels visibility — mirrors WinForms.
                 bool isPromo = filterIndex == (int)ItemUsagePointerCore.FilterKind.Promotion1
@@ -200,22 +218,40 @@ namespace FEBuilderGBA.Avalonia.Views
 
             // Sync the FunctionCombo selection to the current pointer (if a
             // line in the config data matches). Mirrors WF L_0_COMBO behavior.
+            ApplyFunctionComboSelection();
+        }
+
+        /// <summary>
+        /// Select the FunctionCombo entry whose hex key matches the current
+        /// UsabilityPointer (or clear it when nothing matches). Mirrors the
+        /// WinForms L_0_COMBO read-link behavior.
+        ///
+        /// #943 bug #4: this relies on <see cref="_currentFunctionLines"/> and
+        /// <c>FunctionCombo.ItemsSource</c> already being populated — which
+        /// LoadListForFilter now guarantees by setting them up BEFORE the
+        /// address-list load that triggers the first row selection. We select
+        /// by item reference (SelectedItem), which the ComboBox resolves by
+        /// value against its ItemsSource.
+        /// </summary>
+        void ApplyFunctionComboSelection()
+        {
+            string? matchLine = null;
+            for (int i = 0; i < _currentFunctionLines.Count; i++)
+            {
+                string line = _currentFunctionLines[i];
+                int eq = line.IndexOf('=');
+                string hexToken = eq >= 0 ? line.Substring(0, eq).Trim() : line.Trim();
+                if (U.atoh(hexToken) == _vm.UsabilityPointer)
+                {
+                    matchLine = line;
+                    break;
+                }
+            }
+
             _suppressFunctionComboChange = true;
             try
             {
-                int matchIdx = -1;
-                for (int i = 0; i < _currentFunctionLines.Count; i++)
-                {
-                    string line = _currentFunctionLines[i];
-                    int eq = line.IndexOf('=');
-                    string hexToken = eq >= 0 ? line.Substring(0, eq).Trim() : line.Trim();
-                    if (U.atoh(hexToken) == _vm.UsabilityPointer)
-                    {
-                        matchIdx = i;
-                        break;
-                    }
-                }
-                FunctionCombo.SelectedIndex = matchIdx;
+                FunctionCombo.SelectedItem = matchLine;
             }
             finally { _suppressFunctionComboChange = false; }
         }
