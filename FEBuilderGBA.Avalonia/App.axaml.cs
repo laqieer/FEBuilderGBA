@@ -57,6 +57,14 @@ namespace FEBuilderGBA.Avalonia
         /// <summary>Directory to save screenshots. Defaults to ./screenshots beside the exe.</summary>
         public static string? ScreenshotDir { get; set; }
 
+        /// <summary>
+        /// Optional AutomationId of a <c>TabItem</c> the <c>--screenshot-all</c>
+        /// runner should select on each captured editor before rendering (so a
+        /// non-default tab is shown in the PNG). Null = capture the default tab.
+        /// Editors that don't host a matching tab are captured unchanged.
+        /// </summary>
+        public static string? ScreenshotTabAutomationId { get; set; }
+
         /// <summary>Gap-sweep mode (Phase 1 density, Phase 2 labels, …) or null if no gap-sweep flag was passed.</summary>
         public static string? GapSweepMode { get; set; }
 
@@ -1082,6 +1090,10 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--screenshot-dir="))
                 {
                     ScreenshotDir = args[i].Substring("--screenshot-dir=".Length);
+                }
+                else if (args[i].StartsWith("--screenshot-tab="))
+                {
+                    ScreenshotTabAutomationId = args[i].Substring("--screenshot-tab=".Length);
                 }
                 else if (args[i] == "--lastrom")
                 {

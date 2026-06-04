@@ -121,6 +121,10 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --data-verif
 # Capture Avalonia screenshots of all editors (saves PNGs to --screenshot-dir)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 
+# Optionally select a non-default tab (by AutomationId) before each capture, so a
+# specific tab is shown in the PNG (editors without a matching tab are unchanged)
+dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot-all --screenshot-tab=TextViewer_Translate_Tab --screenshot-dir=./screenshots
+
 # Capture WinForms screenshots of all editors (saves PNGs for side-by-side comparison with Avalonia)
 FEBuilderGBA.exe --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 
