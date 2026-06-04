@@ -15959,6 +15959,18 @@ CSA魔法创建器
 :Route:
 路线
 
+:0x01 Prologue / Early:
+0x01 序盘
+
+:0x02 Eirika Route:
+0x02 艾里克线
+
+:0x03 Ephraim Route:
+0x03 艾夫拉姆线
+
+:0xFF Unconditional:
+0xFF 无条件
+
 :Achievement Flag:
 达成标志
 

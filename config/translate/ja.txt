@@ -1481,6 +1481,18 @@ Change ポインタ:
 :Route:
 ルート
 
+:0x01 Prologue / Early:
+0x01 序盤
+
+:0x02 Eirika Route:
+0x02 エイリーク編
+
+:0x03 Ephraim Route:
+0x03 エフラム編
+
+:0xFF Unconditional:
+0xFF 無条件
+
 :Achievement Flag:
 達成フラグ
 

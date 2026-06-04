@@ -31,7 +31,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public EventHaikuView()
         {
             InitializeComponent();
-            foreach (var c in RouteChoices) RouteCombo.Items.Add(c.Label);
+            // ComboBox.Items strings are NOT picked up by the logical-tree
+            // translation pass, so route each Route label through R._() so ja/zh
+            // locales localize them (#948 review; same pattern as ClassOPDemoView).
+            foreach (var c in RouteChoices) RouteCombo.Items.Add(R._(c.Label));
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
             Opened += (_, _) => LoadList();
@@ -46,7 +49,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventHaikuView.LoadList failed: {0}", ex.Message);
+                Log.Error($"EventHaikuView.LoadList failed: {ex.Message}");
             }
         }
 
@@ -59,7 +62,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("EventHaikuView.OnSelected failed: {0}", ex.Message);
+                Log.Error($"EventHaikuView.OnSelected failed: {ex.Message}");
             }
         }
 
@@ -118,7 +121,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("EventHaikuView.Write_Click failed: {0}", ex.Message);
+                Log.Error($"EventHaikuView.Write_Click failed: {ex.Message}");
             }
         }
 
@@ -178,57 +181,23 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -- Unit IdField handlers --------------------------------------------
-
-        static uint UnitAddrFor(uint unitId)
-        {
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
-            if (unitId == 0) return 0; // 1-based: 0 = ANY/no unit
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            if (unitPtr == 0) return 0;
-            uint baseAddr = rom.p32(unitPtr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
-            uint dataSize = rom.RomInfo.unit_datasize;
-            if (dataSize == 0) return 0;
-            if (rom.RomInfo.version == 6) baseAddr += dataSize;
-            uint entryAddr = baseAddr + (unitId - 1) * dataSize;
-            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
-            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
-            return entryAddr;
-        }
-
-        static uint TextRowAddrFor(uint textId)
-        {
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
-            uint ptr = rom.RomInfo.text_pointer;
-            if (ptr == 0) return 0;
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
-            // Text-table ROW address = textBase + textId*4 (one pointer per id).
-            ulong addr64 = (ulong)baseAddr + (ulong)textId * 4UL;
-            if (addr64 > uint.MaxValue) return 0;
-            uint addr = (uint)addr64;
-            if (!U.isSafetyOffset(addr, rom)) return 0;
-            if (!U.isSafetyOffset(addr + 3, rom)) return 0;
-            return addr;
-        }
+        // Jump-address math lives in the shared EditorJumpAddressHelper (#948).
 
         void Unit_Jump(object? sender, RoutedEventArgs e)
         {
-            try { uint addr = UnitAddrFor(UnitNud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
-            catch (Exception ex) { Log.Error("EventHaikuView.Unit_Jump failed: {0}", ex.Message); }
+            try { uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, UnitNud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
+            catch (Exception ex) { Log.Error($"EventHaikuView.Unit_Jump failed: {ex.Message}"); }
         }
 
         async void Unit_Pick(object? sender, RoutedEventArgs e)
         {
             try
             {
-                uint addr = UnitAddrFor(UnitNud.Value);
+                uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, UnitNud.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) UnitNud.Value = (uint)result.Index + 1; // 0-based pick -> 1-based id
             }
-            catch (Exception ex) { Log.Error("EventHaikuView.Unit_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error($"EventHaikuView.Unit_Pick failed: {ex.Message}"); }
         }
 
         void Unit_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -238,19 +207,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void KillerUnit_Jump(object? sender, RoutedEventArgs e)
         {
-            try { uint addr = UnitAddrFor(KillerUnitNud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
-            catch (Exception ex) { Log.Error("EventHaikuView.KillerUnit_Jump failed: {0}", ex.Message); }
+            try { uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, KillerUnitNud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
+            catch (Exception ex) { Log.Error($"EventHaikuView.KillerUnit_Jump failed: {ex.Message}"); }
         }
 
         async void KillerUnit_Pick(object? sender, RoutedEventArgs e)
         {
             try
             {
-                uint addr = UnitAddrFor(KillerUnitNud.Value);
+                uint addr = EditorJumpAddressHelper.UnitAddrFor(CoreState.ROM, KillerUnitNud.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
                 if (result != null) KillerUnitNud.Value = (uint)result.Index + 1;
             }
-            catch (Exception ex) { Log.Error("EventHaikuView.KillerUnit_Pick failed: {0}", ex.Message); }
+            catch (Exception ex) { Log.Error($"EventHaikuView.KillerUnit_Pick failed: {ex.Message}"); }
         }
 
         void KillerUnit_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
@@ -260,8 +229,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Text_Jump(object? sender, RoutedEventArgs e)
         {
-            try { uint addr = TextRowAddrFor(TextNud.Value); if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr); }
-            catch (Exception ex) { Log.Error("EventHaikuView.Text_Jump failed: {0}", ex.Message); }
+            try { uint addr = EditorJumpAddressHelper.TextRowAddrFor(CoreState.ROM, TextNud.Value); if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr); }
+            catch (Exception ex) { Log.Error($"EventHaikuView.Text_Jump failed: {ex.Message}"); }
         }
 
         void Text_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
