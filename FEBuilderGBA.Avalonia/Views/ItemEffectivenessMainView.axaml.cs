@@ -25,7 +25,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                // #939: the single row is a synthetic section label, NOT a
+                // class — the prefix is not a class id, so the old class-icon
+                // loader showed a spurious icon. Drop the icon column entirely.
+                EntryList.SetItems(items);
             }
             catch (Exception ex)
             {

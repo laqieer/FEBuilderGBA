@@ -25,7 +25,10 @@ namespace FEBuilderGBA.Avalonia.Views
         void LoadList()
         {
             _vm.IsLoading = true;
-            try { var items = _vm.LoadOPClassFontList(); EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i)); }
+            // #939: rows are font-image pointers, NOT classes — the prefix is
+            // the row index, so the old class-icon loader showed a spurious
+            // icon. Drop the icon column entirely.
+            try { var items = _vm.LoadOPClassFontList(); EntryList.SetItems(items); }
             catch (Exception ex) { Log.Error($"OPClassFontViewerView.LoadList: {ex.Message}"); }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }

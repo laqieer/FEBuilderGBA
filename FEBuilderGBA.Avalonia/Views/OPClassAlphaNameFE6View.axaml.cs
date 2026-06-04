@@ -28,7 +28,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ClassIconLoader(items, i));
+                // #939: rows are name-string pointers, NOT classes — the prefix
+                // is the row index, so the old class-icon loader showed a
+                // spurious icon. Drop the icon column entirely.
+                EntryList.SetItems(items);
                 if (!string.IsNullOrEmpty(_vm.UnavailableMessage))
                     UnavailableLabel.Text = _vm.UnavailableMessage;
             }
