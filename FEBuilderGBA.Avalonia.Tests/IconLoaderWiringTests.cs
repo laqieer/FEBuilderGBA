@@ -76,13 +76,33 @@ namespace FEBuilderGBA.Avalonia.Tests
         // 2-arg call: SetItemsWithIcons(<list>, i => ListIconLoaders.{Class|Item}IconLoader(<list>, i))
         //   — the inner call has EXACTLY the (items, i) args, no trailing selector.
         // 3-arg call: ...IconLoader(<list>, i, <selector>)
+        //
+        // An icon-loader argument (<list> / index) is NOT just a bare
+        // identifier: it can be a member-access chain (`_vm.Items`,
+        // `this._items`) or a no-arg method call (`GetItems()`). The Arg token
+        // below catches all three so the scanner can't be evaded by a
+        // non-trivial list expression (#940 auto-bot review). It still stops at
+        // a comma/paren, so the 2-arg pattern never swallows a 3-arg call's
+        // trailing selector.
         // ----------------------------------------------------------------
+        private const string Arg = @"[\w.]+(?:\(\s*\))?";
+
         private static readonly Regex TwoArgCall = new(
-            @"ListIconLoaders\.(Class|Item)IconLoader\(\s*\w+\s*,\s*\w+\s*\)",
+            @"ListIconLoaders\.(Class|Item)IconLoader\(\s*" + Arg + @"\s*,\s*" + Arg + @"\s*\)",
             RegexOptions.Compiled);
 
-        private static readonly Regex ThreeArgCall = new(
-            @"ListIconLoaders\.(Class|Item)IconLoader\(\s*\w+\s*,\s*\w+\s*,",
+        // Class-specific Category-A variants: those three views are ALL
+        // ClassIconLoader callsites, so an unrelated 3-arg *Item* loader in the
+        // same file must NOT satisfy the "3-arg overload present" check, and a
+        // residual 2-arg *Item* loader must NOT mask a class-loader regression
+        // (#940 auto-bot review). Matching ClassIconLoader explicitly avoids
+        // both false passes.
+        private static readonly Regex ClassThreeArgCall = new(
+            @"ListIconLoaders\.ClassIconLoader\(\s*" + Arg + @"\s*,\s*" + Arg + @"\s*,",
+            RegexOptions.Compiled);
+
+        private static readonly Regex ClassTwoArgCall = new(
+            @"ListIconLoaders\.ClassIconLoader\(\s*" + Arg + @"\s*,\s*" + Arg + @"\s*\)",
             RegexOptions.Compiled);
 
         private static readonly Regex AnyIconLoaderRef = new(
@@ -168,10 +188,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.True(File.Exists(path), $"Expected Category-A view not found: {view}");
                 string src = File.ReadAllText(path);
 
-                if (!ThreeArgCall.IsMatch(src))
-                    failures.Add($"{view}: expected a 3-arg ClassIconLoader(items, i, selector) call but none found.");
-                if (TwoArgCall.IsMatch(src))
-                    failures.Add($"{view}: still uses the 2-arg ClassIconLoader(items, i) overload (prefix is the row INDEX → wrong icon).");
+                if (!ClassThreeArgCall.IsMatch(src))
+                    failures.Add($"{view}: expected a 3-arg ListIconLoaders.ClassIconLoader(items, i, selector) call but none found.");
+                if (ClassTwoArgCall.IsMatch(src))
+                    failures.Add($"{view}: still uses the 2-arg ListIconLoaders.ClassIconLoader(items, i) overload (prefix is the row INDEX → wrong icon).");
             }
 
             Assert.True(failures.Count == 0,
