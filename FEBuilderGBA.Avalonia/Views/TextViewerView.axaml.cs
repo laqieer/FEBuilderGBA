@@ -30,6 +30,10 @@ namespace FEBuilderGBA.Avalonia.Views
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
             EditTextBox.TextChanged += OnEditTextChanged;
+            // Translate tab (#947 bug #12): populate the from/to language combos
+            // from the shared ToolTranslateROM arrays + wire the Translate button.
+            PopulateTranslateCombos();
+            TranslateButton.Click += OnTranslateClick;
             // Bind the conversation viewer tab's card collection ONCE. The
             // VM mutates the same ObservableCollection in place so we never
             // need to re-wire ItemsSource again.
@@ -420,6 +424,135 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 FreeAreaStatusLabel.Text = R._("Error: {0}", ex.Message);
                 Log.Error("SearchFreeArea failed: {0}", ex.Message);
+            }
+        }
+
+        // ============================================================
+        // Translate tab (#947 bug #12)
+        // ============================================================
+
+        /// <summary>
+        /// Populate the from/to language combos from the SHARED
+        /// <see cref="ToolTranslateROMViewModel"/> language arrays (single
+        /// source of truth — never duplicated here). Display values are routed
+        /// through <c>R._(...)</c> so the visible labels follow the active UI
+        /// language while the underlying <c>code=label</c> items keep their
+        /// <c>ParseLanguageKey</c>-parseable prefix. Default indexes come from
+        /// the same <see cref="ToolTranslateROMViewModel.CalcDefaultLanguageIndexes"/>
+        /// logic as the ROM↔ROM translate tool.
+        /// </summary>
+        void PopulateTranslateCombos()
+        {
+            try
+            {
+                var fromRaw = ToolTranslateROMViewModel.FromLanguageItemsRaw;
+                var toRaw = ToolTranslateROMViewModel.ToLanguageItemsRaw;
+
+                var fromItems = new string[fromRaw.Length];
+                for (int i = 0; i < fromRaw.Length; i++) fromItems[i] = R._(fromRaw[i]);
+                var toItems = new string[toRaw.Length];
+                for (int i = 0; i < toRaw.Length; i++) toItems[i] = R._(toRaw[i]);
+
+                TranslateFromCombo.ItemsSource = fromItems;
+                TranslateToCombo.ItemsSource = toItems;
+
+                // Default selection mirrors the ROM↔ROM translate tool: derive
+                // from the current ROM multibyte flag, text encoding + UI lang.
+                var rom = CoreState.ROM;
+                bool isMultibyte = rom?.RomInfo?.is_multibyte ?? false;
+                var (from, to) = ToolTranslateROMViewModel.CalcDefaultLanguageIndexes(
+                    isMultibyte, CoreState.TextEncoding, CoreState.Language ?? "en");
+
+                if (from >= 0 && from < fromItems.Length) TranslateFromCombo.SelectedIndex = from;
+                else if (fromItems.Length > 0) TranslateFromCombo.SelectedIndex = 0;
+
+                if (to >= 0 && to < toItems.Length) TranslateToCombo.SelectedIndex = to;
+                else if (toItems.Length > 0) TranslateToCombo.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.PopulateTranslateCombos failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Resolve the language code (e.g. "ja", "en", "zh-CN") for the given
+        /// combo by re-parsing the RAW array entry at the selected index via
+        /// <see cref="ToolTranslateROMCore.ParseLanguageKey"/>. We parse the raw
+        /// (untranslated) item rather than the displayed text so the
+        /// <c>code=label</c> prefix is always present regardless of UI language.
+        /// </summary>
+        static string ResolveLanguageCode(ComboBox combo, string[] raw)
+        {
+            int idx = combo.SelectedIndex;
+            if (idx < 0 || idx >= raw.Length) return string.Empty;
+            return ToolTranslateROMCore.ParseLanguageKey(raw[idx]);
+        }
+
+        /// <summary>
+        /// Translate the currently-selected text from the source to the target
+        /// language and drop the result into the Edit box for review (the user
+        /// then writes it back via the existing Edit-tab Write flow). Mirrors WF
+        /// <c>TextForm.TranslateButton_Click</c>.
+        ///
+        /// NOTE: WF actually routes through <c>TranslateTextUtil.TranslateText</c>
+        /// (fixed-dictionary + control-code aware). Direct
+        /// <c>TranslateManage.Trans</c> is the accepted MVP for this tab; the
+        /// richer dictionary path is a follow-up.
+        /// </summary>
+        async void OnTranslateClick(object? sender, RoutedEventArgs e)
+        {
+            string fromCode = ResolveLanguageCode(TranslateFromCombo, ToolTranslateROMViewModel.FromLanguageItemsRaw);
+            string toCode = ResolveLanguageCode(TranslateToCombo, ToolTranslateROMViewModel.ToLanguageItemsRaw);
+
+            string text = EditTextBox.Text ?? "";
+            // No-op guards: nothing to translate, or source == target.
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                TranslateStatusLabel.Text = R._("(No text to translate)");
+                return;
+            }
+            if (string.IsNullOrEmpty(fromCode) || string.IsNullOrEmpty(toCode) || fromCode == toCode)
+            {
+                TranslateStatusLabel.Text = R._("(Source and target language are the same)");
+                return;
+            }
+
+            TranslateButton.IsEnabled = false;
+            TranslateStatusLabel.Text = R._("Translating...");
+            try
+            {
+                // TranslateManage.Trans is a SYNCHRONOUS online (Google) call —
+                // run it off the UI thread so the window stays responsive.
+                string result = await Task.Run(() => new TranslateManage().Trans(text, fromCode, toCode));
+
+                // Reject empty/garbage results — never overwrite EditTextBox with
+                // an empty or error-shaped string.
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                    Log.Error("TextViewerView.OnTranslateClick: translation returned empty for {0}->{1}", fromCode, toCode);
+                    CoreState.Services?.ShowError(R._("Translation failed: the service returned no result."));
+                    return;
+                }
+
+                // Success: put the translated text in the Edit box for review.
+                // The existing OnEditTextChanged handler re-validates length.
+                EditTextBox.Text = result;
+            }
+            catch (System.Net.WebException wex)
+            {
+                Log.Error("TextViewerView.OnTranslateClick WebException: {0}", wex.Message);
+                CoreState.Services?.ShowError(R._("Google translation returned an error. You may have sent too many requests.\r\n\r\n{0}", wex.Message));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.OnTranslateClick failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Translation failed: {0}", ex.Message));
+            }
+            finally
+            {
+                TranslateButton.IsEnabled = true;
+                TranslateStatusLabel.Text = "";
             }
         }
 
