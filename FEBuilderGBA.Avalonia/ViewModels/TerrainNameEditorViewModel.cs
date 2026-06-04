@@ -213,11 +213,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint oldStrOff = U.toOffset(oldRawPtr);
                 if (U.isSafetyOffset(oldStrOff) && !IsOldStringShared(rom, slot, oldRawPtr))
                 {
-                    int oldLen;
-                    rom.getString(oldStrOff, out oldLen); // length excludes the NUL
-                    uint freeLen = (uint)oldLen + 1;       // include the NUL terminator
-                    Address.AddAddress(recycle, oldStrOff, freeLen, slot,
-                        "TerrainName", Address.DataTypeEnum.BIN);
+                    try
+                    {
+                        int oldLen;
+                        rom.getString(oldStrOff, out oldLen); // length excludes the NUL
+                        uint freeLen = (uint)oldLen + 1;       // include the NUL terminator
+                        Address.AddAddress(recycle, oldStrOff, freeLen, slot,
+                            "TerrainName", Address.DataTypeEnum.BIN);
+                    }
+                    catch
+                    {
+                        // The old bytes don't decode as a clean string (malformed /
+                        // unknown encoding). Rather than abort the whole write-back,
+                        // skip recycling this region — conservatively leak it (the
+                        // new string is still allocated + the slot repointed). The
+                        // recycle pool is left empty so no freed range is seeded.
+                        recycle.Clear();
+                    }
                 }
             }
 

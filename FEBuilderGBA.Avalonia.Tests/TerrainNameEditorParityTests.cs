@@ -111,8 +111,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         // Round-trip: multibyte string write-back (FE8J).
         // -----------------------------------------------------------------
 
+        // Verifies a same-string write-back ROUND-TRIPS losslessly: the decoded
+        // string survives and the list still builds. NOTE: this is NOT byte-identical
+        // — RecycleAddress repoints the slot to fresh free space (and may grow the
+        // ROM), so we assert string/list equivalence, not raw ROM equality.
         [Fact]
-        public void Multibyte_WriteSameString_IsLosslessNoOp_FE8J()
+        public void Multibyte_WriteSameString_RoundTripsLossless_FE8J()
         {
             RomTestHelper.WithRom("FE8J", () =>
             {
@@ -165,8 +169,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             });
         }
 
+        // Verifies the CurrentAddr==0 early-return path is a true no-op: a
+        // multibyte write with no loaded slot must not mutate the ROM at all.
+        // (The defensive snapshot/restore-on-fault path inside
+        // WriteTerrainNameMultibyte is the proven #885 in-place-restore pattern;
+        // forcing a mid-write allocation fault deterministically in a unit test is
+        // not feasible without a synthetic no-free-space ROM, so this guards the
+        // early-return no-op rather than the fault path.)
         [Fact]
-        public void Multibyte_WriteFailsRestoreLeavesRomByteIdentical_FE8J()
+        public void Multibyte_NoOpWrite_CurrentAddrZero_LeavesRomByteIdentical_FE8J()
         {
             RomTestHelper.WithRom("FE8J", () =>
             {
