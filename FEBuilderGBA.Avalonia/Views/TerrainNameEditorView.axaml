@@ -11,15 +11,20 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Terrain Name Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="TerrainNameEditor_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" />
+          <!-- Non-multibyte (US/EU): editable 2-byte Huffman text ID + decoded preview. -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Text ID:" VerticalAlignment="Center" Name="TextIdLabel" />
           <NumericUpDown AutomationProperties.AutomationId="TerrainNameEditor_TextId_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="TextIdBox" Minimum="0" Maximum="65535" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Name:" VerticalAlignment="Center" Name="NamePreviewLabel" />
           <TextBlock AutomationProperties.AutomationId="TerrainNameEditor_Name_Label" Grid.Row="2" Grid.Column="1" Name="NameLabel" VerticalAlignment="Center" />
+
+          <!-- Multibyte (JP): editable raw string written back via a 4-byte pointer. -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Name:" VerticalAlignment="Center" Name="NameEditLabel" />
+          <TextBox AutomationProperties.AutomationId="TerrainNameEditor_Name_Input" Grid.Row="3" Grid.Column="1" Name="NameBox" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

@@ -60,8 +60,28 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
-            TextIdBox.Value = _vm.TextId;
-            NameLabel.Text = _vm.TerrainName;
+
+            bool multibyte = _vm.IsMultibyte;
+
+            // Non-multibyte (US/EU): Text ID NumericUpDown + decoded preview.
+            TextIdLabel.IsVisible = !multibyte;
+            TextIdBox.IsVisible = !multibyte;
+            NamePreviewLabel.IsVisible = !multibyte;
+            NameLabel.IsVisible = !multibyte;
+
+            // Multibyte (JP): editable raw-string TextBox.
+            NameEditLabel.IsVisible = multibyte;
+            NameBox.IsVisible = multibyte;
+
+            if (multibyte)
+            {
+                NameBox.Text = _vm.TerrainName;
+            }
+            else
+            {
+                TextIdBox.Value = _vm.TextId;
+                NameLabel.Text = _vm.TerrainName;
+            }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -69,7 +89,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Terrain Name");
             try
             {
-                _vm.TextId = (uint)(TextIdBox.Value ?? 0);
+                if (_vm.IsMultibyte)
+                    _vm.TerrainName = NameBox.Text ?? "";
+                else
+                    _vm.TextId = (uint)(TextIdBox.Value ?? 0);
+
                 _vm.WriteTerrainName();
                 _undoService.Commit();
                 _vm.MarkClean();
