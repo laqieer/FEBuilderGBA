@@ -86,14 +86,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint unitId = (uint)(UnitIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint dataSize = rom.RomInfo.unit_datasize;
-                if (rom.RomInfo.version == 6) baseAddr += dataSize;
-                uint addr = baseAddr + unitId * dataSize;
+                // UnitId is 1-based; UnitAddrForOneBased applies the (id-1)
+                // index + FE6 dummy-entry skip so Jump lands on the right unit
+                // (matches the name preview, which already uses
+                // GetUnitNameByOneBasedId) (#937).
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, (uint)(UnitIdBox.Value ?? 0));
+                if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
             catch (Exception ex) { Log.Error("OnUnitIdLinkClick failed: {0}", ex.Message); }

@@ -58,7 +58,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
             UnitIdBox.Value = _vm.UnitId;
-            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.UnitId); }
+            // UnitId is a 1-based ROM unit ID; GetUnitNameByOneBasedId handles
+            // the 0/bounds cases and the 1-based → 0-based conversion (#937).
+            try { UnitIdBox.NameText = NameResolver.GetUnitNameByOneBasedId(_vm.UnitId); }
             catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
             ClassIdBox.Value = _vm.ClassId;
             try { ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
@@ -111,23 +113,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // -- IdFieldControl handlers (#360) ----------------------------------
 
-        static uint UnitAddrFor(uint unitId)
-        {
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            if (unitPtr == 0) return 0;
-            uint baseAddr = rom.p32(unitPtr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
-            uint dataSize = rom.RomInfo.unit_datasize;
-            if (dataSize == 0) return 0;
-            if (rom.RomInfo.version == 6) baseAddr += dataSize;
-            uint entryAddr = baseAddr + unitId * dataSize;
-            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
-            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
-            return entryAddr;
-        }
-
         static uint ClassAddrFor(uint classId)
         {
             var rom = CoreState.ROM;
@@ -148,7 +133,9 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint addr = UnitAddrFor(UnitIdBox.Value);
+                // UnitId is 1-based; UnitAddrForOneBased applies the (id-1)
+                // index + FE6 dummy-entry skip so Jump lands on the right unit (#937).
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, UnitIdBox.Value);
                 if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
@@ -159,16 +146,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint addr = UnitAddrFor(UnitIdBox.Value);
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, UnitIdBox.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) UnitIdBox.Value = (uint)result.Index;
+                // PickResult.Index is 0-based; UnitId is 1-based (#937).
+                if (result != null) UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
             catch (Exception ex) { Log.Error("SummonsDemonKingViewerView.UnitId_Pick failed: {0}", ex.Message); }
         }
 
         void UnitId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            try { UnitIdBox.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue); }
+            // 1-based Unit ID → name via GetUnitNameByOneBasedId (#937).
+            try { UnitIdBox.NameText = NameResolver.GetUnitNameByOneBasedId(e.NewValue); }
             catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
         }
 

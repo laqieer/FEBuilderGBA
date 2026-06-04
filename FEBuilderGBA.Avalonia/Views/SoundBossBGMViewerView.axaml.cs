@@ -131,16 +131,10 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint unitId = (uint)(UnitIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint dataSize = rom.RomInfo.unit_datasize;
-                // FE6 skips entry 0
-                if (rom.RomInfo.version == 6)
-                    baseAddr += dataSize;
-                uint addr = baseAddr + unitId * dataSize;
+                // UnitId is 1-based; UnitAddrForOneBased applies the (id-1)
+                // index + FE6 dummy-entry skip so Jump lands on the right unit (#937).
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, (uint)(UnitIdBox.Value ?? 0));
+                if (addr == 0) return;
                 WindowManager.Instance.Navigate<UnitEditorView>(addr);
             }
             catch (Exception ex)
@@ -153,18 +147,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return;
-                uint unitId = (uint)(UnitIdBox.Value ?? 0);
-                uint baseAddr = rom.p32(rom.RomInfo.unit_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint dataSize = rom.RomInfo.unit_datasize;
-                if (rom.RomInfo.version == 6) baseAddr += dataSize;
-                uint navAddr = baseAddr + unitId * dataSize;
+                uint navAddr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, (uint)(UnitIdBox.Value ?? 0));
 
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(navAddr, this);
+                // PickResult.Index is 0-based; UnitId is 1-based (#937).
                 if (result != null)
-                    UnitIdBox.Value = result.Index;
+                    UnitIdBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
             catch (Exception ex)
             {

@@ -215,6 +215,45 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Convert a 1-based ROM unit ID (the value stored in event/support/
+        /// summon fields) to the file offset of that unit's entry in the unit
+        /// table, accounting for FE6's dummy-entry skip via
+        /// <see cref="GetUnitTableBase(ROM)"/>. Mirrors the <c>UnitAddrFor</c>
+        /// helper in <c>SupportTalkView</c> (#725): the unit table is indexed
+        /// with <c>(oneBasedId - 1)</c>, so ID 1 maps to the first LOGICAL unit
+        /// (not the next character). This is the 1-based ROM-id →
+        /// unit-table-address conversion. Returns <c>0</c> for an invalid ROM,
+        /// <c>oneBasedId == 0</c> ("no unit"), a zero data size, or an unsafe
+        /// resulting offset. Use this for Jump/Pick navigation so the jump
+        /// lands on the same unit whose name
+        /// <see cref="ResolveUnitTableName(ROM, uint)"/> (with
+        /// <c>oneBasedId - 1</c>) resolves. Fixes the 1-based off-by-one across
+        /// the 8 Avalonia editors that previously passed the raw 1-based ID
+        /// into <c>base + unitId * dataSize</c> (#937).
+        /// </summary>
+        public static uint UnitAddrForOneBased(ROM rom, uint oneBasedId)
+        {
+            if (rom?.RomInfo == null) return 0;
+            if (oneBasedId == 0) return 0; // 1-based: 0 is "no unit"
+            uint dataSize = rom.RomInfo.unit_datasize;
+            if (dataSize == 0) return 0;
+            uint baseAddr = GetUnitTableBase(rom); // FE6-aware logical base
+            if (baseAddr == 0) return 0;
+            uint entryAddr = baseAddr + (oneBasedId - 1) * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            return entryAddr;
+        }
+
+        /// <summary>
+        /// Convert a 0-based <c>PickResult.Index</c> (from a Unit-Editor pick)
+        /// back to the 1-based ROM unit ID written into the field. Mirrors the
+        /// <c>result.Index + 1</c> write-back in <c>SupportTalkView</c> (#725).
+        /// Pure conversion, extracted so the Pick half of the #937 fix is
+        /// unit-testable without a ROM.
+        /// </summary>
+        public static uint OneBasedIdFromPickIndex(int zeroBasedIndex) => (uint)zeroBasedIndex + 1;
+
+        /// <summary>
         /// Resolve the actual unit-table base (file offset) accounting for
         /// FE6's first-entry skip. FE6's unit table at <c>p32(unit_pointer)</c>
         /// has a dummy entry at index 0, so the table effectively starts at

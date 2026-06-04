@@ -73,10 +73,13 @@ namespace FEBuilderGBA.Avalonia.Views
             TextCNud.Value = _vm.TextC;
             TextBNud.Value = _vm.TextB;
             TextANud.Value = _vm.TextA;
-            // ResolveUnitTableName / GetTextById return fallback strings on failure
-            // rather than throwing, so no try/catch needed (Copilot review #638).
-            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner1);
-            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, _vm.SupportPartner2);
+            // GetUnitNameByOneBasedId / GetTextById return fallback strings on
+            // failure rather than throwing, so no try/catch needed (Copilot
+            // review #638). SupportPartner1/2 are 1-based unit IDs;
+            // GetUnitNameByOneBasedId handles the 0/bounds cases and the
+            // 1-based → 0-based conversion (#937).
+            SupportPartner1Nud.NameText = NameResolver.GetUnitNameByOneBasedId(_vm.SupportPartner1);
+            SupportPartner2Nud.NameText = NameResolver.GetUnitNameByOneBasedId(_vm.SupportPartner2);
             TextCNud.NameText = _vm.TextC != 0 ? NameResolver.GetTextById(_vm.TextC) : "";
             TextBNud.NameText = _vm.TextB != 0 ? NameResolver.GetTextById(_vm.TextB) : "";
             TextANud.NameText = _vm.TextA != 0 ? NameResolver.GetTextById(_vm.TextA) : "";
@@ -130,23 +133,6 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // -- IdFieldControl handlers (#360 final) ---------------------------
 
-        static uint UnitAddrFor(uint unitId)
-        {
-            var rom = CoreState.ROM;
-            if (rom?.RomInfo == null) return 0;
-            uint unitPtr = rom.RomInfo.unit_pointer;
-            if (unitPtr == 0) return 0;
-            uint baseAddr = rom.p32(unitPtr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
-            uint dataSize = rom.RomInfo.unit_datasize;
-            if (dataSize == 0) return 0;
-            if (rom.RomInfo.version == 6) baseAddr += dataSize;
-            uint entryAddr = baseAddr + unitId * dataSize;
-            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
-            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
-            return entryAddr;
-        }
-
         static uint TextAddrFor(uint textId)
         {
             var rom = CoreState.ROM;
@@ -169,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void SupportPartner1_Jump(object? sender, RoutedEventArgs e)
         {
-            try { uint addr = UnitAddrFor(SupportPartner1Nud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
+            try { uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, SupportPartner1Nud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
             catch (Exception ex) { Log.Error("SupportTalkFE7View.SupportPartner1_Jump failed: {0}", ex.Message); }
         }
 
@@ -177,21 +163,23 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint addr = UnitAddrFor(SupportPartner1Nud.Value);
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, SupportPartner1Nud.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) SupportPartner1Nud.Value = (uint)result.Index;
+                // PickResult.Index is 0-based; SupportPartner is 1-based (#937).
+                if (result != null) SupportPartner1Nud.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
             catch (Exception ex) { Log.Error("SupportTalkFE7View.SupportPartner1_Pick failed: {0}", ex.Message); }
         }
 
         void SupportPartner1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            SupportPartner1Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
+            // 1-based Unit ID → name via GetUnitNameByOneBasedId (#937).
+            SupportPartner1Nud.NameText = NameResolver.GetUnitNameByOneBasedId(e.NewValue);
         }
 
         void SupportPartner2_Jump(object? sender, RoutedEventArgs e)
         {
-            try { uint addr = UnitAddrFor(SupportPartner2Nud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
+            try { uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, SupportPartner2Nud.Value); if (addr != 0) WindowManager.Instance.Navigate<UnitEditorView>(addr); }
             catch (Exception ex) { Log.Error("SupportTalkFE7View.SupportPartner2_Jump failed: {0}", ex.Message); }
         }
 
@@ -199,16 +187,18 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                uint addr = UnitAddrFor(SupportPartner2Nud.Value);
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, SupportPartner2Nud.Value);
                 var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
-                if (result != null) SupportPartner2Nud.Value = (uint)result.Index;
+                // PickResult.Index is 0-based; SupportPartner is 1-based (#937).
+                if (result != null) SupportPartner2Nud.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
             }
             catch (Exception ex) { Log.Error("SupportTalkFE7View.SupportPartner2_Pick failed: {0}", ex.Message); }
         }
 
         void SupportPartner2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
-            SupportPartner2Nud.NameText = SupportUnitNavigation.ResolveUnitTableName(CoreState.ROM, e.NewValue);
+            // 1-based Unit ID → name via GetUnitNameByOneBasedId (#937).
+            SupportPartner2Nud.NameText = NameResolver.GetUnitNameByOneBasedId(e.NewValue);
         }
 
         void TextC_Jump(object? sender, RoutedEventArgs e)
