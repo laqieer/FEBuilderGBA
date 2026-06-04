@@ -160,13 +160,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             string src = ReadSource("FEBuilderGBA.Avalonia", "Services", "PreviewIconHelper.cs");
 
-            // The OLD slot==0 short-circuits must be gone.
-            Assert.DoesNotContain("if (waitIconIndex == 0) return null", src);
-            Assert.DoesNotContain("if (iconIndex == 0) return null", src);
+            // The OLD slot==0 short-circuits must be gone. Whitespace-tolerant
+            // regex (per Copilot review on #936) so a harmless reformat of the
+            // helper can't false-fail this regression guard.
+            Assert.DoesNotMatch(@"if\s*\(\s*waitIconIndex\s*==\s*0\s*\)\s*return\s+null", src);
+            Assert.DoesNotMatch(@"if\s*\(\s*iconIndex\s*==\s*0\s*\)\s*return\s+null", src);
 
-            // The NEW entity-id guards must be present.
-            Assert.Contains("if (classId == 0) return null", src);
-            Assert.Contains("if (itemId == 0) return null", src);
+            // The NEW entity-id guards must be present (whitespace-tolerant).
+            Assert.Matches(@"if\s*\(\s*classId\s*==\s*0\s*\)\s*return\s+null", src);
+            Assert.Matches(@"if\s*\(\s*itemId\s*==\s*0\s*\)\s*return\s+null", src);
 
             _output.WriteLine("OK: PreviewIconHelper has entity-id==0 guards and no icon-slot==0 short-circuits");
         }
