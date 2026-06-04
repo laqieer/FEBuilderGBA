@@ -125,12 +125,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return;
 
-            IsMultibyte = rom.RomInfo.is_multibyte;
+            bool multibyte = rom.RomInfo.is_multibyte;
+
+            // Validate bounds BEFORE committing ANY state (#945 review): an
+            // out-of-range addr must leave the VM unchanged (no stale CurrentAddr
+            // / CanWrite from a previous selection) so the report helpers
+            // (GetRawRomReport, etc.) can't perform out-of-bounds reads.
+            uint need = multibyte ? 4u : 2u;
+            if (addr + need > (uint)rom.Data.Length) return;
+
+            IsMultibyte = multibyte;
             CurrentAddr = addr;
 
-            if (IsMultibyte)
+            if (multibyte)
             {
-                if (addr + 4 > (uint)rom.Data.Length) return;
                 uint rawPtr = rom.u32(addr);
                 string decoded = "";
                 if (U.isPointer(rawPtr))
@@ -147,7 +155,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             else
             {
-                if (addr + 2 > (uint)rom.Data.Length) return;
                 TextId = rom.u16(addr);
                 try { TerrainName = NameResolver.GetTextById(TextId); }
                 catch { TerrainName = "???"; }
