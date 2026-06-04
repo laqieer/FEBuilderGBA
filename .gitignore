@@ -60,6 +60,7 @@ ss-stderr.txt
 ss-stdout.txt
 docs/screenshots/*_test_output.txt
 cli-logs/
+config/log/
 
 # Prevent screenshots in project root (use pr-screenshots/ instead)
 /*.png
