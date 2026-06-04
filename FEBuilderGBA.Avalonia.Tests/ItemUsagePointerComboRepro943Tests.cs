@@ -59,6 +59,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Assertion1_LoadFunctionLines_NonEmpty_ForMultibyteRom()
         {
+            string? romPath = TestRomLocator.FindRom("FE8J");
+            if (romPath == null)
+            {
+                _output.WriteLine("SKIP: FE8J ROM not available (roms/FE8J.gba or ROMS_DIR) — #4 repro did NOT execute.");
+                return;
+            }
             RomTestHelper.WithRom("FE8J", () =>
             {
                 Assert.True(CoreState.ROM.RomInfo.is_multibyte,
@@ -82,6 +88,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Assertion2_SomeFunctionLineMatches_FirstRowPointer()
         {
+            string? romPath = TestRomLocator.FindRom("FE8J");
+            if (romPath == null)
+            {
+                _output.WriteLine("SKIP: FE8J ROM not available (roms/FE8J.gba or ROMS_DIR) — #4 repro did NOT execute.");
+                return;
+            }
             RomTestHelper.WithRom("FE8J", () =>
             {
                 var vm = new ItemUsagePointerViewerViewModel();
@@ -112,6 +124,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Fact]
         public void Assertion3_ViewMatchIndex_IsNonNegative_ForLoadedPointer()
         {
+            string? romPath = TestRomLocator.FindRom("FE8J");
+            if (romPath == null)
+            {
+                _output.WriteLine("SKIP: FE8J ROM not available (roms/FE8J.gba or ROMS_DIR) — #4 repro did NOT execute.");
+                return;
+            }
             RomTestHelper.WithRom("FE8J", () =>
             {
                 var vm = new ItemUsagePointerViewerViewModel();
@@ -141,6 +159,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public void Assertion4_ViewLevel_FunctionComboSelected_AfterOpen()
         {
+            string? romPath = TestRomLocator.FindRom("FE8J");
+            if (romPath == null)
+            {
+                _output.WriteLine("SKIP: FE8J ROM not available (roms/FE8J.gba or ROMS_DIR) — #4 repro did NOT execute.");
+                return;
+            }
             RomTestHelper.WithRom("FE8J", () =>
             {
                 var view = new ItemUsagePointerViewerView();

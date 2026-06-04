@@ -83,9 +83,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 // re-fire OnSelected because the index is already 0).
                 _currentFunctionLines = _vm.LoadFunctionLines(filterIndex);
                 _suppressFunctionComboChange = true;
-                FunctionCombo.ItemsSource = _currentFunctionLines;
-                FunctionCombo.SelectedItem = null;
-                _suppressFunctionComboChange = false;
+                try
+                {
+                    FunctionCombo.ItemsSource = _currentFunctionLines;
+                    FunctionCombo.SelectedItem = null;
+                }
+                finally
+                {
+                    // try/finally so an exception during the ItemsSource/SelectedItem
+                    // assignment can't leave the suppress flag stuck true, which would
+                    // permanently mute user-driven FunctionCombo writes for this view.
+                    _suppressFunctionComboChange = false;
+                }
 
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
 
