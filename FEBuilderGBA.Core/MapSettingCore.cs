@@ -197,6 +197,29 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Resolve a map/chapter ID to a human-readable name (e.g. "Ch1 Prologue")
+        /// using <c>CoreState.ROM</c>. Mirrors WinForms
+        /// <c>MapSettingForm.GetMapName(id)</c>. Returns "" when the ID is out of
+        /// range or the ROM is unavailable. Callers that need the WinForms "ANY"
+        /// sentinel rendering (FE7/8 0xFF, FE6 over-count) should apply that guard
+        /// themselves before calling this.
+        /// </summary>
+        public static string GetMapNameById(uint mapId) => GetMapNameById(CoreState.ROM, mapId);
+
+        /// <summary>
+        /// Resolve a map/chapter ID to a human-readable name using the given ROM.
+        /// Does NOT read <c>CoreState.ROM</c>. Returns "" on any failure.
+        /// </summary>
+        public static string GetMapNameById(ROM rom, uint mapId)
+        {
+            if (rom == null || rom.RomInfo == null) return "";
+            uint addr = GetMapAddr(rom, mapId);
+            if (addr == U.NOT_FOUND || !U.isSafetyOffset(addr, rom)) return "";
+            try { return GetMapName(rom, addr); }
+            catch { return ""; }
+        }
+
+        /// <summary>
         /// Get a human-readable name for a map at the given address.
         /// </summary>
         static string GetMapName(ROM rom, uint addr)

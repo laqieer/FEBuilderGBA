@@ -11,10 +11,84 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Haiku (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <!-- Unit (offset +0, 1-based id) — IdFieldControl, ANY-capable names. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="EventHaikuFE7_UnitNud_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="UnitNud"
+                                   Label="Unit:"
+                                   Maximum="255"
+                                   JumpRequested="Unit_Jump"
+                                   PickRequested="Unit_Pick"
+                                   ValueChanged="Unit_ValueChanged" />
+
+          <!-- Chapter ID (offset +1) — NumericUpDown + inline chapter-name preview
+               (FE7 ANYFF: 0x45 => "ANY"). -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Chapter ID:" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_ChapterId_Input" FormatString="0"
+                           Name="ChapterIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120"
+                           ValueChanged="ChapterId_ValueChanged" />
+            <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_ChapterName_Label"
+                       Name="ChapterNameLabel" VerticalAlignment="Center" Foreground="Gray" />
+          </StackPanel>
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Unknown (0x02):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown02_Input" FormatString="0"
+                         Grid.Row="3" Grid.Column="1" Name="Unknown02Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Unknown (0x03):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown03_Input" FormatString="0"
+                         Grid.Row="4" Grid.Column="1" Name="Unknown03Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+          <!-- Text (offset +4, u16) — IdFieldControl, Jump to text-table ROW
+               address, no Pick, inline text preview. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="EventHaikuFE7_TextNud_Input"
+                                   Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="TextNud"
+                                   Label="Text:"
+                                   Maximum="65535"
+                                   ShowPick="False"
+                                   JumpRequested="Text_Jump"
+                                   ValueChanged="Text_ValueChanged" />
+
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Unknown (0x06):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown06_Input" FormatString="0"
+                         Grid.Row="6" Grid.Column="1" Name="Unknown06Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+          <TextBlock Grid.Row="7" Grid.Column="0" Text="Unknown (0x07):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown07_Input" FormatString="0"
+                         Grid.Row="7" Grid.Column="1" Name="Unknown07Box" Minimum="0" Maximum="255" Margin="0,2" />
+
+          <!-- Achievement Flag (offset +0C, u16). -->
+          <TextBlock Grid.Row="8" Grid.Column="0" Text="Achievement Flag:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_AchievementFlag_Input" FormatString="0"
+                         Grid.Row="8" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,2" />
+
+          <TextBlock Grid.Row="9" Grid.Column="0" Text="Unknown (0x0E):" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown0E_Input" FormatString="0"
+                           Name="Unknown0EBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
+            <TextBlock Text="Unknown (0x0F):" VerticalAlignment="Center" />
+            <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown0F_Input" FormatString="0"
+                           Name="Unknown0FBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
+          </StackPanel>
         </Grid>
+
+        <!-- Event Pointer (offset +8, u32). -->
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_EventPointer_Input" FormatString="0"
+                         Grid.Row="0" Grid.Column="1" Name="EventPointerBox" Minimum="0" Maximum="4294967295"
+                         HorizontalAlignment="Left" Width="200" Margin="0,2" />
+        </Grid>
+
+        <Button AutomationProperties.AutomationId="EventHaikuFE7_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -11,10 +11,89 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Haiku Event Editor" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="EventHaiku_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+
+          <!-- Unit (1-based id) — IdFieldControl with Jump+Pick to UnitEditorView
+               and ANY-capable name preview (0 => "ANY"). -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="EventHaiku_UnitNud_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="UnitNud"
+                                   Label="Unit:"
+                                   Maximum="255"
+                                   JumpRequested="Unit_Jump"
+                                   PickRequested="Unit_Pick"
+                                   ValueChanged="Unit_ValueChanged" />
+
+          <!-- KillerUnit (offset +1). Only meaningful as a unit when the
+               "death quote add killer ID" patch is installed; otherwise it is an
+               unknown byte. Both controls live in the tree; OnSelected toggles
+               visibility based on PatchDetectionService.DeathQuoteAddKillerID. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="EventHaiku_KillerUnitNud_Input"
+                                   Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="KillerUnitNud"
+                                   Label="Killer Unit:"
+                                   Maximum="255"
+                                   JumpRequested="KillerUnit_Jump"
+                                   PickRequested="KillerUnit_Pick"
+                                   ValueChanged="KillerUnit_ValueChanged" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Killer Unit (0x01):" VerticalAlignment="Center"
+                     AutomationProperties.AutomationId="EventHaiku_KillerUnitPlainCaption_Label"
+                     Name="KillerUnitPlainCaption" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaiku_KillerUnitPlain_Input" FormatString="0"
+                         Grid.Row="3" Grid.Column="1" Name="KillerUnitPlainBox" Minimum="0" Maximum="255" Margin="0,2" />
+
+          <!-- Route (offset +2) — combo synced to numeric value.
+               WinForms L_2_COMBO: 01=序盤 / 02=エイリーク編 / 03=エフラム編 / FF=無条件. -->
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Route:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="EventHaiku_Route_Combo"
+                    Grid.Row="4" Grid.Column="1" Name="RouteCombo" Margin="0,2"
+                    HorizontalAlignment="Left" Width="320"
+                    SelectionChanged="Route_SelectionChanged" />
+
+          <!-- Chapter ID (offset +3) — NumericUpDown + inline map/chapter name
+               preview honoring WinForms ANYFF semantics (FE8: 0xFF => "ANY"). -->
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="Chapter ID:" VerticalAlignment="Center" />
+          <StackPanel Grid.Row="5" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <NumericUpDown AutomationProperties.AutomationId="EventHaiku_ChapterId_Input" FormatString="0"
+                           Name="ChapterIdBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120"
+                           ValueChanged="ChapterId_ValueChanged" />
+            <TextBlock AutomationProperties.AutomationId="EventHaiku_ChapterName_Label"
+                       Name="ChapterNameLabel" VerticalAlignment="Center" Foreground="Gray" />
+          </StackPanel>
+
+          <!-- Achievement Flag (offset +4, u16) — flag id. -->
+          <TextBlock Grid.Row="6" Grid.Column="0" Text="Achievement Flag:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaiku_AchievementFlag_Input" FormatString="0"
+                         Grid.Row="6" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,2" />
+
+          <!-- Text (offset +6, u16) — IdFieldControl, Jump to text-table ROW
+               address, no Pick, inline text-content preview. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="EventHaiku_TextNud_Input"
+                                   Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Margin="0,2"
+                                   Name="TextNud"
+                                   Label="Text:"
+                                   Maximum="65535"
+                                   ShowPick="False"
+                                   JumpRequested="Text_Jump"
+                                   ValueChanged="Text_ValueChanged" />
         </Grid>
+
+        <!-- Event Pointer (offset +8, u32) — WinForms: a haiku entry uses
+             EITHER a text id OR a new event. -->
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Event Pointer:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="EventHaiku_EventPointer_Input" FormatString="0"
+                         Grid.Row="0" Grid.Column="1" Name="EventPointerBox" Minimum="0" Maximum="4294967295"
+                         HorizontalAlignment="Left" Width="200" Margin="0,2" />
+        </Grid>
+
+        <Button AutomationProperties.AutomationId="EventHaiku_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

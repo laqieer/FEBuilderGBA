@@ -41,6 +41,14 @@ namespace FEBuilderGBA.Avalonia.Services
         /// <summary>SkillSystems effectiveness rework class type extension.</summary>
         public bool SkillSystemsClassTypeRework { get; private set; }
 
+        /// <summary>
+        /// True if the FE8 "death quote add killer ID" patch is installed, which
+        /// repurposes the haiku entry byte at offset +1 (otherwise unknown) to
+        /// store the unit ID of the killer. Mirrors WinForms
+        /// <c>PatchUtil.DeathQuoteAddKillerID() == Enable</c>. FE8 only.
+        /// </summary>
+        public bool DeathQuoteAddKillerID { get; private set; }
+
         /// <summary>Draw font patch type from Core PatchDetection.</summary>
         public PatchDetection.draw_font_enum DrawFont { get; private set; } = PatchDetection.draw_font_enum.NO;
 
@@ -94,6 +102,7 @@ namespace FEBuilderGBA.Avalonia.Services
             BG256Color = false;
             AntiHuffman = false;
             SkillSystemsClassTypeRework = false;
+            DeathQuoteAddKillerID = false;
             DrawFont = PatchDetection.draw_font_enum.NO;
             TextEngineRework = PatchDetection.TextEngineRework_enum.NO;
 
@@ -117,6 +126,7 @@ namespace FEBuilderGBA.Avalonia.Services
             PortraitExtends = DetectPortraitExtends();
             BG256Color = DetectBG256Color();
             SkillSystemsClassTypeRework = DetectClassTypeRework();
+            DeathQuoteAddKillerID = DetectDeathQuoteAddKillerID();
         }
 
         // ---- Private detection methods ----
@@ -300,6 +310,45 @@ namespace FEBuilderGBA.Avalonia.Services
                 return true;
             if (rom.CompareByte(0x2AAEC, new byte[] { 0x01, 0x4B, 0xA6, 0xF0, 0xED, 0xFE, 0x01, 0xE0 }))
                 return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Detect the FE8 "death quote add killer ID" patch. Literal port of
+        /// WinForms <c>PatchUtil.DeathQuoteAddKillerIDLow()</c> (FE8 only — both
+        /// FE8J/is_multibyte and FE8U). The patch hook overwrites a fixed dword;
+        /// a second guard distinguishes the (separate) "capture area" feature,
+        /// which is NOT the killer-ID extension, so we return false there.
+        /// </summary>
+        static bool DetectDeathQuoteAddKillerID()
+        {
+            ROM rom = CoreState.ROM!;
+            if (rom.RomInfo.version != 8)
+                return false;
+
+            if (rom.RomInfo.is_multibyte)
+            {
+                // FE8J
+                if (rom.u32(0x0869B0) == 0x47184B00)
+                {
+                    if (rom.u32(0x16328) == 0x46874800)
+                        return false; // capture area, not killer-ID
+                    return true;
+                }
+            }
+            else
+            {
+                // FE8U
+                if (rom.u32(0x0846E4) == 0x47184B00)
+                {
+                    if (rom.u32(0x16580) == 0x46874800)
+                        return false; // capture area
+                    if (rom.u32(0x32264) == 0x47184B00)
+                        return false; // capture (skillsystems)
+                    return true;
+                }
+            }
 
             return false;
         }
