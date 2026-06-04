@@ -95,6 +95,28 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Theory]
+        [InlineData("AFEJ01")] // FE6
+        [InlineData("AE7E01")] // FE7U
+        [InlineData("BE8E01")] // FE8U
+        public void UnitAddrForOneBased_OutOfRangeOrOverflowId_ReturnsZero(string sig)
+        {
+            // #938 review: a large user-editable id must NOT wrap the uint
+            // multiply into a spuriously valid offset, and an id whose entry
+            // tail spills past EOF must be rejected (full-range bounds, not
+            // just the start offset).
+            var rom = MakeRomWithUnitTable(sig);
+            uint baseAddr = SupportUnitNavigation.GetUnitTableBase(rom);
+            uint dataSize = rom.RomInfo.unit_datasize;
+            uint romLen = (uint)rom.Data.Length;
+            // First 1-based id whose entry starts safely past the last entry
+            // that fully fits in the ROM.
+            uint firstOob = ((romLen - baseAddr) / dataSize) + 2;
+            Assert.Equal(0u, SupportUnitNavigation.UnitAddrForOneBased(rom, firstOob));
+            // uint.MaxValue must not wrap into a valid-looking address.
+            Assert.Equal(0u, SupportUnitNavigation.UnitAddrForOneBased(rom, uint.MaxValue));
+        }
+
         // ---- Name parity: GetUnitNameByOneBasedId(id) == ResolveUnitTableName(rom, id-1) ----
 
         [Theory]

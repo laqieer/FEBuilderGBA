@@ -239,7 +239,13 @@ namespace FEBuilderGBA
             if (dataSize == 0) return 0;
             uint baseAddr = GetUnitTableBase(rom); // FE6-aware logical base
             if (baseAddr == 0) return 0;
-            uint entryAddr = baseAddr + (oneBasedId - 1) * dataSize;
+            // 64-bit math so a large user-editable oneBasedId can't wrap the
+            // uint multiply, and validate the FULL entry range (start +
+            // dataSize), not just the start offset — otherwise Jump/Pick could
+            // land on an entry whose tail spills past EOF (#938 review).
+            ulong entry = (ulong)baseAddr + (ulong)(oneBasedId - 1) * dataSize;
+            if (entry + dataSize > (ulong)rom.Data.Length) return 0;
+            uint entryAddr = (uint)entry;
             if (!U.isSafetyOffset(entryAddr, rom)) return 0;
             return entryAddr;
         }

@@ -61,7 +61,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // UnitId is a 1-based ROM unit ID; GetUnitNameByOneBasedId handles
             // the 0/bounds cases and the 1-based → 0-based conversion (#937).
             try { UnitIdBox.NameText = NameResolver.GetUnitNameByOneBasedId(_vm.UnitId); }
-            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
+            catch { /* GetUnitNameByOneBasedId returns a fallback and never throws; defensive only */ }
             ClassIdBox.Value = _vm.ClassId;
             try { ClassIdBox.NameText = NameResolver.GetClassName(_vm.ClassId); }
             catch { /* NameResolver may fail without ROM — leave prior text */ }
@@ -158,7 +158,7 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // 1-based Unit ID → name via GetUnitNameByOneBasedId (#937).
             try { UnitIdBox.NameText = NameResolver.GetUnitNameByOneBasedId(e.NewValue); }
-            catch { /* SupportUnitNavigation may fail without ROM — leave prior text */ }
+            catch { /* GetUnitNameByOneBasedId returns a fallback and never throws; defensive only */ }
         }
 
         void ClassId_Jump(object? sender, RoutedEventArgs e)
