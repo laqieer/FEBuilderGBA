@@ -982,9 +982,12 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build terrain name list matching TerrainNameEditorViewModel.
-        /// The Avalonia VM treats each entry as a u16 text ID (2 bytes per entry),
-        /// while WinForms uses 4 bytes (pointer). We match the Avalonia VM format.</summary>
+        /// <summary>Build terrain name list matching TerrainNameEditorViewModel
+        /// (#5 of #943). DUAL-MODE, mirroring WinForms MapTerrainNameForm:
+        ///   * multibyte (JP) — 4-byte entries, each a pointer to a raw string;
+        ///     stop on !U.isPointerOrNULL(u32(addr)).
+        ///   * non-multibyte (US/EU) — 2-byte Huffman text IDs; stop on textId==0.
+        /// </summary>
         static List<AddrResult> BuildTerrainNameList(ROM rom)
         {
             uint ptr = rom.RomInfo.map_terrain_name_pointer;
@@ -992,21 +995,54 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            const uint blockSize = 2;
             var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
+
+            if (rom.RomInfo.is_multibyte)
             {
-                uint addr = baseAddr + i * blockSize;
-                if (addr + blockSize > (uint)rom.Data.Length) break;
+                const uint blockSize = 4;
+                for (uint i = 0; i < 0x100; i++)
+                {
+                    uint addr = baseAddr + i * blockSize;
+                    if (addr + blockSize > (uint)rom.Data.Length) break;
 
-                uint textId = rom.u16(addr);
-                string decoded;
-                try { decoded = GetTextById(textId); }
-                catch { decoded = "???"; }
+                    uint rawPtr = rom.u32(addr);
+                    if (!U.isPointerOrNULL(rawPtr)) break;
 
-                string name = U.ToHexString(i) + " " + decoded;
-                result.Add(new AddrResult(addr, name, i));
+                    string decoded = "";
+                    if (U.isPointer(rawPtr))
+                    {
+                        uint strOff = U.toOffset(rawPtr);
+                        if (U.isSafetyOffset(strOff))
+                        {
+                            try { decoded = rom.getString(strOff); }
+                            catch { decoded = ""; }
+                        }
+                    }
+
+                    string name = U.ToHexString(i) + " " + decoded;
+                    result.Add(new AddrResult(addr, name, i));
+                }
             }
+            else
+            {
+                const uint blockSize = 2;
+                for (uint i = 0; i < 0x100; i++)
+                {
+                    uint addr = baseAddr + i * blockSize;
+                    if (addr + blockSize > (uint)rom.Data.Length) break;
+
+                    uint textId = rom.u16(addr);
+                    if (textId == 0x0000) break;
+
+                    string decoded;
+                    try { decoded = GetTextById(textId); }
+                    catch { decoded = "???"; }
+
+                    string name = U.ToHexString(i) + " " + decoded;
+                    result.Add(new AddrResult(addr, name, i));
+                }
+            }
+
             return result;
         }
 
