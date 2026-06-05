@@ -506,6 +506,30 @@ Specialized utilities for different graphic types:
   reclaimed so bulk re-import no longer grows the ROM unboundedly. Conservative
   static pre-pass — an originally-shared region stays excluded for the whole
   transaction (safe, may leak; dynamic reclaim out of scope).
+- `MapPListResolverCore.cs` (Core, READ-ONLY) - Cross-platform port of the
+  WinForms map-PLIST label resolver (`MapPointerForm.GetPListNameSplited` /
+  `GetPListNameNotSplite` / `ConvertBaseAddrToType` + `MapSettingForm.PLists` /
+  `GetMapPListsWhereAddr`) used by the MapPointer + MapChange Avalonia editors to
+  show resolved map names (`MAP Ch1`, `MAPCHANGE Ch5`, `ANIME1 Prologue`, `OBJ …`,
+  `NULL`, `-EMPTY-`, `UNK`) instead of raw `0x08……` pointers (#952). `PLists`
+  reads each field from its REAL per-version source — `event_plist` from
+  `RomInfo.map_setting_event_plist_pos`, FE6 worldmap from
+  `map_setting_worldmap_plist_pos`, and the **PAL2 offset (146 vs 45) from the
+  ported `PatchDetection.SearchFlag0x28ToMapSecondPalettePatch`** (WF `PatchUtil`
+  now delegates to that single Core detector). EXTENDS (does NOT fork) the
+  `MapChangeCore.PlistType` enum (added MAP/EVENT/ANIMATION/ANIMATION2/
+  WORLDMAP_FE6ONLY + `GetPlistBasePointer`) and `MapSettingCore.GetMapNameWhereAddr`.
+  Subtleties preserved verbatim: OBJ is a packed u16 (`& 0xFF` low + `>>8 & 0xFF`
+  high both resolve to `OBJ`); ANIME1/ANIME2 both match under ANIMATION; PAL/PAL2
+  both under OBJECT; the FE6 WMEVENT branch fires on `worldmapevent_plist == 0`
+  (after the `plist==0 → NULL` early-return); split → `-EMPTY-` on no match,
+  non-split → `UNK`. Per-call LOCAL `ResolveCache` (mapAddr → PLists + name), no
+  global/static state. The MapPointer VM's old `GetPlistPointer(7)` bug (returned
+  `worldmap_point_pointer`) is FIXED to `map_worldmapevent_pointer` via the shared
+  base-pointer seam. The `ListParityHelper.BuildMapPointerList` /
+  `BuildMapChangeList` golden builders call the SAME resolver in lockstep;
+  independent Core oracle tests (`MapPListResolverCoreTests`) hand-build
+  expectations from raw map bytes on synthetic + real FE6/FE7U/FE8U ROMs.
 
 ### Caching System
 

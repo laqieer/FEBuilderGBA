@@ -235,6 +235,21 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Public ROM+address map-name formatter — mirrors WinForms
+        /// <c>MapSettingForm.GetMapNameWhereAddr(addr)</c>. Used by the
+        /// map-PLIST label resolver (#952) which already holds the map's
+        /// setting address and needs only the chapter-prefixed name.
+        /// Returns "" when <paramref name="rom"/> is unavailable or
+        /// <paramref name="addr"/> is unsafe.
+        /// </summary>
+        public static string GetMapNameWhereAddr(ROM rom, uint addr)
+        {
+            if (rom == null || rom.RomInfo == null) return "";
+            if (!U.isSafetyOffset(addr, rom)) return "";
+            return GetMapName(rom, addr);
+        }
+
+        /// <summary>
         /// Get a human-readable name for a map at the given address.
         /// </summary>
         static string GetMapName(ROM rom, uint addr)

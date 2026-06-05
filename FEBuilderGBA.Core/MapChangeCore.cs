@@ -40,6 +40,34 @@ namespace FEBuilderGBA
             /// palette for a given change event's parent map.
             /// </summary>
             PALETTE,
+            /// <summary>
+            /// Map-arrangement PLIST table (<c>map_map_pointer_pointer</c>).
+            /// Added by the map-PLIST label resolver (#952) so the
+            /// MapPointer editor can resolve a MAP-type base back to a map name.
+            /// </summary>
+            MAP,
+            /// <summary>
+            /// Event PLIST table (<c>map_event_pointer</c>). Added by #952.
+            /// </summary>
+            EVENT,
+            /// <summary>
+            /// Tile-animation #1 PLIST table (<c>map_tileanime1_pointer</c>).
+            /// Added by #952. ANIME1/ANIME2 share the same base in vanilla
+            /// ROMs (both resolve under the WF "ANIMATION" filter).
+            /// </summary>
+            ANIMATION,
+            /// <summary>
+            /// Tile-animation #2 PLIST table (<c>map_tileanime2_pointer</c>).
+            /// Added by #952.
+            /// </summary>
+            ANIMATION2,
+            /// <summary>
+            /// FE6-only world-map event PLIST table
+            /// (<c>map_worldmapevent_pointer</c>). Added by #952. The WF
+            /// <c>PLIST_TYPE.WORLDMAP_FE6ONLY</c> uses this pointer — NOT
+            /// the worldmap_point table.
+            /// </summary>
+            WORLDMAP_FE6ONLY,
         }
 
         /// <summary>
@@ -155,15 +183,20 @@ namespace FEBuilderGBA
         /// Return the RomInfo pointer base for the given PLIST type.
         /// 0 when the version-specific pointer is not defined.
         /// </summary>
-        static uint GetPlistBasePointer(ROM rom, PlistType type)
+        internal static uint GetPlistBasePointer(ROM rom, PlistType type)
         {
             if (rom?.RomInfo == null) return 0u;
             return type switch
             {
-                PlistType.CHANGE  => rom.RomInfo.map_mapchange_pointer,
-                PlistType.CONFIG  => rom.RomInfo.map_config_pointer,
-                PlistType.OBJECT  => rom.RomInfo.map_obj_pointer,
-                PlistType.PALETTE => rom.RomInfo.map_pal_pointer,
+                PlistType.CHANGE           => rom.RomInfo.map_mapchange_pointer,
+                PlistType.CONFIG           => rom.RomInfo.map_config_pointer,
+                PlistType.OBJECT           => rom.RomInfo.map_obj_pointer,
+                PlistType.PALETTE          => rom.RomInfo.map_pal_pointer,
+                PlistType.MAP              => rom.RomInfo.map_map_pointer_pointer,
+                PlistType.EVENT            => rom.RomInfo.map_event_pointer,
+                PlistType.ANIMATION        => rom.RomInfo.map_tileanime1_pointer,
+                PlistType.ANIMATION2       => rom.RomInfo.map_tileanime2_pointer,
+                PlistType.WORLDMAP_FE6ONLY => rom.RomInfo.map_worldmapevent_pointer,
                 _ => 0u,
             };
         }
