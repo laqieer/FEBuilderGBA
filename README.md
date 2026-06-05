@@ -221,6 +221,7 @@ FEBuilderGBA.sln
 │   ├── SongExchangeCore.cs                Song exchange between ROMs
 │   ├── MapConvertCore.cs                  Map tile conversion
 │   ├── NameResolver.cs                    Entity name resolution with caching
+│   ├── SongNameResolverCore.cs            Song name resolution (Sound Room name + SE-list fallback)
 │   └── WriteValidator.cs                  ROM write validation utilities
 ├── FEBuilderGBA.CLI/            net9.0    (cross-platform CLI — 51 commands)
 ├── FEBuilderGBA.SkiaSharp/      net9.0    (image backend)

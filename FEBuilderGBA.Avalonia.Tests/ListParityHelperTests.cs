@@ -353,4 +353,54 @@ public class ListParityHelperTests : IClassFixture<RomFixture>
             Assert.Equal(vmList[i].name, refList[i].name);
         }
     }
+
+    // ---------------------------------------------------------------
+    // SoundBossBGM — lockstep VM vs golden + unresolved-id label (#962)
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// The Boss BGM VM list and the golden ListParityHelper builder must
+    /// stay byte-for-byte identical (the lockstep song-name restore, #961).
+    /// </summary>
+    [Fact]
+    public void BuildReferenceList_SoundBossBGM_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new SoundBossBGMViewerViewModel();
+        var vmList = vm.LoadSoundBossBGMList();
+        var refList = ListParityHelper.BuildReferenceList("SoundBossBGMViewerView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    /// <summary>
+    /// #962 review #2/#3: an unresolved song id must NOT duplicate the hex
+    /// with a "Song 0x.." placeholder (the old "1BSong 0x1B" bug). Every
+    /// Boss BGM label must contain " : " (the song-hex segment) and must NEVER
+    /// contain the "Song 0x" placeholder — for an unknown song the label
+    /// collapses to just the song hex (matching WinForms' empty-string append).
+    /// </summary>
+    [Fact]
+    public void SoundBossBGM_Labels_NeverContainSongPlaceholder()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new SoundBossBGMViewerViewModel();
+        var vmList = vm.LoadSoundBossBGMList();
+
+        foreach (var row in vmList)
+        {
+            // The placeholder "Song 0x" must never leak into the label.
+            Assert.DoesNotContain("Song 0x", row.name);
+            // The colon-separated song-hex segment is always present.
+            Assert.Contains(" : ", row.name);
+        }
+    }
 }

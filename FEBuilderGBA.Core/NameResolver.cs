@@ -12,7 +12,13 @@ namespace FEBuilderGBA
         static readonly ConcurrentDictionary<(string kind, uint id), string> _cache = new();
 
         /// <summary>Clear the name cache (e.g., after undo or ROM reload).</summary>
-        public static void ClearCache() => _cache.Clear();
+        public static void ClearCache()
+        {
+            _cache.Clear();
+            // The song resolver caches the SE list per ROM; drop it too so a
+            // ROM reload / version switch re-reads the matching sound_*.txt.
+            SongNameResolverCore.ClearCache();
+        }
 
         // Characters to trim from decoded names (matches WinForms TextForm.StripAllCode)
         static readonly char[] TrimChars = { ' ', '\0', (char)0x1F, '\r', '\n', '\u3000' };
@@ -278,11 +284,15 @@ namespace FEBuilderGBA
             try
             {
                 var rom = CoreState.ROM;
-                if (rom?.RomInfo == null) return $"Song {id}";
-                // Song table doesn't have text IDs, just return index-based name
-                return $"Song 0x{id:X}";
+                if (rom?.RomInfo == null) return $"Song 0x{id:X}";
+                // Resolve the real name: Sound Room name first, then SE-list
+                // fallback (mirrors WinForms SongTableForm.GetSongNameFast).
+                string name = SongNameResolverCore.GetSongName(rom, id);
+                // Keep the safe placeholder when the id resolves to nothing so
+                // callers always have a non-empty, identifiable label.
+                return string.IsNullOrEmpty(name) ? $"Song 0x{id:X}" : name;
             }
-            catch { return "???"; }
+            catch { return $"Song 0x{id:X}"; }
         }
 
         static string ResolveSkillName(uint id)
