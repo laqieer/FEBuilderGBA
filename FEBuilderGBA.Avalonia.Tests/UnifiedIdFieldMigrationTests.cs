@@ -1022,7 +1022,10 @@ public class UnifiedIdFieldMigrationTests
         var view = new OPClassDemoViewerView();
         var ctrl = view.FindControl<IdFieldControl>("DisplayWeaponBox");
         Assert.NotNull(ctrl);
-        Assert.Equal("Class ID:", ctrl!.Label);
+        // #951 layout-clip fix: the original caption was merged into the
+        // hyperlink Label (and the redundant separate caption Label removed)
+        // when the control moved to columns 0..2 for full width.
+        Assert.Equal("Display Weapon (Class):", ctrl!.Label);
         Assert.True(ctrl.ShowPick);
     }
 
