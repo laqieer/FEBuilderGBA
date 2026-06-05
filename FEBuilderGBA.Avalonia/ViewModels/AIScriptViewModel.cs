@@ -551,14 +551,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Rebuild the editable opcode model from exported text (mirrors WF
         /// AIScriptForm.TextToEvent(..., isClear:true) + LineToEventByte).
-        /// Each line is parsed for its LEADING hex pairs only (stopping at the
-        /// first non-hex char, so the <c>\t//…</c> comment and any blank /
-        /// comment-only line are tolerated); a line yielding fewer than 4 bytes
-        /// is skipped (WF's <c>bin.Length &lt; 4</c> "broken or non-code"
-        /// guard). Each surviving instruction is padded/validated to the FIXED
-        /// 16-byte width via the same rule as the per-row hex edit
-        /// (<see cref="ParseInstructionHex"/>: odd-nibble / &gt;16-byte / non-hex
-        /// content is rejected and that line skipped), then decoded via
+        /// Each line is parsed for its LEADING hex pairs only via
+        /// <see cref="ReadLeadingHexBytes"/> (WF LineToEventByte parity): the
+        /// scan reads 2-hex-digit pairs and STOPS at the first non-hex char, so
+        /// the <c>\t//…</c> comment and any blank / comment-only line are
+        /// tolerated, and a lone trailing nibble is dropped (NOT padded). A line
+        /// yielding fewer than 4 bytes is skipped (WF's <c>bin.Length &lt; 4</c>
+        /// "broken or non-code" guard). Each surviving 4..16-byte instruction is
+        /// right-padded with zero bytes to the FIXED 16-byte AI width by
+        /// <see cref="PadToInstruction"/> (a parse longer than 16 bytes is
+        /// rejected and that line skipped), then decoded via
         /// AIScript.DisAseemble. On any successful parse the model is REPLACED
         /// (clear-then-fill), JisageReorder is run, and row offsets are rebuilt.
         ///

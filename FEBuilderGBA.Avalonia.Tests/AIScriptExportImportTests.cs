@@ -114,29 +114,28 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void ExportToText_RowComment_AppendedAsTrailingDoubleSlash()
+        public void ExportToText_RowComment_EmittedWhenPresent_OmittedWhenAbsent()
         {
             using var env = new AiDisasmEnv();
 
+            // No comment -> the exported line has NO trailing "  //".
+            var vmNoComment = env.LoadVmAt(Attack05(0x64));
+            vmNoComment.DisassembleScript();
+            string exportNoComment = vmNoComment.ExportToText().Split('\n')[0];
+            Assert.DoesNotContain("  //", exportNoComment);
+
+            // Seed a per-row comment at the script offset (DisAseemble reads it
+            // from CommentCache.At(offset)), re-disassemble, and assert the
+            // exported line carries the comment as a trailing "  //<comment>".
+            const string commentText = "guard-the-throne";
+            var cache = CoreState.CommentCache as HeadlessEtcCache;
+            Assert.NotNull(cache);
             var vm = env.LoadVmAt(Attack05(0x64));
+            cache!.Update(vm.CurrentAddr, commentText);
             vm.DisassembleScript();
 
-            // Inject a per-row comment, then re-export from the in-memory model.
-            // (UpdateRow preserves the existing comment; set it directly via the
-            // model the same way a loaded ROM comment would arrive.)
-            string line = vm.GetDisplayLines()[0];
-            Assert.Contains("Attack05", line);
-
-            // Round-trip an export that carries a comment: build a script whose
-            // first opcode has a comment by re-decoding with a known comment.
-            string? updated = vm.UpdateRow(0, "05 64 FF");
-            Assert.NotNull(updated);
-            // Set the comment through the public re-export surface: ExportToText
-            // emits code.Comment when present. We assert the format by importing
-            // a hand-authored commented line below (import drops comments), so
-            // here we only assert the no-comment export has NO trailing "  //".
-            string export = vm.ExportToText();
-            Assert.DoesNotContain("  //", export.Split('\n')[0]);
+            string exportWithComment = vm.ExportToText().Split('\n')[0];
+            Assert.Contains("  //" + commentText, exportWithComment);
         }
 
         // ----------------------------------------------------------------
@@ -196,7 +195,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ----------------------------------------------------------------
 
         [Fact]
-        public void ImportFromText_MalformedLines_TolueratedAndCountsValidOnly()
+        public void ImportFromText_MalformedLines_ToleratedAndCountsValidOnly()
         {
             using var env = new AiDisasmEnv();
 

@@ -24039,3 +24039,6 @@ AI脚本已导出到:
 
 :Press Write to save to ROM.
 请点击写入按钮保存到ROM。
+
+:Re-read the AI script before importing.
+导入前请重新读取AI脚本。

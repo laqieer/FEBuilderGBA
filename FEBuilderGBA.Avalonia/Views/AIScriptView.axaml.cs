@@ -528,6 +528,15 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void Import_Click(object? sender, RoutedEventArgs e)
         {
+            // Require a loaded script (same guard as Export). Without a loaded
+            // pointer slot / CurrentAddr, an import would populate a model whose
+            // rows show 0x000000 addresses and a later Write would have no
+            // target slot to persist to (Copilot bot review).
+            if (!_vm.IsLoaded)
+            {
+                CoreState.Services.ShowInfo(R._("Re-read the AI script before importing."));
+                return;
+            }
             try
             {
                 var txtType = new FilePickerFileType(R._("Text Files")) { Patterns = new[] { "*.txt", "*.event" } };

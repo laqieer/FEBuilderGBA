@@ -10207,3 +10207,6 @@ AIスクリプトをエクスポートしました:
 
 :Press Write to save to ROM.
 書き込みボタンでROMに保存してください。
+
+:Re-read the AI script before importing.
+インポートする前にAIスクリプトを再読み込みしてください。
