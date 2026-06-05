@@ -15,20 +15,35 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="MonsterProbabilityViewer_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Class ID 1:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId1_Input" FormatString="0" Grid.Row="1" Grid.Column="1" Name="ClassId1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <!-- #950 T4: Class ID 1..5 (B0..B4, WF L_0..4_CLASS) are real class IDs.
+               Migrated from plain NumericUpDown to class IdFieldControl (hyperlink
+               label + numeric + class-name preview + Jump + Pick). Host Names
+               (ClassId1..5Box) + AutomationIds (ClassId1..5_Input) preserved;
+               the IdFieldControl spans both columns and carries its own label. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId1_Input"
+                                   Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ClassId1Box" Label="Class ID 1:" Maximum="255"
+                                   JumpRequested="ClassId1_Jump" PickRequested="ClassId1_Pick" ValueChanged="ClassId1_ValueChanged" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Class ID 2:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId2_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="ClassId2Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId2_Input"
+                                   Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ClassId2Box" Label="Class ID 2:" Maximum="255"
+                                   JumpRequested="ClassId2_Jump" PickRequested="ClassId2_Pick" ValueChanged="ClassId2_ValueChanged" />
 
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="Class ID 3:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId3_Input" FormatString="0" Grid.Row="3" Grid.Column="1" Name="ClassId3Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId3_Input"
+                                   Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ClassId3Box" Label="Class ID 3:" Maximum="255"
+                                   JumpRequested="ClassId3_Jump" PickRequested="ClassId3_Pick" ValueChanged="ClassId3_ValueChanged" />
 
-          <TextBlock Grid.Row="4" Grid.Column="0" Text="Class ID 4:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId4_Input" FormatString="0" Grid.Row="4" Grid.Column="1" Name="ClassId4Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId4_Input"
+                                   Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ClassId4Box" Label="Class ID 4:" Maximum="255"
+                                   JumpRequested="ClassId4_Jump" PickRequested="ClassId4_Pick" ValueChanged="ClassId4_ValueChanged" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Text="Class ID 5:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId5_Input" FormatString="0" Grid.Row="5" Grid.Column="1" Name="ClassId5Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <controls:IdFieldControl AutomationProperties.AutomationId="MonsterProbabilityViewer_ClassId5_Input"
+                                   Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="ClassId5Box" Label="Class ID 5:" Maximum="255"
+                                   JumpRequested="ClassId5_Jump" PickRequested="ClassId5_Pick" ValueChanged="ClassId5_ValueChanged" />
 
           <TextBlock Grid.Row="6" Grid.Column="0" Text="Probability 1:" VerticalAlignment="Center" />
           <NumericUpDown AutomationProperties.AutomationId="MonsterProbabilityViewer_Prob1_Input" FormatString="0" Grid.Row="6" Grid.Column="1" Name="Prob1Box" Minimum="0" Maximum="255" VerticalAlignment="Center" />

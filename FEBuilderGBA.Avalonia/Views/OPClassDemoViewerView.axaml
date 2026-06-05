@@ -118,14 +118,31 @@
                      Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2"
                      Name="PalettePreview" IsReadOnly="True" VerticalAlignment="Center" />
 
-            <!-- Row 5: Display Weapon (Class) -->
-            <Label Grid.Row="5" Grid.Column="0" Content="Display Weapon (Class):" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="OPClassDemoViewer_DisplayWeapon_Input"
-                           FormatString="0" Grid.Row="5" Grid.Column="1"
-                           Name="DisplayWeaponBox"
-                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <!-- Row 5: Display Weapon (Class) — B14, WF J_14_CLASS/L_14_CLASS.
+                 #950 T4: migrated from plain NumericUpDown to a class
+                 IdFieldControl (hyperlink label + numeric + class-name preview
+                 + Jump + Pick). Host Name="DisplayWeaponBox" + AutomationId
+                 (DisplayWeapon_Input) preserved.
+                 #951 review (layout-clip fix): the IdFieldControl needs ~420px;
+                 spanning the bare-minimum 0..2 (=420px) still clipped the
+                 "Pick..." button text, so it now spans columns 0..3
+                 (200+140+80+200 = 620px) for comfortable headroom — well above
+                 the too-narrow 1..2 (220px) that originally clipped the name
+                 preview / Pick button. Its hyperlink Label carries the original
+                 caption ("Display Weapon (Class):") so the redundant separate
+                 caption Label is removed; the ClassNamePreview readout moves to
+                 the trailing flexible column 4 (its ClassName_Label AutomationId
+                 is asserted by OPClassDemoParityTests). -->
+            <controls:IdFieldControl AutomationProperties.AutomationId="OPClassDemoViewer_DisplayWeapon_Input"
+                                     Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4"
+                                     Name="DisplayWeaponBox"
+                                     Label="Display Weapon (Class):"
+                                     Maximum="255"
+                                     JumpRequested="ClassId_Jump"
+                                     PickRequested="ClassId_Pick"
+                                     ValueChanged="ClassId_ValueChanged" />
             <TextBox AutomationProperties.AutomationId="OPClassDemoViewer_ClassName_Label"
-                     Grid.Row="5" Grid.Column="3" Grid.ColumnSpan="2"
+                     Grid.Row="5" Grid.Column="4" Grid.ColumnSpan="1"
                      Name="ClassNamePreview" IsReadOnly="True" VerticalAlignment="Center" />
 
             <!-- Row 6: Ally/Enemy Color -->

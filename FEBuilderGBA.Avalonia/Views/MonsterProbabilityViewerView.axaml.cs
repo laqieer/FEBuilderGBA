@@ -1,8 +1,10 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -59,6 +61,16 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassId3Box.Value = _vm.ClassId3;
             ClassId4Box.Value = _vm.ClassId4;
             ClassId5Box.Value = _vm.ClassId5;
+            // #950 T4: inline class-name preview for each migrated Class ID field.
+            try
+            {
+                ClassId1Box.NameText = NameResolver.GetClassName(_vm.ClassId1);
+                ClassId2Box.NameText = NameResolver.GetClassName(_vm.ClassId2);
+                ClassId3Box.NameText = NameResolver.GetClassName(_vm.ClassId3);
+                ClassId4Box.NameText = NameResolver.GetClassName(_vm.ClassId4);
+                ClassId5Box.NameText = NameResolver.GetClassName(_vm.ClassId5);
+            }
+            catch (Exception ex) { Log.Error("MonsterProbabilityViewerView.UpdateUI ClassName: {0}", ex.Message); }
             Prob1Box.Value = _vm.Prob1;
             Prob2Box.Value = _vm.Prob2;
             Prob3Box.Value = _vm.Prob3;
@@ -74,11 +86,12 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Edit Monster Probability");
             try
             {
-                _vm.ClassId1 = (uint)(ClassId1Box.Value ?? 0);
-                _vm.ClassId2 = (uint)(ClassId2Box.Value ?? 0);
-                _vm.ClassId3 = (uint)(ClassId3Box.Value ?? 0);
-                _vm.ClassId4 = (uint)(ClassId4Box.Value ?? 0);
-                _vm.ClassId5 = (uint)(ClassId5Box.Value ?? 0);
+                // #950 T4: IdFieldControl.Value is a non-nullable uint.
+                _vm.ClassId1 = ClassId1Box.Value;
+                _vm.ClassId2 = ClassId2Box.Value;
+                _vm.ClassId3 = ClassId3Box.Value;
+                _vm.ClassId4 = ClassId4Box.Value;
+                _vm.ClassId5 = ClassId5Box.Value;
                 _vm.Prob1 = (uint)(Prob1Box.Value ?? 0);
                 _vm.Prob2 = (uint)(Prob2Box.Value ?? 0);
                 _vm.Prob3 = (uint)(Prob3Box.Value ?? 0);
@@ -93,6 +106,84 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex) { _undoService.Rollback(); Log.Error("MonsterProbabilityViewerView.Write: {0}", ex.Message); }
         }
+
+        // ============================================================
+        // Class ID picker helpers (#950 T4). The 5 monster-class slots
+        // (B0..B4) each Jump to / Pick from the Class editor
+        // (ClassFE6View for FE6, ClassEditorView otherwise), mirroring the
+        // ItemPromotion/ArenaClass class IdFieldControl wiring.
+        // ============================================================
+
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void JumpToClassEditor(IdFieldControl box)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(box.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    WindowManager.Instance.Navigate<ClassFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ClassEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("MonsterProbabilityViewerView.JumpToClassEditor: {0}", ex.Message); }
+        }
+
+        async System.Threading.Tasks.Task PickClassIdInto(IdFieldControl box)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(box.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null) box.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("MonsterProbabilityViewerView.PickClassIdInto: {0}", ex.Message); }
+        }
+
+        static void RefreshClassName(IdFieldControl box, uint value)
+        {
+            try { box.NameText = NameResolver.GetClassName(value); }
+            catch { /* NameResolver may fail without ROM */ }
+        }
+
+        void ClassId1_Jump(object? sender, RoutedEventArgs e) => JumpToClassEditor(ClassId1Box);
+        async void ClassId1_Pick(object? sender, RoutedEventArgs e) => await PickClassIdInto(ClassId1Box);
+        void ClassId1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e) => RefreshClassName(ClassId1Box, e.NewValue);
+
+        void ClassId2_Jump(object? sender, RoutedEventArgs e) => JumpToClassEditor(ClassId2Box);
+        async void ClassId2_Pick(object? sender, RoutedEventArgs e) => await PickClassIdInto(ClassId2Box);
+        void ClassId2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e) => RefreshClassName(ClassId2Box, e.NewValue);
+
+        void ClassId3_Jump(object? sender, RoutedEventArgs e) => JumpToClassEditor(ClassId3Box);
+        async void ClassId3_Pick(object? sender, RoutedEventArgs e) => await PickClassIdInto(ClassId3Box);
+        void ClassId3_ValueChanged(object? sender, IdFieldValueChangedEventArgs e) => RefreshClassName(ClassId3Box, e.NewValue);
+
+        void ClassId4_Jump(object? sender, RoutedEventArgs e) => JumpToClassEditor(ClassId4Box);
+        async void ClassId4_Pick(object? sender, RoutedEventArgs e) => await PickClassIdInto(ClassId4Box);
+        void ClassId4_ValueChanged(object? sender, IdFieldValueChangedEventArgs e) => RefreshClassName(ClassId4Box, e.NewValue);
+
+        void ClassId5_Jump(object? sender, RoutedEventArgs e) => JumpToClassEditor(ClassId5Box);
+        async void ClassId5_Pick(object? sender, RoutedEventArgs e) => await PickClassIdInto(ClassId5Box);
+        void ClassId5_ValueChanged(object? sender, IdFieldValueChangedEventArgs e) => RefreshClassName(ClassId5Box, e.NewValue);
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();

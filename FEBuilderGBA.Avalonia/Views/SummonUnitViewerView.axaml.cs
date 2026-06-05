@@ -62,7 +62,11 @@ namespace FEBuilderGBA.Avalonia.Views
             // the 0/bounds cases and the 1-based → 0-based conversion (#937).
             try { UnitIdBox.NameText = NameResolver.GetUnitNameByOneBasedId(_vm.UnitId); }
             catch { /* GetUnitNameByOneBasedId returns a fallback and never throws; defensive only */ }
+            // #950 T4: Summoned Unit (B1) is also a 1-based unit ID; populate the
+            // IdFieldControl value + inline unit-name preview like Summoner (B0).
             UnknownBox.Value = _vm.Unknown;
+            try { UnknownBox.NameText = NameResolver.GetUnitNameByOneBasedId(_vm.Unknown); }
+            catch { /* GetUnitNameByOneBasedId returns a fallback and never throws; defensive only */ }
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -72,7 +76,8 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.UnitId = UnitIdBox.Value;
-                _vm.Unknown = (uint)(UnknownBox.Value ?? 0);
+                // #950 T4: IdFieldControl.Value is a non-nullable uint.
+                _vm.Unknown = UnknownBox.Value;
                 _vm.WriteSummonUnit();
                 _undoService.Commit();
                 _vm.MarkClean();
@@ -115,6 +120,42 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // 1-based Unit ID → name via GetUnitNameByOneBasedId (#937).
             try { UnitIdBox.NameText = NameResolver.GetUnitNameByOneBasedId(e.NewValue); }
+            catch { /* GetUnitNameByOneBasedId returns a fallback and never throws; defensive only */ }
+        }
+
+        // -- Summoned Unit IdFieldControl handlers (#950 T4) -----------------
+        // B1 is a 1-based unit ID, identical handling to Summoner (B0): the
+        // 1-based (id-1)+FE6-dummy-skip nav helper for Jump, and the
+        // OneBasedIdFromPickIndex conversion on the Pick result.
+
+        void SummonedUnit_Jump(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, UnknownBox.Value);
+                if (addr == 0) return;
+                WindowManager.Instance.Navigate<UnitEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("SummonUnitViewerView.SummonedUnit_Jump failed: {0}", ex.Message); }
+        }
+
+        async void SummonedUnit_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, UnknownBox.Value);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                if (result != null)
+                {
+                    UnknownBox.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
+                }
+            }
+            catch (Exception ex) { Log.Error("SummonUnitViewerView.SummonedUnit_Pick failed: {0}", ex.Message); }
+        }
+
+        void SummonedUnit_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { UnknownBox.NameText = NameResolver.GetUnitNameByOneBasedId(e.NewValue); }
             catch { /* GetUnitNameByOneBasedId returns a fallback and never throws; defensive only */ }
         }
 

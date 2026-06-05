@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -46,15 +47,15 @@ namespace FEBuilderGBA.Avalonia.Views
             // their parent panels are hidden.
             TurnStartBox.Value ??= 0;
             TurnEndBox.Value ??= 0;
-            Unit1Box.Value ??= 0;
-            Unit2Box.Value ??= 0;
+            // #950 T4: Unit1Box/Unit2Box are now IdFieldControls (Value is a
+            // non-nullable uint defaulting to 0) — no null-seed needed.
             AdditionalDecisionBox.Value ??= 0;
             DecisionFlagBox.Value ??= 0;
             TalkAsmFuncBox.Value ??= 0;
             ObjectXBox.Value ??= 0;
             ObjectYBox.Value ??= 0;
             EventTypeBox.Value ??= 0;
-            ChestItemBox.Value ??= 0;
+            // #950 T4: ChestItemBox is now an IdFieldControl (uint Value) — no null-seed.
             GoldBox.Value ??= 0;
             DurabilityBox.Value ??= 0;
             ShopTypeBox.Value ??= 0;
@@ -380,8 +381,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     Unit1Box.Value = _vm.Unit1;
                     Unit2Box.Value = _vm.Unit2;
                     // 1-based ROM-stored unit IDs (matches Cond TALK convention).
+                    // #950 T4: keep the standalone name labels AND seed the
+                    // IdFieldControl inline previews.
                     Unit1NameLabel.Text = NameResolver.GetUnitNameByOneBasedId(_vm.Unit1);
                     Unit2NameLabel.Text = NameResolver.GetUnitNameByOneBasedId(_vm.Unit2);
+                    Unit1Box.NameText = Unit1NameLabel.Text;
+                    Unit2Box.NameText = Unit2NameLabel.Text;
                     AdditionalDecisionBox.Value = _vm.AdditionalDecision;
                     DecisionFlagBox.Value = _vm.DecisionFlag;
                     TalkAsmFuncBox.Value = _vm.AsmFunc;
@@ -419,7 +424,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     ObjectYBox.Value = _vm.Y1;
                     EventTypeBox.Value = _vm.EventType;
                     ChestItemBox.Value = _vm.ItemId;
+                    // #950 T4: keep the standalone name label AND seed the
+                    // IdFieldControl inline preview.
                     ChestItemNameLabel.Text = NameResolver.GetItemName(_vm.ItemId);
+                    ChestItemBox.NameText = ChestItemNameLabel.Text;
                     GoldBox.Value = _vm.Gold;
                     DurabilityBox.Value = _vm.Durability;
                     ShopTypeBox.Value = _vm.ShopType;
@@ -725,8 +733,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     // Hidden controls are not part of the current TALK subtype's
                     // layout, and copying them would leak stale state into bytes
                     // the Compose path doesn't touch.
-                    if (Unit1Box.IsVisible) _vm.Unit1 = (uint)(Unit1Box.Value ?? 0);
-                    if (Unit2Box.IsVisible) _vm.Unit2 = (uint)(Unit2Box.Value ?? 0);
+                    // #950 T4: Unit1Box/Unit2Box IdFieldControl.Value is uint.
+                    if (Unit1Box.IsVisible) _vm.Unit1 = Unit1Box.Value;
+                    if (Unit2Box.IsVisible) _vm.Unit2 = Unit2Box.Value;
                     if (AdditionalDecisionBox.IsVisible)
                         _vm.AdditionalDecision = (uint)(AdditionalDecisionBox.Value ?? 0);
                     if (DecisionFlagBox.IsVisible)
@@ -738,7 +747,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.X1 = (uint)(ObjectXBox.Value ?? 0);
                     _vm.Y1 = (uint)(ObjectYBox.Value ?? 0);
                     _vm.EventType = (uint)(EventTypeBox.Value ?? 0);
-                    _vm.ItemId = (uint)(ChestItemBox.Value ?? 0);
+                    // #950 T4: ChestItemBox IdFieldControl.Value is uint.
+                    _vm.ItemId = ChestItemBox.Value;
                     _vm.Gold = (uint)(GoldBox.Value ?? 0);
                     _vm.Durability = (uint)(DurabilityBox.Value ?? 0);
                     _vm.ShopType = (uint)(ShopTypeBox.Value ?? 0);
@@ -945,6 +955,117 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("EventCondView.Reload_Click failed: {0}", ex.Message);
             }
+        }
+
+        // ============================================================
+        // IdFieldControl handlers (#950 T4).
+        //   TALK Unit 1/2 (1-based unit IDs) → UnitEditorView Jump/Pick.
+        //   OBJECT Chest Item (item ID) → ItemEditorView/ItemFE6View Jump/Pick.
+        // The Event Pointer (CODE pointer) keeps its existing cross-jump and is
+        // intentionally NOT migrated; the Type discriminant is also left alone.
+        // ============================================================
+
+        static uint ItemAddrFor(uint itemId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint itemPtr = rom.RomInfo.item_pointer;
+            if (itemPtr == 0) return 0;
+            uint baseAddr = rom.p32(itemPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.item_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + itemId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void JumpToUnitEditor(IdFieldControl box)
+        {
+            try
+            {
+                // TALK Unit IDs are 1-based (matches GetUnitNameByOneBasedId above).
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, box.Value);
+                if (addr == 0) return;
+                WindowManager.Instance.Navigate<UnitEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("EventCondView.JumpToUnitEditor failed: {0}", ex.Message); }
+        }
+
+        async System.Threading.Tasks.Task PickUnitInto(IdFieldControl box)
+        {
+            try
+            {
+                uint addr = SupportUnitNavigation.UnitAddrForOneBased(CoreState.ROM, box.Value);
+                var result = await WindowManager.Instance.PickFromEditor<UnitEditorView>(addr, this);
+                if (result != null)
+                    box.Value = SupportUnitNavigation.OneBasedIdFromPickIndex(result.Index);
+            }
+            catch (Exception ex) { Log.Error("EventCondView.PickUnitInto failed: {0}", ex.Message); }
+        }
+
+        void Unit1_Jump(object? sender, RoutedEventArgs e) => JumpToUnitEditor(Unit1Box);
+        async void Unit1_Pick(object? sender, RoutedEventArgs e) => await PickUnitInto(Unit1Box);
+        void Unit1_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try
+            {
+                Unit1NameLabel.Text = NameResolver.GetUnitNameByOneBasedId(e.NewValue);
+                Unit1Box.NameText = Unit1NameLabel.Text;
+            }
+            catch { /* GetUnitNameByOneBasedId returns a fallback and never throws */ }
+        }
+
+        void Unit2_Jump(object? sender, RoutedEventArgs e) => JumpToUnitEditor(Unit2Box);
+        async void Unit2_Pick(object? sender, RoutedEventArgs e) => await PickUnitInto(Unit2Box);
+        void Unit2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try
+            {
+                Unit2NameLabel.Text = NameResolver.GetUnitNameByOneBasedId(e.NewValue);
+                Unit2Box.NameText = Unit2NameLabel.Text;
+            }
+            catch { /* GetUnitNameByOneBasedId returns a fallback and never throws */ }
+        }
+
+        void ChestItem_Jump(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ItemAddrFor(ChestItemBox.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    WindowManager.Instance.Navigate<ItemFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ItemEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("EventCondView.ChestItem_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ChestItem_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ItemAddrFor(ChestItemBox.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ItemFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ItemEditorView>(addr, this);
+                if (result != null) ChestItemBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("EventCondView.ChestItem_Pick failed: {0}", ex.Message); }
+        }
+
+        void ChestItem_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try
+            {
+                ChestItemNameLabel.Text = NameResolver.GetItemName(e.NewValue);
+                ChestItemBox.NameText = ChestItemNameLabel.Text;
+            }
+            catch { /* NameResolver may fail without ROM */ }
         }
 
         public void NavigateTo(uint address)

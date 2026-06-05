@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -58,7 +59,8 @@ namespace FEBuilderGBA.Avalonia.Views
             DescTextIdBox.ValueChanged += OnDescTextIdChanged;
             JpNamePtrBox.ValueChanged += OnJpNamePtrChanged;
             PaletteIdBox.ValueChanged += OnPaletteIdChanged;
-            DisplayWeaponBox.ValueChanged += OnDisplayWeaponChanged;
+            // #950 T4: DisplayWeaponBox is now an IdFieldControl — its routed
+            // ValueChanged (ClassId_ValueChanged) is wired in AXAML, not here.
             AnimePtrBox.ValueChanged += OnAnimePtrChanged;
             // N2B2 is the special-spec byte that the 3-choice combo maps to
             // — NOT N2B0 which is the fixed 0x05 marker (per the orphan
@@ -203,7 +205,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 ? R._("Default palette") : $"Palette 0x{_vm.B13:X02}";
 
             DisplayWeaponBox.Value = _vm.B14;
-            try { ClassNamePreview.Text = NameResolver.GetClassName(_vm.B14); }
+            try
+            {
+                string className = NameResolver.GetClassName(_vm.B14);
+                ClassNamePreview.Text = className;
+                DisplayWeaponBox.NameText = className;
+            }
             catch { ClassNamePreview.Text = ""; }
 
             AllyEnemyColorBox.Value = _vm.B15;
@@ -262,11 +269,64 @@ namespace FEBuilderGBA.Avalonia.Views
                 ? R._("Default palette") : $"Palette 0x{id:X02}";
         }
 
-        void OnDisplayWeaponChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        // #950 T4: DisplayWeaponBox is the B14 class field (WF J_14_CLASS).
+        // Migrated to a class IdFieldControl — routed ValueChanged refreshes
+        // the ClassNamePreview readout AND the IdFieldControl's own inline name
+        // preview; Jump/Pick open the Class editor (ClassFE6View for FE6).
+        static uint ClassAddrFor(uint classId)
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return 0;
+            uint classPtr = rom.RomInfo.class_pointer;
+            if (classPtr == 0) return 0;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return 0;
+            uint dataSize = rom.RomInfo.class_datasize;
+            if (dataSize == 0) return 0;
+            uint entryAddr = baseAddr + classId * dataSize;
+            if (!U.isSafetyOffset(entryAddr, rom)) return 0;
+            if (!U.isSafetyOffset(entryAddr + dataSize - 1, rom)) return 0;
+            return entryAddr;
+        }
+
+        void ClassId_Jump(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(DisplayWeaponBox.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    WindowManager.Instance.Navigate<ClassFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ClassEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("ClassOPDemoView.ClassId_Jump failed: {0}", ex.Message); }
+        }
+
+        async void ClassId_Pick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = ClassAddrFor(DisplayWeaponBox.Value);
+                PickResult? result;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    result = await WindowManager.Instance.PickFromEditor<ClassFE6View>(addr, this);
+                else
+                    result = await WindowManager.Instance.PickFromEditor<ClassEditorView>(addr, this);
+                if (result != null) DisplayWeaponBox.Value = (uint)result.Index;
+            }
+            catch (Exception ex) { Log.Error("ClassOPDemoView.ClassId_Pick failed: {0}", ex.Message); }
+        }
+
+        void ClassId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
             if (_vm.IsLoading) return;
-            uint id = (uint)(DisplayWeaponBox.Value ?? 0);
-            try { ClassNamePreview.Text = NameResolver.GetClassName(id); }
+            try
+            {
+                string name = NameResolver.GetClassName(e.NewValue);
+                ClassNamePreview.Text = name;
+                DisplayWeaponBox.NameText = name;
+            }
             catch { ClassNamePreview.Text = ""; }
         }
 
@@ -487,7 +547,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.P8 = (uint)(JpNamePtrBox.Value ?? 0);
                 _vm.B12 = (uint)(JpNameLenBox.Value ?? 0);
                 _vm.B13 = (uint)(PaletteIdBox.Value ?? 0);
-                _vm.B14 = (uint)(DisplayWeaponBox.Value ?? 0);
+                // #950 T4: IdFieldControl.Value is a non-nullable uint.
+                _vm.B14 = DisplayWeaponBox.Value;
                 _vm.B15 = (uint)(AllyEnemyColorBox.Value ?? 0);
                 _vm.B16 = (uint)(BattleAnimeBox.Value ?? 0);
                 _vm.B17 = (uint)(MagicEffectBox.Value ?? 0);

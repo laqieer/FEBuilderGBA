@@ -90,25 +90,46 @@
                                        PickRequested="ItemId_Pick"
                                        ValueChanged="ItemId_ValueChanged" />
 
-              <TextBlock Grid.Row="1" Grid.Column="0" Text="Item 2:" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item2_Input"
-                             FormatString="0" Grid.Row="1" Grid.Column="1" Name="DropRateBox"
-                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <!-- #950 T4: Item 2..5 (B1..B4) are 5 ITEM IDs (WF L_1..4_ITEM),
+                   not the legacy DropRate/Unknown misnomers. Migrated from plain
+                   NumericUpDown to item IdFieldControl mirroring slot-1 ItemIdBox.
+                   Host Names (DropRateBox/Unknown1..3Box) + AutomationIds
+                   (Item_Item2..5_Input) preserved per the legacy alias contract. -->
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Item_Item2_Input"
+                                       Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Name="DropRateBox"
+                                       Label="Item 2:"
+                                       Maximum="255"
+                                       JumpRequested="Item2_Jump"
+                                       PickRequested="Item2_Pick"
+                                       ValueChanged="Item2_ValueChanged" />
 
-              <TextBlock Grid.Row="2" Grid.Column="0" Text="Item 3:" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item3_Input"
-                             FormatString="0" Grid.Row="2" Grid.Column="1" Name="Unknown1Box"
-                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Item_Item3_Input"
+                                       Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Name="Unknown1Box"
+                                       Label="Item 3:"
+                                       Maximum="255"
+                                       JumpRequested="Item3_Jump"
+                                       PickRequested="Item3_Pick"
+                                       ValueChanged="Item3_ValueChanged" />
 
-              <TextBlock Grid.Row="3" Grid.Column="0" Text="Item 4:" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item4_Input"
-                             FormatString="0" Grid.Row="3" Grid.Column="1" Name="Unknown2Box"
-                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Item_Item4_Input"
+                                       Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Name="Unknown2Box"
+                                       Label="Item 4:"
+                                       Maximum="255"
+                                       JumpRequested="Item4_Jump"
+                                       PickRequested="Item4_Pick"
+                                       ValueChanged="Item4_ValueChanged" />
 
-              <TextBlock Grid.Row="4" Grid.Column="0" Text="Item 5:" VerticalAlignment="Center" />
-              <NumericUpDown AutomationProperties.AutomationId="MonsterItemViewer_Item_Item5_Input"
-                             FormatString="0" Grid.Row="4" Grid.Column="1" Name="Unknown3Box"
-                             Minimum="0" Maximum="255" VerticalAlignment="Center" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="MonsterItemViewer_Item_Item5_Input"
+                                       Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Name="Unknown3Box"
+                                       Label="Item 5:"
+                                       Maximum="255"
+                                       JumpRequested="Item5_Jump"
+                                       PickRequested="Item5_Pick"
+                                       ValueChanged="Item5_ValueChanged" />
 
               <TextBlock Grid.Row="5" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
               <TextBox AutomationProperties.AutomationId="MonsterItemViewer_Item_Comment_Input"
