@@ -7,24 +7,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// WinForms: MapTileAnimation1Form — block size 8, validated by isPointer(u32(addr+4)).
     /// Fields: AnimInterval (u16@0), DataCount (u16@2), MapTileDataPointer (u32@4).
     ///
-    /// <para>PLIST-RESOLUTION DEFERRED (#952, #11): the sibling editors
-    /// MapTileAnimationView (STEP 1) and MapTileAnimation2 (STEP 2) were rewired
-    /// to show resolved "ANIME1/ANIME2 MapName" labels via
-    /// <see cref="MapPListResolverCore"/>. MapTileAnimation1 is NOT a simple
-    /// label swap: this VM has no PLIST filter at all — its entry list already
-    /// shows DATA fields ("0x.. Interval=.. Count=..", correct WF parity for the
-    /// inner data table), so there is no raw 0x…/PLIST-hex label to resolve here.
-    /// Reaching WF parity (the filter-from-map-settings → PlistToOffsetAddr(
-    /// ANIMATION, anime1_plist) → selected-PLIST data structure that WF
-    /// MapTileAnimation1Form.MakeTileAnimation1 builds) is a STRUCTURAL feature
-    /// addition (new filter combo + Core BuildPlistList for anime1 + view
-    /// wiring), out of scope for the #11 label-resolution bug. Tracked for a
-    /// focused follow-up issue. The clean template already exists in
-    /// MapTileAnimation2Core/View if/when that follow-up lands.</para></summary>
+    /// <para>ANIME1 PLIST FILTER (#955, #957 W1c): this editor now mirrors
+    /// MapTileAnimation2 — a filter combo enumerates the distinct anime1 PLISTs
+    /// referenced by the map settings (<see cref="LoadPlistList"/> →
+    /// <see cref="MapTileAnimation1Core.BuildPlistList"/>), and selecting a PLIST
+    /// drives the entry list off that PLIST's resolved data table
+    /// (<see cref="BuildList"/> → <see cref="MapTileAnimation1Core.ScanEntries"/>).
+    /// Previously the VM treated <c>map_tileanime1_pointer</c> (the PLIST TABLE)
+    /// as a flat 8-byte entry table, which was structurally wrong — the WF form
+    /// resolves the SELECTED PLIST to its own data table via
+    /// <c>PlistToOffsetAddr(ANIMATION, anime1_plist)</c>. ANIME1 resolves under
+    /// <see cref="MapChangeCore.PlistType.ANIMATION"/> (ANIME1/ANIME2 share that
+    /// base in vanilla ROMs).</para></summary>
     public class MapTileAnimation1ViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =
             EditorFormRef.DetectFields(new[] { "W0", "W2", "D4" });
+
+        /// <summary>WF block size constant (8 bytes per row).</summary>
+        public const uint BLOCK_SIZE = 8;
 
         uint _currentAddr;
         bool _isLoaded;
@@ -32,44 +33,80 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _dataCount;
         uint _mapTileDataPointer;
 
+        // Filter panel (top read-config bar) — mirrors MapTileAnimation2ViewModel.
+        uint _readStartAddress;
+        uint _readCount;
+        uint? _selectedPlist;
+        List<MapTileAnimation1Core.PlistRow> _plistRows = new();
+
+        // Selection bar.
+        uint _selectedAddress;
+
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public uint AnimInterval { get => _animInterval; set => SetField(ref _animInterval, value); }
         public uint DataCount { get => _dataCount; set => SetField(ref _dataCount, value); }
         public uint MapTileDataPointer { get => _mapTileDataPointer; set => SetField(ref _mapTileDataPointer, value); }
 
-        /// <summary>Build list from a given base address (set via filter/JumpTo).</summary>
+        public uint BlockSize => BLOCK_SIZE;
+
+        public uint ReadStartAddress { get => _readStartAddress; set => SetField(ref _readStartAddress, value); }
+        public uint ReadCount { get => _readCount; set => SetField(ref _readCount, value); }
+        public uint? SelectedPlist { get => _selectedPlist; set => SetField(ref _selectedPlist, value); }
+        public List<MapTileAnimation1Core.PlistRow> PlistRows
+        {
+            get => _plistRows;
+            set => SetField(ref _plistRows, value ?? new());
+        }
+        public uint SelectedAddress { get => _selectedAddress; set => SetField(ref _selectedAddress, value); }
+
+        /// <summary>Build the filter combo list — one row per distinct anime1
+        /// PLIST referenced by any map (mirrors WF MakeTileAnimation1).</summary>
+        public List<MapTileAnimation1Core.PlistRow> LoadPlistList()
+        {
+            var rom = CoreState.ROM;
+            var rows = MapTileAnimation1Core.BuildPlistList(rom);
+            PlistRows = rows;
+            return rows;
+        }
+
+        /// <summary>Build the address-list for a specific PLIST root address.</summary>
         public List<AddrResult> BuildList(uint baseAddr)
         {
+            var rom = CoreState.ROM;
             var result = new List<AddrResult>();
-            ROM rom = CoreState.ROM;
             if (rom == null || baseAddr == 0) return result;
-
-            const uint blockSize = 8;
-            for (int i = 0; i < 256; i++)
+            ReadStartAddress = baseAddr;
+            var entries = MapTileAnimation1Core.ScanEntries(rom, baseAddr, maxRows: 256);
+            for (int i = 0; i < entries.Count; i++)
             {
-                uint addr = baseAddr + (uint)(i * blockSize);
-                if (addr + blockSize > (uint)rom.Data.Length) break;
-                // Validate: P4 must be a valid pointer
-                if (!U.isPointer(rom.u32(addr + 4))) break;
-
-                string display = $"0x{i:X2} Interval={rom.u16(addr):X4} Count={rom.u16(addr + 2):X4}";
-                result.Add(new AddrResult(addr, display, (uint)i));
+                var e = entries[i];
+                string display = $"0x{i:X2} Interval={e.Wait:X4} Count={e.Length:X4}";
+                result.Add(new AddrResult(e.Addr, display, (uint)i));
             }
+            ReadCount = (uint)entries.Count;
             return result;
         }
 
+        /// <summary>
+        /// Build the list shown when the editor opens with no PLIST chosen —
+        /// scan the PLIST list for the first valid (non-broken) entry. Kept for
+        /// the <c>IDataVerifiable</c> contract that calls <c>LoadList()</c> with
+        /// no arguments. Mirrors MapTileAnimation2ViewModel.LoadList().
+        /// </summary>
         public List<AddrResult> LoadList()
         {
-            ROM rom = CoreState.ROM;
+            var rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            // Use map_tileanime1_pointer as default base
-            uint ptr = rom.RomInfo.map_tileanime1_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
-            return BuildList(baseAddr);
+            var plistRows = LoadPlistList();
+            foreach (var row in plistRows)
+            {
+                if (row.IsBroken) continue;
+                SelectedPlist = row.Plist;
+                return BuildList(row.Addr);
+            }
+            return new List<AddrResult>();
         }
 
         public void LoadEntry(uint addr)
@@ -80,6 +117,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             IsLoading = true;
             CurrentAddr = addr;
+            SelectedAddress = addr;
             var values = EditorFormRef.ReadFields(rom, addr, _fields);
             AnimInterval = values["W0"];
             DataCount = values["W2"];
@@ -87,6 +125,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoaded = true;
             IsLoading = false;
             MarkClean();
+        }
+
+        /// <summary>
+        /// Reset the detail fields when the selected PLIST has NO entries (an
+        /// empty data table) or is broken, so the panel doesn't show the
+        /// previously-selected entry's stale data (#960, same class as the #9
+        /// Map Exit stale-detail bug). Gates the Write button via
+        /// <see cref="IsLoaded"/>=false (the view's Write_Click early-returns
+        /// when <c>!IsLoaded</c>).
+        /// </summary>
+        public void ClearEntry()
+        {
+            CurrentAddr = 0;
+            SelectedAddress = 0;
+            AnimInterval = 0;
+            DataCount = 0;
+            MapTileDataPointer = 0;
+            IsLoaded = false;
         }
 
         public void Write()

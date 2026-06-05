@@ -2,12 +2,60 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.MapTileAnimation1View"
-        Title="Tile Animation Type 1" Width="1238" Height="866"
+        Title="Map Tile Animation Type 1" Width="1238" Height="866"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="MapTileAnimation1_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,Auto,*">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <!-- Row 0: Top read-config bar with the anime1 PLIST filter combo
+         (#955). Mirrors MapTileAnimation2View: the Filter ComboBox lives in
+         the TrailingContent slot, before the Reload button. -->
+    <controls:EditorTopBarWithInputs Grid.Row="0" Grid.ColumnSpan="2" Name="TopBar"
+                                     AutomationProperties.AutomationId="MapTileAnimation1_TopBar"
+                                     ReadStartLabel="Top Address"
+                                     ReadCountLabel="Read Count"
+                                     ReadCountMaximum="1024"
+                                     InputsEnabled="False"
+                                     ShowReadSize="False"
+                                     ReadStartAutomationId="MapTileAnimation1_ReadStart_Input"
+                                     ReadCountAutomationId="MapTileAnimation1_ReadCount_Input"
+                                     ReloadAutomationId="MapTileAnimation1_ReloadList_Button"
+                                     ReloadRequested="OnTopBarReloadRequested">
+      <controls:EditorTopBarWithInputs.TrailingContent>
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Label Content="Filter" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="MapTileAnimation1_Filter_Combo"
+                    Name="FilterComboBox" Width="280"
+                    SelectionChanged="FilterCombo_SelectionChanged" />
+        </StackPanel>
+      </controls:EditorTopBarWithInputs.TrailingContent>
+    </controls:EditorTopBarWithInputs>
+
+    <!-- Row 1: selection bar (mirrors MapTileAnimation2View) -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4,0,4,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="4">
+        <Label Content="Address" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation1_Address_Input"
+                       FormatString="0" Name="AddressBox" Width="120"
+                       Minimum="0" Maximum="4294967295"
+                       IsEnabled="False" VerticalAlignment="Center" />
+        <Label Content="Size:" VerticalAlignment="Center" />
+        <NumericUpDown AutomationProperties.AutomationId="MapTileAnimation1_BlockSize_Input"
+                       FormatString="0" Name="BlockSizeBox" Width="50"
+                       Minimum="0" Maximum="65535"
+                       IsEnabled="False" VerticalAlignment="Center" Value="8" />
+        <Label Content="Selected Address:" VerticalAlignment="Center" />
+        <Label AutomationProperties.AutomationId="MapTileAnimation1_SelectedAddress_Label"
+               Name="SelectedAddressLabel" Width="100" VerticalAlignment="Center"
+               FontFamily="Consolas" />
+      </StackPanel>
+    </Border>
+
+    <!-- Row 2 col 0: Address list panel -->
+    <controls:AddressListControl AutomationProperties.AutomationId="MapTileAnimation1_Entry_List"
+                                 Grid.Row="2" Grid.Column="0" Name="EntryList" Margin="4" />
+
+    <!-- Row 2 col 1: edit panel -->
+    <ScrollViewer Grid.Row="2" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Map Tile Animation Type 1" FontSize="18" FontWeight="Bold" />
 

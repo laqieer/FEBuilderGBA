@@ -130,6 +130,75 @@ public class MapTileAnimationResolverParityTests : IClassFixture<RomFixture>
     }
 
     // -----------------------------------------------------------------
+    // #955 W1c: MapTileAnimation1 anime1 PLIST filter labels.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void MapTileAnimation1_FilterLabels_ProduceResolvedAnime1Labels()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new MapTileAnimation1ViewModel();
+        List<MapTileAnimation1Core.PlistRow> rows = vm.LoadPlistList();
+        // Some ROMs may legitimately have no anime1 PLISTs; only assert on the
+        // rows that exist.
+        foreach (var row in rows)
+        {
+            AssertResolvedLabel(row.Display, "MapTileAnimation1 filter");
+        }
+
+        // When rows exist, at least one should resolve to an ANIME1 map name
+        // (the non-broken case) or carry the broken suffix.
+        if (rows.Count > 0)
+        {
+            bool anyResolved = rows.Exists(r =>
+                r.Display.StartsWith("ANIME1 ") || r.Display.Contains("("));
+            Assert.True(anyResolved,
+                "expected at least one resolved ANIME1 / broken-suffix filter label");
+        }
+    }
+
+    [Fact]
+    public void MapTileAnimation1_FilterVM_And_GoldenBuilder_Lockstep()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new MapTileAnimation1ViewModel();
+        List<MapTileAnimation1Core.PlistRow> vmRows = vm.LoadPlistList();
+        List<AddrResult> golden = ListParityHelper.BuildMapTileAnimation1FilterList(_rom.ROM!);
+
+        Assert.Equal(vmRows.Count, golden.Count);
+        for (int i = 0; i < vmRows.Count; i++)
+        {
+            // The golden filter builder copies PlistRow.Display verbatim, so the
+            // VM filter combo strings and the golden labels must match exactly.
+            Assert.Equal(vmRows[i].Display, golden[i].name);
+            Assert.Equal(vmRows[i].Plist, golden[i].tag);
+        }
+    }
+
+    [Fact]
+    public void MapTileAnimation1_List_And_GoldenBuilder_Lockstep()
+    {
+        if (!_rom.IsAvailable) return;
+
+        // The VM's no-arg LoadList() (used by the IDataVerifiable contract)
+        // picks the first non-broken PLIST and scans its data table. The golden
+        // builder BuildMapTileAnimation1List (reached via BuildReferenceList)
+        // must match it byte-for-byte.
+        var vm = new MapTileAnimation1ViewModel();
+        List<AddrResult> vmRows = vm.LoadList();
+        List<AddrResult> golden = ListParityHelper.BuildReferenceList("MapTileAnimation1View");
+
+        Assert.Equal(golden.Count, vmRows.Count);
+        for (int i = 0; i < vmRows.Count; i++)
+        {
+            Assert.Equal(golden[i].name, vmRows[i].name);
+            Assert.Equal(golden[i].addr, vmRows[i].addr);
+        }
+    }
+
+    // -----------------------------------------------------------------
     // Smoke guard: list/filter builders must not emit raw labels.
     // -----------------------------------------------------------------
 

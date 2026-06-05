@@ -538,11 +538,23 @@ Specialized utilities for different graphic types:
   resolves each FILTER-combo row via `ResolveLabel(rom, ANIMATION2, plist)` (the
   broken-PLIST `(破損)` suffix is still appended). Lockstep golden builders:
   `ListParityHelper.BuildMapTileAnimationList` + the new public
-  `BuildMapTileAnimation2FilterList`. **`MapTileAnimation1` is DEFERRED**: it has
-  no PLIST filter at all (its list shows DATA fields, not a raw label), so WF
-  parity there is a STRUCTURAL feature addition (filter-from-map-settings +
-  selected-PLIST data, mirroring MapTileAnimation2), tracked for a focused
-  follow-up — out of scope for the #11 label-resolution bug.
+  `BuildMapTileAnimation2FilterList`. **`MapTileAnimation1` anime1 PLIST filter
+  (#955, #957 W1c) — DONE** (the former deferral is CLOSED): the new
+  `MapTileAnimation1Core.BuildPlistList` enumerates the distinct anime1 PLISTs
+  referenced by the map settings (`anime1_plist` at map-setting `+9`), resolves
+  each FILTER-combo row via `ResolveLabel(rom, ANIMATION, plist)` → `ANIME1
+  MapName` (ANIME1/ANIME2 share the `map_tileanime1_pointer` base; both match
+  under ANIMATION), and resolves the selected PLIST's data table via
+  `MapChangeCore.PlistToOffsetAddr(ANIMATION, plist)` (broken-PLIST `(破損)`
+  suffix appended). `MapTileAnimation1Core.ScanEntries` walks the SELECTED
+  PLIST's 8-byte data records — **the anime1 schema is the inverse of anime2**:
+  `wait = u16@+0`, `length = u16@+2`, `imagePointer = p32@+4`, terminated by
+  `!isPointer(u32(addr+4))` (the image pointer is at `+4`, NOT `+0`). The
+  Avalonia `MapTileAnimation1View` now hosts the filter combo + selection bar
+  (mirroring anime2); the VM no longer treats `map_tileanime1_pointer` (the
+  PLIST TABLE) as a flat entry table. Lockstep golden builders:
+  `ListParityHelper.BuildMapTileAnimation1List` (rewired to PLIST-based) + the
+  new public `BuildMapTileAnimation1FilterList`.
 
 ### Caching System
 
