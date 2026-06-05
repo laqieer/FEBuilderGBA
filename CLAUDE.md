@@ -569,6 +569,16 @@ Specialized utilities for different graphic types:
   (WF bail-to-BlankDummy parity). Avalonia `EventMapChangeViewModel.RenderChangePreview`
   resolves the high byte and passes `obj2Offset`; FE6/FE8 are byte-identical to
   the pre-#961 single-tileset path.
+- `MapStyleEditorViewModel.TryImportObjImage` (Avalonia, ROM-MUTATING, #976) —
+  the Map Style Editor OBJ import now supports the FE7 obj2 dual-tileset split
+  (ports WF `MapStyleEditorForm.WriteMapChipImage`). When a secondary obj2 PLIST
+  is present (high byte of `obj_plist != 0`, persisted as `_currentObjPlist2`),
+  the encoded tile sheet is split in half by BYTE length — first half →
+  primary OBJECT PLIST, second half → obj2 PLIST — each LZ77-compressed
+  independently and written via `MapChangeCore.WritePlistData`. Both writes
+  share the view's single ambient undo scope, so a failed second write rolls
+  BOTH back (atomicity). `CanImportObj` is gated on the secondary plist being
+  in-limit; FE6/FE8 single-tileset styles are unchanged.
 - `EventMapChangeViewModel.ImportChangeDataFromPointer` (Avalonia, ROM-MUTATING,
   #961 W2c) — pointer-import for the Map Change Event editor (mirrors the intent
   of WF `EventMapChangeForm` `button1` "変化データ ポインタ先へのインポート").

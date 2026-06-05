@@ -99,32 +99,230 @@ public class MapStyleEditorViewModelObjImportTests
     }
 
     // -----------------------------------------------------------------
-    // FE7 obj2 rejection — actionable error wording.
+    // FE7 obj2 dual-tileset split (#976): the encoded tile sheet is split
+    // in half by byte length and both OBJECT PLIST slots are written.
     // -----------------------------------------------------------------
 
     [Fact]
-    public void TryImportObjImage_RejectsObj2Style()
+    public void TryImportObjImage_Obj2Style_WritesBothPlists()
     {
-        var (rom, _, _, _) = MakeFe8uRomForObjImport();
+        var (rom, objTableAddr) = MakeFe7RomForObjImportWithObj2(primaryPlist: 1, obj2Plist: 2);
         var prevRom = CoreState.ROM;
+        var prevImg = CoreState.ImageService;
         try
         {
             CoreState.ROM = rom;
+            if (CoreState.ImageService == null) CoreState.ImageService = new SkiaImageService();
+
             var vm = new MapStyleEditorViewModel();
-            // Stage a non-zero obj2 address to simulate an FE7 dual-tileset style.
             vm.ObjPointer = 0x08C00000u;
-            vm.ObjAddress2 = 0x008C0000u;
+            vm.ObjAddress = 0x00C00000u;
+            vm.ObjAddress2 = 0x00D00000u; // simulate an FE7 dual-tileset style
             vm.SetCurrentObjPlistForTest(1);
+            vm.SetCurrentObjPlist2ForTest(2);
+            vm.SetCachedPaletteBytesForTest(MakeFlatPalette32());
 
-            byte[] palette32 = MakeFlatPalette32();
-            vm.SetCachedPaletteBytesForTest(palette32);
-            byte[] rgba = MakeSolidRgba(256, 128, 0, 0, 255);
+            const int height = 128;
+            byte[] rgba = MakeSolidRgba(256, height, 0, 0, 255);
+            Assert.True(vm.TryImportObjImage(rgba, 256, height, out string err),
+                $"obj2 dual-tileset import must succeed; err = {err}");
 
-            Assert.False(vm.TryImportObjImage(rgba, 256, 128, out string err));
-            Assert.Contains("obj2", err);
-            Assert.Contains("Tracked separately", err);
+            // Both PLIST slots now hold DIFFERENT non-zero pointers.
+            uint primaryPointer = rom.u32(objTableAddr + 1 * 4u);
+            uint obj2Pointer = rom.u32(objTableAddr + 2 * 4u);
+            Assert.NotEqual(0u, primaryPointer);
+            Assert.NotEqual(0u, obj2Pointer);
+            Assert.NotEqual(primaryPointer, obj2Pointer);
+
+            // vm addresses must equal the two new offsets.
+            uint primaryOffset = U.toOffset(primaryPointer);
+            uint obj2Offset = U.toOffset(obj2Pointer);
+            Assert.Equal(primaryOffset, vm.ObjAddress);
+            Assert.Equal(obj2Offset, vm.ObjAddress2);
+            Assert.Equal(primaryPointer, vm.ObjPointer);
+
+            // Both written regions start with the LZ77 magic byte 0x10.
+            Assert.Equal(0x10, rom.Data[primaryOffset]);
+            Assert.Equal(0x10, rom.Data[obj2Offset]);
+
+            // Round-trip: decompress(primary) ++ decompress(obj2) reproduces
+            // the full encoded sheet (128 * height bytes), each half being
+            // 64 * height bytes (the byte-level split point).
+            byte[] decomp1 = LZ77.decompress(rom.Data, primaryOffset);
+            byte[] decomp2 = LZ77.decompress(rom.Data, obj2Offset);
+            int sheetLen = 128 * height;
+            Assert.Equal(sheetLen / 2, decomp1.Length);
+            Assert.Equal(sheetLen / 2, decomp2.Length);
+            Assert.Equal(sheetLen, decomp1.Length + decomp2.Length);
+            Assert.Equal(64 * height, decomp1.Length);
+            Assert.Equal(64 * height, decomp2.Length);
         }
-        finally { CoreState.ROM = prevRom; }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.ImageService = prevImg;
+        }
+    }
+
+    /// <summary>
+    /// #976 byte-level split parity: a height that is a multiple of 8 but
+    /// NOT of 16 (256x136) must still round-trip with each half being
+    /// exactly (128*136)/2 bytes — proving the split is byte-level (on a
+    /// whole-tile boundary because tileData.Length = 128*height) rather
+    /// than a row-aligned visual top/bottom split.
+    /// </summary>
+    [Fact]
+    public void TryImportObjImage_Obj2Style_NonMultipleOf16Height_ByteSplitRoundTrips()
+    {
+        var (rom, objTableAddr) = MakeFe7RomForObjImportWithObj2(primaryPlist: 1, obj2Plist: 2);
+        var prevRom = CoreState.ROM;
+        var prevImg = CoreState.ImageService;
+        try
+        {
+            CoreState.ROM = rom;
+            if (CoreState.ImageService == null) CoreState.ImageService = new SkiaImageService();
+
+            var vm = new MapStyleEditorViewModel();
+            vm.ObjPointer = 0x08C00000u;
+            vm.ObjAddress = 0x00C00000u;
+            vm.ObjAddress2 = 0x00D00000u;
+            vm.SetCurrentObjPlistForTest(1);
+            vm.SetCurrentObjPlist2ForTest(2);
+            vm.SetCachedPaletteBytesForTest(MakeFlatPalette32());
+
+            const int height = 136; // multiple of 8, NOT of 16
+            byte[] rgba = MakeSolidRgba(256, height, 0, 0, 255);
+            Assert.True(vm.TryImportObjImage(rgba, 256, height, out string err),
+                $"obj2 import for non-row-aligned height must succeed; err = {err}");
+
+            uint primaryOffset = U.toOffset(rom.u32(objTableAddr + 1 * 4u));
+            uint obj2Offset = U.toOffset(rom.u32(objTableAddr + 2 * 4u));
+            byte[] decomp1 = LZ77.decompress(rom.Data, primaryOffset);
+            byte[] decomp2 = LZ77.decompress(rom.Data, obj2Offset);
+            int expectedHalf = (128 * height) / 2;
+            Assert.Equal(expectedHalf, decomp1.Length);
+            Assert.Equal(expectedHalf, decomp2.Length);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.ImageService = prevImg;
+        }
+    }
+
+    /// <summary>
+    /// #976: a secondary obj2 plist at/above the per-version PLIST limit
+    /// must reject the import with a "limit" error and mutate ZERO bytes.
+    /// </summary>
+    [Fact]
+    public void TryImportObjImage_Obj2Style_SecondPlistPastLimit_Rejected()
+    {
+        var (rom, _) = MakeFe7RomForObjImportWithObj2(primaryPlist: 1, obj2Plist: 2);
+        var prevRom = CoreState.ROM;
+        var prevImg = CoreState.ImageService;
+        try
+        {
+            CoreState.ROM = rom;
+            if (CoreState.ImageService == null) CoreState.ImageService = new SkiaImageService();
+
+            uint limit = MapChangeCore.GetPlistLimit(rom);
+            Assert.True(limit > 0, "synthetic ROM must yield a non-zero plist limit");
+
+            var vm = new MapStyleEditorViewModel();
+            vm.ObjPointer = 0x08C00000u;
+            vm.ObjAddress = 0x00C00000u;
+            vm.ObjAddress2 = 0x00D00000u;
+            vm.SetCurrentObjPlistForTest(1);
+            vm.SetCurrentObjPlist2ForTest(limit); // == limit ⇒ past-limit
+
+            vm.SetCachedPaletteBytesForTest(MakeFlatPalette32());
+
+            byte[] snapshot = (byte[])rom.Data.Clone();
+            byte[] rgba = MakeSolidRgba(256, 128, 0, 0, 255);
+            Assert.False(vm.TryImportObjImage(rgba, 256, 128, out string err));
+            Assert.Contains("limit", err);
+            // Zero mutation.
+            Assert.Equal(snapshot.Length, rom.Data.Length);
+            Assert.True(BytesEqual(snapshot, rom.Data), "ROM bytes must be unchanged on rejection");
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.ImageService = prevImg;
+        }
+    }
+
+    /// <summary>
+    /// #976 atomicity: when the SECOND (obj2) PLIST write fails AFTER the
+    /// first has already mutated the ROM, the view's ambient undo scope
+    /// must roll BOTH writes back. The obj2 index slot is positioned past
+    /// rom.Data.Length (so ResolvePlistSlotAddr returns NOT_FOUND for obj2
+    /// only) while obj2Plist stays below GetPlistLimit (so it passes the
+    /// in-VM pre-validation guard and only fails inside the SECOND
+    /// WritePlistData). A mid-ROM 0x00 free region means the FIRST write
+    /// lands mid-ROM and does NOT grow rom.Data (which would otherwise
+    /// bring the obj2 slot back in-bounds).
+    /// </summary>
+    [Fact]
+    public void TryImportObjImage_Obj2Style_SecondWriteFails_RollsBackBothPlists()
+    {
+        var (rom, objTableAddr, primaryPlist, obj2Plist) =
+            MakeFe7RomForObjImportObj2OutOfBounds();
+        var prevRom = CoreState.ROM;
+        var prevImg = CoreState.ImageService;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            if (CoreState.ImageService == null) CoreState.ImageService = new SkiaImageService();
+            CoreState.Undo = new Undo();
+
+            // obj2Plist must be below the per-version limit so it passes the
+            // in-VM pre-validation guard (the failure must happen inside the
+            // SECOND WritePlistData, not in the early limit gate).
+            uint limit = MapChangeCore.GetPlistLimit(rom);
+            Assert.True(obj2Plist < limit, "obj2Plist must be below the plist limit to reach the second write");
+
+            uint primarySlot = objTableAddr + primaryPlist * 4u;
+            uint obj2Slot = objTableAddr + obj2Plist * 4u;
+            // Sanity: obj2 slot is genuinely out of bounds, primary is in.
+            Assert.True(primarySlot + 4u <= (uint)rom.Data.Length, "primary slot must be in-bounds");
+            Assert.True(obj2Slot + 4u > (uint)rom.Data.Length, "obj2 slot must be out-of-bounds");
+
+            var vm = new MapStyleEditorViewModel();
+            vm.ObjPointer = rom.u32(primarySlot);
+            vm.ObjAddress = U.toOffset(vm.ObjPointer);
+            vm.ObjAddress2 = 0x00D00000u;
+            vm.SetCurrentObjPlistForTest(primaryPlist);
+            vm.SetCurrentObjPlist2ForTest(obj2Plist);
+            vm.SetCachedPaletteBytesForTest(MakeFlatPalette32());
+
+            byte[] snapshot = (byte[])rom.Data.Clone();
+            int snapshotLen = rom.Data.Length;
+            uint prePrimaryPointer = rom.u32(primarySlot);
+
+            byte[] rgba = MakeSolidRgba(256, 128, 0, 0, 255);
+            var undoData = CoreState.Undo.NewUndoData("test obj2 atomic import");
+            using (ROM.BeginUndoScope(undoData))
+            {
+                Assert.False(vm.TryImportObjImage(rgba, 256, 128, out string err),
+                    "second (obj2) write must fail and the whole import must report false");
+            }
+            CoreState.Undo.Push(undoData);
+
+            // Run undo and assert EVERYTHING is restored: primary slot, obj2
+            // slot, ROM length, and the full byte image.
+            CoreState.Undo.RunUndo();
+            Assert.Equal(snapshotLen, rom.Data.Length);
+            Assert.Equal(prePrimaryPointer, rom.u32(primarySlot));
+            Assert.True(BytesEqual(snapshot, rom.Data), "ROM bytes must be byte-identical after undo");
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.ImageService = prevImg;
+            CoreState.Undo = prevUndo;
+        }
     }
 
     // -----------------------------------------------------------------
@@ -425,14 +623,19 @@ public class MapStyleEditorViewModelObjImportTests
     }
 
     // -----------------------------------------------------------------
-    // CanImportObj OnPropertyChanged wiring — ObjPointer / ObjAddress2
-    // changes must raise CanImportObj.
+    // CanImportObj OnPropertyChanged wiring + obj2 in-limit gating (#976).
     // -----------------------------------------------------------------
 
+    /// <summary>
+    /// #976: a FE7 dual-tileset style with an in-limit secondary obj2 plist
+    /// is now IMPORTABLE (the old expectation that obj2 ⇒ CanImportObj false
+    /// is reversed). The SetCurrentObjPlist2ForTest seam must also raise a
+    /// CanImportObj PropertyChanged so the view's import button refreshes.
+    /// </summary>
     [Fact]
-    public void CanImportObj_FiresPropertyChanged_OnObjAddress2()
+    public void CanImportObj_TrueForObj2Style_WhenSecondaryPlistInLimit()
     {
-        var (rom, _, _, _) = MakeFe8uRomForObjImport();
+        var (rom, _) = MakeFe7RomForObjImportWithObj2(primaryPlist: 1, obj2Plist: 2);
         var prevRom = CoreState.ROM;
         try
         {
@@ -440,13 +643,39 @@ public class MapStyleEditorViewModelObjImportTests
             var vm = new MapStyleEditorViewModel();
             vm.ObjPointer = 0x08C00000u;
             vm.SetCurrentObjPlistForTest(1);
-            Assert.True(vm.CanImportObj, "CanImportObj must be true for valid OBJ plist + no obj2");
 
             bool fired = false;
             vm.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(vm.CanImportObj)) fired = true; };
-            vm.ObjAddress2 = 0x008C0000u;
-            Assert.True(fired, "CanImportObj must fire OnPropertyChanged when ObjAddress2 changes");
-            Assert.False(vm.CanImportObj, "CanImportObj must be false when obj2 is present");
+            vm.SetCurrentObjPlist2ForTest(2); // in-limit secondary plist
+            Assert.True(fired, "SetCurrentObjPlist2ForTest must raise CanImportObj PropertyChanged");
+            Assert.True(vm.CanImportObj, "CanImportObj must be true for an in-limit obj2 style");
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
+    /// #976: a secondary obj2 plist at/above the per-version PLIST limit
+    /// must disable import (CanImportObj false) since the second-half write
+    /// would target an invalid slot.
+    /// </summary>
+    [Fact]
+    public void CanImportObj_FalseWhenObj2PlistPastLimit()
+    {
+        var (rom, _) = MakeFe7RomForObjImportWithObj2(primaryPlist: 1, obj2Plist: 2);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint limit = MapChangeCore.GetPlistLimit(rom);
+            Assert.True(limit > 0);
+
+            var vm = new MapStyleEditorViewModel();
+            vm.ObjPointer = 0x08C00000u;
+            vm.SetCurrentObjPlistForTest(1);
+            Assert.True(vm.CanImportObj, "primary-only must be importable");
+
+            vm.SetCurrentObjPlist2ForTest(limit); // == limit ⇒ past-limit
+            Assert.False(vm.CanImportObj, "CanImportObj must be false when obj2 plist is past the limit");
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -575,6 +804,70 @@ public class MapStyleEditorViewModelObjImportTests
         // existing slot works for sanity checks).
         WriteU32(rom.Data, (int)(objTableAddr + 1 * 4u), 0x08C00000u);
         return (rom, objTableAddr, 1u, MakeFlatPalette32());
+    }
+
+    /// <summary>
+    /// Build a synthetic FE7U ROM for the obj2 dual-tileset import path
+    /// (#976). The map_obj_pointer table at 0x00890000 holds in-bounds,
+    /// non-null slots for BOTH the primary and obj2 plist indices. The ROM
+    /// is all-zero so <see cref="FEBuilderGBA.ImageImportCore.FindAndWriteData"/>
+    /// finds 0x00 free space at the mid-ROM search start and writes
+    /// mid-ROM (it does NOT append to the end / grow rom.Data).
+    /// Returns (rom, objTableAddr).
+    /// </summary>
+    static (ROM rom, uint objTableAddr) MakeFe7RomForObjImportWithObj2(byte primaryPlist, byte obj2Plist)
+    {
+        var rom = new ROM();
+        rom.LoadLow("test-fe7u.gba", new byte[0x1100000], "AE7E01");
+        uint objTableAddr = 0x00890000u;
+        WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, objTableAddr | 0x08000000u);
+        // Plant non-null in-bounds slots for both plists so isSafetyOffset /
+        // sanity reads succeed for both.
+        WriteU32(rom.Data, (int)(objTableAddr + primaryPlist * 4u), 0x08C00000u);
+        WriteU32(rom.Data, (int)(objTableAddr + obj2Plist * 4u), 0x08D00000u);
+        return (rom, objTableAddr);
+    }
+
+    /// <summary>
+    /// Build a synthetic FE7U ROM where the map_obj_pointer table base sits
+    /// near the ROM end so that the PRIMARY plist slot is in-bounds but the
+    /// OBJ2 plist slot lands PAST rom.Data.Length (ResolvePlistSlotAddr
+    /// returns NOT_FOUND for obj2 only). obj2Plist is kept BELOW
+    /// GetPlistLimit so it passes the in-VM pre-validation guard and only
+    /// fails inside the SECOND WritePlistData. The ROM is all-zero so the
+    /// FIRST (primary) write finds mid-ROM 0x00 free space and does NOT
+    /// grow rom.Data — keeping the obj2 slot out-of-bounds.
+    /// Returns (rom, objTableAddr, primaryPlist, obj2Plist).
+    /// </summary>
+    static (ROM rom, uint objTableAddr, uint primaryPlist, uint obj2Plist)
+        MakeFe7RomForObjImportObj2OutOfBounds()
+    {
+        var rom = new ROM();
+        rom.LoadLow("test-fe7u.gba", new byte[0x1100000], "AE7E01");
+
+        uint primaryPlist = 1u;
+        uint obj2Plist = 2u;
+
+        // Place the table base so that the obj2 slot (base + 2*4) ends
+        // EXACTLY at rom.Data.Length, putting base + 2*4 + 4 past the end
+        // while base + 1*4 + 4 (== Length) is still in-bounds.
+        //   primary slot end = base + 4 + 4 = base + 8 = Length  -> in-bounds
+        //   obj2    slot end = base + 8 + 4 = base + 12 = Length+4 -> OOB
+        uint length = (uint)rom.Data.Length;
+        uint objTableAddr = length - 8u;
+        WriteU32(rom.Data, (int)rom.RomInfo.map_obj_pointer, objTableAddr | 0x08000000u);
+        // Primary slot (in-bounds) holds a known non-null pointer.
+        WriteU32(rom.Data, (int)(objTableAddr + primaryPlist * 4u), 0x08C00000u);
+        // The obj2 slot would be at base + 8 == Length (OOB) — nothing to plant.
+        return (rom, objTableAddr, primaryPlist, obj2Plist);
+    }
+
+    static bool BytesEqual(byte[] a, byte[] b)
+    {
+        if (a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++)
+            if (a[i] != b[i]) return false;
+        return true;
     }
 
     /// <summary>16 colors, idx 0 = transparent, idx 1..15 = stepped grayscale.</summary>

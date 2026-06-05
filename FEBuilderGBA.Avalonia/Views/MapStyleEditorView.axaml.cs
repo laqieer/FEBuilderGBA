@@ -57,7 +57,9 @@ namespace FEBuilderGBA.Avalonia.Views
             // OBJ PLIST + OBJ palette. Listening to CanImportObj's
             // OnPropertyChanged keeps the button in sync with both the
             // entry-level reload (ObjAddress2 / _currentObjPlist updates)
-            // and the per-style ObjAddress2 mutation (FE7 dual-tileset).
+            // and the per-style ObjAddress2 mutation. FE7 dual-tileset
+            // (obj2) styles are supported via the split write (#976) and
+            // gated on the secondary plist being in range.
             if (ObjImportButton != null) ObjImportButton.IsEnabled = false;
             _vm.PropertyChanged += (_, e) =>
             {
@@ -1173,9 +1175,10 @@ namespace FEBuilderGBA.Avalonia.Views
         // #710 — OBJ Image Import (ImageOnly slice): pick image, validate
         // the WF dimension contract (256 wide × ≥128 tall × multiple-of-8
         // height), remap against the existing OBJ palette (no palette
-        // change), 4bpp-encode + LZ77 + write via the new OBJECT PLIST
-        // path. FE7 obj2-bearing styles are rejected with an actionable
-        // error (tracked separately for the dual-tileset split path).
+        // change), 4bpp-encode + LZ77 + write via the OBJECT PLIST path.
+        // FE7 obj2-bearing styles (#976) are supported: the encoded sheet
+        // is split in half and written to both the primary and obj2 OBJECT
+        // PLIST slots under the view's single ambient undo scope.
         // -----------------------------------------------------------------
         async void ObjImport_Click(object? sender, RoutedEventArgs e)
         {
@@ -1183,15 +1186,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (!_vm.CanImportObj)
                 {
-                    if (_vm.ObjAddress2 != 0)
-                    {
-                        CoreState.Services.ShowError(
-                            "OBJ image import does not yet support FE7 styles with a secondary obj2 tileset. Tracked separately.");
-                    }
-                    else
-                    {
-                        CoreState.Services.ShowError("OBJ image import requires a Map Style entry with a valid OBJ PLIST.");
-                    }
+                    CoreState.Services.ShowError("OBJ image import requires a Map Style entry with a valid OBJ PLIST.");
                     return;
                 }
 
@@ -1280,6 +1275,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     ObjAddressLabel.Text = $"0x{_vm.ObjAddress:X08}";
                     ObjPtrBox.Text = $"0x{_vm.ObjPointer:X08}";
+                    ObjAddress2Label.Text = _vm.ObjAddress2 != 0 ? $"0x{_vm.ObjAddress2:X08}" : "(none)";
                     RefreshChipPreview();
                     CoreState.Services.ShowInfo($"OBJ image imported ({w}x{h}).");
                 }
