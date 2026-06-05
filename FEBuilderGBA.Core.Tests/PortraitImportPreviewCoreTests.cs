@@ -156,6 +156,55 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ImageService = saved; }
         }
 
+        [Theory]
+        // Dimensions whose int product OVERFLOWS to a negative/wrong value, and
+        // which also exceed MaxPixelCount. Must return null (no throw, no wrong
+        // allocation), honoring the "null on unusable input" contract (#979).
+        //   70000 * 70000 = 4,900,000,000 -> overflows int (wraps negative)
+        //   46341 * 46341 = 2,147,488,281 -> just past int.MaxValue
+        //   50000 * 50000 = 2,500,000,000 -> overflows int
+        [InlineData(70000, 70000)]
+        [InlineData(46341, 46341)]
+        [InlineData(50000, 50000)]
+        public void Render_PathologicalLargeDimensions_ReturnsNullNoThrow(int w, int h)
+        {
+            var saved = CoreState.ImageService;
+            CoreState.ImageService = new MemImageService();
+            try
+            {
+                // A tiny buffer is fine: the long-arithmetic guard rejects the
+                // oversized request BEFORE any allocation/copy or length check
+                // against the (overflowed) int product.
+                var ex = Record.Exception(() =>
+                {
+                    IImage img = PortraitImportPreviewCore.RenderFramePreview(
+                        new byte[16], w, h, MakePalette(),
+                        0, 0, 0, 8, 0, 0, 32, 16, 0, 0, 32, 16, 0, false);
+                    Assert.Null(img);
+                });
+                Assert.Null(ex); // never throws (OverflowException / OOM / OOR)
+            }
+            finally { CoreState.ImageService = saved; }
+        }
+
+        [Fact]
+        public void Render_ValidSmallInputs_StillRenderAfterOverflowGuard()
+        {
+            // Regression: the overflow guard must NOT reject legitimate small
+            // inputs. The standard 128x112 sheet still renders a 96x80 frame.
+            var saved = CoreState.ImageService;
+            CoreState.ImageService = new MemImageService();
+            try
+            {
+                using IImage img = Render(MakeSheet(), 2);
+                Assert.NotNull(img);
+                Assert.Equal(96, img.Width);
+                Assert.Equal(80, img.Height);
+                Assert.Equal(3, IndexAt(img, 4, 4)); // closed-eye overlay
+            }
+            finally { CoreState.ImageService = saved; }
+        }
+
         [Fact]
         public void Render_OutOfRangeFrame_DoesNotThrow_ShowsBase()
         {

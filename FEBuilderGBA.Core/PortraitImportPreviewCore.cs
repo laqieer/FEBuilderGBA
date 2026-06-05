@@ -67,6 +67,13 @@ namespace FEBuilderGBA
         const int PartWidth = 32;
         const int PartHeight = 16;
 
+        // Upper bound on the source pixel count (width * height) accepted by
+        // RenderFramePreview. A real 16-color portrait import sheet is 128x112
+        // (~14 K px); 64 Mpx is ~4500x larger — far above any legitimate input
+        // while staying well inside int range so the later (int)pixelCount cast
+        // and int-based allocation/copy cannot overflow (#979 review).
+        const long MaxPixelCount = 64L * 1024 * 1024; // 67,108,864 px
+
         // Standard slot source coordinates inside the 128x112 sheet.
         const int EyeHalfSrcX = 96, EyeHalfSrcY = 48;   // sheet (96, 16*3)
         const int EyeClosedSrcX = 96, EyeClosedSrcY = 64; // sheet (96, 16*4)
@@ -128,13 +135,29 @@ namespace FEBuilderGBA
             if (svc == null) return null;
             if (indexedPixels == null || palette == null) return null;
             if (width < FaceWidth || height < FaceHeight) return null;
-            if (indexedPixels.Length < width * height) return null;
             if (palette.Length < 32) return null;
+
+            // Compute the pixel count in LONG arithmetic and bound it BEFORE any
+            // int-based allocation/copy: `width * height` in `int` can overflow
+            // to a negative/wrong value for pathologically large dimensions,
+            // making the `indexedPixels.Length < ...` guard unreliable and the
+            // `new byte[...]` allocation wrong — both violations of the
+            // "return null on unusable input, never throw" contract (#979
+            // review). `width`/`height` are already known >= 96/80 here (so
+            // they are positive). MaxPixelCount caps a single 16-color portrait
+            // sheet well above any real source while staying inside int range.
+            long pixelCount = (long)width * height;
+            if (pixelCount > MaxPixelCount) return null;
+            if (indexedPixels.Length < pixelCount) return null;
+
+            // pixelCount is now proven <= MaxPixelCount (< int.MaxValue), so the
+            // int cast and int-based allocation/copy below cannot overflow.
+            int pixelCountInt = (int)pixelCount;
 
             // Work on a private copy of the indexed buffer so the wizard's
             // LoadResult.IndexedPixels is never mutated.
-            byte[] sheet = new byte[width * height];
-            Array.Copy(indexedPixels, sheet, width * height);
+            byte[] sheet = new byte[pixelCountInt];
+            Array.Copy(indexedPixels, sheet, pixelCountInt);
 
             // STAGE A — reorganize the standard eye/mouth slots from the crop
             // rectangles (port of DecreaseColor16 :166-228). FE6 skips the eye
@@ -303,8 +326,16 @@ namespace FEBuilderGBA
         /// </summary>
         internal static byte[] DecodeIndexedToRgba(byte[] indexed, int w, int h, byte[] palette, IImageService svc)
         {
-            byte[] rgba = new byte[w * h * 4];
-            int n = Math.Min(indexed.Length, w * h);
+            // Guard the allocation in LONG arithmetic: `w * h * 4` in `int` can
+            // overflow for large dimensions. RenderFramePreview only ever calls
+            // this with the 96x80 face constants, but the helper is internal and
+            // hardened defensively (#979 review) — return an empty buffer on a
+            // non-positive or oversized request instead of throwing/overflowing.
+            if (w <= 0 || h <= 0) return Array.Empty<byte>();
+            long pixels = (long)w * h;
+            if (pixels > MaxPixelCount) return Array.Empty<byte>();
+            byte[] rgba = new byte[(int)pixels * 4];
+            int n = (int)Math.Min(indexed.Length, pixels);
             for (int i = 0; i < n; i++)
             {
                 int palIdx = indexed[i] & 0x0F;
