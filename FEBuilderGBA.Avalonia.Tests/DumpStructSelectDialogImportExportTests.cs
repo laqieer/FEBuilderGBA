@@ -93,6 +93,44 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
+        public void Export_EmptyButValidTable_WritesHeaderOnlyFile_LikeCli()
+        {
+            // #963 review: ExportTableByAddressAsync must NOT throw "No data to
+            // export." on a 0-entry table — the CLI --export-data writes a valid
+            // HEADER-ONLY file in that case (StructExportCore.FormatTSV always
+            // emits the header). This asserts the CLI-parity invariant the helper's
+            // post-dialog path relies on: ExportToTSV with an empty entries list
+            // still produces a header-only file (the removed guard would have
+            // broken this).
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var table = StructExportCore.GetTable("units");
+                var rom = CoreState.ROM;
+                var structDef = StructExportCore.LoadStructDef(rom, table);
+                Assert.NotNull(structDef);
+
+                var empty = new List<Dictionary<string, string>>();
+
+                string path = Path.Combine(Path.GetTempPath(),
+                    "dumpstruct_emptyexport_" + System.Guid.NewGuid().ToString("N") + ".tsv");
+                try
+                {
+                    StructExportCore.ExportToTSV(empty, structDef!, path);
+
+                    string written = File.ReadAllText(path);
+                    // Header line present, NO data rows.
+                    Assert.StartsWith("Index\t", written);
+                    var lines = written.Split('\n', System.StringSplitOptions.RemoveEmptyEntries);
+                    Assert.Single(lines); // header only
+                }
+                finally
+                {
+                    if (File.Exists(path)) File.Delete(path);
+                }
+            });
+        }
+
+        [Fact]
         public void ImportRoundTrip_AtUnitTable_IsLosslessAndUndoable()
         {
             RomTestHelper.WithRom("FE8U", () =>
@@ -116,18 +154,56 @@ namespace FEBuilderGBA.Avalonia.Tests
                     StructExportCore.ExportToTSV(export1, structDef!, path);
 
                     // 2) Re-import via the SAME Core parse the helper uses (hex
-                    //    index from the first column, not positional) and write
-                    //    back inside an UndoService scope (the import path).
-                    var undo = new UndoService();
-                    undo.Begin("Import units (test)");
+                    //    index from the first column, not positional). Mutate ONE
+                    //    field of one entry so the write produces a REAL byte delta
+                    //    (re-writing identical bytes would record nothing, making
+                    //    the undo assertion meaningless).
                     var parsed = StructExportCore.ImportFromTSV(path, structDef!);
                     Assert.NotEmpty(parsed);
+                    var firstField = structDef!.Fields[0];
+                    var (mutIndex, mutFields) = parsed[0];
+                    string origVal = mutFields[firstField.Name];
+                    uint origNum = U.atoi0x(origVal);
+                    uint newNum = origNum ^ 0x1u; // flip the low bit → guaranteed-different, still in-range
+                    // WriteTable parses each field via U.atoi0x, so a plain "0x.."
+                    // hex string is sufficient (FormatFieldValue is private in Core).
+                    string newVal = "0x" + newNum.ToString("X");
+                    mutFields[firstField.Name] = newVal;
+
+                    // Snapshot the ROM bytes BEFORE the undo-scoped import so we can
+                    // assert undo restores them byte-for-byte.
+                    byte[] before = (byte[])rom.Data.Clone();
+                    int undoPosBefore = CoreState.Undo!.Postion;
+
+                    // 3) Write back inside the SAME UndoService Begin/Commit scope the
+                    //    import helper uses (the import path).
+                    var undo = new UndoService();
+                    undo.Begin("Import units (test)");
                     int written = StructExportCore.WriteTable(rom, table!, structDef!, parsed);
                     undo.Commit();
                     Assert.True(written > 0);
 
-                    // 3) Re-export and assert byte-for-byte identity (lossless:
-                    //    writing the same values back changes nothing).
+                    // 3a) Commit created exactly one undo record (position advanced).
+                    Assert.Equal(undoPosBefore + 1, CoreState.Undo.Postion);
+                    Assert.True(CoreState.Undo.IsModified);
+                    // The mutation actually changed ROM bytes (so undo has work to do).
+                    Assert.False(BytesEqual(before, rom.Data),
+                        "the forced field mutation must change ROM bytes");
+                    // The re-export reflects the mutated value (write took effect).
+                    // Compare numerically — ExportTable re-formats via the canonical
+                    // (private) formatter, which may differ in width from newVal.
+                    var exportMut = StructExportCore.ExportTable(rom, table!, structDef!);
+                    Assert.Equal(newNum, U.atoi0x(exportMut[(int)mutIndex][firstField.Name]));
+
+                    // 4) RUN undo and assert the ROM is byte-identical to the
+                    //    pre-import snapshot (the write is fully reversible).
+                    CoreState.Undo.RunUndo();
+                    Assert.Equal(undoPosBefore, CoreState.Undo.Postion);
+                    Assert.True(BytesEqual(before, rom.Data),
+                        "undo must restore the ROM byte-for-byte");
+
+                    // 5) After undo, a fresh export equals the ORIGINAL (lossless):
+                    //    the table is back exactly where it started.
                     var export2 = StructExportCore.ExportTable(rom, table!, structDef!);
                     AssertEntriesEqual(export1, export2, structDef!);
                 }
@@ -136,6 +212,14 @@ namespace FEBuilderGBA.Avalonia.Tests
                     if (File.Exists(path)) File.Delete(path);
                 }
             });
+        }
+
+        static bool BytesEqual(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i]) return false;
+            return true;
         }
 
         static void AssertEntriesEqual(

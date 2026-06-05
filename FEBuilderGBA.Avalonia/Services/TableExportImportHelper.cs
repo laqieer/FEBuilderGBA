@@ -146,9 +146,11 @@ namespace FEBuilderGBA.Avalonia.Services
 
             try
             {
+                // NO 0-entries guard: an empty-but-valid table must still export a
+                // HEADER-ONLY file, matching the CLI --export-data (StructExportCore
+                // FormatTSV/CSV/EA always emit the header). The "no table resolved"
+                // case is already handled above via ResolveTableAt == null.
                 var entries = StructExportCore.ExportTable(rom, table, structDef);
-                if (entries.Count == 0)
-                    throw new InvalidOperationException(R._("No data to export."));
 
                 switch (fmt)
                 {

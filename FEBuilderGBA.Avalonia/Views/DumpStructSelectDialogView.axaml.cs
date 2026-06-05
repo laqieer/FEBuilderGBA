@@ -129,7 +129,8 @@ namespace FEBuilderGBA.Avalonia.Views
         // the CLI --export-data command uses: TableExportImportHelper resolves
         // the table from the focused address alone (StructExportCore.ResolveTableAt),
         // shows a file-save dialog, and writes StructExportCore.ExportToTSV/CSV/EA
-        // output (byte-identical to the CLI) — closing the gap tracked from #439.
+        // output (byte-identical to the CLI) — addressing the DumpStruct
+        // export/import portion of #439 (not the issue's full parity scope).
         // When the address resolves to NO known table, we fall back to the honest
         // hex-dump preview banner. STRUCT/NMM are not backed by the Core seam, so
         // they always use the preview banner.
@@ -215,8 +216,11 @@ namespace FEBuilderGBA.Avalonia.Views
         // a file dialog, parses with StructExportCore.ImportFromTSV (hex-index
         // from the first column), and writes via StructExportCore.WriteTable —
         // all inside an UndoService Begin/Commit scope (Rollback on failure), so
-        // the mutation is undoable and never half-applied. Closes #439. When the
-        // focused address resolves to no known table, the user is told so.
+        // the mutation is undoable and never half-applied. Addresses #439
+        // (DumpStruct export/import portion — the issue's broader Avalonia↔WinForms
+        // parity criteria, e.g. density / navigation targets / ko translations, are
+        // not all covered here). When the focused address resolves to no known
+        // table, the user is told so.
         // ===================================================================
 
         async void ImportButton_Click(object? sender, RoutedEventArgs e)
