@@ -49,9 +49,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 // Match WinForms SoundBossBGMForm.cs:45 —
                 //   "{unitHex} {unitName} : {songHex}{songName}"
-                // GetSongName returns the name only (no hex prefix); it is
-                // appended directly after the variable-width song id (#961 W2a).
-                string songName = NameResolver.GetSongName(songId);
+                // Use the Core resolver DIRECTLY (not NameResolver.GetSongName,
+                // which substitutes the non-empty "Song 0x.." placeholder for an
+                // unknown id and would produce "1BSong 0x1B"). The Core resolver
+                // returns "" for an unresolved id, so the label collapses to just
+                // the hex — matching WinForms which appends an empty string for
+                // unknown songs (#961 W2a / #962 review).
+                string songName = SongNameResolverCore.GetSongName(rom, songId);
                 string name = $"{U.ToHexString(unitId)} {unitName} : {U.ToHexString(songId)}{songName}";
                 result.Add(new AddrResult(addr, name, i));
             }

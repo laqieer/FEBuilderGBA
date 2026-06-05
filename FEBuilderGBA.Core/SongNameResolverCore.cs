@@ -58,9 +58,14 @@ namespace FEBuilderGBA
                 }
                 catch (Exception ex)
                 {
+                    // Do NOT cache the failure — leave _seRom/_seList untouched so
+                    // a later call (e.g. after CoreState.BaseDirectory is set)
+                    // retries the load instead of being permanently poisoned with
+                    // an empty SE list until ClearCache().
                     Log.Error("SongNameResolverCore.GetSoundEffectList failed: " + ex.Message);
-                    dic = new Dictionary<uint, string>();
+                    return new Dictionary<uint, string>();
                 }
+                // Only cache a successfully-loaded list.
                 _seList = dic;
                 _seRom = rom;
                 return dic;

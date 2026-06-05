@@ -1096,7 +1096,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
                 // Lockstep with SoundBossBGMViewerViewModel — WinForms format:
                 //   "{unitHex} {unitName} : {songHex}{songName}" (#961 W2a).
-                string songName = NameResolver.GetSongName(songId);
+                // Use the Core resolver DIRECTLY so an unresolved id yields "" (no
+                // "Song 0x.." placeholder duplication) — same as the VM (#962 review).
+                string songName = SongNameResolverCore.GetSongName(rom, songId);
                 string name = $"{U.ToHexString(unitId)} {unitName} : {U.ToHexString(songId)}{songName}";
                 result.Add(new AddrResult(addr, name, i));
             }

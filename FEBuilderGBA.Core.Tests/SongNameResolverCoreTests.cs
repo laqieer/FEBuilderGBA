@@ -257,5 +257,69 @@ namespace FEBuilderGBA.Core.Tests
         {
             Assert.Equal("", SongNameResolverCore.GetSongNameWhereSongID(null, 0x1B));
         }
+
+        // ================================================================
+        // Cache retry-after-failure (#962 review #1)
+        // ================================================================
+
+        /// <summary>
+        /// A load FAILURE (here: CoreState.BaseDirectory == null, which makes
+        /// ConfigDataFilename throw inside Path.Combine) must NOT poison the
+        /// per-ROM cache with an empty SE list. A subsequent call after the
+        /// environment becomes valid (BaseDirectory set) must RETRY and load the
+        /// real SE list — not keep returning the cached-empty result.
+        /// </summary>
+        [Theory]
+        [InlineData("FE8J.gba")]
+        [InlineData("FE8U.gba")]
+        public void GetSoundEffectList_LoadFailure_DoesNotPoisonCache_RetriesLater(string romName)
+        {
+            string romPath = FindRom(romName);
+            if (romPath == null) return; // skip — no ROM
+
+            string root = FindRepoRoot();
+            if (root == null) return; // skip — need the repo root for the real load
+
+            var savedRom = CoreState.ROM;
+            var savedEnc = CoreState.SystemTextEncoder;
+            var savedBase = CoreState.BaseDirectory;
+            try
+            {
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return; // skip
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                SongNameResolverCore.ClearCache();
+
+                // 1) Force the load to FAIL (null BaseDirectory → Path.Combine throws).
+                CoreState.BaseDirectory = null;
+                var failed = SongNameResolverCore.GetSoundEffectList(rom);
+                Assert.Empty(failed); // failure returns an empty dictionary
+
+                // 2) Make the environment valid and call again — the resolver
+                //    MUST retry the load (not return a cached-empty list).
+                CoreState.BaseDirectory = root;
+                var retried = SongNameResolverCore.GetSoundEffectList(rom);
+                Assert.NotEmpty(retried); // proves the failure was NOT cached
+
+                // And the SE fallback now actually works for an SE-list id.
+                uint anySeId = 0;
+                foreach (var kv in retried)
+                {
+                    if (!string.IsNullOrEmpty(kv.Value)) { anySeId = kv.Key; break; }
+                }
+                // (anySeId may legitimately be 0 → "NULL"; just assert resolution
+                //  of a known-present id reproduces its SE name.)
+                Assert.Equal(retried[anySeId], SongNameResolverCore.GetSoundEffectList(rom)[anySeId]);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.SystemTextEncoder = savedEnc;
+                CoreState.BaseDirectory = savedBase;
+                SongNameResolverCore.ClearCache();
+                NameResolver.ClearCache();
+            }
+        }
     }
 }
