@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Source-text wiring tests for the Portrait Import Wizard's per-frame live
+// preview render pane (#975, follow-up to #707 Slice A / #717).
+//
+// These run on every platform (no Avalonia headless host). The Core render
+// math is covered exhaustively by FEBuilderGBA.Core.Tests.PortraitImportPreviewCoreTests;
+// here we only assert that the wizard's AXAML grew the preview viewport and the
+// code-behind wires the Core seam on the frame + crop + block NUDs, refreshes on
+// load, and seeds the screenshot harness.
+using System;
+using System.IO;
+using Xunit;
+
+namespace FEBuilderGBA.Avalonia.Tests
+{
+    public class ImagePortraitImporterFramePreviewTests
+    {
+        static string FindRepoRoot()
+        {
+            string dir = AppContext.BaseDirectory;
+            while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                dir = Path.GetDirectoryName(dir);
+            if (dir == null)
+                throw new InvalidOperationException("Could not find FEBuilderGBA.sln from test base directory");
+            return dir;
+        }
+
+        static string ReadView()
+        {
+            string path = Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia", "Views",
+                "ImagePortraitImporterView.axaml");
+            Assert.True(File.Exists(path), $"AXAML not found at {path}");
+            return File.ReadAllText(path);
+        }
+
+        static string ReadCodeBehind()
+        {
+            string path = Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia", "Views",
+                "ImagePortraitImporterView.axaml.cs");
+            Assert.True(File.Exists(path), $"Code-behind not found at {path}");
+            return File.ReadAllText(path);
+        }
+
+        [Fact]
+        public void View_HasFramePreviewViewport()
+        {
+            string source = ReadView();
+            // Dedicated per-frame preview GbaImageControl exists.
+            Assert.Contains("ImagePortraitImporter_FramePreview_Image", source);
+            Assert.Contains("Name=\"FramePreviewImage\"", source);
+            // The note clarifying auto-quantized-source-only scope is present.
+            Assert.Contains("ImagePortraitImporter_FramePreview_Note_Label", source);
+            // The existing quantized-source preview is still there (not replaced).
+            Assert.Contains("ImagePortraitImporter_Preview_Image", source);
+        }
+
+        [Fact]
+        public void CodeBehind_CallsCoreRenderSeam()
+        {
+            string source = ReadCodeBehind();
+            Assert.Contains("PortraitImportPreviewCore.RenderFramePreview", source);
+            Assert.Contains("RefreshFramePreview", source);
+            // Pushes the result into the dedicated preview control.
+            Assert.Contains("FramePreviewImage.SetImage", source);
+        }
+
+        [Fact]
+        public void CodeBehind_RefreshesOnFrameAndCropAndBlockNuds()
+        {
+            string source = ReadCodeBehind();
+            // Frame NUD triggers a re-render.
+            Assert.Contains("FrameInput.ValueChanged", source);
+            // Crop + block NUDs are hooked to RefreshFramePreview (via the Hook helper).
+            Assert.Contains("Hook(EyeCropXInput)", source);
+            Assert.Contains("Hook(MouthCropHInput)", source);
+            Assert.Contains("Hook(EyeBlockXInput)", source);
+            // RefreshFramePreview is invoked after an image loads.
+            Assert.Contains("RefreshFramePreview();", source);
+        }
+
+        [Fact]
+        public void CodeBehind_NoOpsGracefullyWhenNoImageLoaded()
+        {
+            string source = ReadCodeBehind();
+            // The refresh guards on a loaded image and clears the pane otherwise.
+            Assert.Contains("_vm.LoadedImage", source);
+            Assert.Contains("FramePreviewImage.SetImage(null)", source);
+        }
+
+        [Fact]
+        public void CodeBehind_SeedsScreenshotHarness()
+        {
+            string source = ReadCodeBehind();
+            // The screenshot seed is gated behind ScreenshotAllMode (never the
+            // interactive runtime) and builds a synthetic 128x112 sheet.
+            Assert.Contains("App.ScreenshotAllMode", source);
+            Assert.Contains("SeedFramePreviewForScreenshot", source);
+            Assert.Contains("BuildSyntheticSheetLoadResult", source);
+        }
+
+        [Fact]
+        public void CodeBehind_PassesFe6FlagToSeam()
+        {
+            string source = ReadCodeBehind();
+            // FE6 path: the seam is told to skip eye overlays via the isFe6 flag,
+            // derived from IsFe7Or8EntryLayout.
+            Assert.Contains("IsFe7Or8EntryLayout", source);
+            Assert.Contains("isFe6", source);
+        }
+    }
+}

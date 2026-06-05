@@ -9968,6 +9968,12 @@ ROMファイルを開いて難易度設定を編集してください。
 :Mouth crop
 口クロップ
 
+:Per-frame preview (96x80)
+フレームごとのプレビュー (96x80)
+
+:Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import).
+選択したフレームの目/口クロップを顔に合成したライブプレビューです。自動減色したソースのみ表示します — パレット共有/カスタムパレットや縁取りはここには反映されません（それらは最終的なインポートのみを変更します）。
+
 :Frame (0-10):
 フレーム (0-10):
 

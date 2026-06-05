@@ -23800,6 +23800,12 @@ FE6 不支持按地图调整难度。FE6 的地图设定结构体没有本编辑
 :Mouth crop
 口部裁剪
 
+:Per-frame preview (96x80)
+逐帧预览 (96x80)
+
+:Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import).
+将所选帧的眼部/口部裁剪实时合成到脸上的预览。仅显示自动减色后的源图 —— 共享/自定义调色板与描边不会在此反映（它们只影响最终导入）。
+
 :Frame (0-10):
 帧 (0-10):
 
