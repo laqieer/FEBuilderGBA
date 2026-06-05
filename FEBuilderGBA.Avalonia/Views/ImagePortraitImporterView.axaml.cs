@@ -77,17 +77,34 @@ namespace FEBuilderGBA.Avalonia.Views
             AddHandler(DragDrop.DropEvent, OnDrop);
 
             // #707 Slice A: frame selector echoes WF mode strings.
-            // Render pipeline (eye/mouth crop -> live preview) is the
-            // follow-up issue (#717); here we just keep the status label
-            // in sync. The Value="0" default in AXAML guarantees the NUD
-            // is non-null on Open, but we keep the null-coalescing fallback
-            // because Avalonia NumericUpDown can transiently report null
-            // mid-edit (e.g. while the user clears the field to retype).
+            // #975: the frame selector ALSO drives the per-frame live preview
+            // (port of WF GenPreviewMainChar). The Value="0" default in AXAML
+            // guarantees the NUD is non-null on Open, but we keep the
+            // null-coalescing fallback because Avalonia NumericUpDown can
+            // transiently report null mid-edit (e.g. while the user clears the
+            // field to retype).
             FrameInput.ValueChanged += (_, _) =>
+            {
                 FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(
                     (int)(FrameInput.Value ?? 0));
+                RefreshFramePreview();
+            };
             FrameStatusLabel.Text = PortraitFrameStrings.GetWfModeString(
                 (int)(FrameInput.Value ?? 0));
+
+            // #975: every crop / block NumericUpDown also re-renders the
+            // per-frame preview so the user sees the eye/mouth crop composite
+            // update live as they tweak the boxes (the WF DecreaseColor16 +
+            // GenPreviewMainChar pipeline). The Core seam re-derives the
+            // standardized sheet slots from these crop values, so a crop change
+            // genuinely changes the rendered frame.
+            void Hook(NumericUpDown? nud)
+            {
+                if (nud != null) nud.ValueChanged += (_, _) => RefreshFramePreview();
+            }
+            Hook(EyeCropXInput); Hook(EyeCropYInput); Hook(EyeCropWInput); Hook(EyeCropHInput);
+            Hook(MouthCropXInput); Hook(MouthCropYInput); Hook(MouthCropWInput); Hook(MouthCropHInput);
+            Hook(MouthBlockXInput); Hook(MouthBlockYInput); Hook(EyeBlockXInput); Hook(EyeBlockYInput);
         }
 
         void LoadList()
@@ -288,16 +305,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     ? "128 x 112 composite sheet — will write face, mini, mouth, palette (FE7/FE8 only)"
                     : "Simple image — will write sheet (D0) + palette (D8) only";
 
-                // Preview — `BuildPreviewImage` returns an `IImage` (IDisposable);
-                // `SetImage` extracts pixel data immediately via
-                // `IconBitmapBuilder.FromImage`, so we dispose the source
-                // right after to avoid leaking native bitmap resources when
-                // the user picks multiple files (Copilot bot PR #684 inline
-                // review).
-                using (IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult))
-                {
-                    PreviewImage.SetImage(preview);
-                }
+                // Preview — see SetQuantizedPreview (single BuildPreviewImage
+                // call site so all entry points share the leak-safe preview path).
+                SetQuantizedPreview(loadResult);
+
+                // #975: refresh the per-frame composite for the freshly loaded
+                // image so the wizard's preview pane is populated immediately.
+                RefreshFramePreview();
 
                 StatusLabel.Text = string.Empty;
                 StatusLabel.Foreground = global::Avalonia.Media.Brushes.Gray;
@@ -578,6 +592,70 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // Set the quantized SOURCE preview (the existing Step-2 pane) from a
+        // load result. `BuildPreviewImage` returns an `IImage` (IDisposable);
+        // `SetImage` extracts pixel data immediately via
+        // `IconBitmapBuilder.FromImage`, so we dispose the source right after to
+        // avoid leaking native bitmap resources when the user picks multiple
+        // files (Copilot bot PR #684 inline review). Single BuildPreviewImage
+        // call site shared by LoadImageFromPath + the #975 screenshot seed so
+        // all entry points use the same preview path.
+        void SetQuantizedPreview(ImageImportService.LoadResult loadResult)
+        {
+            using IImage preview = PortraitImportHelper.BuildPreviewImage(loadResult);
+            PreviewImage.SetImage(preview);
+        }
+
+        // #975: render the per-frame live preview (port of WF
+        // GenPreviewMainChar) for the currently loaded image, current
+        // crop/block NUD values, and the selected frame. No-ops gracefully when
+        // no image is loaded or the source is too small. The Core seam owns all
+        // the indexed-pixel compositing; the View just gathers inputs and pushes
+        // the result into the FramePreviewImage GbaImageControl.
+        void RefreshFramePreview()
+        {
+            try
+            {
+                if (FramePreviewImage == null) return;
+
+                var loadResult = _vm.LoadedImage;
+                if (loadResult == null || !loadResult.Success
+                    || loadResult.IndexedPixels == null || loadResult.GBAPalette == null)
+                {
+                    FramePreviewImage.SetImage(null);
+                    return;
+                }
+
+                // FE6 has no eye states; the seam skips eye overlays when isFe6
+                // is true. The wizard's crop/frame NUDs are disabled on FE6, so
+                // this path is only reached interactively on FE7/FE8 — but stay
+                // version-correct regardless.
+                ROM rom = CoreState.ROM;
+                bool isFe6 = rom != null && !PortraitImportHelper.IsFe7Or8EntryLayout(rom);
+
+                int frame = (int)(FrameInput?.Value ?? 0);
+
+                using IImage img = PortraitImportPreviewCore.RenderFramePreview(
+                    loadResult.IndexedPixels, loadResult.Width, loadResult.Height,
+                    loadResult.GBAPalette,
+                    (int)(EyeBlockXInput?.Value ?? 0), (int)(EyeBlockYInput?.Value ?? 0),
+                    (int)(MouthBlockXInput?.Value ?? 0), (int)(MouthBlockYInput?.Value ?? 0),
+                    (int)(EyeCropXInput?.Value ?? 0), (int)(EyeCropYInput?.Value ?? 0),
+                    (int)(EyeCropWInput?.Value ?? 0), (int)(EyeCropHInput?.Value ?? 0),
+                    (int)(MouthCropXInput?.Value ?? 0), (int)(MouthCropYInput?.Value ?? 0),
+                    (int)(MouthCropWInput?.Value ?? 0), (int)(MouthCropHInput?.Value ?? 0),
+                    frame, isFe6);
+
+                // img is disposed by the using; SetImage extracts the pixel data
+                // immediately (same leak-safe pattern as PreviewImage above).
+                FramePreviewImage.SetImage(img);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"ImagePortraitImporterView.RefreshFramePreview failed: {ex.Message}");
+            }
+        }
+
         void RefreshImportButtonState()
         {
             bool hasImage = _vm.LoadedImage != null && _vm.LoadedImage.Success;
@@ -586,6 +664,104 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
-        public void SelectFirstItem() => EntryList.SelectFirst();
+
+        public void SelectFirstItem()
+        {
+            EntryList.SelectFirst();
+            SeedFramePreviewForScreenshot();
+        }
+
+        /// <summary>
+        /// #975: in <c>--screenshot-all</c> mode (and ONLY then) seed a
+        /// synthetic 128x112 quantized image plus a non-base frame so the PNG
+        /// shows a REAL per-frame composite from the live render path. The
+        /// interactive runtime never enters this branch — it is invoked from the
+        /// harness's <c>SelectFirstItem</c> reflection call (mirrors the
+        /// PointerToolView #966 screenshot-seed pattern).
+        ///
+        /// The synthetic sheet uses distinct palette indices per region (face
+        /// band vs eye strips vs mouth strips) so the composited frame is
+        /// visibly different from the bare face — proving the seam works, not a
+        /// fabricated image.
+        /// </summary>
+        void SeedFramePreviewForScreenshot()
+        {
+            if (!App.ScreenshotAllMode) return;
+            try
+            {
+                _vm.LoadedImage = BuildSyntheticSheetLoadResult();
+                SourceFileLabel.Text = "(screenshot seed: synthetic 128x112 sheet)";
+                ImageSizeLabel.Text = "Quantized to 16 colors — 128 x 112";
+
+                SetQuantizedPreview(_vm.LoadedImage);
+
+                // Expand the Detail expander so the per-frame pane is visible in
+                // the capture, and select frame 2 (closed eyes) for a clear
+                // eye-overlay composite.
+                if (DetailExpander != null) DetailExpander.IsExpanded = true;
+                if (FrameInput != null) FrameInput.Value = 2;
+
+                RefreshFramePreview();
+                RefreshImportButtonState();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"ImagePortraitImporterView.SeedFramePreviewForScreenshot: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Build a deterministic 128x112 16-color quantized <c>LoadResult</c>
+        /// for the screenshot seed. Palette: index 1 = face band, index 2 = eye
+        /// strips, index 3 = mouth strips, index 0 = transparent. Each region is
+        /// painted with its own index so the per-frame composite is visibly
+        /// distinct from the base face.
+        /// </summary>
+        static ImageImportService.LoadResult BuildSyntheticSheetLoadResult()
+        {
+            const int w = 128, h = 112;
+            byte[] indexed = new byte[w * h];
+
+            // Base face band (whole 96x80 face area) = index 1.
+            FillRegion(indexed, w, 0, 0, 96, 80, 1);
+            // Eye strips at the standard sheet slots = index 2.
+            FillRegion(indexed, w, 96, 48, 32, 16, 2); // half-eye
+            FillRegion(indexed, w, 96, 64, 32, 16, 2); // closed-eye
+            // Mouth strips (6 frames) = index 3.
+            FillRegion(indexed, w, 0, 80, 96, 16, 3);
+            FillRegion(indexed, w, 0, 96, 96, 16, 3);
+
+            // GBA palette (2 bytes/color, 16 colors). 0=transparent black,
+            // 1=blue face, 2=red eyes, 3=green mouth, rest=0.
+            byte[] pal = new byte[32];
+            void SetColor(int idx, ushort gba) { pal[idx * 2] = (byte)(gba & 0xFF); pal[idx * 2 + 1] = (byte)(gba >> 8); }
+            SetColor(0, 0x0000);          // transparent
+            SetColor(1, (ushort)(20 << 10 | 10 << 5 | 4));   // bluish face
+            SetColor(2, (ushort)(2 << 10 | 2 << 5 | 28));    // reddish eyes
+            SetColor(3, (ushort)(2 << 10 | 28 << 5 | 4));    // greenish mouth
+
+            return new ImageImportService.LoadResult
+            {
+                Success = true,
+                IndexedPixels = indexed,
+                GBAPalette = pal,
+                Width = w,
+                Height = h,
+                SourcePath = string.Empty,
+            };
+        }
+
+        static void FillRegion(byte[] buf, int bufW, int x, int y, int w, int h, byte value)
+        {
+            for (int yy = 0; yy < h; yy++)
+            {
+                int row = (y + yy) * bufW + x;
+                for (int xx = 0; xx < w; xx++)
+                {
+                    int i = row + xx;
+                    if (i >= 0 && i < buf.Length) buf[i] = value;
+                }
+            }
+        }
     }
 }

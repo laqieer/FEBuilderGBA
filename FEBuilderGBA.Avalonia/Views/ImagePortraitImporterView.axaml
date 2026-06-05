@@ -175,6 +175,19 @@
                            Name="FrameStatusLabel" VerticalAlignment="Center" FontStyle="Italic"
                            Foreground="DarkBlue" />
               </StackPanel>
+
+              <!-- Per-frame live preview (#975) — composites the eye/mouth crop
+                   for the selected frame onto the 96x80 face, mirroring WF
+                   GenPreviewMainChar. Updates live as the crop/block/frame NUDs
+                   change. Previews the AUTO-QUANTIZED source only: Share/Custom
+                   palette + Fuchidori affect the final import pixels, not this
+                   layout-aid pane. -->
+              <TextBlock Text="Per-frame preview (96x80)" FontWeight="SemiBold" Margin="0,8,0,0" />
+              <TextBlock AutomationProperties.AutomationId="ImagePortraitImporter_FramePreview_Note_Label"
+                         TextWrapping="Wrap" Foreground="Gray" FontSize="11"
+                         Text="Live composite of the selected frame's eye/mouth crop onto the face. Auto-quantized source only — Share/Custom palette and Fuchidori are not reflected here (they change only the final import)." />
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImagePortraitImporter_FramePreview_Image"
+                                        Name="FramePreviewImage" />
             </StackPanel>
           </Expander>
         </Border>
