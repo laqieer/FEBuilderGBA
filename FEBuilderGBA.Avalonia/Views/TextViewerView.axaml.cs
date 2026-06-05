@@ -495,10 +495,12 @@ namespace FEBuilderGBA.Avalonia.Views
         /// then writes it back via the existing Edit-tab Write flow). Mirrors WF
         /// <c>TextForm.TranslateButton_Click</c>.
         ///
-        /// NOTE: WF actually routes through <c>TranslateTextUtil.TranslateText</c>
-        /// (fixed-dictionary + control-code aware). Direct
-        /// <c>TranslateManage.Trans</c> is the accepted MVP for this tab; the
-        /// richer dictionary path is a follow-up.
+        /// Routes through <see cref="TranslateTextUtilCore.TranslateText"/>
+        /// (#967, follow-up to the #949 MVP): FE control codes (<c>@0001</c>,
+        /// <c>@0003</c>, …) are split out and re-inserted verbatim so they survive
+        /// translation, and a literal segment that matches the shipped fixed
+        /// glossary (<c>config/translate/dic_*.txt</c>) is taken from the
+        /// dictionary instead of calling Google.
         /// </summary>
         async void OnTranslateClick(object? sender, RoutedEventArgs e)
         {
@@ -528,13 +530,21 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            // Load (and cache, per from/to) the fixed glossary so dictionary
+            // hits skip the network. LoadFixedDic never throws — a missing file
+            // or unset BaseDirectory simply yields an empty glossary.
+            var dic = TranslateTextUtilCore.LoadFixedDic(fromCode, toCode);
+
             TranslateButton.IsEnabled = false;
             TranslateStatusLabel.Text = R._("Translating...");
             try
             {
-                // TranslateManage.Trans is a SYNCHRONOUS online (Google) call —
-                // run it off the UI thread so the window stays responsive.
-                string result = await Task.Run(() => new TranslateManage().Trans(text, fromCode, toCode));
+                // TranslateTextUtilCore.TranslateText protects @control-codes and
+                // prefers the glossary; for non-glossary segments it makes the
+                // SYNCHRONOUS online (Google) TranslateManage.Trans call — so run
+                // the whole thing off the UI thread to keep the window responsive.
+                string result = await Task.Run(() =>
+                    TranslateTextUtilCore.TranslateText(text, fromCode, toCode, dic, useGoogle: true));
 
                 // Reject empty/garbage results — never overwrite EditTextBox with
                 // an empty or error-shaped string.

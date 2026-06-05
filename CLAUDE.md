@@ -582,6 +582,30 @@ Specialized utilities for different graphic types:
   returned error rolls back. `EventMapChangeView.PointerImport_Click` prompts for
   the source address via `NumberInputDialog`, wraps the call in the undo scope,
   and re-renders the change-overlay preview on success.
+- `TranslateTextUtilCore.cs` (Core, READ-ONLY, NETWORK-OPTIONAL) - Cross-platform
+  port of the two safe, high-value pieces of WinForms `TranslateTextUtil` for the
+  Avalonia Text Editor Translate tab (#967, follow-up to the #949 MVP).
+  `SplitEscapeSegments(text)` is a CORRECTED port of WF `SplitEscapeString`:
+  it splits into alternating literal-text and `@XXXX` (5-char hex) escape
+  segments (bundling a `@0003` immediately followed by `\r\n` into ONE segment)
+  and — unlike WF, which drops trailing literal after the last code — flushes the
+  tail so `string.Concat(SplitEscapeSegments(x)) == x` for ALL x. `IsEscapeSegment`
+  classifies a code as `@` + exactly four hex digits. `LoadFixedDic(from, to)`
+  loads the shipped glossary `config/translate/dic_<from>_<to>.txt` (the single
+  `dic_ja_en.txt` serves both `ja→en` and reversed `en→ja`), tab-separated
+  `source\ttarget`, keys upper-cased, `\r\n` un-escaped, first-wins on dups;
+  missing file / null `CoreState.BaseDirectory` → empty dict, NO throw, and
+  (W2a SongNameResolverCore lesson) only a SUCCESSFUL load is cached — the cache
+  is `lock`-guarded and keyed by `(BaseDirectory, from, to)`. The orchestrator
+  `TranslateText(text, from, to, dic, useGoogle, translator=null)` splits → keeps
+  code segments VERBATIM (never sent to the translator) → glossary-first
+  (case-insensitive, trimmed) → else the injectable `translator` delegate
+  (default `new TranslateManage().Trans`, so unit tests run offline) → reassembles
+  in order. DEFERRED (documented): `InsertSerifnl` line-breaking (WinForms
+  System.Drawing font metrics), `FE8SkipFace48` face-code shift, and the full WF
+  ROM-pair text-id glossary. The Avalonia `TextViewerView.OnTranslateClick` calls
+  it (preserving the #949 off-UI-thread `Task.Run` + WebException-safe handling +
+  status label + empty-result rejection) instead of the raw `Trans`.
 
 ### Caching System
 
