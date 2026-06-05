@@ -111,6 +111,15 @@ namespace FEBuilderGBA.Avalonia.Views
             TextNud.IsEnabled = !tutorial;
             Unknown06Box.IsEnabled = !tutorial;
             Unknown07Box.IsEnabled = !tutorial;
+
+            // The two trailing Unknown bytes sit at 0x0E/0x0F in the 16-byte
+            // MAIN schema but at 0x0A/0x0B in the 12-byte tutorial schema —
+            // relabel them per active table so the offsets aren't misleading.
+            // Route through R._() at assignment time (TranslateAll() ran once at
+            // open). The 0x0A/0x0B/0x0E/0x0F label strings already have ja/zh
+            // entries (#958 review).
+            UnknownTrailing0Label.Text = R._(tutorial ? "Unknown (0x0A):" : "Unknown (0x0E):");
+            UnknownTrailing1Label.Text = R._(tutorial ? "Unknown (0x0B):" : "Unknown (0x0F):");
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)

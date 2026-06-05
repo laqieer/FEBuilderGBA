@@ -462,18 +462,55 @@ public class EventFE7SecondaryTableParityTests
         Assert.Contains("TableFilter.SelectionChanged", cs);
     }
 
+    [Fact]
+    public void HaikuView_TrailingUnknownLabels_RelabelPerActiveTable()
+    {
+        // #958 review: the two trailing Unknown bytes are at 0x0E/0x0F in the
+        // 16-byte MAIN schema but 0x0A/0x0B in the 12-byte tutorial schema. The
+        // labels must be named (so UpdateUI can drive them) and the code-behind
+        // must relabel them per active table, routed through R._() for ja/zh.
+        string axaml = ReadAxaml("EventHaikuFE7View.axaml");
+        Assert.Contains("AutomationId=\"EventHaikuFE7_UnknownTrailing0_Label\"", axaml);
+        Assert.Contains("AutomationId=\"EventHaikuFE7_UnknownTrailing1_Label\"", axaml);
+        Assert.Contains("Name=\"UnknownTrailing0Label\"", axaml);
+        Assert.Contains("Name=\"UnknownTrailing1Label\"", axaml);
+
+        string cs = ReadAxaml("EventHaikuFE7View.axaml.cs");
+        // MAIN offsets when not tutorial, tutorial offsets otherwise — both
+        // routed through R._() so they localize in ja/zh.
+        Assert.Contains("UnknownTrailing0Label.Text = R._(tutorial ? \"Unknown (0x0A):\" : \"Unknown (0x0E):\")", cs);
+        Assert.Contains("UnknownTrailing1Label.Text = R._(tutorial ? \"Unknown (0x0B):\" : \"Unknown (0x0F):\")", cs);
+    }
+
+    [Fact]
+    public void HaikuView_RelabelStrings_HaveJaAndZhTranslations()
+    {
+        // The 4 offset-label strings the relabel toggles between must already
+        // have ja AND zh entries so the L10n gate stays green (#958 review).
+        string repoRoot = RepoRoot();
+        foreach (string lang in new[] { "ja", "zh" })
+        {
+            string txt = File.ReadAllText(Path.Combine(repoRoot, "config", "translate", lang + ".txt"));
+            foreach (string key in new[] { "Unknown (0x0E):", "Unknown (0x0F):", "Unknown (0x0A):", "Unknown (0x0B):" })
+                Assert.Contains("\n:" + key + "\n", "\n" + txt.Replace("\r\n", "\n"));
+        }
+    }
+
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
-    static string ReadAxaml(string fileName)
+    static string RepoRoot()
     {
-        string dir = AppContext.BaseDirectory;
+        string? dir = AppContext.BaseDirectory;
         while (dir != null && !File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
             dir = Path.GetDirectoryName(dir);
         Assert.NotNull(dir);
-        return File.ReadAllText(Path.Combine(dir!, "FEBuilderGBA.Avalonia", "Views", fileName));
+        return dir!;
     }
+
+    static string ReadAxaml(string fileName)
+        => File.ReadAllText(Path.Combine(RepoRoot(), "FEBuilderGBA.Avalonia", "Views", fileName));
 
     static void AssertListsMatch(IReadOnlyList<AddrResult> expected, IReadOnlyList<AddrResult> actual)
     {
