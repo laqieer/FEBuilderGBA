@@ -1094,7 +1094,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint songId = rom.u32(addr + 4);
                 // 1-based ROM-stored unit ID (matches SoundBossBGMViewerViewModel).
                 string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
-                string name = $"{U.ToHexString(unitId)} {unitName} : {U.ToHexString(songId)}";
+                // Lockstep with SoundBossBGMViewerViewModel — WinForms format:
+                //   "{unitHex} {unitName} : {songHex}{songName}" (#961 W2a).
+                string songName = NameResolver.GetSongName(songId);
+                string name = $"{U.ToHexString(unitId)} {unitName} : {U.ToHexString(songId)}{songName}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
