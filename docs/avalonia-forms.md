@@ -229,7 +229,7 @@ Editors for enemy AI behavior scripts.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 124 | AIScriptView | AIScriptViewModel | Main AI script editor |
+| 124 | AIScriptView | AIScriptViewModel | Main AI script editor (opcode edit + write-back + full byte-stream Export/Import, #965) |
 | 125 | AIScriptCategorySelectView | AIScriptCategorySelectViewModel | AI script category picker |
 | 126 | AIASMCALLTALKView | AIASMCALLTALKViewModel | AI ASM call/talk script |
 | 127 | AIASMCoordinateView | AIASMCoordinateViewModel | AI ASM coordinate script |

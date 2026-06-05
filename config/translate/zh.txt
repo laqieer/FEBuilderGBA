@@ -24024,3 +24024,18 @@ TSV 文件没有数据行。
 
 :Import failed: {0}
 导入失败：{0}
+
+:There is no AI script to export. Re-read the script first.
+没有可导出的AI脚本。请先重新读取脚本。
+
+:AI script exported to
+AI脚本已导出到:
+
+:No valid AI opcodes were found in the selected file.
+在所选文件中未找到有效的AI操作码。
+
+:Imported AI opcodes:
+已导入的AI操作码:
+
+:Press Write to save to ROM.
+请点击写入按钮保存到ROM。

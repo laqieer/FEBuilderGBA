@@ -507,15 +507,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = file?.TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
-                // Stub export: dump CurrentAddr + ReadByteCount header. The
-                // full byte-for-byte AI script dump requires the WinForms
-                // EventScript.DisAssemble pipeline; we emit a placeholder so
-                // the file-write surface is at parity with the WF affordance.
-                System.IO.File.WriteAllText(path,
-                    $"// AI Script export\n" +
-                    $"// Address: 0x{_vm.CurrentAddr:X08}\n" +
-                    $"// Bytes: {_vm.ReadByteCount}\n");
-                CoreState.Services.ShowInfo($"AI script header exported to {path}");
+                // Full per-opcode dump (WF AIScriptForm.EventToTextAll parity):
+                // one line per 16-byte opcode — hex bytes + tab + //script-name
+                // + decoded args + comment. ExportToText lazily disassembles the
+                // loaded script when the in-memory model is empty.
+                string content = _vm.ExportToText();
+                if (string.IsNullOrEmpty(content))
+                {
+                    CoreState.Services.ShowInfo(R._("There is no AI script to export. Re-read the script first."));
+                    return;
+                }
+                System.IO.File.WriteAllText(path, content);
+                CoreState.Services.ShowInfo($"{R._("AI script exported to")} {path}");
             }
             catch (Exception ex)
             {
@@ -539,12 +542,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
-                // Stub import: parse header bytes only. Full byte-stream
-                // import requires the WF AIScript.DisAssemble path which is
-                // WinForms-coupled.
+                // Full byte-stream import (WF AIScriptForm.FileToEvent parity):
+                // parse each hex line, rebuild the in-memory opcode model, and
+                // refresh the Disassembly list. NO ROM write — the user clicks
+                // the Write button to persist (preserving the undo flow).
+                string text = System.IO.File.ReadAllText(path);
+                int count = _vm.ImportFromText(text);
+                if (count <= 0)
+                {
+                    CoreState.Services.ShowError(R._("No valid AI opcodes were found in the selected file."));
+                    return;
+                }
+
+                // Refresh from the in-memory model (NOT a ROM re-read) so the
+                // imported opcodes are visible before any Write. Sync the
+                // Address / byte-count boxes to the (unchanged) load location.
+                DisassemblyList.ItemsSource = _vm.GetDisplayLines();
+                UpdateUI();
                 CoreState.Services.ShowInfo(
-                    "AI script import will fully populate once the Core extraction lands. " +
-                    $"Selected file: {path}");
+                    $"{R._("Imported AI opcodes:")} {count}. {R._("Press Write to save to ROM.")}");
             }
             catch (Exception ex)
             {
