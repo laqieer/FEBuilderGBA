@@ -53,6 +53,14 @@ namespace FEBuilderGBA
         /// <c>abc@0001def</c> loses <c>def</c>). This version flushes that
         /// trailing literal so the segments always round-trip exactly:
         /// <c>string.Concat(SplitEscapeSegments(x)) == x</c> for ALL <paramref name="text"/>.
+        ///
+        /// A <c>@</c> is only treated as the start of an escape code when it is
+        /// followed by EXACTLY four hex digits (the same <c>@</c>+4-hex rule
+        /// <see cref="IsEscapeSegment"/> enforces — see <see cref="IsCodeAt"/>).
+        /// A literal at-sign in ordinary text — <c>email@example.com</c>,
+        /// <c>hello@catworld</c>, a trailing <c>@</c>, or <c>@</c> followed by
+        /// fewer than four hex / non-hex chars — stays attached to its
+        /// surrounding literal run instead of being fragmented (#971).
         /// </summary>
         public static List<string> SplitEscapeSegments(string text)
         {
@@ -66,7 +74,10 @@ namespace FEBuilderGBA
             int i = 0;
             while (i < text.Length)
             {
-                if (text[i] == '@')
+                // Only a real "@XXXX" control code (4 hex digits) is an escape
+                // boundary; a literal '@' falls through and stays in the literal
+                // run (#971).
+                if (text[i] == '@' && IsCodeAt(text, i))
                 {
                     // Flush the pending literal run before this code.
                     if (i - textstart > 0)
@@ -107,6 +118,31 @@ namespace FEBuilderGBA
             }
 
             return list;
+        }
+
+        /// <summary>
+        /// True when an escape code begins AT position <paramref name="i"/> in
+        /// <paramref name="text"/>: a <c>@</c> immediately followed by exactly
+        /// four hex digits (so the full 5-char <c>@XXXX</c> token fits). This is
+        /// the position-based twin of <see cref="IsEscapeSegment"/> — both enforce
+        /// the identical <c>@</c>+4-hex rule so the splitter and the classifier
+        /// never disagree about what counts as a control code (#971).
+        /// </summary>
+        static bool IsCodeAt(string text, int i)
+        {
+            // Need '@' plus 4 trailing hex digits → indices i+1..i+4 must exist.
+            if (i + 4 >= text.Length || text[i] != '@')
+            {
+                return false;
+            }
+            for (int k = 1; k <= 4; k++)
+            {
+                if (!U.ishex(text[i + k]))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>

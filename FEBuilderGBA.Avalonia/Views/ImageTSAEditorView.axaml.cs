@@ -13,6 +13,7 @@
 // handlers short-circuit — covered by KnownGap markers in the AXAML.
 using System;
 using global::Avalonia.Controls;
+using global::Avalonia.Input.Platform;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -55,13 +56,10 @@ namespace FEBuilderGBA.Avalonia.Views
             // Same for changes to the Palette Address spinner — the spinner
             // is the WF-equivalent of the editable PaletteAddress field.
             PaletteAddressBox.ValueChanged += (_, _) => ReloadPaletteIntoGrid();
-            // Redo is unsupported by Core.Undo (RunRedo doesn't exist), so
-            // disable both Redo entry points up front. Their Click handlers
-            // remain wired only for the View_AllButtons_AreWiredOrExplicitlyInert
-            // audit; user-visible they render disabled rather than silently
-            // logging a no-op (Copilot review feedback).
-            RedoButton.IsEnabled = false;
-            PaletteRedoButton.IsEnabled = false;
+            // Redo is now wired to the global Core Undo stack (#974):
+            // CoreState.Undo.RunRedo() + CanRedo already exist (the Map Style
+            // editor's Redo_Click uses the same pattern). The buttons stay
+            // enabled and Redo_Click guards on CanRedo at runtime.
             Opened += (_, _) => LoadList();
         }
 
@@ -420,18 +418,40 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Redo button. Core Undo currently exposes only RunUndo (the
-        /// global redo stack is a WinForms-only extension), so the button
-        /// is disabled in the constructor (IsEnabled=false) and this handler
-        /// is reachable only via the audit-only Click wiring. A future Core
-        /// Undo.RunRedo will replace this stub and let us re-enable the
-        /// button. Defensive guard mirrors PaletteRedo_Click.
+        /// Redo button (#974). Runs <see cref="Undo.RunRedo"/> on the global
+        /// <see cref="CoreState.Undo"/> stack — the SAME pattern as the Map
+        /// Style editor's Redo_Click. Mirrors <see cref="Undo_Click"/>: guards
+        /// on <see cref="Undo.CanRedo"/>, verifies the redo actually advanced
+        /// (RunRedo's bool surfaces silent rollback failures), then reloads the
+        /// palette grid + re-renders the read-only previews so the spinners /
+        /// ChipListPreview / BattlePreview track the rolled-forward ROM bytes.
         /// </summary>
         void Redo_Click(object? sender, RoutedEventArgs e)
         {
-            // No-op: button is disabled at runtime. We surface a one-line
-            // info dialog if the handler is ever invoked programmatically.
-            CoreState.Services.ShowInfo("Redo is not yet available in the Avalonia TSA editor (deferred until Core.Undo.RunRedo lands).");
+            try
+            {
+                if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
+                {
+                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    return;
+                }
+                if (!CoreState.Undo.RunRedo())
+                {
+                    CoreState.Services.ShowError("Redo failed.");
+                    return;
+                }
+                // RunRedo rolls ROM bytes forward (e.g. a redone palette write),
+                // so reload the affected state and re-render the previews --
+                // otherwise the spinners + ChipListPreview / BattlePreview keep
+                // showing the pre-redo colors (mirrors Undo_Click).
+                ReloadPaletteIntoGrid();
+                RefreshBattleCanvas();
+                RefreshChipList();
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services.ShowError($"Redo failed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -456,14 +476,34 @@ namespace FEBuilderGBA.Avalonia.Views
         // -----------------------------------------------------------------
 
         /// <summary>
-        /// KnownGap: PaletteToClipboard. WinForms uses
-        /// System.Windows.Forms.Clipboard which is WinForms-only; the
-        /// Avalonia equivalent (TopLevel.Clipboard async API) is a
-        /// separate cross-cutting refactor not in scope here.
+        /// Palette-to-clipboard (#974). Mirrors WinForms
+        /// <c>PaletteFormRef.PALETTE_TO_CLIPBOARD_BUTTON_Click</c>: pack the 16
+        /// current palette entries to GBA 5-5-5 big-endian hex (4 chars/entry,
+        /// 64 chars total) and copy to the system clipboard via the Avalonia
+        /// <c>IClipboard.SetTextAsync</c> async API. The grid is always
+        /// populated, so this is enabled unconditionally; it never writes ROM.
         /// </summary>
-        void PaletteClipboard_Click(object? sender, RoutedEventArgs e)
+        async void PaletteClipboard_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Notify("ImageTSAEditor PaletteClipboard - deferred (KnownGap: PaletteToClipboard)");
+            try
+            {
+                var rgb = ReadPaletteFromUI();
+                string hex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(rgb);
+
+                IClipboard? clipboard = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
+                if (clipboard == null)
+                {
+                    CoreState.Services.ShowError("Clipboard is not available.");
+                    return;
+                }
+                await clipboard.SetTextAsync(hex);
+                Log.Notify($"ImageTSAEditor: palette copied to clipboard ({hex}).");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageTSAEditorView.PaletteClipboard failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"Palette to clipboard failed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -574,15 +614,37 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// KnownGap: MainImageExport. Mirrors WF image1_Export (the raw-
-        /// tilesheet PNG export) — would call into ImageFormRef.ExportImageHandler
-        /// which is WinForms-only. NOTE: the read-only TSA-composited Export PNG
-        /// (#808, BattleExportPng_Click) is a DIFFERENT, already-wired export;
-        /// this raw-tilesheet export stays deferred.
+        /// Raw tilesheet export (#974). Mirrors WF <c>image1_Export</c>: the
+        /// LZ77-decompressed ZImg tiles laid out as an 8-tile-wide 4bpp strip
+        /// (NOT the TSA-composited #808 canvas). Renders via the read-only
+        /// <see cref="ImageTSAEditorViewModel.RenderRawTilesheet"/> Core seam
+        /// into the Main Image tab's preview control, then saves it to PNG via
+        /// the shared <see cref="Controls.GbaImageControl.ExportPng"/> save-file
+        /// dialog. Read-only — no UndoService. Gated on IsContextLoaded.
         /// </summary>
-        void MainImageExport_Click(object? sender, RoutedEventArgs e)
+        async void MainImageExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Notify("ImageTSAEditor MainImageExport - deferred (KnownGap: MainImageExport)");
+            if (!_vm.IsContextLoaded) return;
+
+            try
+            {
+                IImage img = _vm.RenderRawTilesheet();
+                if (img == null)
+                {
+                    CoreState.Services.ShowError(
+                        "TSA Image Export: could not decode the main tilesheet.");
+                    return;
+                }
+                // Show the rendered tilesheet in the Main Image preview so the
+                // user sees what is being exported, then save it to PNG.
+                MainImagePreview.SetImage(img);
+                await MainImagePreview.ExportPng(this, "tsa_tilesheet");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageTSAEditorView.MainImageExport failed: {0}", ex.Message);
+                CoreState.Services.ShowError($"TSA Image Export failed: {ex.Message}");
+            }
         }
 
         /// <summary>

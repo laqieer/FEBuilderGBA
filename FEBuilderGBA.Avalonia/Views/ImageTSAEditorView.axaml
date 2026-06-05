@@ -32,10 +32,10 @@
 
   <!-- BattleCanvasRender RESOLVED (#808): the TSA-composited main image is now rendered cross-platform via ImageTSAEditorCore.TryRenderMainImage into BattlePreview, with a read-only Export PNG button. Note: export is intentionally NOT byte-identical to the WF canvas for TSA tile indices >= 0x100 because the Core decoder uses the full 10-bit index (& 0x3FF) like ImageUtil.ByteToImage16Tile, whereas the WF TSA canvas masks tile numbers to 8 bits (& 0xff). The 10-bit value is the on-ROM truth, so this is acceptable for a read-only export. -->
   <!-- ChipsetListRender RESOLVED (#819): the chip-list thumbnail (WF MakeCHIPLIST / PATHCHIPLIST_Paint) is now rendered cross-platform via ImageTSAEditorCore.RenderChipList into ChipListPreview — the main-image tiles in WF's 4-column (orig / Hflip / Vflip / HVflip) single-palette-bank-0 strip, read-only. Follow-up to #808/#810 (shared TSA tile/palette loader) and #807 (the 8-col/2-bank battle-screen sibling). -->
-  <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. Deferred; only the palette-write path is exercised by the Write button in this PR. -->
-  <!-- KnownGap: PaletteToClipboard reason=System.Windows.Forms.Clipboard interop is WinForms-only; Avalonia equivalent (TopLevel.Clipboard async API) is a separate cross-cutting refactor not in scope here. The Clipboard button (label クリップボード) renders as a disabled stub so the labels audit still passes. -->
+  <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. This is the SOLE remaining deferral in this editor: the Avalonia TSA editor has NO per-cell TSA-edit grid, so there is no edited TSA to write back (tilesheet import #901 already covers full image replacement). Becomes actionable only when a TSA cell-edit grid is added (separate future issue). Only the palette-write path is exercised by the Write button. -->
+  <!-- RESOLVED (#974): PaletteToClipboard — PaletteClipboard_Click now packs the 16 palette entries to GBA 5-5-5 big-endian hex (mirroring WF PaletteFormRef.PALETTE_TO_CLIPBOARD_BUTTON_Click) and copies to the system clipboard via the Avalonia IClipboard.SetTextAsync async API. See ImageTSAEditorViewModel.BuildPaletteClipboardHex + PaletteClipboard_Click. -->
   <!-- RESOLVED (#901): MainImageImport — image1_Import is now wired (tilesheet-only). The WF TSA editor builds its main-image ImageFormRef with tsa_pointer=0 and only the ZIMAGE control, so Import encodes a SAME-SIZE PNG to plain 4bpp tiles (ImageToByte16Tile via ImageImportCore.EncodeDirectTiles4bpp), LZ77-compresses, and repoints ONLY the ZImg pointer — TSA + palette are untouched. See TSAImageImportCore.ImportTSAImage + MainImageImport_Click. -->
-  <!-- KnownGap: MainImageExport reason=image1_Export calls into ImageFormRef.ExportImageHandler (the WinForms raw-tilesheet PNG export); deferred. The read-only TSA-composited Export PNG (#808, ImageTSAEditor_Battle_ExportPng_Button) is a DIFFERENT, already-wired export. The Image Export button (label 画像取出) renders as a disabled stub so the labels audit still passes. -->
+  <!-- RESOLVED (#974): MainImageExport — MainImageExport_Click now renders the raw 4bpp tilesheet (LZ77-decompressed ZImg, 8-tile-wide strip) via ImageTSAEditorCore.RenderRawTilesheet and saves it to PNG via GbaImageControl.ExportPng. DISTINCT from the read-only TSA-composited Export PNG (#808, ImageTSAEditor_Battle_ExportPng_Button). See ImageTSAEditorViewModel.RenderRawTilesheet + MainImageExport_Click. -->
 
 
   <Grid ColumnDefinitions="250,*" RowDefinitions="Auto,*">
@@ -78,14 +78,12 @@
         <Button AutomationProperties.AutomationId="ImageTSAEditor_Undo_Button"
                 Name="UndoButton" Content="Undo" Click="Undo_Click"
                 Margin="12,0,0,0" />
-        <!-- Redo is explicitly inert: Core Undo currently exposes only RunUndo
-             (no RunRedo). The button stays disabled in the AXAML so the user
-             sees the unavailability immediately (Copilot review feedback).
-             Click handler kept for the View_AllButtons_AreWiredOrExplicitlyInert
-             audit and for the programmatic-info-dialog fallback. -->
+        <!-- Redo is WIRED (#974) to the global Core Undo stack
+             (CoreState.Undo.RunRedo() + CanRedo already exist). The handler
+             guards on CanRedo at runtime, so the button stays enabled like the
+             Undo button and the Map Style editor's Redo. -->
         <Button AutomationProperties.AutomationId="ImageTSAEditor_Redo_Button"
-                Name="RedoButton" Content="Redo" Click="Redo_Click"
-                IsEnabled="False" />
+                Name="RedoButton" Content="Redo" Click="Redo_Click" />
         <!-- Write is gated on IsContextLoaded - disabled until a caller Init's -->
         <Button AutomationProperties.AutomationId="ImageTSAEditor_Write_Button"
                 Name="WriteButton" Content="Write" Click="Write_Click"
@@ -151,11 +149,14 @@
                 <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_PaletteAddress_Input"
                                FormatString="0" Name="PaletteAddressBox" Width="140"
                                Minimum="0" Maximum="4294967295" VerticalAlignment="Center" />
-                <!-- Clipboard button is an explicit IsEnabled=False stub - KnownGap: PaletteToClipboard.
-                     Click handler is wired so the inert-buttons audit test passes. -->
+                <!-- Clipboard button is WIRED (#974): packs the 16 palette
+                     entries to GBA 5-5-5 big-endian hex and copies to the
+                     system clipboard. Always enabled (reads the grid, never
+                     writes ROM). -->
                 <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteClipboard_Button"
                         Name="PaletteClipboardButton" Content="Clipboard"
-                        Click="PaletteClipboard_Click" IsEnabled="False"
+                        ToolTip.Tip="Copy the 16 palette entries to the clipboard as GBA 5-5-5 hex."
+                        Click="PaletteClipboard_Click"
                         Margin="12,0,0,0" />
                 <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteWrite_Button"
                         Name="PaletteWriteButton" Content="Palette Write"
@@ -392,14 +393,14 @@
               </Grid>
 
               <!-- Palette UNDO/REDO sub-buttons (mirrors WF UndoPlaetteButton/RedoPaletteButton).
-                   Redo is IsEnabled=False at the AXAML level (Core.Undo has no
-                   RunRedo yet); Copilot review feedback. -->
+                   Redo is WIRED (#974) to the global Core Undo stack via
+                   PaletteRedo_Click -> Redo_Click (guards on CanRedo). -->
               <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
                 <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteUndo_Button"
                         Name="PaletteUndoButton" Content="Undo" Click="PaletteUndo_Click" Width="130" />
                 <Button AutomationProperties.AutomationId="ImageTSAEditor_PaletteRedo_Button"
                         Name="PaletteRedoButton" Content="Redo" Click="PaletteRedo_Click"
-                        IsEnabled="False" Width="130" />
+                        Width="130" />
               </StackPanel>
 
             </StackPanel>
@@ -423,7 +424,10 @@
             <!-- Import button (RESOLVED #901): mirrors WF image1_Import=画像読込 —
                  tilesheet-only, repoints ONLY the ZImg pointer (TSA + palette
                  untouched). Gated on IsContextLoaded.
-                 Export remains an IsEnabled=False stub - KnownGap: MainImageExport. -->
+                 Export button (RESOLVED #974): mirrors WF image1_Export=画像取出 —
+                 the raw 4bpp tilesheet PNG (8-tile-wide strip), DISTINCT from the
+                 read-only TSA-composited Battle Export PNG (#808). Gated on
+                 IsContextLoaded. -->
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Button AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Import_Button"
                       Name="MainImageImportButton" Content="Image Import"
@@ -431,7 +435,8 @@
                       Click="MainImageImport_Click" IsEnabled="{Binding IsContextLoaded}" Width="167" />
               <Button AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Export_Button"
                       Name="MainImageExportButton" Content="Image Export"
-                      Click="MainImageExport_Click" IsEnabled="False" Width="167" />
+                      ToolTip.Tip="Export the raw main tilesheet (LZ77-decompressed 4bpp tiles) as a PNG."
+                      Click="MainImageExport_Click" IsEnabled="{Binding IsContextLoaded}" Width="167" />
             </StackPanel>
 
             <!-- Image preview area -->

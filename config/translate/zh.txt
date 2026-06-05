@@ -24048,3 +24048,9 @@ AI脚本已导出到:
 
 :Re-read the AI script before importing.
 导入前请重新读取AI脚本。
+
+:Copy the 16 palette entries to the clipboard as GBA 5-5-5 hex.
+将16色调色板作为GBA 5-5-5十六进制复制到剪贴板。
+
+:Export the raw main tilesheet (LZ77-decompressed 4bpp tiles) as a PNG.
+将主图块表（LZ77解压的4bpp图块）导出为PNG。

@@ -788,6 +788,200 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // =================================================================
+        // RenderRawTilesheet (#974) — the raw 4bpp tilesheet PNG export:
+        //   * Output = 64 x (ceil(tileCount/8)*8): an 8-tile-wide strip,
+        //     left-to-right / top-to-bottom, SINGLE palette bank 0,
+        //     index 0 OPAQUE. NOT the TSA-composited canvas (#808), NOT the
+        //     4-column flip strip (#819).
+        // Reuses the same MarkerTiles + StandardPalette synthetic harness.
+        // =================================================================
+
+        [Fact]
+        public void RenderRawTilesheet_TwoTiles_RendersSixtyFourByEight()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());          // 2 tiles
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // 8 tiles wide * 8px = 64 wide.
+                Assert.Equal(64, img.Width);
+                // 2 tiles fit in 1 row -> ceil(2/8)=1 row * 8px = 8 tall.
+                Assert.Equal(8, img.Height);
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_NineTiles_WrapsToSecondRow()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                // 9 tiles: 8 fill the first row, the 9th wraps to the 2nd row.
+                byte[] tiles = new byte[9 * 32];
+                FillTile(tiles, 0, 1);                   // tile 0 -> red
+                FillTile(tiles, 8, 1);                   // tile 8 -> red fill
+                SetPixel(tiles, 8, 0, 0, 2);             // tile 8 (0,0) -> green marker
+                PlantImage(rom, tiles);
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                Assert.Equal(64, img.Width);
+                // ceil(9/8) = 2 rows * 8px = 16 tall.
+                Assert.Equal(16, img.Height);
+                // Tile 8 is the first tile of the 2nd row (col 0, y base 8); its
+                // (0,0) marker -> global (0, 8) = green.
+                AssertPixel(img, 0, 8, 0, 248, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_LaysTilesLeftToRight()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                // 2 tiles: tile 0 all index 0 (black/opaque), tile 1 red fill with
+                // a green marker at (0,0). The raw strip lays tile 0 at col 0 and
+                // tile 1 at col 1 (x base 8) — UNLIKE RenderChipList, which stacks
+                // tiles vertically. This pins the horizontal layout.
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // Tile 1 sits at col 1 (x base 8) on the SAME row (y=0). Its (0,0)
+                // marker -> global (8, 0) = green; neighbour (9,0) = red.
+                AssertPixel(img, 8, 0, 0, 248, 0, 255);
+                AssertPixel(img, 9, 0, 248, 0, 0, 255);
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_Index0_RendersOpaque()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());          // tile 0 = all index 0
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // Tile 0 sits at col 0 (x base 0), entirely index 0 -> OPAQUE black.
+                AssertPixel(img, 0, 0, 0, 0, 0, 255);
+                byte[] px = img.GetPixelData();
+                Assert.Equal(255, px[(7 * img.Width + 7) * 4 + 3]);
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_UsesPaletteBank0()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                IImage img = ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET);
+
+                Assert.NotNull(img);
+                // Tile 1 (col 1) marker (index 2) is GREEN (bank 0), NOT white
+                // (bank 1) — proving bank 0 is used.
+                AssertPixel(img, 8, 0, 0, 248, 0, 255);
+            });
+        }
+
+        // ----- RenderRawTilesheet null / out-of-bounds safety -----
+
+        [Fact]
+        public void RenderRawTilesheet_NullRom_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
+                    null, IMAGE_OFFSET, PALETTE_OFFSET));
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_NoImageService_ReturnsNull()
+        {
+            var rom = MakeRom();
+            PlantImage(rom, MarkerTiles());
+            PlantPalette(rom, StandardPalette());
+
+            var saved = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = null;
+                Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET));
+            }
+            finally { CoreState.ImageService = saved; }
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_CorruptImagePointer_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantPalette(rom, StandardPalette());
+                // imageAddr at header (0) -> isSafetyOffset false.
+                Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, 0, PALETTE_OFFSET));
+                // imageAddr at a zero-filled region -> not a valid LZ77 stream.
+                Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, PALETTE_OFFSET));
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_CorruptPalettePointer_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                // paletteAddr at header (0) -> isSafetyOffset false.
+                Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, IMAGE_OFFSET, 0));
+            });
+        }
+
+        [Fact]
+        public void RenderRawTilesheet_TruncatedLz77Image_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantPalette(rom, StandardPalette());
+                int addr = rom.Data.Length - 4;
+                rom.Data[addr + 0] = 0x10;
+                rom.Data[addr + 1] = 0x00;
+                rom.Data[addr + 2] = 0x01;
+                rom.Data[addr + 3] = 0x00;
+                Assert.Null(ImageTSAEditorCore.RenderRawTilesheet(
+                    rom, (uint)addr, PALETTE_OFFSET));
+            });
+        }
+
         // -----------------------------------------------------------------
         // Helpers
         // -----------------------------------------------------------------

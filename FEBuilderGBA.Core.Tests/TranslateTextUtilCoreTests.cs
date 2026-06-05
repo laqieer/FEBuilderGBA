@@ -34,6 +34,13 @@ namespace FEBuilderGBA.Core.Tests
             yield return new object[] { "@0001@0002@0003" };             // consecutive codes
             yield return new object[] { "line1@0003\r\nline2" };         // @0003 + CRLF bundle
             yield return new object[] { "前半@0001後半@0003\r\nつづき" }; // multibyte + codes
+            // #971 — literal '@' must NOT be sliced; round-trip still holds.
+            yield return new object[] { "email@example.com" };           // literal at-sign (non-hex tail)
+            yield return new object[] { "hello@catworld" };              // literal at-sign (non-hex tail)
+            yield return new object[] { "abc@" };                        // trailing bare '@'
+            yield return new object[] { "abc@123" };                     // '@' + fewer than 4 hex
+            yield return new object[] { "abc@12Z4" };                    // '@' + non-hex within 4 chars
+            yield return new object[] { "名前@0001は@example" };         // real code + literal '@'
         }
 
         [Theory]
@@ -78,6 +85,66 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(TranslateTextUtilCore.IsEscapeSegment("@XYZW"));
             Assert.False(TranslateTextUtilCore.IsEscapeSegment("hello"));
             Assert.False(TranslateTextUtilCore.IsEscapeSegment(""));
+        }
+
+        // ----------------------------------------------------------------
+        // #971 — literal '@' must NOT be fragmented by the splitter
+        // ----------------------------------------------------------------
+
+        [Theory]
+        [InlineData("email@example.com")] // non-hex tail after '@'
+        [InlineData("hello@catworld")]    // non-hex tail after '@'
+        [InlineData("abc@")]              // trailing bare '@'
+        [InlineData("abc@123")]           // '@' + fewer than 4 hex digits
+        [InlineData("abc@12Z4")]          // '@' + non-hex within the first 4 chars
+        public void SplitEscapeSegments_LiteralAtSign_StaysOneSegment(string input)
+        {
+            List<string> segs = TranslateTextUtilCore.SplitEscapeSegments(input);
+            // A literal '@' is not a control code, so the whole string is ONE
+            // literal segment (no artificial @XXXX slicing).
+            Assert.Equal(new[] { input }, segs);
+            Assert.False(TranslateTextUtilCore.IsEscapeSegment(input));
+        }
+
+        [Fact]
+        public void SplitEscapeSegments_RealCodeAndLiteralAtSign_SplitCorrectly()
+        {
+            // The real @0001 code is its own segment; the literal "@example"
+            // stays attached to its surrounding literal run (#971).
+            List<string> segs = TranslateTextUtilCore.SplitEscapeSegments("名前@0001は@example");
+            Assert.Equal(new[] { "名前", "@0001", "は@example" }, segs);
+            Assert.True(TranslateTextUtilCore.IsEscapeSegment("@0001"));
+            Assert.False(TranslateTextUtilCore.IsEscapeSegment("は@example"));
+        }
+
+        [Theory]
+        [InlineData("email@example.com")]
+        [InlineData("hello@catworld")]
+        public void TranslateText_LiteralAtSign_RoutedAsOneTranslatorCall(string input)
+        {
+            var stub = new RecordingTranslator();
+
+            string result = TranslateTextUtilCore.TranslateText(
+                input, "ja", "en", dic: null, useGoogle: true, translator: stub.Translate);
+
+            // The whole literal (with its '@') reaches the translator as ONE call,
+            // not fragmented into "email" + "@exam" + "ple.com" etc.
+            Assert.Equal(new[] { input }, stub.Calls);
+            Assert.Equal("[T:" + input + "]", result);
+        }
+
+        [Fact]
+        public void TranslateText_MixedRealCodeAndLiteralAtSign_ProtectsCodeOnly()
+        {
+            var stub = new RecordingTranslator();
+
+            string result = TranslateTextUtilCore.TranslateText(
+                "名前@0001は@example", "ja", "en", dic: null, useGoogle: true, translator: stub.Translate);
+
+            // @0001 is protected (never translated); the literal "@example" stays
+            // glued to "は" and is translated as a single segment.
+            Assert.Equal(new[] { "名前", "は@example" }, stub.Calls);
+            Assert.Equal("[T:名前]@0001[T:は@example]", result);
         }
 
         // ----------------------------------------------------------------
