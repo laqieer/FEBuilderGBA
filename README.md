@@ -125,6 +125,12 @@ dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot
 # specific tab is shown in the PNG (editors without a matching tab are unchanged)
 dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot-all --screenshot-tab=TextViewer_Translate_Tab --screenshot-dir=./screenshots
 
+# Optionally force an IsVisible-toggled panel visible (by AutomationId) before each
+# capture, so a category sub-panel normally hidden behind a selection state shows up
+# in the PNG (editors without a matching control are unchanged). E.g. render the
+# EventCond TUTORIAL panel (where the Text ID IdFieldControl lives):
+dotnet run --project FEBuilderGBA.Avalonia -- --rom path/to/rom.gba --screenshot-all --screenshot-show-panel=EventCond_TutorialPanel_Border --screenshot-dir=./screenshots
+
 # Capture WinForms screenshots of all editors (saves PNGs for side-by-side comparison with Avalonia)
 FEBuilderGBA.exe --rom path/to/rom.gba --screenshot-all --screenshot-dir=./screenshots
 

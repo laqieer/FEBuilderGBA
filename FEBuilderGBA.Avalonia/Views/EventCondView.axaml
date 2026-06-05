@@ -315,10 +315,14 @@
               <TextBlock AutomationProperties.AutomationId="EventCond_RepeatTimer_Label" Text="Repeat Timer:" VerticalAlignment="Center" Width="120" />
               <NumericUpDown AutomationProperties.AutomationId="EventCond_RepeatTimer_Input" Name="RepeatTimerBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <TextBlock AutomationProperties.AutomationId="EventCond_TextId_Label" Text="Text ID:" VerticalAlignment="Center" Width="120" />
-              <NumericUpDown AutomationProperties.AutomationId="EventCond_TextId_Input" Name="TextIdBox" FormatString="0" Minimum="0" Maximum="65535" Width="100" />
-            </StackPanel>
+            <!-- #957 W1a: Tutorial Text ID migrated from plain NumericUpDown to
+                 IdFieldControl (ShowPick=False, Jump→TextViewerView at the text-table
+                 ROW address). Name="TextIdBox" + AutomationId preserved. -->
+            <controls:IdFieldControl AutomationProperties.AutomationId="EventCond_TextId_Input" Name="TextIdBox"
+                                     Label="Text ID:" Maximum="65535"
+                                     ShowPick="False"
+                                     JumpRequested="TutorialTextId_Jump"
+                                     ValueChanged="TutorialTextId_ValueChanged" />
           </StackPanel>
         </Border>
 

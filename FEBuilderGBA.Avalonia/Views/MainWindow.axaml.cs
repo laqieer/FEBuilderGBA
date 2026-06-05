@@ -964,6 +964,17 @@ namespace FEBuilderGBA.Avalonia.Views
                             await Task.Delay(100); // Let the tab content realize
                         }
 
+                        // Optionally force an IsVisible-toggled panel visible (by
+                        // AutomationId) so a category sub-panel normally hidden
+                        // behind a selection state shows up in the PNG. Opt-in via
+                        // --screenshot-show-panel=<AutomationId>; editors without a
+                        // matching control are captured unchanged.
+                        if (!string.IsNullOrEmpty(App.ScreenshotShowPanelAutomationId)
+                            && ShowPanelByAutomationId(window, App.ScreenshotShowPanelAutomationId!))
+                        {
+                            await Task.Delay(100); // Let the panel content realize
+                        }
+
                         // Capture screenshot via RenderTargetBitmap
                         var pixelSize = new PixelSize(
                             Math.Max((int)window.Width, 100),
@@ -1023,6 +1034,29 @@ namespace FEBuilderGBA.Avalonia.Views
                         return true;
                     }
                     tab.IsSelected = true;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Force the <see cref="Control.IsVisible"/> of the first descendant
+        /// <see cref="Control"/> whose <c>AutomationProperties.AutomationId</c>
+        /// equals <paramref name="automationId"/> to <c>true</c>, by walking the
+        /// logical tree. Returns true when a matching control was found. Used by
+        /// the opt-in <c>--screenshot-show-panel=</c> screenshot mode to render an
+        /// <c>IsVisible</c>-toggled category panel that the default selection state
+        /// would otherwise hide.
+        /// </summary>
+        static bool ShowPanelByAutomationId(Control root, string automationId)
+        {
+            foreach (var descendant in root.GetLogicalDescendants())
+            {
+                if (descendant is Control ctrl
+                    && AutomationProperties.GetAutomationId(ctrl) == automationId)
+                {
+                    ctrl.IsVisible = true;
                     return true;
                 }
             }

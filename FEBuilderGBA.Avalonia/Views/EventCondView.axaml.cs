@@ -78,7 +78,7 @@ namespace FEBuilderGBA.Avalonia.Views
             VeinEffectIdBox.Value ??= 0;
             InitialTimerBox.Value ??= 0;
             RepeatTimerBox.Value ??= 0;
-            TextIdBox.Value ??= 0;
+            // #957 W1a: TextIdBox is now an IdFieldControl (uint Value) — no null-seed needed.
         }
 
         void LoadAll()
@@ -508,13 +508,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         InitialTimerBox.Value = 1; // canonical "blank" marker
                         RepeatTimerBox.Value = 0;
+                        // #957 W1a: IdFieldControl — seed value + inline preview.
                         TextIdBox.Value = 0;
+                        TextIdBox.NameText = "";
                     }
                     else
                     {
                         InitialTimerBox.Value = 0;
                         RepeatTimerBox.Value = 0;
+                        // #957 W1a: IdFieldControl — seed value + inline preview.
                         TextIdBox.Value = 0;
+                        TextIdBox.NameText = "";
                     }
                     break;
             }
@@ -1065,6 +1069,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 ChestItemNameLabel.Text = NameResolver.GetItemName(e.NewValue);
                 ChestItemBox.NameText = ChestItemNameLabel.Text;
             }
+            catch { /* NameResolver may fail without ROM */ }
+        }
+
+        // ============================================================
+        // #957 W1a: Tutorial Text ID (Huffman text id → TextViewerView Jump).
+        //   ShowPick=False — there is no text-picker; Jump only.
+        // ============================================================
+
+        void TutorialTextId_Jump(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                uint addr = EditorJumpAddressHelper.TextRowAddrFor(CoreState.ROM, TextIdBox.Value);
+                if (addr != 0) WindowManager.Instance.Navigate<TextViewerView>(addr);
+            }
+            catch (Exception ex) { Log.Error("EventCondView.TutorialTextId_Jump failed: {0}", ex.Message); }
+        }
+
+        void TutorialTextId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { TextIdBox.NameText = e.NewValue != 0 ? NameResolver.GetTextById(e.NewValue) : ""; }
             catch { /* NameResolver may fail without ROM */ }
         }
 

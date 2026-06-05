@@ -89,15 +89,12 @@ namespace FEBuilderGBA.Avalonia.Tests
         // NOTE: keep this EMPTY-by-default. If a legitimate exception arises, add
         // {file, name, reason}; the stale-guard below then enforces that the
         // control keeps existing as a NumericUpDown.
+        // #957 W1a: EventCondView.axaml "TextIdBox" (Tutorial Text ID) was migrated
+        // to IdFieldControl; the allow-list entry is removed here.
         private static readonly Dictionary<(string file, string name), string> AllowList =
             new()
             {
-                // EventCond Tutorial-panel "Text ID:" is OUT of the T4 Tier-3
-                // scope (which is TALK Unit 1/2 + OBJECT Chest Item only). It is
-                // a tutorial-text id, not one of the migrated subfields; a focused
-                // follow-up can migrate it to a TextViewer Jump (ShowPick=False).
-                { ("EventCondView.axaml", "TextIdBox"),
-                  "Tutorial Text ID — out of #950 T4 Tier-3 scope (TALK Unit/Chest only); TextViewer-Jump migration deferred." },
+                // (empty — no outstanding exceptions after #957 W1a)
             };
 
         private static string FindProjectRoot()
