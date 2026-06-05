@@ -18,11 +18,16 @@
 //   MR1: config byte-offset = m << 1 (WF identical: tile_tsa_index = m << 1).
 //   MR3: OBJ tiles = RAW LZ77-decompressed bytes; do NOT pass through
 //        LoadROMTiles4bpp (which returns IImage, not byte[]).
-//   MR4 (deferred): FE7 has an optional second OBJ tileset (obj2, encoded in the
-//        high byte of obj_plist) that is U.ArrayAppend-ed onto the primary bytes
-//        before the final render in WF DrawMapChipOnly. PR1/PR2 take a SINGLE
-//        objOffset. A follow-up PR should add obj2Offset + Array.concat before
-//        DecodeTSA when the caller resolves a non-zero obj2 plist.
+//   MR4 (RESOLVED, #961 W2c): FE7 has an optional second OBJ tileset (obj2,
+//        encoded in the HIGH byte of obj_plist) that is U.ArrayAppend-ed onto the
+//        primary bytes before the final render in WF DrawMapChipOnly (~L55-63).
+//        RenderMapImage / RenderChangeMap now take an OPTIONAL obj2Offset
+//        parameter (default 0 = "no second tileset", matching FE6/FE8 where the
+//        high byte is always 0). When the caller resolves a non-zero obj2 plist
+//        (FE7 only), it passes the second tileset's ROM offset; the two
+//        LZ77-decompressed byte arrays are concatenated (primary first, obj2
+//        appended) BEFORE DecodeTSA — byte-for-byte the WF order. A 0 / NOT_FOUND
+//        obj2Offset is treated as "no second tileset" (skip the concat).
 //   MR5: opaqueIndex0 = true; GBA map tiles are an opaque background — palette
 //        index 0 renders as the real palette color (alpha 255), not transparent.
 //        WF BitBltTSA calls BitBlt with transparent_index=0xFF, which never
@@ -45,13 +50,14 @@ namespace FEBuilderGBA
     /// Core library using <see cref="ImageUtilCore.DecodeTSA"/> with
     /// <c>opaqueIndex0=true</c>.
     ///
-    /// <para><b>FE7 OBJ2 deferred (MR4):</b> FE7 maps may specify a second OBJ
-    /// tileset (encoded in the high byte of <c>obj_plist</c>) that WF appends
-    /// via <c>U.ArrayAppend</c> before the render. Both methods take a single
-    /// <paramref name="objOffset"/>. A follow-up must add an <c>obj2Offset</c>
-    /// parameter and concat the two byte arrays before calling
-    /// <see cref="ImageUtilCore.DecodeTSA"/> when the caller supplies a valid
-    /// second tileset offset.</para>
+    /// <para><b>FE7 OBJ2 (MR4, resolved in #961 W2c):</b> FE7 maps may specify a
+    /// second OBJ tileset (encoded in the HIGH byte of <c>obj_plist</c>) that WF
+    /// appends via <c>U.ArrayAppend</c> before the render. Both methods accept an
+    /// OPTIONAL <c>obj2Offset</c> parameter (default 0). When the caller resolves
+    /// a non-zero second-tileset offset (FE7 only — FE6/FE8 keep the high byte 0),
+    /// the obj2 LZ77 stream is decompressed and concatenated onto the primary OBJ
+    /// bytes (primary first) before calling
+    /// <see cref="ImageUtilCore.DecodeTSA"/>.</para>
     /// </summary>
     public static class MapRenderCore
     {
@@ -126,11 +132,11 @@ namespace FEBuilderGBA
         /// in the implementation body.
         /// </returns>
         public static IImage RenderMapImage(ROM rom, uint objOffset, uint paletteOffset,
-            uint configOffset, uint mapOffset)
+            uint configOffset, uint mapOffset, uint obj2Offset = 0)
         {
             try
             {
-                return RenderMapImageCore(rom, objOffset, paletteOffset, configOffset, mapOffset);
+                return RenderMapImageCore(rom, objOffset, paletteOffset, configOffset, mapOffset, obj2Offset);
             }
             catch (Exception ex)
             {
@@ -170,6 +176,15 @@ namespace FEBuilderGBA
         /// </param>
         /// <param name="width">Width of the change region in logical tiles (from B3 of the change record).</param>
         /// <param name="height">Height of the change region in logical tiles (from B4 of the change record).</param>
+        /// <param name="obj2Offset">
+        /// OPTIONAL ROM offset of the FE7 secondary (obj2) LZ77-compressed OBJ tile
+        /// data, resolved by the caller from the HIGH byte of <c>obj_plist</c>
+        /// (<c>(obj_plist &gt;&gt; 8) &amp; 0xFF</c>). Pass 0 (the default) when the
+        /// map has no second tileset — FE6/FE8 always pass 0 since their high byte
+        /// is 0. When non-zero, the obj2 stream is LZ77-decompressed and
+        /// concatenated onto the primary OBJ bytes (primary first) before render,
+        /// mirroring WF <c>DrawMapChipOnly</c> (#961 W2c).
+        /// </param>
         /// <returns>
         /// RGBA <see cref="IImage"/> of <c>width*16 × height*16</c> pixels on success,
         /// or <c>null</c> on any guard failure (including oversized or empty dimensions).
@@ -178,14 +193,18 @@ namespace FEBuilderGBA
         /// range, that tile is <b>skipped</b> (matching the PR1 inherited divergence
         /// from WF <c>DrawChangeMap</c> which returns <c>BlankDummy</c> on the first
         /// out-of-range tile). A partial image is returned rather than null.
+        ///
+        /// When <paramref name="obj2Offset"/> is non-zero but its LZ77 stream is
+        /// truncated / invalid, the whole render returns <c>null</c> (matching WF
+        /// <c>DrawMapChipOnly</c> which bails to <c>BlankDummy</c> on a bad obj2).
         /// </returns>
         public static IImage RenderChangeMap(ROM rom, uint objOffset, uint paletteOffset,
-            uint configOffset, uint changeDataOffset, int width, int height)
+            uint configOffset, uint changeDataOffset, int width, int height, uint obj2Offset = 0)
         {
             try
             {
                 return RenderChangeMapCore(rom, objOffset, paletteOffset, configOffset,
-                    changeDataOffset, width, height);
+                    changeDataOffset, width, height, obj2Offset);
             }
             catch (Exception ex)
             {
@@ -200,7 +219,7 @@ namespace FEBuilderGBA
         // =====================================================================
 
         static IImage RenderMapImageCore(ROM rom, uint objOffset, uint paletteOffset,
-            uint configOffset, uint mapOffset)
+            uint configOffset, uint mapOffset, uint obj2Offset)
         {
             // --- Guard 1: null checks ---
             // rom.RomInfo is intentionally NOT checked: RenderMapImage only uses
@@ -209,12 +228,8 @@ namespace FEBuilderGBA
             if (rom == null || rom.Data == null) return null;
             if (CoreState.ImageService == null) return null;
 
-            // --- Step 2 (MR3): OBJ tiles — LZ77 raw bytes ---
-            if (!IsLZ77HeaderSafe(rom, objOffset)) return null;
-            uint objCompressedSize = LZ77.getCompressedSize(rom.Data, objOffset);
-            if (objCompressedSize == 0) return null;
-            if ((ulong)objOffset + objCompressedSize > (ulong)rom.Data.Length) return null;
-            byte[] objBytes = LZ77.decompress(rom.Data, objOffset);
+            // --- Step 2 (MR3): OBJ tiles — LZ77 raw bytes (+ FE7 obj2 append, MR4) ---
+            byte[] objBytes = DecodeObjBytesWithObj2(rom, objOffset, obj2Offset);
             if (objBytes == null || objBytes.Length == 0) return null;
 
             // --- Step 3: Palette — RAW 512 bytes ---
@@ -257,7 +272,7 @@ namespace FEBuilderGBA
         }
 
         static IImage RenderChangeMapCore(ROM rom, uint objOffset, uint paletteOffset,
-            uint configOffset, uint changeDataOffset, int width, int height)
+            uint configOffset, uint changeDataOffset, int width, int height, uint obj2Offset)
         {
             // --- Guard 1: null / ImageService ---
             if (rom == null || rom.Data == null) return null;
@@ -283,12 +298,8 @@ namespace FEBuilderGBA
             long changeDataEnd = (long)changeDataOffset + (long)tileCount * 2; // long to avoid overflow
             if (changeDataEnd > rom.Data.Length) return null;
 
-            // --- Step OBJ: LZ77 raw bytes ---
-            if (!IsLZ77HeaderSafe(rom, objOffset)) return null;
-            uint objCompressedSize = LZ77.getCompressedSize(rom.Data, objOffset);
-            if (objCompressedSize == 0) return null;
-            if ((ulong)objOffset + objCompressedSize > (ulong)rom.Data.Length) return null;
-            byte[] objBytes = LZ77.decompress(rom.Data, objOffset);
+            // --- Step OBJ: LZ77 raw bytes (+ FE7 obj2 append, MR4) ---
+            byte[] objBytes = DecodeObjBytesWithObj2(rom, objOffset, obj2Offset);
             if (objBytes == null || objBytes.Length == 0) return null;
 
             // --- Step PAL: RAW 512 bytes ---
@@ -413,6 +424,47 @@ namespace FEBuilderGBA
         // =====================================================================
         // Private helpers
         // =====================================================================
+
+        /// <summary>
+        /// Decompress the primary OBJ tile stream at <paramref name="objOffset"/>
+        /// and, when <paramref name="obj2Offset"/> is non-zero (FE7 secondary
+        /// tileset, MR4), decompress that stream too and append it to the primary
+        /// bytes — mirroring WF <c>DrawMapChipOnly</c> (~L55-63,
+        /// <c>U.ArrayAppend(objUZ, obj2UZ)</c>).
+        ///
+        /// <para>Returns <c>null</c> when the primary stream is truncated/invalid/empty,
+        /// OR when <paramref name="obj2Offset"/> is non-zero but its stream is
+        /// truncated/invalid/empty (matching WF's bail-to-BlankDummy on a bad obj2).
+        /// A zero / <see cref="U.NOT_FOUND"/> <paramref name="obj2Offset"/> means
+        /// "no second tileset" and only the primary bytes are returned.</para>
+        /// </summary>
+        static byte[] DecodeObjBytesWithObj2(ROM rom, uint objOffset, uint obj2Offset)
+        {
+            // Primary OBJ tiles — LZ77 raw bytes.
+            if (!IsLZ77HeaderSafe(rom, objOffset)) return null;
+            uint objCompressedSize = LZ77.getCompressedSize(rom.Data, objOffset);
+            if (objCompressedSize == 0) return null;
+            if ((ulong)objOffset + objCompressedSize > (ulong)rom.Data.Length) return null;
+            byte[] objBytes = LZ77.decompress(rom.Data, objOffset);
+            if (objBytes == null || objBytes.Length == 0) return null;
+
+            // FE7 obj2 (MR4): only when the caller resolved a real second tileset.
+            // 0 and U.NOT_FOUND both mean "no second tileset".
+            if (obj2Offset == 0 || obj2Offset == U.NOT_FOUND) return objBytes;
+
+            if (!IsLZ77HeaderSafe(rom, obj2Offset)) return null;
+            uint obj2CompressedSize = LZ77.getCompressedSize(rom.Data, obj2Offset);
+            if (obj2CompressedSize == 0) return null;
+            if ((ulong)obj2Offset + obj2CompressedSize > (ulong)rom.Data.Length) return null;
+            byte[] obj2Bytes = LZ77.decompress(rom.Data, obj2Offset);
+            if (obj2Bytes == null || obj2Bytes.Length == 0) return null;
+
+            // Concatenate: primary first, obj2 appended (WF byte order).
+            byte[] combined = new byte[objBytes.Length + obj2Bytes.Length];
+            Array.Copy(objBytes, 0, combined, 0, objBytes.Length);
+            Array.Copy(obj2Bytes, 0, combined, objBytes.Length, obj2Bytes.Length);
+            return combined;
+        }
 
         /// <summary>
         /// Read the raw palette bytes from ROM at <paramref name="paletteOffset"/>.

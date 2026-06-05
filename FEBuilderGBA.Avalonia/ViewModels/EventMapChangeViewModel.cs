@@ -416,6 +416,89 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         // ----------------------------------------------------------------
+        // Pointer-import (#961 W2c) — mirrors the intent of WF
+        // EventMapChangeForm `button1` ("変化データ ポインタ先へのインポート" =
+        // "Import to the change-data pointer destination").
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Import the change tile-data referenced by <paramref name="sourceAddr"/>
+        /// (an existing change-data block — e.g. another map's P8 destination)
+        /// into the currently selected change record, repointing this record's
+        /// P8 (offset +8) at a fresh free-space copy of those bytes.
+        ///
+        /// <para>The number of bytes read from the source is determined by the
+        /// CURRENT record's width (B3) × height (B4) × 2 (the RAW u16 tile-index
+        /// array layout used by <see cref="MapRenderCore.RenderChangeMap"/> and WF
+        /// <c>DrawChangeMap</c>). This is the standard FEBuilder "append + repoint"
+        /// pattern: the source bytes are copied to ROM free space via
+        /// <see cref="RecycleAddress.WriteAndWritePointerAmbient"/> and the slot's
+        /// P8 pointer is repointed at the copy. Nothing is overwritten in place, so
+        /// a size mismatch can never corrupt neighbouring data.</para>
+        ///
+        /// <para><b>Undo:</b> the caller MUST open an ambient
+        /// <see cref="UndoService"/> scope (the View's <c>PointerImport_Click</c>
+        /// does this via <c>_undoService.Begin</c>) before calling. Every write
+        /// here routes through the ambient (<c>...Ambient</c>) RecycleAddress
+        /// overload so the active <see cref="ROM.BeginUndoScope"/> records each
+        /// write exactly once; on any returned error the caller rolls back.</para>
+        ///
+        /// <para><b>Refusal conditions (no mutation):</b> no ROM; no entry loaded
+        /// (CurrentAddr == 0); zero width/height (B3/B4 — nothing to copy);
+        /// unsafe / out-of-bounds source address or source length; free-space
+        /// exhaustion (the RecycleAddress write fails).</para>
+        /// </summary>
+        /// <param name="sourceAddr">Source change-data address. Accepts either a
+        /// raw ROM offset (&lt; 0x08000000) or a GBA pointer (≥ 0x08000000); it is
+        /// normalised via <see cref="U.toOffset(uint)"/>.</param>
+        /// <returns>Empty string on success; a human-readable error otherwise.</returns>
+        public string ImportChangeDataFromPointer(uint sourceAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+            if (!IsLoaded || CurrentAddr == 0)
+                return R._("No map-change entry is selected. Select a map with change-data first.");
+
+            // The copy length is the CURRENT record's tile array: B3 (W) × B4 (H)
+            // × 2 bytes per u16 tile index — the same RAW layout the renderer reads.
+            uint width  = B3;
+            uint height = B4;
+            if (width == 0 || height == 0)
+                return R._("Cannot import: the selected record has zero width or height. Set the W/H fields first.");
+
+            long lengthL = (long)width * height * 2;
+            if (lengthL <= 0 || lengthL > 256L * 256L * 2L)
+                return R._("Cannot import: the change region size ({0}×{1}) is out of range.", width, height);
+            int length = (int)lengthL;
+
+            // Normalise + bounds-check the source.
+            uint srcOffset = U.toOffset(sourceAddr);
+            if (!U.isSafetyOffset(srcOffset, rom))
+                return R._("Cannot import: the source address (0x{0:X08}) is not a valid ROM address.", srcOffset);
+            if ((long)srcOffset + length > rom.Data.Length)
+                return R._("Cannot import: the source data (0x{0:X08} + {1} bytes) runs past the end of the ROM.", srcOffset, length);
+
+            // Read the RAW change-data bytes from the source.
+            byte[] copy = rom.getBinaryData(srcOffset, (uint)length);
+            if (copy == null || copy.Length != length)
+                return R._("Cannot import: failed to read {0} bytes from the source address.", length);
+
+            // Append a fresh copy to free space and repoint THIS record's P8
+            // (the pointer lives at CurrentAddr + 8). Ambient overload → the
+            // active UndoService scope records each write once.
+            uint pointerSlot = CurrentAddr + 8;
+            var ra = new RecycleAddress();
+            uint newAddr = ra.WriteAndWritePointerAmbient(pointerSlot, copy);
+            if (newAddr == U.NOT_FOUND)
+                return R._("Cannot import: ran out of ROM free space while writing the change data.");
+
+            // Reflect the new pointer in the VM so the View shows the repointed P8
+            // and the change-overlay preview re-renders from the new data.
+            P8 = U.toPointer(newAddr);
+            return "";
+        }
+
+        // ----------------------------------------------------------------
         // Comment cache (mirrors ImageBGViewModel — keyed on CurrentAddr).
         // ----------------------------------------------------------------
 
@@ -482,9 +565,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palettePlist   = rom.u8(mapSettingAddr + 6);
                 uint configPlist    = rom.u8(mapSettingAddr + 7);
 
-                // The high byte of obj_plist is the FE7 obj2 index (DEFERRED, MR4).
-                // Use only the low byte for the primary OBJ tileset.
-                uint objPlist = objPlistRaw & 0xFFu;
+                // obj_plist is a packed u16: the LOW byte is the primary OBJ
+                // tileset PLIST, the HIGH byte is the FE7 secondary obj2 tileset
+                // PLIST (MR4, #961 W2c). FE6/FE8 always have the high byte 0, so
+                // obj2Plist resolves to 0 there and the second tileset is skipped.
+                uint objPlist  = objPlistRaw & 0xFFu;
+                uint obj2Plist = (objPlistRaw >> 8) & 0xFFu;
 
                 // Resolve each plist to a ROM data offset.
                 uint objOffset     = MapChangeCore.PlistToOffsetAddr(rom, MapChangeCore.PlistType.OBJECT,  objPlist,     out _);
@@ -495,6 +581,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     CanExportChange = false;
                     return null;
+                }
+
+                // Resolve the FE7 obj2 (secondary tileset) offset from the high
+                // byte. WF DrawMapChipOnly (~L40-47) only resolves obj2 when the
+                // high byte is > 0, and bails (BlankDummy) if the resolution is
+                // unsafe. Mirror that: 0 → no second tileset; a non-zero but
+                // unresolvable obj2 → fail the whole render.
+                uint obj2Offset = 0;
+                if (obj2Plist > 0)
+                {
+                    obj2Offset = MapChangeCore.PlistToOffsetAddr(rom, MapChangeCore.PlistType.OBJECT, obj2Plist, out _);
+                    if (obj2Offset == U.NOT_FOUND)
+                    {
+                        CanExportChange = false;
+                        return null;
+                    }
                 }
 
                 // P8 is read via EditorFormRef.ReadFields → rom.p32, which already calls
@@ -515,7 +617,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                 IImage img = MapRenderCore.RenderChangeMap(
                     rom, objOffset, paletteOffset, configOffset,
-                    changeDataOffset, width, height);
+                    changeDataOffset, width, height, obj2Offset);
 
                 CanExportChange = img != null;
                 return img;

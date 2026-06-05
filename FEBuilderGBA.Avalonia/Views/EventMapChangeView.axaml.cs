@@ -254,13 +254,75 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void PointerImport_Click(object? sender, RoutedEventArgs e)
+        // #961 W2c — pointer-import (mirrors the intent of WF EventMapChangeForm
+        // `button1` "変化データ ポインタ先へのインポート"). Prompts for a SOURCE
+        // change-data address, copies that record's tile bytes (sized by the
+        // current record's W×H) into ROM free space, and repoints THIS record's
+        // P8 at the copy — all under one UndoService scope. Never overwrites in
+        // place, so a size mismatch can't corrupt neighbouring data.
+        async void PointerImport_Click(object? sender, RoutedEventArgs e)
         {
-            // Pointer-import (mirrors WF `button1`) is not yet implemented
-            // in the Avalonia editor. The button is surfaced so the
-            // density / labels scanner sees the parity surface; full
-            // import behaviour is tracked as a follow-up.
-            CoreState.Services?.ShowError("Pointer import is not yet implemented in the Avalonia editor.");
+            try
+            {
+                if (!_vm.IsLoaded || _vm.CurrentAddr == 0)
+                {
+                    CoreState.Services?.ShowError(R._(
+                        "No map-change entry is selected. Select a map with change-data before importing."));
+                    return;
+                }
+                if (_vm.B3 == 0 || _vm.B4 == 0)
+                {
+                    CoreState.Services?.ShowError(R._(
+                        "The selected record has zero width or height. Set the W/H fields and Write before importing."));
+                    return;
+                }
+
+                // Prompt for the SOURCE change-data address. Default to the
+                // current record's P8 destination so re-importing the same data
+                // (a deep-copy / detach) is the one-click path. The dialog edits a
+                // ROM offset; a GBA pointer is also accepted (the VM normalises).
+                uint defaultSrc = U.toOffset(_vm.P8);
+                uint romMax = (uint)((CoreState.ROM?.Data?.Length ?? 1) - 1);
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the SOURCE change-data address to import from (W×H×2 = {0} bytes will be copied into this record).",
+                        _vm.B3 * _vm.B4 * 2),
+                    R._("Pointer Import"),
+                    defaultSrc,
+                    0,
+                    romMax);
+                if (chosen == null) return; // cancelled
+
+                _undoService.Begin("Import Map Change Pointer");
+                try
+                {
+                    string err = _vm.ImportChangeDataFromPointer(chosen.Value);
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // Reflect the repointed P8 in the UI and re-render the overlay
+                    // from the freshly imported data.
+                    UpdateUI();
+                    RenderChangePreview();
+                    CoreState.Services?.ShowInfo(R._("Imported change data into the selected record."));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("EventMapChangeView.PointerImport inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("Pointer import failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("EventMapChangeView.PointerImport_Click failed: {0}", ex.Message);
+            }
         }
 
         // #862 — wire the List Expand button to grow the 12-byte map-change
