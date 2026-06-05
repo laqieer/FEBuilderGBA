@@ -484,17 +484,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return R._("Cannot import: failed to read {0} bytes from the source address.", length);
 
             // Append a fresh copy to free space and repoint THIS record's P8
-            // (the pointer lives at CurrentAddr + 8). Ambient overload → the
-            // active UndoService scope records each write once.
+            // (the ROM pointer slot lives at CurrentAddr + 8). Ambient overload →
+            // the active UndoService scope records each write once.
+            // WriteAndWritePointerAmbient RETURNS the allocated data OFFSET
+            // (use_addr) and itself writes the GBA pointer into the slot via
+            // write_p32 — so newAddr is already a ROM offset (< 0x08000000).
             uint pointerSlot = CurrentAddr + 8;
             var ra = new RecycleAddress();
             uint newAddr = ra.WriteAndWritePointerAmbient(pointerSlot, copy);
             if (newAddr == U.NOT_FOUND)
                 return R._("Cannot import: ran out of ROM free space while writing the change data.");
 
-            // Reflect the new pointer in the VM so the View shows the repointed P8
-            // and the change-overlay preview re-renders from the new data.
-            P8 = U.toPointer(newAddr);
+            // Keep the in-memory P8 as an OFFSET — matching the load path
+            // (EditorFormRef.ReadFields → rom.p32 → U.toOffset, always
+            // < 0x08000000) and every consumer (RenderChangePreview's
+            // U.toOffset(P8), GetDataReport's raw 0x{P8:X08}). The ROM pointer
+            // slot at CurrentAddr+8 was ALREADY written (as a GBA pointer) by
+            // WriteAndWritePointerAmbient — do NOT re-pointer-ify here.
+            P8 = newAddr;
             return "";
         }
 

@@ -95,12 +95,24 @@ public class EventMapChangePointerImportTests : IDisposable
         // P8 now points at a NEW free-space address (not 0).
         uint newP8 = vm.P8;
         Assert.NotEqual(0u, newP8);
-        uint newOffset = U.toOffset(newP8);
+
+        // #964 review: the in-memory P8 must be a ROM OFFSET (< 0x08000000),
+        // NOT a GBA pointer — matching the load path (rom.p32 → U.toOffset) and
+        // every consumer (RenderChangePreview, GetDataReport). A regression here
+        // (P8 = U.toPointer(newAddr)) would flip P8 to ≥ 0x08000000.
+        Assert.True(newP8 < 0x08000000u,
+            $"P8 must be a ROM offset (< 0x08000000) after import, was 0x{newP8:X08}");
+
+        uint newOffset = U.toOffset(newP8); // idempotent on an offset
+        Assert.Equal(newP8, newOffset);     // proves P8 is already an offset
         Assert.True(U.isSafetyOffset(newOffset, rom));
         Assert.NotEqual(SrcData, newOffset); // a COPY, not an alias
 
-        // The slot's P8 (CurrentAddr+8) was written to the new address.
-        Assert.Equal(newOffset, rom.p32(vm.CurrentAddr + 8));
+        // The slot's P8 (CurrentAddr+8) was written to the new address, and the
+        // in-memory P8 AGREES with the offset actually written to the ROM slot.
+        uint slotOffset = U.toOffset(rom.p32(vm.CurrentAddr + 8));
+        Assert.Equal(newOffset, slotOffset);
+        Assert.Equal(newP8, slotOffset); // in-memory P8 == ROM slot offset
 
         // The copied bytes are byte-identical to the SOURCE.
         for (int i = 0; i < srcLen; i++)
