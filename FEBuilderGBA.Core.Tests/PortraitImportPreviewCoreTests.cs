@@ -281,6 +281,62 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ImageService = saved; }
         }
 
+        // ----- Overlay is transparent-on-index-0 (review fix #979) -----
+
+        [Fact]
+        public void Overlay_Index0SlotPixels_PreserveBaseFace_NotPunchHoles()
+        {
+            var saved = CoreState.ImageService;
+            CoreState.ImageService = new MemImageService();
+            try
+            {
+                // Base face = solid index 1 (non-zero, so we can prove it is
+                // PRESERVED under a transparent overlay pixel). The closed-eye
+                // slot (sheet 96,64) has a transparent (index 0) TOP-LEFT corner
+                // pixel and an index-5 body. The block region under the eye dest
+                // is part of the index-1 face.
+                byte[] sheet = new byte[W * H];
+                Fill(sheet, 0, 0, 96, 80, 1);   // whole face = 1
+                Fill(sheet, 96, 64, 32, 16, 5); // closed-eye slot body = 5
+                sheet[64 * W + 96] = 0;         // slot top-left pixel = index 0 (transparent)
+
+                // Frame 2 (closed eyes), eyeBlock (0,0) -> overlay dest (0,0).
+                // Full crop so the standardized slot mirrors the source slot,
+                // keeping the index-0 corner pixel.
+                using IImage img = Render(sheet, 2);
+                Assert.NotNull(img);
+
+                // The transparent (index 0) corner pixel of the slot must NOT be
+                // copied: the base face (index 1) shows through at dest (0,0).
+                Assert.Equal(1, IndexAt(img, 0, 0));
+                // The non-zero slot body DOES replace the face elsewhere in the
+                // overlay region.
+                Assert.Equal(5, IndexAt(img, 4, 4));
+                Assert.Equal(5, IndexAt(img, 20, 10));
+            }
+            finally { CoreState.ImageService = saved; }
+        }
+
+        [Fact]
+        public void BlitIndexed_OpaqueDefault_CopiesIndex0()
+        {
+            // Direct unit test of the blit helper's two modes: the OPAQUE default
+            // (transparent_index 0xFF) copies index 0; transparent-on-0 skips it.
+            byte[] dst = new byte[4]; // 2x2 all index 7
+            for (int i = 0; i < dst.Length; i++) dst[i] = 7;
+            byte[] src = { 0, 0, 0, 0 }; // 2x2 all index 0
+
+            // Opaque (default): index 0 IS written -> dst becomes 0.
+            byte[] d1 = (byte[])dst.Clone();
+            PortraitImportPreviewCore.BlitIndexed(src, 2, 2, 0, 0, 2, 2, d1, 2, 2, 0, 0);
+            Assert.Equal(new byte[] { 0, 0, 0, 0 }, d1);
+
+            // Transparent-on-0: index 0 is SKIPPED -> dst stays 7.
+            byte[] d2 = (byte[])dst.Clone();
+            PortraitImportPreviewCore.BlitIndexed(src, 2, 2, 0, 0, 2, 2, d2, 2, 2, 0, 0, transparentIndex: 0);
+            Assert.Equal(new byte[] { 7, 7, 7, 7 }, d2);
+        }
+
         // ----- Crop-rect change actually changes the composite (review #4) -----
 
         [Fact]

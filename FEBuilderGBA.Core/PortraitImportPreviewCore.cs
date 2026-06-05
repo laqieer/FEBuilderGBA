@@ -33,9 +33,15 @@ namespace FEBuilderGBA
     ///     96x80 face, then overlay the standard slot selected by
     ///     <c>frameIndex</c> at the eye-block / mouth-block destination.
     ///
-    /// All blits are OPAQUE indexed-pixel copies with full bounds clamping,
-    /// matching WF <c>ImageUtil.BitBlt</c> (default <c>transparent_index=0xff</c>
-    /// never matches a 0..15 index, so nothing is skipped).
+    /// Transparency, matching WF <c>ImageUtil.BitBlt</c>:
+    ///   - The base-face copy and the STAGE-A slot rebuild are OPAQUE
+    ///     (<c>transparent_index=0xff</c> never matches a 0..15 index, so
+    ///     nothing is skipped — WF <c>DecreaseColor16</c> uses the default).
+    ///   - The STAGE-B eye/mouth OVERLAY is TRANSPARENT-on-index-0: a slot
+    ///     pixel whose index == 0 is SKIPPED so the base face shows through
+    ///     instead of leaving a transparent hole (WF <c>GenPreviewMainChar</c>
+    ///     overlays pass <c>transparent_index: 0</c>; #979 review fix).
+    /// All blits use full bounds clamping.
     ///
     /// SCOPE NOTES (Copilot CLI plan review):
     ///   - This previews the AUTO-QUANTIZED source only. Share-palette /
@@ -224,24 +230,38 @@ namespace FEBuilderGBA
         /// <summary>
         /// Overlay a standard 32x16 slot from the sheet onto the 96x80 face at
         /// (<paramref name="dstX"/>, <paramref name="dstY"/>). Mirrors
-        /// GenPreviewMainChar's per-frame BitBlt.
+        /// GenPreviewMainChar's per-frame BitBlt, which passes
+        /// <c>transparent_index: 0</c> — so the slot's index-0 (transparent)
+        /// pixels do NOT overwrite the underlying face; the base face shows
+        /// through instead of leaving transparent holes (#979 review fix).
         /// </summary>
         static void OverlaySlot(byte[] sheet, int sheetW, int sheetH,
             int slotSrcX, int slotSrcY, byte[] face, int dstX, int dstY)
         {
             BlitIndexed(sheet, sheetW, sheetH, slotSrcX, slotSrcY,
-                PartWidth, PartHeight, face, FaceWidth, FaceHeight, dstX, dstY);
+                PartWidth, PartHeight, face, FaceWidth, FaceHeight, dstX, dstY,
+                transparentIndex: 0);
         }
 
         /// <summary>
-        /// Opaque indexed-pixel block copy with full bounds clamping, matching
-        /// WF <see cref="ImageUtil"/>.BitBlt (default transparent_index=0xff —
-        /// no 0..15 index matches, so every pixel is copied). Negative or
-        /// out-of-range source/destination regions are clamped (or skipped).
+        /// Indexed-pixel block copy with full bounds clamping, matching WF
+        /// <see cref="ImageUtil"/>.BitBlt. <paramref name="transparentIndex"/>
+        /// mirrors WF's <c>transparent_index</c> argument:
+        ///   - <c>0xFF</c> (default) = OPAQUE copy. No 0..15 index matches 0xFF,
+        ///     so every source pixel (incl. index 0) is copied — used for the
+        ///     base-face assembly and the STAGE-A slot rebuild (WF
+        ///     <c>DecreaseColor16</c> uses the default).
+        ///   - <c>0</c> = TRANSPARENT-on-0. Source pixels whose index == 0 are
+        ///     SKIPPED, leaving the destination (the base face) intact — used
+        ///     for the STAGE-B eye/mouth overlay so transparent slot borders
+        ///     don't punch holes in the face (WF <c>GenPreviewMainChar</c>
+        ///     overlays pass <c>transparent_index: 0</c>; #979 review fix).
+        /// Negative or out-of-range source/destination regions are clamped.
         /// </summary>
         internal static void BlitIndexed(
             byte[] src, int srcW, int srcH, int srcX, int srcY,
-            int w, int h, byte[] dst, int dstW, int dstH, int dstX, int dstY)
+            int w, int h, byte[] dst, int dstW, int dstH, int dstX, int dstY,
+            int transparentIndex = 0xFF)
         {
             if (src == null || dst == null || w <= 0 || h <= 0) return;
 
@@ -268,6 +288,9 @@ namespace FEBuilderGBA
                     int si = sRow + x;
                     int di = dRow + x;
                     if (si < 0 || si >= src.Length || di < 0 || di >= dst.Length) continue;
+                    // Transparent-on-N: skip source pixels equal to the
+                    // transparent index, leaving the destination pixel intact.
+                    if (src[si] == transparentIndex) continue;
                     dst[di] = src[si];
                 }
             }
