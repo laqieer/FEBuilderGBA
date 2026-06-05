@@ -78,12 +78,13 @@ namespace FEBuilderGBA.Avalonia.Tests
             WriteU32(rom.Data, (int)tableBase + 8, 0x00000000u);
 
             // Song header: 1 track, instrument pointer at +4, one track pointer.
-            rom.Data[songHeaderAddr + 0] = 0x01; // track count
-            rom.Data[songHeaderAddr + 1] = 0x10;
-            rom.Data[songHeaderAddr + 2] = 0x20;
-            rom.Data[songHeaderAddr + 3] = 0x80;
-            WriteU32(rom.Data, (int)songHeaderAddr + 4, 0x08100200u); // instrument
-            WriteU32(rom.Data, (int)songHeaderAddr + 8, 0x08100400u); // track 0 ptr
+            int hdr = (int)songHeaderAddr;
+            rom.Data[hdr + 0] = 0x01; // track count
+            rom.Data[hdr + 1] = 0x10;
+            rom.Data[hdr + 2] = 0x20;
+            rom.Data[hdr + 3] = 0x80;
+            WriteU32(rom.Data, hdr + 4, 0x08100200u); // instrument
+            WriteU32(rom.Data, hdr + 8, 0x08100400u); // track 0 ptr
             rom.Data[0x100400] = 0xB2;
 
             // Repoint sound_table_pointer at the synthetic table.
@@ -236,7 +237,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.NotEmpty(list);
                 Assert.Equal(headerAddr, list[0].addr);
 
-                vm.LoadEntry(list[0].addr);
+                // Production path: carry the songId (tag) so a shared header
+                // resolves to the selected slot.
+                vm.LoadEntry(list[0].addr, list[0].tag);
                 Assert.True(vm.IsLoaded);
                 Assert.Equal(entrySlot, vm.SongTableEntryAddr);
                 Assert.Equal(0x08100200u, vm.InstrumentAddr);
@@ -348,6 +351,90 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.Undo = prevUndo;
                 try { File.Delete(tmpMidi); } catch { /* best effort */ }
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Copilot PR review follow-ups.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// A header shared by two song-table entries must resolve to the
+        /// SELECTED slot (songId), not the first matching slot.
+        /// </summary>
+        [Fact]
+        public void ImportMidiVm_SharedHeader_ResolvesSelectedSlot_NotFirstMatch()
+        {
+            var rom = MakeRomWithSongTable(out uint tableBase, out uint headerAddr, out uint entry0);
+            var prevRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                // Make entry 1 (slot tableBase+8) ALSO point at the same header
+                // (a shared-header ROM), with entry 2 terminating the walk.
+                WriteU32(rom.Data, (int)tableBase + 8, 0x08000000u | headerAddr);
+                WriteU32(rom.Data, (int)tableBase + 16, 0x00000000u);
+
+                var vm = new SongTrackImportMidiViewModel();
+
+                // Selecting songId 1 must resolve to slot tableBase+8, NOT entry0.
+                vm.LoadEntry(headerAddr, 1);
+                Assert.True(vm.IsLoaded);
+                Assert.Equal(tableBase + 8u, vm.SongTableEntryAddr);
+                Assert.NotEqual(entry0, vm.SongTableEntryAddr);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        /// <summary>
+        /// After a successful parse, a later FAILED parse must clear the MIDI
+        /// state so a stale (earlier) file cannot be imported.
+        /// </summary>
+        [Fact]
+        public void ParseMidiInfo_FailureAfterSuccess_ClearsStaleMidiState()
+        {
+            var rom = MakeRomWithSongTable(out _, out _, out _);
+            var prevRom = CoreState.ROM;
+            // Author a real, minimal MIDI so the first parse succeeds.
+            string goodMidi = Path.Combine(Path.GetTempPath(), $"good_{Guid.NewGuid():N}.mid");
+            try
+            {
+                CoreState.ROM = rom;
+                WriteMinimalMidi(goodMidi);
+
+                var vm = new SongTrackImportMidiViewModel();
+                Assert.Null(vm.ParseMidiInfo(goodMidi)); // success
+                Assert.True(vm.HasMidiInfo);
+                Assert.Equal(goodMidi, vm.MidiFilePath);
+
+                // A later parse of a missing file must CLEAR the prior state.
+                string missing = Path.Combine(Path.GetTempPath(), $"no_{Guid.NewGuid():N}.mid");
+                Assert.NotNull(vm.ParseMidiInfo(missing));
+                Assert.False(vm.HasMidiInfo);
+                Assert.Equal(string.Empty, vm.MidiFilePath);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                try { File.Delete(goodMidi); } catch { /* best effort */ }
+            }
+        }
+
+        /// <summary>Write a tiny single-track Format-0 MIDI (header + one
+        /// End-of-Track meta event) that SongMidiCore.ParseMidiFile accepts.</summary>
+        static void WriteMinimalMidi(string path)
+        {
+            var bytes = new System.Collections.Generic.List<byte>();
+            // MThd: format 0, 1 track, 480 TPQN.
+            bytes.AddRange(System.Text.Encoding.ASCII.GetBytes("MThd"));
+            bytes.AddRange(new byte[] { 0, 0, 0, 6 });   // header length
+            bytes.AddRange(new byte[] { 0, 0 });          // format 0
+            bytes.AddRange(new byte[] { 0, 1 });          // 1 track
+            bytes.AddRange(new byte[] { 0x01, 0xE0 });    // 480 TPQN
+            // MTrk: a single End-of-Track meta event.
+            bytes.AddRange(System.Text.Encoding.ASCII.GetBytes("MTrk"));
+            bytes.AddRange(new byte[] { 0, 0, 0, 4 });   // track length
+            bytes.AddRange(new byte[] { 0x00, 0xFF, 0x2F, 0x00 }); // delta + EoT
+            File.WriteAllBytes(path, bytes.ToArray());
         }
 
         static void WriteU32(byte[] data, int offset, uint value)

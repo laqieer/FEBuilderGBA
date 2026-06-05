@@ -39,7 +39,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                _vm.LoadEntry(addr);
+                // Carry the songId (AddrResult.tag) so a header shared by two
+                // table entries resolves to the SELECTED slot.
+                if (EntryList.SelectedItem is AddrResult sel)
+                    _vm.LoadEntry(sel.addr, sel.tag);
+                else
+                    _vm.LoadEntry(addr);
                 UpdateUI();
                 UpdateImportButtonState();
             }

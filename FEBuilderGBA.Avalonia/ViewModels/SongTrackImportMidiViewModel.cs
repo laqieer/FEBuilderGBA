@@ -78,11 +78,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Resolve the selected song header + instrument + table-entry slot.
         /// <paramref name="addr"/> is the song HEADER offset (the
-        /// <c>AddrResult.addr</c> from <see cref="LoadList"/>); the matching
-        /// table-entry slot is located by walking the song table for the entry
-        /// whose dereferenced pointer equals this header.
+        /// <c>AddrResult.addr</c> from <see cref="LoadList"/>) and
+        /// <paramref name="songId"/> is the song-table index (the
+        /// <c>AddrResult.tag</c>) — the entry slot is computed DIRECTLY as
+        /// <c>tableBase + songId*8</c> so a header shared by two table entries
+        /// resolves to the SELECTED slot (not the first matching one).
         /// </summary>
-        public void LoadEntry(uint addr)
+        public void LoadEntry(uint addr, uint songId)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
@@ -97,53 +99,85 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Instrument pointer lives at song header +4 (raw GBA pointer).
             InstrumentAddr = rom.u32(addr + 4);
 
-            // Locate the song-table entry slot that points at this header.
-            SongTableEntryAddr = FindTableEntryForHeader(rom, addr);
-            IsLoaded = SongTableEntryAddr != 0;
+            // Resolve the entry slot directly from the songId so shared headers
+            // map to the selected slot.
+            if (rom.RomInfo == null) return;
+            uint tablePtr = rom.RomInfo.sound_table_pointer;
+            if (tablePtr == 0) return;
+            uint tableBase = rom.p32(tablePtr);
+            if (!U.isSafetyOffset(tableBase)) return;
+
+            uint entryAddr = (uint)(tableBase + songId * 8u);
+            if (entryAddr + 8 > (uint)rom.Data.Length) return;
+
+            SongTableEntryAddr = entryAddr;
+            IsLoaded = true;
         }
 
         /// <summary>
-        /// Walk the song table for the entry pointer slot that dereferences to
-        /// <paramref name="headerAddr"/>. Returns 0 when not found.
+        /// Back-compat overload (used by the offscreen screenshot harness's
+        /// <c>SelectFirstItem</c> path, which only has the header offset): walks
+        /// the song table for the entry whose dereferenced pointer equals
+        /// <paramref name="addr"/>. Prefer the <c>(addr, songId)</c> overload —
+        /// it disambiguates headers shared by two slots.
         /// </summary>
-        static uint FindTableEntryForHeader(ROM rom, uint headerAddr)
+        public void LoadEntry(uint addr)
         {
-            if (rom?.RomInfo == null) return 0;
-            uint tablePtr = rom.RomInfo.sound_table_pointer;
-            if (tablePtr == 0) return 0;
-            uint tableBase = rom.p32(tablePtr);
-            if (!U.isSafetyOffset(tableBase)) return 0;
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) { LoadEntry(addr, 0); return; }
 
-            uint headerPtr = headerAddr + 0x08000000;
+            uint tablePtr = rom.RomInfo.sound_table_pointer;
+            uint tableBase = tablePtr != 0 ? rom.p32(tablePtr) : 0;
+            if (!U.isSafetyOffset(tableBase)) { LoadEntry(addr, 0); return; }
+
+            uint headerPtr = addr + 0x08000000;
             uint romLen = (uint)rom.Data.Length;
-            for (int i = 0; i < 512; i++)
+            uint songId = 0;
+            for (uint i = 0; i < 512; i++)
             {
-                uint entryAddr = (uint)(tableBase + (uint)i * 8u);
+                uint entryAddr = (uint)(tableBase + i * 8u);
                 if (entryAddr + 8 > romLen) break;
                 uint p = rom.u32(entryAddr);
                 if (!U.isPointer(p)) break;
-                if (p == headerPtr) return entryAddr;
+                if (p == headerPtr) { songId = i; break; }
             }
-            return 0;
+            LoadEntry(addr, songId);
         }
 
         /// <summary>
         /// Parse a MIDI file and populate metadata properties for display.
-        /// Returns null on success, or an error message on failure.
+        /// Returns null on success, or an error message on failure. On ANY
+        /// failure the previously-parsed MIDI state is CLEARED, so a stale
+        /// (earlier-successful) file can never be imported after a later parse
+        /// failure (the Import button gates on <see cref="HasMidiInfo"/>).
         /// </summary>
         public string? ParseMidiInfo(string filename)
         {
             if (!File.Exists(filename))
+            {
+                ClearMidiInfo();
                 return $"File not found: {filename}";
+            }
 
             var info = SongMidiCore.ParseMidiFile(filename);
             if (info == null)
+            {
+                ClearMidiInfo();
                 return "Failed to parse MIDI file -- invalid format.";
+            }
 
             MidiFilePath = filename;
             MidiInfoText = FormatMidiMetadata(info, filename);
             HasMidiInfo = true;
             return null;
+        }
+
+        /// <summary>Clear any previously-parsed MIDI selection state.</summary>
+        public void ClearMidiInfo()
+        {
+            MidiFilePath = string.Empty;
+            MidiInfoText = string.Empty;
+            HasMidiInfo = false;
         }
 
         /// <summary>
