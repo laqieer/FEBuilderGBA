@@ -1474,6 +1474,66 @@ public class EventCondParityTests
     }
 
     // -----------------------------------------------------------------
+    // #957 W1a — Tutorial Text ID is now an IdFieldControl.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// EventCondView Tutorial Text ID must be wired as IdFieldControl (not plain
+    /// NumericUpDown). ShowPick=False, JumpRequested and ValueChanged must be set.
+    /// This mirrors the pattern used for TALK Unit1/2 and OBJECT ChestItem (#951).
+    /// Note: AXAML attached-property attributes serialize as
+    ///   "AutomationProperties.AutomationId" (full LocalName, default namespace),
+    ///   so we search by Name="TextIdBox" and validate attributes directly.
+    /// </summary>
+    [Fact]
+    public void TutorialTextId_IsIdFieldControl_WithJumpAndValueChanged()
+    {
+        string repoRoot = FindRepoRoot();
+        string axamlPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventCondView.axaml");
+        Assert.True(File.Exists(axamlPath), $"AXAML not found at {axamlPath}");
+
+        var doc = XDocument.Load(axamlPath);
+
+        // Find by Name="TextIdBox" — preserved from original NUD.
+        var ctrl = doc.Descendants()
+            .FirstOrDefault(e =>
+                e.Name.LocalName == "IdFieldControl" &&
+                e.Attributes().Any(a => a.Name.LocalName == "Name"
+                                        && a.Value == "TextIdBox"));
+
+        Assert.NotNull(ctrl);
+
+        // ShowPick must be "False".
+        string? showPick = ctrl!.Attributes()
+            .FirstOrDefault(a => a.Name.LocalName == "ShowPick")?.Value;
+        Assert.Equal("False", showPick);
+
+        // JumpRequested must be wired.
+        string? jump = ctrl.Attributes()
+            .FirstOrDefault(a => a.Name.LocalName == "JumpRequested")?.Value;
+        Assert.False(string.IsNullOrWhiteSpace(jump),
+            "IdFieldControl TextIdBox must have JumpRequested wired");
+
+        // ValueChanged must be wired.
+        string? vc = ctrl.Attributes()
+            .FirstOrDefault(a => a.Name.LocalName == "ValueChanged")?.Value;
+        Assert.False(string.IsNullOrWhiteSpace(vc),
+            "IdFieldControl TextIdBox must have ValueChanged wired");
+
+        // Confirm no plain NumericUpDown still carries Name="TextIdBox".
+        bool legacyNud = doc.Descendants()
+            .Any(e => e.Name.LocalName == "NumericUpDown" &&
+                      e.Attributes().Any(a => a.Name.LocalName == "Name"
+                                              && a.Value == "TextIdBox"));
+        Assert.False(legacyNud, "Legacy NumericUpDown Name='TextIdBox' must be removed");
+
+        // Raw content check: AutomationId string must still be present somewhere.
+        string content = File.ReadAllText(axamlPath);
+        Assert.Contains("EventCond_TextId_Input", content);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
