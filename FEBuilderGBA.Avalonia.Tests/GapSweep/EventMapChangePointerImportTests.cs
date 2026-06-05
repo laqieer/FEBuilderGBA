@@ -280,6 +280,55 @@ public class EventMapChangePointerImportTests : IDisposable
         Assert.Contains("_undoService.Begin(", src);
         Assert.Contains("_undoService.Rollback()", src);
         Assert.Contains("NumberInputDialog.Show", src);
+
+        // #964 review: the dialog max must be the GBA cartridge ceiling so a GBA
+        // pointer (≥ 0x08000000) is enterable — NOT Data.Length-1 (which both
+        // capped below 0x08000000 and underflowed to 0xFFFFFFFF when Length==0).
+        Assert.Contains("0x09FFFFFF", src);
+        Assert.DoesNotContain("(CoreState.ROM?.Data?.Length ?? 1) - 1", src);
+        // The ceiling chosen must itself admit a GBA pointer.
+        const uint dialogMax = 0x09FFFFFFu;
+        uint someGbaPointer = 0x08000000u + 0x1000u;
+        Assert.True(someGbaPointer >= 0u && someGbaPointer <= dialogMax,
+            "A GBA pointer must fall within the dialog [min,max] range");
+    }
+
+    // #964 review: a GBA-pointer-form source at the HIGH end of valid ROM space
+    // (well above 0x08000000, i.e. only enterable because the dialog max is the
+    // GBA ceiling rather than Data.Length-1) still imports correctly — the VM
+    // normalises via U.toOffset and the real bounds check accepts it.
+    [Fact]
+    public void ImportChangeDataFromPointer_HighGbaPointerSource_WithinCeiling_Imports()
+    {
+        ROM rom = MakeFe8uRom();
+        CoreState.ROM = rom;
+        CoreState.Undo = new Undo();
+
+        const int W = 1, H = 1;
+        PlantChangeRecord(rom, TableBase, no: 1, x: 0, y: 0, w: W, h: H, p8: 0u);
+        rom.Data[(int)(TableBase + SIZE)] = 0xFF;
+        rom.Data[(int)SrcData + 0] = 0xBE;
+        rom.Data[(int)SrcData + 1] = 0xEF;
+        PlantFreeRegion(rom, FreeRegion, 0x2000);
+
+        var vm = new EventMapChangeViewModel();
+        Assert.True(vm.LoadEntryForMap(0u));
+
+        // SrcData as a GBA pointer is ~0x08A00000 — far above 0x08000000, so it
+        // was UNREACHABLE under the old Data.Length-1 cap, but valid ROM data and
+        // within the new 0x09FFFFFF ceiling.
+        uint gbaPointer = U.toPointer(SrcData);
+        Assert.True(gbaPointer >= 0x08000000u && gbaPointer <= 0x09FFFFFFu);
+
+        var ud = CoreState.Undo!.NewUndoData("t");
+        string err;
+        using (ROM.BeginUndoScope(ud)) { err = vm.ImportChangeDataFromPointer(gbaPointer); }
+        Assert.Equal("", err);
+        CoreState.Undo!.Push(ud);
+
+        uint newOffset = U.toOffset(vm.P8);
+        Assert.Equal((uint)0xBE, rom.u8(newOffset + 0));
+        Assert.Equal((uint)0xEF, rom.u8(newOffset + 1));
     }
 
     [Fact]

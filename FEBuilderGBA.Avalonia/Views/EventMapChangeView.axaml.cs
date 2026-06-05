@@ -280,9 +280,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Prompt for the SOURCE change-data address. Default to the
                 // current record's P8 destination so re-importing the same data
                 // (a deep-copy / detach) is the one-click path. The dialog edits a
-                // ROM offset; a GBA pointer is also accepted (the VM normalises).
+                // ROM offset; a GBA pointer is also accepted (the VM normalises
+                // via U.toOffset). The dialog max is the GBA cartridge-addressable
+                // ceiling (ROM space is 0x08000000–0x09FFFFFF, the exclusive bound
+                // 0x0A000000 used throughout U.isSafetyOffset/isPointer) so BOTH a
+                // raw offset AND a GBA pointer are enterable. The REAL bounds check
+                // (U.toOffset → U.isSafetyOffset → srcOffset + length > Data.Length)
+                // lives in ImportChangeDataFromPointer, which rejects anything that
+                // does not resolve to in-ROM data.
                 uint defaultSrc = U.toOffset(_vm.P8);
-                uint romMax = (uint)((CoreState.ROM?.Data?.Length ?? 1) - 1);
+                const uint GBA_ADDRESS_MAX = 0x09FFFFFFu;
                 uint? chosen = await NumberInputDialog.Show(
                     this,
                     R._("Enter the SOURCE change-data address to import from (W×H×2 = {0} bytes will be copied into this record).",
@@ -290,7 +297,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     R._("Pointer Import"),
                     defaultSrc,
                     0,
-                    romMax);
+                    GBA_ADDRESS_MAX);
                 if (chosen == null) return; // cancelled
 
                 _undoService.Begin("Import Map Change Pointer");
