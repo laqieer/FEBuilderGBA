@@ -202,6 +202,74 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Render the RAW tilesheet (read-only, #974) from the already-resolved
+        /// image + palette ROM addresses — the WinForms <c>image1_Export</c>
+        /// raw 4bpp tile dump, NOT the TSA-composited canvas (#808) and NOT the
+        /// 4-column flip strip (#819).
+        ///
+        /// The ZImg stream is LZ77-decompressed (via the shared
+        /// <see cref="TryLoadTSATileAndPalette"/> loader, inheriting the
+        /// isSafetyOffset / getCompressedSize / end-of-ROM truncation guards) and
+        /// the 4bpp tiles are laid out left-to-right, top-to-bottom in an
+        /// <b>8-tile-wide</b> strip — 64px wide, <c>ceil(tileCount / 8) * 8</c>
+        /// tall — exactly like a plain 4bpp tilesheet PNG. The final row may be
+        /// partially filled; cells beyond the last tile are left as the
+        /// zero-initialized (blank/transparent) pixel-buffer background because
+        /// they are simply never drawn. Note the tiles themselves are decoded
+        /// with <c>opaqueIndex0:true</c>, so palette index 0 WITHIN a drawn tile
+        /// is opaque (it is only the never-drawn padding cells that stay
+        /// transparent).
+        ///
+        /// The raw tilesheet never reads the TSA stream, so this takes NO
+        /// <c>tsaAddr</c>. Always renders in palette bank 0. Returns <c>null</c>
+        /// (never throws) on any null / out-of-bounds / corrupt input or when no
+        /// <see cref="IImageService"/> is set.
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="imageAddr">Resolved ROM offset of the LZ77 tile image.</param>
+        /// <param name="paletteAddr">Resolved ROM offset of the palette block.</param>
+        public static IImage RenderRawTilesheet(ROM rom, uint imageAddr, uint paletteAddr)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+
+            // Same LZ77-image-decode + raw-palette read as TryRenderMainImage /
+            // RenderChipList. The raw tilesheet never reads the TSA stream.
+            if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
+                                          out byte[] tileData, out byte[] palette))
+            {
+                return null;
+            }
+
+            const int bytesPerTile = 32; // 4bpp = 32 bytes/tile
+            int tileCount = tileData.Length / bytesPerTile;
+            if (tileCount <= 0) return null;
+
+            // 8-tile-wide strip; height rounds up to a full row so the last
+            // (possibly partial) row of tiles is included.
+            const int tilesPerRow = 8;
+            int rows = (tileCount + tilesPerRow - 1) / tilesPerRow;
+            int width = tilesPerRow * 8;   // 64px
+            int height = rows * 8;
+
+            var image = CoreState.ImageService.CreateImage(width, height);
+            byte[] pixels = new byte[width * height * 4]; // RGBA, zero-filled = transparent padding
+
+            for (int tile = 0; tile < tileCount; tile++)
+            {
+                int col = tile % tilesPerRow;
+                int row = tile / tilesPerRow;
+                ImageUtilCore.DecodeTileToPixels(
+                    tileData, tile, palette, 0 /* palBank */,
+                    pixels, width, col * 8, row * 8,
+                    hFlip: false, vFlip: false, is4bpp: true, opaqueIndex0: true);
+            }
+
+            image.SetPixelData(pixels);
+            return image;
+        }
+
+        /// <summary>
         /// Shared loader extracted from <see cref="TryRenderMainImage"/> (#819):
         /// LZ77-decode the tile image and read the raw (≤512-byte) palette block
         /// from already-resolved ROM addresses. Behaviour-preserving -- returns

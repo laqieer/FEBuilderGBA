@@ -228,6 +228,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Render the RAW tilesheet (read-only) for the Main Image tab's
+        /// "Image Export" PNG (#974). Resolves the SAME image + palette
+        /// addresses as <see cref="RenderChipList"/> (the raw tilesheet is a
+        /// pure tile-strip, so there is NO TSA pointer) and delegates to
+        /// <see cref="ImageTSAEditorCore.RenderRawTilesheet"/>.
+        ///
+        /// Returns null (no throw) when there is no context, when the image
+        /// pointer slot is unset (U.NOT_FOUND), or when the underlying render
+        /// fails. A NOT_FOUND palette pointer is NOT a failure — it is the
+        /// expected raw-address fallback handled by
+        /// <see cref="ResolveActivePaletteAddress"/>.
+        /// </summary>
+        public IImage RenderRawTilesheet()
+        {
+            if (!IsContextLoaded) return null;
+
+            // The image pointer slot must be real before we follow it with p32;
+            // only the palette pointer has a raw-address fallback. The raw
+            // tilesheet never reads the TSA stream, so _tsaPointer is irrelevant.
+            if (_zimgPointer == U.NOT_FOUND) return null;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return null;
+
+            uint imageAddr = rom.p32(_zimgPointer);
+            uint paletteAddr = ResolveActivePaletteAddress();
+
+            return ImageTSAEditorCore.RenderRawTilesheet(rom, imageAddr, paletteAddr);
+        }
+
+        /// <summary>
         /// Read 16 GBA 5-5-5 palette entries starting at
         /// <paramref name="paletteAddr"/> + <paramref name="paletteIndex"/> * 0x20.
         /// Each entry is a little-endian ushort: 0RRRRR GGGGG BBBBB.
@@ -355,6 +386,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             int g5 = (g >> 3) & 0x1F;
             int b5 = (b >> 3) & 0x1F;
             return (ushort)((b5 << 10) | (g5 << 5) | r5);
+        }
+
+        /// <summary>
+        /// Build the palette-to-clipboard hex string (#974): a 64-character
+        /// string of 16 entries, 4 big-endian hex chars each. Mirrors WinForms
+        /// <c>PaletteFormRef.PALETTE_TO_CLIPBOARD_BUTTON_Click</c>, which packs
+        /// each entry to its raw GBA bytes and formats with
+        /// <c>U.big16(...).ToString("X04")</c>. <c>U.big16</c> byte-swaps the
+        /// little-endian GBA 5-5-5 word into a big-endian display value, so the
+        /// emitted hex equals <c>byteswap(PackRgb555(...))</c> — e.g. white
+        /// (0x7FFF, LE bytes FF 7F) renders as "FF7F".
+        /// </summary>
+        /// <param name="rgb">Exactly 16 RGB triplets (the current palette UI).</param>
+        internal static string BuildPaletteClipboardHex((byte R, byte G, byte B)[] rgb)
+        {
+            if (rgb == null) throw new ArgumentNullException(nameof(rgb));
+            if (rgb.Length != 16)
+                throw new ArgumentException("BuildPaletteClipboardHex expects exactly 16 entries", nameof(rgb));
+
+            var sb = new System.Text.StringBuilder(64);
+            for (int i = 0; i < 16; i++)
+            {
+                ushort word = PackRgb555(rgb[i].R, rgb[i].G, rgb[i].B);
+                // U.big16-equivalent byte-swap of the little-endian GBA word.
+                uint big = (uint)(((word & 0xFF) << 8) | (word >> 8));
+                sb.Append(big.ToString("X04"));
+            }
+            return sb.ToString();
         }
 
         /// <summary>
