@@ -3712,26 +3712,48 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        /// <summary>Build map tile animation 1 list — from map_tileanime1_pointer.
-        /// Matches MapTileAnimation1ViewModel.LoadList()/BuildList(): 8-byte blocks, validated by isPointer(u32(addr+4)).</summary>
+        /// <summary>Build map tile animation 1 list — PLIST-based (#955).
+        /// Matches MapTileAnimation1ViewModel.LoadList(): build the anime1 PLIST
+        /// filter via MapTileAnimation1Core.BuildPlistList, pick the first
+        /// non-broken PLIST, then scan its resolved data table (8-byte blocks,
+        /// validated by isPointer(u32(addr+4))). Lockstep with
+        /// MapTileAnimation1Core.ScanEntries.</summary>
         static List<AddrResult> BuildMapTileAnimation1List(ROM rom)
         {
-            uint ptr = rom.RomInfo.map_tileanime1_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
-
-            const uint blockSize = 8;
-            var result = new List<AddrResult>();
-            for (int i = 0; i < 256; i++)
+            var plistRows = MapTileAnimation1Core.BuildPlistList(rom);
+            foreach (var row in plistRows)
             {
-                uint addr = baseAddr + (uint)(i * blockSize);
-                if (addr + blockSize > (uint)rom.Data.Length) break;
-                // Validate: P4 must be a valid pointer (same as VM)
-                if (!U.isPointer(rom.u32(addr + 4))) break;
+                if (row.IsBroken) continue;
+                var entries = MapTileAnimation1Core.ScanEntries(rom, row.Addr, maxRows: 256);
+                if (entries.Count == 0) continue;
+                var result = new List<AddrResult>(entries.Count);
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    var e = entries[i];
+                    string display = $"0x{i:X2} Interval={e.Wait:X4} Count={e.Length:X4}";
+                    result.Add(new AddrResult(e.Addr, display, (uint)i));
+                }
+                return result;
+            }
+            return new List<AddrResult>();
+        }
 
-                string display = $"0x{i:X2} Interval={rom.u16(addr):X4} Count={rom.u16(addr + 2):X4}";
-                result.Add(new AddrResult(addr, display, (uint)i));
+        /// <summary>Build the MapTileAnimation1 FILTER-combo list (the anime1
+        /// PLIST filter rows shown above the entry list), in lockstep with
+        /// MapTileAnimation1ViewModel.LoadPlistList() →
+        /// MapTileAnimation1Core.BuildPlistList(). Each filter row's Display is
+        /// the resolved "ANIME1 MapName" label via the shared resolver (#952,
+        /// #955), mirroring the anime2 "ANIME2 MapName" filter. Returns one
+        /// AddrResult per filter row (addr = resolved data offset, name =
+        /// resolved Display, tag = PLIST id) so parity tests can compare the VM
+        /// filter labels against this golden builder.</summary>
+        public static List<AddrResult> BuildMapTileAnimation1FilterList(ROM rom)
+        {
+            var rows = MapTileAnimation1Core.BuildPlistList(rom);
+            var result = new List<AddrResult>(rows.Count);
+            foreach (var row in rows)
+            {
+                result.Add(new AddrResult(row.Addr, row.Display, row.Plist));
             }
             return result;
         }
