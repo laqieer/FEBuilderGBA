@@ -589,8 +589,13 @@ Specialized utilities for different graphic types:
   it splits into alternating literal-text and `@XXXX` (5-char hex) escape
   segments (bundling a `@0003` immediately followed by `\r\n` into ONE segment)
   and — unlike WF, which drops trailing literal after the last code — flushes the
-  tail so `string.Concat(SplitEscapeSegments(x)) == x` for ALL x. `IsEscapeSegment`
-  classifies a code as `@` + exactly four hex digits. `LoadFixedDic(from, to)`
+  tail so `string.Concat(SplitEscapeSegments(x)) == x` for ALL x. A `@` is only a
+  code boundary when it is followed by EXACTLY four hex digits (the position-based
+  `IsCodeAt` twin of `IsEscapeSegment`, single source of truth): a literal at-sign
+  in ordinary text (`email@example.com`, `hello@catworld`, a trailing `@`, or `@`
+  + fewer than four hex / non-hex chars) stays glued to its surrounding literal
+  segment instead of being fragmented (#971). `IsEscapeSegment` classifies a code
+  as `@` + exactly four hex digits. `LoadFixedDic(from, to)`
   loads the shipped glossary `config/translate/dic_<from>_<to>.txt` (the single
   `dic_ja_en.txt` serves both `ja→en` and reversed `en→ja`), tab-separated
   `source\ttarget`, keys upper-cased, `\r\n` un-escaped, first-wins on dups;
