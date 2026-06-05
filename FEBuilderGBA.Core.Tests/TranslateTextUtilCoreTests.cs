@@ -243,6 +243,41 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void LoadFixedDic_MissingFile_NotPoisonCached_PicksUpFileIfItLaterAppears()
+        {
+            // Same BaseDirectory throughout: a resolvable-but-missing glossary file
+            // must NOT be cached as an empty dict, so once the file appears a later
+            // call re-reads it. (Copilot #968 review catch.)
+            string savedBase = CoreState.BaseDirectory;
+            string tempRoot = Path.Combine(Path.GetTempPath(), "feb_dic_appear_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                string transDir = Path.Combine(tempRoot, "config", "translate");
+                Directory.CreateDirectory(transDir); // dir exists, file does NOT yet
+                CoreState.BaseDirectory = tempRoot;
+                TranslateTextUtilCore.ClearCache();
+
+                // 1) File missing → empty result, and must NOT poison-cache.
+                var before = TranslateTextUtilCore.LoadFixedDic("ja", "en");
+                Assert.Empty(before);
+
+                // 2) The glossary file now appears (BaseDirectory UNCHANGED).
+                File.WriteAllLines(Path.Combine(transDir, "dic_ja_en.txt"), new[] { "必殺\tCritical" });
+
+                // 3) A subsequent call re-reads the file (not stuck on the empty cache).
+                var after = TranslateTextUtilCore.LoadFixedDic("ja", "en");
+                Assert.True(after.ContainsKey("必殺"));
+                Assert.Equal("Critical", after["必殺"]);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                TranslateTextUtilCore.ClearCache();
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); } catch { }
+            }
+        }
+
+        [Fact]
         public void LoadFixedDic_NullBaseDirectory_ReturnsEmpty_NoPoisonCache()
         {
             string savedBase = CoreState.BaseDirectory;

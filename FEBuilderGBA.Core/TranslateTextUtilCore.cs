@@ -165,9 +165,12 @@ namespace FEBuilderGBA
         /// Missing file, unsupported pair, or a null
         /// <see cref="CoreState.BaseDirectory"/> all return an EMPTY dictionary
         /// and NEVER throw. Following the W2a <c>SongNameResolverCore</c> lesson,
-        /// only a SUCCESSFUL load is cached — a failure leaves the cache
-        /// untouched so a later call (e.g. after BaseDirectory is set) retries
-        /// instead of being permanently poisoned. The cache is keyed by
+        /// only a STABLE result is cached: a glossary file that was actually read,
+        /// OR an unsupported/same-language pair (which has no file to load now or
+        /// ever). A resolvable-but-MISSING file and a null/empty BaseDirectory are
+        /// deliberately NOT cached, so a later call re-reads the glossary if the
+        /// file appears (or BaseDirectory is set) instead of being permanently
+        /// poisoned with an empty dict. The cache is keyed by
         /// <c>(BaseDirectory, from, to)</c> and guarded by a lock for the
         /// multi-window / off-UI-thread case.
         /// </summary>
@@ -185,14 +188,28 @@ namespace FEBuilderGBA
             }
 
             var dic = new Dictionary<string, string>();
-            bool loaded = false;
+            // Cacheable only on a genuinely-stable result:
+            //   * a glossary file that actually EXISTED and was read (a real load), or
+            //   * an UNSUPPORTED / same-language pair (no file path → there is nothing
+            //     to load now or later, so an empty dict is the permanent answer).
+            // A resolvable-but-MISSING file (the pair is supported but the file is not
+            // present yet) is deliberately NOT cached — so if the file later appears
+            // (e.g. after a config update with BaseDirectory unchanged) a subsequent
+            // call re-reads it instead of being stuck with an empty dict. Likewise a
+            // null/empty BaseDirectory is never cached. (W2a SongNameResolverCore lesson.)
+            bool cacheable = false;
             try
             {
                 if (!string.IsNullOrEmpty(baseDir))
                 {
                     bool isRev;
                     string fullfilename = ResolveDicFile(baseDir, from, to, out isRev);
-                    if (fullfilename != null && File.Exists(fullfilename))
+                    if (fullfilename == null)
+                    {
+                        // Unsupported / same-language pair — nothing to load, ever.
+                        cacheable = true;
+                    }
+                    else if (File.Exists(fullfilename))
                     {
                         foreach (string line in File.ReadAllLines(fullfilename))
                         {
@@ -213,8 +230,9 @@ namespace FEBuilderGBA
                             }
                             dic[key] = value;
                         }
+                        cacheable = true; // a real, successful file read
                     }
-                    loaded = true; // base dir present + file read (or absent) — a real result
+                    // else: file path resolved but the file is absent → NOT cacheable.
                 }
             }
             catch (Exception ex)
@@ -225,7 +243,7 @@ namespace FEBuilderGBA
                 return dic;
             }
 
-            if (loaded)
+            if (cacheable)
             {
                 lock (_dicLock)
                 {
