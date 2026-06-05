@@ -70,16 +70,11 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>Reset the right-hand detail panel state. Used by LoadList
-        /// (zero PLIST entries) and SelectPlist (broken PLIST).</summary>
-        void ClearDetailPanel()
-        {
-            _vm.IsLoaded = false;
-            _vm.CurrentAddr = 0;
-            _vm.SelectedAddress = 0;
-            _vm.AnimInterval = 0;
-            _vm.DataCount = 0;
-            _vm.MapTileDataPointer = 0;
-        }
+        /// (zero PLIST entries), SelectPlist (broken PLIST OR a non-broken
+        /// PLIST resolving to an EMPTY entry table, #960). Delegates to the
+        /// VM's ClearEntry() so the field-reset + Write-gating lives in one
+        /// place.</summary>
+        void ClearDetailPanel() => _vm.ClearEntry();
 
         void OnTopBarReloadRequested(object? sender, RoutedEventArgs e) => LoadList();
 
@@ -121,6 +116,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 EntryList.SetItems(items);
                 TopBar.ReadStartAddress = _vm.ReadStartAddress;
                 TopBar.ReadCount = (int)_vm.ReadCount;
+
+                // #960: a non-broken PLIST can still resolve to an EMPTY entry
+                // table. SetItems fires no selection on an empty list, so the
+                // detail panel would otherwise keep showing the PREVIOUSLY-
+                // selected entry. Clear the detail VM state + refresh the UI so
+                // the stale entry is gone and Write is gated (same class as the
+                // #9 Map Exit stale-detail bug).
+                if (items.Count == 0)
+                {
+                    ClearDetailPanel();
+                    UpdateUI();
+                }
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
         }

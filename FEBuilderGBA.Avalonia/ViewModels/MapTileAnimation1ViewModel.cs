@@ -127,6 +127,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             MarkClean();
         }
 
+        /// <summary>
+        /// Reset the detail fields when the selected PLIST has NO entries (an
+        /// empty data table) or is broken, so the panel doesn't show the
+        /// previously-selected entry's stale data (#960, same class as the #9
+        /// Map Exit stale-detail bug). Gates the Write button via
+        /// <see cref="IsLoaded"/>=false (the view's Write_Click early-returns
+        /// when <c>!IsLoaded</c>).
+        /// </summary>
+        public void ClearEntry()
+        {
+            CurrentAddr = 0;
+            SelectedAddress = 0;
+            AnimInterval = 0;
+            DataCount = 0;
+            MapTileDataPointer = 0;
+            IsLoaded = false;
+        }
+
         public void Write()
         {
             ROM rom = CoreState.ROM;

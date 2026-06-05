@@ -3713,19 +3713,26 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>Build map tile animation 1 list — PLIST-based (#955).
-        /// Matches MapTileAnimation1ViewModel.LoadList(): build the anime1 PLIST
-        /// filter via MapTileAnimation1Core.BuildPlistList, pick the first
-        /// non-broken PLIST, then scan its resolved data table (8-byte blocks,
-        /// validated by isPointer(u32(addr+4))). Lockstep with
-        /// MapTileAnimation1Core.ScanEntries.</summary>
+        /// Matches MapTileAnimation1ViewModel.LoadList() EXACTLY: build the
+        /// anime1 PLIST filter via MapTileAnimation1Core.BuildPlistList, pick
+        /// the FIRST non-broken PLIST (regardless of whether its data table is
+        /// empty — the VM returns on the first non-broken row), then scan that
+        /// PLIST's resolved data table (8-byte blocks, validated by
+        /// isPointer(u32(addr+4))). #960: an earlier version skipped a
+        /// non-broken-but-empty PLIST (`if (entries.Count == 0) continue;`),
+        /// which the VM does NOT do — that mismatch made the VM↔golden lockstep
+        /// test flaky on ROMs whose first non-broken PLIST is empty. Lockstep
+        /// with MapTileAnimation1Core.ScanEntries.</summary>
         static List<AddrResult> BuildMapTileAnimation1List(ROM rom)
         {
             var plistRows = MapTileAnimation1Core.BuildPlistList(rom);
             foreach (var row in plistRows)
             {
                 if (row.IsBroken) continue;
+                // First non-broken PLIST wins — return its scan even when empty
+                // (mirrors the VM's `return BuildList(row.Addr);` on the first
+                // non-broken row).
                 var entries = MapTileAnimation1Core.ScanEntries(rom, row.Addr, maxRows: 256);
-                if (entries.Count == 0) continue;
                 var result = new List<AddrResult>(entries.Count);
                 for (int i = 0; i < entries.Count; i++)
                 {

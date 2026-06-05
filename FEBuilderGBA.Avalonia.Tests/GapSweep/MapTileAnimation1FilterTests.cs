@@ -134,6 +134,86 @@ public class MapTileAnimation1FilterTests
     }
 
     // -----------------------------------------------------------------
+    // #960 fix 1 - empty non-broken PLIST must CLEAR stale detail.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_ClearEntry_ResetsFieldsAndGatesWrite()
+    {
+        var rom = MakeMinimalFE8URomWithEntry(out uint entryAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation1ViewModel();
+            vm.LoadEntry(entryAddr);
+            Assert.True(vm.IsLoaded);
+            Assert.NotEqual(0u, vm.CurrentAddr);
+
+            vm.ClearEntry();
+            Assert.False(vm.IsLoaded); // Write_Click early-returns on !IsLoaded
+            Assert.Equal(0u, vm.CurrentAddr);
+            Assert.Equal(0u, vm.SelectedAddress);
+            Assert.Equal(0u, vm.AnimInterval);
+            Assert.Equal(0u, vm.DataCount);
+            Assert.Equal(0u, vm.MapTileDataPointer);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_BuildList_OnEmptyPlist_ReturnsEmpty()
+    {
+        // A non-broken PLIST whose data table is EMPTY (first record's +4 is
+        // NOT a pointer) must yield zero entries — the view then clears the
+        // stale detail panel (#960).
+        var rom = MakeFE8URomWithEmptyFirstPlist(out uint emptyDataAddr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation1ViewModel();
+            var items = vm.BuildList(emptyDataAddr);
+            Assert.Empty(items);
+            Assert.Equal(emptyDataAddr, vm.ReadStartAddress);
+            Assert.Equal(0u, vm.ReadCount);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // #960 fix 2 - golden builder lockstep with VM on empty first PLIST.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void GoldenBuilder_And_VM_Lockstep_WhenFirstNonBrokenPlistIsEmpty()
+    {
+        // When the FIRST non-broken PLIST resolves to an EMPTY entry table the
+        // VM's LoadList() returns that PLIST's (empty) scan rather than falling
+        // through to a later PLIST. The golden builder must match exactly (it
+        // previously did `if (entries.Count == 0) continue;`, diverging).
+        var rom = MakeFE8URomWithEmptyFirstPlist(out uint _);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new MapTileAnimation1ViewModel();
+            var vmRows = vm.LoadList();
+            var golden = FEBuilderGBA.Avalonia.Services.ListParityHelper
+                .BuildReferenceList("MapTileAnimation1View");
+
+            Assert.Empty(vmRows);  // empty first PLIST -> empty list
+            Assert.Equal(golden.Count, vmRows.Count);
+            for (int i = 0; i < vmRows.Count; i++)
+            {
+                Assert.Equal(golden[i].name, vmRows[i].name);
+                Assert.Equal(golden[i].addr, vmRows[i].addr);
+            }
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
@@ -171,6 +251,40 @@ public class MapTileAnimation1FilterTests
         WriteU32(rom.Data, (int)entryAddr + 4, 0x08800100u);
         // Entry[1] = zero P4 so ScanEntries stops cleanly.
         WriteU32(rom.Data, (int)entryAddr + 8 + 4, 0u);
+
+        return rom;
+    }
+
+    /// <summary>
+    /// Build a synthetic FE8U ROM whose FIRST (and only) non-broken anime1
+    /// PLIST resolves to a SAFE, non-zero data offset (so BuildPlistList marks
+    /// it non-broken) but whose entry table is EMPTY — the first 8-byte
+    /// record's image pointer at +4 is NOT a pointer, so ScanEntries returns
+    /// zero rows. Returns the resolved (empty) data offset.
+    /// </summary>
+    static ROM MakeFE8URomWithEmptyFirstPlist(out uint emptyDataAddr)
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+
+        // Map block at 0x00800000: D0=pointer, anime1_plist=1 at +9.
+        WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer, 0x08800000u);
+        WriteU32(rom.Data, 0x800000, 0x08800200u); // D0 = pointer (valid)
+        rom.Data[0x800000 + 9] = 1; // anime1_plist = 1
+        // Map[1]: terminator (D0 = 0)
+        uint dataSize = rom.RomInfo.map_setting_datasize;
+        WriteU32(rom.Data, (int)(0x800000 + dataSize), 0u);
+
+        // PLIST table at 0x00900000. Slot 1 -> 0x08800300 (SAFE, non-zero ->
+        // non-broken), but the data block there has a non-pointer at +4 so the
+        // entry table is empty.
+        emptyDataAddr = 0x800300;
+        WriteU32(rom.Data, (int)rom.RomInfo.map_tileanime1_pointer, 0x08900000u);
+        WriteU32(rom.Data, 0x900000 + 1 * 4, 0x08800300u);
+        // Data block at 0x00800300: image pointer at +4 = 0 (NOT a pointer) so
+        // ScanEntries stops immediately -> empty table.
+        WriteU32(rom.Data, (int)emptyDataAddr + 0, 0u);
+        WriteU32(rom.Data, (int)emptyDataAddr + 4, 0u);
 
         return rom;
     }
