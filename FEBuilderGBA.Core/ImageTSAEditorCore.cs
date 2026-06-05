@@ -212,8 +212,13 @@ namespace FEBuilderGBA
         /// isSafetyOffset / getCompressedSize / end-of-ROM truncation guards) and
         /// the 4bpp tiles are laid out left-to-right, top-to-bottom in an
         /// <b>8-tile-wide</b> strip — 64px wide, <c>ceil(tileCount / 8) * 8</c>
-        /// tall — exactly like a plain 4bpp tilesheet PNG. A partial final row is
-        /// rendered as transparent (index-0) padding cells.
+        /// tall — exactly like a plain 4bpp tilesheet PNG. The final row may be
+        /// partially filled; cells beyond the last tile are left as the
+        /// zero-initialized (blank/transparent) pixel-buffer background because
+        /// they are simply never drawn. Note the tiles themselves are decoded
+        /// with <c>opaqueIndex0:true</c>, so palette index 0 WITHIN a drawn tile
+        /// is opaque (it is only the never-drawn padding cells that stay
+        /// transparent).
         ///
         /// The raw tilesheet never reads the TSA stream, so this takes NO
         /// <c>tsaAddr</c>. Always renders in palette bank 0. Returns <c>null</c>
