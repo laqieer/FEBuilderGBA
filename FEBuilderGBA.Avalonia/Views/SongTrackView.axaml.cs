@@ -410,7 +410,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error("ImportMidi_Click write-back failed: {0}", ex.Message);
+                    Log.Error($"ImportMidi_Click write-back failed: {ex.Message}");
                     CoreState.Services.ShowError($"MIDI import failed: {ex.Message}");
                 }
             }

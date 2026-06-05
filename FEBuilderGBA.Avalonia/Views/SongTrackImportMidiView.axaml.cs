@@ -154,7 +154,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("SongTrackImportMidiView.ImportMidi_Click failed: {0}", ex.Message);
+                Log.Error($"SongTrackImportMidiView.ImportMidi_Click failed: {ex.Message}");
                 CoreState.Services.ShowError($"MIDI import failed: {ex.Message}");
             }
         }
