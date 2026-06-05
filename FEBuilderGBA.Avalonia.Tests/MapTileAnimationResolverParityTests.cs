@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// VM + golden-builder parity tests for the MapTileAnimation PLIST-label rewire
+// (#952, T5 slice B = bug #11).
+//
+//  * MapTileAnimationView (STEP 1): LoadMapTileAnimationList resolves each
+//    slot index (an ANIMATION PLIST id) to "ANIME1/ANIME2 MapName" /
+//    NULL / -EMPTY- / UNK — never a bare 0x… pointer or the old
+//    "{id} TileAnim 0x…" string. Lockstep with the golden builder
+//    ListParityHelper.BuildMapTileAnimationList (reached via BuildReferenceList).
+//  * MapTileAnimation2 (STEP 2): LoadPlistList filter labels resolve to
+//    "ANIME2 MapName" via the shared resolver — never the old raw
+//    "タイルアニメーション2 パレットアニメ:{plist}" PLIST-hex string. Lockstep with
+//    the golden builder ListParityHelper.BuildMapTileAnimation2FilterList.
+//  * Smoke guard: the list-building / filter-building source no longer emits a
+//    bare 0x{...:X08} row label or the old raw label strings.
+
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
+
+namespace FEBuilderGBA.Avalonia.Tests;
+
+public class MapTileAnimationResolverParityTests : IClassFixture<RomFixture>
+{
+    readonly RomFixture _rom;
+
+    public MapTileAnimationResolverParityTests(RomFixture rom)
+    {
+        _rom = rom;
+    }
+
+    // -----------------------------------------------------------------
+    // STEP 1: MapTileAnimationView (the simple, menu-reachable editor).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void MapTileAnimationView_List_ProducesResolvedLabels()
+    {
+        if (!_rom.IsAvailable) return; // skip
+
+        var vm = new MapTileAnimationViewModel();
+        List<AddrResult> rows = vm.LoadMapTileAnimationList();
+        Assert.NotEmpty(rows);
+        foreach (AddrResult r in rows)
+        {
+            AssertResolvedLabel(r.name, "MapTileAnimationView list");
+            // The old format was "{id} TileAnim 0x…" — must be gone.
+            Assert.DoesNotContain("TileAnim", r.name);
+        }
+
+        // Prove the resolver actually named at least one ANIME slot (split) or
+        // resolved to NULL/-EMPTY-/UNK (non-split / empty) rather than a raw row.
+        bool anyResolved = rows.Exists(r =>
+            r.name.Contains(" ANIME1 ") || r.name.Contains(" ANIME2 ") ||
+            r.name.EndsWith(" NULL") || r.name.Contains(" -EMPTY-") ||
+            r.name.Contains(" UNK"));
+        Assert.True(anyResolved,
+            "expected at least one ANIME1/ANIME2/NULL/-EMPTY-/UNK resolved label");
+    }
+
+    [Fact]
+    public void MapTileAnimationView_VM_And_GoldenBuilder_Lockstep()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new MapTileAnimationViewModel();
+        List<AddrResult> vmRows = vm.LoadMapTileAnimationList();
+        List<AddrResult> golden = ListParityHelper.BuildReferenceList("MapTileAnimationView");
+
+        Assert.Equal(golden.Count, vmRows.Count);
+        for (int i = 0; i < vmRows.Count; i++)
+        {
+            Assert.Equal(golden[i].name, vmRows[i].name);
+            Assert.Equal(golden[i].addr, vmRows[i].addr);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // STEP 2: MapTileAnimation2 filter labels.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void MapTileAnimation2_FilterLabels_ProduceResolvedAnime2Labels()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new MapTileAnimation2ViewModel();
+        List<MapTileAnimation2Core.PlistRow> rows = vm.LoadPlistList();
+        // Some ROMs may legitimately have no anime2 PLISTs; only assert on the
+        // rows that exist.
+        foreach (var row in rows)
+        {
+            // The old raw label must be gone.
+            Assert.DoesNotContain("パレットアニメ", row.Display);
+            AssertResolvedLabel(row.Display, "MapTileAnimation2 filter");
+        }
+
+        // When rows exist, at least one should resolve to an ANIME2 map name
+        // (the non-broken case) or carry the broken suffix.
+        if (rows.Count > 0)
+        {
+            bool anyResolved = rows.Exists(r =>
+                r.Display.StartsWith("ANIME2 ") || r.Display.Contains("("));
+            Assert.True(anyResolved,
+                "expected at least one resolved ANIME2 / broken-suffix filter label");
+        }
+    }
+
+    [Fact]
+    public void MapTileAnimation2_FilterVM_And_GoldenBuilder_Lockstep()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new MapTileAnimation2ViewModel();
+        List<MapTileAnimation2Core.PlistRow> vmRows = vm.LoadPlistList();
+        List<AddrResult> golden = ListParityHelper.BuildMapTileAnimation2FilterList(_rom.ROM!);
+
+        Assert.Equal(vmRows.Count, golden.Count);
+        for (int i = 0; i < vmRows.Count; i++)
+        {
+            // The golden filter builder copies PlistRow.Display verbatim, so the
+            // VM filter combo strings and the golden labels must match exactly.
+            Assert.Equal(vmRows[i].Display, golden[i].name);
+            Assert.Equal(vmRows[i].Plist, golden[i].tag);
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Smoke guard: list/filter builders must not emit raw labels.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void Builders_DoNotEmit_RawLabels()
+    {
+        string root = FindRepoRoot();
+
+        // MapTileAnimationViewModel.LoadMapTileAnimationList — no raw 0x…X08
+        // pointer label, no "TileAnim" string.
+        string vmSrc = Path.Combine(root, "FEBuilderGBA.Avalonia", "ViewModels", "MapTileAnimationViewModel.cs");
+        string loadBody = ExtractMethodBody(File.ReadAllText(vmSrc), "LoadMapTileAnimationList");
+        Assert.False(string.IsNullOrEmpty(loadBody), "LoadMapTileAnimationList not found");
+        Assert.DoesNotContain("\" TileAnim \"", loadBody);
+        Assert.DoesNotContain(":X08}", loadBody);
+
+        // ListParityHelper.BuildMapTileAnimationList — same.
+        string parity = Path.Combine(root, "FEBuilderGBA.Avalonia", "Services", "ListParityHelper.cs");
+        string goldenBody = ExtractMethodBody(File.ReadAllText(parity), "BuildMapTileAnimationList");
+        Assert.False(string.IsNullOrEmpty(goldenBody), "BuildMapTileAnimationList not found");
+        Assert.DoesNotContain("\" TileAnim \"", goldenBody);
+        Assert.DoesNotContain(".ToString(\"X08\")", goldenBody);
+
+        // MapTileAnimation2Core.BuildPlistList — old raw PLIST-hex key gone.
+        string coreSrc = Path.Combine(root, "FEBuilderGBA.Core", "MapTileAnimation2Core.cs");
+        string plistBody = ExtractMethodBody(File.ReadAllText(coreSrc), "BuildPlistList");
+        Assert.False(string.IsNullOrEmpty(plistBody), "BuildPlistList not found");
+        Assert.DoesNotContain("パレットアニメ:{0}", plistBody);
+    }
+
+    // =================================================================
+    // Helpers (mirror MapPListResolverParityTests).
+    // =================================================================
+
+    static void AssertResolvedLabel(string label, string ctx)
+    {
+        Assert.NotNull(label);
+        // A resolved row is "{idHex} {TYPE MapName}" / "{idHex} NULL" /
+        // "{idHex} -EMPTY-" / "{idHex} UNK" (filter labels omit the id prefix).
+        // The id prefix uses U.ToHexString (e.g. "0x01"), which is allowed; what
+        // is forbidden is an 8-digit raw POINTER like "0x08123456" as the value.
+        Assert.DoesNotContain("0x08", label);
+        Assert.False(Regex.IsMatch(label, @"0x[0-9A-Fa-f]{8}"),
+            $"{ctx}: row label still contains a raw 0x… pointer: '{label}'");
+    }
+
+    static string ExtractMethodBody(string src, string methodName)
+    {
+        int sig = src.IndexOf(methodName + "(");
+        if (sig < 0) return "";
+        int open = src.IndexOf('{', sig);
+        if (open < 0) return "";
+        int depth = 0;
+        for (int i = open; i < src.Length; i++)
+        {
+            if (src[i] == '{') depth++;
+            else if (src[i] == '}')
+            {
+                depth--;
+                if (depth == 0) return src.Substring(open, i - open + 1);
+            }
+        }
+        return "";
+    }
+
+    static string FindRepoRoot()
+    {
+        string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        for (int i = 0; i < 12; i++)
+        {
+            if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                return dir;
+            dir = Path.GetDirectoryName(dir)!;
+        }
+        throw new System.InvalidOperationException("Repo root not found");
+    }
+}

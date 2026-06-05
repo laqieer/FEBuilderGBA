@@ -140,6 +140,12 @@ namespace FEBuilderGBA
             uint plistTableBase = rom.p32(plistTablePtr);
             if (!U.isSafetyOffset(plistTableBase, rom)) return result;
 
+            // Resolve each filter row to an "ANIME2 MapName" label via the
+            // shared resolver (#952, #11) instead of the raw
+            // "タイルアニメーション2 パレットアニメ:{plist}" PLIST-hex string.
+            // Built once and reused across the loop (per-call local cache).
+            var resolveCache = MapPListResolverCore.BuildCache(rom);
+
             var seen = new HashSet<uint>();
             var maps = MapSettingCore.MakeMapIDList(rom);
             foreach (var map in maps)
@@ -189,13 +195,17 @@ namespace FEBuilderGBA
                     }
                 }
 
-                // Localize the display label via R._() against the
-                // existing WF translation keys ("タイルアニメーション2
-                // パレットアニメ:{0}" + "(破損)") so the filter combo stays
-                // translatable across ja / zh - matches the WinForms
-                // MapTileAnimation2Form.MakeTileAnimation2 behavior
-                // (Copilot bot review on PR #535).
-                string baseLabel = R._("タイルアニメーション2 パレットアニメ:{0}", U.ToHexString(plist));
+                // Resolve the filter label to "ANIME2 MapName" via the shared
+                // resolver (#952, #11) — the same enhancement #953 applied to
+                // the MapPointer / MapChange editors. WinForms historically
+                // showed "タイルアニメーション2 パレットアニメ:{plist}"; the
+                // resolved map name is far more useful, and the lockstep golden
+                // builder ListParityHelper.BuildMapTileAnimation2FilterList
+                // copies this Display verbatim. The "(破損)" suffix is still
+                // appended on a broken PLIST so the repair affordance stays
+                // discoverable.
+                string baseLabel = MapPListResolverCore.ResolveLabel(
+                    rom, MapChangeCore.PlistType.ANIMATION2, plist, resolveCache);
                 string display = broken
                     ? baseLabel + R._("(破損)")
                     : baseLabel;

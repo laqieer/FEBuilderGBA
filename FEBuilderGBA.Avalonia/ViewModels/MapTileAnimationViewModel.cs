@@ -35,6 +35,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
+            // map_tileanime1_pointer is the ANIMATION PLIST table base, so each
+            // 4-byte slot index IS the PLIST id. Resolve each row to a
+            // "ANIME1/ANIME2 MapName" label via the shared resolver (#952, #11)
+            // instead of a raw 0x… pointer. ANIME1 and ANIME2 both resolve under
+            // PlistType.ANIMATION (they share this table); GetPListNameSplited
+            // returns whichever map field equals the id. The lockstep golden
+            // builder ListParityHelper.BuildMapTileAnimationList calls the SAME
+            // resolver.
+            var cache = MapPListResolverCore.BuildCache(rom);
+
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
             {
@@ -45,10 +55,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Stop if we hit clearly invalid data
                 if (pointer == 0xFFFFFFFF) break;
 
-                string ptrStr = U.isPointer(pointer)
-                    ? "0x" + pointer.ToString("X08")
-                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
-                string name = U.ToHexString(i) + " TileAnim " + ptrStr;
+                string label = MapPListResolverCore.ResolveLabel(
+                    rom, MapChangeCore.PlistType.ANIMATION, i, cache);
+                string name = U.ToHexString(i) + " " + label;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
