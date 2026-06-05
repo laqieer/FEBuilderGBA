@@ -854,6 +854,52 @@ public class PointerToolParityTests
         });
     }
 
+    [Fact]
+    public void ViewModel_LoadOtherRom_ZeroRegionTarget_RaisesZeroWarning()
+    {
+        // #969 review point 2: the ZERO warning is a zero-REGION check (WF
+        // checkZeroData) — more than half of the next 0x200 bytes from the
+        // matched address are 0x00. The target window here is left all-zero
+        // (the default buffer) EXCEPT the planted pointer is elsewhere, so the
+        // [target, target+0x200) window is >half zero -> warning raised.
+        const uint rawRefOffset = 0x8000;
+        const uint target = 0x4000; // [0x4000, 0x4200) is all zero by default
+        byte[] other = MakeOtherRomWithRawPointer(rawRefOffset, target);
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{target:X08}";
+            vm.RunSearch();
+            // Raw match found, and the matched region is >half zero.
+            Assert.Equal($"0x{rawRefOffset:X08}", vm.OtherRomRefPointer);
+            Assert.True(vm.HasZeroAtDirect,
+                "A matched address whose next 0x200 bytes are >half zero must raise the ZERO warning");
+        });
+    }
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_NonZeroRegionTarget_NoZeroWarning()
+    {
+        // The inverse: fill the [target, target+0x200) window with non-zero
+        // bytes so the zero-region check is NOT satisfied -> no ZERO warning.
+        const uint rawRefOffset = 0x8000;
+        const uint target = 0x4000;
+        byte[] other = MakeOtherRomWithRawPointer(rawRefOffset, target);
+        // Fill the matched window with 0xAB (well over half non-zero).
+        for (uint i = target; i < target + 0x200 && i < (uint)other.Length; i++)
+            other[i] = 0xAB;
+        // The reference word must survive the fill (it is outside the window).
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{target:X08}";
+            vm.RunSearch();
+            Assert.Equal($"0x{rawRefOffset:X08}", vm.OtherRomRefPointer);
+            Assert.False(vm.HasZeroAtDirect,
+                "A matched address whose next 0x200 bytes are mostly non-zero must NOT raise the ZERO warning");
+        });
+    }
+
     // ---------------------------- Helpers ----------------------------
 
     /// <summary>

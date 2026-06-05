@@ -311,31 +311,59 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 // A grep must never throw on the UI thread. On any fault clear
                 // the fields and surface a diagnostic rather than crashing.
+                // Log.Error is params string[] (NO composite formatting) — use
+                // a single interpolated string so the exception is actually
+                // logged (#969 review point 3).
                 ClearOtherRomFields();
-                Log.Error("PointerToolViewModel.SearchOtherRom: {0}", ex.Message);
+                Log.Error($"PointerToolViewModel.SearchOtherRom: {ex}");
             }
         }
+
+        /// <summary>Window size (bytes) WF samples for the zero-region check.</summary>
+        const uint ZeroRegionWindow = 0x200;
 
         /// <summary>
         /// Evaluate the WF ERROR_ZERO / ERROR_VERYFAR warning pair against a
         /// cross-ROM match address found in the OTHER ROM. Returns the ZERO flag
-        /// (the matched address points into a zero-filled region of the other
-        /// ROM); <paramref name="isFar"/> receives the VERYFAR flag (the matched
-        /// address lies in the last quarter of the other ROM — a coarse "too far
-        /// to be a real match" heuristic mirroring WF's intent).
+        /// — the matched address sits in a zero-FILLED REGION (see
+        /// <see cref="IsZeroRegion"/>); <paramref name="isFar"/> receives the
+        /// VERYFAR flag (the matched address lies in the last quarter of the
+        /// other ROM — a coarse "too far to be a real match" heuristic).
         ///
         /// <para>Bounds are checked against <c>_otherRomData.Length</c>
-        /// explicitly (Copilot CLI review point 3); an out-of-bounds match
+        /// explicitly (Copilot CLI plan-review point 3); an out-of-bounds match
         /// address yields both-false (no warning, no throw).</para>
         /// </summary>
         bool EvaluateOtherRomWarning(uint matchAddr, out bool isFar)
         {
             isFar = false;
             if (_otherRomData == null || _otherRomData.Length == 0) return false;
-            if (matchAddr + 3 >= (uint)_otherRomData.Length) return false;
-            bool zero = U32Read(_otherRomData, matchAddr) == 0;
+            if (matchAddr >= (uint)_otherRomData.Length) return false;
             isFar = matchAddr > (uint)(_otherRomData.Length * 3 / 4);
-            return zero;
+            return IsZeroRegion(_otherRomData, matchAddr, matchAddr + ZeroRegionWindow);
+        }
+
+        /// <summary>
+        /// Port of WF <c>PointerToolForm.checkZeroData</c> (#969 review point
+        /// 2): a region <c>[start, end)</c> is "zero" when MORE THAN HALF of its
+        /// bytes are <c>0x00</c>. WF samples a 0x200-byte window from the match
+        /// address. Bounds-safe: <c>end</c> is clamped to the buffer length, and
+        /// a <c>start</c> beyond the buffer returns <c>false</c> — mirroring WF
+        /// exactly so the Avalonia "Zero region" warning agrees with WF and with
+        /// the label text.
+        /// </summary>
+        static bool IsZeroRegion(byte[] data, uint start, uint end)
+        {
+            if (data.Length < start) return false;
+            if (data.Length < end) end = (uint)data.Length;
+            if (start >= end) return false;
+
+            int zeroCount = 0;
+            for (uint i = start; i < end; i++)
+            {
+                if (data[i] == 0x0) zeroCount++;
+            }
+            return zeroCount > (int)(end - start) / 2;
         }
 
         /// <summary>
@@ -354,15 +382,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             HasVeryFarAtDirect = false;
             HasZeroAtLdr = false;
             HasVeryFarAtLdr = false;
-        }
-
-        static uint U32Read(byte[] data, uint offset)
-        {
-            if (offset + 3 >= (uint)data.Length) return 0;
-            return data[offset]
-                 | ((uint)data[offset + 1] << 8)
-                 | ((uint)data[offset + 2] << 16)
-                 | ((uint)data[offset + 3] << 24);
         }
 
         /// <summary>Search the ROM for all 4-byte-aligned pointer references to the given address.</summary>
