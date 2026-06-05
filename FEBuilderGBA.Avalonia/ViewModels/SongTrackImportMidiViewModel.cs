@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;            // selected song HEADER offset
         uint _songTableEntryAddr;     // selected song-table ENTRY pointer slot
         uint _instrumentAddr;         // raw GBA pointer from song header +4
+        int _selectedSongId = -1;     // selected song-table index (songId); -1 = none
         bool _isLoaded;
         string _midiFilePath = string.Empty;
         string _midiInfoText = string.Empty;
@@ -25,6 +26,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint SongTableEntryAddr { get => _songTableEntryAddr; set => SetField(ref _songTableEntryAddr, value); }
         /// <summary>Raw GBA instrument-set pointer from the song header +4.</summary>
         public uint InstrumentAddr { get => _instrumentAddr; set => SetField(ref _instrumentAddr, value); }
+        /// <summary>Selected song-table index (songId); -1 when nothing selected.
+        /// Used to enforce SongID-0 (silence) write protection.</summary>
+        public int SelectedSongId { get => _selectedSongId; set => SetField(ref _selectedSongId, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         /// <summary>Path to the selected MIDI file.</summary>
         public string MidiFilePath { get => _midiFilePath; set => SetField(ref _midiFilePath, value); }
@@ -92,6 +96,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             SongTableEntryAddr = 0;
             InstrumentAddr = 0;
+            SelectedSongId = -1;
             IsLoaded = false;
 
             if (addr == 0 || addr + 8 > (uint)rom.Data.Length) return;
@@ -111,6 +116,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (entryAddr + 8 > (uint)rom.Data.Length) return;
 
             SongTableEntryAddr = entryAddr;
+            SelectedSongId = (int)songId;
             IsLoaded = true;
         }
 
@@ -200,6 +206,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return "No ROM loaded.";
             if (!IsLoaded || SongTableEntryAddr == 0)
                 return "No song selected. Pick a destination song from the list first.";
+            // WF parity: SongID 0 is write-protected (UseWriteProtectionID00) —
+            // mirror the main Song Track editor and never repoint the silence
+            // song's table slot.
+            if (SelectedSongId == 0)
+                return "Song ID 0 is write-protected (silence song).";
             if (!HasMidiInfo || string.IsNullOrEmpty(MidiFilePath))
                 return "No MIDI file selected. Use 'Browse MIDI File...' first.";
             if (!File.Exists(MidiFilePath))

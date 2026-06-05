@@ -388,6 +388,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0)
                 return "No song loaded.";
 
+            // WF parity: SongID 0 is write-protected (UseWriteProtectionID00) —
+            // never repoint the silence song's table slot (mirrors Write_Click).
+            if (SelectedSongIndex == 0)
+                return "Song ID 0 is write-protected (silence song).";
+
             if (!File.Exists(filename))
                 return $"File not found: {filename}";
 

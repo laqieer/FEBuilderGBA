@@ -71,27 +71,37 @@ namespace FEBuilderGBA.Avalonia.Tests
             songHeaderAddr = 0x100000;
             entrySlot = tableBase; // entry 0
 
-            // Song table entry 0 -> header pointer + dummy player type.
+            // Song table entry 0 -> header0 pointer + dummy player type.
             WriteU32(rom.Data, (int)tableBase + 0, 0x08000000u | songHeaderAddr);
             WriteU32(rom.Data, (int)tableBase + 4, 0x00000000u);
-            // Entry 1 is a non-pointer so the table walk stops cleanly.
-            WriteU32(rom.Data, (int)tableBase + 8, 0x00000000u);
+            // Entry 1 -> a SECOND header (a writable, non-silence song so tests
+            // that import need a non-zero songId). Entry 2 terminates the walk.
+            uint song1Header = 0x110000;
+            WriteU32(rom.Data, (int)tableBase + 8, 0x08000000u | song1Header);
+            WriteU32(rom.Data, (int)tableBase + 12, 0x00000000u);
+            WriteU32(rom.Data, (int)tableBase + 16, 0x00000000u);
 
-            // Song header: 1 track, instrument pointer at +4, one track pointer.
-            int hdr = (int)songHeaderAddr;
-            rom.Data[hdr + 0] = 0x01; // track count
-            rom.Data[hdr + 1] = 0x10;
-            rom.Data[hdr + 2] = 0x20;
-            rom.Data[hdr + 3] = 0x80;
-            WriteU32(rom.Data, hdr + 4, 0x08100200u); // instrument
-            WriteU32(rom.Data, hdr + 8, 0x08100400u); // track 0 ptr
-            rom.Data[0x100400] = 0xB2;
+            // Song header 0: 1 track, instrument pointer at +4, one track pointer.
+            WriteSongHeader(rom, (int)songHeaderAddr, 0x100400);
+            // Song header 1.
+            WriteSongHeader(rom, (int)song1Header, 0x110400);
 
             // Repoint sound_table_pointer at the synthetic table.
             uint stp = rom.RomInfo.sound_table_pointer;
             WriteU32(rom.Data, (int)stp, 0x08000000u | tableBase);
 
             return rom;
+        }
+
+        static void WriteSongHeader(ROM rom, int hdr, uint trackDataOffset)
+        {
+            rom.Data[hdr + 0] = 0x01; // track count
+            rom.Data[hdr + 1] = 0x10;
+            rom.Data[hdr + 2] = 0x20;
+            rom.Data[hdr + 3] = 0x80;
+            WriteU32(rom.Data, hdr + 4, 0x08100200u);                 // instrument
+            WriteU32(rom.Data, hdr + 8, 0x08000000u | trackDataOffset); // track 0 ptr
+            rom.Data[(int)trackDataOffset] = 0xB2;
         }
 
         [Fact]
@@ -190,8 +200,11 @@ namespace FEBuilderGBA.Avalonia.Tests
 
                 var vm = new SongTrackViewModel();
                 var list = vm.LoadFullList();
-                vm.LoadEntry(list[0].addr);
-                vm.SelectedSongIndex = (int)list[0].tag;
+                Assert.True(list.Count >= 2);
+                // Use song 1 (writable) so the missing-file error isn't masked
+                // by the SongID-0 write-protect guard.
+                vm.LoadEntry(list[1].addr);
+                vm.SelectedSongIndex = (int)list[1].tag;
 
                 string missing = Path.Combine(Path.GetTempPath(),
                     $"no_such_{Guid.NewGuid():N}.mid");
@@ -200,6 +213,34 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.False(string.IsNullOrEmpty(error));
                 Assert.Equal(string.Empty, summary);
                 Assert.Equal(before, rom.Data); // zero mutation
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        /// <summary>
+        /// SongID 0 (silence) is write-protected: importing into it returns an
+        /// error and mutates ZERO bytes (WF UseWriteProtectionID00 parity).
+        /// </summary>
+        [Fact]
+        public void ImportMidi_SongId0_IsWriteProtected_NoMutation()
+        {
+            var rom = MakeRomWithSongTable(out _, out _, out _);
+            var prevRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+
+                var vm = new SongTrackViewModel();
+                var list = vm.LoadFullList();
+                vm.LoadEntry(list[0].addr);
+                vm.SelectedSongIndex = 0; // silence song
+
+                string? error = vm.ImportMidi("anything.mid", out string summary);
+                Assert.False(string.IsNullOrEmpty(error));
+                Assert.Contains("write-protected", error);
+                Assert.Equal(string.Empty, summary);
+                Assert.Equal(before, rom.Data);
             }
             finally { CoreState.ROM = prevRom; }
         }
@@ -234,19 +275,25 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.ROM = rom;
                 var vm = new SongTrackImportMidiViewModel();
                 var list = vm.LoadList();
-                Assert.NotEmpty(list);
+                Assert.True(list.Count >= 2);
                 Assert.Equal(headerAddr, list[0].addr);
 
-                // Production path: carry the songId (tag) so a shared header
-                // resolves to the selected slot.
+                // Song 0 resolves to entry-slot 0 (production path: carry the
+                // songId tag so a shared header maps to the selected slot).
                 vm.LoadEntry(list[0].addr, list[0].tag);
                 Assert.True(vm.IsLoaded);
                 Assert.Equal(entrySlot, vm.SongTableEntryAddr);
                 Assert.Equal(0x08100200u, vm.InstrumentAddr);
 
-                // Selected but no MIDI file -> error, no throw.
+                // Select song 1 (a writable, non-silence song): selected but no
+                // MIDI file -> error, no throw (and it is NOT the write-protect
+                // error, proving song 1 passes the SongID-0 guard).
+                vm.LoadEntry(list[1].addr, list[1].tag);
+                Assert.True(vm.IsLoaded);
+                Assert.Equal(1, vm.SelectedSongId);
                 string? error = vm.ImportMidi(out string summary);
                 Assert.False(string.IsNullOrEmpty(error));
+                Assert.DoesNotContain("write-protected", error);
                 Assert.Equal(string.Empty, summary);
             }
             finally { CoreState.ROM = prevRom; }
@@ -329,12 +376,19 @@ namespace FEBuilderGBA.Avalonia.Tests
                     Assert.NotEqual(pointerBefore, pointerAfter);
                     Assert.NotEqual(snapshot, rom.Data); // ROM really changed
 
-                    // Exactly one undo record was pushed.
+                    // Exactly ONE undo record was pushed (the test started with a
+                    // fresh CoreState.Undo, so the whole import — song-data
+                    // write_range + the table-slot write_u32 — must compose into
+                    // a single record at position 1).
                     Assert.True(CoreState.Undo!.IsModified);
+                    Assert.Equal(1, CoreState.Undo.UndoBuffer.Count);
+                    Assert.Equal(1, CoreState.Undo.Postion);
 
                     // Undo: the table entry pointer AND the whole ROM restore
-                    // byte-identical to the pre-import snapshot.
+                    // byte-identical to the pre-import snapshot, and the single
+                    // record steps back to position 0 (nothing left applied).
                     CoreState.Undo.RunUndo();
+                    Assert.Equal(0, CoreState.Undo.Postion);
                     Assert.Equal(pointerBefore, rom.u32(entrySlot));
                     Assert.Equal(snapshot, rom.Data);
 
