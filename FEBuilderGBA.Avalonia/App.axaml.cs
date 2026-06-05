@@ -65,6 +65,16 @@ namespace FEBuilderGBA.Avalonia
         /// </summary>
         public static string? ScreenshotTabAutomationId { get; set; }
 
+        /// <summary>
+        /// Optional AutomationId of a <see cref="global::Avalonia.Controls.Control"/>
+        /// (typically an <c>IsVisible</c>-toggled panel) the <c>--screenshot-all</c>
+        /// runner should force visible on each captured editor before rendering, so
+        /// a category panel normally hidden behind a selection state shows up in the
+        /// PNG. Null = no panel forced. Editors without a matching control are
+        /// captured unchanged. Opt-in via <c>--screenshot-show-panel=&lt;AutomationId&gt;</c>.
+        /// </summary>
+        public static string? ScreenshotShowPanelAutomationId { get; set; }
+
         /// <summary>Gap-sweep mode (Phase 1 density, Phase 2 labels, …) or null if no gap-sweep flag was passed.</summary>
         public static string? GapSweepMode { get; set; }
 
@@ -1094,6 +1104,10 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--screenshot-tab="))
                 {
                     ScreenshotTabAutomationId = args[i].Substring("--screenshot-tab=".Length);
+                }
+                else if (args[i].StartsWith("--screenshot-show-panel="))
+                {
+                    ScreenshotShowPanelAutomationId = args[i].Substring("--screenshot-show-panel=".Length);
                 }
                 else if (args[i] == "--lastrom")
                 {
