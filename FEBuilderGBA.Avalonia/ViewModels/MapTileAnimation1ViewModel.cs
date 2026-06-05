@@ -5,7 +5,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>Map tile animation type 1 editor.
     /// WinForms: MapTileAnimation1Form — block size 8, validated by isPointer(u32(addr+4)).
-    /// Fields: AnimInterval (u16@0), DataCount (u16@2), MapTileDataPointer (u32@4).</summary>
+    /// Fields: AnimInterval (u16@0), DataCount (u16@2), MapTileDataPointer (u32@4).
+    ///
+    /// <para>PLIST-RESOLUTION DEFERRED (#952, #11): the sibling editors
+    /// MapTileAnimationView (STEP 1) and MapTileAnimation2 (STEP 2) were rewired
+    /// to show resolved "ANIME1/ANIME2 MapName" labels via
+    /// <see cref="MapPListResolverCore"/>. MapTileAnimation1 is NOT a simple
+    /// label swap: this VM has no PLIST filter at all — its entry list already
+    /// shows DATA fields ("0x.. Interval=.. Count=..", correct WF parity for the
+    /// inner data table), so there is no raw 0x…/PLIST-hex label to resolve here.
+    /// Reaching WF parity (the filter-from-map-settings → PlistToOffsetAddr(
+    /// ANIMATION, anime1_plist) → selected-PLIST data structure that WF
+    /// MapTileAnimation1Form.MakeTileAnimation1 builds) is a STRUCTURAL feature
+    /// addition (new filter combo + Core BuildPlistList for anime1 + view
+    /// wiring), out of scope for the #11 label-resolution bug. Tracked for a
+    /// focused follow-up issue. The clean template already exists in
+    /// MapTileAnimation2Core/View if/when that follow-up lands.</para></summary>
     public class MapTileAnimation1ViewModel : ViewModelBase, IDataVerifiable
     {
         static readonly List<EditorFormRef.FieldDef> _fields =

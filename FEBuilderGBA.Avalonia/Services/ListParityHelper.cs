@@ -2067,13 +2067,19 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>Build map tile animation list matching MapTileAnimationViewModel.
-        /// Uses map_tileanime1_pointer — 4-byte pointer entries, stops at 0xFFFFFFFF.</summary>
+        /// Uses map_tileanime1_pointer — 4-byte pointer entries, stops at 0xFFFFFFFF.
+        /// Lockstep with MapTileAnimationViewModel.LoadMapTileAnimationList (#952,
+        /// #11): each slot index IS the ANIMATION PLIST id, resolved to an
+        /// "ANIME1/ANIME2 MapName" label via the shared resolver instead of a
+        /// raw 0x… pointer.</summary>
         static List<AddrResult> BuildMapTileAnimationList(ROM rom)
         {
             uint ptr = rom.RomInfo.map_tileanime1_pointer;
             if (ptr == 0) return new List<AddrResult>();
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            var cache = MapPListResolverCore.BuildCache(rom);
 
             const uint blockSize = 4;
             var result = new List<AddrResult>();
@@ -2085,11 +2091,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint pointer = rom.u32(addr);
                 if (pointer == 0xFFFFFFFF) break;
 
-                // Match Avalonia VM format
-                string ptrStr = U.isPointer(pointer)
-                    ? "0x" + pointer.ToString("X08")
-                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
-                string name = U.ToHexString(i) + " TileAnim " + ptrStr;
+                string label = MapPListResolverCore.ResolveLabel(
+                    rom, MapChangeCore.PlistType.ANIMATION, i, cache);
+                string name = U.ToHexString(i) + " " + label;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
@@ -3773,6 +3777,26 @@ namespace FEBuilderGBA.Avalonia.Services
             }
 
             return new List<AddrResult>();
+        }
+
+        /// <summary>Build the MapTileAnimation2 FILTER-combo list (the PLIST
+        /// filter rows shown above the entry list), in lockstep with
+        /// MapTileAnimation2ViewModel.LoadPlistList() →
+        /// MapTileAnimation2Core.BuildPlistList(). Each filter row's Display is
+        /// the resolved "ANIME2 MapName" label via the shared resolver (#952,
+        /// #11), not the raw "タイルアニメーション2 パレットアニメ:{plist}" string.
+        /// Returns one AddrResult per filter row (addr = resolved data offset,
+        /// name = resolved Display, tag = PLIST id) so parity tests can compare
+        /// the VM filter labels against this golden builder.</summary>
+        public static List<AddrResult> BuildMapTileAnimation2FilterList(ROM rom)
+        {
+            var rows = MapTileAnimation2Core.BuildPlistList(rom);
+            var result = new List<AddrResult>(rows.Count);
+            foreach (var row in rows)
+            {
+                result.Add(new AddrResult(row.Addr, row.Display, row.Plist));
+            }
+            return result;
         }
 
         /// <summary>Build map terrain name (English) list — from map_terrain_name_pointer.

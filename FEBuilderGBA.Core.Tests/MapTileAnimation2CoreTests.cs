@@ -235,6 +235,70 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // -----------------------------------------------------------------
+        // BuildPlistList resolved-label semantics (#952, #11)
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void BuildPlistList_ResolvesFilterLabelToAnime2MapName()
+        {
+            // A single map with anime2_plist == 1 resolving to a valid data
+            // block. The filter row's Display must be the RESOLVED
+            // "ANIME2 MapName" label, NOT the old raw
+            // "タイルアニメーション2 パレットアニメ:{plist}" PLIST-hex string.
+            var rom = MakeSyntheticFE8URom(out uint mapBase, out uint plistTableBase, out uint mapPtrBase);
+            int mapBaseI = (int)mapBase;
+            int dataSizeI = (int)rom.RomInfo.map_setting_datasize;
+
+            // map[0]: D0=pointer (valid), anime2_plist=1
+            WriteU32(rom.Data, mapBaseI + 0, 0x08800000u);
+            rom.Data[mapBaseI + 10] = 1;
+            // map[1]: terminator (non-pointer D0)
+            WriteU32(rom.Data, mapBaseI + dataSizeI + 0, 0u);
+
+            // PLIST table entry for plist=1 -> valid data block.
+            uint plist1Slot = plistTableBase + 1 * 4;
+            WriteU32(rom.Data, (int)plist1Slot, 0x08900000u);
+            WriteU32(rom.Data, (int)0x900000 + 0, 0x08A00000u);
+
+            var rows = MapTileAnimation2Core.BuildPlistList(rom);
+            Assert.Single(rows);
+            Assert.Equal(1u, rows[0].Plist);
+            Assert.False(rows[0].IsBroken);
+
+            // Must NOT be the old raw PLIST-hex label.
+            Assert.DoesNotContain("パレットアニメ", rows[0].Display);
+            // Must be the resolved ANIME2 label (split layout: anime2_plist==1
+            // matches under ANIMATION2; non-split: first matching field is
+            // anime2_plist so still "ANIME2 ...").
+            Assert.StartsWith("ANIME2 ", rows[0].Display);
+        }
+
+        [Fact]
+        public void BuildPlistList_BrokenRow_KeepsResolvedLabelPlusBrokenSuffix()
+        {
+            // Broken PLIST: Display = resolved label + "(破損)". The resolved
+            // prefix must not be the old raw PLIST-hex string, and the broken
+            // suffix paren must still be present (repair affordance).
+            var rom = MakeSyntheticFE8URom(out uint mapBase, out uint plistTableBase, out uint mapPtrBase);
+            int mapBaseI = (int)mapBase;
+            int dataSizeI = (int)rom.RomInfo.map_setting_datasize;
+
+            WriteU32(rom.Data, mapBaseI + 0, 0x08800000u);
+            rom.Data[mapBaseI + 10] = 2;
+            WriteU32(rom.Data, mapBaseI + dataSizeI + 0, 0u);
+            // plist=2 slot -> zero (broken).
+            WriteU32(rom.Data, (int)(plistTableBase + 2 * 4), 0u);
+
+            var rows = MapTileAnimation2Core.BuildPlistList(rom);
+            Assert.Single(rows);
+            Assert.True(rows[0].IsBroken);
+            Assert.DoesNotContain("パレットアニメ", rows[0].Display);
+            // Broken suffix still present (R._("(破損)") returns the JP source
+            // when no translation table is loaded; assert the open paren).
+            Assert.Contains("(", rows[0].Display);
+        }
+
+        // -----------------------------------------------------------------
         // BuildPaletteList - decodes per-row RGB
         // -----------------------------------------------------------------
 

@@ -509,9 +509,10 @@ Specialized utilities for different graphic types:
 - `MapPListResolverCore.cs` (Core, READ-ONLY) - Cross-platform port of the
   WinForms map-PLIST label resolver (`MapPointerForm.GetPListNameSplited` /
   `GetPListNameNotSplite` / `ConvertBaseAddrToType` + `MapSettingForm.PLists` /
-  `GetMapPListsWhereAddr`) used by the MapPointer + MapChange Avalonia editors to
-  show resolved map names (`MAP Ch1`, `MAPCHANGE Ch5`, `ANIME1 Prologue`, `OBJ …`,
-  `NULL`, `-EMPTY-`, `UNK`) instead of raw `0x08……` pointers (#952). `PLists`
+  `GetMapPListsWhereAddr`) used by the MapPointer + MapChange + MapTileAnimation
+  Avalonia editors to show resolved map names (`MAP Ch1`, `MAPCHANGE Ch5`,
+  `ANIME1 Prologue`, `ANIME2 Ch18 …`, `OBJ …`, `NULL`, `-EMPTY-`, `UNK`) instead
+  of raw `0x08……` pointers / PLIST-hex labels (#952). `PLists`
   reads each field from its REAL per-version source — `event_plist` from
   `RomInfo.map_setting_event_plist_pos`, FE6 worldmap from
   `map_setting_worldmap_plist_pos`, and the **PAL2 offset (146 vs 45) from the
@@ -530,6 +531,18 @@ Specialized utilities for different graphic types:
   `BuildMapChangeList` golden builders call the SAME resolver in lockstep;
   independent Core oracle tests (`MapPListResolverCoreTests`) hand-build
   expectations from raw map bytes on synthetic + real FE6/FE7U/FE8U ROMs.
+  MapTileAnimation rewire (#952 T5 slice B, bug #11): `MapTileAnimationView`
+  (the simple, menu-reachable editor) resolves each `map_tileanime1_pointer`
+  slot index — an ANIMATION PLIST id — via `ResolveLabel(rom, ANIMATION, i)`
+  (ANIME1 and ANIME2 both match under ANIMATION); `MapTileAnimation2Core.BuildPlistList`
+  resolves each FILTER-combo row via `ResolveLabel(rom, ANIMATION2, plist)` (the
+  broken-PLIST `(破損)` suffix is still appended). Lockstep golden builders:
+  `ListParityHelper.BuildMapTileAnimationList` + the new public
+  `BuildMapTileAnimation2FilterList`. **`MapTileAnimation1` is DEFERRED**: it has
+  no PLIST filter at all (its list shows DATA fields, not a raw label), so WF
+  parity there is a STRUCTURAL feature addition (filter-from-map-settings +
+  selected-PLIST data, mirroring MapTileAnimation2), tracked for a focused
+  follow-up — out of scope for the #11 label-resolution bug.
 
 ### Caching System
 
