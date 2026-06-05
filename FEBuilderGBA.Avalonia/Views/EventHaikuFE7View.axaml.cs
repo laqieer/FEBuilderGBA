@@ -21,19 +21,33 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += Write_Click;
+            TableFilter.SelectionChanged += TableFilter_SelectionChanged;
             Opened += (_, _) => LoadList();
         }
 
-        // OUT OF SCOPE (#947 / #7): the FE7 N1_ tutorial death-quote tables
+        // The FE7 N1_ tutorial death-quote tables
         // (event_haiku_tutorial_1_pointer / event_haiku_tutorial_2_pointer) use a
-        // DIFFERENT 12-byte schema and are intentionally NOT edited by this view's
-        // VM/panel. They remain a documented follow-up (see NavigateTo below).
+        // DIFFERENT 12-byte schema. They are now browsable + editable via the
+        // Table filter combo, which switches the VM to the 12-byte schema
+        // (#957 W1b). The shared detail panel re-labels itself per table.
+
+        EventHaikuFE7ViewModel.HaikuTable SelectedTable => TableFilter.SelectedIndex switch
+        {
+            1 => EventHaikuFE7ViewModel.HaikuTable.Tutorial1,
+            2 => EventHaikuFE7ViewModel.HaikuTable.Tutorial2,
+            _ => EventHaikuFE7ViewModel.HaikuTable.Main,
+        };
+
+        void TableFilter_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            LoadList();
+        }
 
         void LoadList()
         {
             try
             {
-                var items = _vm.LoadList();
+                var items = _vm.LoadList(SelectedTable);
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitByIdLoader(items, i));
             }
             catch (Exception ex)
@@ -57,6 +71,17 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            bool tutorial = _vm.IsTutorialTable;
+            // Route through R._() at assignment time — TranslatedWindow.TranslateAll()
+            // runs once at window open, so values assigned afterward must be
+            // localized explicitly to apply in ja/zh (#958 review).
+            TableLabel.Text = R._(_vm.Table switch
+            {
+                EventHaikuFE7ViewModel.HaikuTable.Tutorial1 => "Tutorial 1 - Lyn (12-byte)",
+                EventHaikuFE7ViewModel.HaikuTable.Tutorial2 => "Tutorial 2 - Eliwood (12-byte)",
+                _ => "Main (16-byte)",
+            });
+
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
 
             UnitNud.Value = _vm.Unit;
@@ -78,6 +103,23 @@ namespace FEBuilderGBA.Avalonia.Views
             Unknown0FBox.Value = _vm.Unknown0F;
 
             EventPointerBox.Value = _vm.EventPointer;
+
+            // The 12-byte tutorial schema has no Text / 0x06 / 0x07 fields
+            // (event pointer lives at offset 0x04, flag at 0x08). Disable the
+            // controls that don't exist in that schema so the user can't edit
+            // bytes that won't be written back.
+            TextNud.IsEnabled = !tutorial;
+            Unknown06Box.IsEnabled = !tutorial;
+            Unknown07Box.IsEnabled = !tutorial;
+
+            // The two trailing Unknown bytes sit at 0x0E/0x0F in the 16-byte
+            // MAIN schema but at 0x0A/0x0B in the 12-byte tutorial schema —
+            // relabel them per active table so the offsets aren't misleading.
+            // Route through R._() at assignment time (TranslateAll() ran once at
+            // open). The 0x0A/0x0B/0x0E/0x0F label strings already have ja/zh
+            // entries (#958 review).
+            UnknownTrailing0Label.Text = R._(tutorial ? "Unknown (0x0A):" : "Unknown (0x0E):");
+            UnknownTrailing1Label.Text = R._(tutorial ? "Unknown (0x0B):" : "Unknown (0x0F):");
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -164,29 +206,67 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Select the row whose address matches <paramref name="address"/>.
-        /// If the address sits in a table that this view's <see cref="LoadList"/>
-        /// did NOT load (e.g. FE7's tutorial tables at
-        /// <c>event_haiku_tutorial_1_pointer</c> /
-        /// <c>event_haiku_tutorial_2_pointer</c> which use 12-byte blocks),
-        /// log the hit and do NOT call LoadEntry — the VM assumes the main
-        /// 16-byte schema and would misparse the 12-byte tutorial rows
-        /// (Copilot review #522 round 4). The Core search helper
-        /// <see cref="MapEventUnitCore.FindHaikuFE7Address"/> still routes
-        /// the user to the correct tutorial address; the user can manually
-        /// open the address if a 12-byte-aware tutorial list is added in a
-        /// follow-up.
+        /// Resolves which physical table the address belongs to — the main
+        /// 16-byte table or one of the two 12-byte tutorial tables
+        /// (<c>event_haiku_tutorial_1_pointer</c> /
+        /// <c>event_haiku_tutorial_2_pointer</c>) — switches the Table filter
+        /// combo to that table (reloading the list under the correct schema),
+        /// then selects the row (#957 W1b). Previously out-of-list (tutorial)
+        /// hits were only logged because the VM assumed the 16-byte schema.
         /// </summary>
         public void NavigateTo(uint address)
         {
             if (address == 0) return;
+
+            // First try the currently-loaded table.
             EntryList.SelectAddress(address);
             if (_vm.CurrentAddr == address) return;
-            // Out-of-list address (tutorial-table hit). The N1 (tutorial)
-            // schema is 12-byte but this VM assumes the main 16-byte
-            // schema — loading the entry would misparse fields and leave
-            // Write enabled against the wrong schema (Copilot review #522
-            // round 4). Log the hit; tutorial-list UI is a follow-up.
-            Log.Notify("EventHaikuFE7View.NavigateTo: tutorial-table (12-byte) hit at 0x" + address.ToString("X8") + ". Tutorial list UI is tracked as a follow-up to PR #522.");
+
+            // Resolve which table the address belongs to and switch to it.
+            int targetIndex = ResolveTableIndexFor(address);
+            if (targetIndex >= 0 && targetIndex != TableFilter.SelectedIndex)
+            {
+                // Setting SelectedIndex fires TableFilter_SelectionChanged -> LoadList().
+                TableFilter.SelectedIndex = targetIndex;
+                EntryList.SelectAddress(address);
+                if (_vm.CurrentAddr == address) return;
+            }
+
+            Log.Notify("EventHaikuFE7View.NavigateTo: address 0x" + address.ToString("X8") + " not found in any haiku table.");
+        }
+
+        /// <summary>
+        /// Returns the Table filter combo index (0=Main, 1=Tutorial1,
+        /// 2=Tutorial2) whose data region contains <paramref name="address"/>,
+        /// or -1 if none. Read-only: derives each table's base via the VM's
+        /// static resolver and checks block alignment within the loaded range,
+        /// without mutating the VM's current-table state.
+        /// </summary>
+        int ResolveTableIndexFor(uint address)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return -1;
+            foreach (var (index, table) in new[]
+                     {
+                         (0, EventHaikuFE7ViewModel.HaikuTable.Main),
+                         (1, EventHaikuFE7ViewModel.HaikuTable.Tutorial1),
+                         (2, EventHaikuFE7ViewModel.HaikuTable.Tutorial2),
+                     })
+            {
+                uint baseAddr = EventHaikuFE7ViewModel.ResolveBaseAddr(rom, table);
+                if (baseAddr == 0 || address < baseAddr) continue;
+                uint blockSize = table == EventHaikuFE7ViewModel.HaikuTable.Main ? 16u : 12u;
+                if ((address - baseAddr) % blockSize != 0) continue;
+
+                // Walk to the same terminator LoadList uses so we only match
+                // addresses that the list would actually surface.
+                for (uint a = baseAddr; a + blockSize <= (uint)rom.Data.Length; a += blockSize)
+                {
+                    if (rom.u8(a) == 0x00) break;
+                    if (a == address) return index;
+                }
+            }
+            return -1;
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;

@@ -5,16 +5,38 @@
         Title="Haiku (FE7)" Width="1264" Height="1055"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="EventHaikuFE7_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+    <DockPanel Grid.Column="0" Margin="4">
+      <!-- Table filter: switches between the main 16-byte table and the two
+           12-byte tutorial tables, mirroring WinForms N1_FilterComboBox. -->
+      <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="6" Margin="0,0,0,4">
+        <TextBlock Text="Table:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="EventHaikuFE7_Table_Combo"
+                  Name="TableFilter" Width="190" SelectedIndex="0">
+          <!-- ComboBoxItem string Content doesn't trigger ViewTranslationHelper;
+               wrap each option in a TextBlock so its Text is localized in
+               ja/zh (#958 review). -->
+          <ComboBoxItem><TextBlock Text="Main (16-byte)" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="Tutorial 1 - Lyn (12-byte)" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="Tutorial 2 - Eliwood (12-byte)" /></ComboBoxItem>
+        </ComboBox>
+      </StackPanel>
+      <controls:AddressListControl AutomationProperties.AutomationId="EventHaikuFE7_Entry_List" Name="EntryList" />
+    </DockPanel>
 
     <ScrollViewer Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Haiku (FE7)" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        <!-- Header: current table + record address (mirrors WinForms
+             N1_FilterComboBox selection + the per-list Address readout). -->
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Table:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_Table_Label" Grid.Row="0" Grid.Column="1" Name="TableLabel" VerticalAlignment="Center" Foreground="Gray" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_Addr_Label" Grid.Row="1" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+        </Grid>
 
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <!-- Unit (offset +0, 1-based id) — IdFieldControl, ANY-capable names. -->
           <controls:IdFieldControl AutomationProperties.AutomationId="EventHaikuFE7_UnitNud_Input"
                                    Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
@@ -70,11 +92,16 @@
           <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_AchievementFlag_Input" FormatString="0"
                          Grid.Row="8" Grid.Column="1" Name="AchievementFlagBox" Minimum="0" Maximum="65535" Margin="0,2" />
 
-          <TextBlock Grid.Row="9" Grid.Column="0" Text="Unknown (0x0E):" VerticalAlignment="Center" />
+          <!-- These two trailing bytes are at 0x0E/0x0F in the 16-byte MAIN
+               schema but 0x0A/0x0B in the 12-byte tutorial schema; UpdateUI()
+               relabels them per active table (#958 review). -->
+          <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_UnknownTrailing0_Label"
+                     Grid.Row="9" Grid.Column="0" Name="UnknownTrailing0Label" Text="Unknown (0x0E):" VerticalAlignment="Center" />
           <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal" Spacing="8">
             <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown0E_Input" FormatString="0"
                            Name="Unknown0EBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
-            <TextBlock Text="Unknown (0x0F):" VerticalAlignment="Center" />
+            <TextBlock AutomationProperties.AutomationId="EventHaikuFE7_UnknownTrailing1_Label"
+                       Name="UnknownTrailing1Label" Text="Unknown (0x0F):" VerticalAlignment="Center" />
             <NumericUpDown AutomationProperties.AutomationId="EventHaikuFE7_Unknown0F_Input" FormatString="0"
                            Name="Unknown0FBox" Minimum="0" Maximum="255" VerticalAlignment="Center" Width="120" />
           </StackPanel>

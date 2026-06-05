@@ -324,43 +324,56 @@ public class EventUnitFE7ParityTests
     }
 
     [Fact]
-    public void EventBattleTalkFE7View_NavigateTo_LogsSecondaryTableHit()
+    public void EventBattleTalkFE7View_NavigateTo_SwitchesToSecondaryTable()
     {
-        // Copilot review #522 round 4: NavigateTo must NOT call LoadEntry
-        // for secondary-table addresses because the VM assumes 16-byte
-        // blocks but the secondary table uses 12-byte blocks — calling
-        // LoadEntry would misparse fields. The fallback should log + no-op.
+        // #957 W1b: the secondary 12-byte table (event_ballte_talk2_pointer) is
+        // now a browsable/editable table behind the Table filter combo, so
+        // NavigateTo resolves which table the address belongs to and switches
+        // the combo to it (loading the correct schema) instead of only logging
+        // an out-of-list hit (the former Copilot review #522 round-4 gap).
         string repoRoot = FindRepoRoot();
         string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "EventBattleTalkFE7View.axaml.cs");
         string source = File.ReadAllText(path);
 
-        // Must log the secondary-table hit so the user gets visible
-        // feedback.
+        // NavigateTo must resolve + switch the Table filter combo.
         Assert.Matches(
-            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?Log\.Notify", RegexOptions.Singleline),
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?ResolveTableIndexFor\(", RegexOptions.Singleline),
             source);
-        // Must NOT call _vm.LoadEntry (12-byte schema mismatch).
-        Assert.DoesNotMatch(
-            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?_vm\.LoadEntry\(", RegexOptions.Singleline),
+        Assert.Matches(
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?TableFilter\.SelectedIndex", RegexOptions.Singleline),
             source);
+        // The 12-byte secondary schema must be wired in the VM.
+        string vm = File.ReadAllText(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "ViewModels", "EventBattleTalkFE7ViewModel.cs"));
+        Assert.Contains("BattleTalkTable.Secondary", vm);
+        Assert.Contains("event_ballte_talk2_pointer", vm);
     }
 
     [Fact]
-    public void EventHaikuFE7View_NavigateTo_LogsTutorialTableHit()
+    public void EventHaikuFE7View_NavigateTo_SwitchesToTutorialTable()
     {
+        // #957 W1b: the two 12-byte tutorial tables (event_haiku_tutorial_1/2_pointer)
+        // are now browsable/editable behind the Table filter combo; NavigateTo
+        // resolves + switches the combo to the correct table instead of only
+        // logging an out-of-list hit (the former Copilot review #522 round-4 gap).
         string repoRoot = FindRepoRoot();
         string path = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "EventHaikuFE7View.axaml.cs");
         string source = File.ReadAllText(path);
 
         Assert.Matches(
-            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?Log\.Notify", RegexOptions.Singleline),
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?ResolveTableIndexFor\(", RegexOptions.Singleline),
             source);
-        // Must NOT misparse 12-byte tutorial rows via LoadEntry.
-        Assert.DoesNotMatch(
-            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?_vm\.LoadEntry\(", RegexOptions.Singleline),
+        Assert.Matches(
+            new Regex(@"public\s+void\s+NavigateTo\([^)]*\)\s*\{[\s\S]*?TableFilter\.SelectedIndex", RegexOptions.Singleline),
             source);
+        string vm = File.ReadAllText(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "ViewModels", "EventHaikuFE7ViewModel.cs"));
+        Assert.Contains("HaikuTable.Tutorial1", vm);
+        Assert.Contains("HaikuTable.Tutorial2", vm);
+        Assert.Contains("event_haiku_tutorial_1_pointer", vm);
+        Assert.Contains("event_haiku_tutorial_2_pointer", vm);
     }
 
     // -----------------------------------------------------------------

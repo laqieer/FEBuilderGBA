@@ -2485,6 +2485,80 @@ namespace FEBuilderGBA.Avalonia.Services
             return BuildEventHaikuFE6List(rom);
         }
 
+        // ------------------------------------------------------------------
+        // FE7 12-byte secondary tables (#957 W1b) — these tables live behind a
+        // Table filter combo (NOT the default render), so they are NOT in the
+        // EditorMap registration; tests call these golden builders directly to
+        // lockstep the secondary EventHaikuFE7ViewModel / EventBattleTalkFE7ViewModel
+        // lists against an independent ROM walk.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Build the FE7 N1 tutorial death-quote list (Lyn = tutorial 1,
+        /// Eliwood = tutorial 2) — 12-byte entries, stop when u8(addr)==0.
+        /// Mirrors WinForms EventHaikuFE7Form.N1_Init + the N1 list draw
+        /// (single unit name) and EventHaikuFE7ViewModel.LoadList(Tutorial*).
+        /// </summary>
+        static List<AddrResult> BuildEventHaikuFE7TutorialList(ROM rom, uint pointerLocation)
+        {
+            if (pointerLocation == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(pointerLocation);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                if (rom.u8(addr) == 0x00) break;
+
+                uint unitId = rom.u8(addr);
+                // 1-based ROM-stored unit ID (matches EventHaikuFE7ViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unitId);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
+            }
+            return result;
+        }
+
+        /// <summary>Golden list for the FE7 Lyn-chapter tutorial death quotes (event_haiku_tutorial_1_pointer).</summary>
+        public static List<AddrResult> BuildEventHaikuFE7Tutorial1List(ROM rom)
+            => BuildEventHaikuFE7TutorialList(rom, rom.RomInfo.event_haiku_tutorial_1_pointer);
+
+        /// <summary>Golden list for the FE7 Eliwood-chapter tutorial death quotes (event_haiku_tutorial_2_pointer).</summary>
+        public static List<AddrResult> BuildEventHaikuFE7Tutorial2List(ROM rom)
+            => BuildEventHaikuFE7TutorialList(rom, rom.RomInfo.event_haiku_tutorial_2_pointer);
+
+        /// <summary>
+        /// Build the FE7 secondary battle-talk list (event_ballte_talk2_pointer)
+        /// — 12-byte entries, stop when u8(addr)==0 || u8(addr)==0xFF; the
+        /// secondary list draws only the single unit name. Mirrors WinForms
+        /// EventBattleTalkFE7Form.N1_Init + EventBattleTalkFE7ViewModel
+        /// .LoadList(Secondary).
+        /// </summary>
+        public static List<AddrResult> BuildEventBattleTalkFE7SecondaryList(ROM rom)
+        {
+            uint ptr = rom.RomInfo.event_ballte_talk2_pointer;
+            if (ptr == 0) return new List<AddrResult>();
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+
+            const uint blockSize = 12;
+            var result = new List<AddrResult>();
+            for (int i = 0; i < 256; i++)
+            {
+                uint addr = baseAddr + (uint)(i * blockSize);
+                if (addr + blockSize > (uint)rom.Data.Length) break;
+                uint unit = rom.u8(addr);
+                if (unit == 0 || unit == 0xFF) break;
+
+                // 1-based ROM-stored unit ID (matches EventBattleTalkFE7ViewModel).
+                string unitName = NameResolver.GetUnitNameByOneBasedId(unit);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName}", (uint)i));
+            }
+            return result;
+        }
+
         /// <summary>Build FE7 event force sortie list — fixed 23 entries starting at map 0x17.</summary>
         static List<AddrResult> BuildEventForceSortieFE7List(ROM rom)
         {

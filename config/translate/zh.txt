@@ -23940,3 +23940,15 @@ WF 中的 N03 子标签页保存 16 个无固定语义的通用字节 (B16..B31)
 :The editable per-skill sub-list arrays live in FE8N Ver2/Ver3 (Unit/Class/Item/Item2/Composite), not Ver1.
 可编辑的每个技能子列表数组位于 FE8N Ver2/Ver3 (单位/类别/物品/物品2/复合) 中，而不在 Ver1。
 
+:Main (16-byte)
+主表 (16字节)
+
+:Tutorial 1 - Lyn (12-byte)
+教程1 琳篇 (12字节)
+
+:Tutorial 2 - Eliwood (12-byte)
+教程2 艾利乌德篇 (12字节)
+
+:Secondary (12-byte)
+次表 (12字节)
+
