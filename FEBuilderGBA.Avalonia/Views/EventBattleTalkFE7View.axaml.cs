@@ -17,14 +17,25 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
+            TableFilter.SelectionChanged += TableFilter_SelectionChanged;
             Opened += (_, _) => LoadList();
+        }
+
+        EventBattleTalkFE7ViewModel.BattleTalkTable SelectedTable =>
+            TableFilter.SelectedIndex == 1
+                ? EventBattleTalkFE7ViewModel.BattleTalkTable.Secondary
+                : EventBattleTalkFE7ViewModel.BattleTalkTable.Main;
+
+        void TableFilter_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            LoadList();
         }
 
         void LoadList()
         {
             try
             {
-                var items = _vm.LoadList();
+                var items = _vm.LoadList(SelectedTable);
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.UnitPortraitFromAddrU8Loader(items, i));
             }
             catch (Exception ex)
@@ -48,34 +59,73 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
+            TableLabel.Text = _vm.IsSecondaryTable ? "Secondary (12-byte)" : "Main (16-byte)";
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
         /// <summary>
         /// Select the row whose address matches <paramref name="address"/>.
-        /// If the address sits in a table that this view's <see cref="LoadList"/>
-        /// did NOT load (e.g. FE7's secondary table at
-        /// <c>event_ballte_talk2_pointer</c>, which uses 12-byte blocks),
-        /// log the hit and do NOT call LoadEntry — the VM assumes 16-byte
-        /// blocks and would misparse the 12-byte schema (Copilot review
-        /// #522 round 4). The caller (e.g. EventUnitFE7View's
-        /// JumpBattleTalk_Click) gets the hit address via the Core helper
-        /// <see cref="MapEventUnitCore.FindBattleTalkFE7UnitIdAddress"/>;
-        /// the user can manually paste the address into the Address textbox
-        /// if a 12-byte-aware secondary list is added in a follow-up.
+        /// Resolves which physical table the address belongs to — the main
+        /// 16-byte table or the secondary 12-byte table
+        /// (<c>event_ballte_talk2_pointer</c>) — switches the Table filter combo
+        /// to that table (reloading the list under the correct schema), then
+        /// selects the row (#957 W1b). Previously out-of-list (secondary) hits
+        /// were only logged because the VM assumed the 16-byte schema.
         /// </summary>
         public void NavigateTo(uint address)
         {
             if (address == 0) return;
-            // Try the primary list first.
+
+            // First try the currently-loaded table.
             EntryList.SelectAddress(address);
             if (_vm.CurrentAddr == address) return;
-            // Out-of-list address (table-2 hit). The Table-2 schema is
-            // 12-byte but the VM assumes 16-byte — loading the entry here
-            // would misparse fields and leave Write enabled against the
-            // wrong schema (Copilot review #522 round 4). Log the hit and
-            // surface a status update via the address label.
-            Log.Notify("EventBattleTalkFE7View.NavigateTo: secondary-table (12-byte) hit at 0x" + address.ToString("X8") + ". Secondary list UI is tracked as a follow-up to PR #522.");
+
+            int targetIndex = ResolveTableIndexFor(address);
+            if (targetIndex >= 0 && targetIndex != TableFilter.SelectedIndex)
+            {
+                // Setting SelectedIndex fires TableFilter_SelectionChanged -> LoadList().
+                TableFilter.SelectedIndex = targetIndex;
+                EntryList.SelectAddress(address);
+                if (_vm.CurrentAddr == address) return;
+            }
+
+            Log.Notify("EventBattleTalkFE7View.NavigateTo: address 0x" + address.ToString("X8") + " not found in any battle-talk table.");
+        }
+
+        /// <summary>
+        /// Returns the Table filter combo index (0=Main, 1=Secondary) whose
+        /// data region contains <paramref name="address"/>, or -1 if none.
+        /// Read-only: does not mutate the VM's current-table state.
+        /// </summary>
+        int ResolveTableIndexFor(uint address)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return -1;
+
+            // Main: 16-byte stride, stop on u16==0 || u16==0xFFFF.
+            uint mainBase = EventBattleTalkFE7ViewModel.ResolveBaseAddr(rom, EventBattleTalkFE7ViewModel.BattleTalkTable.Main);
+            if (mainBase != 0 && address >= mainBase && (address - mainBase) % 16 == 0)
+            {
+                for (uint a = mainBase; a + 16 <= (uint)rom.Data.Length; a += 16)
+                {
+                    uint u = rom.u16(a);
+                    if (u == 0 || u == 0xFFFF) break;
+                    if (a == address) return 0;
+                }
+            }
+
+            // Secondary: 12-byte stride, stop on u8==0 || u8==0xFF.
+            uint secBase = EventBattleTalkFE7ViewModel.ResolveBaseAddr(rom, EventBattleTalkFE7ViewModel.BattleTalkTable.Secondary);
+            if (secBase != 0 && address >= secBase && (address - secBase) % 12 == 0)
+            {
+                for (uint a = secBase; a + 12 <= (uint)rom.Data.Length; a += 12)
+                {
+                    uint u = rom.u8(a);
+                    if (u == 0 || u == 0xFF) break;
+                    if (a == address) return 1;
+                }
+            }
+            return -1;
         }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
