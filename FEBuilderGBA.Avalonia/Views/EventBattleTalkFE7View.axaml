@@ -13,8 +13,11 @@
         <TextBlock Text="Table:" VerticalAlignment="Center" />
         <ComboBox AutomationProperties.AutomationId="EventBattleTalkFE7_Table_Combo"
                   Name="TableFilter" Width="170" SelectedIndex="0">
-          <ComboBoxItem>Main (16-byte)</ComboBoxItem>
-          <ComboBoxItem>Secondary (12-byte)</ComboBoxItem>
+          <!-- ComboBoxItem string Content doesn't trigger ViewTranslationHelper;
+               wrap each option in a TextBlock so its Text is localized in
+               ja/zh (#958 review). -->
+          <ComboBoxItem><TextBlock Text="Main (16-byte)" /></ComboBoxItem>
+          <ComboBoxItem><TextBlock Text="Secondary (12-byte)" /></ComboBoxItem>
         </ComboBox>
       </StackPanel>
       <controls:AddressListControl AutomationProperties.AutomationId="EventBattleTalkFE7_Entry_List" Name="EntryList" />

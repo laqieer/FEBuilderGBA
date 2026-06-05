@@ -72,12 +72,15 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             bool tutorial = _vm.IsTutorialTable;
-            TableLabel.Text = _vm.Table switch
+            // Route through R._() at assignment time — TranslatedWindow.TranslateAll()
+            // runs once at window open, so values assigned afterward must be
+            // localized explicitly to apply in ja/zh (#958 review).
+            TableLabel.Text = R._(_vm.Table switch
             {
                 EventHaikuFE7ViewModel.HaikuTable.Tutorial1 => "Tutorial 1 - Lyn (12-byte)",
                 EventHaikuFE7ViewModel.HaikuTable.Tutorial2 => "Tutorial 2 - Eliwood (12-byte)",
                 _ => "Main (16-byte)",
-            };
+            });
 
             AddrLabel.Text = $"0x{_vm.CurrentAddr:X08}";
 

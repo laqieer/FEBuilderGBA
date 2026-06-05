@@ -49,7 +49,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _unknown0F;
 
         /// <summary>The currently-selected table (Main / Tutorial1 / Tutorial2).</summary>
-        public HaikuTable Table { get => _table; set => SetField(ref _table, value); }
+        public HaikuTable Table
+        {
+            get => _table;
+            set
+            {
+                if (SetField(ref _table, value))
+                {
+                    // Notify the derived read-only properties so bindings on
+                    // IsTutorialTable / BlockSize refresh too (#958 review).
+                    OnPropertyChanged(nameof(IsTutorialTable));
+                    OnPropertyChanged(nameof(BlockSize));
+                }
+            }
+        }
 
         /// <summary>True when the current table uses the 12-byte tutorial schema.</summary>
         public bool IsTutorialTable => _table != HaikuTable.Main;
@@ -95,7 +108,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public List<AddrResult> LoadList(HaikuTable table)
         {
-            _table = table;
+            // Use the property setter so PropertyChanged fires for
+            // Table / IsTutorialTable / BlockSize (#958 review).
+            Table = table;
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 

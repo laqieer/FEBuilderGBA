@@ -49,7 +49,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _unknown0F;
 
         /// <summary>The currently-selected table (Main / Secondary).</summary>
-        public BattleTalkTable Table { get => _table; set => SetField(ref _table, value); }
+        public BattleTalkTable Table
+        {
+            get => _table;
+            set
+            {
+                if (SetField(ref _table, value))
+                {
+                    // Notify the derived read-only properties so bindings on
+                    // IsSecondaryTable / BlockSize refresh too (#958 review).
+                    OnPropertyChanged(nameof(IsSecondaryTable));
+                    OnPropertyChanged(nameof(BlockSize));
+                }
+            }
+        }
 
         /// <summary>True when the current table uses the 12-byte secondary schema.</summary>
         public bool IsSecondaryTable => _table == BattleTalkTable.Secondary;
@@ -92,7 +105,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public List<AddrResult> LoadList(BattleTalkTable table)
         {
-            _table = table;
+            // Use the property setter so PropertyChanged fires for
+            // Table / IsSecondaryTable / BlockSize (#958 review).
+            Table = table;
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 

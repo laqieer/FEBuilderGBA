@@ -59,7 +59,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateUI()
         {
-            TableLabel.Text = _vm.IsSecondaryTable ? "Secondary (12-byte)" : "Main (16-byte)";
+            // Route through R._() at assignment time — TranslatedWindow.TranslateAll()
+            // runs once at window open, so values assigned afterward must be
+            // localized explicitly to apply in ja/zh (#958 review).
+            TableLabel.Text = R._(_vm.IsSecondaryTable ? "Secondary (12-byte)" : "Main (16-byte)");
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
         }
 
