@@ -79,41 +79,61 @@ namespace FEBuilderGBA
             plists.anime2_plist     = (uint)rom.u8(mapSettingAddr + 10);
             plists.mapchange_plist  = (uint)rom.u8(mapSettingAddr + 11);
 
-            plists.event_plist = (uint)rom.u8(mapSettingAddr + rom.RomInfo.map_setting_event_plist_pos);
+            plists.event_plist = SafeReadByte(rom, mapSettingAddr + rom.RomInfo.map_setting_event_plist_pos);
 
             // FE6-only world-map event PLIST. WF reads this via a separate
             // routine (GetWorldMapEventIDWhereAddr); fold it in here only for
-            // FE6 so the resolver's WMEVENT branch is self-contained.
+            // FE6 so the resolver's WMEVENT branch is self-contained. The
+            // version-specific offset can land past EOF on a truncated ROM
+            // (ROM.u8 enforces bounds and would throw), so bounds-guard it and
+            // leave the field 0 if unsafe (matches the doc's all-zero contract).
             if (rom.RomInfo.version == 6)
             {
                 plists.worldmapevent_plist =
-                    (uint)rom.u8(mapSettingAddr + rom.RomInfo.map_setting_worldmap_plist_pos);
+                    SafeReadByte(rom, mapSettingAddr + rom.RomInfo.map_setting_worldmap_plist_pos);
             }
 
             // Second palette PLIST byte — offset depends on the installed patch.
+            // The +146/+45 offset can also exceed a truncated ROM; bounds-guard
+            // and leave palette2_plist = 0 if out of range.
             PatchDetection.MapSecondPalette_extends secondPalette =
                 PatchDetection.SearchFlag0x28ToMapSecondPalettePatch(rom);
             if (secondPalette == PatchDetection.MapSecondPalette_extends.Flag0x28_146)
             {
-                plists.palette2_plist = (uint)rom.u8(mapSettingAddr + 146);
+                plists.palette2_plist = SafeReadByte(rom, mapSettingAddr + 146);
             }
             else if (secondPalette == PatchDetection.MapSecondPalette_extends.Flag0x28_45)
             {
-                plists.palette2_plist = (uint)rom.u8(mapSettingAddr + 45);
+                plists.palette2_plist = SafeReadByte(rom, mapSettingAddr + 45);
             }
 
             return plists;
         }
 
         /// <summary>
+        /// Read a single byte at <paramref name="addr"/>, returning 0 when the
+        /// address would land at or past the end of the ROM. <see cref="ROM.u8"/>
+        /// enforces bounds and throws on overflow, so version-specific record
+        /// offsets (worldmap / PAL2) that exceed a truncated ROM must be guarded
+        /// here rather than letting the read throw.
+        /// </summary>
+        static uint SafeReadByte(ROM rom, uint addr)
+        {
+            if (addr >= (uint)rom.Data.Length) return 0u;
+            return (uint)rom.u8(addr);
+        }
+
+        /// <summary>
         /// FE6-only: read the world-map event PLIST byte for a map setting.
         /// Mirrors WinForms <c>MapSettingForm.GetWorldMapEventIDWhereAddr</c>.
+        /// Bounds-guards the version-specific offset (returns 0 if it would
+        /// read past EOF) for the same reason as <see cref="GetMapPListsWhereAddr"/>.
         /// </summary>
         public static uint GetWorldMapEventIDWhereAddr(ROM rom, uint mapSettingAddr)
         {
             if (rom == null || rom.RomInfo == null) return 0u;
             if (!U.isSafetyOffset(mapSettingAddr, rom)) return 0u;
-            return (uint)rom.u8(mapSettingAddr + rom.RomInfo.map_setting_worldmap_plist_pos);
+            return SafeReadByte(rom, mapSettingAddr + rom.RomInfo.map_setting_worldmap_plist_pos);
         }
 
         /// <summary>

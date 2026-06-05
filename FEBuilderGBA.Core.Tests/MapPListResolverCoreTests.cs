@@ -325,6 +325,72 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // =================================================================
+        // Truncated-ROM bounds guards (#953 review threads 1 & 2): the
+        // version-specific worldmap / PAL2 offset reads must NOT throw when
+        // the record sits near EOF — the field is left 0.
+        // =================================================================
+
+        /// <summary>
+        /// FE6: a map record whose +worldmap offset would read past EOF must
+        /// leave worldmapevent_plist = 0 (and not throw). Build a ROM where the
+        /// map setting starts so close to the end that map_setting_worldmap_plist_pos
+        /// overflows, but the fixed +4..+11 fields are still in bounds.
+        /// </summary>
+        [Fact]
+        public void GetMapPListsWhereAddr_Fe6WorldmapOffsetPastEof_LeavesZero_NoThrow()
+        {
+            var rom = MakeFe6Rom();
+            uint wmOff = rom.RomInfo.map_setting_worldmap_plist_pos;
+            // Place the record so that mapAddr + wmOff == Data.Length (just past
+            // EOF) while mapAddr + 11 stays in bounds.
+            uint mapAddr = (uint)rom.Data.Length - wmOff;
+            // Sanity: the fixed PLIST byte at +11 must remain readable.
+            Assert.True(mapAddr + 11 < (uint)rom.Data.Length);
+
+            var pl = MapPListResolverCore.GetMapPListsWhereAddr(rom, mapAddr);
+            Assert.Equal(0u, pl.worldmapevent_plist);
+            // The in-bounds fixed fields were still read (no throw, struct populated).
+            Assert.Equal((uint)rom.u8(mapAddr + 7), pl.config_plist);
+        }
+
+        /// <summary>
+        /// FE8U with the Flag0x28_146 patch: a record whose +146 byte would
+        /// read past EOF must leave palette2_plist = 0 (and not throw).
+        /// </summary>
+        [Fact]
+        public void GetMapPListsWhereAddr_Pal2OffsetPastEof_LeavesZero_NoThrow()
+        {
+            PatchDetection.ClearCacheMapSecondPalette();
+            var rom = MakeFe8uRom();
+            // Install the Flag0x28_146 signature for FE8U so the +146 read is attempted.
+            rom.Data[0x19950] = 0x00;
+            rom.Data[0x19951] = 0x4A;
+            Assert.Equal(PatchDetection.MapSecondPalette_extends.Flag0x28_146,
+                PatchDetection.SearchFlag0x28ToMapSecondPalettePatch(rom));
+
+            // Place the record so +146 == Data.Length (past EOF) but +11 in bounds.
+            uint mapAddr = (uint)rom.Data.Length - 146u;
+            Assert.True(mapAddr + 11 < (uint)rom.Data.Length);
+
+            var pl = MapPListResolverCore.GetMapPListsWhereAddr(rom, mapAddr);
+            Assert.Equal(0u, pl.palette2_plist);
+            PatchDetection.ClearCacheMapSecondPalette();
+        }
+
+        /// <summary>
+        /// GetWorldMapEventIDWhereAddr bounds-guards the same offset.
+        /// </summary>
+        [Fact]
+        public void GetWorldMapEventIDWhereAddr_OffsetPastEof_ReturnsZero_NoThrow()
+        {
+            var rom = MakeFe6Rom();
+            uint wmOff = rom.RomInfo.map_setting_worldmap_plist_pos;
+            uint mapAddr = (uint)rom.Data.Length - wmOff;
+            uint v = MapPListResolverCore.GetWorldMapEventIDWhereAddr(rom, mapAddr);
+            Assert.Equal(0u, v);
+        }
+
+        // =================================================================
         // ConvertBaseAddrToType — base→type map incl FE6 WORLDMAP.
         // =================================================================
 

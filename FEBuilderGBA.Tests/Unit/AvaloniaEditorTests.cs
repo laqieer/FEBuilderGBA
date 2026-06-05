@@ -772,8 +772,16 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void MapPointerViewModel_UsesMapPointerPointer()
         {
+            // After #952 the default (typeIndex 0) MAP filter resolves its base
+            // pointer through the shared MapChangeCore.GetPlistBasePointer seam
+            // (PlistType.MAP → RomInfo.map_map_pointer_pointer) instead of
+            // referencing the RomInfo field literally, and builds the list with
+            // the map-name resolver (resolved "MAP {name}" labels, not raw 0x…).
             var src = File.ReadAllText(Path.Combine(AvaloniaDir, "ViewModels", "MapPointerViewModel.cs"));
-            Assert.Contains("map_map_pointer_pointer", src);
+            // The VM routes the default filter through the canonical MAP base.
+            Assert.Contains("PlistType.MAP", src);
+            // ...and builds resolved labels via the shared resolver seam.
+            Assert.Contains("MapPListResolverCore.ResolveLabel", src);
         }
 
         // ------------------------------------------------------------------ Map Tile Animation Viewer

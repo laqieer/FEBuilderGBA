@@ -85,7 +85,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            uint limit = rom.RomInfo.map_map_pointer_list_default_size;
+            // Use the canonical PLIST limit: split-PLIST ROMs force 256
+            // (byte-indexed) — the vanilla map_map_pointer_list_default_size
+            // (~0xEC on FE8) would TRUNCATE the list on split layouts. Mirrors
+            // WF MapPointerForm.Init's limit calculation (#953 review).
+            uint limit = MapChangeCore.GetPlistLimit(rom);
             if (limit == 0) limit = 256;
 
             // Build one local resolve cache for the whole list (each map's

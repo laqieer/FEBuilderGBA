@@ -2543,7 +2543,9 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            uint limit = rom.RomInfo.map_map_pointer_list_default_size;
+            // Canonical PLIST limit (256 on split layouts) so the golden list
+            // does not truncate vs the VM — keeps VM↔golden in lockstep (#953).
+            uint limit = MapChangeCore.GetPlistLimit(rom);
             if (limit == 0) limit = 256;
 
             // Lockstep with MapPointerViewModel.LoadMapPointerList default
