@@ -28,8 +28,19 @@
                                    PickRequested="UnitId_Pick"
                                    ValueChanged="UnitId_ValueChanged" />
 
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Summoned Unit:" VerticalAlignment="Center" />
-          <NumericUpDown AutomationProperties.AutomationId="SummonUnitViewer_SummonedUnit_Input" FormatString="0" Grid.Row="2" Grid.Column="1" Name="UnknownBox" Minimum="0" Maximum="255" VerticalAlignment="Center" />
+          <!-- #950 T4: "Summoned Unit" (B1, WF J_1_UNIT/L_1_UNIT) is a real unit ID.
+               Migrated from plain NumericUpDown to a unit IdFieldControl mirroring
+               the "Summoner" (B0/UnitIdBox) field. Host Name="UnknownBox" +
+               AutomationId (SummonUnitViewer_SummonedUnit_Input) preserved; the
+               1-based unit-ID conversion follows the sibling field's helpers. -->
+          <controls:IdFieldControl AutomationProperties.AutomationId="SummonUnitViewer_SummonedUnit_Input"
+                                   Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Name="UnknownBox"
+                                   Label="Summoned Unit:"
+                                   Maximum="255"
+                                   JumpRequested="SummonedUnit_Jump"
+                                   PickRequested="SummonedUnit_Pick"
+                                   ValueChanged="SummonedUnit_ValueChanged" />
         </Grid>
 
         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,16,0,0">

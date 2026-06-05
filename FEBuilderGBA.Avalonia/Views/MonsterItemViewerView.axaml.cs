@@ -102,10 +102,20 @@ namespace FEBuilderGBA.Avalonia.Views
             ItemIdBox.Value = _vm.ItemId;
             try { ItemIdBox.NameText = NameResolver.GetItemName(_vm.ItemId); }
             catch (Exception ex) { Log.Error("MonsterItemViewerView.UpdateItemUI ItemName: {0}", ex.Message); }
+            // #950 T4: Item 2..5 (B1..B4) are item IDs; populate the IdFieldControl
+            // value + inline item-name preview just like slot-1 ItemIdBox.
             DropRateBox.Value = _vm.DropRate;
             Unknown1Box.Value = _vm.Unknown1;
             Unknown2Box.Value = _vm.Unknown2;
             Unknown3Box.Value = _vm.Unknown3;
+            try
+            {
+                DropRateBox.NameText = NameResolver.GetItemName(_vm.DropRate);
+                Unknown1Box.NameText = NameResolver.GetItemName(_vm.Unknown1);
+                Unknown2Box.NameText = NameResolver.GetItemName(_vm.Unknown2);
+                Unknown3Box.NameText = NameResolver.GetItemName(_vm.Unknown3);
+            }
+            catch (Exception ex) { Log.Error("MonsterItemViewerView.UpdateItemUI ItemName 2..5: {0}", ex.Message); }
             ItemCommentBox.Text = ReadComment(_vm.CurrentAddr);
         }
 
@@ -116,10 +126,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 _vm.ItemId = ItemIdBox.Value;
-                _vm.DropRate = (uint)(DropRateBox.Value ?? 0);
-                _vm.Unknown1 = (uint)(Unknown1Box.Value ?? 0);
-                _vm.Unknown2 = (uint)(Unknown2Box.Value ?? 0);
-                _vm.Unknown3 = (uint)(Unknown3Box.Value ?? 0);
+                // #950 T4: IdFieldControl.Value is a non-nullable uint.
+                _vm.DropRate = DropRateBox.Value;
+                _vm.Unknown1 = Unknown1Box.Value;
+                _vm.Unknown2 = Unknown2Box.Value;
+                _vm.Unknown3 = Unknown3Box.Value;
                 _vm.WriteMonsterItem();
                 uint preserve = _vm.CurrentAddr;
                 _undoService.Commit();
@@ -634,6 +645,61 @@ namespace FEBuilderGBA.Avalonia.Views
         void ItemId_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
         {
             try { ItemIdBox.NameText = NameResolver.GetItemName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM */ }
+        }
+
+        // ============================================================
+        // Item 2..5 picker helpers (#950 T4). Each of the 4 secondary
+        // item-id slots (B1..B4) reuses the exact slot-1 Jump/Pick wiring
+        // (ItemAddrFor + ItemEditorView/ItemFE6View). The Jump routes to
+        // the matching ItemEditor entry; Pick opens it in pick mode and
+        // writes back the chosen item id; ValueChanged refreshes the
+        // inline item-name preview.
+        // ============================================================
+
+        void JumpToItemEditor(IdFieldControl box)
+        {
+            try
+            {
+                uint addr = ItemAddrFor(box.Value);
+                if (addr == 0) return;
+                if (CoreState.ROM?.RomInfo?.version == 6)
+                    WindowManager.Instance.Navigate<ItemFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ItemEditorView>(addr);
+            }
+            catch (Exception ex) { Log.Error("MonsterItemViewerView.JumpToItemEditor: {0}", ex.Message); }
+        }
+
+        void Item2_Jump(object? sender, RoutedEventArgs e) => JumpToItemEditor(DropRateBox);
+        async void Item2_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(DropRateBox);
+        void Item2_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { DropRateBox.NameText = NameResolver.GetItemName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM */ }
+        }
+
+        void Item3_Jump(object? sender, RoutedEventArgs e) => JumpToItemEditor(Unknown1Box);
+        async void Item3_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(Unknown1Box);
+        void Item3_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { Unknown1Box.NameText = NameResolver.GetItemName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM */ }
+        }
+
+        void Item4_Jump(object? sender, RoutedEventArgs e) => JumpToItemEditor(Unknown2Box);
+        async void Item4_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(Unknown2Box);
+        void Item4_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { Unknown2Box.NameText = NameResolver.GetItemName(e.NewValue); }
+            catch { /* NameResolver may fail without ROM */ }
+        }
+
+        void Item5_Jump(object? sender, RoutedEventArgs e) => JumpToItemEditor(Unknown3Box);
+        async void Item5_Pick(object? sender, RoutedEventArgs e) => await PickItemIdInto(Unknown3Box);
+        void Item5_ValueChanged(object? sender, IdFieldValueChangedEventArgs e)
+        {
+            try { Unknown3Box.NameText = NameResolver.GetItemName(e.NewValue); }
             catch { /* NameResolver may fail without ROM */ }
         }
 

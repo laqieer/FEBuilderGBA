@@ -906,6 +906,169 @@ public class UnifiedIdFieldMigrationTests
         Assert.False(pickButton!.IsVisible);
     }
 
+    // ====================================================================
+    // #950 T4 — secondary type-ID fields migrated to IdFieldControl.
+    //   Tier 1: MonsterItemViewer Item 2..5 (item), MonsterProbabilityViewer
+    //           Class ID 1..5 (class), SummonUnitViewer Summoned Unit (unit).
+    //   Tier 2: ClassOPDemo / OPClassDemoViewer Display Weapon B14 (class).
+    //   Tier 3: EventCond TALK Unit 1/2 (unit) + OBJECT Chest Item (item).
+    // ====================================================================
+
+    // ---- Tier 1: MonsterItemViewer Item 2..5 (DropRate/Unknown1..3Box) ----
+
+    [AvaloniaTheory]
+    [InlineData("DropRateBox", "Item 2:")]
+    [InlineData("Unknown1Box", "Item 3:")]
+    [InlineData("Unknown2Box", "Item 4:")]
+    [InlineData("Unknown3Box", "Item 5:")]
+    public void MonsterItemViewer_SecondaryItemBoxes_AreIdFieldControls(string name, string label)
+    {
+        var view = new MonsterItemViewerView();
+        var ctrl = view.FindControl<IdFieldControl>(name);
+        Assert.NotNull(ctrl);
+        Assert.Equal(label, ctrl!.Label);
+        Assert.True(ctrl.ShowPick); // item fields keep Pick visible
+    }
+
+    [AvaloniaTheory]
+    [InlineData("MonsterItemViewer_Item_Item2_Input")]
+    [InlineData("MonsterItemViewer_Item_Item3_Input")]
+    [InlineData("MonsterItemViewer_Item_Item4_Input")]
+    [InlineData("MonsterItemViewer_Item_Item5_Input")]
+    public void MonsterItemViewer_SecondaryItem_AutomationIdResolvesToNumericUpDownUniquely(string automationId)
+    {
+        var view = new MonsterItemViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, automationId); }
+        finally { view.Close(); }
+    }
+
+    // ---- Tier 1: MonsterProbabilityViewer Class ID 1..5 -------------------
+
+    [AvaloniaTheory]
+    [InlineData("ClassId1Box", "Class ID 1:")]
+    [InlineData("ClassId2Box", "Class ID 2:")]
+    [InlineData("ClassId3Box", "Class ID 3:")]
+    [InlineData("ClassId4Box", "Class ID 4:")]
+    [InlineData("ClassId5Box", "Class ID 5:")]
+    public void MonsterProbabilityViewer_ClassIdBoxes_AreIdFieldControls(string name, string label)
+    {
+        var view = new MonsterProbabilityViewerView();
+        var ctrl = view.FindControl<IdFieldControl>(name);
+        Assert.NotNull(ctrl);
+        Assert.Equal(label, ctrl!.Label);
+        Assert.True(ctrl.ShowPick); // class fields keep Pick visible
+    }
+
+    [AvaloniaTheory]
+    [InlineData("MonsterProbabilityViewer_ClassId1_Input")]
+    [InlineData("MonsterProbabilityViewer_ClassId2_Input")]
+    [InlineData("MonsterProbabilityViewer_ClassId3_Input")]
+    [InlineData("MonsterProbabilityViewer_ClassId4_Input")]
+    [InlineData("MonsterProbabilityViewer_ClassId5_Input")]
+    public void MonsterProbabilityViewer_ClassId_AutomationIdResolvesToNumericUpDownUniquely(string automationId)
+    {
+        var view = new MonsterProbabilityViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, automationId); }
+        finally { view.Close(); }
+    }
+
+    // ---- Tier 1: SummonUnitViewer Summoned Unit (UnknownBox) --------------
+
+    [AvaloniaFact]
+    public void SummonUnitViewer_SummonedUnitBox_IsIdFieldControl()
+    {
+        var view = new SummonUnitViewerView();
+        var ctrl = view.FindControl<IdFieldControl>("UnknownBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Summoned Unit:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void SummonUnitViewer_SummonedUnit_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new SummonUnitViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "SummonUnitViewer_SummonedUnit_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- Tier 2: ClassOPDemo / OPClassDemoViewer Display Weapon (B14) -----
+
+    [AvaloniaFact]
+    public void ClassOPDemo_DisplayWeaponBox_IsIdFieldControl()
+    {
+        var view = new ClassOPDemoView();
+        var ctrl = view.FindControl<IdFieldControl>("DisplayWeaponBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Class ID:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void ClassOPDemo_DisplayWeapon_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new ClassOPDemoView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "ClassOPDemo_DisplayWeapon_Input"); }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void OPClassDemoViewer_DisplayWeaponBox_IsIdFieldControl()
+    {
+        var view = new OPClassDemoViewerView();
+        var ctrl = view.FindControl<IdFieldControl>("DisplayWeaponBox");
+        Assert.NotNull(ctrl);
+        Assert.Equal("Class ID:", ctrl!.Label);
+        Assert.True(ctrl.ShowPick);
+    }
+
+    [AvaloniaFact]
+    public void OPClassDemoViewer_DisplayWeapon_AutomationIdResolvesToNumericUpDownUniquely()
+    {
+        var view = new OPClassDemoViewerView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, "OPClassDemoViewer_DisplayWeapon_Input"); }
+        finally { view.Close(); }
+    }
+
+    // ---- Tier 3: EventCond TALK Unit 1/2 + OBJECT Chest Item -------------
+
+    [AvaloniaTheory]
+    [InlineData("Unit1Box")]
+    [InlineData("Unit2Box")]
+    public void EventCond_TalkUnitBoxes_AreIdFieldControls(string name)
+    {
+        var view = new EventCondView();
+        var ctrl = view.FindControl<IdFieldControl>(name);
+        Assert.NotNull(ctrl);
+        Assert.True(ctrl!.ShowPick); // unit fields keep Pick visible
+    }
+
+    [AvaloniaFact]
+    public void EventCond_ChestItemBox_IsIdFieldControl()
+    {
+        var view = new EventCondView();
+        var ctrl = view.FindControl<IdFieldControl>("ChestItemBox");
+        Assert.NotNull(ctrl);
+        Assert.True(ctrl!.ShowPick); // item field keeps Pick visible
+    }
+
+    [AvaloniaTheory]
+    [InlineData("EventCond_Unit1_Input")]
+    [InlineData("EventCond_Unit2_Input")]
+    [InlineData("EventCond_ChestItem_Input")]
+    public void EventCond_TalkObject_AutomationIdResolvesToNumericUpDownUniquely(string automationId)
+    {
+        var view = new EventCondView();
+        view.Show();
+        try { AssertAutomationIdResolvesToNumericUpDown(view, automationId); }
+        finally { view.Close(); }
+    }
+
     // ---- Helpers ------------------------------------------------------
 
     static void AssertAutomationIdResolvesToNumericUpDown(Window view, string automationId)

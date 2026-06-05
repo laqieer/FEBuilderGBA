@@ -122,12 +122,22 @@
                      Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2"
                      Name="PalettePreview" IsReadOnly="True" VerticalAlignment="Center" />
 
-            <!-- Row 5: Display Weapon (Class) (B14) -->
+            <!-- Row 5: Display Weapon (Class) (B14, WF J_14_CLASS/L_14_CLASS).
+                 #950 T4: migrated from plain NumericUpDown to a class
+                 IdFieldControl (hyperlink label + numeric + class-name preview
+                 + Jump + Pick). Host Name="DisplayWeaponBox" + AutomationId
+                 (DisplayWeapon_Input) preserved. The separate ClassNamePreview
+                 TextBox is kept (the ClassName_Label AutomationId is asserted by
+                 ClassOPDemoParityTests) as the canonical class-name readout. -->
             <Label Grid.Row="5" Grid.Column="0" Content="Display Weapon (Class):" VerticalAlignment="Center" />
-            <NumericUpDown AutomationProperties.AutomationId="ClassOPDemo_DisplayWeapon_Input"
-                           FormatString="0" Grid.Row="5" Grid.Column="1"
-                           Name="DisplayWeaponBox"
-                           Minimum="0" Maximum="255" VerticalAlignment="Center" />
+            <controls:IdFieldControl AutomationProperties.AutomationId="ClassOPDemo_DisplayWeapon_Input"
+                                     Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2"
+                                     Name="DisplayWeaponBox"
+                                     Label="Class ID:"
+                                     Maximum="255"
+                                     JumpRequested="ClassId_Jump"
+                                     PickRequested="ClassId_Pick"
+                                     ValueChanged="ClassId_ValueChanged" />
             <TextBox AutomationProperties.AutomationId="ClassOPDemo_ClassName_Label"
                      Grid.Row="5" Grid.Column="3" Grid.ColumnSpan="2"
                      Name="ClassNamePreview" IsReadOnly="True" VerticalAlignment="Center" />

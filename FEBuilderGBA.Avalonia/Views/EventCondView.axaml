@@ -152,14 +152,25 @@
         <Border AutomationProperties.AutomationId="EventCond_TalkPanel_Border" Name="TalkPanel" BorderBrush="LightGreen" BorderThickness="1" Padding="6" IsVisible="False">
           <StackPanel Spacing="6">
             <TextBlock AutomationProperties.AutomationId="EventCond_TalkHeader_Label" Text="Talk Condition" FontWeight="Bold" />
+            <!-- #950 T4: TALK Unit 1/2 (WF J_*_UNIT/L_*_UNIT, 1-based unit IDs)
+                 migrated from plain NumericUpDown to a unit IdFieldControl
+                 (label + numeric + unit-name preview + Jump + Pick). Host Names
+                 (Unit1Box/Unit2Box) + AutomationIds (Unit1_Input/Unit2_Input)
+                 preserved. The separate Unit1/2NameLabel readouts are kept (their
+                 IsVisible is toggled per TALK subtype and the EventCondParityTests
+                 assert their AutomationIds). The category Compose path is NOT
+                 dynamic for these fields — they are static inline AXAML controls
+                 inside an IsVisible-toggled panel, so the migration is clean. -->
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="EventCond_Unit1_Label" Text="Unit 1 (Source):" VerticalAlignment="Center" Width="120" />
-              <NumericUpDown AutomationProperties.AutomationId="EventCond_Unit1_Input" Name="Unit1Box" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="EventCond_Unit1_Input" Name="Unit1Box"
+                                       Maximum="255" JumpRequested="Unit1_Jump" PickRequested="Unit1_Pick" ValueChanged="Unit1_ValueChanged" />
               <TextBlock AutomationProperties.AutomationId="EventCond_Unit1Name_Label" Name="Unit1NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="EventCond_Unit2_Label" Text="Unit 2 (Target):" VerticalAlignment="Center" Width="120" />
-              <NumericUpDown AutomationProperties.AutomationId="EventCond_Unit2_Input" Name="Unit2Box" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="EventCond_Unit2_Input" Name="Unit2Box"
+                                       Maximum="255" JumpRequested="Unit2_Jump" PickRequested="Unit2_Pick" ValueChanged="Unit2_ValueChanged" />
               <TextBlock AutomationProperties.AutomationId="EventCond_Unit2Name_Label" Name="Unit2NameLabel" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -193,9 +204,14 @@
               <TextBlock AutomationProperties.AutomationId="EventCond_EventType_Label" Text="Event Type:" VerticalAlignment="Center" Width="120" />
               <NumericUpDown AutomationProperties.AutomationId="EventCond_EventType_Input" Name="EventTypeBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
             </StackPanel>
+            <!-- #950 T4: OBJECT Chest Item (WF chest item id) migrated from plain
+                 NumericUpDown to an item IdFieldControl. Host Name="ChestItemBox"
+                 + AutomationId (ChestItem_Input) preserved; the ChestItemNameLabel
+                 readout is kept (its AutomationId is asserted by the parity tests). -->
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="EventCond_ChestItem_Label" Text="Chest Item:" VerticalAlignment="Center" Width="120" />
-              <NumericUpDown AutomationProperties.AutomationId="EventCond_ChestItem_Input" Name="ChestItemBox" FormatString="0" Minimum="0" Maximum="255" Width="80" />
+              <controls:IdFieldControl AutomationProperties.AutomationId="EventCond_ChestItem_Input" Name="ChestItemBox"
+                                       Maximum="255" JumpRequested="ChestItem_Jump" PickRequested="ChestItem_Pick" ValueChanged="ChestItem_ValueChanged" />
               <TextBlock AutomationProperties.AutomationId="EventCond_ChestItemName_Label" Name="ChestItemNameLabel" VerticalAlignment="Center" Margin="8,0,0,0" Foreground="Gray" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="6">
