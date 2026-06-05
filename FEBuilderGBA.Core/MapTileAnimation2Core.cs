@@ -144,11 +144,13 @@ namespace FEBuilderGBA
             // shared resolver (#952, #11) instead of the raw
             // "タイルアニメーション2 パレットアニメ:{plist}" PLIST-hex string.
             // Built once and reused across the loop (per-call local cache).
+            // The cache already enumerated every map via MapSettingCore.MakeMapIDList,
+            // so reuse cache.Maps for the filter scan instead of a second
+            // MakeMapIDList allocation/scan (#954 review).
             var resolveCache = MapPListResolverCore.BuildCache(rom);
 
             var seen = new HashSet<uint>();
-            var maps = MapSettingCore.MakeMapIDList(rom);
-            foreach (var map in maps)
+            foreach (var map in resolveCache.Maps)
             {
                 if (map.addr + 11 > (uint)rom.Data.Length) continue;
                 uint plist = rom.u8(map.addr + 10);

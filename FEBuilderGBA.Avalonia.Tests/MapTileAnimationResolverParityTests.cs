@@ -169,10 +169,12 @@ public class MapTileAnimationResolverParityTests : IClassFixture<RomFixture>
         Assert.NotNull(label);
         // A resolved row is "{idHex} {TYPE MapName}" / "{idHex} NULL" /
         // "{idHex} -EMPTY-" / "{idHex} UNK" (filter labels omit the id prefix).
-        // The id prefix uses U.ToHexString (e.g. "0x01"), which is allowed; what
-        // is forbidden is an 8-digit raw POINTER like "0x08123456" as the value.
-        Assert.DoesNotContain("0x08", label);
-        Assert.False(Regex.IsMatch(label, @"0x[0-9A-Fa-f]{8}"),
+        // The id prefix uses U.ToHexString (e.g. "0x01"), which is allowed, and a
+        // legitimate map name could even contain a short "0x08" substring — so we
+        // forbid ONLY a FULL GBA pointer literal: a word-bounded 8-hex-digit 0x
+        // value like "0x08123456" (#954 review — the old bare "0x08" substring
+        // check was over-aggressive and could reject a valid label).
+        Assert.False(Regex.IsMatch(label, @"\b0x[0-9A-Fa-f]{8}\b"),
             $"{ctx}: row label still contains a raw 0x… pointer: '{label}'");
     }
 
