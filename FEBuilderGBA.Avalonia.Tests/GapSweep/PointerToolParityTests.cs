@@ -712,7 +712,214 @@ public class PointerToolParityTests
         Assert.True(body.Length > 100, "LookupAddressType body looks too small to do real work");
     }
 
+    // -----------------------------------------------------------------
+    // #966 — cross-ROM pointer search (raw + LDR literal-pool) wiring.
+    // Two synthetic ROMs: the current ROM (CoreState.ROM) and an "other
+    // ROM" loaded from a temp file. The other ROM holds a known reference
+    // to a target address; LoadOtherRom must populate the OtherROM* fields
+    // via U.GrepPointerAll / U.GrepPointerAllOnLDR.
+    // -----------------------------------------------------------------
+
+    /// <summary>Target offset whose references we plant in the other ROM.</summary>
+    const uint CrossRomTargetOffset = 0x4000;
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_RawMatch_PopulatesOtherRomAddressAndRef()
+    {
+        // The other ROM has a raw 32-bit pointer (0x08000000+T) at offset
+        // RawRefOffset → GrepPointerAll must find it. OtherRomAddress shows the
+        // searched data address (T); OtherRomRefPointer shows the reference
+        // location (RawRefOffset).
+        const uint rawRefOffset = 0x1000;
+        byte[] other = MakeOtherRomWithRawPointer(rawRefOffset, CrossRomTargetOffset);
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{CrossRomTargetOffset:X08}";
+            vm.RunSearch();
+            Assert.Equal($"0x{CrossRomTargetOffset:X08}", vm.OtherRomAddress);
+            Assert.Equal($"0x{rawRefOffset:X08}", vm.OtherRomRefPointer);
+        });
+    }
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_RawOnly_NoLdr_LeavesLdrFieldsEmpty()
+    {
+        // A raw reference exists but NO Thumb LDR literal-pool load points at
+        // the target → the LDR fields stay empty and the LDR ZERO warning is
+        // NOT raised (WF hides labels on no-match; there is no "ZERO on
+        // no-match" branch).
+        const uint rawRefOffset = 0x1000;
+        byte[] other = MakeOtherRomWithRawPointer(rawRefOffset, CrossRomTargetOffset);
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{CrossRomTargetOffset:X08}";
+            vm.RunSearch();
+            // Raw path matched.
+            Assert.Equal($"0x{rawRefOffset:X08}", vm.OtherRomRefPointer);
+            // LDR path did NOT match.
+            Assert.Equal(string.Empty, vm.OtherRomLdrAddress);
+            Assert.Equal(string.Empty, vm.OtherRomLdrRefPointer);
+            Assert.False(vm.HasZeroAtLdr);
+            Assert.False(vm.HasVeryFarAtLdr);
+        });
+    }
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_LdrMatch_PopulatesLdrAddressAndSlot()
+    {
+        // The other ROM has a minimal Thumb `LDR rX,[pc,#imm]` at LdrInstr
+        // whose literal-pool slot at LdrSlot holds 0x08000000+T.
+        // GrepPointerAllOnLDR returns the literal-pool SLOT offset (NOT the
+        // instruction address) → OtherRomLdrRefPointer must equal LdrSlot.
+        const uint ldrInstr = 0x200;
+        const uint ldrSlot = 0x204; // Padding4(toPointer(0x200)+2+0) = 0x...204
+        byte[] other = MakeOtherRomWithLdr(ldrInstr, ldrSlot, CrossRomTargetOffset);
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{CrossRomTargetOffset:X08}";
+            vm.RunSearch();
+            Assert.Equal($"0x{CrossRomTargetOffset:X08}", vm.OtherRomLdrAddress);
+            // The ref field is the literal-pool slot, not the LDR instruction.
+            Assert.Equal($"0x{ldrSlot:X08}", vm.OtherRomLdrRefPointer);
+            Assert.NotEqual($"0x{ldrInstr:X08}", vm.OtherRomLdrRefPointer);
+        });
+    }
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_NoMatch_LeavesAllFieldsEmpty_NoThrow()
+    {
+        // The other ROM contains NO reference (raw or LDR) to the target →
+        // all four OtherROM* fields stay empty, no warning is raised, no throw.
+        byte[] other = new byte[0x10000]; // all zeros, no reference anywhere
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{CrossRomTargetOffset:X08}";
+            vm.RunSearch(); // must not throw
+            Assert.Equal(string.Empty, vm.OtherRomAddress);
+            Assert.Equal(string.Empty, vm.OtherRomRefPointer);
+            Assert.Equal(string.Empty, vm.OtherRomLdrAddress);
+            Assert.Equal(string.Empty, vm.OtherRomLdrRefPointer);
+            Assert.False(vm.HasZeroAtDirect);
+            Assert.False(vm.HasVeryFarAtDirect);
+            Assert.False(vm.HasZeroAtLdr);
+            Assert.False(vm.HasVeryFarAtLdr);
+        });
+    }
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_DangerZoneAddress_NoThrow_FieldsEmpty()
+    {
+        // An address below the 0x200 danger-zone floor must be refused safely:
+        // fields stay empty, no warning, no throw. (Copilot CLI review point 3
+        // — the guard does not use U.isSafetyOffset on the other ROM.)
+        const uint rawRefOffset = 0x1000;
+        byte[] other = MakeOtherRomWithRawPointer(rawRefOffset, 0x100); // target in danger zone
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = "0x100"; // < 0x200
+            vm.RunSearch(); // must not throw
+            Assert.Equal(string.Empty, vm.OtherRomAddress);
+            Assert.Equal(string.Empty, vm.OtherRomRefPointer);
+            Assert.Equal(string.Empty, vm.OtherRomLdrAddress);
+            Assert.Equal(string.Empty, vm.OtherRomLdrRefPointer);
+        });
+    }
+
+    [Fact]
+    public void ViewModel_LoadOtherRom_ThenInvalidAddress_ClearsStaleOtherRomFields()
+    {
+        // After a successful cross-ROM match, typing an invalid address must
+        // clear the stale OtherROM result (Copilot CLI review point 4).
+        const uint rawRefOffset = 0x1000;
+        byte[] other = MakeOtherRomWithRawPointer(rawRefOffset, CrossRomTargetOffset);
+
+        RunWithOtherRom(other, vm =>
+        {
+            vm.AddressInput = $"0x{CrossRomTargetOffset:X08}";
+            vm.RunSearch();
+            Assert.False(string.IsNullOrEmpty(vm.OtherRomRefPointer));
+
+            // Now an invalid address — the stale match must be cleared.
+            vm.AddressInput = "not-a-hex";
+            vm.RunSearch();
+            Assert.Equal(string.Empty, vm.OtherRomAddress);
+            Assert.Equal(string.Empty, vm.OtherRomRefPointer);
+            Assert.Equal(string.Empty, vm.OtherRomLdrAddress);
+            Assert.Equal(string.Empty, vm.OtherRomLdrRefPointer);
+        });
+    }
+
     // ---------------------------- Helpers ----------------------------
+
+    /// <summary>
+    /// Run <paramref name="body"/> with CoreState.ROM = a synthetic FE8U ROM
+    /// and an other-ROM loaded from a temp file containing
+    /// <paramref name="otherBytes"/>. Restores CoreState.ROM and deletes the
+    /// temp file afterward.
+    /// </summary>
+    static void RunWithOtherRom(byte[] otherBytes, Action<PointerToolViewModel> body)
+    {
+        var vm = new PointerToolViewModel();
+        ROM rom = MakeSyntheticFe8uRom();
+        ROM? prev = CoreState.ROM;
+        string tempPath = Path.Combine(Path.GetTempPath(),
+            $"pointertool-crossrom-{Guid.NewGuid():N}.bin");
+        try
+        {
+            CoreState.ROM = rom;
+            File.WriteAllBytes(tempPath, otherBytes);
+            vm.LoadOtherRom(tempPath);
+            body(vm);
+        }
+        finally
+        {
+            CoreState.ROM = prev;
+            try { File.Delete(tempPath); } catch { }
+        }
+    }
+
+    /// <summary>
+    /// Build an other-ROM byte buffer with a single raw 32-bit GBA pointer to
+    /// <paramref name="targetOffset"/> planted at <paramref name="refOffset"/>.
+    /// </summary>
+    static byte[] MakeOtherRomWithRawPointer(uint refOffset, uint targetOffset)
+    {
+        var data = new byte[0x10000];
+        uint ptr = 0x08000000u + targetOffset;
+        data[refOffset + 0] = (byte)(ptr & 0xFF);
+        data[refOffset + 1] = (byte)((ptr >> 8) & 0xFF);
+        data[refOffset + 2] = (byte)((ptr >> 16) & 0xFF);
+        data[refOffset + 3] = (byte)((ptr >> 24) & 0xFF);
+        return data;
+    }
+
+    /// <summary>
+    /// Build an other-ROM byte buffer with a Thumb `LDR rX,[pc,#imm]` at
+    /// <paramref name="ldrInstrOffset"/> whose literal-pool slot at
+    /// <paramref name="ldrSlotOffset"/> holds the GBA pointer to
+    /// <paramref name="targetOffset"/>. The instruction is encoded as
+    /// 0x4800 (LDR r0, [pc, #0]) so the disassembler's literal-pool slot
+    /// resolves to <paramref name="ldrSlotOffset"/>.
+    /// </summary>
+    static byte[] MakeOtherRomWithLdr(uint ldrInstrOffset, uint ldrSlotOffset, uint targetOffset)
+    {
+        var data = new byte[0x10000];
+        // LDR r0,[pc,#0] => 0x4800 (little-endian bytes 00 48).
+        data[ldrInstrOffset + 0] = 0x00;
+        data[ldrInstrOffset + 1] = 0x48;
+        // Literal-pool slot holds the GBA pointer to the target.
+        uint ptr = 0x08000000u + targetOffset;
+        data[ldrSlotOffset + 0] = (byte)(ptr & 0xFF);
+        data[ldrSlotOffset + 1] = (byte)((ptr >> 8) & 0xFF);
+        data[ldrSlotOffset + 2] = (byte)((ptr >> 16) & 0xFF);
+        data[ldrSlotOffset + 3] = (byte)((ptr >> 24) & 0xFF);
+        return data;
+    }
 
     static void AssertHandlerWiring(string source, string handlerName, string requiredCallPattern)
     {
