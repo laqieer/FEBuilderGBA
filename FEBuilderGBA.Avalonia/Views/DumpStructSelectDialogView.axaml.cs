@@ -15,6 +15,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class DumpStructSelectDialogView : TranslatedWindow, IEditorView
     {
         readonly DumpStructSelectDialogViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => R._("Data Address Editor");
         public bool IsLoaded => _vm.IsLoaded;
@@ -124,30 +125,61 @@ namespace FEBuilderGBA.Avalonia.Views
         // ===================================================================
         // Data Export group — WinForms label1
         //
-        // CSV/TSV/EA now produce struct-aware output via StructExportCore when
-        // the focused address resolves to a known ROM data table — the VM's
-        // MakeExportText resolves the table from the address alone, so the
-        // dispatcher no longer needs the source editor's InputFormRef widget
-        // tree (#770, closing the gap tracked from #439). STRUCT/NMM and any
-        // unresolved address still fall back to the honest hex-dump banner.
+        // CSV/TSV/EA now write a REAL file via the SAME Core struct-data seam
+        // the CLI --export-data command uses: TableExportImportHelper resolves
+        // the table from the focused address alone (StructExportCore.ResolveTableAt),
+        // shows a file-save dialog, and writes StructExportCore.ExportToTSV/CSV/EA
+        // output (byte-identical to the CLI) — addressing the DumpStruct
+        // export/import portion of #439 (not the issue's full parity scope).
+        // When the address resolves to NO known table, we fall back to the honest
+        // hex-dump preview banner. STRUCT/NMM are not backed by the Core seam, so
+        // they always use the preview banner.
         // ===================================================================
 
         void CSVButton_Click(object? sender, RoutedEventArgs e)
-            => OpenExportDialog(DumpStructSelectDialogViewModel.Func.Func_CSV, "CSV", ".csv");
+            => ExportSelected(DumpStructSelectDialogViewModel.Func.Func_CSV, "CSV", ".csv");
 
         void TSVButton_Click(object? sender, RoutedEventArgs e)
-            => OpenExportDialog(DumpStructSelectDialogViewModel.Func.Func_TSV, "TSV", ".tsv");
+            => ExportSelected(DumpStructSelectDialogViewModel.Func.Func_TSV, "TSV", ".tsv");
 
         void EAALLButton_Click(object? sender, RoutedEventArgs e)
-            => OpenExportDialog(DumpStructSelectDialogViewModel.Func.Func_EA, "EA", ".event");
+            => ExportSelected(DumpStructSelectDialogViewModel.Func.Func_EA, "EA", ".event");
 
         void STRUCTButton_Click(object? sender, RoutedEventArgs e)
-            => OpenExportDialog(DumpStructSelectDialogViewModel.Func.Func_STRUCT, "STRUCT", ".h");
+            => OpenPreviewDialog(DumpStructSelectDialogViewModel.Func.Func_STRUCT, "STRUCT", ".h");
 
         void NMMButton_Click(object? sender, RoutedEventArgs e)
-            => OpenExportDialog(DumpStructSelectDialogViewModel.Func.Func_NMM, "NMM", ".nmm");
+            => OpenPreviewDialog(DumpStructSelectDialogViewModel.Func.Func_NMM, "NMM", ".nmm");
 
-        async void OpenExportDialog(DumpStructSelectDialogViewModel.Func func, string formatName, string ext)
+        /// <summary>
+        /// Struct-aware export for CSV/TSV/EA. When the focused address falls
+        /// inside a known ROM struct table, write a REAL file via the Core seam
+        /// (file-save dialog + StructExportCore.ExportTo{Format}). Otherwise fall
+        /// back to the honest hex-dump preview banner so the action is never silent.
+        /// </summary>
+        async void ExportSelected(DumpStructSelectDialogViewModel.Func func, string formatName, string ext)
+        {
+            try
+            {
+                _vm.SelectedFunc = func;
+
+                // Only the struct-aware formats with a resolvable table write a
+                // real file; everything else honestly shows the hex-dump preview.
+                if (_vm.ResolvedTableName() != null)
+                {
+                    await TableExportImportHelper.ExportTableByAddressAsync(this, _vm.CurrentAddr, formatName);
+                    return;
+                }
+
+                OpenPreviewDialog(func, formatName, ext);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("DumpStructSelectDialogView.ExportSelected({0}) failed: {1}", formatName, ex.Message);
+            }
+        }
+
+        async void OpenPreviewDialog(DumpStructSelectDialogViewModel.Func func, string formatName, string ext)
         {
             try
             {
@@ -171,25 +203,38 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("DumpStructSelectDialogView.OpenExportDialog({0}) failed: {1}", formatName, ex.Message);
+                Log.Error("DumpStructSelectDialogView.OpenPreviewDialog({0}) failed: {1}", formatName, ex.Message);
             }
         }
 
         // ===================================================================
         // Import group — WinForms label6
         //
-        // The WF ImportTSV reads a TSV/CSV and writes ROM bytes — but it
-        // requires the source editor's InputFormRef widget tree to know which
-        // NumericUpDown column maps to which struct field. The Avalonia
-        // dispatcher is opened standalone, so Import is gated behind a
-        // follow-up issue. The button stays in the UI for density parity.
+        // Import reads a TSV and writes ROM bytes via the SAME Core seam the CLI
+        // --import-data command uses: TableExportImportHelper resolves the table
+        // from the focused address alone (StructExportCore.ResolveTableAt), opens
+        // a file dialog, parses with StructExportCore.ImportFromTSV (hex-index
+        // from the first column), and writes via StructExportCore.WriteTable —
+        // all inside an UndoService Begin/Commit scope (Rollback on failure), so
+        // the mutation is undoable and never half-applied. Addresses #439
+        // (DumpStruct export/import portion — the issue's broader Avalonia↔WinForms
+        // parity criteria, e.g. density / navigation targets / ko translations, are
+        // not all covered here). When the focused address resolves to no known
+        // table, the user is told so.
         // ===================================================================
 
-        void ImportButton_Click(object? sender, RoutedEventArgs e)
+        async void ImportButton_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.SelectedFunc = DumpStructSelectDialogViewModel.Func.Func_Import;
-            CoreState.Services?.ShowInfo(R._(
-                "Import is not yet implemented in the Avalonia dispatcher. The WinForms editor and the CLI --import-data command remain the supported routes."));
+            try
+            {
+                _vm.SelectedFunc = DumpStructSelectDialogViewModel.Func.Func_Import;
+                await TableExportImportHelper.ImportTableByAddressAsync(
+                    this, _vm.CurrentAddr, _undoService, UpdateAddressLabel);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("DumpStructSelectDialogView.ImportButton failed: {0}", ex.Message);
+            }
         }
 
         // ===================================================================

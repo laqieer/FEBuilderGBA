@@ -360,11 +360,23 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void GetSongName_ReturnsFormattedString()
+        public void GetSongName_NullRom_ReturnsFormattedFallback()
         {
-            NameResolver.ClearCache();
-            string result = NameResolver.GetSongName(0x1A);
-            Assert.StartsWith("Song", result);
+            // With no ROM loaded, GetSongName must fall back to the safe
+            // "Song 0x{id:X}" placeholder (the real-name resolver needs a ROM).
+            var saved = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = null!;
+                NameResolver.ClearCache();
+                string result = NameResolver.GetSongName(0x1A);
+                Assert.Equal("Song 0x1A", result);
+            }
+            finally
+            {
+                CoreState.ROM = saved;
+                NameResolver.ClearCache();
+            }
         }
 
         [Fact]
