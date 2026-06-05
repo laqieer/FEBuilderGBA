@@ -43,6 +43,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // "no valid OBJ plist" (mirrors WF's reserved-sentinel semantics
         // for plist 0 and the no-PLIST marker 0xFF).
         uint _currentObjPlist;
+        // OBJ Image Import (#976): FE7 secondary obj2 tileset PLIST byte
+        // (high byte of obj_plist). 0 means single-tileset; non-zero means
+        // the dual-tileset split path writes the second half of the encoded
+        // tile sheet to this OBJECT PLIST slot. Persisted at LoadEntry time
+        // (both the map-setting-resolved path and the orphan fallback) so
+        // TryImportObjImage can rewrite the obj2 slot without re-walking the
+        // map_setting list.
+        uint _currentObjPlist2;
         int _currentChipsetNo;
         int _currentTerrain;
 
@@ -171,12 +179,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///     on PR #716: 0xFF is too loose — FE8U vanilla limit is
         ///     0xEC so an index of 0xED..0xFE would enable the button
         ///     but <c>WritePlistData</c> would still reject it).
-        ///   - the entry does NOT carry a secondary FE7 obj2 tileset
-        ///     (<see cref="ObjAddress2"/> == 0). The obj2-bearing case
-        ///     requires the dual-tileset split path which is intentionally
-        ///     deferred — TryImportObjImage produces a clear error message
-        ///     when called on such a style so the View can route the
-        ///     user to the follow-up tracking issue.
+        ///   - when the entry carries a secondary FE7 obj2 tileset
+        ///     (high byte of obj_plist != 0, surfaced as a non-zero
+        ///     secondary PLIST) the import now writes the dual-tileset
+        ///     split (#976): the secondary PLIST must ALSO be a valid
+        ///     in-limit slot, since the second half of the encoded tile
+        ///     sheet is written to it. obj2 styles are therefore supported
+        ///     (no longer rejected) and gated on the secondary plist being
+        ///     in range.
         ///
         /// <para>Notably <see cref="ObjPointer"/> is NOT gated — a slot
         /// that's currently null is a valid write target (WF
@@ -191,9 +201,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var rom = CoreState.ROM;
                 if (rom == null) return false;
                 if (_currentObjPlist == 0) return false;
-                if (_objAddress2 != 0) return false;
                 uint limit = MapChangeCore.GetPlistLimit(rom);
                 if (limit == 0 || _currentObjPlist >= limit) return false;
+                // FE7 dual-tileset: when a secondary obj2 PLIST is present (high
+                // byte of obj_plist != 0) it must ALSO be a valid in-limit slot,
+                // since the import writes the second half to it.
+                if (_currentObjPlist2 != 0 && _currentObjPlist2 >= limit) return false;
                 return true;
             }
         }
@@ -370,6 +383,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ConfigPointer = 0;
             ChipsetConfigAddress = 0;
             ObjAddress2 = 0;
+            _currentObjPlist2 = 0;
             PaletteBaseAddress = 0;
             PaletteAddress = 0;
             Array.Clear(_r, 0, 16);
@@ -450,6 +464,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // cares (e.g. WriteChipsetConfig) gates on the explicit
                 // CanEditChipsetConfig predicate.
             }
+
+            // OBJ Image Import (#976): persist the resolved FE7 obj2 PLIST
+            // byte in BOTH paths (map-setting-resolved high byte above, or 0
+            // in the orphan fallback) so TryImportObjImage can write the
+            // dual-tileset second half to the correct OBJECT PLIST slot.
+            _currentObjPlist2 = obj2Plist;
 
             // Config pointer via PlistToOffsetAddr (configTableBase + configPlist*4).
             // Also retain the resolved configPlist itself so WriteChipsetConfig
@@ -600,6 +620,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // same early-return paths so a previous style's plist can't
             // leak into a row that fails to load.
             _currentObjPlist = 0;
+            // OBJ Image Import (#976): clear the resolved FE7 obj2 PLIST too
+            // so a previous dual-tileset style can't leak its secondary slot
+            // into a row that fails to load.
+            _currentObjPlist2 = 0;
             ClearChipsetSlotState();
             OnPropertyChanged(nameof(CanEditChipsetConfig));
             OnPropertyChanged(nameof(CanImportObj));
@@ -889,10 +913,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// row 0 (32 bytes) so quantization color drift is avoided —
         /// see Copilot CLI v1 review item 1 on the v2 plan.</para>
         ///
-        /// <para>FE7 styles that carry a secondary OBJ tileset
-        /// (<see cref="ObjAddress2"/> != 0) are rejected with an
-        /// actionable error: this slice writes a single tile sheet
-        /// only. Tracked separately as a follow-up.</para>
+        /// <para>FE7 styles that carry a secondary OBJ tileset (high byte
+        /// of obj_plist != 0, surfaced as a non-zero secondary PLIST) are
+        /// now supported via the dual-tileset split (#976): the encoded
+        /// tile sheet is split in half by byte length — first half to the
+        /// primary OBJECT PLIST, second half to the obj2 PLIST — each
+        /// LZ77-compressed independently and written to its own slot,
+        /// mirroring WF <c>MapStyleEditorForm.WriteMapChipImage</c>. Both
+        /// writes share the view's ambient undo scope so a failed second
+        /// write rolls back the first.</para>
         ///
         /// <para>Requires an ambient undo scope (opened by the view via
         /// <c>UndoService.Begin</c>) so the LZ77 append + p32 write are
@@ -943,15 +972,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return false;
             }
 
-            // Reject FE7 obj2-bearing styles before any encoding work.
-            // Distinguish "obj2 present" from "no plist resolved" so the
-            // error message guides the user to the tracking issue rather
-            // than the wrong follow-up.
-            if (_objAddress2 != 0)
-            {
-                error = "OBJ image import does not yet support FE7 styles with a secondary obj2 tileset. Tracked separately.";
-                return false;
-            }
             if (!CanImportObj)
             {
                 // Provide a more specific error when the plist exceeds
@@ -964,6 +984,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (limit > 0 && _currentObjPlist >= limit)
                     {
                         error = $"OBJ PLIST 0x{_currentObjPlist:X2} is past the per-version limit (0x{limit:X2}).";
+                        return false;
+                    }
+                    // #976: the obj2 dual-tileset secondary slot being out of
+                    // range is the actual blocker — give that specific reason.
+                    if (limit > 0 && _currentObjPlist2 != 0 && _currentObjPlist2 >= limit)
+                    {
+                        error = $"obj2 PLIST 0x{_currentObjPlist2:X2} is past the per-version limit (0x{limit:X2}).";
                         return false;
                     }
                 }
@@ -1016,6 +1043,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 error = "Tile encoding produced no data.";
                 return false;
+            }
+
+            if (_currentObjPlist2 != 0)
+            {
+                // FE7 dual-tileset (WF MapStyleEditorForm.WriteMapChipImage parity):
+                // split the encoded tile sheet in half by BYTE length — first half
+                // -> primary OBJECT plist, second half -> obj2 plist. tileData.Length
+                // is 128*height, so the split is always on a 32-byte whole-tile
+                // boundary. This is a byte-level split (NOT a guaranteed visual
+                // top/bottom-half split for heights not divisible by 16).
+                uint limit2 = MapChangeCore.GetPlistLimit(rom);
+                if (limit2 == 0 || _currentObjPlist2 >= limit2)
+                {
+                    error = $"obj2 PLIST 0x{_currentObjPlist2:X2} is past the per-version limit (0x{limit2:X2}).";
+                    return false;
+                }
+                int half = tileData.Length / 2;
+                byte[] tiles1 = new byte[half];
+                byte[] tiles2 = new byte[tileData.Length - half];
+                System.Array.Copy(tileData, 0, tiles1, 0, half);
+                System.Array.Copy(tileData, half, tiles2, 0, tiles2.Length);
+
+                byte[] comp1, comp2;
+                try { comp1 = LZ77.compress(tiles1); comp2 = LZ77.compress(tiles2); }
+                catch (System.Exception ex) { error = $"LZ77 compression failed: {ex.Message}"; return false; }
+                if (comp1 == null || comp1.Length == 0 || comp2 == null || comp2.Length == 0)
+                { error = "LZ77 compression produced empty output."; return false; }
+
+                uint newAddr1 = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.OBJECT,
+                                                             _currentObjPlist, comp1, out error);
+                if (newAddr1 == U.NOT_FOUND) return false;
+
+                uint newAddr2 = MapChangeCore.WritePlistData(rom, MapChangeCore.PlistType.OBJECT,
+                                                             _currentObjPlist2, comp2, out error);
+                if (newAddr2 == U.NOT_FOUND) return false; // view's ambient undo scope rolls back BOTH writes
+
+                _cachedObjData = tileData;
+                ObjAddress = newAddr1;
+                ObjPointer = U.toPointer(newAddr1);
+                ObjAddress2 = newAddr2;
+                return true;
             }
 
             byte[] compressed;
@@ -1074,6 +1142,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             _currentObjPlist = plist;
             OnPropertyChanged(nameof(CurrentObjPlist));
+            OnPropertyChanged(nameof(CanImportObj));
+        }
+
+        /// <summary>
+        /// Internal test seam (#976): stage the resolved FE7 obj2 PLIST byte
+        /// so <see cref="CanImportObj"/> / <see cref="TryImportObjImage"/>
+        /// can exercise the dual-tileset split path without a full LoadEntry
+        /// against a planted FE7 map_setting / map_obj_pointer pair.
+        /// </summary>
+        internal void SetCurrentObjPlist2ForTest(uint plist)
+        {
+            _currentObjPlist2 = plist;
             OnPropertyChanged(nameof(CanImportObj));
         }
 
