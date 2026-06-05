@@ -96,7 +96,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (error != null)
                 {
                     CoreState.Services.ShowError(error);
-                    MidiFileLabel.Text = "Parse failed";
+                    MidiFileLabel.Text = R._("Parse failed");
                     MidiInfoBorder.IsVisible = false;
                 }
                 else

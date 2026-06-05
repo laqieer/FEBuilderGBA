@@ -164,6 +164,50 @@ namespace FEBuilderGBA.Avalonia.Tests
             finally { CoreState.ROM = prevRom; }
         }
 
+        /// <summary>
+        /// A huge SelectedSongIndex whose <c>tableBase + index*8</c> would
+        /// overflow/wrap a uint must NOT yield an in-range-looking-but-wrong
+        /// offset: the method returns the NOT_FOUND sentinel and ImportMidi
+        /// refuses with ZERO ROM mutation (it must never repoint the wrong
+        /// address).
+        /// </summary>
+        [Fact]
+        public void GetSelectedSongTableEntryAddr_OverflowIndex_ReturnsNotFound_AndImportRefuses()
+        {
+            var rom = MakeRomWithSongTable(out _, out _, out _);
+            var prevRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+
+                var vm = new SongTrackViewModel();
+                var list = vm.LoadFullList();
+                Assert.NotEmpty(list);
+                // Load a real (writable) song so CurrentAddr != 0 and the
+                // SongID-0 guard is not what trips — then force an out-of-range
+                // index that overflows the uint slot computation.
+                vm.LoadEntry(list[list.Count - 1].addr);
+                vm.SelectedSongIndex = int.MaxValue; // index*8 overflows uint
+
+                Assert.Equal(U.NOT_FOUND, vm.GetSelectedSongTableEntryAddr());
+
+                // ImportMidi must refuse (the sentinel = "no destination") with
+                // zero mutation, even with a real MIDI file present.
+                string midi = Path.Combine(Path.GetTempPath(), $"ovf_{Guid.NewGuid():N}.mid");
+                WriteMinimalMidi(midi);
+                try
+                {
+                    string? error = vm.ImportMidi(midi, out string summary);
+                    Assert.False(string.IsNullOrEmpty(error));
+                    Assert.Equal(string.Empty, summary);
+                    Assert.Equal(before, rom.Data);
+                }
+                finally { try { File.Delete(midi); } catch { /* best effort */ } }
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
         // -----------------------------------------------------------------
         // Error paths — no throw, error string, zero mutation.
         // -----------------------------------------------------------------

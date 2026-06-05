@@ -112,8 +112,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint tableBase = rom.p32(tablePtr);
             if (!U.isSafetyOffset(tableBase)) return;
 
-            uint entryAddr = (uint)(tableBase + songId * 8u);
-            if (entryAddr + 8 > (uint)rom.Data.Length) return;
+            // Compute in long so a large songId can't overflow/wrap a uint into
+            // an in-range-looking-but-wrong offset.
+            long entryAddrLong = (long)tableBase + (long)songId * 8L;
+            if (entryAddrLong + 8 > rom.Data.Length) return;
+
+            uint entryAddr = (uint)entryAddrLong;
+            if (!U.isSafetyOffset(entryAddr)) return;
 
             SongTableEntryAddr = entryAddr;
             SelectedSongId = (int)songId;

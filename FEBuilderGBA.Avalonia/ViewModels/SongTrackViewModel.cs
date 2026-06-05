@@ -359,8 +359,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint tableBase = ResolveSongTableBase();
             if (tableBase == U.NOT_FOUND) return U.NOT_FOUND;
 
-            uint entryAddr = (uint)(tableBase + (uint)SelectedSongIndex * 8u);
-            if (entryAddr + 8 > (uint)rom.Data.Length) return U.NOT_FOUND;
+            // Compute in long so a large SelectedSongIndex can't overflow/wrap
+            // a uint into an in-range-looking-but-wrong offset (which would make
+            // ImportMidi repoint the WRONG ROM address). Reject anything whose
+            // 8-byte entry would not fit fully inside rom.Data.
+            long entryAddrLong = (long)tableBase + (long)SelectedSongIndex * 8L;
+            if (entryAddrLong + 8 > rom.Data.Length) return U.NOT_FOUND;
+
+            uint entryAddr = (uint)entryAddrLong;
+            if (!U.isSafetyOffset(entryAddr)) return U.NOT_FOUND;
             return entryAddr;
         }
 

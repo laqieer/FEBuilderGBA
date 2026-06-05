@@ -10222,3 +10222,6 @@ AIスクリプトをエクスポートしました:
 
 :Import to ROM
 ROMに取り込む
+
+:Parse failed
+解析に失敗しました
