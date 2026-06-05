@@ -23953,6 +23953,42 @@ WF 中的 N03 子标签页保存 16 个无固定语义的通用字节 (B16..B31)
 次表 (12字节)
 
 
+:No map-change entry is selected. Select a map with change-data before importing.
+未选择地图变化条目。导入前请先选择一个带有变化数据的地图。
+
+:The selected record has zero width or height. Set the W/H fields and Write before importing.
+所选记录的宽度或高度为0。导入前请先设置W/H字段并写入。
+
+:Enter the SOURCE change-data address to import from (W×H×2 = {0} bytes will be copied into this record).
+请输入要导入的源变化数据地址(W×H×2 = {0}字节将被复制到此记录)。
+
+:Imported change data into the selected record.
+已将变化数据导入到所选记录。
+
+:Pointer import failed: {0}
+指针导入失败: {0}
+
+:No map-change entry is selected. Select a map with change-data first.
+未选择地图变化条目。请先选择一个带有变化数据的地图。
+
+:Cannot import: the selected record has zero width or height. Set the W/H fields first.
+无法导入: 所选记录的宽度或高度为0。请先设置W/H字段。
+
+:Cannot import: the change region size ({0}×{1}) is out of range.
+无法导入: 变化区域尺寸({0}×{1})超出范围。
+
+:Cannot import: the source address (0x{0:X08}) is not a valid ROM address.
+无法导入: 源地址(0x{0:X08})不是有效的ROM地址。
+
+:Cannot import: the source data (0x{0:X08} + {1} bytes) runs past the end of the ROM.
+无法导入: 源数据(0x{0:X08} + {1}字节)超出了ROM的末尾。
+
+:Cannot import: failed to read {0} bytes from the source address.
+无法导入: 无法从源地址读取{0}字节。
+
+:Cannot import: ran out of ROM free space while writing the change data.
+无法导入: 写入变化数据时ROM空闲空间不足。
+
 :No ROM loaded.
 未加载ROM。
 

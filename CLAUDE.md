@@ -555,6 +555,33 @@ Specialized utilities for different graphic types:
   PLIST TABLE) as a flat entry table. Lockstep golden builders:
   `ListParityHelper.BuildMapTileAnimation1List` (rewired to PLIST-based) + the
   new public `BuildMapTileAnimation1FilterList`.
+- `MapRenderCore.cs` (Core, READ-ONLY) - Cross-platform chapter-map +
+  change-map overlay renderer (ports WinForms `ImageUtilMap.DrawMap` /
+  `DrawChangeMap`). **FE7 obj2 (MR4) RESOLVED (#961 W2c):** `RenderMapImage` /
+  `RenderChangeMap` gained an OPTIONAL trailing `obj2Offset` parameter (default
+  0). The map-setting `obj_plist` (`map_setting +4`) is a packed u16 — LOW byte
+  = primary OBJ tileset PLIST, HIGH byte = FE7 secondary obj2 tileset PLIST
+  (FE6/FE8 keep the high byte 0). When the caller resolves a non-zero obj2 plist
+  (`(obj_plist >> 8) & 0xFF`), it passes that tileset's ROM offset; the obj2
+  LZ77 stream is decompressed and **concatenated onto the primary OBJ bytes
+  (primary first)** before `ImageUtilCore.DecodeTSA` — byte-for-byte the WF
+  `DrawMapChipOnly` order. A non-zero-but-truncated obj2 fails the whole render
+  (WF bail-to-BlankDummy parity). Avalonia `EventMapChangeViewModel.RenderChangePreview`
+  resolves the high byte and passes `obj2Offset`; FE6/FE8 are byte-identical to
+  the pre-#961 single-tileset path.
+- `EventMapChangeViewModel.ImportChangeDataFromPointer` (Avalonia, ROM-MUTATING,
+  #961 W2c) — pointer-import for the Map Change Event editor (mirrors the intent
+  of WF `EventMapChangeForm` `button1` "変化データ ポインタ先へのインポート").
+  Reads `B3 × B4 × 2` RAW u16 bytes from a user-supplied SOURCE change-data
+  address, appends a COPY to ROM free space via
+  `RecycleAddress.WriteAndWritePointerAmbient`, and repoints the current
+  record's P8 (`CurrentAddr+8`) at the copy — the standard append+repoint
+  pattern (never overwrites in place, so a size mismatch can't corrupt
+  neighbours). All writes route through the ambient overload so the View's
+  `UndoService.Begin/Commit/Rollback` scope captures the whole transaction; any
+  returned error rolls back. `EventMapChangeView.PointerImport_Click` prompts for
+  the source address via `NumberInputDialog`, wraps the call in the undo scope,
+  and re-renders the change-overlay preview on success.
 
 ### Caching System
 
