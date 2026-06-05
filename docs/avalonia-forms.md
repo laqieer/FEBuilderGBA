@@ -512,7 +512,7 @@ Pointer manipulation and emulator memory access tools.
 
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
-| 295 | PointerToolView | PointerToolViewModel | Pointer manipulation tool |
+| 295 | PointerToolView | PointerToolViewModel | Pointer manipulation tool (cross-ROM raw + LDR literal-pool reference search via `U.GrepPointerAll` / `U.GrepPointerAllOnLDR`, #966) |
 | 296 | PointerToolBatchInputView | PointerToolBatchInputViewModel | Batch pointer input |
 | 297 | PointerToolCopyToView | PointerToolCopyToViewModel | Copy pointer data tool |
 | 298 | MoveToFreeSpaceView | MoveToFreeSpaceViewViewModel | Move data to free space tool |

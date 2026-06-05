@@ -194,6 +194,36 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.MarkClean();
         }
 
-        public void SelectFirstItem() { }
+        /// <summary>
+        /// Called by the <c>--screenshot-all</c> harness after the window opens.
+        /// In screenshot mode (and only then) seed a representative cross-ROM
+        /// state so the OtherROM* fields render populated in the PNG (#966).
+        /// The interactive runtime path never enters this branch.
+        /// </summary>
+        public void SelectFirstItem()
+        {
+            if (!App.ScreenshotAllMode) return;
+            // try/FINALLY so IsLoading is ALWAYS reset even if the seeding body
+            // throws — otherwise the VM stays stuck "loading" for the rest of
+            // the --screenshot-all harness run (#969 review point 1).
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.SeedDemoCrossRom();
+                AddressTextBox.Text = _vm.AddressInput;
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                // Log.Error is params string[] (NO composite formatting) — a
+                // literal "{0}" would be written verbatim, so use a single
+                // interpolated string (#969 review point 1).
+                Log.Error($"PointerToolView.SelectFirstItem: {ex}");
+            }
+            finally
+            {
+                _vm.IsLoading = false;
+            }
+        }
     }
 }

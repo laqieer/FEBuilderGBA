@@ -129,6 +129,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!TryParseAddress(out uint rawInput))
             {
                 SearchResults = "Invalid address.";
+                // Copilot CLI review point 4: clear stale cross-ROM results on
+                // every early-return path so a previous successful match never
+                // lingers after the current input becomes invalid.
+                ClearOtherRomFields();
                 return;
             }
 
@@ -136,6 +140,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null)
             {
                 SearchResults = "No ROM loaded.";
+                ClearOtherRomFields();
                 return;
             }
 
@@ -191,89 +196,192 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 SearchResults = sb.ToString();
             }
 
-            // Per-result warnings — mirrors WF ERROR_ZERO* / ERROR_VERYFAR*.
-            // WF only renders the labels after the OtherROMAddress / LDR
-            // match phase has populated a real cross-ROM match address; the
-            // checks evaluate THAT address (not the user-typed source).
-            //
-            // The full cross-ROM match path (FindOtherROMData / WithLDR) is
-            // deferred to a follow-up issue. Until that path lands, the
-            // warnings stay hidden: a half-implemented check that flags
-            // "addr > 3/4 of ROM size" on the source address (as previously)
-            // is misleading — it has nothing to do with whether a direct
-            // match exists in the other ROM.
-            //
-            // When OtherRomAddress / OtherRomLdrAddress become populated, we
-            // evaluate the warning against THAT address (mirroring WF's
-            // ERROR_ZERO1 = (rom.u32(matchAddr) == 0) and ERROR_VERYFAR1 =
-            // (matchAddr > rom.Data.Length * 3 / 4) rules).
-            HasZeroAtDirect = EvaluateDirectWarning(out bool directFar, isZero: true);
-            HasVeryFarAtDirect = directFar;
-            HasZeroAtLdr = EvaluateLdrWarning(out bool ldrFar, isZero: true);
-            HasVeryFarAtLdr = ldrFar;
+            // Cross-ROM search (#966): grep the other-ROM buffer for raw +
+            // LDR references to this address and populate the OtherROM* fields
+            // plus the four per-result warning flags. When no other ROM is
+            // loaded, SearchOtherRom clears all four fields + warnings so the
+            // #438 false-positive guard holds (warnings only meaningful once a
+            // real cross-ROM search ran). `addr` is the normalized ROM offset
+            // of the user-entered address — the SAME target SearchPointer used
+            // above (Copilot CLI review point 1: NOT the pointee at addr).
+            SearchOtherRom(addr);
         }
 
         /// <summary>
-        /// Compute the per-result direct-match warnings against the
-        /// <see cref="OtherRomAddress"/> field if it has been populated by a
-        /// successful cross-ROM match. Mirrors WF's check semantics:
-        ///   ERROR_ZERO1   = (rom.u32(matchAddr) == 0)
-        ///   ERROR_VERYFAR1 = (matchAddr > rom.Data.Length * 3 / 4)
-        /// where <c>matchAddr</c> is the address found in the OTHER ROM.
-        /// Returns <c>false</c> for both checks when no cross-ROM match has
-        /// been recorded — this is the explicit fix for the Copilot review
-        /// point about false-positive warnings.
+        /// Cross-ROM pointer search (#966). Greps the loaded other-ROM buffer
+        /// for raw 32-bit pointer references and ARM-Thumb LDR literal-pool
+        /// references to <paramref name="needAddr"/> (the normalized ROM offset
+        /// of the user-entered address), then populates the four OtherROM*
+        /// fields and the four per-result warning flags.
+        ///
+        /// <para>Cross-platform adaptation of WF
+        /// <c>PointerToolForm.FindOtherROMData</c> /
+        /// <c>FindOtherROMDataWithLDR</c>, reusing the Core seams ported under
+        /// #781:</para>
+        /// <list type="bullet">
+        ///   <item><see cref="U.GrepPointerAll(byte[],uint,uint,uint)"/> — raw
+        ///   4-byte-aligned pointer references. The first hit's offset is the
+        ///   reference pointer (<see cref="OtherRomRefPointer"/>); the searched
+        ///   data address is shown as <see cref="OtherRomAddress"/>.</item>
+        ///   <item><see cref="U.GrepPointerAllOnLDR(byte[],uint)"/> — LDR
+        ///   literal-pool SLOT offsets (NOT the LDR instruction address). The
+        ///   first hit's slot is <see cref="OtherRomLdrRefPointer"/>; the data
+        ///   address is <see cref="OtherRomLdrAddress"/>.</item>
+        /// </list>
+        ///
+        /// <para>Warnings follow WF semantics (Copilot CLI review point 2): the
+        /// ERROR_ZERO / ERROR_VERYFAR labels are evaluated ONLY when a match was
+        /// found (WF <c>IsDataFound</c> gates on <c>IsFoundAddress</c>). On a
+        /// no-match / danger-zone / no-other-ROM path the fields are cleared and
+        /// the warnings stay false — there is no "ZERO on no-match" branch.</para>
+        ///
+        /// <para>Bounds (Copilot CLI review point 3): the other-ROM display /
+        /// warning guards check <c>_otherRomData.Length</c> explicitly — NOT
+        /// <c>U.isSafetyOffset</c> (which checks <c>CoreState.ROM.Data.Length</c>).
+        /// The grep helpers scan the other-ROM buffer safely on their own.</para>
         /// </summary>
-        bool EvaluateDirectWarning(out bool isFar, bool isZero)
+        void SearchOtherRom(uint needAddr)
+        {
+            // No other ROM loaded -> no cross-ROM search possible. Clear any
+            // stale fields + warnings (Copilot CLI review point 4).
+            if (_otherRomData == null || _otherRomData.Length == 0)
+            {
+                ClearOtherRomFields();
+                return;
+            }
+
+            // Danger-zone guard: the GBA header / low addresses below 0x200 are
+            // never a meaningful pointer target. Mirrors the WF safety floor
+            // (U.isSafetyOffset uses >= 0x200). We deliberately do NOT call
+            // U.isSafetyOffset here because that overload validates against the
+            // CURRENT ROM length, not the other ROM (Copilot CLI review point 3).
+            if (needAddr < 0x200)
+            {
+                ClearOtherRomFields();
+                return;
+            }
+
+            try
+            {
+                // ----- Raw 32-bit pointer references in the other ROM ---------
+                var raw = U.GrepPointerAll(_otherRomData, needAddr);
+                if (raw.Count > 0)
+                {
+                    // OtherRomAddress = the data address we searched for (the
+                    // address referenced in the other ROM); OtherRomRefPointer =
+                    // the offset of the first reference. Mirrors WF
+                    // OtherROMAddress2 / OtherROMRefPointer2.
+                    OtherRomAddress = $"0x{needAddr:X08}";
+                    OtherRomRefPointer = $"0x{raw[0]:X08}";
+                    // Warnings evaluated against the found address (only when a
+                    // match exists — WF IsDataFound parity).
+                    HasZeroAtDirect = EvaluateOtherRomWarning(needAddr, out bool directFar);
+                    HasVeryFarAtDirect = directFar;
+                }
+                else
+                {
+                    // No raw reference -> clear the raw fields; warnings stay
+                    // false (WF hides the labels on no-match).
+                    OtherRomAddress = "";
+                    OtherRomRefPointer = "";
+                    HasZeroAtDirect = false;
+                    HasVeryFarAtDirect = false;
+                }
+
+                // ----- LDR literal-pool references in the other ROM -----------
+                var ldr = U.GrepPointerAllOnLDR(_otherRomData, needAddr);
+                if (ldr.Count > 0)
+                {
+                    OtherRomLdrAddress = $"0x{needAddr:X08}";
+                    // ldr[0] is the literal-pool SLOT offset (where the matching
+                    // pointer word lives) — NOT the LDR instruction address.
+                    OtherRomLdrRefPointer = $"0x{ldr[0]:X08}";
+                    HasZeroAtLdr = EvaluateOtherRomWarning(needAddr, out bool ldrFar);
+                    HasVeryFarAtLdr = ldrFar;
+                }
+                else
+                {
+                    OtherRomLdrAddress = "";
+                    OtherRomLdrRefPointer = "";
+                    HasZeroAtLdr = false;
+                    HasVeryFarAtLdr = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                // A grep must never throw on the UI thread. On any fault clear
+                // the fields and surface a diagnostic rather than crashing.
+                // Log.Error is params string[] (NO composite formatting) — use
+                // a single interpolated string so the exception is actually
+                // logged (#969 review point 3).
+                ClearOtherRomFields();
+                Log.Error($"PointerToolViewModel.SearchOtherRom: {ex}");
+            }
+        }
+
+        /// <summary>Window size (bytes) WF samples for the zero-region check.</summary>
+        const uint ZeroRegionWindow = 0x200;
+
+        /// <summary>
+        /// Evaluate the WF ERROR_ZERO / ERROR_VERYFAR warning pair against a
+        /// cross-ROM match address found in the OTHER ROM. Returns the ZERO flag
+        /// — the matched address sits in a zero-FILLED REGION (see
+        /// <see cref="IsZeroRegion"/>); <paramref name="isFar"/> receives the
+        /// VERYFAR flag (the matched address lies in the last quarter of the
+        /// other ROM — a coarse "too far to be a real match" heuristic).
+        ///
+        /// <para>Bounds are checked against <c>_otherRomData.Length</c>
+        /// explicitly (Copilot CLI plan-review point 3); an out-of-bounds match
+        /// address yields both-false (no warning, no throw).</para>
+        /// </summary>
+        bool EvaluateOtherRomWarning(uint matchAddr, out bool isFar)
         {
             isFar = false;
-            // No other ROM loaded -> no direct match yet -> no warning.
             if (_otherRomData == null || _otherRomData.Length == 0) return false;
-            // No OtherRomAddress recorded -> the cross-ROM match path didn't
-            // produce a hit -> no warning to display.
-            if (!TryParseHexAddress(OtherRomAddress, out uint matchAddr)) return false;
-            // Evaluate against the OTHER ROM bytes, mirroring WF.
-            if (matchAddr + 3 >= (uint)_otherRomData.Length) return false;
-            bool zero = U32Read(_otherRomData, matchAddr) == 0;
+            if (matchAddr >= (uint)_otherRomData.Length) return false;
             isFar = matchAddr > (uint)(_otherRomData.Length * 3 / 4);
-            return isZero ? zero : isFar;
+            return IsZeroRegion(_otherRomData, matchAddr, matchAddr + ZeroRegionWindow);
         }
 
         /// <summary>
-        /// LDR-tracked variant of <see cref="EvaluateDirectWarning"/>.
-        /// Evaluates against <see cref="OtherRomLdrAddress"/>. Stays false
-        /// until the LDR-match path is implemented in a follow-up; the new
-        /// guard is `OtherRomLdrAddress` populated AND the address is
-        /// in-bounds for the loaded other-ROM bytes.
+        /// Port of WF <c>PointerToolForm.checkZeroData</c> (#969 review point
+        /// 2): a region <c>[start, end)</c> is "zero" when MORE THAN HALF of its
+        /// bytes are <c>0x00</c>. WF samples a 0x200-byte window from the match
+        /// address. Bounds-safe: <c>end</c> is clamped to the buffer length, and
+        /// a <c>start</c> beyond the buffer returns <c>false</c> — mirroring WF
+        /// exactly so the Avalonia "Zero region" warning agrees with WF and with
+        /// the label text.
         /// </summary>
-        bool EvaluateLdrWarning(out bool isFar, bool isZero)
+        static bool IsZeroRegion(byte[] data, uint start, uint end)
         {
-            isFar = false;
-            if (_otherRomData == null || _otherRomData.Length == 0) return false;
-            if (!TryParseHexAddress(OtherRomLdrAddress, out uint matchAddr)) return false;
-            if (matchAddr + 3 >= (uint)_otherRomData.Length) return false;
-            bool zero = U32Read(_otherRomData, matchAddr) == 0;
-            isFar = matchAddr > (uint)(_otherRomData.Length * 3 / 4);
-            return isZero ? zero : isFar;
+            if (data.Length < start) return false;
+            if (data.Length < end) end = (uint)data.Length;
+            if (start >= end) return false;
+
+            int zeroCount = 0;
+            for (uint i = start; i < end; i++)
+            {
+                if (data[i] == 0x0) zeroCount++;
+            }
+            return zeroCount > (int)(end - start) / 2;
         }
 
-        static bool TryParseHexAddress(string raw, out uint val)
+        /// <summary>
+        /// Reset all four OtherROM* string fields and the four per-result
+        /// warning flags. Called on every early-return / no-match path so a
+        /// previous successful cross-ROM result never lingers (Copilot CLI
+        /// review point 4).
+        /// </summary>
+        void ClearOtherRomFields()
         {
-            val = 0;
-            string text = (raw ?? "").Trim();
-            if (text.Length == 0) return false;
-            if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-                text = text.Substring(2);
-            return uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out val);
-        }
-
-        static uint U32Read(byte[] data, uint offset)
-        {
-            if (offset + 3 >= (uint)data.Length) return 0;
-            return data[offset]
-                 | ((uint)data[offset + 1] << 8)
-                 | ((uint)data[offset + 2] << 16)
-                 | ((uint)data[offset + 3] << 24);
+            OtherRomAddress = "";
+            OtherRomRefPointer = "";
+            OtherRomLdrAddress = "";
+            OtherRomLdrRefPointer = "";
+            HasZeroAtDirect = false;
+            HasVeryFarAtDirect = false;
+            HasZeroAtLdr = false;
+            HasVeryFarAtLdr = false;
         }
 
         /// <summary>Search the ROM for all 4-byte-aligned pointer references to the given address.</summary>
@@ -392,6 +500,62 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 OtherRomName = string.Empty;
                 SearchResults = $"Failed to load other ROM: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// Screenshot-mode seeding hook (#966). The offscreen
+        /// <c>--screenshot-all</c> harness has no file picker, so it cannot
+        /// exercise <see cref="LoadOtherRom"/> normally — the OtherROM* fields
+        /// would render empty. This helper seeds a representative cross-ROM
+        /// state for the PNG by using the CURRENT ROM's own bytes as the "other
+        /// ROM" and picking a real referenced address: it scans the live ROM for
+        /// the first 4-byte-aligned pointer, derefs it to a data address that is
+        /// guaranteed to have at least one raw reference, sets that as the input
+        /// address, and runs the normal search so the raw OtherROM fields
+        /// populate with genuine values. ONLY invoked from the screenshot path
+        /// (gated by <c>App.ScreenshotAllMode</c> in the view's
+        /// <c>SelectFirstItem</c>); the interactive runtime path is unchanged.
+        /// </summary>
+        /// <returns>True when a demo state was seeded; false when no ROM /
+        /// no referenced address was available.</returns>
+        public bool SeedDemoCrossRom()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || rom.Data == null || rom.Data.Length < 0x400) return false;
+
+            // Find a data address that is referenced by at least one pointer in
+            // the live ROM. The simplest guaranteed-referenced address is the
+            // target of the first valid pointer we can find: if offset R holds a
+            // pointer to offset T, then T is referenced at R. We then search the
+            // (current-ROM == other-ROM) buffer for references to T, which finds
+            // at least R.
+            uint targetOffset = 0;
+            for (uint i = 0x200; i + 3 < (uint)rom.Data.Length; i += 4)
+            {
+                uint v = rom.u32(i);
+                if (v >= 0x08000000 && v < 0x0A000000)
+                {
+                    uint off = v - 0x08000000;
+                    // Must be a plausible, in-bounds, non-danger-zone target so
+                    // the search produces a populated field.
+                    if (off >= 0x200 && off + 3 < (uint)rom.Data.Length)
+                    {
+                        targetOffset = off;
+                        break;
+                    }
+                }
+            }
+            if (targetOffset == 0) return false;
+
+            // Use the current ROM bytes as the "other ROM" for the demo so the
+            // cross-ROM grep finds the same references. This is screenshot-only.
+            _otherRomData = rom.Data;
+            _otherRomFilename = rom.Filename ?? "(current ROM)";
+            OtherRomName = $"{Path.GetFileNameWithoutExtension(_otherRomFilename)} (demo)";
+
+            AddressInput = $"0x{targetOffset:X08}";
+            RunSearch();
+            return true;
         }
 
         /// <summary>
