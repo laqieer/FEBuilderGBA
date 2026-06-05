@@ -24048,3 +24048,9 @@ AI脚本已导出到:
 
 :Export the raw main tilesheet (LZ77-decompressed 4bpp tiles) as a PNG.
 将主图块表（LZ77解压的4bpp图块）导出为PNG。
+
+:Importing replaces the selected song: the converted MIDI is appended to ROM free space and the song-table entry is repointed at it. The change is a single undo step. Pick a destination song on the left, then browse a MIDI file and import.
+导入将替换所选乐曲：转换后的MIDI会追加到ROM的空闲空间，并将乐曲表项重新指向它。该操作为单步撤销。请先在左侧选择目标乐曲，然后浏览MIDI文件并导入。
+
+:Import to ROM
+导入到ROM
