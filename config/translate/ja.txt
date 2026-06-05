@@ -10222,3 +10222,12 @@ AIスクリプトをエクスポートしました:
 
 :Export the raw main tilesheet (LZ77-decompressed 4bpp tiles) as a PNG.
 メインタイルシート（LZ77展開した4bppタイル）をPNGとして取り出します。
+
+:Importing replaces the selected song: the converted MIDI is appended to ROM free space and the song-table entry is repointed at it. The change is a single undo step. Pick a destination song on the left, then browse a MIDI file and import.
+選択した曲を置き換えます。変換したMIDIをROMの空き領域に追加し、曲テーブルの項目をそこへ指し直します。操作は1回のアンドゥで取り消せます。左側で対象の曲を選び、MIDIファイルを参照して取り込んでください。
+
+:Import to ROM
+ROMに取り込む
+
+:Parse failed
+解析に失敗しました

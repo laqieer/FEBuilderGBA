@@ -371,7 +371,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
 
-                // Parse and show MIDI metadata preview
+                // Parse and show MIDI metadata preview first so the user can
+                // confirm the file before it overwrites the song.
                 string preview = _vm.PreviewMidi(path);
                 if (preview.StartsWith("Error:"))
                 {
@@ -379,12 +380,39 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                // Show metadata with write-back warning
-                string message = preview + "\n\n" +
-                    "---\n" +
-                    "MIDI write-back to ROM is not yet fully implemented.\n" +
-                    "Full MIDI-to-GBA conversion will be available in a future update.";
-                CoreState.Services.ShowInfo(message);
+                bool confirm = CoreState.Services.ShowQuestion(
+                    preview + "\n\n---\n" +
+                    "Import this MIDI into the selected song? This appends the " +
+                    "converted song data to ROM free space and repoints the " +
+                    "song-table entry. The operation is a single undo step.");
+                if (!confirm) return;
+
+                // Real write-back under one undo record. ImportMidiFile writes
+                // through ambient-undo-aware ROM APIs (write_range + write_u32)
+                // and never resizes rom.Data, so a Rollback restores the ROM
+                // byte-identical.
+                _undoService.Begin("Import MIDI");
+                try
+                {
+                    string? error = _vm.ImportMidi(path, out string summary);
+                    if (error != null)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError(error);
+                        return;
+                    }
+
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    UpdateUI();
+                    CoreState.Services.ShowInfo(summary);
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"ImportMidi_Click write-back failed: {ex.Message}");
+                    CoreState.Services.ShowError($"MIDI import failed: {ex.Message}");
+                }
             }
             catch (Exception ex)
             {

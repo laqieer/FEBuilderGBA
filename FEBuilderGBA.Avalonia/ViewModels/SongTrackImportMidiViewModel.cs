@@ -7,13 +7,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 {
     public class SongTrackImportMidiViewModel : ViewModelBase
     {
-        uint _currentAddr;
+        uint _currentAddr;            // selected song HEADER offset
+        uint _songTableEntryAddr;     // selected song-table ENTRY pointer slot
+        uint _instrumentAddr;         // raw GBA pointer from song header +4
+        int _selectedSongId = -1;     // selected song-table index (songId); -1 = none
         bool _isLoaded;
         string _midiFilePath = string.Empty;
         string _midiInfoText = string.Empty;
         bool _hasMidiInfo;
 
+        /// <summary>Selected song HEADER offset (0 when nothing selected).</summary>
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
+        /// <summary>
+        /// Selected song-table ENTRY pointer slot — the address
+        /// <see cref="SongMidiCore.ImportMidiFile"/> repoints. 0 when no real
+        /// song is selected.
+        /// </summary>
+        public uint SongTableEntryAddr { get => _songTableEntryAddr; set => SetField(ref _songTableEntryAddr, value); }
+        /// <summary>Raw GBA instrument-set pointer from the song header +4.</summary>
+        public uint InstrumentAddr { get => _instrumentAddr; set => SetField(ref _instrumentAddr, value); }
+        /// <summary>Selected song-table index (songId); -1 when nothing selected.
+        /// Used to enforce SongID-0 (silence) write protection.</summary>
+        public int SelectedSongId { get => _selectedSongId; set => SetField(ref _selectedSongId, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         /// <summary>Path to the selected MIDI file.</summary>
         public string MidiFilePath { get => _midiFilePath; set => SetField(ref _midiFilePath, value); }
@@ -22,42 +37,223 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Whether MIDI metadata has been successfully parsed.</summary>
         public bool HasMidiInfo { get => _hasMidiInfo; set => SetField(ref _hasMidiInfo, value); }
 
+        /// <summary>
+        /// Enumerate the real song table so the user can pick the destination
+        /// song for the MIDI import. Each entry's <c>addr</c> is the song
+        /// HEADER offset and <c>tag</c> is the song-table index (songId).
+        /// Mirrors <see cref="SongTrackViewModel.LoadFullList"/>.
+        /// </summary>
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            uint tablePtr = rom.RomInfo.sound_table_pointer;
+            if (tablePtr == 0) return new List<AddrResult>();
+
+            uint tableBase = rom.p32(tablePtr);
+            if (!U.isSafetyOffset(tableBase)) return new List<AddrResult>();
+
             var result = new List<AddrResult>();
-            result.Add(new AddrResult(0, "MIDI Import", 0));
+            uint romLen = (uint)rom.Data.Length;
+
+            for (int i = 0; i < 512; i++)
+            {
+                uint entryAddr = (uint)(tableBase + (uint)i * 8u);
+                if (entryAddr + 8 > romLen) break;
+
+                uint headerPtr = rom.u32(entryAddr);
+                if (!U.isPointer(headerPtr)) break;
+
+                uint headerAddr = U.toOffset(headerPtr);
+                if (!U.isSafetyOffset(headerAddr) || headerAddr + 8 > romLen)
+                    continue;
+
+                string songName = NameResolver.GetSongName((uint)i);
+                string name = string.IsNullOrEmpty(songName)
+                    ? $"0x{i:X02} Song {i}"
+                    : $"0x{i:X02} {songName}";
+                result.Add(new AddrResult(headerAddr, name, (uint)i));
+            }
+
             return result;
         }
 
-        public void LoadEntry(uint addr)
+        /// <summary>
+        /// Resolve the selected song header + instrument + table-entry slot.
+        /// <paramref name="addr"/> is the song HEADER offset (the
+        /// <c>AddrResult.addr</c> from <see cref="LoadList"/>) and
+        /// <paramref name="songId"/> is the song-table index (the
+        /// <c>AddrResult.tag</c>) — the entry slot is computed DIRECTLY as
+        /// <c>tableBase + songId*8</c> so a header shared by two table entries
+        /// resolves to the SELECTED slot (not the first matching one).
+        /// </summary>
+        public void LoadEntry(uint addr, uint songId)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
 
             CurrentAddr = addr;
+            SongTableEntryAddr = 0;
+            InstrumentAddr = 0;
+            SelectedSongId = -1;
+            IsLoaded = false;
+
+            if (addr == 0 || addr + 8 > (uint)rom.Data.Length) return;
+
+            // Instrument pointer lives at song header +4 (raw GBA pointer).
+            InstrumentAddr = rom.u32(addr + 4);
+
+            // Resolve the entry slot directly from the songId so shared headers
+            // map to the selected slot.
+            if (rom.RomInfo == null) return;
+            uint tablePtr = rom.RomInfo.sound_table_pointer;
+            if (tablePtr == 0) return;
+            uint tableBase = rom.p32(tablePtr);
+            if (!U.isSafetyOffset(tableBase)) return;
+
+            // Compute in long so a large songId can't overflow/wrap a uint into
+            // an in-range-looking-but-wrong offset.
+            long entryAddrLong = (long)tableBase + (long)songId * 8L;
+            if (entryAddrLong + 8 > rom.Data.Length) return;
+
+            uint entryAddr = (uint)entryAddrLong;
+            if (!U.isSafetyOffset(entryAddr)) return;
+
+            SongTableEntryAddr = entryAddr;
+            SelectedSongId = (int)songId;
             IsLoaded = true;
         }
 
         /// <summary>
+        /// Back-compat overload (used by the offscreen screenshot harness's
+        /// <c>SelectFirstItem</c> path, which only has the header offset): walks
+        /// the song table for the entry whose dereferenced pointer equals
+        /// <paramref name="addr"/>. Prefer the <c>(addr, songId)</c> overload —
+        /// it disambiguates headers shared by two slots.
+        /// </summary>
+        public void LoadEntry(uint addr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) { LoadEntry(addr, 0); return; }
+
+            uint tablePtr = rom.RomInfo.sound_table_pointer;
+            uint tableBase = tablePtr != 0 ? rom.p32(tablePtr) : 0;
+            if (!U.isSafetyOffset(tableBase)) { LoadEntry(addr, 0); return; }
+
+            uint headerPtr = addr + 0x08000000;
+            uint romLen = (uint)rom.Data.Length;
+            uint songId = 0;
+            for (uint i = 0; i < 512; i++)
+            {
+                uint entryAddr = (uint)(tableBase + i * 8u);
+                if (entryAddr + 8 > romLen) break;
+                uint p = rom.u32(entryAddr);
+                if (!U.isPointer(p)) break;
+                if (p == headerPtr) { songId = i; break; }
+            }
+            LoadEntry(addr, songId);
+        }
+
+        /// <summary>
         /// Parse a MIDI file and populate metadata properties for display.
-        /// Returns null on success, or an error message on failure.
+        /// Returns null on success, or an error message on failure. On ANY
+        /// failure the previously-parsed MIDI state is CLEARED, so a stale
+        /// (earlier-successful) file can never be imported after a later parse
+        /// failure (the Import button gates on <see cref="HasMidiInfo"/>).
         /// </summary>
         public string? ParseMidiInfo(string filename)
         {
             if (!File.Exists(filename))
+            {
+                ClearMidiInfo();
                 return $"File not found: {filename}";
+            }
 
             var info = SongMidiCore.ParseMidiFile(filename);
             if (info == null)
+            {
+                ClearMidiInfo();
                 return "Failed to parse MIDI file -- invalid format.";
+            }
 
             MidiFilePath = filename;
             MidiInfoText = FormatMidiMetadata(info, filename);
             HasMidiInfo = true;
             return null;
+        }
+
+        /// <summary>Clear any previously-parsed MIDI selection state.</summary>
+        public void ClearMidiInfo()
+        {
+            MidiFilePath = string.Empty;
+            MidiInfoText = string.Empty;
+            HasMidiInfo = false;
+        }
+
+        /// <summary>
+        /// Import the previously-parsed MIDI file into the selected song.
+        /// Converts MIDI to GBA, appends to ROM free space, and repoints the
+        /// song-table entry slot. Returns null on success (with
+        /// <paramref name="summary"/> set), or an error string on failure.
+        /// </summary>
+        /// <remarks>
+        /// The caller MUST wrap this in an ambient undo scope
+        /// (<c>UndoService.Begin/Commit/Rollback</c>) so the underlying ROM
+        /// writes are captured as a single, fully-reversible undo record.
+        /// </remarks>
+        public string? ImportMidi(out string summary)
+        {
+            summary = string.Empty;
+
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+                return "No ROM loaded.";
+            if (!IsLoaded || SongTableEntryAddr == 0)
+                return "No song selected. Pick a destination song from the list first.";
+            // WF parity: SongID 0 is write-protected (UseWriteProtectionID00) —
+            // mirror the main Song Track editor and never repoint the silence
+            // song's table slot.
+            if (SelectedSongId == 0)
+                return "Song ID 0 is write-protected (silence song).";
+            if (!HasMidiInfo || string.IsNullOrEmpty(MidiFilePath))
+                return "No MIDI file selected. Use 'Browse MIDI File...' first.";
+            if (!File.Exists(MidiFilePath))
+                return $"File not found: {MidiFilePath}";
+
+            var midiInfo = SongMidiCore.ParseMidiFile(MidiFilePath);
+            if (midiInfo == null)
+                return "Failed to parse MIDI file -- invalid format.";
+
+            string result = SongMidiCore.ImportMidiFile(MidiFilePath, SongTableEntryAddr, InstrumentAddr);
+            if (!string.IsNullOrEmpty(result))
+                return result;
+
+            // Reload from the freshly-repointed slot to reflect the new song.
+            uint newHeaderPtr = rom.u32(SongTableEntryAddr);
+            if (U.isPointer(newHeaderPtr))
+                LoadEntry(U.toOffset(newHeaderPtr));
+
+            summary = FormatMidiImportSuccess(midiInfo, MidiFilePath);
+            return null;
+        }
+
+        /// <summary>Build a human-readable summary of a successful MIDI import.</summary>
+        static string FormatMidiImportSuccess(SongMidiCore.MidiFileInfo info, string filename)
+        {
+            int totalNotes = 0;
+            foreach (var t in info.Tracks)
+                totalNotes += t.NoteCount;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"MIDI imported: {Path.GetFileName(filename)}");
+            sb.AppendLine($"  Format: {info.Format}");
+            sb.AppendLine($"  Tracks: {info.TrackCount}");
+            sb.AppendLine($"  Tempo: {info.TempoBPM:F1} BPM");
+            sb.AppendLine($"  Total notes: {totalNotes}");
+            sb.AppendLine();
+            sb.Append("Song data written to ROM successfully.");
+            return sb.ToString();
         }
 
         /// <summary>Build a human-readable summary of MIDI file metadata.</summary>
