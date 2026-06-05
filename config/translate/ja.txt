@@ -10192,3 +10192,21 @@ TSVファイルにデータ行がありません。
 
 :Import failed: {0}
 インポートに失敗しました: {0}
+
+:There is no AI script to export. Re-read the script first.
+エクスポートするAIスクリプトがありません。先にスクリプトを再読み込みしてください。
+
+:AI script exported to
+AIスクリプトをエクスポートしました:
+
+:No valid AI opcodes were found in the selected file.
+選択したファイルに有効なAIオペコードが見つかりませんでした。
+
+:Imported AI opcodes:
+インポートしたAIオペコード:
+
+:Press Write to save to ROM.
+書き込みボタンでROMに保存してください。
+
+:Re-read the AI script before importing.
+インポートする前にAIスクリプトを再読み込みしてください。
