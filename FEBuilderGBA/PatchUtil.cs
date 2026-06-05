@@ -1365,37 +1365,18 @@ namespace FEBuilderGBA
         }
         static MapSecondPalette_extends SearchFlag0x28ToMapSecondPalettePatchLow()
         {
-            PatchTableSt[] table = new PatchTableSt[] { 
-                new PatchTableSt{ name="Flag0x28_146",	ver = "FE8J", addr = 0x19628,data = new byte[]{0x00, 0x4A}},
-                new PatchTableSt{ name="Flag0x28_45",	ver = "FE8J", addr = 0x19628,data = new byte[]{0x00, 0x49}},
-                new PatchTableSt{ name="Flag0x28_146",	ver = "FE8U", addr = 0x19950,data = new byte[]{0x00, 0x4A}},
-                new PatchTableSt{ name="Flag0x28_45",	ver = "FE8U", addr = 0x19950,data = new byte[]{0x00, 0x49}},
-            };
-
-            string version = Program.ROM.RomInfo.VersionToFilename;
-            foreach (PatchTableSt t in table)
+            //Coreの検出器に委譲する(単一のソースに統一 #952)
+            PatchDetection.MapSecondPalette_extends core =
+                PatchDetection.SearchFlag0x28ToMapSecondPalettePatch(Program.ROM);
+            switch (core)
             {
-                if (t.ver != version)
-                {
-                    continue;
-                }
-
-                //チェック開始アドレス
-                byte[] data = Program.ROM.getBinaryData(t.addr, t.data.Length);
-                if (U.memcmp(t.data, data) != 0)
-                {
-                    continue;
-                }
-                if (t.name == "Flag0x28_146")
-                {
+                case PatchDetection.MapSecondPalette_extends.Flag0x28_146:
                     return MapSecondPalette_extends.Flag0x28_146;
-                }
-                if (t.name == "Flag0x28_45")
-                {
+                case PatchDetection.MapSecondPalette_extends.Flag0x28_45:
                     return MapSecondPalette_extends.Flag0x28_45;
-                }
+                default:
+                    return MapSecondPalette_extends.NO;
             }
-            return MapSecondPalette_extends.NO;
         }
 
         //手斧の汎用モーション化

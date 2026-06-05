@@ -57,6 +57,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
+            // Resolve each CHANGE-type PLIST row to a "MAPCHANGE MapName"
+            // label (or "NULL" / "-EMPTY-" / "UNK") instead of a raw 0x…
+            // pointer (#952). One local resolve cache for the whole list.
+            var cache = MapPListResolverCore.BuildCache(rom);
+
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x200; i++)
             {
@@ -67,10 +72,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Stop if we hit clearly invalid data
                 if (pointer == 0xFFFFFFFF) break;
 
-                string ptrStr = U.isPointer(pointer)
-                    ? "0x" + pointer.ToString("X08")
-                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
-                string name = U.ToHexString(i) + " Change " + ptrStr;
+                string label = MapPListResolverCore.ResolveLabel(
+                    rom, MapChangeCore.PlistType.CHANGE, i, cache);
+                string name = U.ToHexString(i) + " " + label;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

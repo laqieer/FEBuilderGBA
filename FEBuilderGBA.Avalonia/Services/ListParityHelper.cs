@@ -2513,6 +2513,11 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
+            // Lockstep with MapChangeViewModel.LoadMapChangeList (#952):
+            // resolve each CHANGE-type PLIST row to a "MAPCHANGE MapName"
+            // label via the shared resolver instead of a raw 0x… pointer.
+            var cache = MapPListResolverCore.BuildCache(rom);
+
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x200; i++)
             {
@@ -2522,10 +2527,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint pointer = rom.u32(addr);
                 if (pointer == 0xFFFFFFFF) break;
 
-                string ptrStr = U.isPointer(pointer)
-                    ? "0x" + pointer.ToString("X08")
-                    : (pointer == 0 ? "NULL" : "0x" + pointer.ToString("X08"));
-                string name = U.ToHexString(i) + " Change " + ptrStr;
+                string label = MapPListResolverCore.ResolveLabel(
+                    rom, MapChangeCore.PlistType.CHANGE, i, cache);
+                string name = U.ToHexString(i) + " " + label;
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
@@ -2539,8 +2543,15 @@ namespace FEBuilderGBA.Avalonia.Services
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
 
-            uint limit = rom.RomInfo.map_map_pointer_list_default_size;
+            // Canonical PLIST limit (256 on split layouts) so the golden list
+            // does not truncate vs the VM — keeps VM↔golden in lockstep (#953).
+            uint limit = MapChangeCore.GetPlistLimit(rom);
             if (limit == 0) limit = 256;
+
+            // Lockstep with MapPointerViewModel.LoadMapPointerList default
+            // typeIndex=0 (MAP) (#952): resolve each row to a "MAP MapName"
+            // label via the shared resolver instead of a raw 0x… pointer.
+            var cache = MapPListResolverCore.BuildCache(rom);
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < limit; i++)
@@ -2548,11 +2559,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint addr = baseAddr + i * 4;
                 if (addr + 3 >= (uint)rom.Data.Length) break;
 
-                uint pointer = rom.u32(addr);
-                string ptrStr = U.isPointer(pointer)
-                    ? $"0x{pointer:X08}"
-                    : (pointer == 0 ? "NULL" : $"0x{pointer:X08}");
-                string name = $"{U.ToHexString(i)} MAP {ptrStr}";
+                string label = MapPListResolverCore.ResolveLabel(
+                    rom, MapChangeCore.PlistType.MAP, i, cache);
+                string name = $"{U.ToHexString(i)} {label}";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

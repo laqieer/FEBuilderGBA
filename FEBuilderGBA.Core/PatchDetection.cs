@@ -230,6 +230,69 @@ namespace FEBuilderGBA
             return HasBG256ColorPatch(CoreState.ROM);
         }
 
+        // ---- Map second palette (Flag0x28) patch detection ----
+        // Mirrors WinForms PatchUtil.SearchFlag0x28ToMapSecondPalettePatch.
+        // Controls the per-map record offset of the second-palette PLIST
+        // byte (offset 146 vs offset 45). Used by the map-PLIST label
+        // resolver (#952) to read PLists.palette2_plist from the correct
+        // offset, exactly like WF MapSettingForm.GetMapPListsWhereAddr.
+
+        public enum MapSecondPalette_extends
+        {
+            NO,             // patch not installed (no second palette)
+            Flag0x28_146,   // second-palette PLIST byte at map-record offset 146
+            Flag0x28_45,    // second-palette PLIST byte at map-record offset 45
+            NoCache = (int)NO_CACHE
+        }
+
+        static readonly PatchTableSt[] MapSecondPaletteTable = new PatchTableSt[] {
+            new PatchTableSt{ name="Flag0x28_146", ver = "FE8J", addr = 0x19628, data = new byte[]{0x00, 0x4A}},
+            new PatchTableSt{ name="Flag0x28_45",  ver = "FE8J", addr = 0x19628, data = new byte[]{0x00, 0x49}},
+            new PatchTableSt{ name="Flag0x28_146", ver = "FE8U", addr = 0x19950, data = new byte[]{0x00, 0x4A}},
+            new PatchTableSt{ name="Flag0x28_45",  ver = "FE8U", addr = 0x19950, data = new byte[]{0x00, 0x49}},
+        };
+
+        static MapSecondPalette_extends g_Cache_MapSecondPalette = MapSecondPalette_extends.NoCache;
+
+        public static void ClearCacheMapSecondPalette()
+        {
+            g_Cache_MapSecondPalette = MapSecondPalette_extends.NoCache;
+        }
+
+        /// <summary>
+        /// Ambient-ROM detection (cached). Reads <see cref="CoreState.ROM"/>.
+        /// Mirrors WinForms <c>PatchUtil.SearchFlag0x28ToMapSecondPalettePatch()</c>.
+        /// </summary>
+        public static MapSecondPalette_extends SearchFlag0x28ToMapSecondPalettePatch()
+        {
+            if (g_Cache_MapSecondPalette == MapSecondPalette_extends.NoCache)
+            {
+                g_Cache_MapSecondPalette = SearchFlag0x28ToMapSecondPalettePatch(CoreState.ROM);
+            }
+            return g_Cache_MapSecondPalette;
+        }
+
+        /// <summary>
+        /// ROM-explicit detection (non-caching). Returns
+        /// <see cref="MapSecondPalette_extends.NO"/> on null ROM or any
+        /// non-FE8J/FE8U version (the signature table only covers FE8J/FE8U,
+        /// matching WF — FE6/FE7 never have the second-palette patch).
+        /// </summary>
+        public static MapSecondPalette_extends SearchFlag0x28ToMapSecondPalettePatch(ROM rom)
+        {
+            if (rom?.RomInfo == null) return MapSecondPalette_extends.NO;
+            string version = rom.RomInfo.VersionToFilename;
+            foreach (PatchTableSt t in MapSecondPaletteTable)
+            {
+                if (t.ver != version) continue;
+                byte[] data = rom.getBinaryData(t.addr, t.data.Length);
+                if (U.memcmp(t.data, data) != 0) continue;
+                if (t.name == "Flag0x28_146") return MapSecondPalette_extends.Flag0x28_146;
+                if (t.name == "Flag0x28_45")  return MapSecondPalette_extends.Flag0x28_45;
+            }
+            return MapSecondPalette_extends.NO;
+        }
+
         // ---- Generic patch search helpers ----
 
         public static bool SearchPatchBool(PatchTableSt[] table)
@@ -293,6 +356,7 @@ namespace FEBuilderGBA
             g_Cache_draw_font_enum = draw_font_enum.NoCache;
             g_Cache_TextEngineRework_enum = TextEngineRework_enum.NoCache;
             g_Cache_ExtendsBattleBG = ExtendsBattleBG_extends.NoCache;
+            g_Cache_MapSecondPalette = MapSecondPalette_extends.NoCache;
         }
 
         // ---- OPClassReel patch detectors (extracted from PatchUtil for gap-sweep #419) ----
