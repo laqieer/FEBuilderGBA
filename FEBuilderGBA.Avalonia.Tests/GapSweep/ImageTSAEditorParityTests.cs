@@ -194,8 +194,14 @@ public class ImageTSAEditorParityTests
         Assert.Contains("IsEnabled=\"{Binding IsContextLoaded}\"", m.Value);
     }
 
+    /// <summary>
+    /// #974: the Palette Clipboard button is now WIRED — it packs the 16
+    /// palette entries to GBA 5-5-5 hex and copies to the clipboard. It is no
+    /// longer an IsEnabled=False stub; it is always enabled (reads the grid,
+    /// never writes ROM).
+    /// </summary>
     [Fact]
-    public void View_ClipboardButton_IsExplicitlyInert()
+    public void View_ClipboardButton_IsWiredAndEnabled()
     {
         string axaml = ReadAxaml();
         var rx = new Regex(
@@ -203,7 +209,28 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled);
         Match m = rx.Match(axaml);
         Assert.True(m.Success, "Clipboard button tag not found");
-        Assert.Contains("IsEnabled=\"False\"", m.Value);
+        Assert.Contains("Click=\"PaletteClipboard_Click\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// #974: the PaletteClipboard_Click handler must call into the VM's
+    /// BuildPaletteClipboardHex packer and copy via the Avalonia
+    /// IClipboard.SetTextAsync async API (no longer a Log.Notify deferral stub).
+    /// </summary>
+    [Fact]
+    public void View_PaletteClipboardHandler_PacksAndCopies()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"void\s+PaletteClipboard_Click[\s\S]*?BuildPaletteClipboardHex",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"void\s+PaletteClipboard_Click[\s\S]*?SetTextAsync",
+            RegexOptions.Compiled), source);
+        Assert.DoesNotMatch(new Regex(
+            @"void\s+PaletteClipboard_Click[\s\S]*?KnownGap:\s*PaletteToClipboard",
+            RegexOptions.Compiled), source);
     }
 
     /// <summary>
@@ -248,8 +275,12 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled), source);
     }
 
+    /// <summary>
+    /// #974: the Main Image Export button is now WIRED (raw tilesheet PNG
+    /// export) and context-gated on IsContextLoaded — no longer an inert stub.
+    /// </summary>
     [Fact]
-    public void View_MainImageExportButton_IsExplicitlyInert()
+    public void View_MainImageExportButton_IsContextGated()
     {
         string axaml = ReadAxaml();
         var rx = new Regex(
@@ -257,7 +288,35 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled);
         Match m = rx.Match(axaml);
         Assert.True(m.Success, "MainImage Export button tag not found");
-        Assert.Contains("IsEnabled=\"False\"", m.Value);
+        Assert.Contains("Click=\"MainImageExport_Click\"", m.Value);
+        Assert.Contains("IsEnabled=\"{Binding IsContextLoaded}\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// #974: the MainImageExport_Click handler must render via the VM's
+    /// RenderRawTilesheet seam and export via GbaImageControl.ExportPng — and
+    /// must NOT call ExportPng when the render returns null (Copilot plan-review
+    /// point 2). It must no longer be a Log.Notify deferral stub.
+    /// </summary>
+    [Fact]
+    public void View_MainImageExportHandler_RendersThenExports()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"void\s+MainImageExport_Click[\s\S]*?RenderRawTilesheet",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"void\s+MainImageExport_Click[\s\S]*?ExportPng",
+            RegexOptions.Compiled), source);
+        // Null-render guard must precede the ExportPng call so a stale/previous
+        // bitmap is never exported.
+        Assert.Matches(new Regex(
+            @"void\s+MainImageExport_Click[\s\S]*?if\s*\(\s*img\s*==\s*null\s*\)[\s\S]*?return[\s\S]*?ExportPng",
+            RegexOptions.Compiled), source);
+        Assert.DoesNotMatch(new Regex(
+            @"void\s+MainImageExport_Click[\s\S]*?KnownGap:\s*MainImageExport",
+            RegexOptions.Compiled), source);
     }
 
     /// <summary>
@@ -436,9 +495,10 @@ public class ImageTSAEditorParityTests
             ["メイン画像"] = "Main Image",
             ["画像"] = "Image",
             ["画像読込"] = "Image Import",
-            ["画像取出"] = "Image Export",
-            // KnownGap-covered (no English direct counterpart - they cover deferred behaviour).
-            ["パレット"] = "KnownGap: PaletteToClipboard",
+            ["画像取出"] = "Image Export",     // #974: now a wired Export button caption.
+            // Palette tab header.
+            ["パレット"] = "Palette",
+            // #974: Clipboard is now a wired button caption (was a KnownGap stub).
             ["クリップボード"] = "Clipboard",
         };
 
@@ -465,6 +525,11 @@ public class ImageTSAEditorParityTests
     /// The KnownGap comment block must enumerate every deferred WF-only
     /// surface with a non-empty `reason=`. Mirrors the acceptance-criterion
     /// audit trail required by Copilot CLI.
+    ///
+    /// After #974 only ONE KnownGap remains in this editor: TSAByteWrite
+    /// (PaletteToClipboard / MainImageExport are now wired and RESOLVED;
+    /// BattleCanvasRender resolved in #808, ChipsetListRender in #819,
+    /// MainImageImport in #901).
     /// </summary>
     [Fact]
     public void View_KnownGapBlock_HasNonEmptyReasons()
@@ -473,17 +538,23 @@ public class ImageTSAEditorParityTests
         var rx = new Regex(@"KnownGap:\s*(\S+(?:\s+\S+)*?)\s+reason=(.+?)\s*-->",
             RegexOptions.Compiled);
         var matches = rx.Matches(axaml);
-        Assert.True(matches.Count >= 3,
-            $"AXAML must contain at least 3 KnownGap markers (TSAByteWrite, " +
-            $"PaletteToClipboard, MainImageImportExport); found {matches.Count}. " +
-            $"(BattleCanvasRender was resolved in #808; ChipsetListRender in #819.)");
+        Assert.True(matches.Count >= 1,
+            $"AXAML must contain the sole remaining KnownGap marker " +
+            $"(TSAByteWrite); found {matches.Count}.");
+        // The remaining KnownGap cluster for this editor is exactly TSAByteWrite.
+        bool hasTsaByteWrite = false;
         foreach (Match m in matches)
         {
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[1].Value),
                 $"KnownGap entry must name a feature: '{m.Value}'");
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[2].Value),
                 $"KnownGap entry must have a reason: '{m.Value}'");
+            if (m.Groups[1].Value.Contains("TSAByteWrite")) hasTsaByteWrite = true;
         }
+        Assert.True(hasTsaByteWrite, "The TSAByteWrite KnownGap marker must remain.");
+        // The two now-wired surfaces must NOT have lingering KnownGap markers.
+        Assert.DoesNotContain("KnownGap: PaletteToClipboard", axaml);
+        Assert.DoesNotContain("KnownGap: MainImageExport", axaml);
     }
 
     // -----------------------------------------------------------------
@@ -890,11 +961,13 @@ public class ImageTSAEditorParityTests
     }
 
     // -----------------------------------------------------------------
-    // Copilot review: Redo buttons must be explicitly inert in AXAML.
+    // #974: Redo buttons are now WIRED to the global Core Undo stack
+    // (CoreState.Undo.RunRedo()). They stay enabled; the handler guards on
+    // CanRedo at runtime (same pattern as the Map Style editor's Redo).
     // -----------------------------------------------------------------
 
     [Fact]
-    public void View_RedoButton_IsExplicitlyInert()
+    public void View_RedoButton_IsWiredAndEnabled()
     {
         string axaml = ReadAxaml();
         var rx = new Regex(
@@ -902,11 +975,12 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled);
         Match m = rx.Match(axaml);
         Assert.True(m.Success, "Redo button tag not found");
-        Assert.Contains("IsEnabled=\"False\"", m.Value);
+        Assert.Contains("Click=\"Redo_Click\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
     }
 
     [Fact]
-    public void View_PaletteRedoButton_IsExplicitlyInert()
+    public void View_PaletteRedoButton_IsWiredAndEnabled()
     {
         string axaml = ReadAxaml();
         var rx = new Regex(
@@ -914,7 +988,26 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled);
         Match m = rx.Match(axaml);
         Assert.True(m.Success, "PaletteRedo button tag not found");
-        Assert.Contains("IsEnabled=\"False\"", m.Value);
+        Assert.Contains("Click=\"PaletteRedo_Click\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// #974: the Redo_Click handler must call CoreState.Undo.RunRedo() and
+    /// guard on CanRedo — it is no longer the stale "deferred until
+    /// Core.Undo.RunRedo lands" no-op stub.
+    /// </summary>
+    [Fact]
+    public void View_RedoHandler_CallsRunRedo()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"void\s+Redo_Click[\s\S]*?CoreState\.Undo\.CanRedo",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"void\s+Redo_Click[\s\S]*?CoreState\.Undo\.RunRedo\(\)",
+            RegexOptions.Compiled), source);
+        Assert.DoesNotContain("deferred until Core.Undo.RunRedo lands", source);
     }
 
     // -----------------------------------------------------------------
@@ -956,12 +1049,18 @@ public class ImageTSAEditorParityTests
             RegexOptions.Compiled), source);
     }
 
+    /// <summary>
+    /// #974: the constructor no longer disables the Redo buttons (Redo is
+    /// wired to CoreState.Undo.RunRedo). The old
+    /// `RedoButton.IsEnabled = false` / `PaletteRedoButton.IsEnabled = false`
+    /// lines must be GONE.
+    /// </summary>
     [Fact]
-    public void View_RedoButtons_AreDisabledInConstructor()
+    public void View_RedoButtons_AreNotDisabledInConstructor()
     {
         string source = ReadCodeBehind();
-        Assert.Matches(new Regex(@"RedoButton\.IsEnabled\s*=\s*false", RegexOptions.Compiled), source);
-        Assert.Matches(new Regex(@"PaletteRedoButton\.IsEnabled\s*=\s*false", RegexOptions.Compiled), source);
+        Assert.DoesNotMatch(new Regex(@"RedoButton\.IsEnabled\s*=\s*false", RegexOptions.Compiled), source);
+        Assert.DoesNotMatch(new Regex(@"PaletteRedoButton\.IsEnabled\s*=\s*false", RegexOptions.Compiled), source);
     }
 
     [Fact]
@@ -972,6 +1071,80 @@ public class ImageTSAEditorParityTests
         // make sure a future edit doesn't accidentally re-add the dead using.
         string source = ReadCodeBehind();
         Assert.DoesNotContain("using global::Avalonia.Data;", source);
+    }
+
+    // -----------------------------------------------------------------
+    // #974: palette-to-clipboard hex packing (Win 1).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// The clipboard hex string is 16 entries * 4 big-endian hex chars = 64
+    /// chars, mirroring WF PaletteFormRef.PALETTE_TO_CLIPBOARD_BUTTON_Click
+    /// (U.big16 byte-swap of the little-endian GBA 5-5-5 word).
+    /// </summary>
+    [Fact]
+    public void ViewModel_BuildPaletteClipboardHex_PacksBigEndian5_5_5()
+    {
+        // Build a known palette: entry 0 white, entry 1 pure red, entry 2 pure
+        // green, entry 3 pure blue, the rest black.
+        var rgb = new (byte R, byte G, byte B)[16];
+        rgb[0] = (255, 255, 255); // 0x7FFF -> LE bytes FF 7F -> big16 = FF7F
+        rgb[1] = (255, 0, 0);     // 0x001F -> LE bytes 1F 00 -> big16 = 1F00
+        rgb[2] = (0, 255, 0);     // 0x03E0 -> LE bytes E0 03 -> big16 = E003
+        rgb[3] = (0, 0, 255);     // 0x7C00 -> LE bytes 00 7C -> big16 = 007C
+        // entries 4..15 stay black -> 0x0000 -> big16 = 0000
+
+        string hex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(rgb);
+
+        Assert.Equal(64, hex.Length);
+        Assert.Equal("FF7F", hex.Substring(0, 4));
+        Assert.Equal("1F00", hex.Substring(4, 4));
+        Assert.Equal("E003", hex.Substring(8, 4));
+        Assert.Equal("007C", hex.Substring(12, 4));
+        // Remaining 12 entries are all black "0000".
+        Assert.Equal(string.Concat(System.Linq.Enumerable.Repeat("0000", 12)),
+            hex.Substring(16));
+    }
+
+    [Fact]
+    public void ViewModel_BuildPaletteClipboardHex_ThrowsOnWrongLength()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            ImageTSAEditorViewModel.BuildPaletteClipboardHex(null!));
+        Assert.Throws<ArgumentException>(() =>
+            ImageTSAEditorViewModel.BuildPaletteClipboardHex(new (byte, byte, byte)[15]));
+    }
+
+    // -----------------------------------------------------------------
+    // #974: raw tilesheet export render seam (Win 2).
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// The VM RenderRawTilesheet wrapper returns null (no throw) when there is
+    /// no context, and when the image pointer slot is NOT_FOUND even with a
+    /// loaded context. The raw tilesheet never reads the TSA stream, so a
+    /// NOT_FOUND tsaPointer is irrelevant; only the image slot gates it.
+    /// </summary>
+    [Fact]
+    public void ViewModel_RenderRawTilesheet_NotFoundImagePointer_ReturnsNull()
+    {
+        var vm = new ImageTSAEditorViewModel();
+        // No context yet -> null.
+        Assert.Null(vm.RenderRawTilesheet());
+
+        vm.Init(
+            width8: 32u,
+            height8: 20u,
+            zimgPointer: U.NOT_FOUND,
+            isHeaderTSA: false,
+            isLZ77TSA: true,
+            tsaPointer: U.NOT_FOUND,
+            palettePointer: U.NOT_FOUND,
+            paletteAddress: 0u,
+            paletteCount: 1);
+
+        // Image slot is NOT_FOUND -> render is skipped without throwing.
+        Assert.Null(vm.RenderRawTilesheet());
     }
 
     [Fact]
