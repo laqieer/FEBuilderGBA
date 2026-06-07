@@ -216,9 +216,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // Jump-to-Move-Icon (#991 WU4)
         // ----------------------------------------------------------------
         /// <summary>
-        /// Resolve the move-icon id for the current wait icon: waitIconId →
-        /// owning class id → that class's move-icon id. Returns null when the
-        /// wait icon has no owning class or the lookups fail.
+        /// Resolve the 1-BASED move-icon id for the current wait icon:
+        /// waitIconId → owning class id → that class's move-icon id (`u8 @
+        /// class+4`). Returns null when the wait icon has no owning class, the
+        /// lookups fail, OR the move-icon id is 0 ("no move icon" — the WF
+        /// sentinel). Returning null for 0 (rather than the raw 0) means a
+        /// caller can safely subtract 1 to get the 0-based table index without
+        /// underflowing (Copilot review on PR #993).
         /// </summary>
         public uint? ResolveMoveIconForSelection()
         {
@@ -228,6 +232,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (cid == U.NOT_FOUND) return null;
             uint moveIcon = ClassFormCore.GetClassMoveIcon(rom, cid);
             if (moveIcon == U.NOT_FOUND) return null;
+            if (moveIcon == 0) return null; // 0 = "no move icon" (WF sentinel)
             return moveIcon;
         }
 

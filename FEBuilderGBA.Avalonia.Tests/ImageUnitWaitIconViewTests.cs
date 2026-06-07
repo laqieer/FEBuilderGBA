@@ -326,49 +326,41 @@ public class ImageUnitWaitIconViewTests : IClassFixture<RomFixture>
     {
         if (!TryRom()) return;
         ROM rom = _fixture.ROM!;
-
-        // Pick a wait-icon id that an owning class references.
-        uint classBase = rom.p32(rom.RomInfo.class_pointer);
-        uint classSize = rom.RomInfo.class_datasize;
-        uint ownedWaitId = 0;
-        for (uint c = 1; c <= 128; c++)
-        {
-            uint a = classBase + c * classSize;
-            if (a + classSize > (uint)rom.Data.Length) break;
-            uint w = rom.u8(a + 6);
-            if (w > 0) { ownedWaitId = w; break; }
-        }
-        if (ownedWaitId == 0) { _output.WriteLine("SKIP: no owned wait icon"); return; }
+        uint moveBase = rom.p32(rom.RomInfo.unit_move_icon_pointer);
 
         var view = new ImageUnitWaitIconView();
         view.Show();
         try
         {
             var list = view.FindControl<AddressListControl>("EntryList");
-            list!.SelectByIndex((int)ownedWaitId);
             var vm = view.DataViewModel as ImageUnitWaitIconViewModel;
+            Assert.NotNull(vm);
 
-            uint? moveIcon = vm!.ResolveMoveIconForSelection();
-            Assert.NotNull(moveIcon);
+            // Find a wait icon whose RESOLVED owning class has a move-icon
+            // (ResolveMoveIconForSelection returns null for id 0 / no class).
+            var items = list!.GetItems();
+            int probed = System.Math.Min(items.Count, 128);
+            uint? moveIcon = null;
+            for (int i = 1; i < probed; i++)
+            {
+                list.SelectByIndex(i);
+                moveIcon = vm!.ResolveMoveIconForSelection();
+                if (moveIcon != null) break;
+            }
+            if (moveIcon == null) { _output.WriteLine("SKIP: no wait icon resolves to a class with a move icon"); return; }
+
+            // A non-null move icon is always >= 1 (Copilot review on PR #993).
+            Assert.True(moveIcon!.Value >= 1);
 
             // The move-icon id is 1-BASED; the navigation target must be the
-            // 0-based table entry: baseAddr + (id - 1) * 8 (Copilot review on
-            // PR #993 — the off-by-one fix). id 0 ("no move icon") -> null.
-            uint moveBase = rom.p32(rom.RomInfo.unit_move_icon_pointer);
+            // 0-based table entry: baseAddr + (id - 1) * 8 (the off-by-one fix).
             uint? target = vm.ResolveMoveIconEntryAddress();
-            if (moveIcon!.Value == 0)
-            {
-                Assert.Null(target);
-            }
-            else
-            {
-                Assert.NotNull(target);
-                uint expected = moveBase + (moveIcon.Value - 1) * 8;
-                Assert.Equal(expected, target!.Value);
-                // The resolved row must NOT be the naive (id * 8) 0-based read —
-                // regression-fires if the off-by-one returns.
-                Assert.NotEqual(moveBase + moveIcon.Value * 8, target.Value);
-            }
+            Assert.NotNull(target);
+            uint expected = moveBase + (moveIcon.Value - 1) * 8;
+            Assert.Equal(expected, target!.Value);
+            // The resolved row must NOT be the naive (id * 8) 0-based read —
+            // regression-fires if the off-by-one returns.
+            Assert.NotEqual(moveBase + moveIcon.Value * 8, target.Value);
         }
         finally { view.Close(); }
     }
