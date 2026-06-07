@@ -208,22 +208,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                ROM rom = CoreState.ROM;
-                if (rom == null) return;
+                // VM owns the 1-based id -> 0-based Move Icon list-entry address
+                // conversion (single source of truth, headless-tested). null =>
+                // no owning class / no move icon / out-of-range.
+                uint? entryAddr = _vm.ResolveMoveIconEntryAddress();
+                if (entryAddr == null) return;
 
-                uint? moveIcon = _vm.ResolveMoveIconForSelection();
-                if (moveIcon == null) return; // no owning class / no move icon
-
-                // Compute the unit_move_icon_pointer list-entry address (8-byte
-                // entries; the move-icon id is the 0-based table index).
-                uint ptr = rom.RomInfo.unit_move_icon_pointer;
-                if (ptr == 0) return;
-                uint baseAddr = rom.p32(ptr);
-                if (!U.isSafetyOffset(baseAddr)) return;
-                uint entryAddr = baseAddr + moveIcon.Value * 8;
-                if (entryAddr + 8 > (uint)rom.Data.Length) return;
-
-                WindowManager.Instance.Navigate<ImageUnitMoveIconView>(entryAddr);
+                WindowManager.Instance.Navigate<ImageUnitMoveIconView>(entryAddr.Value);
             }
             catch (Exception ex)
             {

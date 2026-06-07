@@ -350,6 +350,69 @@ public class ImageUnitWaitIconViewTests : IClassFixture<RomFixture>
 
             uint? moveIcon = vm!.ResolveMoveIconForSelection();
             Assert.NotNull(moveIcon);
+
+            // The move-icon id is 1-BASED; the navigation target must be the
+            // 0-based table entry: baseAddr + (id - 1) * 8 (Copilot review on
+            // PR #993 — the off-by-one fix). id 0 ("no move icon") -> null.
+            uint moveBase = rom.p32(rom.RomInfo.unit_move_icon_pointer);
+            uint? target = vm.ResolveMoveIconEntryAddress();
+            if (moveIcon!.Value == 0)
+            {
+                Assert.Null(target);
+            }
+            else
+            {
+                Assert.NotNull(target);
+                uint expected = moveBase + (moveIcon.Value - 1) * 8;
+                Assert.Equal(expected, target!.Value);
+                // The resolved row must NOT be the naive (id * 8) 0-based read —
+                // regression-fires if the off-by-one returns.
+                Assert.NotEqual(moveBase + moveIcon.Value * 8, target.Value);
+            }
+        }
+        finally { view.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void ResolveMoveIconEntryAddress_IsOneBased_OffByOneRegression()
+    {
+        if (!TryRom()) return;
+        ROM rom = _fixture.ROM!;
+
+        // Find a wait icon whose RESOLVED owning class has a move-icon id >= 1
+        // (derive everything from the VM resolution so the off-by-one assertion
+        // uses the SAME class the View jumps to — first-match resolution may not
+        // be the class we scanned).
+        uint classBase = rom.p32(rom.RomInfo.class_pointer);
+        uint classSize = rom.RomInfo.class_datasize;
+        uint moveBase = rom.p32(rom.RomInfo.unit_move_icon_pointer);
+
+        var view = new ImageUnitWaitIconView();
+        view.Show();
+        try
+        {
+            var list = view.FindControl<AddressListControl>("EntryList");
+            var vm = view.DataViewModel as ImageUnitWaitIconViewModel;
+            Assert.NotNull(vm);
+
+            var items = list!.GetItems();
+            int probed = System.Math.Min(items.Count, 128);
+            bool checkedAny = false;
+            for (int i = 1; i < probed; i++)
+            {
+                list.SelectByIndex(i);
+                uint? moveId = vm!.ResolveMoveIconForSelection();
+                if (moveId == null || moveId.Value == 0) continue;
+
+                uint? target = vm.ResolveMoveIconEntryAddress();
+                Assert.NotNull(target);
+                Assert.Equal(moveBase + (moveId.Value - 1) * 8, target!.Value);
+                // Off-by-one regression guard: must NOT be the naive id*8 row.
+                Assert.NotEqual(moveBase + moveId.Value * 8, target.Value);
+                checkedAny = true;
+                break;
+            }
+            if (!checkedAny) _output.WriteLine("SKIP: no wait icon resolved to a class with move id >= 1");
         }
         finally { view.Close(); }
     }

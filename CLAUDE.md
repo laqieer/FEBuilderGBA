@@ -718,7 +718,12 @@ Specialized utilities for different graphic types:
   (`GetClassIdWhereWaitIconId` @ class `+6`, `GetClassMoveIcon` @ class `+4`,
   `GetClassNameWhereWaitIconId` → `NameResolver.GetClassName`) and drive the
   list-label class name (lockstep `ListParityHelper.BuildImageUnitWaitIconList` ↔
-  VM `LoadList`, golden-test gated) + the Jump-to-Move-Icon button.
+  VM `LoadList`, golden-test gated) + the Jump-to-Move-Icon button. The
+  move-icon field (`u8 @ class+4`) is a 1-BASED id (WF
+  `PreviewIconHelper.LoadMoveIcon` uses `id - 1`; `ImageUnitMoveIconViewModel`
+  is 0-based by table index), so `ImageUnitWaitIconViewModel.ResolveMoveIconEntryAddress`
+  navigates to `moveIconBase + (id - 1) * 8` (id 0 → no jump) — PR #993 Copilot
+  off-by-one fix, headless-tested on the computed target address.
   **Documented residual gaps:** (1) animated-GIF IMPORT is not a WF feature (WF
   import is PNG/BMP single-frame; GIF is export-only); (2) the interactive
   palette reorder/force dialog (WF `CheckPalette`/`ErrorPaletteShowForm`) is

@@ -231,6 +231,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return moveIcon;
         }
 
+        /// <summary>
+        /// Resolve the ROM ADDRESS of the Move Icon list entry the Jump button
+        /// should navigate to, or null when there is no owning class / move icon.
+        /// The class move-icon field (u8 @ class+4) is a 1-BASED id (WF
+        /// PreviewIconHelper.LoadMoveIcon uses `id - 1`; ImageUnitMoveIconViewModel
+        /// .LoadList is 0-based by table index), so the target entry is at
+        /// `baseAddr + (id - 1) * 8`. id 0 ("no move icon") → null. Guards every
+        /// pointer/address — never throws.
+        /// </summary>
+        public uint? ResolveMoveIconEntryAddress()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null) return null;
+            uint? moveIcon = ResolveMoveIconForSelection();
+            if (moveIcon == null || moveIcon.Value == 0) return null;
+
+            uint ptr = rom.RomInfo.unit_move_icon_pointer;
+            if (ptr == 0) return null;
+            uint baseAddr = rom.p32(ptr);
+            if (!U.isSafetyOffset(baseAddr)) return null;
+
+            uint entryAddr = baseAddr + (moveIcon.Value - 1) * 8;
+            if (entryAddr + 8 > (uint)rom.Data.Length) return null;
+            return entryAddr;
+        }
+
         public int GetListCount() => LoadList().Count;
 
         public Dictionary<string, string> GetDataReport()
