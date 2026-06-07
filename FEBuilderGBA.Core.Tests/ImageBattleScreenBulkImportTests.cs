@@ -496,19 +496,16 @@ namespace FEBuilderGBA.Core.Tests
                     error = ImageBattleScreenCore.ImportBattleScreenBulk(rom, pixels, palette);
                 }
 
-                // Palette slot is fine (it's a slot at a fixed ROM addr), but the
-                // strips deref via the slots; either way we must fail clean and
-                // mutate nothing. (Here the strips are valid, so the failure is the
-                // corrupt palette deref during the strip-render step? No -- palette
-                // is only WRITTEN. The deref under test is the slot bound, which is
-                // still in-range. So this import actually SUCCEEDS. We instead
-                // corrupt an IMAGE strip pointer below.)
-                // Either outcome is acceptable as long as a NON-empty error leaves
-                // the ROM unchanged. A successful import is also valid here.
-                if (!string.IsNullOrEmpty(error))
-                {
-                    AssertRomUnchanged(before, rom);
-                }
+                // ImportBattleScreenBulk validates by reading the EXISTING 16-bank
+                // palette first (TryLoadRawPalette derefs battle_screen_palette_pointer
+                // and reads 512 bytes there). With the pointer corrupted to an
+                // out-of-bounds offset, that read fails in the VALIDATE phase BEFORE
+                // any write — so the contract is deterministic: a non-empty error AND
+                // zero mutation. (Asserted unconditionally — a silent "success" here
+                // would be a regression.)
+                Assert.False(string.IsNullOrEmpty(error),
+                    "A corrupt palette pointer must fail validation with a non-empty error.");
+                AssertRomUnchanged(before, rom);
             }
             finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
         }
