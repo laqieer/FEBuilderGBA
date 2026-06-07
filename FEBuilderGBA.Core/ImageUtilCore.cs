@@ -72,11 +72,25 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Read a GBA palette from ROM (array of 16-bit colors).
+        /// Read a GBA palette from the ambient <see cref="CoreState.ROM"/>
+        /// (array of 16-bit colors). Prefer the explicit-<paramref name="rom"/>
+        /// overload in cross-platform Core seams so the read is consistent with
+        /// the ROM instance the caller is working on (non-global contexts).
         /// </summary>
         public static byte[] GetPalette(uint offset, int colorCount = 16)
         {
-            ROM rom = CoreState.ROM;
+            return GetPalette(CoreState.ROM, offset, colorCount);
+        }
+
+        /// <summary>
+        /// Read a GBA palette from the GIVEN <paramref name="rom"/> (array of
+        /// 16-bit colors). rom-consistent overload: a Core seam that already has
+        /// a <c>ROM</c> instance must use this so it never silently reads palette
+        /// bytes from a different ambient <see cref="CoreState.ROM"/> (#993
+        /// Copilot review; same class of latent bug as #992).
+        /// </summary>
+        public static byte[] GetPalette(ROM rom, uint offset, int colorCount = 16)
+        {
             if (rom == null) return null;
 
             int byteLen = colorCount * 2;

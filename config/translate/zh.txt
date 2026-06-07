@@ -24063,3 +24063,25 @@ AI脚本已导出到:
 
 :Parse failed
 解析失败
+:Flags (W0):
+标志 (W0):
+:Anime Type (W2):
+动画类型 (W2):
+:Image Pointer (P4):
+图像指针 (P4):
+:Frame Step:
+帧步:
+:Full Sheet
+完整图表
+:Jump to Move Icon
+跳转到移动图标
+:Self Army
+自军
+:Ally Army
+友军
+:Enemy Army
+敌军
+:Gray Army
+灰色
+:Four Army
+第四军

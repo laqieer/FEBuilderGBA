@@ -1996,10 +1996,18 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void PreviewIconHelper_LoadClassWaitIcon_Uses8ByteEntries()
         {
-            var src = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
-            // Verify 8-byte stride and pointer at offset +4 (matches WinForms)
-            Assert.Contains("waitIconIndex * 8", src);
-            Assert.Contains("entryAddr + 4", src);
+            // #991: the wait-icon decode pipeline (8-byte stride + sprite pointer
+            // at offset +4) MOVED VERBATIM into the cross-platform Core seam
+            // FEBuilderGBA.Core/WaitIconRenderCore.cs (single source of truth);
+            // PreviewIconHelper.LoadClassWaitIcon now DELEGATES to it. Assert the
+            // same 8-byte-stride / +4-pointer CONTRACT in the new seam, and that
+            // the helper still delegates (so behavior is byte-identical).
+            var coreSrc = File.ReadAllText(Path.Combine(SolutionDir, "FEBuilderGBA.Core", "WaitIconRenderCore.cs"));
+            Assert.Contains("waitIconIndex * 8", coreSrc);
+            Assert.Contains("entryAddr + 4", coreSrc);
+
+            var helperSrc = File.ReadAllText(Path.Combine(AvaloniaDir, "Services", "PreviewIconHelper.cs"));
+            Assert.Contains("WaitIconRenderCore.RenderClassWaitIcon", helperSrc);
         }
 
         [Fact]

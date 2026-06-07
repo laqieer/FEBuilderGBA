@@ -679,6 +679,77 @@ Specialized utilities for different graphic types:
   address (`U.isSafetyOffset`) — never throws. The Avalonia
   `ImageUnitPaletteView.OnSelected` calls it after `SelectedPaletteSlot` is set,
   before `UpdateUI`, then `RefreshSamplePreview` renders.
+- `WaitIconRenderCore.cs` (Core, READ-ONLY) - Cross-platform Unit Wait Icon
+  decode + crop seam (#991), extracted VERBATIM from the Avalonia
+  `PreviewIconHelper.LoadClassWaitIcon` decode pipeline (now a thin delegating
+  wrapper → single source of truth, zero drift). Resolves the 8-byte wait-icon
+  table entry (`unit_wait_icon_pointer` base; animType = raw byte @ `+2`, sprite
+  GBA pointer @ `+4`), LZ77-decompresses the strip, computes the strip height
+  (`CalcStripHeight` = WF `ImageUtil.CalcHeight(width, size, align=8)`), and
+  renders via `IImageService.Decode4bppTiles`. `RenderFrame(rom, idx, step, svc,
+  paletteType=0)` crops the step's frame per WF `DrawWaitUnitIcon`
+  (height16_limit=false): animType0 `(0,16*step,16,16)`, animType1
+  `(0,32*step+8,16,24)` (the #342/#667 Y=8 offset), animType2 `(0,32*step,32,32)`;
+  bounds-checked → null on short strip / unsafe ptr / null palette, NEVER throws.
+  `RenderFullSheet` returns the full decoded strip (no crop) for the editor's
+  X_PIC + PNG export. `RenderClassWaitIcon == RenderFrame(step:0, self)` preserves
+  the step-0 16x24@Y=8 list-preview parity. `GetPaletteColors(rom, paletteType)`
+  maps 0=self/1=npc/2=enemy/3=gray/4=four/5=lightrune/6=sepia to the matching
+  `unit_icon_*_palette_address` (`ImageUtilCore.GetPalette(addr,16)`; addr==0 →
+  null, so FE6 lightrune/sepia are blank). **rom-consistent palette read (#993
+  Copilot review):** `GetPaletteColors` reads via the new rom-aware
+  `ImageUtilCore.GetPalette(rom, offset, colorCount)` overload (the parameterless
+  one now delegates to it) so a Core seam never silently reads palette bytes from
+  a different ambient `CoreState.ROM` than the one it validated. The Avalonia
+  `ImageUnitWaitIconView` (no longer a stub) hosts W0/W2/P4 fields + undo-safe
+  Write, a 5-selectable palette combo (English-source `<TextBlock>` items
+  localized by `ViewTranslationHelper` via ja/en/zh `config/translate/`) + 0..2
+  step preview (full sheet + frame), Comment, jump-to-Move-Icon, and
+  PNG/animated-GIF export. The View `using`-disposes each freshly-rendered
+  `IImage` right after `SetImage` (which copies into a `WriteableBitmap`, not
+  retains) so the unmanaged SKBitmap is released without waiting for GC.
+- `WaitIconImportCore.cs` (Core, ROM-MUTATING) - Cross-platform static PNG/BMP
+  wait-icon sheet import (#991; ports WF `ImageUnitWaitIconFrom.ImportButton_Click`
+  write-back). `Import(rom, entryAddr, indexedPixels, width, height) → string`
+  validates dims → animType byte b2 (16x48→0 / 16x96→1 / 32x96→2, else localized
+  error + NO mutation), encodes via `ImageImportCore.EncodeDirectTiles4bpp`,
+  LZ77-writes + repoints the entry's `+4` pointer (`WriteCompressedToROM` OWNS the
+  +4 slot), and writes b2 into W2 (`write_u16` @ `+2`) — all under the CALLER's
+  ambient undo scope (the View owns `UndoService.Begin/Commit/Rollback`). A
+  defensive `rom.Data` snapshot is restored byte-identical on ANY fault
+  (length-aware: down-resize to snap length BEFORE `Array.Copy` so a
+  free-space resize-append can't survive — the #885/#923 pattern). The WF
+  interactive force-palette dialog is replaced by a nearest-color remap onto the
+  shared self-army palette done by the View's `Import_Click`
+  (`ImageImportService.LoadAndRemapToExistingPalette`, the entry has NO palette
+  slot) BEFORE the seam. Class back-refs live in `ClassFormCore`
+  (`GetClassIdWhereWaitIconId` @ class `+6`, `GetClassMoveIcon` @ class `+4`,
+  `GetClassNameWhereWaitIconId` → `NameResolver.GetClassName`) and drive the
+  list-label class name (lockstep `ListParityHelper.BuildImageUnitWaitIconList` ↔
+  VM `LoadList`, golden-test gated) + the Jump-to-Move-Icon button. The
+  move-icon field (`u8 @ class+4`) is a 1-BASED id (WF
+  `PreviewIconHelper.LoadMoveIcon` uses `id - 1`; `ImageUnitMoveIconViewModel`
+  is 0-based by table index), so `ImageUnitWaitIconViewModel.ResolveMoveIconEntryAddress`
+  navigates to `moveIconBase + (id - 1) * 8` (id 0 → no jump) — PR #993 Copilot
+  off-by-one fix, headless-tested on the computed target address. **Hardening
+  (#993 Copilot review):** `GetClassNameWhereWaitIconId` requires `rom ==
+  CoreState.ROM` (ReferenceEquals) before resolving via the ambient-ROM-bound
+  `NameResolver` (else "" — never a mismatched label); `GetClassMoveIcon` bounds
+  `classId` against the class-table row count (`GetClassCount`) so an
+  out-of-range id returns `U.NOT_FOUND` not an arbitrary byte; both
+  `GetClassMoveIcon` and `WaitIconRenderCore.TryResolveEntry` use `ulong`
+  address arithmetic + a ulong bounds check so a huge id can't wrap a `uint`
+  sum back into the table.
+  **Documented residual gaps:** (1) animated-GIF IMPORT is not a WF feature (WF
+  import is PNG/BMP single-frame; GIF is export-only); (2) the interactive
+  palette reorder/force dialog (WF `CheckPalette`/`ErrorPaletteShowForm`) is
+  replaced by automatic nearest-color remap; (3) old-region recycle on import is
+  deferred (always-append never corrupts shared sprites, may leak freespace on
+  repeated import); (4) list-expand barista repoint + source-file Open/Select
+  conveniences are deferred (editor edits existing entries only). The shared
+  list-termination contract (first non-pointer `@+4`) is kept unchanged; WF's
+  `P4==0 && flags!=0` non-terminal nuance is a documented pre-existing residual
+  (test-asserted current vanilla behavior).
 - `EventScriptReferenceScanner.cs` (Core, READ-ONLY) - Generic cross-platform
   event-script cross-reference scanner (#990). `EnumerateEventEntries(rom)` is a
   faithful port of WinForms `EventCondForm.MakeEventScriptPointer` (+ the FE7-only

@@ -10231,3 +10231,25 @@ ROMに取り込む
 
 :Parse failed
 解析に失敗しました
+:Flags (W0):
+フラグ (W0):
+:Anime Type (W2):
+アニメタイプ (W2):
+:Image Pointer (P4):
+画像ポインタ (P4):
+:Frame Step:
+フレームステップ:
+:Full Sheet
+フルシート
+:Jump to Move Icon
+移動アイコンへジャンプ
+:Self Army
+自軍
+:Ally Army
+友軍
+:Enemy Army
+敵軍
+:Gray Army
+グレー
+:Four Army
+4軍
