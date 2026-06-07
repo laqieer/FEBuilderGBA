@@ -84,13 +84,7 @@
              =========================================================== -->
         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Disabled">
-        <Grid Name="PaletteGrid">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="36" />
-            <RowDefinition Height="32" />
-            <RowDefinition Height="32" />
-            <RowDefinition Height="32" />
-          </Grid.RowDefinitions>
+        <Grid Name="PaletteGrid" RowDefinitions="36,32,32,32">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="62" />
             <ColumnDefinition Width="62" />

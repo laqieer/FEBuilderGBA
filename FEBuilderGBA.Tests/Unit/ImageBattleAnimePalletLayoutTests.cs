@@ -66,24 +66,15 @@ namespace FEBuilderGBA.Tests.Unit
         {
             var src = File.ReadAllText(AxamlPath);
 
-            // The fixed R/G/B label column row heights MUST mirror the
-            // PaletteGrid's row heights so the labels stay aligned. Guard
-            // against future drift by asserting both literal sequences exist.
-            // The label column uses the inline form:
-            Assert.Contains("<Grid Grid.Column=\"0\" RowDefinitions=\"36,32,32,32\">", src);
-
-            // The PaletteGrid uses the same height sequence (expressed as
-            // individual <RowDefinition Height=.../> elements). Assert the
-            // literal "36,32,32,32" sequence is present at least twice overall
-            // (label column inline + a PaletteGrid form), guarding drift.
-            var count = CountOccurrences(src, "36,32,32,32");
+            // Drift guard: BOTH the fixed R/G/B label column AND the PaletteGrid
+            // must declare the exact same inline "36,32,32,32" row sequence so
+            // every label stays aligned with its spinner row. Asserting the
+            // literal appears at least twice covers both grids without depending
+            // on attribute order or surrounding markup.
             Assert.True(
-                count >= 1,
-                "Expected the label column to declare RowDefinitions=\"36,32,32,32\".");
-
-            // PaletteGrid must keep the matching individual RowDefinition heights.
-            Assert.Contains("<RowDefinition Height=\"36\" />", src);
-            Assert.Contains("<RowDefinition Height=\"32\" />", src);
+                CountOccurrences(src, "36,32,32,32") >= 2,
+                "Expected both the R/G/B label column grid and PaletteGrid to "
+                + "declare the same inline RowDefinitions=\"36,32,32,32\" sequence.");
         }
 
         [Fact]
@@ -110,9 +101,15 @@ namespace FEBuilderGBA.Tests.Unit
 
         private static void AssertTextBlockHasGridRow(string src, string automationId, string row)
         {
+            // Match the <TextBlock ...> opening tag up to the first '>' so this
+            // works for BOTH the self-closing form (<TextBlock ... />) and a
+            // non-self-closing opening tag (<TextBlock ...>...</TextBlock>) —
+            // mirroring AssertButtonHasShortJumpContent. XAML doesn't allow an
+            // unescaped '>' inside an attribute value, so a non-greedy match up
+            // to the next '>' captures the full attribute list either way.
             var matches = System.Text.RegularExpressions.Regex.Matches(
                 src,
-                @"<TextBlock\b[^>]*?/>",
+                @"<TextBlock\b[^>]*?>",
                 System.Text.RegularExpressions.RegexOptions.Singleline);
 
             foreach (System.Text.RegularExpressions.Match m in matches)
