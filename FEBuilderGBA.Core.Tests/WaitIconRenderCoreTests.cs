@@ -222,6 +222,25 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(WaitIconRenderCore.RenderFrame(null, 0, 0, Svc, 0));
         }
 
+        [Fact]
+        public void RenderFrame_HugeIndex_NoOverflow_ReturnsNull()
+        {
+            // #993 Copilot review: a very large waitIconIndex whose
+            // `baseAddr + index*8` would wrap in uint must NOT alias back into
+            // the table and produce a non-null image. The overflow-safe ulong
+            // arithmetic in TryResolveEntry must reject it.
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM? rom = LoadRom("FE8U.gba");
+                if (rom == null) return;
+                CoreState.ROM = rom;
+                using IImage img = WaitIconRenderCore.RenderFrame(rom, 0xFFFFFFF0u, 0, Svc, 0);
+                Assert.Null(img);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
         // -----------------------------------------------------------------
         // Minimal IImageService stub: correctly-sized indexed images + the
         // SetPixelData/GetPixelData round-trip the crop path needs.

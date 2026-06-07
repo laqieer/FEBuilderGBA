@@ -191,7 +191,9 @@ namespace FEBuilderGBA.Core
         /// Read the move-icon id for class <paramref name="classId"/>
         /// (<c>u8(classAddr + 4)</c>). Mirror of WF
         /// <c>ClassForm.GetClassMoveIcon</c>: returns <see cref="U.NOT_FOUND"/>
-        /// for class 0 or an unresolvable ROM/address. Guarded — never throws.
+        /// for class 0, an out-of-range <paramref name="classId"/> (beyond the
+        /// class table's row count), or an unresolvable ROM/address. Guarded —
+        /// never throws.
         /// </summary>
         public static uint GetClassMoveIcon(ROM rom, uint classId)
         {
@@ -204,8 +206,19 @@ namespace FEBuilderGBA.Core
             uint baseAddr = rom.p32(classPtr);
             if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
 
-            uint addr = baseAddr + classId * datasize;
-            uint moveSlot = addr + 4;
+            // Bound classId against the table's actual row count (#993 Copilot
+            // review): without this, an out-of-range classId that still lands
+            // inside rom.Data would return an arbitrary byte instead of
+            // NOT_FOUND, violating the documented contract. Uses the SAME
+            // GetClassCount logic as GetClassIdWhereWaitIconId.
+            int count = GetClassCount(rom, baseAddr, datasize);
+            if (classId >= (uint)count) return U.NOT_FOUND;
+
+            // Overflow-safe address arithmetic (#993 Copilot review): compute in
+            // ulong + bounds-check the +4 read before casting back.
+            ulong moveSlot64 = (ulong)baseAddr + (ulong)classId * datasize + 4UL;
+            if (moveSlot64 + 1UL > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint moveSlot = (uint)moveSlot64;
             if (!U.isSafetyOffset(moveSlot, rom)) return U.NOT_FOUND;
             return rom.u8(moveSlot);
         }

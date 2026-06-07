@@ -159,6 +159,38 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void GetClassMoveIcon_OutOfRangeClassId_ReturnsNotFound()
+        {
+            // #993 Copilot review: a classId beyond the table row count (but still
+            // landing inside rom.Data) must return NOT_FOUND, not an arbitrary
+            // byte. The synthetic ROM has 4 classes (0..3); class 99 is in-bounds
+            // address-wise but out of the table.
+            var saved = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeSyntheticClassRom(out _, out _);
+                CoreState.ROM = rom;
+                Assert.Equal(U.NOT_FOUND, ClassFormCore.GetClassMoveIcon(rom, 99));
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void GetClassMoveIcon_HugeClassId_NoOverflow_ReturnsNotFound()
+        {
+            // Overflow-safe arithmetic: a huge classId whose baseAddr + id*size
+            // would wrap in uint must NOT alias back into the table.
+            var saved = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeSyntheticClassRom(out _, out _);
+                CoreState.ROM = rom;
+                Assert.Equal(U.NOT_FOUND, ClassFormCore.GetClassMoveIcon(rom, 0xFFFFFFF0u));
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
         public void GetClassIdWhereWaitIconId_RoundTrips_Synthetic()
         {
             var saved = CoreState.ROM;

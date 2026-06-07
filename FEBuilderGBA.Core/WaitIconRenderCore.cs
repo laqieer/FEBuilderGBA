@@ -191,8 +191,14 @@ namespace FEBuilderGBA.Core
             uint baseAddr = rom.p32(ptr);
             if (!U.isSafetyOffset(baseAddr, rom)) return false;
 
-            uint entryAddr = baseAddr + waitIconIndex * 8;
-            if (entryAddr + 8 > (uint)rom.Data.Length) return false;
+            // Overflow-safe address arithmetic (#993 Copilot review): a very
+            // large waitIconIndex would wrap `baseAddr + waitIconIndex * 8` in
+            // uint and could make the bounds check pass on the WRONG entry. Do
+            // the multiply + add + bounds check in ulong and only cast back once
+            // the full 8-byte span is proven in-bounds.
+            ulong entryAddr64 = (ulong)baseAddr + (ulong)waitIconIndex * 8UL;
+            if (entryAddr64 + 8UL > (ulong)rom.Data.Length) return false;
+            uint entryAddr = (uint)entryAddr64;
 
             animType = (byte)rom.u8(entryAddr + 2);
 
