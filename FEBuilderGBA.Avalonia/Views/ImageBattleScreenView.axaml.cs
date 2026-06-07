@@ -538,12 +538,13 @@ namespace FEBuilderGBA.Avalonia.Views
         //   button (BattlePreview.ExportPng). Read-only; no ROM write; no undo.
         //   Gated on CanExportBattle/HasImage (CORRECTION 4).
         //
-        // Import: load one 256x160 indexed image (≤4 palette banks), keep the
-        //   existing TSA layout, and rewrite the deduplicated tilesheet (split
-        //   into the 5 strips) + palette via the validate-all-before-mutate Core
-        //   seam ImageBattleScreenCore.ImportBattleScreenBulk, under one
-        //   UndoService scope (CORRECTION 1/2/3). On any returned error, rollback
-        //   and surface the message.
+        // Import: load one 256x160 indexed image (SINGLE palette bank, <=16
+        //   colors per the #989 SAFE policy), keep the existing TSA layout, and
+        //   rewrite the tilesheet (split into the 5 strips) + bank 0 of the
+        //   palette via the validate-all-before-mutate Core seam
+        //   ImageBattleScreenCore.ImportBattleScreenBulk, under one UndoService
+        //   scope (CORRECTION 2/3). A >16-color source is rejected (no mutation).
+        //   On any returned error, rollback and surface the message.
         // -----------------------------------------------------------------
 
         /// <summary>
@@ -564,11 +565,13 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Bulk-import a 256x160 indexed image (#988). Loads + quantizes the
-        /// user's image to its OWN ≤4-bank palette (CORRECTION 1: ≤64 colors),
-        /// then calls the validate-all-before-mutate Core seam under one
-        /// UndoService scope. On any returned error string, rollback + log it.
-        /// Refreshes all previews on success.
+        /// Bulk-import a 256x160 indexed image (#988; #989 SAFE single-bank
+        /// policy). Loads + quantizes the user's image to a SINGLE palette bank
+        /// (&lt;=16 colors), then calls the validate-all-before-mutate Core seam
+        /// under one UndoService scope. A &gt;16-color source is REJECTED with a
+        /// localized error and NO mutation (full multi-bank import is a documented
+        /// follow-up). On any returned error string, rollback + log it. Refreshes
+        /// all previews on success.
         /// </summary>
         async void BulkImport_Click(object? sender, RoutedEventArgs e)
         {
@@ -580,21 +583,36 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            // Open file dialog and load+quantize to the image's OWN ≤4-bank
-            // palette (up to 64 colors). Unlike the per-image path, the bulk
-            // import writes the imported palette (CORRECTION 1) -- so we quantize
-            // (LoadAndQuantizeFromFile) rather than remap to the existing palette.
+            // Open file dialog and load+quantize. We quantize with a cap of
+            // (BULK_MAX_COLORS + 1) so we can DETECT a source that genuinely
+            // needs more than one palette bank (ColorCount > BULK_MAX_COLORS) and
+            // reject it cleanly -- rather than silently downgrading a multi-bank
+            // image to a single bank with the wrong colors (#989).
             string? filePath = await FileDialogHelper.OpenImageFile(this);
             if (string.IsNullOrEmpty(filePath)) return;
 
             var loadResult = ImageImportService.LoadAndQuantizeFromFile(
                 filePath,
                 ImageBattleScreenCore.BULK_WIDTH, ImageBattleScreenCore.BULK_HEIGHT,
-                maxColors: ImageBattleScreenCore.BULK_PALETTE_BANKS * 16, strictSize: true);
+                maxColors: ImageBattleScreenCore.BULK_MAX_COLORS + 1, strictSize: true);
             if (loadResult == null || !loadResult.Success)
             {
                 string err = loadResult?.Error ?? "Unknown error";
                 Log.Error("BulkImport_Click: load/quantize failed: {0}", err);
+                return;
+            }
+
+            // SAFE single-bank guard (#989): reject a source needing >16 colors.
+            // The Core seam also enforces this (palette length + index range), but
+            // surfacing it here gives the user a clear, localized message.
+            if (loadResult.ColorCount > ImageBattleScreenCore.BULK_MAX_COLORS)
+            {
+                // R._ performs the {0} substitution and returns the localized
+                // string; pass the single result to Log.Error (which concatenates
+                // its string[] args).
+                Log.Error(R._(
+                    "Battle-screen bulk import supports a single palette bank (max {0} colors). Reduce the image to {0} colors first.",
+                    ImageBattleScreenCore.BULK_MAX_COLORS.ToString()));
                 return;
             }
 

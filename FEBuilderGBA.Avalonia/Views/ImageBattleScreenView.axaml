@@ -550,9 +550,14 @@
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkUndo_Button"
                       Content="Undo" Width="100"
                       Click="BulkUndo_Click" />
+              <!-- Bulk Redo stays a documented deferral (#988): the local TSA
+                   redo buffer is WinForms-coupled; the functional Bulk Undo
+                   button (main ROM-level Undo) covers rollback. This EXACT
+                   tooltip literal is already translated in config/translate/
+                   ja.txt + zh.txt, so it passes the L10n coverage gate. -->
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkRedo_Button"
                       Content="Redo" Width="100" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: the local TSA redo buffer is WinForms-coupled (#988). The main ROM-level Undo (the functional Bulk Undo button) covers rollback, so this stays a documented deferral (#393)." />
+                      ToolTip.Tip="KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393)." />
             </StackPanel>
           </StackPanel>
         </TabItem>

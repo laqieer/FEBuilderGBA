@@ -397,14 +397,24 @@ Specialized utilities for different graphic types:
   returns `null` without throwing. `ImportBattleScreenBulk(rom, indexedPixels, gbaPalette)` is the
   validate-all-before-mutate write seam (CORRECTION 3): PHASE 1 re-loads the 5 image strips (their
   ORIGINAL uncompressed byte lengths = the chunk boundaries, port of `RevChipImage`), the TSA map,
-  and validates the imported 256×160 dims + `≤4`-bank palette (CORRECTION 1 — ≤64 colors; WF
-  `ImageToPalette(bmp, 4)`) + all 5 image pointer slots + the palette pointer slot BEFORE any
-  write; PHASE 2 splits the `EncodeTSAKeep` result into the 5 strips by the captured original
-  lengths, LZ77-writes + repoints each (`ImageImportCore.WriteCompressedToROM`), then writes the
-  image's OWN ≤4-bank palette RAW + repoints (`WriteRawToROM`) — ALL through the caller's ambient
-  `ROM.BeginUndoScope`, returning a non-empty error string on any failure (no partial commit;
-  caller rolls back). The Avalonia `ImageBattleScreenView.BulkImport_Click` loads+quantizes the
-  PNG to its own ≤4-bank palette (`LoadAndQuantizeFromFile`, NOT remap-to-existing) and calls it
+  the EXISTING 16-bank ROM palette, and validates the imported 256×160 dims + the SINGLE-bank
+  palette/indices + all 5 image pointer slots + the palette pointer slot BEFORE any write; PHASE 2
+  splits the `EncodeTSAKeep` result into the 5 strips by the captured original lengths, LZ77-writes
+  + repoints each (`ImageImportCore.WriteCompressedToROM`), then writes the merged palette + repoints
+  (`WriteRawToROM`) — ALL through the caller's ambient `ROM.BeginUndoScope`, returning a non-empty
+  error string on any failure (no partial commit; caller rolls back).
+  **PALETTE POLICY = SAFE single bank (#989, Copilot fix).** WF's multi-bank
+  `ImageToPalette(bitmap, 4)` path relies on a PRE-BANKED indexed source (each 8×8 cell's pixels
+  use exactly the bank its TSA `pal = m>>12` bits select); a flat re-quantized 0..63 index stream
+  can't satisfy that (the rendered bank comes from the TSA, not the quantizer), so source indices
+  16..63 would silently render with the WRONG bank. Rather than be silently wrong, the bulk import
+  is restricted to ONE palette bank (`BULK_MAX_COLORS = 16`): a >16-color source is REJECTED with a
+  localized error and NO mutation. The imported 16-color palette is merged into BANK 0 of the
+  EXISTING 16-bank ROM palette (banks 1..15 preserved verbatim, so TSA cells with `pal>0` keep
+  their colors); pixel indices must be 0..15. Full multi-bank correctness is a documented follow-up
+  (needs a bank-aware quantizer that honors per-cell TSA bank assignment). The Avalonia
+  `ImageBattleScreenView.BulkImport_Click` quantizes the PNG with `maxColors = BULK_MAX_COLORS + 1`
+  (so a >16-color source is DETECTED via `LoadResult.ColorCount` and rejected) and calls the seam
   under one `UndoService` scope; `BulkExport_Click` reuses the composited-preview PNG path
   (`BattlePreview.ExportPng`). Both bulk buttons are gated on the SAME render-success state
   (`CanExportBattle`/`HasImage`) as the top Export PNG (CORRECTION 4). Bulk **Redo** stays a

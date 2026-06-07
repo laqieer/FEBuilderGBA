@@ -271,7 +271,7 @@ namespace FEBuilderGBA.Core.Tests
                 byte[] before = (byte[])rom.Data.Clone();
 
                 byte[] pixels = new byte[BULK_W * BULK_H];
-                // 5 banks (160 bytes) > 4-bank cap (128 bytes).
+                // 5 banks (160 bytes) > the single-bank cap (32 bytes) (#989).
                 byte[] palette = new byte[5 * 16 * 2];
 
                 string error;
@@ -283,6 +283,163 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.False(string.IsNullOrEmpty(error));
                 AssertRomUnchanged(before, rom);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+        }
+
+        // #989 SAFE single-bank policy: a multi-bank source (palette > 16 colors,
+        // i.e. > 32 bytes) is REJECTED with NO mutation. DecreaseColorCore.Quantize
+        // returns ColorCount*2 bytes (NOT padded), so a 17-color source = 34 bytes.
+        [Fact]
+        public void ImportBattleScreenBulk_SeventeenColorPalette_NoMutation_CleanError()
+        {
+            ROM rom = MakeRom();
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                byte[] before = (byte[])rom.Data.Clone();
+
+                byte[] pixels = new byte[BULK_W * BULK_H]; // all 0 (valid indices)
+                byte[] palette = new byte[17 * 2];          // 34 bytes > 32 -> reject
+
+                string error;
+                Undo.UndoData ud = CoreState.Undo.NewUndoData("bulk 17 color");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    error = ImageBattleScreenCore.ImportBattleScreenBulk(rom, pixels, palette);
+                }
+
+                Assert.False(string.IsNullOrEmpty(error));
+                AssertRomUnchanged(before, rom);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+        }
+
+        // #989 SAFE single-bank policy: an index >= 16 (i.e. a multi-bank source
+        // whose bank can't be honored) is REJECTED with NO mutation, even when the
+        // palette length itself is in-range (the index-range guard catches it).
+        [Fact]
+        public void ImportBattleScreenBulk_PixelIndexBeyondBankZero_NoMutation_CleanError()
+        {
+            ROM rom = MakeRom();
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                byte[] before = (byte[])rom.Data.Clone();
+
+                byte[] pixels = new byte[BULK_W * BULK_H];
+                pixels[100] = 16; // index 16 = bank 1 -> reject
+                byte[] palette = new byte[16 * 2]; // length OK (single bank)
+
+                string error;
+                Undo.UndoData ud = CoreState.Undo.NewUndoData("bulk idx 16");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    error = ImageBattleScreenCore.ImportBattleScreenBulk(rom, pixels, palette);
+                }
+
+                Assert.False(string.IsNullOrEmpty(error));
+                AssertRomUnchanged(before, rom);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+        }
+
+        // #989: a valid single-bank import writes the imported 16 colors into
+        // BANK 0 of the ROM palette while PRESERVING banks 1..15 verbatim, so TSA
+        // cells that reference pal>0 keep their colors. End-to-end palette check.
+        [Fact]
+        public void ImportBattleScreenBulk_PreservesPaletteBanks1To15()
+        {
+            ROM rom = MakeRom();
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+
+                // Seed distinctive colors in banks 1 and 15 of the ROM palette so
+                // we can prove they survive the import unchanged.
+                uint palOff = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+                U.write_u16(rom.Data, palOff + (1 * 16 + 3) * 2, 0x1234);   // bank 1
+                U.write_u16(rom.Data, palOff + (15 * 16 + 7) * 2, 0x5678);  // bank 15
+
+                byte[] pixels = new byte[BULK_W * BULK_H]; // all bank-0 index 0
+                // Imported bank-0 palette: 16 colors, distinctive first entry.
+                byte[] palette = new byte[16 * 2];
+                U.write_u16(palette, 0, 0x7FFF); // bank 0 index 0 = white
+
+                Undo.UndoData ud = CoreState.Undo.NewUndoData("bulk preserve banks");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    Assert.Equal(string.Empty,
+                        ImageBattleScreenCore.ImportBattleScreenBulk(rom, pixels, palette));
+                }
+                if (ud.list.Count > 0) CoreState.Undo.Push(ud);
+
+                // Read the NEW palette pointer + verify bank 0 = imported, banks
+                // 1 and 15 = the seeded sentinels (preserved).
+                uint newPalOff = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+                Assert.Equal((uint)0x7FFF, rom.u16(newPalOff + 0));                       // bank 0[0]
+                Assert.Equal((uint)0x1234, rom.u16(newPalOff + (uint)((1 * 16 + 3) * 2)));  // bank 1 preserved
+                Assert.Equal((uint)0x5678, rom.u16(newPalOff + (uint)((15 * 16 + 7) * 2))); // bank 15 preserved
+            }
+            finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
+        }
+
+        // #989 end-to-end MULTI-BANK render correctness: import a single-bank
+        // image into a ROM whose TSA references BOTH bank 0 and bank 1, render
+        // the composite, and assert the bank-1 cells render with bank-1's
+        // (preserved) colors while bank-0 cells render with the imported color.
+        [Fact]
+        public void ImportBattleScreenBulk_MultiBankTsa_RendersCorrectPerCellBank()
+        {
+            using var _ = new ImageServiceScope();
+            ROM rom = MakeRom();
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+
+                // Plant a TSA where cell (0,1) uses bank 0 and cell (0,2) uses
+                // bank 1, both -> tile 0 (no flip). (x=1.. are the TSA1 columns.)
+                ushort[] map = BlankMap();
+                const int MAP_X = ImageBattleScreenCore.MAP_X;
+                map[0 * MAP_X + 1] = 0x0000;               // tile 0, pal 0
+                map[0 * MAP_X + 2] = (ushort)(0x0000 | (1 << 12)); // tile 0, pal 1
+                PlantMap(rom, map);
+
+                // Seed bank 1 index 0 with a distinctive color in the ROM palette.
+                uint palOff = rom.p32(rom.RomInfo.battle_screen_palette_pointer);
+                U.write_u16(rom.Data, palOff + (1 * 16 + 0) * 2, 0x001F); // bank1[0] = red
+
+                // Imported single-bank image: bank 0 index 0 = green.
+                byte[] pixels = new byte[BULK_W * BULK_H]; // all index 0
+                byte[] palette = new byte[16 * 2];
+                U.write_u16(palette, 0, 0x03E0); // bank 0 index 0 = green
+
+                Undo.UndoData ud = CoreState.Undo.NewUndoData("bulk multibank render");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    Assert.Equal(string.Empty,
+                        ImageBattleScreenCore.ImportBattleScreenBulk(rom, pixels, palette));
+                }
+                if (ud.list.Count > 0) CoreState.Undo.Push(ud);
+
+                IImage img = ImageBattleScreenCore.RenderBattleScreenPreview(rom);
+                Assert.NotNull(img);
+                // Cell (0,1) = bank 0 -> green (0x03E0 -> RGB 0,248,0).
+                AssertPixel(img, 1 * 8, 0, 0, 248, 0);
+                // Cell (0,2) = bank 1 -> the preserved bank-1 red (0x001F -> 248,0,0).
+                AssertPixel(img, 2 * 8, 0, 248, 0, 0);
             }
             finally { CoreState.ROM = prevRom; CoreState.Undo = prevUndo; }
         }
@@ -532,6 +689,17 @@ namespace FEBuilderGBA.Core.Tests
             int off = tileIndex * 32;
             for (int i = 0; i < 32; i++)
                 Assert.Equal(expectedTile[i], sheet[off + i]);
+        }
+
+        /// <summary>Assert a rendered IImage pixel's RGB (alpha ignored).</summary>
+        static void AssertPixel(IImage img, int x, int y, int r, int g, int b)
+        {
+            byte[] px = img.GetPixelData();
+            int idx = (y * img.Width + x) * 4;
+            Assert.True(idx + 2 < px.Length, $"pixel ({x},{y}) out of range");
+            Assert.Equal((byte)r, px[idx + 0]);
+            Assert.Equal((byte)g, px[idx + 1]);
+            Assert.Equal((byte)b, px[idx + 2]);
         }
 
         static void AssertRomUnchanged(byte[] before, ROM rom)

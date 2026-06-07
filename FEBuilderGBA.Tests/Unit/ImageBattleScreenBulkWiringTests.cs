@@ -141,13 +141,25 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void CodeBehind_BulkImport_QuantizesToFourBankPalette()
+        public void CodeBehind_BulkImport_QuantizesToSingleBankPalette()
         {
             var src = CodeBehind;
-            // CORRECTION 1: the bulk import quantizes the image to its OWN ≤4-bank
-            // palette (LoadAndQuantizeFromFile with maxColors = banks*16).
+            // #989 SAFE policy: the bulk import quantizes to a SINGLE palette bank
+            // (LoadAndQuantizeFromFile with maxColors = BULK_MAX_COLORS + 1 so a
+            // >16-color source can be DETECTED) and rejects >16-color images.
             Assert.Contains("LoadAndQuantizeFromFile", src);
-            Assert.Contains("BULK_PALETTE_BANKS * 16", src);
+            Assert.Contains("BULK_MAX_COLORS + 1", src);
+        }
+
+        [Fact]
+        public void CodeBehind_BulkImport_RejectsMultiBankSource()
+        {
+            var src = CodeBehind;
+            // The view must reject a source needing >16 colors (single-bank guard,
+            // #989) with NO mutation (early return before the undo scope).
+            Assert.Matches(new Regex(
+                @"loadResult\.ColorCount > ImageBattleScreenCore\.BULK_MAX_COLORS[\s\S]{0,600}return;",
+                RegexOptions.Singleline), src);
         }
 
         // -----------------------------------------------------------------
