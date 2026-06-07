@@ -116,6 +116,21 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void FE8_ZeroDereferencedBase_ReturnsZero_NoBogusScan()
+        {
+            // The color pointer LOCATION is valid (in-bounds) but it DEREFERENCES
+            // to 0 (an invalid base). The guard must reject the unsafe base and
+            // return 0 instead of scanning unrelated ROM bytes (~0x200+) and
+            // possibly returning a bogus class id.
+            ROM rom = MakeFE8Rom();
+            // Overwrite the color pointer slot with a 0 pointer.
+            U.write_u32(rom.Data, COLOR_PTR_SLOT, 0);
+            // Plant a "class" byte at the location a naive scan (colorBase=0 ->
+            // reads near 0) might trip on — must NOT be returned.
+            Assert.Equal(0u, UnitPaletteClassResolverCore.ResolveDefaultPreviewClass(rom, 0));
+        }
+
+        [Fact]
         public void FE8_PaletteIdZero_Ignored()
         {
             ROM rom = MakeFE8Rom();

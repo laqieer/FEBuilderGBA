@@ -158,6 +158,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.ClassID = cls;
                     _vm.ClassName = NameResolver.GetClassName(cls);
                 }
+                else
+                {
+                    // Both the slot resolver AND the anime fallback found nothing
+                    // for THIS selection — clear so the UI/preview don't show the
+                    // previous entry's stale class/anime/preview (WF rebuilds the
+                    // class list per selection; empty == no class for this slot).
+                    _vm.ClassID = 0;
+                    _vm.ClassName = "";
+                }
 
                 UpdateUI();
                 RefreshSamplePreview();

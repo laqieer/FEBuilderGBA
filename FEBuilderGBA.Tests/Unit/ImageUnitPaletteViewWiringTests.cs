@@ -28,13 +28,15 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void OnSelected_CallsResolveDefaultPreviewClass()
         {
-            Assert.Contains("ResolveDefaultPreviewClass", ViewSrc);
+            // Assert on the actual call token (leading dot + trailing paren) so
+            // the test can't false-positive on a comment / string mention.
+            Assert.Contains(".ResolveDefaultPreviewClass(", ViewSrc);
         }
 
         [Fact]
         public void OnSelected_FallsBackToFindFirstClassWithAnime()
         {
-            Assert.Contains("FindFirstClassWithAnime", ViewSrc);
+            Assert.Contains(".FindFirstClassWithAnime(", ViewSrc);
         }
 
         [Fact]
@@ -51,6 +53,16 @@ namespace FEBuilderGBA.Tests.Unit
         {
             // SelectedPaletteSlot is 1-based; the resolver wants the 0-based index.
             Assert.Contains("_vm.SelectedPaletteSlot - 1", ViewSrc);
+        }
+
+        [Fact]
+        public void OnSelected_ClearsClassWhenNoResolution()
+        {
+            // When both the resolver and the fallback return 0, the previous
+            // selection's class must be cleared (no stale class/anime/preview).
+            var src = ViewSrc;
+            Assert.Contains("_vm.ClassID = 0", src);
+            Assert.Contains("_vm.ClassName = \"\"", src);
         }
     }
 }

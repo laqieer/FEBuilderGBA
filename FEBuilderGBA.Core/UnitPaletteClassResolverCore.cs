@@ -66,6 +66,10 @@ namespace FEBuilderGBA.Core
 
             uint colorBase = rom.p32(colorPtrLoc);
             uint classBase = rom.p32(classPtrLoc);
+            // Guard the DEREFERENCED bases before scanning: a 0/invalid pointer
+            // slot makes p32 return 0, and an unguarded scan would then read
+            // unrelated ROM bytes (~0x200+) and could return a bogus class id.
+            if (!U.isSafetyOffset(colorBase, rom) || !U.isSafetyOffset(classBase, rom)) return 0;
             uint maxcount = rom.RomInfo.unit_maxcount;
 
             for (uint i = 0; i < maxcount; i++)
