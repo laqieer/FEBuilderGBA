@@ -11,8 +11,8 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Palette Editor" FontSize="18" FontWeight="Bold" />
 
-        <!-- Header row: Address bar caption + Write caption -->
-        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto">
+        <!-- Header row: Address bar caption + selected-address -->
+        <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" RowDefinitions="Auto">
           <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Address_Label"
                      Grid.Row="0" Grid.Column="0" Text="Address" VerticalAlignment="Center" Margin="0,0,8,0" />
           <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Addr_Label"
@@ -22,8 +22,6 @@
                      Grid.Row="0" Grid.Column="2" Text="Selected Address:" VerticalAlignment="Center" Margin="0,0,8,0" />
           <TextBox AutomationProperties.AutomationId="ImageUnitPalette_SelectedAddress_Input"
                    Grid.Row="0" Grid.Column="3" Name="SelectedAddressBox" Width="120" IsReadOnly="True" Margin="0,0,16,0" />
-          <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Write_Label"
-                     Grid.Row="0" Grid.Column="4" Text="Write" VerticalAlignment="Center" />
         </Grid>
 
         <TabControl AutomationProperties.AutomationId="ImageUnitPalette_Main_TabControl" Name="MainTabs">
@@ -197,12 +195,10 @@
               <Grid ColumnDefinitions="*,*,*,*" Margin="0,8,0,0">
                 <!-- Column 1: indices 1-4 -->
                 <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                  <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,40,60,60,60">
-                    <TextBlock Grid.Column="0" Text=" " />
-                    <TextBlock Grid.Column="4" Text=" " />
-                    <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_R_Header_Label" Grid.Column="5" Text="R" HorizontalAlignment="Center" FontWeight="SemiBold" />
-                    <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_G_Header_Label" Grid.Column="6" Text="G" HorizontalAlignment="Center" FontWeight="SemiBold" />
-                    <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_B_Header_Label" Grid.Column="7" Text="B" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                  <Grid Grid.Row="0" ColumnDefinitions="30,40,60,60,60">
+                    <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_R_Header_Label" Grid.Column="2" Text="R" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_G_Header_Label" Grid.Column="3" Text="G" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_B_Header_Label" Grid.Column="4" Text="B" HorizontalAlignment="Center" FontWeight="SemiBold" />
                   </Grid>
                   <Grid Grid.Row="1" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index1_Label" Grid.Column="0" Text="1" VerticalAlignment="Center" />
