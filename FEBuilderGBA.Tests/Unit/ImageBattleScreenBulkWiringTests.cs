@@ -42,11 +42,16 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void BulkImportButton_NoLongerDisabled()
+        public void BulkImportButton_OldKnownGapStubStateRemoved()
         {
-            // The KnownGap stub IsEnabled="False" + tooltip must be gone from the
-            // BulkImport button element (it is now enabled at runtime by the
-            // render-success gate in RefreshBattlePreview).
+            // Guards that the OLD KnownGap stub (a hard IsEnabled="False" PAIRED
+            // with the WinForms-coupled ImageUtil.ImageToByteKeepTSA tooltip) is
+            // gone from the BulkImport button. NOTE: the button still declares
+            // IsEnabled="False" as its INITIAL state — runtime enablement is the
+            // render-success gate asserted by CodeBehind_BulkButtons_GatedOnRenderSuccess
+            // (BulkImportButton.IsEnabled = _vm.CanExportBattle). This test only
+            // proves the WinForms-coupled KnownGap stub no longer pins the button
+            // disabled with no code path to enable it.
             Assert.DoesNotMatch(new Regex(
                 @"AutomationId=""ImageBattleScreen_BulkImport_Button""[\s\S]{0,200}IsEnabled=""False""[\s\S]{0,200}ImageUtil\.ImageToByteKeepTSA"),
                 Axaml);
