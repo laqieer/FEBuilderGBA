@@ -679,6 +679,43 @@ Specialized utilities for different graphic types:
   address (`U.isSafetyOffset`) — never throws. The Avalonia
   `ImageUnitPaletteView.OnSelected` calls it after `SelectedPaletteSlot` is set,
   before `UpdateUI`, then `RefreshSamplePreview` renders.
+- `EventScriptReferenceScanner.cs` (Core, READ-ONLY) - Generic cross-platform
+  event-script cross-reference scanner (#990). `EnumerateEventEntries(rom)` is a
+  faithful port of WinForms `EventCondForm.MakeEventScriptPointer` (+ the FE7-only
+  `MakeEventScriptForFE7Tutorial` table) — it walks every map's event-condition
+  table via `MapSettingCore.MakeMapIDList` + `MapEventUnitCore.GetEventAddrForMap`/
+  `GetCondSlots` and yields each event-script entry point with VERIFIED per-cond
+  geometry: TURN (stride `eventcond_tern_size`, ptr `p32(addr+4)`, FE7 short-turn
+  `type==1`→`addr+=12`), TALK (`eventcond_talk_size`, ptr+4), OBJECT (fixed 12,
+  ptr+4, SKIP shop/chest — FE8 chest=0x14 shop=0x16-0x18, FE6/7 chest=0x12
+  shop=0x13-0x15), ALWAYS (fixed 12, ptr+4), TUTORIAL (fixed 4, ptr+0,
+  `!isPointer` stop), START/END (the cond-slot addr itself), + FE7 tutorial.
+  `FindAllArgReferences(rom, argType, keepZeroId)` GATES on
+  `CoreState.EventScript != null && ReferenceEquals(CoreState.ROM, rom)` (the
+  disasm path dereferences static `CoreState.ROM`/`CommentCache`), disassembles
+  each entry (`es.DisAseemble`) iterating EVERY non-UNKNOWN command's args (10-
+  UNKNOWN cutoff + 4096-step guard + EOF bound, IF/LABEL→lastBranchAddr for
+  `IsExitCode`), recurses through `POINTER_EVENT` with a tracelist cycle guard,
+  buckets each `argType` ref by id value (`v>=0x7FFF` skipped, `v==0` dropped
+  unless `keepZeroId`), and DEDUPs each bucket by event-script-start address
+  (matches WF `UseValsID.RemoveDuplicates` for a single id). `ScanScriptForArg`
+  is exposed `internal` (InternalsVisibleTo Core.Tests) for synthetic tests.
+  DOCUMENTED RESIDUAL GAPS (event-script refs only): patch-config refs
+  (MULTICG/BGICON, the WF `PatchForm` struct-install scanner — WinForms-bound,
+  not ported) and ASM/MAP symbol refs (the WF `AsmMapFileAsmCache.GetVarsIDArray`
+  master list — headless ASM/MAP cache is a no-op) are NOT covered.
+- `BGReferenceFinder.cs` (Core, READ-ONLY) - Thin `ArgType.BG` wrapper over
+  `EventScriptReferenceScanner.FindAllArgReferences(rom, ArgType.BG,
+  keepZeroId:true)` with a per-ROM-instance cache (#990; restores the Avalonia
+  Background Image editor's always-empty References list, the WF
+  `InputFormRef.UpdateRef(X_REF, id, BG)` event-script source). `MakeListByUseBG(rom,
+  bgId)` builds the full `bgId→refs` map once per loaded ROM (cache keyed by ROM
+  instance identity — a new ROM load rebuilds; within-session edits don't
+  invalidate, matching WF's own cache-staleness model) and returns a COPY of the
+  bucket. `ResetCache()` for tests. The Avalonia `ImageBGViewModel.RefreshXrefs(bgId)`
+  (mirroring `ImageBattleBGViewModel.RefreshXrefs`) calls it from `LoadEntry`; the
+  View's existing `XRefList.ItemsSource = XRefEntries.Select(x=>x.name)` binding
+  projects the populated list. Same residual gaps as the scanner.
 
 ### Caching System
 

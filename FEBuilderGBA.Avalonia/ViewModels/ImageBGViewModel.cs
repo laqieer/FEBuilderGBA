@@ -22,10 +22,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _selectAddress;
 
         // Comment + cross-references (mirror the WinForms panel2 Comment +
-        // X_REF list). X_REF is scaffolded with an empty list — the WF
-        // path uses `InputFormRef.UpdateRef(..., BG)` which reads from
-        // AsmMapFileAsmCache (WinForms-bound); a future PR can port the
-        // Core scanner. See #429 plan.
+        // X_REF list). X_REF is populated from the Core event-script BG
+        // cross-reference finder (FEBuilderGBA.BGReferenceFinder), mirroring
+        // the WF `InputFormRef.UpdateRef(..., BG)` event-script source. Patch
+        // metadata + ASM/MAP symbol references remain documented residual gaps
+        // (see EventScriptReferenceScanner). #990.
         string _comment = string.Empty;
         List<AddrResult> _xrefEntries = new();
 
@@ -135,6 +136,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsBG256Patched = FEBuilderGBA.PatchDetection.HasBG256ColorPatch(rom);
 
             RefreshComment();
+            RefreshXrefs((uint)index);
             RefreshSourceFile((uint)index);
             RefreshWarningMessage((uint)index);
 
@@ -168,6 +170,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (cache == null) return;
             if (CurrentAddr == 0) return;
             cache.Update(CurrentAddr, Comment);
+        }
+
+        /// <summary>
+        /// Refresh the X_REF cross-reference list by finding every event-script
+        /// command that references BG slot <paramref name="bgId"/>. Delegates to
+        /// <see cref="FEBuilderGBA.BGReferenceFinder.MakeListByUseBG"/> (mirrors
+        /// the WinForms `InputFormRef.UpdateRef(..., BG)` event-script source).
+        /// Patch metadata + ASM/MAP references are documented residual gaps.
+        /// </summary>
+        public void RefreshXrefs(uint bgId)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null)
+            {
+                XRefEntries = new List<AddrResult>();
+                return;
+            }
+            XRefEntries = FEBuilderGBA.BGReferenceFinder.MakeListByUseBG(rom, bgId);
         }
 
         /// <summary>

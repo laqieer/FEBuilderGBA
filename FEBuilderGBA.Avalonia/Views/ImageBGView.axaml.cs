@@ -267,7 +267,8 @@ namespace FEBuilderGBA.Avalonia.Views
             CommentBox.Text = _vm.Comment;
             BlockSizeBox.Text = $"0x{_vm.BlockSize:X}";
 
-            // X_REF list (scaffold — empty for now; see VM comment).
+            // X_REF list — populated from the Core event-script BG
+            // cross-reference finder via ImageBGViewModel.RefreshXrefs (#990).
             XRefList.ItemsSource = _vm.XRefEntries
                 .Select(x => x.name).ToList();
 
