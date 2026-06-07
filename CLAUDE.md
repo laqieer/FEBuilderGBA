@@ -621,6 +621,25 @@ Specialized utilities for different graphic types:
   ROM-pair text-id glossary. The Avalonia `TextViewerView.OnTranslateClick` calls
   it (preserving the #949 off-UI-thread `Task.Run` + WebException-safe handling +
   status label + empty-result rejection) instead of the raw `Trans`.
+- `UnitPaletteClassResolverCore.cs` (Core, READ-ONLY) - Cross-platform port of
+  WinForms `ImageUnitPaletteForm.MakeClassList` palette→class resolution (#985).
+  `ResolveDefaultPreviewClass(rom, slotIndex)` returns the FIRST class id that
+  uses unit-palette slot `slotIndex` (0-based = WF `AddressList.SelectedIndex`),
+  else 0 — so the Avalonia Unit Palette Editor's Edit tab can populate the
+  Battle Animation id + sample preview on every selection (the original bug:
+  empty Battle Animation + no preview). FE8 (`version >= 8`) scans the dedicated
+  `unit_palette_color/class_pointer` byte tables (`colorBase + i*7 + n`,
+  7 palettes/unit; `paletteid>0 && paletteid-1==slot` → `u8(classBase + i*7 + n)`);
+  FE6/FE7 reads the per-unit-record palette ids (`+35` low / `+36` high) and
+  resolves the base class (`unit+5`) or the PROMOTED class via a faithful
+  `GetHighClass` port (base class at `unit+5`; if it is a low class, promote via
+  the class table — `isHighClass` flag at `class+37` FE6 / `class+41` FE7, change
+  class at `class+5`). First match wins. `FindFirstClassWithAnime(rom)` is the
+  view's fallback (first class 1..N with `ClassFormCore.GetAnimeIDByClassID > 0`).
+  Pure, takes `rom` (no `CoreState.ROM`); guards EVERY pointer-location + computed
+  address (`U.isSafetyOffset`) — never throws. The Avalonia
+  `ImageUnitPaletteView.OnSelected` calls it after `SelectedPaletteSlot` is set,
+  before `UpdateUI`, then `RefreshSamplePreview` renders.
 
 ### Caching System
 

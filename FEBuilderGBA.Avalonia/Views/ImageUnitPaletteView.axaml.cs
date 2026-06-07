@@ -143,6 +143,22 @@ namespace FEBuilderGBA.Avalonia.Views
                     ? (int)selected.tag + 1
                     : 0;
 
+                // #985: resolve which class actually uses this palette slot so the
+                // Edit-tab Battle Animation id + sample preview populate (WinForms
+                // ImageUnitPaletteForm.MakeClassList). SelectedPaletteSlot is the
+                // 1-based slot; the resolver wants the 0-based AddressList index.
+                // Runs on EVERY selection so switching entries updates the class.
+                uint cls = FEBuilderGBA.Core.UnitPaletteClassResolverCore
+                    .ResolveDefaultPreviewClass(CoreState.ROM, _vm.SelectedPaletteSlot - 1);
+                if (cls == 0)
+                    cls = FEBuilderGBA.Core.UnitPaletteClassResolverCore
+                        .FindFirstClassWithAnime(CoreState.ROM);
+                if (cls != 0)
+                {
+                    _vm.ClassID = cls;
+                    _vm.ClassName = NameResolver.GetClassName(cls);
+                }
+
                 UpdateUI();
                 RefreshSamplePreview();
             }
