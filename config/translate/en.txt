@@ -20013,3 +20013,13 @@ Export Image to PNG file
 
 :Import Image from PNG file
 Import Image from PNG file
+:Self Army
+Self Army
+:Ally Army
+Ally Army
+:Enemy Army
+Enemy Army
+:Gray Army
+Gray Army
+:Four Army
+Four Army

@@ -84,14 +84,29 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void RefreshPreviews()
         {
-            try { SheetImage.SetImage(_vm.RenderFullSheet()); }
+            // Each Render* call returns a FRESH SkiaSharp-backed IImage. SetImage
+            // copies its pixels into a WriteableBitmap (IconBitmapBuilder.FromImage
+            // reads GetPixelData/GetPaletteRGBA — it does NOT retain the IImage),
+            // so dispose the temporary right after to release the unmanaged
+            // SKBitmap immediately rather than waiting for GC (#993 Copilot
+            // review — frequent palette/step re-renders would otherwise balloon
+            // memory).
+            try
+            {
+                using IImage img = _vm.RenderFullSheet();
+                SheetImage.SetImage(img);
+            }
             catch { SheetImage.SetImage(null); }
             RefreshFramePreview();
         }
 
         void RefreshFramePreview()
         {
-            try { FrameImage.SetImage(_vm.RenderFrame()); }
+            try
+            {
+                using IImage img = _vm.RenderFrame();
+                FrameImage.SetImage(img);
+            }
             catch { FrameImage.SetImage(null); }
         }
 

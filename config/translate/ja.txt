@@ -10243,3 +10243,13 @@ ROMに取り込む
 フルシート
 :Jump to Move Icon
 移動アイコンへジャンプ
+:Self Army
+自軍
+:Ally Army
+友軍
+:Enemy Army
+敵軍
+:Gray Army
+グレー
+:Four Army
+4軍

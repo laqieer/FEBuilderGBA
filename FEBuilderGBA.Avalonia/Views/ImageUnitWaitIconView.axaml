@@ -42,14 +42,20 @@
         <!-- Preview controls: palette + step -->
         <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" />
+          <!-- Palette items are English-source TextBlocks so the shared
+               ViewTranslationHelper (run on TranslatedWindow.Opened) localizes
+               them via R._() — raw ComboBoxItem string content is NOT scanned
+               (#993 Copilot review). Translations live in
+               config/translate/{ja,en,zh}.txt. Read by SelectedIndex (0..4 =
+               self/ally/enemy/gray/four), so the label text is display-only. -->
           <ComboBox AutomationProperties.AutomationId="ImageUnitWaitIcon_Palette_Combo"
                     Grid.Row="0" Grid.Column="1" Name="PaletteCombo"
                     SelectionChanged="Palette_Changed" HorizontalAlignment="Stretch">
-            <ComboBoxItem>自軍</ComboBoxItem>
-            <ComboBoxItem>友軍</ComboBoxItem>
-            <ComboBoxItem>敵軍</ComboBoxItem>
-            <ComboBoxItem>グレー</ComboBoxItem>
-            <ComboBoxItem>4軍</ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Self Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Ally Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Enemy Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Gray Army" /></ComboBoxItem>
+            <ComboBoxItem><TextBlock Text="Four Army" /></ComboBoxItem>
           </ComboBox>
 
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Frame Step:" VerticalAlignment="Center" />

@@ -57,7 +57,11 @@ namespace FEBuilderGBA.Core
                 default: palAddr = rom.RomInfo.unit_icon_palette_address; break;
             }
             if (palAddr == 0 || !U.isSafetyOffset(palAddr, rom)) return null;
-            return ImageUtilCore.GetPalette(palAddr, 16);
+            // rom-consistent read (#993 Copilot review): use the explicit-rom
+            // GetPalette overload so the palette bytes come from THIS rom, not a
+            // different ambient CoreState.ROM. The safety guard above already
+            // validated palAddr against `rom`.
+            return ImageUtilCore.GetPalette(rom, palAddr, 16);
         }
 
         /// <summary>

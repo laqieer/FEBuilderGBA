@@ -24075,3 +24075,13 @@ AI脚本已导出到:
 完整图表
 :Jump to Move Icon
 跳转到移动图标
+:Self Army
+自军
+:Ally Army
+友军
+:Enemy Army
+敌军
+:Gray Army
+灰色
+:Four Army
+第四军

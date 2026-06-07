@@ -255,7 +255,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint ptr = rom.RomInfo.unit_move_icon_pointer;
             if (ptr == 0) return null;
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return null;
+            // rom-consistent guard (#993 Copilot review): validate against the
+            // local `rom` instance, not the ambient CoreState.ROM.
+            if (!U.isSafetyOffset(baseAddr, rom)) return null;
 
             uint entryAddr = baseAddr + (moveIcon.Value - 1) * 8;
             if (entryAddr + 8 > (uint)rom.Data.Length) return null;
