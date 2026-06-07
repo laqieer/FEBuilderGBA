@@ -150,5 +150,103 @@ namespace FEBuilderGBA.Core
             if (settingPointer == U.NOT_FOUND) return 0;
             return GetAnimeIDByAnimeSettingPointer(rom, settingPointer);
         }
+
+        // ============================================================
+        // Unit Wait Icon <-> Class back-references (#991)
+        // Ports WF ClassForm.GetClassIDWhereWaitIconID /
+        // GetClassMoveIcon / GetClassNameWhereWaitIconID.
+        // ============================================================
+
+        /// <summary>
+        /// Scan the class table for the FIRST class whose wait-icon field
+        /// (<c>u8(classAddr + 6)</c>) equals <paramref name="waitIconId"/>, and
+        /// return its class id (0-based table index, matching WF). Returns
+        /// <see cref="U.NOT_FOUND"/> on a miss or an unresolvable ROM/table.
+        /// Mirror of WF <c>ClassForm.GetClassIDWhereWaitIconID</c>. Guarded —
+        /// never throws.
+        /// </summary>
+        public static uint GetClassIdWhereWaitIconId(ROM rom, uint waitIconId)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint datasize = rom.RomInfo.class_datasize;
+            if (datasize == 0) return U.NOT_FOUND;
+            if (classPtr == 0 || (ulong)classPtr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            int count = GetClassCount(rom, baseAddr, datasize);
+            uint addr = baseAddr;
+            for (int i = 0; i < count; i++, addr += datasize)
+            {
+                uint waitSlot = addr + 6;
+                if (!U.isSafetyOffset(waitSlot, rom)) break;
+                if (rom.u8(waitSlot) == waitIconId)
+                    return (uint)i;
+            }
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
+        /// Read the move-icon id for class <paramref name="classId"/>
+        /// (<c>u8(classAddr + 4)</c>). Mirror of WF
+        /// <c>ClassForm.GetClassMoveIcon</c>: returns <see cref="U.NOT_FOUND"/>
+        /// for class 0 or an unresolvable ROM/address. Guarded — never throws.
+        /// </summary>
+        public static uint GetClassMoveIcon(ROM rom, uint classId)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (classId == 0) return U.NOT_FOUND;
+            uint classPtr = rom.RomInfo.class_pointer;
+            uint datasize = rom.RomInfo.class_datasize;
+            if (datasize == 0) return U.NOT_FOUND;
+            if (classPtr == 0 || (ulong)classPtr + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
+            uint baseAddr = rom.p32(classPtr);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            uint addr = baseAddr + classId * datasize;
+            uint moveSlot = addr + 4;
+            if (!U.isSafetyOffset(moveSlot, rom)) return U.NOT_FOUND;
+            return rom.u8(moveSlot);
+        }
+
+        /// <summary>
+        /// Resolve the class NAME that owns wait-icon <paramref name="waitIconId"/>
+        /// (via <see cref="GetClassIdWhereWaitIconId"/> →
+        /// <see cref="NameResolver.GetClassName"/>). Mirror of WF
+        /// <c>ClassForm.GetClassNameWhereWaitIconID</c>. Returns "" on a miss.
+        /// Guarded — never throws.
+        /// </summary>
+        public static string GetClassNameWhereWaitIconId(ROM rom, uint waitIconId)
+        {
+            uint cid = GetClassIdWhereWaitIconId(rom, waitIconId);
+            if (cid == U.NOT_FOUND) return string.Empty;
+            try
+            {
+                return NameResolver.GetClassName(cid) ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Class-table row count, mirroring <c>ClassForm.Init</c>'s read-max
+        /// callback: cid 0 always counts, then scan while <c>u8(addr+4) != 0</c>,
+        /// capped at 0xFF.
+        /// </summary>
+        static int GetClassCount(ROM rom, uint baseAddr, uint datasize)
+        {
+            uint count = rom.getBlockDataCount(baseAddr, datasize, (i, addr) =>
+            {
+                if (i == 0) return true;
+                if (i > 0xFF) return false;
+                uint flagAddr = addr + 4;
+                if (!U.isSafetyOffset(flagAddr, rom)) return false;
+                return rom.u8(flagAddr) != 0;
+            });
+            return (int)count;
+        }
     }
 }
