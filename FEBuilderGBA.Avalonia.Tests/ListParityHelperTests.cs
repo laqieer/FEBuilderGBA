@@ -354,6 +354,29 @@ public class ListParityHelperTests : IClassFixture<RomFixture>
         }
     }
 
+    /// <summary>
+    /// #991: the Unit Wait Icon VM list and the golden builder must stay
+    /// byte-for-byte identical — both now append the owning class name via
+    /// ClassFormCore.GetClassNameWhereWaitIconId (lockstep restore).
+    /// </summary>
+    [Fact]
+    public void BuildReferenceList_ImageUnitWaitIcon_MatchesViewModel()
+    {
+        if (!_rom.IsAvailable) return;
+
+        var vm = new ImageUnitWaitIconViewModel();
+        var vmList = vm.LoadList();
+        var refList = ListParityHelper.BuildReferenceList("ImageUnitWaitIconView");
+
+        Assert.NotNull(refList);
+        Assert.Equal(vmList.Count, refList.Count);
+        for (int i = 0; i < vmList.Count; i++)
+        {
+            Assert.Equal(vmList[i].addr, refList[i].addr);
+            Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
     // ---------------------------------------------------------------
     // SoundBossBGM — lockstep VM vs golden + unresolved-id label (#962)
     // ---------------------------------------------------------------

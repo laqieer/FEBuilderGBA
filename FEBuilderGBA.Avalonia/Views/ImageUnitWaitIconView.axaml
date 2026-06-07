@@ -2,20 +2,100 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageUnitWaitIconView"
-        Title="Unit Wait Icon" Width="860" Height="383"
+        Title="Unit Wait Icon" Width="900" Height="520"
         SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="ImageUnitWaitIcon_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+  <Grid ColumnDefinitions="250,*" RowDefinitions="*,Auto">
+    <controls:AddressListControl AutomationProperties.AutomationId="ImageUnitWaitIcon_Entry_List"
+                                 Grid.Row="0" Grid.Column="0" Name="EntryList" Margin="4" />
 
-    <ScrollViewer Grid.Column="1" Margin="4">
+    <ScrollViewer Grid.Row="0" Grid.Column="1" Margin="4">
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Wait Icon" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
+        <!-- Address + Write -->
+        <Grid ColumnDefinitions="140,200,Auto" RowDefinitions="Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="ImageUnitWaitIcon_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <TextBlock AutomationProperties.AutomationId="ImageUnitWaitIcon_Addr_Label"
+                     Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
+          <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_Write_Button"
+                  Grid.Row="0" Grid.Column="2" Content="Write" Click="Write_Click" Margin="8,0,0,0" />
+        </Grid>
+
+        <!-- Field rows: W0 / W2 / P4 -->
+        <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Flags (W0):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitWaitIcon_W0_Input"
+                         Grid.Row="0" Grid.Column="1" Name="W0Box"
+                         Minimum="0" Maximum="65535" Increment="1" FormatString="0" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Anime Type (W2):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitWaitIcon_W2_Input"
+                         Grid.Row="1" Grid.Column="1" Name="W2Box"
+                         Minimum="0" Maximum="65535" Increment="1" FormatString="0" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Image Pointer (P4):" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitWaitIcon_P4_Input"
+                         Grid.Row="2" Grid.Column="1" Name="P4Box"
+                         Minimum="0" Maximum="4294967295" Increment="1" FormatString="0" />
+        </Grid>
+
+        <!-- Preview controls: palette + step -->
+        <Grid ColumnDefinitions="140,200" RowDefinitions="Auto,Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Palette:" VerticalAlignment="Center" />
+          <ComboBox AutomationProperties.AutomationId="ImageUnitWaitIcon_Palette_Combo"
+                    Grid.Row="0" Grid.Column="1" Name="PaletteCombo"
+                    SelectionChanged="Palette_Changed" HorizontalAlignment="Stretch">
+            <ComboBoxItem>自軍</ComboBoxItem>
+            <ComboBoxItem>友軍</ComboBoxItem>
+            <ComboBoxItem>敵軍</ComboBoxItem>
+            <ComboBoxItem>グレー</ComboBoxItem>
+            <ComboBoxItem>4軍</ComboBoxItem>
+          </ComboBox>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Frame Step:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="ImageUnitWaitIcon_Step_Input"
+                         Grid.Row="1" Grid.Column="1" Name="StepBox"
+                         Minimum="0" Maximum="2" Increment="1" FormatString="0"
+                         ValueChanged="Step_Changed" />
+        </Grid>
+
+        <!-- Previews: full sheet + single frame -->
+        <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,8,0,0">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Full Sheet" FontWeight="Bold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinWidth="64" MinHeight="64">
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageUnitWaitIcon_Sheet_Image"
+                                        Name="SheetImage" />
+            </Border>
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Frame" FontWeight="Bold" />
+            <Border BorderBrush="Gray" BorderThickness="1" MinWidth="64" MinHeight="64">
+              <controls:GbaImageControl AutomationProperties.AutomationId="ImageUnitWaitIcon_Frame_Image"
+                                        Name="FrameImage" />
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Comment -->
+        <Grid ColumnDefinitions="140,200" RowDefinitions="Auto">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" />
+          <TextBox AutomationProperties.AutomationId="ImageUnitWaitIcon_Comment_Input"
+                   Grid.Row="0" Grid.Column="1" Name="CommentBox" />
         </Grid>
       </StackPanel>
     </ScrollViewer>
+
+    <!-- Bottom button bar -->
+    <Border Grid.Row="1" Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="1" Margin="4">
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="4">
+        <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_Import_Button"
+                Content="Import Image" Click="Import_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_Export_Button"
+                Content="Export Image" Click="Export_Click" />
+        <Button AutomationProperties.AutomationId="ImageUnitWaitIcon_JumpMoveIcon_Button"
+                Content="Jump to Move Icon" Click="JumpMoveIcon_Click" />
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

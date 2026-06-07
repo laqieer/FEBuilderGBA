@@ -2904,7 +2904,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint imgPtr = rom.u32(addr + 4);
                 if (!U.isPointer(imgPtr)) break;
 
-                string name = U.ToHexString(i) + " WaitIcon";
+                // #991: append the owning class name (lockstep with
+                // ImageUnitWaitIconViewModel.LoadList — golden test gated).
+                string className = FEBuilderGBA.Core.ClassFormCore.GetClassNameWhereWaitIconId(rom, i);
+                string name = U.ToHexString(i) + U.SA(className) + " WaitIcon";
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
