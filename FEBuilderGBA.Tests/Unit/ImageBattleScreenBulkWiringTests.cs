@@ -149,5 +149,35 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Contains("LoadAndQuantizeFromFile", src);
             Assert.Contains("BULK_PALETTE_BANKS * 16", src);
         }
+
+        // -----------------------------------------------------------------
+        // Window sizing: the TabControl (which hosts the bulk Import/Export
+        // buttons) lives in a star (*) row. Under SizeToContent="WidthAndHeight"
+        // that star row collapsed to ~0, so the whole tab strip — Palette / Main
+        // Image / Left Side / Right Side / Import-Export and ALL their content —
+        // was clipped below the auto-sized window and unreachable. The window
+        // now uses a bounded Manual size with a MinHeight so the tab row gets
+        // real height and the (now-enabled) bulk buttons are actually visible.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void Window_DoesNotUseCollapsingSizeToContent()
+        {
+            // SizeToContent="WidthAndHeight" + a star tab row collapses the tabs.
+            Assert.DoesNotContain("SizeToContent=\"WidthAndHeight\"", Axaml);
+        }
+
+        [Fact]
+        public void Window_HasBoundedMinHeight_SoTabStripIsReachable()
+        {
+            var axaml = Axaml;
+            // A MinHeight large enough to reveal the tab content below the
+            // preview row (the tab row would otherwise collapse under the older
+            // auto-size). Guards against regressing to the clipped layout.
+            var m = Regex.Match(axaml, @"MinHeight=""(\d+)""");
+            Assert.True(m.Success, "Battle Screen window must declare a MinHeight so the tab strip is reachable.");
+            Assert.True(int.Parse(m.Groups[1].Value) >= 700,
+                "MinHeight must be tall enough (>=700) to render the tab content (preview row + tabs).");
+        }
     }
 }
