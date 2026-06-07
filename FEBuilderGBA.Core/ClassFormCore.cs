@@ -216,9 +216,27 @@ namespace FEBuilderGBA.Core
         /// <see cref="NameResolver.GetClassName"/>). Mirror of WF
         /// <c>ClassForm.GetClassNameWhereWaitIconID</c>. Returns "" on a miss.
         /// Guarded — never throws.
+        /// <para>
+        /// ROM-CONSISTENCY (#993 Copilot review): the cid is scanned from the
+        /// passed <paramref name="rom"/>, but <see cref="NameResolver.GetClassName"/>
+        /// (and the text decode it triggers) read from the ambient
+        /// <see cref="CoreState.ROM"/> and cache globally by id. If
+        /// <paramref name="rom"/> were a DIFFERENT instance, the name could be
+        /// resolved against the wrong ROM (a mismatched/stale label). Rather than
+        /// emit a wrong name, this method requires <paramref name="rom"/> to BE
+        /// the ambient <c>CoreState.ROM</c> (the established Core-seam pattern,
+        /// e.g. <c>SkillSystemsAnimeExportCore</c>) and returns "" otherwise. The
+        /// real callers (<c>ImageUnitWaitIconViewModel.LoadList</c> /
+        /// <c>ListParityHelper.BuildImageUnitWaitIconList</c>) both pass
+        /// <c>CoreState.ROM</c>, so labels are unaffected in practice.
+        /// </para>
         /// </summary>
         public static string GetClassNameWhereWaitIconId(ROM rom, uint waitIconId)
         {
+            if (rom == null) return string.Empty;
+            // Name resolution is ambient-ROM-bound; refuse to resolve against a
+            // different ROM instance (would produce a wrong label).
+            if (!ReferenceEquals(rom, CoreState.ROM)) return string.Empty;
             uint cid = GetClassIdWhereWaitIconId(rom, waitIconId);
             if (cid == U.NOT_FOUND) return string.Empty;
             try

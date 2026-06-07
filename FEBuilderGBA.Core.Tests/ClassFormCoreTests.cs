@@ -192,6 +192,31 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, ClassFormCore.GetClassIdWhereWaitIconId(null, 1));
         }
 
+        [Fact]
+        public void GetClassNameWhereWaitIconId_RomNotAmbient_ReturnsEmpty()
+        {
+            // #993 Copilot review: name resolution (NameResolver + text decode)
+            // is ambient-ROM-bound, so a rom instance that is NOT CoreState.ROM
+            // must return "" (never a mismatched label) rather than resolve
+            // against the wrong ROM.
+            var saved = CoreState.ROM;
+            try
+            {
+                ROM ambient = MakeSyntheticClassRom(out _, out _);
+                ROM other = MakeSyntheticClassRom(out _, out _);
+                Assert.NotSame(ambient, other);
+                CoreState.ROM = ambient; // ambient != other (distinct instances)
+                Assert.Equal(string.Empty, ClassFormCore.GetClassNameWhereWaitIconId(other, 0x11));
+            }
+            finally { CoreState.ROM = saved; }
+        }
+
+        [Fact]
+        public void GetClassNameWhereWaitIconId_NullRom_ReturnsEmpty()
+        {
+            Assert.Equal(string.Empty, ClassFormCore.GetClassNameWhereWaitIconId(null, 1));
+        }
+
         // Build a tiny synthetic ROM with a 4-class table (each 0x10 bytes). The
         // existence callback counts while u8(class+4) != 0, so classes 1..3 have
         // a non-zero +4 (move-icon) byte; class 4's +4 is 0 → terminator.
