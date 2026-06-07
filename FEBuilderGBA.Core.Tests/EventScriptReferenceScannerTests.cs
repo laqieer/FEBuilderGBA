@@ -60,7 +60,7 @@ namespace FEBuilderGBA.Core.Tests
             => EventScript.ParseScriptLine("03000000XXXXXXXX\tCALL [X:POINTER_EVENT:Target]");
 
         /// <summary>
-        /// Run an action with CoreState wired to a fresh 2MB synthetic ROM +
+        /// Run an action with CoreState wired to a fresh 16MB synthetic ROM +
         /// the given EventScript, restoring prior CoreState afterwards.
         /// </summary>
         static void WithSyntheticEnv(EventScript es, System.Action<ROM> body)
@@ -273,11 +273,99 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void FindAllArgReferences_Gating_NullCommentCache_ReturnsEmpty()
+        {
+            // #992 Copilot review #3: es.DisAseemble dereferences
+            // CoreState.CommentCache, so a null CommentCache must gate out (no
+            // NullRef) even when ROM + EventScript are wired.
+            var es = BuildEventScript(BgCommand(), TermCommand());
+            var prevRom = CoreState.ROM;
+            var prevEs = CoreState.EventScript;
+            var prevComment = CoreState.CommentCache;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("nocomment-fe8u.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+                CoreState.EventScript = es;
+                CoreState.CommentCache = null;
+
+                var map = EventScriptReferenceScanner.FindAllArgReferences(
+                    rom, EventScript.ArgType.BG, keepZeroId: true);
+                Assert.Empty(map);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.EventScript = prevEs;
+                CoreState.CommentCache = prevComment;
+            }
+        }
+
+        [Fact]
         public void EnumerateEventEntries_NullRom_ReturnsEmpty()
         {
             var list = EventScriptReferenceScanner.EnumerateEventEntries(null);
             Assert.NotNull(list);
             Assert.Empty(list);
+        }
+
+        /// <summary>
+        /// #992 Copilot review #2: a TURN cond record sitting at the very end of
+        /// ROM must NOT throw (U.u32/u8 throw past EOF). WalkTurn now bounds-checks
+        /// the current record before reading. We plant a map whose TURN cond-slot
+        /// points at an address near EOF and assert EnumerateEventEntries (which
+        /// drives WalkTurn) never throws.
+        /// </summary>
+        [Fact]
+        public void EnumerateEventEntries_TurnRecordNearEOF_DoesNotThrow()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("eof-fe8u.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+
+                uint romLen = (uint)rom.Data.Length;
+
+                // 1) Plant a valid map setting (id 0) with event_plist = 1.
+                uint mapTableBase = 0x00700000u;
+                uint dataSize = rom.RomInfo.map_setting_datasize;
+                WriteU32(rom, rom.RomInfo.map_setting_pointer, mapTableBase | 0x08000000u);
+                WriteU32(rom, mapTableBase + 0, 0x08123456u); // first dword = pointer → valid
+                rom.Data[mapTableBase + rom.RomInfo.map_setting_event_plist_pos] = 1;
+                // Terminator row: next record's first dword = 0 (non-pointer).
+                WriteU32(rom, mapTableBase + dataSize, 0x00000000u);
+
+                // 2) map_event_pointer table: entry[1] → cond block.
+                uint eventTableBase = 0x00710000u;
+                WriteU32(rom, rom.RomInfo.map_event_pointer, eventTableBase | 0x08000000u);
+                uint condBlock = 0x00720000u;
+                WriteU32(rom, eventTableBase + 1 * 4, condBlock | 0x08000000u);
+
+                // 3) Cond block slot 0 (Turn) → a turn record placed 2 bytes
+                //    before EOF, so the unguarded u32(addr) read would throw.
+                uint turnRec = romLen - 2;
+                WriteU32(rom, condBlock + 0, turnRec | 0x08000000u);
+
+                // Must NOT throw despite the near-EOF turn record.
+                var ex = Record.Exception(() =>
+                    EventScriptReferenceScanner.EnumerateEventEntries(rom));
+                Assert.Null(ex);
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+            }
+        }
+
+        static void WriteU32(ROM rom, uint offset, uint value)
+        {
+            rom.Data[offset + 0] = (byte)(value & 0xFF);
+            rom.Data[offset + 1] = (byte)((value >> 8) & 0xFF);
+            rom.Data[offset + 2] = (byte)((value >> 16) & 0xFF);
+            rom.Data[offset + 3] = (byte)((value >> 24) & 0xFF);
         }
 
         // =================================================================

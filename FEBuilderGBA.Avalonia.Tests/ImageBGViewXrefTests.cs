@@ -26,8 +26,6 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class ImageBGViewXrefTests
     {
-        const uint SIZE = 12; // ImageBGViewModel.SIZE
-
         [AvaloniaFact]
         public void XRefList_PopulatedForReferencedBg()
         {

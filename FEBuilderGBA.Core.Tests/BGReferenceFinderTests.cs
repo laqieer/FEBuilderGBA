@@ -119,6 +119,103 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        /// <summary>
+        /// CACHE-POISONING regression (#992 Copilot review): calling the finder
+        /// BEFORE CoreState is fully wired (prereqs unsatisfied) must NOT cache
+        /// an empty result for that ROM instance. After CoreState is wired
+        /// (ROM active + EventScript + CommentCache), calling again with the SAME
+        /// rom instance must rebuild and return the real (non-empty) list.
+        /// </summary>
+        [Fact]
+        public void RealRom_FE8U_NotReadyThenReady_RebuildsAndPopulates()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip
+
+            var savedRom = CoreState.ROM;
+            var savedEs = CoreState.EventScript;
+            var savedEnc = CoreState.SystemTextEncoder;
+            var savedComment = CoreState.CommentCache;
+            var savedBaseDir = CoreState.BaseDirectory;
+            try
+            {
+                string asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                CoreState.BaseDirectory = asmDir;
+
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+
+                BGReferenceFinder.ResetCache();
+
+                // PHASE 1 — prerequisites NOT ready: ROM is not the active
+                // CoreState.ROM, no EventScript, no CommentCache.
+                CoreState.ROM = null;
+                CoreState.EventScript = null;
+                CoreState.CommentCache = null;
+
+                // Discover a referenced BG id up-front (needs a wired scan), so
+                // we do a temporary full init just to find the id, then tear it
+                // back down to the not-ready state for the actual assertion.
+                uint referencedBg;
+                {
+                    CoreState.ROM = rom;
+                    CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                    CoreState.CommentCache = new HeadlessEtcCache();
+                    var probeEs = new EventScript();
+                    probeEs.Load(EventScript.EventScriptType.Event);
+                    CoreState.EventScript = probeEs;
+
+                    var fullMap = EventScriptReferenceScanner.FindAllArgReferences(
+                        rom, EventScript.ArgType.BG, keepZeroId: true);
+                    referencedBg = 0;
+                    bool found = false;
+                    foreach (var kv in fullMap)
+                    {
+                        if (kv.Value != null && kv.Value.Count > 0)
+                        {
+                            referencedBg = kv.Key;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) return; // no referenced BG — nothing to assert
+                }
+
+                // Tear back down to NOT-READY and reset the finder cache.
+                CoreState.ROM = null;
+                CoreState.EventScript = null;
+                CoreState.CommentCache = null;
+                BGReferenceFinder.ResetCache();
+
+                // PHASE 1 call (prereqs unsatisfied) → empty AND must not cache.
+                var notReady = BGReferenceFinder.MakeListByUseBG(rom, referencedBg);
+                Assert.Empty(notReady);
+
+                // PHASE 2 — wire CoreState fully with the SAME rom instance.
+                CoreState.ROM = rom;
+                CoreState.SystemTextEncoder = new HeadlessSystemTextEncoder(rom);
+                CoreState.CommentCache = new HeadlessEtcCache();
+                var es = new EventScript();
+                es.Load(EventScript.EventScriptType.Event);
+                CoreState.EventScript = es;
+
+                // Same rom instance — if PHASE 1 had cached the empty result,
+                // this would stay empty forever. It must rebuild and populate.
+                var ready = BGReferenceFinder.MakeListByUseBG(rom, referencedBg);
+                Assert.NotEmpty(ready);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.EventScript = savedEs;
+                CoreState.SystemTextEncoder = savedEnc;
+                CoreState.CommentCache = savedComment;
+                if (savedBaseDir != null)
+                    CoreState.BaseDirectory = savedBaseDir;
+                BGReferenceFinder.ResetCache();
+            }
+        }
+
         static string FindRom(string romName)
         {
             string thisAssembly = Assembly.GetExecutingAssembly().Location;

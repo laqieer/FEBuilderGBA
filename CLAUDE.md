@@ -691,8 +691,9 @@ Specialized utilities for different graphic types:
   shop=0x13-0x15), ALWAYS (fixed 12, ptr+4), TUTORIAL (fixed 4, ptr+0,
   `!isPointer` stop), START/END (the cond-slot addr itself), + FE7 tutorial.
   `FindAllArgReferences(rom, argType, keepZeroId)` GATES on
-  `CoreState.EventScript != null && ReferenceEquals(CoreState.ROM, rom)` (the
-  disasm path dereferences static `CoreState.ROM`/`CommentCache`), disassembles
+  `CoreState.EventScript != null && ReferenceEquals(CoreState.ROM, rom) &&
+  CoreState.CommentCache != null` (the disasm path dereferences static
+  `CoreState.ROM` AND `CoreState.CommentCache.At`), disassembles
   each entry (`es.DisAseemble`) iterating EVERY non-UNKNOWN command's args (10-
   UNKNOWN cutoff + 4096-step guard + EOF bound, IF/LABEL→lastBranchAddr for
   `IsExitCode`), recurses through `POINTER_EVENT` with a tracelist cycle guard,
@@ -712,7 +713,13 @@ Specialized utilities for different graphic types:
   bgId)` builds the full `bgId→refs` map once per loaded ROM (cache keyed by ROM
   instance identity — a new ROM load rebuilds; within-session edits don't
   invalidate, matching WF's own cache-staleness model) and returns a COPY of the
-  bucket. `ResetCache()` for tests. The Avalonia `ImageBGViewModel.RefreshXrefs(bgId)`
+  bucket. CACHE-POISONING GUARD (#992): it PRE-CHECKS the scanner prerequisites
+  (`EventScript` + `CommentCache` wired AND `rom` is the active `CoreState.ROM`)
+  and, when NOT satisfied, returns empty WITHOUT caching — so an early/headless
+  call before CoreState finished initializing can't pin the same ROM instance to
+  a permanently-empty cache (the References list would never populate). Only a
+  real scan (prereqs satisfied) sets `_cachedRom`. `ResetCache()` for tests. The
+  Avalonia `ImageBGViewModel.RefreshXrefs(bgId)`
   (mirroring `ImageBattleBGViewModel.RefreshXrefs`) calls it from `LoadEntry`; the
   View's existing `XRefList.ItemsSource = XRefEntries.Select(x=>x.name)` binding
   projects the populated list. Same residual gaps as the scanner.

@@ -143,10 +143,14 @@ namespace FEBuilderGBA
             if (stride == 0) return;
             while (true)
             {
+                // Bounds-check the CURRENT record BEFORE any read so a near-EOF
+                // turn record can't throw (U.u32/u8 throw IndexOutOfRange past
+                // the end). Mirrors the other Walk* methods' guard ordering.
+                if (!U.isSafetyOffset(addr, rom)) break;
+                if (!U.isSafetyOffset(addr + stride, rom)) break;
                 if (rom.u32(addr) == 0) break;
                 uint type = rom.u8(addr);
                 if (type == 0) break;
-                if (!U.isSafetyOffset(addr + stride, rom)) break;
 
                 uint eventAddr = rom.p32(addr + 4);
                 if (U.isSafetyOffset(eventAddr, rom))
@@ -284,8 +288,10 @@ namespace FEBuilderGBA
         /// parameter. To avoid mis-scanning (or a NullRef) when called with a ROM
         /// that is not the active <see cref="CoreState.ROM"/>, this returns an
         /// EMPTY map unless <paramref name="rom"/> IS the active
-        /// <see cref="CoreState.ROM"/> and an <see cref="EventScript"/> is wired.
-        /// (Same discipline as <c>MapEventUnitCore.ScanEventScriptSlots</c>.)
+        /// <see cref="CoreState.ROM"/>, an <see cref="EventScript"/> is wired, AND
+        /// <see cref="CoreState.CommentCache"/> is wired (the disasm path
+        /// dereferences it). (Same discipline as
+        /// <c>MapEventUnitCore.ScanEventScriptSlots</c>.)
         /// </summary>
         /// <param name="rom">Target ROM (must be the active CoreState.ROM).</param>
         /// <param name="argType">The event-script argument type to collect.</param>
@@ -299,10 +305,13 @@ namespace FEBuilderGBA
 
             var es = CoreState.EventScript;
             if (es == null) return bucket;
-            // The disasm path dereferences the static CoreState.ROM; only scan
-            // when the passed ROM IS the active one so headless/multi-ROM
+            // The disasm path dereferences the static CoreState.ROM AND
+            // CoreState.CommentCache (EventScript.DisAseemble calls
+            // CoreState.CommentCache.At(addr)); only scan when the passed ROM IS
+            // the active one AND the comment cache is wired so headless/early
             // callers can never mis-scan or NullRef.
             if (CoreState.ROM == null || !ReferenceEquals(CoreState.ROM, rom)) return bucket;
+            if (CoreState.CommentCache == null) return bucket;
 
             var entries = EnumerateEventEntries(rom);
             var tracelist = new List<uint>();

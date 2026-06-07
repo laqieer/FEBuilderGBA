@@ -29,19 +29,43 @@ namespace FEBuilderGBA
         /// <summary>
         /// Return the event-script references to BG slot <paramref name="bgId"/>
         /// (a fresh copy of the cached list, so the caller can't mutate the
-        /// cache). Empty when the ROM is null/invalid, the gating in
-        /// <see cref="EventScriptReferenceScanner.FindAllArgReferences"/> fails
-        /// (e.g. <paramref name="rom"/> is not the active <see cref="CoreState.ROM"/>),
-        /// or the BG id is unreferenced.
+        /// cache). Empty when the ROM is null/invalid, the scanner prerequisites
+        /// are not yet satisfied, or the BG id is unreferenced.
+        ///
+        /// CACHE-POISONING GUARD: the scanner's
+        /// <see cref="EventScriptReferenceScanner.FindAllArgReferences"/> returns
+        /// an EMPTY map both when a BG is genuinely unreferenced AND when its
+        /// prerequisites (an active <see cref="EventScript"/>, a wired
+        /// <see cref="CoreState.CommentCache"/>, and <paramref name="rom"/> being
+        /// the active <see cref="CoreState.ROM"/>) are not ready. If we cached
+        /// the latter, the SAME ROM instance would stay "cached empty" forever
+        /// even after CoreState finished initializing — so the References list
+        /// would never populate. We therefore pre-check the prerequisites here
+        /// and, when they are NOT satisfied, return a fresh empty list WITHOUT
+        /// caching (so a later fully-initialized call rebuilds for real).
         /// </summary>
         public static List<AddrResult> MakeListByUseBG(ROM rom, uint bgId)
         {
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
+            // Prerequisites for a REAL scan (mirror the gate inside
+            // FindAllArgReferences + the CommentCache the disasm path needs).
+            bool prereqsReady = CoreState.EventScript != null
+                && CoreState.CommentCache != null
+                && CoreState.ROM != null
+                && ReferenceEquals(CoreState.ROM, rom);
+
             lock (_lock)
             {
                 if (!ReferenceEquals(_cachedRom, rom))
                 {
+                    if (!prereqsReady)
+                    {
+                        // Not ready — return empty WITHOUT poisoning the cache,
+                        // so the next (initialized) call for the same ROM scans.
+                        return new List<AddrResult>();
+                    }
+
                     _cache = EventScriptReferenceScanner.FindAllArgReferences(
                         rom, EventScript.ArgType.BG, keepZeroId: true);
                     _cachedRom = rom;
