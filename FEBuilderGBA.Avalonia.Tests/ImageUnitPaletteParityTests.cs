@@ -76,7 +76,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationId<TextBlock>(view, "ImageUnitPalette_Size_Label"));
             Assert.NotNull(FindByAutomationId<TextBlock>(view, "ImageUnitPalette_SelectedAddressPrefix_Label"));
             Assert.NotNull(FindByAutomationId<TextBlock>(view, "ImageUnitPalette_Address_Label"));
-            Assert.NotNull(FindByAutomationId<TextBlock>(view, "ImageUnitPalette_Write_Label"));
+            // ImageUnitPalette_Write_Label was an inert stray header label
+            // intentionally removed in #984 (it looked like a non-functional
+            // "Write" text after the Selected Address bar). The real Write
+            // affordance is the ImageUnitPalette_Write_Button on the Edit tab.
             Assert.NotNull(FindByAutomationId<TextBlock>(view, "ImageUnitPalette_FilterLabel_Label"));
             Assert.NotNull(FindByAutomationId<Button>(view, "ImageUnitPalette_Expand_Button"));
         }
