@@ -696,10 +696,18 @@ Specialized utilities for different graphic types:
   the step-0 16x24@Y=8 list-preview parity. `GetPaletteColors(rom, paletteType)`
   maps 0=self/1=npc/2=enemy/3=gray/4=four/5=lightrune/6=sepia to the matching
   `unit_icon_*_palette_address` (`ImageUtilCore.GetPalette(addr,16)`; addr==0 →
-  null, so FE6 lightrune/sepia are blank). The Avalonia `ImageUnitWaitIconView`
-  (no longer a stub) hosts W0/W2/P4 fields + undo-safe Write, a 5-selectable
-  palette combo (自軍/友軍/敵軍/グレー/4軍) + 0..2 step preview (full sheet +
-  frame), Comment, jump-to-Move-Icon, and PNG/animated-GIF export.
+  null, so FE6 lightrune/sepia are blank). **rom-consistent palette read (#993
+  Copilot review):** `GetPaletteColors` reads via the new rom-aware
+  `ImageUtilCore.GetPalette(rom, offset, colorCount)` overload (the parameterless
+  one now delegates to it) so a Core seam never silently reads palette bytes from
+  a different ambient `CoreState.ROM` than the one it validated. The Avalonia
+  `ImageUnitWaitIconView` (no longer a stub) hosts W0/W2/P4 fields + undo-safe
+  Write, a 5-selectable palette combo (English-source `<TextBlock>` items
+  localized by `ViewTranslationHelper` via ja/en/zh `config/translate/`) + 0..2
+  step preview (full sheet + frame), Comment, jump-to-Move-Icon, and
+  PNG/animated-GIF export. The View `using`-disposes each freshly-rendered
+  `IImage` right after `SetImage` (which copies into a `WriteableBitmap`, not
+  retains) so the unmanaged SKBitmap is released without waiting for GC.
 - `WaitIconImportCore.cs` (Core, ROM-MUTATING) - Cross-platform static PNG/BMP
   wait-icon sheet import (#991; ports WF `ImageUnitWaitIconFrom.ImportButton_Click`
   write-back). `Import(rom, entryAddr, indexedPixels, width, height) → string`
