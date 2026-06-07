@@ -869,5 +869,226 @@ namespace FEBuilderGBA
 
             return true;
         }
+
+        // -----------------------------------------------------------------
+        // Bulk image Import (#988) -- whole 256x160 battle-screen round-trip.
+        //
+        // Ports WinForms ImageBattleScreenForm.ImportButton_Click + RevChipImage
+        // and ImageUtil.ImageToByteKeepTSA. The bulk import takes ONE 256x160
+        // indexed image (up to 4 palette banks), keeps the existing TSA layout
+        // verbatim, and rewrites the deduplicated tilesheet (split back into the
+        // 5 image strips by each strip's ORIGINAL uncompressed length) plus the
+        // up-to-4-bank palette.
+        // -----------------------------------------------------------------
+
+        /// <summary>Pixel width of the full battle screen (32 cells * 8).</summary>
+        public const int BULK_WIDTH = MAP_X * 8;   // 256
+
+        /// <summary>Pixel height of the full battle screen (20 cells * 8).</summary>
+        public const int BULK_HEIGHT = MAP_Y * 8;  // 160
+
+        /// <summary>Number of palette banks the bulk import preserves (WF ImageToPalette(bmp, 4)).</summary>
+        public const int BULK_PALETTE_BANKS = 4;
+
+        /// <summary>
+        /// Battle-screen-specific TSA-keeping tile encoder (#988). Cross-platform
+        /// port of WinForms <c>ImageUtil.ImageToByteKeepTSA</c>, but driven by the
+        /// RAW battle-screen TSA map (<see cref="LoadBattleScreen"/> format) rather
+        /// than the generic GBA-packed TSA.
+        ///
+        /// Each map cell <c>m</c> decodes (matching <see cref="RenderBattleScreenPreview"/>
+        /// and WF <c>MakeBattleScreen</c>) as:
+        ///   <c>tile = m &amp; 0xFF</c> (8-bit), <c>flip = (m &gt;&gt; 8) &amp; 0x0F</c>
+        ///   (0 = none, 4 = H, 8 = V, any-other-nonzero = HV), <c>pal = m &gt;&gt; 12</c>
+        ///   (palette bank -- preserved, never written into the tile index).
+        ///
+        /// For each cell, the NEW input tile at the cell's grid position is taken,
+        /// the INVERSE flip is applied (each pixel-flip is self-inverse), and the
+        /// result is copied over <paramref name="originalTiles"/> at
+        /// <c>tile * 32</c>. The TSA itself is unchanged (the caller writes the
+        /// existing TSA back verbatim). Cells whose <c>tile*32</c> or source
+        /// offset would overrun are skipped (matching WF's per-cell bounds guards).
+        ///
+        /// Pure and guarded: any size mismatch (null inputs, non-32-multiple
+        /// <paramref name="originalTiles"/>, wrong map length) returns <c>null</c>
+        /// without throwing.
+        /// </summary>
+        /// <param name="inputIndexedTiles">The NEW 256x160 image already encoded to
+        ///   raw 4bpp tiles via <see cref="ImageImportCore.EncodeDirectTiles4bpp"/>
+        ///   (one 32-byte 8x8 tile per grid cell, row-major). Length must be
+        ///   <c>MAP_SIZE * 32</c>.</param>
+        /// <param name="map">The RAW battle-screen TSA map (length <see cref="MAP_SIZE"/>).</param>
+        /// <param name="originalTiles">The current concatenated tilesheet bytes
+        ///   (image1..image5 LZ77-decompressed + concatenated). Cloned; never mutated.</param>
+        /// <returns>A new tilesheet the same length as <paramref name="originalTiles"/>
+        ///   with the touched tiles replaced, or <c>null</c> on any invalid input.</returns>
+        public static byte[] EncodeTSAKeep(byte[] inputIndexedTiles, ushort[] map, byte[] originalTiles)
+        {
+            if (inputIndexedTiles == null || map == null || originalTiles == null) return null;
+            if (map.Length != MAP_SIZE) return null;
+            if (originalTiles.Length == 0 || originalTiles.Length % 32 != 0) return null;
+            if (inputIndexedTiles.Length != MAP_SIZE * 32) return null;
+
+            byte[] dest = (byte[])originalTiles.Clone();
+
+            for (int tsaindex = 0; tsaindex < map.Length; tsaindex++)
+            {
+                ushort m = map[tsaindex];
+                if (m == 0xFFFF) continue; // WF: skip blank cells
+
+                int tileNumber = m & 0xFF;            // battle-screen: 8-bit tile id
+                int flip = (m >> 8) & 0x0F;           // 0 / 4=H / 8=V / else=HV
+
+                int destPos = tileNumber * 32;
+                if (destPos + 32 > dest.Length) continue;        // WF per-cell guard
+                int srcPos = tsaindex * 32;
+                if (srcPos + 32 > inputIndexedTiles.Length) continue;
+
+                // Extract the new tile for this grid cell.
+                byte[] tile = new byte[32];
+                Array.Copy(inputIndexedTiles, srcPos, tile, 0, 32);
+
+                // Apply the INVERSE flip (each flip is self-inverse). The
+                // pixel-flip helpers match DecodeTileToPixels' hFlip(srcX=7-px) /
+                // vFlip(srcY=7-py) so encode + decode stay consistent.
+                byte[] outTile;
+                if (flip == 0) outTile = tile;
+                else if (flip == 4) outTile = ImageImportCore.FlipTileH4bpp(tile);          // H
+                else if (flip == 8) outTile = ImageImportCore.FlipTileV4bpp(tile);          // V
+                else outTile = ImageImportCore.FlipTileV4bpp(ImageImportCore.FlipTileH4bpp(tile)); // HV
+
+                Array.Copy(outTile, 0, dest, destPos, 32);
+            }
+
+            return dest;
+        }
+
+        /// <summary>
+        /// Validate-all-before-mutate bulk image import (#988, CORRECTION 3).
+        /// Cross-platform port of WinForms <c>ImageBattleScreenForm.ImportButton_Click</c>
+        /// + <c>RevChipImage</c>. Imports one 256x160 indexed image (≤4 palette
+        /// banks): keeps the existing TSA layout verbatim, rewrites the
+        /// deduplicated tilesheet (split into the 5 image strips by each strip's
+        /// ORIGINAL uncompressed length) and the ≤4-bank palette.
+        ///
+        /// PHASE 1 (validate -- NO mutation): re-load the current 5 image strips
+        /// (their ORIGINAL uncompressed byte lengths give the chunk boundaries),
+        /// the TSA map, and the palette pointer slot; validate the imported pixel
+        /// dims (256x160) + palette (≤4 banks = ≤64 colors); validate all 5 image
+        /// pointer slots + the palette pointer slot are safe ROM offsets.
+        /// Any failure returns a non-empty error string with ZERO ROM bytes
+        /// touched.
+        ///
+        /// PHASE 2 (mutate): encode the input to tiles, run <see cref="EncodeTSAKeep"/>,
+        /// split the result into the 5 strips by the captured original lengths,
+        /// LZ77-write + repoint each strip, then write the ≤4-bank palette +
+        /// repoint -- all through <see cref="ImageImportCore"/> which routes every
+        /// write through the AMBIENT undo scope. The caller MUST wrap this call in
+        /// <c>UndoService.Begin/Commit/Rollback</c> (an ambient
+        /// <c>ROM.BeginUndoScope</c>) so a mid-write free-space failure rolls the
+        /// whole batch back.
+        ///
+        /// CORRECTION 1 (palette policy): the imported image's OWN ≤4-bank palette
+        /// is written -- the 4bpp tiles keep only the low nibble and the TSA cell
+        /// <c>pal</c> bits select the bank. There is NO contradictory remap-to-
+        /// existing-then-write.
+        /// </summary>
+        /// <param name="rom">Target ROM (writes route through its ambient undo scope).</param>
+        /// <param name="indexedPixels">256x160 indexed pixels, 1 byte/pixel, values 0..63
+        ///   (the low nibble is the in-bank color, the high nibble the bank).</param>
+        /// <param name="gbaPalette">The image's quantized palette: up to 4 banks * 16 colors
+        ///   * 2 bytes = up to 128 bytes (multiple of 32). Written RAW.</param>
+        /// <returns>Empty string on success; a non-empty diagnostic string on any
+        ///   validation/write failure (no partial commit -- caller rolls back).</returns>
+        public static string ImportBattleScreenBulk(ROM rom, byte[] indexedPixels, byte[] gbaPalette)
+        {
+            // ---------- PHASE 1: validate everything, mutate nothing ----------
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+                return "ROM not loaded.";
+            if (indexedPixels == null)
+                return "No image pixels.";
+            if (indexedPixels.Length != BULK_WIDTH * BULK_HEIGHT)
+                return $"Image must be {BULK_WIDTH}x{BULK_HEIGHT} pixels.";
+            if (gbaPalette == null || gbaPalette.Length == 0 || gbaPalette.Length % 32 != 0)
+                return "Invalid palette data.";
+            // ≤4 palette banks (≤64 colors). WF: ImageToPalette(bitmap, 4).
+            if (gbaPalette.Length > BULK_PALETTE_BANKS * 16 * 2)
+                return $"Image uses more than {BULK_PALETTE_BANKS} palette banks (max {BULK_PALETTE_BANKS * 16} colors).";
+
+            // The palette pointer slot must be a safe ROM offset BEFORE any write.
+            uint palettePointerSlot = rom.RomInfo.battle_screen_palette_pointer;
+            if (!IsRegionSafe(rom, palettePointerSlot, 4))
+                return "Palette pointer slot is out of range.";
+
+            // All 5 image pointer slots must be safe ROM offsets BEFORE any write.
+            uint[] imageSlots = ImagePointerSlots(rom);
+            for (int i = 0; i < imageSlots.Length; i++)
+            {
+                if (!IsRegionSafe(rom, imageSlots[i], 4))
+                    return $"Image{i + 1} pointer slot is out of range.";
+            }
+
+            // Re-load the current 5 strips -- their ORIGINAL uncompressed lengths
+            // are the chunk boundaries (WF RevChipImage decompresses each strip to
+            // learn its height). A missing/corrupt strip aborts before any write.
+            int[] stripLengths = new int[imageSlots.Length];
+            int totalOriginalLength = 0;
+            byte[][] originalChunks = new byte[imageSlots.Length][];
+            for (int i = 0; i < imageSlots.Length; i++)
+            {
+                if (!TryDecodeImageStrip(rom, imageSlots[i], out byte[] chunk) || chunk == null || chunk.Length == 0)
+                    return $"Could not read battle-screen image strip {i + 1}.";
+                if (chunk.Length % 32 != 0)
+                    return $"Battle-screen image strip {i + 1} is not a whole number of tiles.";
+                originalChunks[i] = chunk;
+                stripLengths[i] = chunk.Length;
+                totalOriginalLength += chunk.Length;
+            }
+
+            // The concatenated original tilesheet (same order as the renderer).
+            byte[] originalTiles = new byte[totalOriginalLength];
+            int wp = 0;
+            for (int i = 0; i < originalChunks.Length; i++)
+            {
+                Array.Copy(originalChunks[i], 0, originalTiles, wp, originalChunks[i].Length);
+                wp += originalChunks[i].Length;
+            }
+
+            // The current TSA map (kept verbatim -- only the tilesheet changes).
+            ushort[] map = LoadBattleScreen(rom);
+            if (map == null) return "Could not read the battle-screen TSA map.";
+
+            // Encode the imported pixels to tiles, then apply the TSA-keeping copy.
+            byte[] inputTiles = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, BULK_WIDTH, BULK_HEIGHT);
+            if (inputTiles == null || inputTiles.Length == 0)
+                return "Failed to encode the imported image to tiles.";
+
+            byte[] newTiles = EncodeTSAKeep(inputTiles, map, originalTiles);
+            if (newTiles == null || newTiles.Length != originalTiles.Length)
+                return "TSA-keeping encode failed.";
+
+            // ---------- PHASE 2: mutate (all writes via ambient undo scope) ----------
+            // Split newTiles back into the 5 strips by the captured original
+            // lengths and LZ77-write + repoint each one (WF RevChipImage).
+            int readPos = 0;
+            for (int i = 0; i < imageSlots.Length; i++)
+            {
+                int len = stripLengths[i];
+                byte[] strip = new byte[len];
+                Array.Copy(newTiles, readPos, strip, 0, len);
+                readPos += len;
+
+                uint newAddr = ImageImportCore.WriteCompressedToROM(rom, strip, imageSlots[i]);
+                if (newAddr == U.NOT_FOUND)
+                    return $"Failed to write battle-screen image strip {i + 1} (no free space).";
+            }
+
+            // Write the image's ≤4-bank palette RAW + repoint (WF ImageToPalette(bmp,4)).
+            uint palAddr = ImageImportCore.WriteRawToROM(rom, gbaPalette, palettePointerSlot);
+            if (palAddr == U.NOT_FOUND)
+                return "Failed to write battle-screen palette (no free space).";
+
+            return string.Empty;
+        }
     }
 }

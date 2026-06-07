@@ -381,6 +381,35 @@ Specialized utilities for different graphic types:
   Used by both WinForms `ToolLZ77Form` and Avalonia `ToolLZ77ViewModel`.
   Uses ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search
   (event-aware path is explicitly out of scope — `MissingEventAwareCoverage` flag always set).
+- `ImageBattleScreenCore.EncodeTSAKeep` + `ImageBattleScreenCore.ImportBattleScreenBulk`
+  (Core; `EncodeTSAKeep` PURE, `ImportBattleScreenBulk` ROM-MUTATING) - Cross-platform
+  BULK whole-screen image import for the Battle Screen Layout editor (#988; ports WF
+  `ImageBattleScreenForm.ImportButton_Click` + `RevChipImage` + `ImageUtil.ImageToByteKeepTSA`,
+  enabling the Avalonia editor's greyed bulk Import/Export buttons). `EncodeTSAKeep(inputIndexedTiles,
+  map, originalTiles)` is the battle-screen-specific TSA-keeping tile encoder: it clones
+  `originalTiles`, and for each RAW battle-screen TSA cell `m` (CORRECTION 2 — `tile = m & 0xFF`
+  8-bit, `flip = (m>>8)&0x0F` (0/4=H/8=V/else=HV), `pal = m>>12`; matches
+  `RenderBattleScreenPreview`/WF `MakeBattleScreen`, NOT the generic 10-bit-tile layout) takes
+  the NEW input tile at that grid cell, applies the INVERSE flip (via the existing
+  `ImageImportCore.FlipTileH4bpp`/`FlipTileV4bpp`, which match `DecodeTileToPixels`' hFlip/vFlip
+  so encode+decode stay consistent), and copies it over at `tile*32`. The TSA itself is
+  unchanged; `0xFFFF`/out-of-bounds cells are skipped (WF per-cell guards); any size mismatch
+  returns `null` without throwing. `ImportBattleScreenBulk(rom, indexedPixels, gbaPalette)` is the
+  validate-all-before-mutate write seam (CORRECTION 3): PHASE 1 re-loads the 5 image strips (their
+  ORIGINAL uncompressed byte lengths = the chunk boundaries, port of `RevChipImage`), the TSA map,
+  and validates the imported 256×160 dims + `≤4`-bank palette (CORRECTION 1 — ≤64 colors; WF
+  `ImageToPalette(bmp, 4)`) + all 5 image pointer slots + the palette pointer slot BEFORE any
+  write; PHASE 2 splits the `EncodeTSAKeep` result into the 5 strips by the captured original
+  lengths, LZ77-writes + repoints each (`ImageImportCore.WriteCompressedToROM`), then writes the
+  image's OWN ≤4-bank palette RAW + repoints (`WriteRawToROM`) — ALL through the caller's ambient
+  `ROM.BeginUndoScope`, returning a non-empty error string on any failure (no partial commit;
+  caller rolls back). The Avalonia `ImageBattleScreenView.BulkImport_Click` loads+quantizes the
+  PNG to its own ≤4-bank palette (`LoadAndQuantizeFromFile`, NOT remap-to-existing) and calls it
+  under one `UndoService` scope; `BulkExport_Click` reuses the composited-preview PNG path
+  (`BattlePreview.ExportPng`). Both bulk buttons are gated on the SAME render-success state
+  (`CanExportBattle`/`HasImage`) as the top Export PNG (CORRECTION 4). Bulk **Redo** stays a
+  documented deferral (local TSA redo buffer is WinForms-coupled; the functional Bulk **Undo**
+  covers ROM-level rollback).
 - `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) - Cross-platform EXPORT seam for
   SkillSystems skill animations (ported from WinForms `ImageUtilSkillSystemsAnimeCreator.Export`).
   `SkipCode(rom, animeAddr, out isDefender)` resolves the anime-config (FE8J direct;

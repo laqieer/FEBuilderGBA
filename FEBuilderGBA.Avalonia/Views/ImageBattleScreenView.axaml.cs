@@ -217,6 +217,19 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 BattleExportPngButton.IsEnabled = _vm.CanExportBattle;
             }
+            // Bulk Export (#988) is the SAME composited-preview PNG path, so it is
+            // gated on the SAME render-success state (CORRECTION 4). Bulk Import
+            // (#988) also requires a valid loaded entry to read the strips/TSA, so
+            // it tracks the same render-success state — corrupt source data can't
+            // present an importable action.
+            if (BulkExportButton != null)
+            {
+                BulkExportButton.IsEnabled = _vm.CanExportBattle;
+            }
+            if (BulkImportButton != null)
+            {
+                BulkImportButton.IsEnabled = _vm.CanExportBattle;
+            }
         }
 
         /// <summary>
@@ -516,6 +529,104 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("BulkUndo_Click failed: {0}", ex.Message);
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Bulk Import/Export handlers (#988).
+        //
+        // Export: the SAME composited-preview PNG path as the top "Export PNG"
+        //   button (BattlePreview.ExportPng). Read-only; no ROM write; no undo.
+        //   Gated on CanExportBattle/HasImage (CORRECTION 4).
+        //
+        // Import: load one 256x160 indexed image (≤4 palette banks), keep the
+        //   existing TSA layout, and rewrite the deduplicated tilesheet (split
+        //   into the 5 strips) + palette via the validate-all-before-mutate Core
+        //   seam ImageBattleScreenCore.ImportBattleScreenBulk, under one
+        //   UndoService scope (CORRECTION 1/2/3). On any returned error, rollback
+        //   and surface the message.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Export the composited battle screen as a PNG — the same path as the
+        /// top-bar Export PNG button (BattlePreview.ExportPng). Read-only; no ROM
+        /// write. Enabled only when a render succeeded (CORRECTION 4).
+        /// </summary>
+        async void BulkExport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await BattlePreview.ExportPng(this, "battle_screen");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageBattleScreenView.BulkExport failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Bulk-import a 256x160 indexed image (#988). Loads + quantizes the
+        /// user's image to its OWN ≤4-bank palette (CORRECTION 1: ≤64 colors),
+        /// then calls the validate-all-before-mutate Core seam under one
+        /// UndoService scope. On any returned error string, rollback + log it.
+        /// Refreshes all previews on success.
+        /// </summary>
+        async void BulkImport_Click(object? sender, RoutedEventArgs e)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || rom.RomInfo == null) return;
+            if (!_vm.IsLoaded)
+            {
+                Log.Notify("BulkImport_Click: no entry loaded; aborting.");
+                return;
+            }
+
+            // Open file dialog and load+quantize to the image's OWN ≤4-bank
+            // palette (up to 64 colors). Unlike the per-image path, the bulk
+            // import writes the imported palette (CORRECTION 1) -- so we quantize
+            // (LoadAndQuantizeFromFile) rather than remap to the existing palette.
+            string? filePath = await FileDialogHelper.OpenImageFile(this);
+            if (string.IsNullOrEmpty(filePath)) return;
+
+            var loadResult = ImageImportService.LoadAndQuantizeFromFile(
+                filePath,
+                ImageBattleScreenCore.BULK_WIDTH, ImageBattleScreenCore.BULK_HEIGHT,
+                maxColors: ImageBattleScreenCore.BULK_PALETTE_BANKS * 16, strictSize: true);
+            if (loadResult == null || !loadResult.Success)
+            {
+                string err = loadResult?.Error ?? "Unknown error";
+                Log.Error("BulkImport_Click: load/quantize failed: {0}", err);
+                return;
+            }
+
+            _undoService.Begin("Bulk Import Battle Screen");
+            string error;
+            try
+            {
+                error = ImageBattleScreenCore.ImportBattleScreenBulk(
+                    rom, loadResult.IndexedPixels, loadResult.GBAPalette);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("BulkImport_Click: ImportBattleScreenBulk threw: {0}", ex.Message);
+                _undoService.Rollback();
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                Log.Error("BulkImport_Click: {0}; rolling back.", error);
+                _undoService.Rollback();
+                return;
+            }
+
+            _undoService.Commit();
+
+            // Reload so the VM reflects the new strip pointers + palette.
+            _vm.LoadEntry();
+            PopulateUI();
+            RefreshBattlePreview();
+            RefreshChipsetPreview();
+            RefreshImagePreviews();
         }
 
         // -----------------------------------------------------------------
