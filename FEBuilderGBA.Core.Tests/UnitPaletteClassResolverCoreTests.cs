@@ -284,6 +284,36 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(2u, UnitPaletteClassResolverCore.FindFirstClassWithAnime(rom));
         }
 
+        [Fact]
+        public void FindFirstClassWithAnime_DoesNotReturnTerminatorClass()
+        {
+            // Regression: the loop bound must be EXCLUSIVE (cid < classCount).
+            // GetClassCount returns the first index where u8(class+4)==0 as the
+            // count. The TERMINATOR entry at cid==classCount has class+4==0 but
+            // can carry a STALE non-zero anime-setting pointer. With a `<=` bound
+            // that terminator would be probed and (since GetAnimeIDByClassID only
+            // checks pointer safety) wrongly accepted, seeding a bogus class.
+            ROM rom = MakeFE8Rom();
+            U.write_u32(rom.Data, UNIT_PTR_SLOT, U.toPointer(UNIT_BASE));
+            U.write_u32(rom.Data, CLASS_PTR_SLOT, U.toPointer(CLASS_BASE));
+
+            // Classes 1..2 exist (flag at +4 != 0); NEITHER has an anime.
+            U.write_u8(rom.Data, ClassAddr(1) + 4, 0x01);
+            U.write_u8(rom.Data, ClassAddr(2) + 4, 0x01);
+            // Class 3 is the TERMINATOR: class+4 == 0 (already zero-filled) ->
+            // GetClassCount returns 3. Plant a STALE non-zero anime-setting
+            // pointer at class 3's +52 slot.
+            const uint staleBlock = 0x5500;
+            U.write_u32(rom.Data, ClassAddr(3) + 52, U.toPointer(staleBlock));
+            U.write_u16(rom.Data, staleBlock + 2, 0x33);
+
+            // The exclusive bound (cid < 3) must NOT probe terminator cid 3, and
+            // since no valid class (1,2) has an anime, the result is 0 — never 3.
+            uint result = UnitPaletteClassResolverCore.FindFirstClassWithAnime(rom);
+            Assert.NotEqual(3u, result);
+            Assert.Equal(0u, result);
+        }
+
         // ================================================================
         // Stub RomInfo
         // ================================================================

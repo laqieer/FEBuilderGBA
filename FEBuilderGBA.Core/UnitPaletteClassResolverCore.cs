@@ -219,8 +219,15 @@ namespace FEBuilderGBA.Core
         public static uint FindFirstClassWithAnime(ROM rom)
         {
             if (rom == null || rom.RomInfo == null) return 0;
+            // GetClassCount (rom.getBlockDataCount + the ClassForm existence
+            // predicate) returns the first invalid/terminator index as an
+            // EXCLUSIVE count — existing ClassForm callers iterate `cid < DataCount`.
+            // Use the exclusive bound here too: with `<=` the terminator cid
+            // (u8(class+4)==0) would be probed, and since GetAnimeIDByClassID only
+            // checks address/pointer safety, a terminator entry with a STALE
+            // non-zero anime-setting pointer could seed a bogus preview class.
             int classCount = GetClassCount(rom);
-            for (int cid = 1; cid <= classCount; cid++)
+            for (int cid = 1; cid < classCount; cid++)
             {
                 if (ClassFormCore.GetAnimeIDByClassID(rom, cid) > 0)
                 {
