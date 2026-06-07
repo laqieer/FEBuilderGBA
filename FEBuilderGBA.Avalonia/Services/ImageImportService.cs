@@ -22,6 +22,14 @@ namespace FEBuilderGBA.Avalonia.Services
             public int Width { get; set; }
             public int Height { get; set; }
             /// <summary>
+            /// Number of distinct colors the quantizer produced (&lt;= maxColors).
+            /// Lets callers detect when a source genuinely needed more colors than
+            /// a single GBA palette bank (e.g. the battle-screen bulk import's
+            /// single-bank guard, #989). Only set by the quantize path
+            /// (<see cref="LoadAndQuantizeFromFile"/>); 0 on the remap paths.
+            /// </summary>
+            public int ColorCount { get; set; }
+            /// <summary>
             /// Absolute path of the source file the user picked. Editors that
             /// keep a Source-File ResourceCache entry (e.g.
             /// ImagePortraitFE6View) use this to populate the Open/Select
@@ -134,6 +142,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 result.GBAPalette = qr.GBAPalette;
                 result.Width = qr.Width;
                 result.Height = qr.Height;
+                result.ColorCount = qr.ColorCount;
                 result.SourcePath = filePath;
             }
 

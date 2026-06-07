@@ -2,8 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.ImageBattleScreenView"
-        Title="Battle Screen Layout" Width="1411" Height="939"
-        SizeToContent="WidthAndHeight">
+        Title="Battle Screen Layout" Width="1180" Height="820"
+        MinWidth="900" MinHeight="760"
+        SizeToContent="Manual">
   <Grid ColumnDefinitions="250,*">
 
     <!-- ===========================================================
@@ -528,15 +529,32 @@
                        Text="Bulk import/export the battle screen as a single image. TSA layout means common tiles must be deduplicated."
                        TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="6">
+              <!-- Bulk image Import (#988): load a 256x160 indexed image (≤4
+                   palette banks), keep the existing TSA layout, and rewrite the
+                   deduplicated tilesheet (split into the 5 strips) + palette via
+                   ImageBattleScreenCore.ImportBattleScreenBulk under one undo
+                   scope. Starts disabled; enabled in RefreshBattlePreview on the
+                   same render-success state as Export PNG. -->
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkImport_Button"
+                      Name="BulkImportButton"
                       Content="Image Import" Width="160" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: bulk image Import requires ImageFormRef.ImportFilenameDialog + ImageUtil.ImageToByteKeepTSA (WinForms-coupled, #393)." />
+                      Click="BulkImport_Click" />
+              <!-- Bulk image Export (#988): same composited-preview PNG as the
+                   top "Export PNG" button (BattlePreview.ExportPng). Gated on the
+                   SAME render-success state (CanExportBattle / HasImage), set in
+                   RefreshBattlePreview. -->
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkExport_Button"
+                      Name="BulkExportButton"
                       Content="Image Export" Width="160" IsEnabled="False"
-                      ToolTip.Tip="KnownGap: bulk image Export requires ImageFormRef.ExportImage + live battle-screen bitmap (WinForms-coupled, #393)." />
+                      Click="BulkExport_Click" />
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkUndo_Button"
                       Content="Undo" Width="100"
                       Click="BulkUndo_Click" />
+              <!-- Bulk Redo stays a documented deferral (#988): the local TSA
+                   redo buffer is WinForms-coupled; the functional Bulk Undo
+                   button (main ROM-level Undo) covers rollback. This EXACT
+                   tooltip literal is already translated in config/translate/
+                   ja.txt + zh.txt, so it passes the L10n coverage gate. -->
               <Button AutomationProperties.AutomationId="ImageBattleScreen_BulkRedo_Button"
                       Content="Redo" Width="100" IsEnabled="False"
                       ToolTip.Tip="KnownGap: local TSA redo buffer is WinForms-coupled. Use the main ROM-level Undo via the toolbar (#393)." />
