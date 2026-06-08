@@ -12,9 +12,17 @@ namespace FEBuilderGBA.Avalonia.Views
     /// Avalonia counterpart of WinForms SkillAssignmentUnitSkillSystemForm.
     /// Gap-sweep #995 raises the AXAML control surface from a single-placeholder
     /// stub to a functional master/detail editor. Master + N1 ROM writes are
-    /// wrapped in View-owned UndoService scopes. The LEVELUP sub-list is optional
-    /// (old patches may not have it) — the N1 panel is hidden when LEVELUP is
-    /// unavailable.
+    /// wrapped in View-owned UndoService scopes.
+    ///
+    /// The per-unit level-up (N1) table is OPTIONAL: old SkillSystems patches
+    /// lack the unit-based level-up table. When it is unavailable the View hides
+    /// the ENTIRE N1 group — the Level-up Top Address row, the Reload button, the
+    /// N1 sub-list, and the N1 detail/write controls — by binding the group's
+    /// <c>IsVisible</c> to the VM's
+    /// <see cref="SkillAssignmentUnitSkillSystemViewModel.HasLevelUpTable"/> flag
+    /// (mirroring WF <c>UnitLevelUpSkill.Hide()</c> when
+    /// <c>FindAssignUnitLevelUpSkillPointer() == U.NOT_FOUND</c>), so no dead
+    /// level-up UI is shown.
     /// </summary>
     public partial class SkillAssignmentUnitSkillSystemView : TranslatedWindow, IEditorView, IDataVerifiableView
     {
@@ -54,22 +62,20 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                // Use UnitPortraitByIdLoader to mirror WF AddressList OwnerDraw=DrawUnitAndText.
-                // The row label starts with "0x{i}" where i is the 0-based unit index;
-                // U.atoh parses that prefix. UnitPortraitByIdLoader calls
-                // ResolveUnitPortraitIdByOneBasedId, so we add 1 to the 0-based row index
-                // by using the UnitPortraitByIdLoader (which adds 1 internally from 1-based).
-                // HOWEVER: our label is "0x00 name" with 0-based i, so U.atoh(name)==i (0-based).
-                // UnitPortraitByIdLoader calls ResolveUnitPortraitIdByOneBasedId(unitId) where
-                // unitId = U.atoh(name) = i (0-based). Since the portrait helper expects 1-based,
-                // this would be off-by-one. Use a lambda that adds 1 to match WF behavior.
+                // Mirror WF AddressList OwnerDraw=DrawUnitAndText. The row label
+                // prefix "0xXX" IS the 1-based WF uid (0 = empty sentinel,
+                // 1 = Eirika on FE8) — the SAME value WF feeds to
+                // UnitForm.GetUnitName / DrawUnitAndText. U.atoh parses that
+                // prefix, so pass it DIRECTLY to ResolveUnitPortraitIdByOneBasedId
+                // (no +1). For prefix 0 the resolver returns 0 (no portrait),
+                // keeping the name + portrait consistent with the row label.
                 EntryList.SetItemsWithIcons(items, (idx) =>
                 {
                     if (idx < 0 || idx >= items.Count) return null;
                     try
                     {
-                        uint unitId0Based = U.atoh(items[idx].name);
-                        uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(unitId0Based + 1);
+                        uint unitId = U.atoh(items[idx].name);
+                        uint portraitId = PreviewIconHelper.ResolveUnitPortraitIdByOneBasedId(unitId);
                         if (portraitId == 0) return null;
                         using var img = PreviewIconHelper.LoadPortraitMini(portraitId);
                         return ImageConversionHelper.ToAvaloniaBitmap(img);

@@ -254,12 +254,81 @@ public class SkillAssignmentUnitSkillSystemParityTests
 
             // LEVELUP base should be 0 (not found)
             Assert.Equal(0u, vm.AssignLevelUpBaseAddress);
+            // The N1-group visibility flag must be false (drives the View hide).
+            Assert.False(vm.HasLevelUpTable, "HasLevelUpTable must be false when LEVELUP is absent.");
 
             // LoadEntry must not throw and must NOT populate LevelUpEntries
             uint addr = PlantedUnitBase + 1;
             Exception loadEx = Record.Exception(() => vm.LoadEntry(addr));
             Assert.Null(loadEx);
             Assert.Empty(vm.LevelUpEntries);
+            // Still false after LoadEntry recompute.
+            Assert.False(vm.HasLevelUpTable);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // HasLevelUpTable == true when the LEVELUP table is present
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_HasLevelUpTable_TrueWhenLevelUpPresent()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            PlantLevelUpSig(rom, 0xB20000, PlantedLevelUpBase);
+            CoreState.ROM = rom;
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            vm.LoadList();
+
+            Assert.NotEqual(0u, vm.AssignLevelUpBaseAddress);
+            Assert.True(vm.HasLevelUpTable, "HasLevelUpTable must be true when LEVELUP resolves.");
+
+            // Still true after a LoadEntry.
+            vm.LoadEntry(PlantedUnitBase + 1);
+            Assert.True(vm.HasLevelUpTable);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // Unit name 1-based mapping (row 0x01 == Eirika sentinel, 0x00 == empty)
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_LoadList_UsesOneBasedNameMapping_SentinelRowEmpty()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            ROM rom = MakeScratchRom();
+            rom.write_u8(PlantedUnitBase, 0x00);
+            PlantAssignSig(rom, 0xB10000, PlantedUnitBase);
+            CoreState.ROM = rom;
+
+            var vm = new SkillAssignmentUnitSkillSystemViewModel();
+            var items = vm.LoadList();
+
+            // Row 0x00 is the empty WF sentinel (uid 0 -> ""); its label must be
+            // just "0x00" with NO trailing space and NO resolved name.
+            Assert.True(items.Count > 1);
+            Assert.Equal("0x00", items[0].name);
+
+            // Row 0x01 (uid 1) resolves via GetUnitNameByOneBasedId(1) — same as
+            // WF UnitForm.GetUnitName(1). On a synthetic ROM with no text data the
+            // resolver returns a non-empty fallback string, so the label has a name
+            // segment (never the off-by-one "0x01 <name of unit 2>").
+            string expectedName = FEBuilderGBA.NameResolver.GetUnitNameByOneBasedId(1);
+            string expectedLabel = string.IsNullOrEmpty(expectedName)
+                ? "0x01"
+                : "0x01 " + expectedName;
+            Assert.Equal(expectedLabel, items[1].name);
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -380,6 +449,17 @@ public class SkillAssignmentUnitSkillSystemParityTests
     {
         string axaml = ReadAxaml();
         Assert.Contains("AutomationId=\"SkillAssignmentUnitSkillSystem_N1Entry_List\"", axaml);
+    }
+
+    [Fact]
+    public void View_N1LevelUpGroup_BindsVisibilityToHasLevelUpTable()
+    {
+        // The entire N1 level-up group must hide on old patches without the
+        // unit-based level-up table. Assert the wrapping group binds IsVisible
+        // to the VM's HasLevelUpTable flag so the hide can't silently regress.
+        string axaml = ReadAxaml();
+        Assert.Contains("Name=\"LevelUpGroup\"", axaml);
+        Assert.Contains("IsVisible=\"{Binding HasLevelUpTable}\"", axaml);
     }
 
     [Fact]

@@ -52,6 +52,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _unitSkill;
         uint _xLevelUpAddr;
         bool _isZeroPointer;
+        bool _hasLevelUpTable;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -59,6 +60,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint UnitSkill { get => _unitSkill; set => SetField(ref _unitSkill, value); }
         public uint XLevelUpAddr { get => _xLevelUpAddr; set => SetField(ref _xLevelUpAddr, value); }
         public bool IsZeroPointer { get => _isZeroPointer; set => SetField(ref _isZeroPointer, value); }
+
+        /// <summary>
+        /// True only when the per-unit level-up table (LEVELUP+4) resolves to a
+        /// valid, safe ROM offset. Old SkillSystems patches lack the unit-based
+        /// level-up table, so the View hides the entire N1 level-up group when
+        /// this is false — mirroring WinForms
+        /// <c>SkillAssignmentUnitSkillSystemForm</c> which calls
+        /// <c>UnitLevelUpSkill.Hide()</c> when
+        /// <c>FindAssignUnitLevelUpSkillPointer() == U.NOT_FOUND</c>.
+        /// </summary>
+        public bool HasLevelUpTable { get => _hasLevelUpTable; set => SetField(ref _hasLevelUpTable, value); }
 
         public sealed class LevelUpEntry
         {
@@ -126,6 +138,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 AssignLevelUpBaseAddress = 0;
             }
+            // HasLevelUpTable drives the View's N1-group visibility (mirror WF
+            // UnitLevelUpSkill.Hide() when the unit-based level-up table is absent).
+            HasLevelUpTable = AssignLevelUpBaseAddress != 0 && AssignLevelUpBaseAddress != U.NOT_FOUND;
 
             uint unitCount = rom.RomInfo.unit_maxcount;
 
@@ -134,8 +149,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 uint addr = assignUnitBase + i * MASTER_BLOCK_SIZE;
                 if (!U.isSafetyOffset(addr, rom)) break;
-                string unitName = NameResolver.GetUnitName(i);
-                string label = "0x" + i.ToString("X02") + " " + unitName;
+                // The row index i IS the 1-based WF uid (0 = empty sentinel,
+                // 1 = Eirika on FE8). Use the 1-based resolver so the displayed
+                // name matches WF UnitForm.GetUnitName((uint)i). Omit the trailing
+                // space when the name is empty (the 0x00 sentinel row reads "0x00").
+                string unitName = NameResolver.GetUnitNameByOneBasedId(i);
+                string label = string.IsNullOrEmpty(unitName)
+                    ? "0x" + i.ToString("X02")
+                    : "0x" + i.ToString("X02") + " " + unitName;
                 result.Add(new AddrResult(addr, label, i));
             }
             ReadCount = (uint)result.Count;
@@ -168,6 +189,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint baseAddr = rom.p32(_assignLevelUpPointerLocation);
                 if (U.isSafetyOffset(baseAddr, rom)) AssignLevelUpBaseAddress = baseAddr;
             }
+            // Recompute the N1-group visibility flag (LoadEntry may run before
+            // LoadList in a Jump-to path).
+            HasLevelUpTable = _assignLevelUpBaseAddress != 0 && _assignLevelUpBaseAddress != U.NOT_FOUND;
 
             SelectedId = (_assignUnitBaseAddress > 0 && addr >= _assignUnitBaseAddress)
                 ? (addr - _assignUnitBaseAddress) / MASTER_BLOCK_SIZE
@@ -316,6 +340,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             UnitSkill = 0;
             XLevelUpAddr = 0;
             IsZeroPointer = false;
+            HasLevelUpTable = false;
             LevelUpEntries.Clear();
             SelectedLevelUpAddr = 0;
             SelectedLevelUpId = 0;

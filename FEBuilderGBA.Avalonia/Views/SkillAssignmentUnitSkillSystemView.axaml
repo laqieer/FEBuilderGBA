@@ -88,6 +88,13 @@
                    MinHeight="60" Margin="8,0,0,0" />
         </Grid>
 
+        <!-- N1 level-up group: the entire block (address bar + sub-list + N1
+             detail/write controls) is hidden when the per-unit level-up table
+             is absent (old patches). Mirrors WF UnitLevelUpSkill.Hide(). -->
+        <StackPanel AutomationProperties.AutomationId="SkillAssignmentUnitSkillSystem_LevelUpGroup"
+                    Name="LevelUpGroup" Spacing="8"
+                    IsVisible="{Binding HasLevelUpTable}">
+
         <!-- Level-up Skill address bar -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
           <Grid ColumnDefinitions="280,160,80,80,Auto" RowDefinitions="Auto">
@@ -199,6 +206,9 @@
 
           </StackPanel>
         </Grid>
+
+        </StackPanel>
+        <!-- end N1 level-up group -->
 
       </StackPanel>
     </ScrollViewer>
