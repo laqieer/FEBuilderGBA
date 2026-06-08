@@ -22718,8 +22718,8 @@ WF 中的 N03 子标签包含 16 个无固定语义的通用字节 (B16..B31)。
 :Adds the effect of another skill (KnownGap: tracked by #374)
 添加其他技能的效果 (KnownGap: #374 跟踪中)
 
-:PatchManagerView does not yet expose JumpToSelectStruct (tracked by #374).
-PatchManagerView 尚未暴露 JumpToSelectStruct (#374 跟踪中)。
+:Opens the Patch Manager and filters/selects the FE8N SKILL COMBAT ART patch. Struct-level row selection is a #374 follow-up.
+打开补丁管理器并筛选/选中 FE8N SKILL COMBAT ART 补丁。结构体级别的行选择是 #374 的后续工作。
 
 :Move to COMBAT_ART
 跳转到 COMBAT_ART

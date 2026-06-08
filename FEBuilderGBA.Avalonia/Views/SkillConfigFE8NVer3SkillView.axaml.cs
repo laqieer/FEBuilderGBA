@@ -403,12 +403,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToCombatArt_Click(object? sender, RoutedEventArgs e)
         {
-            // Navigate-only open; full Init/struct-jump context is the
-            // symmetric #500/#374 follow-up. Mirrors the merged
-            // ImageMagicFEditorView.JumpEditor_Click (#894) pattern.
+            // #1009: filter + select the FE8N SKILL COMBAT ART(Editor) patch via
+            // the PatchManagerView.JumpTo (#428) filter seam, instead of opening
+            // unfiltered with nothing selected. Mirrors WF
+            // PatchForm.JumpToSelectStruct's filter+select step; struct-level row
+            // selection stays a #374 follow-up (PatchManagerView has no inner
+            // struct list). Mirrors the ItemEditorView.OnWeaponDebuffsLink_Click
+            // Navigate -> FindOpen -> JumpTo pattern.
             try
             {
-                WindowManager.Instance.Open<PatchManagerView>();
+                WindowManager.Instance.Navigate<PatchManagerView>(0);
+                var pmView = WindowManager.Instance.FindOpen<PatchManagerView>();
+                pmView?.JumpTo("FE8N SKILL COMBAT ART", 0);  // filter + select the combat-art patch (struct-level row select = #374 follow-up)
             }
             catch (Exception ex)
             {

@@ -616,6 +616,136 @@ public class SkillConfigFE8NVer3SkillParityTests
         Assert.Contains("AutomationId=\"SkillConfigFE8NVer3Skill_JumpToCombatArt_Button\"", axaml);
     }
 
+    // -----------------------------------------------------------------
+    // #1009 — Move-to-COMBAT_ART now FILTERS + selects the patch.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #1009: the JumpToCombatArt_Click handler must Navigate to the Patch
+    /// Manager and call PatchManagerView.JumpTo("FE8N SKILL COMBAT ART", 0)
+    /// (the #428 filter seam) so it filters + selects the combat-art patch,
+    /// instead of opening unfiltered with nothing selected. Roslyn-static
+    /// read scoped to the handler BODY (so unrelated handlers in the same file
+    /// can't satisfy these assertions).
+    /// </summary>
+    [Fact]
+    public void View_JumpToCombatArt_FiltersPatchManager()
+    {
+        string handler = ExtractJumpToCombatArtHandlerBody();
+
+        Assert.True(handler.Contains("Navigate<PatchManagerView>"),
+            "JumpToCombatArt_Click must Navigate<PatchManagerView> (mirrors ItemEditorView.OnWeaponDebuffsLink_Click)");
+        Assert.True(handler.Contains("FindOpen<PatchManagerView>"),
+            "JumpToCombatArt_Click must FindOpen<PatchManagerView> to grab the opened view instance");
+        Assert.True(handler.Contains("JumpTo(\"FE8N SKILL COMBAT ART\", 0)"),
+            "JumpToCombatArt_Click must call JumpTo(\"FE8N SKILL COMBAT ART\", 0) (the #428 filter seam)");
+    }
+
+    /// <summary>
+    /// #1009: the handler must no longer rely solely on a bare
+    /// `Open<PatchManagerView>()` (unfiltered, nothing selected), and the stale
+    /// "does not yet expose JumpToSelectStruct" wording must be gone from the
+    /// handler body.
+    /// </summary>
+    [Fact]
+    public void View_JumpToCombatArt_NoLongerBareOpenOrStaleWording()
+    {
+        string handler = ExtractJumpToCombatArtHandlerBody();
+
+        // ".Open<PatchManagerView>()" (with the leading dot) is the bare
+        // navigate-only call; the leading dot distinguishes it from the
+        // legitimate "FindOpen<PatchManagerView>()" call which ends in the
+        // same "Open<PatchManagerView>()" text.
+        Assert.False(handler.Contains(".Open<PatchManagerView>()"),
+            "JumpToCombatArt_Click must not use the bare .Open<PatchManagerView>() (unfiltered, nothing selected)");
+        Assert.False(handler.Contains("does not yet expose JumpToSelectStruct"),
+            "The stale 'does not yet expose JumpToSelectStruct' wording must be removed from the handler");
+    }
+
+    /// <summary>
+    /// Config guard (Copilot refinement): the filter substring
+    /// "FE8N SKILL COMBAT ART" must resolve UNAMBIGUOUSLY to exactly one shipped
+    /// patch. Scan every PATCH_*.txt under config/patch2/, PARSE each patch's
+    /// NAME= metadata line (mirroring PatchMetadataCore.ParsePatchFile —
+    /// Trim() + StartsWith("NAME=", OrdinalIgnoreCase) + Substring(5).Trim()),
+    /// and assert EXACTLY ONE patch NAME contains the filter substring. If the
+    /// submodule is not checked out (no patch files found), the test is skipped
+    /// (Assert.True(true)) rather than failing on a missing dependency.
+    /// </summary>
+    [Fact]
+    public void Config_ExactlyOnePatch_NamedFE8NSkillCombatArt()
+    {
+        string repoRoot = FindRepoRoot();
+        string patch2Dir = Path.Combine(repoRoot, "config", "patch2");
+        if (!Directory.Exists(patch2Dir))
+        {
+            // config/patch2 is a git submodule; if it's not checked out there
+            // are no patch files to scan. Skip rather than fail.
+            Assert.True(true, "config/patch2 submodule not checked out — skipping config guard");
+            return;
+        }
+
+        var patchFiles = Directory.GetFiles(patch2Dir, "PATCH_*.txt", SearchOption.AllDirectories);
+        if (patchFiles.Length == 0)
+        {
+            Assert.True(true, "no PATCH_*.txt files found (submodule not populated) — skipping config guard");
+            return;
+        }
+
+        const string filter = "FE8N SKILL COMBAT ART";
+        int matches = 0;
+        foreach (string file in patchFiles)
+        {
+            foreach (string rawLine in File.ReadAllLines(file))
+            {
+                string line = rawLine.Trim();
+                if (line.StartsWith("//")) continue;
+                if (!line.StartsWith("NAME=", StringComparison.OrdinalIgnoreCase)) continue;
+                string name = line.Substring(5).Trim();
+                if (name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0)
+                    matches++;
+                break; // one NAME= per patch file
+            }
+        }
+
+        Assert.True(matches == 1,
+            $"Exactly one shipped patch NAME must contain \"{filter}\" so the JumpTo filter resolves unambiguously — found {matches}");
+    }
+
+    /// <summary>
+    /// Read the JumpToCombatArt_Click handler body from the View code-behind so
+    /// the #1009 static assertions are scoped to that handler (not the whole
+    /// file). Returns text from the handler's method signature up to the NEXT
+    /// method declaration — found generically by the next occurrence of the
+    /// standard 8-space-indented `void ` signature (the indentation every
+    /// handler in this file uses), so renaming/reordering the following handler
+    /// cannot silently break the extraction. If no following `void ` method is
+    /// found, the slice extends to the end of the source.
+    /// </summary>
+    static string ExtractJumpToCombatArtHandlerBody()
+    {
+        string repoRoot = FindRepoRoot();
+        string sourcePath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "SkillConfigFE8NVer3SkillView.axaml.cs");
+        string source = File.ReadAllText(sourcePath);
+
+        const string marker = "void JumpToCombatArt_Click(";
+        int start = source.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(start >= 0, "JumpToCombatArt_Click handler not found in the View code-behind");
+
+        // End at the next method declaration after the marker — located
+        // generically via the standard 8-space method-signature indentation
+        // ("\n        void "), not a hard-coded handler name. Normalize CRLF so
+        // the search works regardless of the file's line endings.
+        int searchFrom = start + marker.Length;
+        const string nextMethodSignature = "\n        void ";
+        int crlf = source.IndexOf("\r\n        void ", searchFrom, StringComparison.Ordinal);
+        int lf = source.IndexOf(nextMethodSignature, searchFrom, StringComparison.Ordinal);
+        int next = (crlf >= 0 && (lf < 0 || crlf < lf)) ? crlf : lf;
+        if (next < 0) next = source.Length;
+        return source.Substring(start, next - start);
+    }
+
     [Fact]
     public void View_HasListExpandButton_Wired()
     {
