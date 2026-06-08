@@ -372,6 +372,193 @@ public class ItemEditorParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1036 — MagicSplit magic stat-bonus preview row (WF MagicExtUnitBase).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void RecalcStatBonuses_ReadsSignedMagByteAtOffset9_AndCoreStats()
+    {
+        // Plant a 10-byte stat-bonus block where the 10th value (offset +9 =
+        // Magic) is the SIGNED byte 0xFB == -5, and the 9 core stats hold
+        // distinct signed values. The item's P12 points at the block.
+        var rom = MakeRomWithStatBonusBlock(
+            out uint itemAddr,
+            block: new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0xFB });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            // No MagicSplit signature planted → detector defaults to None, but
+            // the +9 byte is still read regardless of the gate.
+            PatchDetectionService.Instance.Refresh();
+
+            var vm = new ItemEditorViewModel();
+            vm.LoadItem(itemAddr);
+
+            Assert.True(vm.HasBonusPreview, "Stat bonus preview should be active.");
+            // 9 core stats read correctly.
+            Assert.Equal(1, vm.BonusHP);
+            Assert.Equal(2, vm.BonusStr);
+            Assert.Equal(3, vm.BonusSkl);
+            Assert.Equal(4, vm.BonusSpd);
+            Assert.Equal(5, vm.BonusDef);
+            Assert.Equal(6, vm.BonusRes);
+            Assert.Equal(7, vm.BonusLck);
+            Assert.Equal(8, vm.BonusMove);
+            Assert.Equal(9, vm.BonusCon);
+            // The signed +9 magic byte: 0xFB == -5.
+            Assert.Equal(-5, vm.BonusMag);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            PatchDetectionService.Instance.Refresh();
+        }
+    }
+
+    [Fact]
+    public void RecalcStatBonuses_NineByteBlock_StillPreviews_MagDefaultsZero()
+    {
+        // A block where only 9 bytes are readable (the block ends exactly at the
+        // end of the ROM, so offset +9 is past EOF). The +9 guard returns Mag=0
+        // and must NOT break the HP..Con preview.
+        var rom = MakeRomWithStatBonusBlockAtEof(
+            out uint itemAddr,
+            coreNine: new byte[] { 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12 });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            PatchDetectionService.Instance.Refresh();
+
+            var vm = new ItemEditorViewModel();
+            vm.LoadItem(itemAddr);
+
+            Assert.True(vm.HasBonusPreview, "9-byte block must still set HasBonusPreview.");
+            Assert.Equal(0x0A, vm.BonusHP);
+            Assert.Equal(0x12, vm.BonusCon);
+            // +9 byte is past EOF → bounds-guarded read yields 0, no crash.
+            Assert.Equal(0, vm.BonusMag);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            PatchDetectionService.Instance.Refresh();
+        }
+    }
+
+    [Fact]
+    public void HasMagicBonus_TrueOnFE8UMagicSplit_FalseOnVanilla()
+    {
+        // FE8U magic split signature at 0x2BB44: { 0x01, 0x4B, 0xA5, 0xF0, 0xC1, 0xFE }.
+        var rom = MakeRomWithStatBonusBlock(
+            out uint itemAddr,
+            block: new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0x07 });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            // --- Vanilla (no signature): gate must be false. ---
+            CoreState.ROM = rom;
+            PatchDetectionService.Instance.Refresh();
+            Assert.Equal(PatchDetectionService.MagicSplitType.None,
+                PatchDetectionService.Instance.MagicSplit);
+
+            var vmVanilla = new ItemEditorViewModel();
+            vmVanilla.LoadItem(itemAddr);
+            Assert.True(vmVanilla.HasBonusPreview);
+            Assert.False(vmVanilla.HasMagicBonus);
+
+            // --- FE8U MagicSplit: plant signature, Refresh, gate must be true. ---
+            rom.Data[0x2BB44] = 0x01;
+            rom.Data[0x2BB45] = 0x4B;
+            rom.Data[0x2BB46] = 0xA5;
+            rom.Data[0x2BB47] = 0xF0;
+            rom.Data[0x2BB48] = 0xC1;
+            rom.Data[0x2BB49] = 0xFE;
+            // MagicSplitUtil.ClearCache alone is NOT enough — the VM reads the
+            // singleton's cached MagicSplit, so the service must be Refresh()ed.
+            PatchDetectionService.Instance.Refresh();
+            Assert.Equal(PatchDetectionService.MagicSplitType.FE8U,
+                PatchDetectionService.Instance.MagicSplit);
+
+            var vmSplit = new ItemEditorViewModel();
+            vmSplit.LoadItem(itemAddr);
+            Assert.True(vmSplit.HasBonusPreview);
+            Assert.True(vmSplit.HasMagicBonus);
+            Assert.Equal(7, vmSplit.BonusMag);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            // Restore detection state so it does not leak to other tests.
+            PatchDetectionService.Instance.Refresh();
+        }
+    }
+
+    [Fact]
+    public void HasMagicBonus_FalseOnFE8NMagicSplit_WfParityGate()
+    {
+        // WF parity: only FE7U/FE8U show the Magic row, NOT FE8N. Build an FE8J
+        // ROM and plant the FE8N magic-split signature at 0x2a542 = { 0x30, 0x1C }.
+        var rom = MakeFE8JRomWithStatBonusBlock(
+            out uint itemAddr,
+            block: new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 0x07 });
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            rom.Data[0x2A542] = 0x30;
+            rom.Data[0x2A543] = 0x1C;
+            PatchDetectionService.Instance.Refresh();
+            // Confirm we really detected FE8N (so this is a real gate test, not
+            // a vacuous None==None pass).
+            Assert.Equal(PatchDetectionService.MagicSplitType.FE8N,
+                PatchDetectionService.Instance.MagicSplit);
+
+            var vm = new ItemEditorViewModel();
+            vm.LoadItem(itemAddr);
+            Assert.True(vm.HasBonusPreview);
+            // FE8N must NOT show the Magic row.
+            Assert.False(vm.HasMagicBonus);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            PatchDetectionService.Instance.Refresh();
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // #1036 — View source/static assertions.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_PopulatesBonusMagLabel_FromViewModel()
+    {
+        // The code-behind must set BonusMagLabel.Text from _vm.BonusMag and
+        // its visibility from _vm.HasMagicBonus.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.True(source.Contains("BonusMagLabel.Text"),
+            "Code-behind must set BonusMagLabel.Text.");
+        Assert.True(source.Contains("_vm.BonusMag"),
+            "Code-behind must read _vm.BonusMag.");
+        Assert.True(source.Contains("BonusMagLabel.IsVisible = _vm.HasMagicBonus"),
+            "Code-behind must gate BonusMagLabel.IsVisible on _vm.HasMagicBonus.");
+    }
+
+    [Fact]
+    public void View_BonusMagLabel_StaleDeferredWordingRemoved()
+    {
+        // The old KnownGap comment that called MagicExtUnitBase "deferred" must
+        // be gone now that the row is implemented (#1036).
+        string axaml = ReadAxaml();
+        Assert.False(axaml.Contains("MagicExtUnitBase: requires HasMagicSplit + per-unit"),
+            "Stale 'deferred' MagicExtUnitBase KnownGap wording must be removed.");
+        Assert.True(axaml.Contains("AutomationId=\"ItemEditor_BonusMag_Label\""),
+            "BonusMag label must still exist in the AXAML.");
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 
@@ -420,6 +607,68 @@ public class ItemEditorParityTests
         data[offset + 1] = (byte)((value >> 8) & 0xFF);
         data[offset + 2] = (byte)((value >> 16) & 0xFF);
         data[offset + 3] = (byte)((value >> 24) & 0xFF);
+    }
+
+    /// <summary>
+    /// Build a synthetic FE8U ROM with a single item record at a known address
+    /// whose P12 (stat-bonus pointer) targets a planted stat-bonus
+    /// <paramref name="block"/>. Returns the item record address so the caller
+    /// can drive <c>ItemEditorViewModel.LoadItem(itemAddr)</c>.
+    /// </summary>
+    static ROM MakeRomWithStatBonusBlock(out uint itemAddr, byte[] block)
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+
+        itemAddr = 0x200000;          // FE8U item record is 36 bytes.
+        uint blockAddr = 0x210000;    // stat-bonus block, distinct region.
+
+        // Plant the stat-bonus block.
+        for (int i = 0; i < block.Length; i++)
+            rom.Data[blockAddr + i] = block[i];
+
+        // P12 (offset +12 in the item record) → GBA pointer to the block.
+        WriteU32(rom.Data, (int)(itemAddr + 12), 0x08000000u | blockAddr);
+        return rom;
+    }
+
+    /// <summary>
+    /// Like <see cref="MakeRomWithStatBonusBlock"/> but places the 9 core-stat
+    /// bytes at the very END of the ROM so offset +9 (Magic) is past EOF. The
+    /// bounds guard must keep the HP..Con preview but return Mag = 0.
+    /// </summary>
+    static ROM MakeRomWithStatBonusBlockAtEof(out uint itemAddr, byte[] coreNine)
+    {
+        Assert.Equal(9, coreNine.Length);
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
+
+        itemAddr = 0x200000;
+        // Place the 9 bytes so the block ends exactly at EOF: addr = len - 9.
+        uint blockAddr = (uint)rom.Data.Length - 9;
+        for (int i = 0; i < 9; i++)
+            rom.Data[blockAddr + i] = coreNine[i];
+
+        WriteU32(rom.Data, (int)(itemAddr + 12), 0x08000000u | blockAddr);
+        return rom;
+    }
+
+    /// <summary>
+    /// FE8J variant of <see cref="MakeRomWithStatBonusBlock"/> — registers as
+    /// BE8J01 so the FE8N magic-split signature (FE8J-only) can be planted.
+    /// </summary>
+    static ROM MakeFE8JRomWithStatBonusBlock(out uint itemAddr, byte[] block)
+    {
+        var rom = new ROM();
+        rom.LoadLow("synth.gba", new byte[0x1000000], "BE8J01");
+
+        itemAddr = 0x200000;
+        uint blockAddr = 0x210000;
+        for (int i = 0; i < block.Length; i++)
+            rom.Data[blockAddr + i] = block[i];
+
+        WriteU32(rom.Data, (int)(itemAddr + 12), 0x08000000u | blockAddr);
+        return rom;
     }
 
     static string AxamlPath()

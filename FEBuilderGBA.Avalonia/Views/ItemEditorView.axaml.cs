@@ -383,6 +383,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 BonusLckLabel.Text = $"Lck: {_vm.BonusLck:+#;-#;0}";
                 BonusMoveLabel.Text = $"Move: {_vm.BonusMove:+#;-#;0}";
                 BonusConLabel.Text = $"Con: {_vm.BonusCon:+#;-#;0}";
+                // MagicSplit magic bonus (WF MagicExtUnitBase) — shown only on
+                // FE7U/FE8U MagicSplit ROMs; hidden on vanilla/FE8N/FE6.
+                BonusMagLabel.Text = $"Mag: {_vm.BonusMag:+#;-#;0}";
+                BonusMagLabel.IsVisible = _vm.HasMagicBonus;
             }
         }
 

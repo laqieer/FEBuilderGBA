@@ -208,14 +208,15 @@
         </Border>
         </Expander>
 
-        <!-- KnownGap (out-of-scope for #409, parent #374):
+        <!-- Parity notes (parent #374):
              - WF X_SIM_* labels (HP/Str/Skl/Spd/Def/Res/Lck/Move/Con preview):
                rendered as the Stat Bonuses Preview WrapPanel above.
              - WF X_VALUE_SHOP / X_VALUE_SEL / X_VALUE_SHINGEKI_SHOP:
                surfaced as the Buy Price / Sell Price / Forge Price labels.
-             - WF MagicExtUnitBase: requires HasMagicSplit + per-unit
-               base-magic detection — deferred.
-             None of these spawn new follow-up issues per #409 scope rule. -->
+             - WF MagicExtUnitBase: implemented (#1036) as the BonusMag row in
+               the Stat Bonuses Preview below — the stat-bonus block's 10th
+               value (offset +9) is read into BonusMag and the row is shown only
+               on FE7U/FE8U MagicSplit ROMs (HasMagicBonus). -->
 
 
         <!-- Null pointer warnings + new-alloc buttons.
@@ -256,9 +257,10 @@
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusLck_Label" Name="BonusLckLabel" Margin="0,0,12,0" />
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusMove_Label" Name="BonusMoveLabel" Margin="0,0,12,0" />
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusCon_Label" Name="BonusConLabel" Margin="0,0,12,0" />
-              <!-- Magic split base — visible only when HasMagicSplit is detected
-                   (mirrors WF MagicExtUnitBase). Stays hidden by default so we
-                   do not mislead users on vanilla ROMs. -->
+              <!-- Magic split base (#1036) — the stat-bonus block's 10th value
+                   (offset +9). Visible only on FE7U/FE8U MagicSplit ROMs
+                   (HasMagicBonus; mirrors WF MagicExtUnitBase). Stays hidden by
+                   default so we do not mislead users on vanilla/FE8N/FE6 ROMs. -->
               <TextBlock AutomationProperties.AutomationId="ItemEditor_BonusMag_Label"
                          Name="BonusMagLabel"
                          Margin="0,0,12,0"
