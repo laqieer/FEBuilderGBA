@@ -273,6 +273,50 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public int SelectedSongIndex { get; set; } = -1;
 
+        // ---- #1014: Source-file affordance (mirrors WorldMapImageViewModel /
+        // ImageBGViewModel). WF SongTrackForm records the imported source-music
+        // path under the PER-SONG ResourceCache key "Song_" + hex(songId) — NOT
+        // a fixed key, NOT the song-header address (WF SongTrackForm.cs:137-146,
+        // 303-305,560-563). Open Source File / Folder become available only when
+        // the recorded file exists. ----
+        string _sourceFilePath = string.Empty;
+        bool _isSourceFileAvailable;
+        public string SourceFilePath { get => _sourceFilePath; set => SetField(ref _sourceFilePath, value); }
+        public bool IsSourceFileAvailable { get => _isSourceFileAvailable; set => SetField(ref _isSourceFileAvailable, value); }
+
+        /// <summary>Build the per-song ResourceCache key (WF "Song_" + hex(songId)).</summary>
+        static string SourceFileResourceKey(uint songId) => "Song_" + U.ToHexString(songId);
+
+        /// <summary>
+        /// Re-read the recorded source-music path for <paramref name="songId"/>
+        /// from ResourceCache (WF per-song "Song_" + hex(songId) key). Called
+        /// after each song selection so Open Source File / Folder light up for
+        /// the selected song only.
+        /// </summary>
+        public void RefreshSourceFile(uint songId)
+        {
+            var cache = CoreState.ResourceCache as FEBuilderGBA.EtcCacheResource;
+            if (cache == null) { IsSourceFileAvailable = false; SourceFilePath = string.Empty; return; }
+            string path = cache.At(SourceFileResourceKey(songId), string.Empty);
+            SourceFilePath = path ?? string.Empty;
+            IsSourceFileAvailable = !string.IsNullOrEmpty(SourceFilePath) && System.IO.File.Exists(SourceFilePath);
+        }
+
+        /// <summary>
+        /// Record a new source-music path for <paramref name="songId"/> after a
+        /// successful MIDI import (WF SongTrackForm ImportButton_Click records
+        /// the picked file under "Song_" + hex(songId)).
+        /// </summary>
+        public void RecordSourceFile(uint songId, string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            var cache = CoreState.ResourceCache as FEBuilderGBA.EtcCacheResource;
+            if (cache == null) return;
+            cache.Update(SourceFileResourceKey(songId), path);
+            SourceFilePath = path;
+            IsSourceFileAvailable = System.IO.File.Exists(path);
+        }
+
         /// <summary>
         /// Export the current song as a MIDI file.
         /// Returns null on success, or an error message on failure.
