@@ -11,6 +11,7 @@ using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -266,14 +267,76 @@ namespace FEBuilderGBA.Avalonia.Views
         // List expansion
         // -----------------------------------------------------------------
 
-        void ListExpand_Click(object? sender, RoutedEventArgs e)
+        /// <summary>
+        /// List-expansion handler (#1020). Prompts the user for a new pointer-slot
+        /// count, delegates to <see cref="AIScriptViewModel.ExpandList"/> inside an
+        /// <see cref="UndoService"/> scope, then reloads the list. Mirrors WF
+        /// <c>AIScriptForm.AddressListExpandsEventNoCopyPointer</c> (prompt ->
+        /// ExpandTableTo -> repoint ai*[3] -> reload) and the
+        /// <c>ImageMapActionAnimationView.ListExpand_Click</c> flow.
+        /// </summary>
+        async void ListExpand_Click(object? sender, RoutedEventArgs e)
         {
-            // Bringing the pointer table expand path live requires the same
-            // P4-clearing logic the WF AddressListExpandsEventNoCopyPointer
-            // handler runs. That logic is host-coupled to InputFormRef. For
-            // now we surface an informational message so the parity surface
-            // exists without risking a partial-expand on the live ROM.
-            CoreState.Services.ShowInfo("List Expand is reserved — use the WinForms editor to expand the AI pointer table for now.");
+            try
+            {
+                if (!_vm.IsLoaded)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+                if (_vm.ReadCount == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
+                    return;
+                }
+
+                // Default = current count + 1. ExpandTableTo fails gracefully when
+                // there is insufficient free space, so a generous max is safe.
+                uint defaultCount = _vm.ReadCount + 1;
+                if (defaultCount > 1024) defaultCount = 1024;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the AI pointer table (current: {0}, max: 1024).",
+                        _vm.ReadCount),
+                    R._("List Expansion"),
+                    defaultCount,
+                    _vm.ReadCount,
+                    1024);
+                if (chosen == null) return; // user cancelled
+                uint newCount = chosen.Value;
+                if (newCount == _vm.ReadCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                _undoService.Begin("Expand AI Script List");
+                try
+                {
+                    string err = _vm.ExpandList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded AI pointer table to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("AIScriptView.ListExpand_Click inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("AIScriptView.ListExpand_Click failed: {0}", ex.Message);
+            }
         }
 
         // -----------------------------------------------------------------
