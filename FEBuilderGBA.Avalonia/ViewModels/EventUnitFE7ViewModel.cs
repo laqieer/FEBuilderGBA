@@ -263,9 +263,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <see cref="MapEventUnitCore.AllocNewUnitList"/> primitive (which uses
         /// <c>rom.RomInfo.eventunit_data_size</c> — 16 for FE7).
         /// Returns the new base ROM offset or <see cref="U.NOT_FOUND"/> on failure.
-        /// The caller MUST open an ambient undo scope first and pass its active
-        /// <see cref="Undo.UndoData"/>.
         /// </summary>
+        /// <param name="count">Number of starter rows to allocate.</param>
+        /// <param name="undo">Optional active undo group — recommended when the
+        /// caller wants the allocation to be undoable (open an ambient undo
+        /// scope first and pass its <see cref="Undo.UndoData"/>). Passing
+        /// <c>null</c> is allowed and simply skips the explicit-undodata
+        /// rollback path, matching <see cref="MapEventUnitCore.AllocNewUnitList"/>.</param>
         public uint NewAllocUnitList(uint count, Undo.UndoData? undo)
         {
             ROM rom = CoreState.ROM;

@@ -530,8 +530,9 @@ namespace FEBuilderGBA.Avalonia.Views
         /// that the group scan has not already discovered, and drop those that
         /// it has (they are now "booked" via the script POINTER_UNIT scan).
         /// Avalonia port of WF <c>EventUnitFE7Form.AppendNoWriteNewData</c>.
-        /// After mutating <c>_groupItems</c>, rebuilds <c>_groupDisplayItems</c>
-        /// from <c>_groupItems</c> so the display list stays aligned.
+        /// This method only mutates <c>_groupItems</c>; the caller
+        /// (<c>MapListBox_SelectionChanged</c>) rebuilds <c>_groupDisplayItems</c>
+        /// from <c>_groupItems</c> afterward so the display list stays aligned.
         /// </summary>
         void MergeNewAllocData(uint mapId)
         {
