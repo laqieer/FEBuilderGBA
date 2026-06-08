@@ -22,9 +22,12 @@
 // helpers (`MapEventUnitCore.FindXxxFE8Address` etc.) and opens the
 // target editor with the resolved byte address. For JumpToNewAlloc and
 // JumpToItemDrop, it opens the proxy dialog view with no address (modal
-// dialog flow). For JumpToMonsterProbability, it opens the viewer
-// without row pre-selection (the WF behavior of passing B1 = class_id
-// as a row index is documented as a known limitation — see PR body).
+// dialog flow). For JumpToMonsterProbability, the View resolves B1's
+// class_id ROW INDEX to the matching Monster Probability entry address
+// (MonsterProbabilityViewerViewModel.ResolveAddressByClassIndex) and
+// Navigates so the viewer opens pre-selected on the class_id-indexed row
+// (WF JumpForm selectedID == class_id parity, #1018). TargetAddress stays
+// null because the address is resolved dynamically at click time.
 // Matches the precedent from `EventUnitFE7ViewModel.NavigationTargets.cs`.
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;

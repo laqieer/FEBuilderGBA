@@ -55,6 +55,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        /// <summary>Resolve a class_id ROW INDEX (WF random-monster jump selectedID=B1) to that
+        /// Monster Probability entry's address, or U.NOT_FOUND when out of range / unavailable.</summary>
+        public uint ResolveAddressByClassIndex(uint classId)
+        {
+            var list = LoadMonsterProbabilityList();
+            if (classId >= (uint)list.Count) return U.NOT_FOUND;
+            return list[(int)classId].addr;
+        }
+
         public void LoadMonsterProbability(uint addr)
         {
             ROM rom = CoreState.ROM;
