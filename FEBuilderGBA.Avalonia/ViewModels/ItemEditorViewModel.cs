@@ -110,8 +110,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint ShopForgePrice { get => _shopForgePrice; private set => SetField(ref _shopForgePrice, value); }
 
         // --- Computed: Stat bonus preview ---
-        int _bonusHP, _bonusStr, _bonusSkl, _bonusSpd, _bonusDef, _bonusRes, _bonusLck, _bonusMove, _bonusCon;
-        bool _hasBonusPreview;
+        int _bonusHP, _bonusStr, _bonusSkl, _bonusSpd, _bonusDef, _bonusRes, _bonusLck, _bonusMove, _bonusCon, _bonusMag;
+        bool _hasBonusPreview, _hasMagicBonus;
         public int BonusHP { get => _bonusHP; private set => SetField(ref _bonusHP, value); }
         public int BonusStr { get => _bonusStr; private set => SetField(ref _bonusStr, value); }
         public int BonusSkl { get => _bonusSkl; private set => SetField(ref _bonusSkl, value); }
@@ -122,6 +122,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int BonusMove { get => _bonusMove; private set => SetField(ref _bonusMove, value); }
         public int BonusCon { get => _bonusCon; private set => SetField(ref _bonusCon, value); }
         public bool HasBonusPreview { get => _hasBonusPreview; private set => SetField(ref _hasBonusPreview, value); }
+        /// <summary>
+        /// MagicSplit magic stat-bonus value (offset +9 in the stat-bonus block).
+        /// Mirrors WF <c>MagicExtUnitBase</c>. Read bounds-guarded; 0 when the
+        /// 10th byte is unavailable. Only meaningful when <see cref="HasMagicBonus"/>.
+        /// </summary>
+        public int BonusMag { get => _bonusMag; private set => SetField(ref _bonusMag, value); }
+        /// <summary>
+        /// True only on FE7U/FE8U MagicSplit ROMs, where the stat-bonus block
+        /// carries a 10th Magic value (mirrors WF <c>MagicExtUnitBase</c>
+        /// visibility). FE8N/vanilla/FE6 keep this false so the Magic row stays
+        /// hidden.
+        /// </summary>
+        public bool HasMagicBonus { get => _hasMagicBonus; private set => SetField(ref _hasMagicBonus, value); }
 
         // --- Computed: Effective class list ---
         List<string> _effectiveClassList = new();
@@ -166,6 +179,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 HasBonusPreview = false;
                 BonusHP = BonusStr = BonusSkl = BonusSpd = BonusDef = BonusRes = BonusLck = BonusMove = BonusCon = 0;
+                BonusMag = 0;
+                HasMagicBonus = false;
                 return;
             }
 
@@ -174,6 +189,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 HasBonusPreview = false;
                 BonusHP = BonusStr = BonusSkl = BonusSpd = BonusDef = BonusRes = BonusLck = BonusMove = BonusCon = 0;
+                BonusMag = 0;
+                HasMagicBonus = false;
                 return;
             }
 
@@ -187,6 +204,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             BonusLck  = (sbyte)rom.u8(addr + 6);
             BonusMove = (sbyte)rom.u8(addr + 7);
             BonusCon  = (sbyte)rom.u8(addr + 8);
+
+            // MagicSplit magic stat-bonus (offset +9) — mirrors WF MagicExtUnitBase.
+            // Bounds-guard the 10th byte so the existing 9-byte vanilla preview
+            // stays intact (a vanilla block has no +9 byte → Mag = 0).
+            BonusMag = (addr + 10 <= (uint)rom.Data.Length) ? (sbyte)rom.u8(addr + 9) : 0;
+            // Visibility gate: FE7U/FE8U MagicSplit only (NOT FE8N) for WF parity.
+            var ms = PatchDetectionService.Instance.MagicSplit;
+            HasMagicBonus = (ms == PatchDetectionService.MagicSplitType.FE7U
+                          || ms == PatchDetectionService.MagicSplitType.FE8U);
         }
 
         void UpdateEffectiveClassList()
