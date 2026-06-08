@@ -970,12 +970,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // index) so the FE8U MagicSplit MAG column is read into the
                 // correct record (WriteClass*MagicExtends index by cid).
                 int selIdx = ClassList.SelectedOriginalIndex;
-                uint? selUid = selIdx >= 0 ? (uint)selIdx : (uint?)null;
+                uint? selCid = selIdx >= 0 ? (uint)selIdx : (uint?)null;
                 _undoService.Begin(R._("Import Class CSV"));
                 int written;
                 try
                 {
-                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr }, selUid);
+                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr }, selCid);
                     _undoService.Commit();
                 }
                 catch { _undoService.Rollback(); throw; }
