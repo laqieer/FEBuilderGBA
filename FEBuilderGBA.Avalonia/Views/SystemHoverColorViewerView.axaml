@@ -19,6 +19,45 @@
         <TextBox AutomationProperties.AutomationId="SystemHoverColorViewer_Status_Input" Name="StatusLabel" IsReadOnly="True" AcceptsReturn="True"
                  FontFamily="Consolas, Courier New, monospace" FontSize="13"
                  MinHeight="100" TextWrapping="Wrap" Margin="0,16,0,0" />
+
+        <Grid ColumnDefinitions="180,200,20,180,200" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <!-- Row 0: GBA Color raw value -->
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="GBA Color:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SystemHoverColorViewer_GBAColor_Input"
+                         FormatString="0" Grid.Row="0" Grid.Column="1" Name="GBAColorBox"
+                         Minimum="0" Maximum="65535" />
+
+          <!-- Row 1: R / G -->
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="R:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SystemHoverColorViewer_ColorR_Input"
+                         FormatString="0" Grid.Row="1" Grid.Column="1" Name="ColorRBox"
+                         Minimum="0" Maximum="255" Increment="8" IsReadOnly="True"
+                         Value="{Binding ColorR}" />
+          <TextBlock Grid.Row="1" Grid.Column="3" Text="G:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SystemHoverColorViewer_ColorG_Input"
+                         FormatString="0" Grid.Row="1" Grid.Column="4" Name="ColorGBox"
+                         Minimum="0" Maximum="255" Increment="8" IsReadOnly="True"
+                         Value="{Binding ColorG}" />
+
+          <!-- Row 2: B -->
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="B:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SystemHoverColorViewer_ColorB_Input"
+                         FormatString="0" Grid.Row="2" Grid.Column="1" Name="ColorBBox"
+                         Minimum="0" Maximum="255" Increment="8" IsReadOnly="True"
+                         Value="{Binding ColorB}" />
+
+          <!-- Row 3: Color preview swatch -->
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Preview:" VerticalAlignment="Center" />
+          <Border AutomationProperties.AutomationId="SystemHoverColorViewer_Swatch_Control"
+                  Grid.Row="3" Grid.Column="1" Name="ColorPreview"
+                  Width="60" Height="40" BorderBrush="Gray" BorderThickness="1" Margin="0,4,0,4" />
+
+          <!-- Row 4: Write button -->
+          <Button AutomationProperties.AutomationId="SystemHoverColorViewer_Write_Button"
+                  Grid.Row="4" Grid.Column="0" Content="Write" Name="WriteButton"
+                  Click="Write_Click" Margin="0,8,0,0"
+                  IsEnabled="{Binding CanWrite}" />
+        </Grid>
       </StackPanel>
     </ScrollViewer>
   </Grid>
