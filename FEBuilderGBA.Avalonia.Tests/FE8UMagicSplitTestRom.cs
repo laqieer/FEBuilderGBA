@@ -60,10 +60,11 @@ namespace FEBuilderGBA.Avalonia.Tests
         static void WritePtr(byte[] data, uint at, uint offset)
         {
             uint ptr = offset + 0x08000000;
-            data[at + 0] = (byte)(ptr & 0xFF);
-            data[at + 1] = (byte)((ptr >> 8) & 0xFF);
-            data[at + 2] = (byte)((ptr >> 16) & 0xFF);
-            data[at + 3] = (byte)((ptr >> 24) & 0xFF);
+            int i = (int)at;
+            data[i + 0] = (byte)(ptr & 0xFF);
+            data[i + 1] = (byte)((ptr >> 8) & 0xFF);
+            data[i + 2] = (byte)((ptr >> 16) & 0xFF);
+            data[i + 3] = (byte)((ptr >> 24) & 0xFF);
         }
 
         /// <summary>
