@@ -893,6 +893,128 @@ namespace FEBuilderGBA
             return crop ?? BlankSampleCell();
         }
 
+        /// <summary>
+        /// Walk the OAM entry list at <paramref name="oamStart"/> using the SAME
+        /// parse loop + terminators as <see cref="DrawOAMSprites"/> and return the
+        /// maximum 16-color palette-bank selector (<c>(oam[pos+5]&gt;&gt;4)&amp;0xF</c>)
+        /// among the NON-affine sprite entries, skipping bug-frame banks &gt;= 4.
+        /// Affine sprites are excluded because the WinForms affine draw path
+        /// (<c>ImageUtilOAM.Draw</c>, the affine <c>BitBlt</c>) renders them with
+        /// palette shift 0, so they never contribute a bank to WF's
+        /// <c>GetPalette16Count(DrawBitmap)</c>. Returns 0 when no qualifying entry
+        /// has a usable bank.
+        /// </summary>
+        internal static int MaxOamPaletteBank(byte[] oamData, uint oamStart)
+        {
+            if (oamData == null || oamStart >= (uint)oamData.Length) return 0;
+            int maxBank = 0;
+            for (uint pos = oamStart; ; pos += 12)
+            {
+                if (pos + 12 > (uint)oamData.Length) break;
+
+                byte firstByte = oamData[pos];
+
+                // FEditor serialized alternate terminator (00 FF FF FF).
+                if (firstByte == 0 && oamData[pos + 1] == 0xFF
+                    && oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
+                    break;
+
+                // Affine MATRIX entry ([2..3]==FFFF): not a sprite — keep walking.
+                if (oamData[pos + 2] == 0xFF && oamData[pos + 3] == 0xFF)
+                    continue;
+
+                // Normal terminator.
+                if (firstByte == 0x01) break;
+
+                // First byte must be 0x00 for a normal OAM sprite entry.
+                if (firstByte != 0x00) break;
+
+                // Affine SPRITE (align bit0 set): WF renders with palette shift 0
+                // (excluded from the bank count). align is byte[pos+1].
+                bool isAffineSprite = (oamData[pos + 1] & 0x01) != 0;
+                if (isAffineSprite) continue;
+
+                int paletteShift = (oamData[pos + 5] >> 4) & 0xF;
+                if (paletteShift >= 4) continue; // bug frame — skip (matches DrawOAMSprites)
+                if (paletteShift > maxBank) maxBank = paletteShift;
+            }
+            return maxBank;
+        }
+
+        /// <summary>
+        /// Count the 16-color palette banks a battle animation's sprites use — the
+        /// cross-platform replacement for WinForms
+        /// <c>ImageUtil.GetPalette16Count(DrawBitmap)</c> used by
+        /// <c>ImageBattleAnimePalletForm.JumpTo</c>. Returns <c>max(bank)+1</c> (>= 1);
+        /// the caller treats &gt;= 2 as 32-color mode (mirrors WF
+        /// <c>Is32ColorMode = (palette_count &gt;= 2)</c>).
+        ///
+        /// <para>This is an INTENTIONAL animation-wide CONSERVATIVE detector, NOT a
+        /// pixel-exact reproduction of WF: WF counts banks only in the rendered
+        /// 12-cell 90x90 sample bitmap (so it applies frame selection, crop,
+        /// transparency and draw-order overdraw); this scans every non-affine,
+        /// non-bug OAM entry across ALL sections/frames. It is strictly more
+        /// conservative — it can warn for a banked sprite WF happens not to sample,
+        /// but it NEVER misses a real multi-bank animation. The banner is a safety
+        /// hint (the palette editor edits only one 16-color sub-palette), so
+        /// over-warning is safe and under-warning is the damaging case #1033 fixes.</para>
+        ///
+        /// <para>Returns <c>1</c> (single bank → no banner) on any guard failure
+        /// (null ROM / out-of-range record / non-pointer or unsafe section/frame/OAM
+        /// pointer / failed decompress). This is a deliberate safe default — a
+        /// malformed record shows no banner rather than a spurious one.</para>
+        /// </summary>
+        /// <param name="animeRecordAddr">ROM OFFSET of the 32-byte animation record.</param>
+        public static int CountAnimationPaletteBanks(uint animeRecordAddr)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return 1;
+            if (animeRecordAddr + 32 > (uint)rom.Data.Length) return 1;
+
+            uint sectionRaw = rom.u32(animeRecordAddr + 12);
+            uint frameRaw   = rom.u32(animeRecordAddr + 16);
+            uint oamRtLRaw  = rom.u32(animeRecordAddr + 20);
+
+            if (!U.isPointer(sectionRaw)) return 1;
+            uint sectionOffset = U.toOffset(sectionRaw);
+            if (!U.isSafetyOffset(sectionOffset, rom)) return 1;
+            // #1051 review: U.isSafetyOffset only validates the base offset, but
+            // GetSectionRange reads the full SECTION_COUNT-entry (48-byte) section
+            // table via rom.u32, which THROWS within 4 bytes of EOF. Guard the whole
+            // table is in-bounds so the documented "return 1 on guard failure"
+            // contract holds for a record whose section pointer sits near the ROM
+            // end. (sectionOffset < 0x02000000 from isSafetyOffset, so no overflow.)
+            if (sectionOffset + (uint)(SECTION_COUNT * 4) > (uint)rom.Data.Length) return 1;
+
+            byte[] frameData = DecompressFrameData(rom, frameRaw);
+            if (frameData == null || frameData.Length == 0) return 1;
+
+            byte[] oamData = null;
+            if (U.isPointer(oamRtLRaw))
+            {
+                uint oamOff = U.toOffset(oamRtLRaw);
+                if (U.isSafetyOffset(oamOff, rom))
+                    oamData = LZ77.decompress(rom.Data, oamOff);
+            }
+            if (oamData == null) return 1;
+
+            int maxBank = 0;
+            for (int section = 0; section < SECTION_COUNT; section++)
+            {
+                GetSectionRange(section, sectionOffset, (uint)frameData.Length, rom,
+                    out uint start, out uint end);
+                System.Collections.Generic.List<FrameInfo> frames =
+                    ParseFramesInRange(frameData, start, end);
+                if (frames == null) continue;
+                foreach (var f in frames)
+                {
+                    int b = MaxOamPaletteBank(oamData, f.OamOffset);
+                    if (b > maxBank) maxBank = b;
+                }
+            }
+            return maxBank + 1;
+        }
+
         /// <summary>A fresh transparent 90x90 cell (for missing/failed frames).</summary>
         static IImage BlankSampleCell()
         {

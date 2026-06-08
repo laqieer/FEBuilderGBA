@@ -349,13 +349,14 @@ public class ImageBattleAnimePalletParityTests
     }
 
     [Fact]
-    public void ViewModel_Is32ColorMode_HonestlyDeferred()
+    public void ViewModel_Is32ColorMode_PaletteOnlyRecord_NoBanner()
     {
-        // Per Plan v3 Finding #2: even after loading a multi-slot palette
-        // (which WF would detect as 32-color), the VM keeps
-        // WarningVisible/Is32ColorMode false because the WF
-        // ImageUtil.GetPalette16Count(Bitmap) data source has not been
-        // ported to Core.
+        // #1033: the 32-color-mode banner is now driven by an OAM palette-bank
+        // scan (BattleAnimeRendererCore.CountAnimationPaletteBanks). A record
+        // that has a multi-slot PALETTE but NO section/frame/OAM pointers is
+        // unresolvable for the scan => it safely defaults to single-bank
+        // (palette_count == 1) => no banner. (Having 4 palette SLOTS does not
+        // by itself mean the SPRITES reference more than one bank.)
         var (rom, paletteOffset, sourceSlot) = MakeRomWithMultiSlotPalette();
         var prevRom = CoreState.ROM;
         try
@@ -364,8 +365,103 @@ public class ImageBattleAnimePalletParityTests
             var vm = new ImageBattleAnimePalletViewModel();
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
             Assert.False(vm.WarningVisible,
-                "32-color-mode detection is honestly deferred per Plan Finding #2");
+                "an unresolvable (palette-only) record must default to no banner (#1033)");
             Assert.False(vm.Is32ColorMode);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // #1033 — 32-color-mode warning banner driven by the OAM palette-bank
+    // scan (BattleAnimeRendererCore.CountAnimationPaletteBanks).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_LoadEntry_NoBankedSprites_NoBanner()
+    {
+        // A full record whose only sprite is bank 0 => single bank => no banner.
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithFullAnimeRecord(spritePaletteBank: 0);
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+            Assert.False(vm.WarningVisible);
+            Assert.False(vm.Is32ColorMode);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadEntry_BankedSprite_ShowsBanner()
+    {
+        // A full record whose sprite uses 16-color palette bank 1 => 2 banks =>
+        // 32-color mode => banner visible (#1033, mirrors WF
+        // Is32ColorMode = (palette_count >= 2)).
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithFullAnimeRecord(spritePaletteBank: 1);
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+            Assert.True(vm.WarningVisible);
+            Assert.True(vm.Is32ColorMode);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadEntry_SourceSlotBelowRecordOffset_DoesNotThrow_NoBanner()
+    {
+        // Guard: a source pointer slot < 0x1C cannot derive a valid record
+        // offset; LoadEntry must not throw and must leave the banner hidden.
+        // We construct a synthetic entry with a tiny source slot directly.
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var rom = new ROM();
+            rom.LoadLow("synth.gba", new byte[0x2000000], "BE8E01");
+            // Plant a small valid LZ77 palette near the start so LoadEntry's
+            // palette read succeeds; the bank scan is what we guard here.
+            const uint paletteOffset = 0x150000;
+            PlantLZ77(rom, paletteOffset, new byte[32]);
+            CoreState.ROM = rom;
+
+            var vm = new ImageBattleAnimePalletViewModel();
+            // sourcePointerSlot = 4 (< PalettePointerOffsetInRecord 0x1C).
+            vm.LoadEntry(paletteOffset, sourcePointerSlot: 4, paletteIndex: 0);
+            Assert.False(vm.WarningVisible);
+            Assert.False(vm.Is32ColorMode);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_LoadEntry_RaisesPropertyChanged_WhenBannerFlipsOn()
+    {
+        // Subscribing to PropertyChanged must see WarningVisible AND
+        // Is32ColorMode raised after a LoadEntry that turns the banner on.
+        EnsureImageService();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            var (rom, paletteOffset, sourceSlot) = MakeRomWithFullAnimeRecord(spritePaletteBank: 1);
+            CoreState.ROM = rom;
+            var vm = new ImageBattleAnimePalletViewModel();
+
+            var raised = new HashSet<string>();
+            vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+
+            Assert.True(vm.WarningVisible, "banner should be on for a banked sprite");
+            Assert.Contains(nameof(ImageBattleAnimePalletViewModel.WarningVisible), raised);
+            Assert.Contains(nameof(ImageBattleAnimePalletViewModel.Is32ColorMode), raised);
         }
         finally { CoreState.ROM = prevRom; }
     }
@@ -1184,6 +1280,15 @@ public class ImageBattleAnimePalletParityTests
     /// and the source pointer slot (record + 0x1C) the VM loads.
     /// </summary>
     static (ROM rom, uint paletteOffset, uint sourceSlot) MakeRomWithFullAnimeRecord()
+        => MakeRomWithFullAnimeRecord(spritePaletteBank: 0);
+
+    /// <summary>
+    /// Overload that stamps the sprite's 16-color palette bank into OAM byte[5]
+    /// (high nibble), so the #1033 OAM palette-bank scan
+    /// (<c>BattleAnimeRendererCore.CountAnimationPaletteBanks</c>) sees a
+    /// banked (32-color) animation when <paramref name="spritePaletteBank"/> >= 1.
+    /// </summary>
+    static (ROM rom, uint paletteOffset, uint sourceSlot) MakeRomWithFullAnimeRecord(int spritePaletteBank)
     {
         var rom = new ROM();
         rom.LoadLow("synth.gba", new byte[0x2000000], "BE8E01");
@@ -1223,7 +1328,9 @@ public class ImageBattleAnimePalletParityTests
         // imgX = vramX + 0x94 = 100 => vramX = -48; imgY = vramY + 0x58 = 30 => vramY = -58.
         byte[] oam = new byte[24];
         oam[0] = 0x00; oam[1] = 0x00; oam[2] = 0x00; oam[3] = 0x00;
-        oam[4] = 0x00; oam[5] = 0x00;
+        oam[4] = 0x00;
+        // byte[5] high nibble = 16-color palette bank selector (#1033 scan).
+        oam[5] = (byte)((spritePaletteBank & 0x0F) << 4);
         oam[6] = unchecked((byte)(-48 & 0xFF)); oam[7] = unchecked((byte)((-48 >> 8) & 0xFF));
         oam[8] = unchecked((byte)(-58 & 0xFF)); oam[9] = unchecked((byte)((-58 >> 8) & 0xFF));
         oam[12] = 0x01; // terminator
