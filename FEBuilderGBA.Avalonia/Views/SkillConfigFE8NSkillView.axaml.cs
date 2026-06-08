@@ -14,10 +14,11 @@ namespace FEBuilderGBA.Avalonia.Views
     /// AXAML control surface from 33 to MEDIUM-verdict density (>= 85) and
     /// wires W0 + W2 + B4..B15 write under a single UndoService scope.
     ///
-    /// Image/Animation Import/Export, JumpToEditor, and List Expand still
-    /// depend on Core extraction work tracked by #500 - those buttons render
-    /// so the density verdict moves, but their click handlers are intentional
-    /// no-ops with a tooltip until the Core seam lands (mirrors PR #598).
+    /// Image/Animation Import/Export buttons are disabled by design (#1008) —
+    /// WF SkillConfigFE8NSkillForm is render-only (no animation pointer, no
+    /// icon I/O), and this variant's icon address lacks the 0x100 page offset
+    /// v2/v3 use. Their click handlers are kept as no-ops (disabled buttons
+    /// never fire them; keeping them satisfies the wired-or-inert audit).
     ///
     /// The Unit sub-list tab is an editable B16..B31 ext-byte editor (#790) —
     /// FE8N v1's N00..N03 sub-tabs all union onto the SAME 16 row bytes, so the
@@ -486,36 +487,49 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------
-        // No-op handlers - wired so the AutomationIds are enumerable
-        // from headless tests, and so the density verdict moves. The
-        // real implementations depend on Core extraction tracked by
-        // #500. Mirrors the exact pattern used by PR #598 / #525 / #516.
+        // Disabled-by-design handlers — kept wired so the AutomationIds are
+        // enumerable from headless tests and the wired-or-inert audit passes.
+        // The buttons are IsEnabled="False" in AXAML so these handlers never
+        // fire at runtime. FE8N Ver1 has no animation pointer or icon I/O in
+        // WinForms (render-only); disabled by design (#1008).
         // -----------------------------------------------------------
 
-        // #898 — FE8N v1 is intentionally read-only for skill icons. The WF
-        // SkillConfigFE8NSkillForm has NO icon import/export (render-only),
-        // and this variant's icon address derivation lacks the 0x100 page
-        // offset that v2/v3 use, so wiring it to the shared
-        // SkillConfigIconIoHelper would write to the wrong slot. Left as a
-        // no-op on purpose — do NOT wire it to the helper.
+        // #898 / #1008 — FE8N v1 is intentionally read-only for skill icons.
+        // The WF SkillConfigFE8NSkillForm has NO icon import/export (render-only),
+        // and this variant's icon address derivation lacks the 0x100 page offset
+        // that v2/v3 use, so wiring it to the shared SkillConfigIconIoHelper would
+        // write to the wrong slot. Button is disabled by design (#1008) —
+        // this handler is kept only to satisfy the wired-or-inert audit.
         void ImageImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NSkillView.ImageImport_Click invoked - read-only: this skill variant has no icon import/export in WinForms");
+            // Disabled by design (#1008): FE8N Ver1 is read-only for icon I/O.
+            // Icon address lacks the 0x100 page offset v2/v3 use; WF form is render-only.
+            // Button is IsEnabled="False"; handler kept only to satisfy the wired-or-inert audit.
+            Log.Debug("SkillConfigFE8NSkillView.ImageImport_Click: button disabled by design (#1008), read-only variant");
         }
 
         void ImageExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NSkillView.ImageExport_Click invoked - read-only: this skill variant has no icon import/export in WinForms");
+            // Disabled by design (#1008): FE8N Ver1 is read-only for icon I/O.
+            // Icon address lacks the 0x100 page offset v2/v3 use; WF form is render-only.
+            // Button is IsEnabled="False"; handler kept only to satisfy the wired-or-inert audit.
+            Log.Debug("SkillConfigFE8NSkillView.ImageExport_Click: button disabled by design (#1008), read-only variant");
         }
 
         void AnimationImport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NSkillView.AnimationImport_Click invoked - disabled until Core extraction lands (#500)");
+            // Disabled by design (#1008): FE8N Ver1 has no animation pointer or
+            // animation I/O in WinForms (render-only). Button is IsEnabled="False";
+            // this handler is kept only to satisfy the wired-or-inert audit.
+            Log.Debug("SkillConfigFE8NSkillView.AnimationImport_Click: button disabled by design (#1008)");
         }
 
         void AnimationExport_Click(object? sender, RoutedEventArgs e)
         {
-            Log.Debug("SkillConfigFE8NSkillView.AnimationExport_Click invoked - disabled until Core extraction lands (#500)");
+            // Disabled by design (#1008): FE8N Ver1 has no animation pointer or
+            // animation I/O in WinForms (render-only). Button is IsEnabled="False";
+            // this handler is kept only to satisfy the wired-or-inert audit.
+            Log.Debug("SkillConfigFE8NSkillView.AnimationExport_Click: button disabled by design (#1008)");
         }
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)
