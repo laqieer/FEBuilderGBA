@@ -715,8 +715,12 @@ public class SkillConfigFE8NVer3SkillParityTests
     /// <summary>
     /// Read the JumpToCombatArt_Click handler body from the View code-behind so
     /// the #1009 static assertions are scoped to that handler (not the whole
-    /// file). Returns text from the method signature up to the next
-    /// `void`-prefixed method declaration.
+    /// file). Returns text from the handler's method signature up to the NEXT
+    /// method declaration — found generically by the next occurrence of the
+    /// standard 8-space-indented `void ` signature (the indentation every
+    /// handler in this file uses), so renaming/reordering the following handler
+    /// cannot silently break the extraction. If no following `void ` method is
+    /// found, the slice extends to the end of the source.
     /// </summary>
     static string ExtractJumpToCombatArtHandlerBody()
     {
@@ -729,9 +733,15 @@ public class SkillConfigFE8NVer3SkillParityTests
         int start = source.IndexOf(marker, StringComparison.Ordinal);
         Assert.True(start >= 0, "JumpToCombatArt_Click handler not found in the View code-behind");
 
-        // End at the next handler/method declaration after the marker.
+        // End at the next method declaration after the marker — located
+        // generically via the standard 8-space method-signature indentation
+        // ("\n        void "), not a hard-coded handler name. Normalize CRLF so
+        // the search works regardless of the file's line endings.
         int searchFrom = start + marker.Length;
-        int next = source.IndexOf("void ListExpand_Click(", searchFrom, StringComparison.Ordinal);
+        const string nextMethodSignature = "\n        void ";
+        int crlf = source.IndexOf("\r\n        void ", searchFrom, StringComparison.Ordinal);
+        int lf = source.IndexOf(nextMethodSignature, searchFrom, StringComparison.Ordinal);
+        int next = (crlf >= 0 && (lf < 0 || crlf < lf)) ? crlf : lf;
         if (next < 0) next = source.Length;
         return source.Substring(start, next - start);
     }
