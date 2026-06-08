@@ -978,6 +978,13 @@ namespace FEBuilderGBA
             if (!U.isPointer(sectionRaw)) return 1;
             uint sectionOffset = U.toOffset(sectionRaw);
             if (!U.isSafetyOffset(sectionOffset, rom)) return 1;
+            // #1051 review: U.isSafetyOffset only validates the base offset, but
+            // GetSectionRange reads the full SECTION_COUNT-entry (48-byte) section
+            // table via rom.u32, which THROWS within 4 bytes of EOF. Guard the whole
+            // table is in-bounds so the documented "return 1 on guard failure"
+            // contract holds for a record whose section pointer sits near the ROM
+            // end. (sectionOffset < 0x02000000 from isSafetyOffset, so no overflow.)
+            if (sectionOffset + (uint)(SECTION_COUNT * 4) > (uint)rom.Data.Length) return 1;
 
             byte[] frameData = DecompressFrameData(rom, frameRaw);
             if (frameData == null || frameData.Length == 0) return 1;

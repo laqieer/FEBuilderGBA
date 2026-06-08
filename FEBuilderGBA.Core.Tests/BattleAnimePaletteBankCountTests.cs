@@ -198,6 +198,21 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(1, BattleAnimeRendererCore.CountAnimationPaletteBanks(badOffset));
         }
 
+        [Fact]
+        public void CountAnimationPaletteBanks_SectionTableNearEof_ReturnsOne_NoThrow()
+        {
+            // #1051 review: a section pointer 2 bytes before EOF passes
+            // U.isSafetyOffset (base only) but GetSectionRange's rom.u32 would read
+            // past EOF and THROW IndexOutOfRangeException without the 48-byte
+            // section-table bounds guard. Must honor the contract: return 1, no throw.
+            ROM rom = MakeAnimeRom(sec0Bank: 1, sec1Bank: 1);
+            uint nearEof = (uint)rom.Data.Length - 2;
+            U.write_u32(rom.Data, RECORD_OFFSET + 12, U.toPointer(nearEof));
+            CoreState.ROM = rom;
+            int result = BattleAnimeRendererCore.CountAnimationPaletteBanks(RECORD_OFFSET);
+            Assert.Equal(1, result);
+        }
+
         // ================================================================
         // Synthetic anime ROM construction (mirrors BattleAnimeSamplePreview).
         // ================================================================
