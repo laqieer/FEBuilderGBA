@@ -16,6 +16,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _selectedFilterIndex;
         uint _currentAddr;
         uint _currentColor;
+        uint _gbaColor;
+        byte _colorR;
+        byte _colorG;
+        byte _colorB;
         readonly string[] _filterNames = { "Move Range", "Attack Range", "Staff Range" };
 
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
@@ -24,6 +28,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public uint CurrentColor { get => _currentColor; set => SetField(ref _currentColor, value); }
         public string[] FilterNames => _filterNames;
+
+        /// <summary>Editable GBA BGR555 color value (0–65535).</summary>
+        public uint GBAColor { get => _gbaColor; set => SetField(ref _gbaColor, value); }
+
+        /// <summary>Read-only decoded red channel (0–248, step 8).</summary>
+        public byte ColorR { get => _colorR; set => SetField(ref _colorR, value); }
+
+        /// <summary>Read-only decoded green channel (0–248, step 8).</summary>
+        public byte ColorG { get => _colorG; set => SetField(ref _colorG, value); }
+
+        /// <summary>Read-only decoded blue channel (0–248, step 8).</summary>
+        public byte ColorB { get => _colorB; set => SetField(ref _colorB, value); }
 
         uint GetPointerForFilter(int filterIndex)
         {
@@ -85,6 +101,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
             uint color = rom.u16(addr);
             CurrentColor = color;
+            GBAColor = color;
+            DecodeAndSetRGB(color);
+            RebuildStatusMessage(addr, color);
+            CanWrite = true;
+        }
+
+        void DecodeAndSetRGB(uint color)
+        {
+            ColorR = (byte)((color & 0x1F) * 8);
+            ColorG = (byte)(((color >> 5) & 0x1F) * 8);
+            ColorB = (byte)(((color >> 10) & 0x1F) * 8);
+        }
+
+        void RebuildStatusMessage(uint addr, uint color)
+        {
             int r = (int)(color & 0x1F) * 8;
             int g = (int)((color >> 5) & 0x1F) * 8;
             int b = (int)((color >> 10) & 0x1F) * 8;
@@ -95,9 +126,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             sb.AppendLine($"GBA RGB5:  R={color & 0x1F}, G={(color >> 5) & 0x1F}, B={(color >> 10) & 0x1F}");
             sb.AppendLine($"RGB888:    R={r}, G={g}, B={b}");
             sb.AppendLine($"Hex RGB:   #{r:X2}{g:X2}{b:X2}");
-
             StatusMessage = sb.ToString();
-            CanWrite = true;
+        }
+
+        /// <summary>
+        /// Write the current GBAColor value to ROM at CurrentAddr.
+        /// Returns the written packed u16 value, or U.NOT_FOUND on any guard failure.
+        /// Caller is responsible for wrapping in an UndoService scope.
+        /// </summary>
+        public uint Write()
+        {
+            ROM rom = CoreState.ROM;
+            if (!CanWrite || rom == null || CurrentAddr == 0) return U.NOT_FOUND;
+            if (CurrentAddr + 2 > (uint)rom.Data.Length || !U.isSafetyOffset(CurrentAddr, rom)) return U.NOT_FOUND;
+
+            ushort packed = (ushort)(GBAColor & 0xFFFF);
+            rom.write_u16(CurrentAddr, packed);
+            CurrentColor = packed;
+            GBAColor = packed;
+            DecodeAndSetRGB(packed);
+            RebuildStatusMessage(CurrentAddr, packed);
+            return packed;
         }
 
         static string GbaColorToHex(uint color)
@@ -118,6 +167,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
                 ["Color"] = $"0x{CurrentColor:X04}",
+                ["GBAColor"] = $"0x{GBAColor:X04}",
             };
         }
 
