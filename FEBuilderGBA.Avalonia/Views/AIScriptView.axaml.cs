@@ -284,31 +284,43 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowInfo(R._("Load a ROM first."));
                     return;
                 }
-                if (_vm.ReadCount == 0)
+                // Drive the prompt + expansion from the ACTUAL loaded list size, NOT
+                // _vm.ReadCount: the editor's "Read Count" can be 0 ("no cap") or exceed
+                // the dialog max after a user-driven reload, which would either treat a
+                // non-empty list as empty or pass an invalid min>max range to the dialog
+                // (which does not validate its inputs). #1056 review.
+                uint currentCount = (uint)EntryList.ItemCount;
+                if (currentCount == 0)
                 {
                     CoreState.Services?.ShowInfo(R._("Cannot expand: list is empty."));
                     return;
                 }
 
-                // Default = current count + 1. ExpandTableTo fails gracefully when
-                // there is insufficient free space, so a generous max is safe.
-                uint defaultCount = _vm.ReadCount + 1;
-                if (defaultCount > 1024) defaultCount = 1024;
+                // Max mirrors the Read Count NUD's ReadCountMaximum (4096), clamped up to
+                // currentCount so min never exceeds max. ExpandTableTo fails gracefully
+                // when there is insufficient free space.
+                uint maxCount = System.Math.Max(4096u, currentCount);
+                uint defaultCount = currentCount + 1;
+                if (defaultCount > maxCount) defaultCount = maxCount;
                 uint? chosen = await NumberInputDialog.Show(
                     this,
-                    R._("Enter the new entry count for the AI pointer table (current: {0}, max: 1024).",
-                        _vm.ReadCount),
+                    R._("Enter the new entry count for the AI pointer table (current: {0}, max: {1}).",
+                        currentCount, maxCount),
                     R._("List Expansion"),
                     defaultCount,
-                    _vm.ReadCount,
-                    1024);
+                    currentCount,
+                    maxCount);
                 if (chosen == null) return; // user cancelled
                 uint newCount = chosen.Value;
-                if (newCount == _vm.ReadCount)
+                if (newCount == currentCount)
                 {
                     CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
                     return;
                 }
+
+                // Re-sync the VM's current count to the actual list size so ExpandList
+                // copies the FULL table (it uses _vm.ReadCount as the old row count).
+                _vm.ReadCount = currentCount;
 
                 _undoService.Begin("Expand AI Script List");
                 try
