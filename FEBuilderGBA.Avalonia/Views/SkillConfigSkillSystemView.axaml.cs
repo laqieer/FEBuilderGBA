@@ -473,11 +473,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void ListExpand_Click(object? sender, RoutedEventArgs e)
-        {
-            Log.Debug("SkillConfigSkillSystemView.ListExpand_Click invoked - disabled until Core extraction lands (#500)");
-        }
-
         void ShowFrameUpDown_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_suppressFrameChange) return;

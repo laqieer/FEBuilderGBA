@@ -547,11 +547,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void ListExpand_Click(object? sender, RoutedEventArgs e)
-        {
-            Log.Debug("SkillConfigFE8NSkillView.ListExpand_Click invoked - disabled until Core extraction lands (#500)");
-        }
-
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

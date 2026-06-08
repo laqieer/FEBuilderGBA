@@ -49,11 +49,16 @@
         <Label DockPanel.Dock="Top"
                AutomationProperties.AutomationId="SkillConfigSkillSystem_FilterName_Label"
                Content="Filter Name" HorizontalAlignment="Stretch" />
-        <Button DockPanel.Dock="Bottom"
-                AutomationProperties.AutomationId="SkillConfigSkillSystem_ListExpand_Button"
-                Name="ListExpandButton" Content="List Expand"
-                HorizontalAlignment="Stretch" Click="ListExpand_Click"
-                ToolTip.Tip="Pending Core extraction - tracked by #500." />
+        <!-- #997: List expansion is not yet implemented for the skill-config tables
+             (multi-table / multi-pointer per patch variant). The button is disabled
+             with the explanation on this ENABLED Border, since a disabled Avalonia
+             control won't surface its own tooltip on hover. -->
+        <Border DockPanel.Dock="Bottom"
+                ToolTip.Tip="List expansion is not yet implemented for the skill-config tables (multi-table / multi-pointer per patch variant).">
+          <Button AutomationProperties.AutomationId="SkillConfigSkillSystem_ListExpand_Button"
+                  Name="ListExpandButton" Content="List Expand"
+                  HorizontalAlignment="Stretch" IsEnabled="False" />
+        </Border>
         <controls:AddressListControl
             AutomationProperties.AutomationId="SkillConfigSkillSystem_Entry_List"
             Name="EntryList" />
