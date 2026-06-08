@@ -10259,3 +10259,6 @@ FE8N Ver1 にはアイコンのインポート/エクスポートがありませ
 
 :FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008).
 FE8N Ver1 には WinForms でアニメーションポインタやアニメーションI/Oがありません（表示専用）。設計上無効 (#1008)。
+
+:Bulk Import/Export is not available for the C-SkillSys variant (unimplemented in WinForms too).
+一括インポート/エクスポートはC-SkillSys版では使用できません（WinForms版でも未実装）。

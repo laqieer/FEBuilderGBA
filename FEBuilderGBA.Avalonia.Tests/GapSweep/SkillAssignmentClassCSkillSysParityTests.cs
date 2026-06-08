@@ -139,6 +139,27 @@ public class SkillAssignmentClassCSkillSysParityTests
         Assert.Contains("AutomationId=\"SkillAssignmentClassCSkillSys_ImportAll_Button\"", axaml);
     }
 
+    // #1011: WF SkillAssignmentClassCSkillSysForm.ExportAllData/ImportAllData are
+    // empty stubs, so the Avalonia bulk buttons must be DISABLED (not silent
+    // no-ops) with the explanation on the enabled wrapping panel (a disabled
+    // Avalonia control isn't hit-testable and wouldn't surface its own tooltip).
+    [Fact] public void View_BulkButtons_AreDisabled_WithTooltip() {
+        string axaml = ReadAxaml();
+        var importBtn = Regex.Match(axaml, @"<Button[^>]*ImportAll_Button[^>]*?/>");
+        var exportBtn = Regex.Match(axaml, @"<Button[^>]*ExportAll_Button[^>]*?/>");
+        Assert.True(importBtn.Success, "ImportAll button element not found");
+        Assert.True(exportBtn.Success, "ExportAll button element not found");
+        // Both disabled.
+        Assert.Contains("IsEnabled=\"False\"", importBtn.Value);
+        Assert.Contains("IsEnabled=\"False\"", exportBtn.Value);
+        // No-op Click handlers removed (the buttons no longer advertise an action).
+        Assert.DoesNotContain("Click=", importBtn.Value);
+        Assert.DoesNotContain("Click=", exportBtn.Value);
+        // Explanatory tooltip present (on the enabled wrapping StackPanel).
+        Assert.Contains("ToolTip.Tip=", axaml);
+        Assert.Matches(new Regex("not available for the C-SkillSys", RegexOptions.IgnoreCase), axaml);
+    }
+
     [Fact] public void View_StatusBanner_NamesCSkillSys300() {
         string axaml = ReadAxaml();
         Assert.Contains("CSkillSys", axaml);
