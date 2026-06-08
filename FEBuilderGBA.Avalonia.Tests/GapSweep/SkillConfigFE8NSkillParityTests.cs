@@ -1492,13 +1492,13 @@ public class SkillConfigFE8NSkillParityTests
             string btnElement = axaml.Substring(btnStart, btnEnd - btnStart + 2);
 
             // Must be disabled.
-            Assert.Contains("IsEnabled="False"", btnElement,
-                $"Button '{buttonId}' must carry IsEnabled="False" (#1008)");
+            Assert.True(btnElement.Contains("IsEnabled=\"False\""),
+                $"Button '{buttonId}' must carry IsEnabled=\"False\" (#1008)");
 
             // Must NOT contain the stale #500 / "Pending Core extraction" tooltip.
-            Assert.DoesNotContain("#500", btnElement,
+            Assert.False(btnElement.Contains("#500"),
                 $"Button '{buttonId}' must not reference the stale #500 tooltip");
-            Assert.DoesNotContain("Pending Core extraction", btnElement,
+            Assert.False(btnElement.Contains("Pending Core extraction"),
                 $"Button '{buttonId}' must not carry the stale 'Pending Core extraction' tooltip");
 
             // Must contain an honest disabled-by-design explanation.
@@ -1543,8 +1543,8 @@ public class SkillConfigFE8NSkillParityTests
             string btnElement = ver2Axaml.Substring(btnStart, btnEnd - btnStart + 2);
 
             // Ver2 buttons must NOT be disabled.
-            Assert.DoesNotContain("IsEnabled="False"", btnElement,
-                $"Ver2 button '{buttonId}' must NOT carry IsEnabled="False" — disable must not leak from Ver1 to Ver2");
+            Assert.False(btnElement.Contains("IsEnabled=\"False\""),
+                $"Ver2 button '{buttonId}' must NOT carry IsEnabled=\"False\" — disable must not leak from Ver1 to Ver2");
         }
     }
 }
