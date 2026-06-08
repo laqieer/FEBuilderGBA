@@ -392,7 +392,8 @@ Specialized utilities for different graphic types:
   to the `0xFFFF` terminator, LZ77-decompresses OBJ+TSA), `BuildScriptLines`. Avalonia
   `SkillConfigAnimeExportHelper` → `.txt`+PNG or GIF (FE8N Ver1 stub). #910/#912.
 - `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) — SkillSystems skill-anime IMPORT, FE8J #916
-  + FE8U #917. `ImportSkillAnimation` validates EVERYTHING before mutating; palette kept **RAW 0x20
+  + FE8U #917. `ParseScript` reads the `D`/`S{hex}`/`{wait} {png}` lines; `ImportSkillAnimation`
+  validates EVERYTHING before mutating; palette kept **RAW 0x20
   bytes (never compressed)**; forces 240×160; repoints the slot LAST under one undo scope with a
   defensive snapshot restored byte-identical on ANY fault. **FE8U prepends** the per-skill `.dmp`
   program template (shared `FE8USkillTemplate` constants, read once in the validate phase). Old-region
@@ -409,7 +410,8 @@ Specialized utilities for different graphic types:
 - `MapPListResolverCore.cs` (Core, READ-ONLY) — map-PLIST label resolver (`MAP Ch1`, `MAPCHANGE Ch5`,
   `ANIME1/2`, `OBJ`, `NULL`, `-EMPTY-`, `UNK`) for the MapPointer/MapChange/MapTileAnimation editors,
   via `PLists` + `ResolveLabel`. Extends (does NOT fork) `MapChangeCore.PlistType`; per-call LOCAL
-  cache. Drives the MapTileAnimation1/2 PLIST filters — **anime1 schema is the inverse of anime2**
+  cache. Drives the anime1 PLIST filter (`MapTileAnimation1Core.BuildPlistList` +
+  `MapTileAnimation1Core.ScanEntries`) and the anime2 filter — **anime1 schema is the inverse of anime2**
   (`imagePointer` at `+4`, not `+0`). #952/#955/#957.
 - `MapRenderCore.cs` (Core, READ-ONLY) — chapter-map + change-map overlay renderer (ports
   `ImageUtilMap.DrawMap`/`DrawChangeMap`). `RenderMapImage`/`RenderChangeMap` take an optional
