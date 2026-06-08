@@ -322,6 +322,154 @@ public class SongTrackParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1014 - Open Source File / Folder wiring + honest Sappy deferral.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #1014: the Open Source File / Open Source Folder buttons are now wired
+    /// (previously KnownGap-disabled). Each must NOT be IsEnabled="False", NOT
+    /// reference "Pending Core extraction", be gated visible via
+    /// IsVisible="{Binding IsSourceFileAvailable}", and have a Click handler.
+    /// </summary>
+    [Theory]
+    [InlineData("SongTrack_OpenSourceFile_Button", "OpenSource_Click")]
+    [InlineData("SongTrack_OpenSourceFolder_Button", "SelectSource_Click")]
+    public void View_SourceFileButtons_AreWired(string automationId, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
+        Assert.Contains("IsVisible=\"{Binding IsSourceFileAvailable}\"", element);
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("Pending Core extraction", element);
+
+        // The click handler exists in the code-behind.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains(clickHandler, source);
+    }
+
+    /// <summary>
+    /// #1014: the Sappy playback button stays disabled (Windows-only wontfix).
+    /// It must still be IsEnabled="False", carry NO Click handler, drop the
+    /// stale "Pending Core extraction" wording, and surface the new honest
+    /// Windows-only tooltip (on an enclosing enabled Border per #997/#1011).
+    /// </summary>
+    [Fact]
+    public void View_SappyPlayButton_StaysDisabled_HonestTooltip()
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf("AutomationId=\"SongTrack_SappyPlay_Button\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, "Sappy button AutomationId not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        // The button itself remains disabled with no Click handler.
+        Assert.Contains("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("Click=", element);
+
+        // The stale wording is gone, and the new honest tooltip is present
+        // (the tooltip lives on the enclosing enabled Border wrapper).
+        Assert.DoesNotContain("Pending Core extraction", axaml);
+        Assert.Contains(
+            "Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.",
+            axaml);
+
+        // No click handler in the code-behind for the Sappy button.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.DoesNotContain("SappyPlay_Click", source);
+    }
+
+    // -----------------------------------------------------------------
+    // #1014 - ViewModel source-file round-trip via per-song ResourceCache key.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #1014: RecordSourceFile writes the picked path under the WF PER-SONG
+    /// "Song_" + hex(songId) ResourceCache key and sets IsSourceFileAvailable
+    /// based on File.Exists; RefreshSourceFile reads the same value back.
+    /// Refreshing a DIFFERENT song id returns empty (proves per-id keying),
+    /// and a non-existent path leaves IsSourceFileAvailable false.
+    /// </summary>
+    [Fact]
+    public void ViewModel_RecordAndRefreshSourceFile_PerSongKey_RoundTrips()
+    {
+        EnsureCoreStateBaseDirectory();
+        var prevRes = CoreState.ResourceCache;
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            var cache = new FEBuilderGBA.EtcCacheResource();
+            CoreState.ResourceCache = cache;
+
+            var vm = new SongTrackViewModel();
+
+            // Record a REAL temp file for song 5 → available + path set.
+            vm.RecordSourceFile(5, tempFile);
+            Assert.Equal(tempFile, vm.SourceFilePath);
+            Assert.True(vm.IsSourceFileAvailable);
+
+            // Refresh song 5 reads the SAME value back.
+            vm.SourceFilePath = string.Empty;
+            vm.IsSourceFileAvailable = false;
+            vm.RefreshSourceFile(5);
+            Assert.Equal(tempFile, vm.SourceFilePath);
+            Assert.True(vm.IsSourceFileAvailable);
+
+            // The PER-SONG key is used (Song_ + hex(songId)), not a fixed key.
+            Assert.Equal(tempFile, cache.At("Song_" + U.ToHexString(5u), string.Empty));
+
+            // Refresh a DIFFERENT song id (6) → nothing recorded → cleared.
+            vm.RefreshSourceFile(6);
+            Assert.Equal(string.Empty, vm.SourceFilePath);
+            Assert.False(vm.IsSourceFileAvailable);
+
+            // A non-existent path → SourceFilePath set, but not available.
+            string missing = Path.Combine(Path.GetTempPath(), "nope_song_xyz.mid");
+            vm.RecordSourceFile(7, missing);
+            Assert.Equal(missing, vm.SourceFilePath);
+            Assert.False(vm.IsSourceFileAvailable);
+        }
+        finally
+        {
+            CoreState.ResourceCache = prevRes;
+            try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { /* best-effort cleanup */ }
+        }
+    }
+
+    /// <summary>
+    /// #1014: with no ResourceCache wired, RefreshSourceFile must clear the
+    /// affordance (false + empty path) and never throw.
+    /// </summary>
+    [Fact]
+    public void ViewModel_RefreshSourceFile_NullCache_ClearsAffordance()
+    {
+        var prevRes = CoreState.ResourceCache;
+        try
+        {
+            CoreState.ResourceCache = null;
+            var vm = new SongTrackViewModel
+            {
+                SourceFilePath = "stale",
+                IsSourceFileAvailable = true,
+            };
+            vm.RefreshSourceFile(5);
+            Assert.False(vm.IsSourceFileAvailable);
+            Assert.Equal(string.Empty, vm.SourceFilePath);
+        }
+        finally { CoreState.ResourceCache = prevRes; }
+    }
+
+    // -----------------------------------------------------------------
     // Navigation manifest (Phase 4) - 3 wired jumps + 3 deliberate gaps.
     // -----------------------------------------------------------------
 
@@ -506,6 +654,37 @@ public class SongTrackParityTests
     }
 
     static string ReadAxaml() => File.ReadAllText(AxamlPath());
+
+    /// <summary>
+    /// Seed CoreState.BaseDirectory so the headless EtcCacheResource has a
+    /// valid base path (mirrors WorldMapImageParityTests / ImageBGParityTests).
+    /// </summary>
+    static void EnsureCoreStateBaseDirectory()
+    {
+        if (!string.IsNullOrEmpty(CoreState.BaseDirectory))
+            return;
+        string? assemblyDir = Path.GetDirectoryName(
+            System.Reflection.Assembly.GetExecutingAssembly().Location);
+        if (assemblyDir != null)
+            CoreState.BaseDirectory = assemblyDir;
+    }
+
+    /// <summary>
+    /// Return the index of the '>' that closes the AXAML element opened at
+    /// <paramref name="elementStart"/>, skipping '>' chars inside quoted
+    /// attribute values (mirrors WorldMapImageParityTests.FindElementEnd).
+    /// </summary>
+    static int FindElementEnd(string axaml, int elementStart)
+    {
+        bool inAttrValue = false;
+        for (int i = elementStart; i < axaml.Length; i++)
+        {
+            char c = axaml[i];
+            if (c == '"') inAttrValue = !inAttrValue;
+            else if (c == '>' && !inAttrValue) return i;
+        }
+        return -1;
+    }
 
     /// <summary>
     /// Build a tiny synthetic FE8U ROM with one song-header at 0x100000:

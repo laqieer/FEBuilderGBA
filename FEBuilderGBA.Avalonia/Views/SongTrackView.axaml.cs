@@ -8,6 +8,8 @@
 // manifest and the click-handler wiring — see
 // `SongTrackViewModel.NavigationTargets.cs`.
 using System;
+using System.Diagnostics;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
@@ -34,6 +36,12 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             ResolveTrackControls();
+            // #1014: the Open Source File / Folder buttons gate visibility via
+            // IsVisible="{Binding IsSourceFileAvailable}", so the view needs a
+            // DataContext pointing at the VM (mirrors WorldMapImageView). The
+            // existing NUD/track controls are still pushed/read manually — only
+            // the two source-file buttons use the binding.
+            DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
             Opened += (_, _) => LoadList();
         }
@@ -113,6 +121,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 // "no song" from "song 0".
                 _vm.SelectedSongIndex = EntryList.SelectedItem is AddrResult sel
                     ? (int)sel.tag : -1;
+                // #1014: refresh the source-file affordance for the selected
+                // song (WF per-song "Song_" + hex(songId) ResourceCache key) so
+                // the Open Source File / Folder buttons show/hide for the
+                // recorded source. A -1 / unset id resolves to no recorded path.
+                _vm.RefreshSourceFile((uint)_vm.SelectedSongIndex);
                 UpdateUI();
             }
             catch (Exception ex)
@@ -404,6 +417,11 @@ namespace FEBuilderGBA.Avalonia.Views
 
                     _undoService.Commit();
                     _vm.MarkClean();
+                    // #1014: record the imported MIDI source path under the WF
+                    // per-song "Song_" + hex(songId) ResourceCache key so the
+                    // Open Source File / Folder buttons become available. WF
+                    // records ONLY on a successful import (here: after Commit).
+                    _vm.RecordSourceFile((uint)_vm.SelectedSongIndex, path);
                     UpdateUI();
                     CoreState.Services.ShowInfo(summary);
                 }
@@ -417,6 +435,80 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ImportMidi_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // #1014: Open Source File / Open Source Folder. Mirrors
+        // WorldMapImageView.OpenSource_Click / SelectSource_Click. The recorded
+        // path lives in CoreState.ResourceCache under the WF PER-SONG
+        // "Song_" + hex(songId) key (see SongTrackViewModel). Buttons are gated
+        // visible only when IsSourceFileAvailable.
+        // -----------------------------------------------------------------
+
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_vm.SourceFilePath))
+                {
+                    CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                if (!File.Exists(_vm.SourceFilePath))
+                {
+                    // The recorded path no longer exists — clear availability so
+                    // the buttons hide (IsVisible binding) and report the cause.
+                    _vm.IsSourceFileAvailable = false;
+                    CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
+                    return;
+                }
+                var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.OpenSource_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Failed to open source file: {ex.Message}");
+            }
+        }
+
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_vm.SourceFilePath))
+                {
+                    CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                if (!File.Exists(_vm.SourceFilePath))
+                {
+                    _vm.IsSourceFileAvailable = false;
+                    CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
+                    return;
+                }
+                if (OperatingSystem.IsWindows())
+                {
+                    var psi = new ProcessStartInfo("explorer.exe",
+                        $"/select,\"{_vm.SourceFilePath}\"")
+                        { UseShellExecute = true };
+                    Process.Start(psi);
+                }
+                else
+                {
+                    string? folder = Path.GetDirectoryName(_vm.SourceFilePath);
+                    if (!string.IsNullOrEmpty(folder))
+                    {
+                        var psi = new ProcessStartInfo(folder) { UseShellExecute = true };
+                        Process.Start(psi);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.SelectSource_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Failed to open source folder: {ex.Message}");
             }
         }
 

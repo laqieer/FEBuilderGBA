@@ -740,6 +740,84 @@ public class SongInstrumentParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1014 - honest deferral tooltips on disabled Sappy / wave buttons.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #1014: the Sappy preview buttons (N00 + N08) stay disabled (Windows-only
+    /// wontfix). Each must remain IsEnabled="False", carry NO Click handler,
+    /// drop the stale "Pending Core extraction" wording, and surface the honest
+    /// Windows-only tooltip on its enabled Border wrapper (#997/#1011 pattern).
+    /// </summary>
+    [Theory]
+    [InlineData("SongInstrument_N00_Preview_Button")]
+    [InlineData("SongInstrument_N08_Preview_Button")]
+    [InlineData("SongInstrument_N10_Preview_Button")]
+    [InlineData("SongInstrument_N18_Preview_Button")]
+    public void View_SappyPreviewButtons_StayDisabled_HonestTooltip(string automationId)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.Contains("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("Click=", element);
+    }
+
+    /// <summary>
+    /// #1014: the wave/instrument Export/Import buttons (N00 trio, N08 trio,
+    /// and the instrument-set InstExport/InstImport) stay disabled (deferred to
+    /// #1057). Each must remain IsEnabled="False", carry NO Click handler, and
+    /// drop the stale "Pending Core extraction" wording.
+    /// </summary>
+    [Theory]
+    [InlineData("SongInstrument_N00_Export_Button")]
+    [InlineData("SongInstrument_N00_Import_Button")]
+    [InlineData("SongInstrument_N08_Export_Button")]
+    [InlineData("SongInstrument_N08_Import_Button")]
+    [InlineData("SongInstrument_N10_Export_Button")]
+    [InlineData("SongInstrument_N10_Import_Button")]
+    [InlineData("SongInstrument_N18_Export_Button")]
+    [InlineData("SongInstrument_N18_Import_Button")]
+    [InlineData("SongInstrument_InstExport_Button")]
+    [InlineData("SongInstrument_InstImport_Button")]
+    public void View_WaveButtons_StayDisabled_NoClick(string automationId)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.Contains("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("Click=", element);
+    }
+
+    /// <summary>
+    /// #1014: the AXAML must no longer carry the misleading "Pending Core
+    /// extraction" wording on the Sappy / wave buttons, and MUST carry the two
+    /// new honest tooltip strings (Sappy Windows-only + wave deferred-to-#1057).
+    /// </summary>
+    [Fact]
+    public void View_HonestDeferralTooltips_Present_PendingWordingGone()
+    {
+        string axaml = ReadAxaml();
+        Assert.DoesNotContain("Pending Core extraction", axaml);
+        Assert.Contains(
+            "Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.",
+            axaml);
+        Assert.Contains(
+            "Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.",
+            axaml);
+    }
+
+    // -----------------------------------------------------------------
     // Navigation manifest (Phase 4) - empty (concern v1 #3).
     // -----------------------------------------------------------------
 
@@ -813,6 +891,23 @@ public class SongInstrumentParityTests
     }
 
     static string ReadAxaml() => File.ReadAllText(AxamlPath());
+
+    /// <summary>
+    /// Return the index of the '>' that closes the AXAML element opened at
+    /// <paramref name="elementStart"/>, skipping '>' chars inside quoted
+    /// attribute values (mirrors WorldMapImageParityTests.FindElementEnd).
+    /// </summary>
+    static int FindElementEnd(string axaml, int elementStart)
+    {
+        bool inAttrValue = false;
+        for (int i = elementStart; i < axaml.Length; i++)
+        {
+            char c = axaml[i];
+            if (c == '"') inAttrValue = !inAttrValue;
+            else if (c == '>' && !inAttrValue) return i;
+        }
+        return -1;
+    }
 
     /// <summary>
     /// Build a tiny synthetic FE8U ROM with 12 zero bytes at 0x100000 for

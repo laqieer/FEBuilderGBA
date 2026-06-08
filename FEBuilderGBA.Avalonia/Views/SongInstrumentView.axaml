@@ -73,14 +73,19 @@
                 <TextBlock AutomationProperties.AutomationId="SongInstrument_Info_Label"
                            Name="InfoLabel" Text="Info" Foreground="Blue" TextDecorations="Underline"
                            Cursor="Hand" VerticalAlignment="Center" />
-                <Button AutomationProperties.AutomationId="SongInstrument_InstExport_Button"
-                        Name="InstExportButton" Content="Export Instrument" Width="160"
-                        IsEnabled="False"
-                        ToolTip.Tip="Pending Core extraction (instrument-set shell file dialog is WinForms-only)." />
-                <Button AutomationProperties.AutomationId="SongInstrument_InstImport_Button"
-                        Name="InstImportButton" Content="Import Instrument" Width="160"
-                        IsEnabled="False"
-                        ToolTip.Tip="Pending Core extraction (instrument-set shell file dialog is WinForms-only)." />
+                <!-- #1014: wave/instrument export/import is a planned cross-platform
+                     enhancement (tracked by #1057). Each button stays disabled with the
+                     tooltip on its ENABLED Border wrapper (#997/#1011 pattern). -->
+                <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                  <Button AutomationProperties.AutomationId="SongInstrument_InstExport_Button"
+                          Name="InstExportButton" Content="Export Instrument" Width="160"
+                          IsEnabled="False" />
+                </Border>
+                <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                  <Button AutomationProperties.AutomationId="SongInstrument_InstImport_Button"
+                          Name="InstImportButton" Content="Import Instrument" Width="160"
+                          IsEnabled="False" />
+                </Border>
               </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="Header Byte:" VerticalAlignment="Center" Width="100" />
@@ -140,15 +145,21 @@
                              TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
                   <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_P4_Input"
                                  Name="N00_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Preview_Button"
-                          Name="N00_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Export_Button"
-                          Name="N00_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Import_Button"
-                          Name="N00_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                  <!-- #1014: Sappy preview is Windows-only; wave Export/Import is
+                       deferred to #1057. Each disabled button carries its honest
+                       tooltip on an ENABLED Border wrapper (#997/#1011 pattern). -->
+                  <Border ToolTip.Tip="Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N00_Preview_Button"
+                            Name="N00_PreviewButton" Content="Preview" Width="80" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N00_Export_Button"
+                            Name="N00_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N00_Import_Button"
+                            Name="N00_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False" />
+                  </Border>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_8_Label"
@@ -489,15 +500,21 @@
                              TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
                   <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N08_P4_Input"
                                  Name="N08_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N08_Preview_Button"
-                          Name="N08_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N08_Export_Button"
-                          Name="N08_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N08_Import_Button"
-                          Name="N08_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                  <!-- #1014: Sappy preview is Windows-only; wave Export/Import is
+                       deferred to #1057. Each disabled button carries its honest
+                       tooltip on an ENABLED Border wrapper (#997/#1011 pattern). -->
+                  <Border ToolTip.Tip="Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N08_Preview_Button"
+                            Name="N08_PreviewButton" Content="Preview" Width="80" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N08_Export_Button"
+                            Name="N08_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N08_Import_Button"
+                            Name="N08_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False" />
+                  </Border>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock AutomationProperties.AutomationId="SongInstrument_N08_J_8_Label"
@@ -830,15 +847,21 @@
                              TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
                   <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N10_P4_Input"
                                  Name="N10_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N10_Preview_Button"
-                          Name="N10_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N10_Export_Button"
-                          Name="N10_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N10_Import_Button"
-                          Name="N10_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                  <!-- #1014: Sappy preview is Windows-only; wave Export/Import is
+                       deferred to #1057. Each disabled button carries its honest
+                       tooltip on an ENABLED Border wrapper (#997/#1011 pattern). -->
+                  <Border ToolTip.Tip="Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N10_Preview_Button"
+                            Name="N10_PreviewButton" Content="Preview" Width="80" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N10_Export_Button"
+                            Name="N10_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N10_Import_Button"
+                            Name="N10_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False" />
+                  </Border>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock AutomationProperties.AutomationId="SongInstrument_N10_J_8_Label"
@@ -903,15 +926,21 @@
                              TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
                   <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N18_P4_Input"
                                  Name="N18_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N18_Preview_Button"
-                          Name="N18_PreviewButton" Content="Preview" Width="80" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (Sappy emulator preview is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N18_Export_Button"
-                          Name="N18_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Export shell dialog is WinForms-only)." />
-                  <Button AutomationProperties.AutomationId="SongInstrument_N18_Import_Button"
-                          Name="N18_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False"
-                          ToolTip.Tip="Pending Core extraction (wave Import shell dialog is WinForms-only)." />
+                  <!-- #1014: Sappy preview is Windows-only; wave Export/Import is
+                       deferred to #1057. Each disabled button carries its honest
+                       tooltip on an ENABLED Border wrapper (#997/#1011 pattern). -->
+                  <Border ToolTip.Tip="Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N18_Preview_Button"
+                            Name="N18_PreviewButton" Content="Preview" Width="80" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N18_Export_Button"
+                            Name="N18_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False" />
+                  </Border>
+                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
+                    <Button AutomationProperties.AutomationId="SongInstrument_N18_Import_Button"
+                            Name="N18_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False" />
+                  </Border>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock AutomationProperties.AutomationId="SongInstrument_N18_J_8_Label"
