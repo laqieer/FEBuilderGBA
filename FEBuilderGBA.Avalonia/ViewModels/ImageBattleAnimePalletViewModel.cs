@@ -10,10 +10,14 @@
 //   - Offsets-throughout contract: `_paletteOffset`, `_sourcePointerSlot` are
 //     ROM offsets internally. The public PaletteAddress property converts
 //     offset->pointer for display (user-facing).
-//   - 32-color mode (Is32ColorMode / WarningVisible) is honestly deferred:
-//     defaults to false; flipping it on requires the WF
-//     ImageUtil.GetPalette16Count(Bitmap) Core extraction which depends on
-//     sample rendering. Marked as KnownGap (no follow-up issue per task scope).
+//   - 32-color mode (Is32ColorMode / WarningVisible) is now driven by the Core
+//     port BattleAnimeRendererCore.CountAnimationPaletteBanks (#1033) — an
+//     animation-wide CONSERVATIVE OAM palette-bank scan replacing WF
+//     ImageUtil.GetPalette16Count(DrawBitmap). The banner turns on when the scan
+//     finds a non-affine sprite using a 16-color bank >= 1 (palette_count >= 2),
+//     mirroring WF Is32ColorMode = (palette_count >= 2). This restores the
+//     banner only; the WF JumpTo palette-index-0 redraw coupling remains out of
+//     scope.
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
@@ -98,9 +102,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Whether the 32-color-mode warning is visible.
-        /// Honestly deferred per Finding #2 — always false until WF
-        /// ImageUtil.GetPalette16Count is ported to Core.
+        /// Whether the 32-color-mode warning banner is visible. Set by
+        /// <see cref="LoadEntry"/> to <see cref="Is32ColorMode"/> — true when the
+        /// loaded animation's OAM sprites use more than one 16-color palette bank
+        /// (#1033), detected via
+        /// <c>BattleAnimeRendererCore.CountAnimationPaletteBanks</c>.
         /// </summary>
         public bool WarningVisible
         {
@@ -109,8 +115,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Whether the current animation uses 32-color mode. Honestly
-        /// deferred (always false). See WarningVisible comment.
+        /// Whether the currently-loaded animation uses 32-color (multi-bank)
+        /// mode. Set by <see cref="LoadEntry"/> from
+        /// <c>BattleAnimeRendererCore.CountAnimationPaletteBanks(recordOffset) &gt;= 2</c>
+        /// (#1033), mirroring WF <c>Is32ColorMode = (palette_count &gt;= 2)</c>.
+        /// Drives <see cref="WarningVisible"/>.
         /// </summary>
         public bool Is32ColorMode
         {
@@ -251,9 +260,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
             }
 
-            // 32-color mode detection is honestly deferred — see class doc.
-            _is32ColorMode = false;
-            _warningVisible = false;
+            // #1033: 32-color mode detection — port of WF
+            // ImageUtil.GetPalette16Count(DrawBitmap) via an OAM palette-bank scan.
+            // The animation record begins at _sourcePointerSlot - 0x1C (the palette
+            // pointer lives at record+0x1C), the same derivation
+            // RenderSampleBattleAnime uses.
+            int bankCount = 1;
+            if (_sourcePointerSlot >= PalettePointerOffsetInRecord)
+            {
+                uint recordOffset = _sourcePointerSlot - PalettePointerOffsetInRecord;
+                bankCount = BattleAnimeRendererCore.CountAnimationPaletteBanks(recordOffset);
+            }
+            _is32ColorMode = bankCount >= 2;   // mirrors WF: Is32ColorMode = (palette_count >= 2)
+            _warningVisible = _is32ColorMode;
 
             IsLoaded = true;
             OnPropertyChanged(nameof(PaletteAddress));
