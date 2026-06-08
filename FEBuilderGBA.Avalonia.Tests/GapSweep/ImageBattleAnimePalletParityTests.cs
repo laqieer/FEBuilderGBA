@@ -953,15 +953,23 @@ public class ImageBattleAnimePalletParityTests
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// #994: write a battle-anime palette color, undo it, verify CanRedo is
-    /// true, redo it, verify the palette bytes return to the edited state.
-    /// After redo, asserts the palette byte round-trip; full relocation-slot
-    /// re-resolve assertion is impractical with the synthetic ROM (no PLIST
-    /// rescan) — at minimum the palette-byte round-trip is validated.
+    /// #994 (Copilot CLI review on PR #1041): exercises the HIGHEST-risk redo
+    /// path — `Redo_Click` reloads via `ReloadFromAuthoritativeSlot()`, which
+    /// re-reads `rom.p32(sourcePointerSlot)`. This test FORCES a relocation
+    /// (all 16 colors edited to distinct high-entropy values so the
+    /// recompressed block grows past the tiny all-zero original) and verifies
+    /// the AUTHORITATIVE source-pointer slot rolls BACK on undo and FORWARD on
+    /// redo, reading the palette THROUGH that slot (mirroring what
+    /// ReloadFromAuthoritativeSlot does) rather than a hardcoded offset. A
+    /// regression that restores the relocated bytes but fails to repoint the
+    /// source slot would reload from the wrong palette — and now fails here.
     /// </summary>
     [Fact]
     public void BattleAnimePalette_EditUndoRedo_RoundTrip()
     {
+        // All-zero original compresses to a tiny block; editing all 16 slots
+        // to distinct high-entropy colors forces the recompressed block to
+        // exceed the original => the RELOCATE branch.
         var (rom, paletteOffset, sourceSlot) = MakeRomWithSingleSlotPalette(new ushort[16]);
         var prevRom = CoreState.ROM;
         var prevUndo = CoreState.Undo;
@@ -973,43 +981,68 @@ public class ImageBattleAnimePalletParityTests
             var vm = new ImageBattleAnimePalletViewModel();
             vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
 
-            // Capture original palette color[0].
-            ushort[] origColors = ImageBattleAnimePaletteCore.ReadPalette(rom, paletteOffset, 0);
-            Assert.NotNull(origColors);
-            int origR = origColors[0] & 0x1F;
+            // The source slot must initially point at the original palette.
+            Assert.Equal(paletteOffset, U.toOffset(rom.p32(sourceSlot)));
 
-            // Edit color[0] to max R.
-            vm.SetR(0, 248); // 248 >> 3 = 31
+            // Capture the original palette read THROUGH the authoritative slot.
+            ushort[] origColors = ImageBattleAnimePaletteCore.ReadPalette(
+                rom, U.toOffset(rom.p32(sourceSlot)), 0);
+            Assert.NotNull(origColors);
+
+            // Edit ALL 16 colors to DISTINCT high-entropy values so the
+            // recompressed block is much larger than the all-zero original
+            // (one-color edits stay in-place and would NOT relocate).
+            var edited = new ushort[16];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort c = (ushort)((0x7FFF - i * 0x111) & 0x7FFF);
+                edited[i] = c;
+                vm.SetR(i, (byte)(((c) & 0x1F) << 3));
+                vm.SetG(i, (byte)(((c >> 5) & 0x1F) << 3));
+                vm.SetB(i, (byte)(((c >> 10) & 0x1F) << 3));
+            }
 
             var undoService = new UndoService();
-            undoService.Begin("Edit palette R0");
+            undoService.Begin("Edit all 16 colors");
             uint newOffset = vm.Write();
             undoService.Commit();
 
+            // Relocation must actually have happened.
             Assert.NotEqual(U.NOT_FOUND, newOffset);
+            Assert.NotEqual(paletteOffset, newOffset);
 
-            // Verify the write produced a different R value.
-            ushort[] editedColors = ImageBattleAnimePaletteCore.ReadPalette(rom, newOffset, 0);
+            // The source slot must have been repointed to the new offset.
+            Assert.Equal(newOffset, U.toOffset(rom.p32(sourceSlot)));
+
+            // Palette read THROUGH the slot shows the edited colors.
+            ushort[] editedColors = ImageBattleAnimePaletteCore.ReadPalette(
+                rom, U.toOffset(rom.p32(sourceSlot)), 0);
             Assert.NotNull(editedColors);
-            int editedR = editedColors[0] & 0x1F;
-            Assert.Equal(31, editedR);
+            for (int i = 0; i < 16; i++)
+                Assert.Equal(edited[i] & 0x7FFF, editedColors[i] & 0x7FFF);
 
-            // Undo — reload and verify palette is back to original.
+            // -- Undo: the source slot pointer must roll BACK to paletteOffset.
             CoreState.Undo.RunUndo();
-            // After undo the source slot points back to paletteOffset.
-            ushort[] undoneColors = ImageBattleAnimePaletteCore.ReadPalette(rom, paletteOffset, 0);
+            Assert.Equal(paletteOffset, U.toOffset(rom.p32(sourceSlot)));
+            // And the palette read THROUGH the slot shows the ORIGINAL colors.
+            ushort[] undoneColors = ImageBattleAnimePaletteCore.ReadPalette(
+                rom, U.toOffset(rom.p32(sourceSlot)), 0);
             Assert.NotNull(undoneColors);
-            Assert.Equal(origR, undoneColors[0] & 0x1F);
+            for (int i = 0; i < 16; i++)
+                Assert.Equal(origColors[i] & 0x7FFF, undoneColors[i] & 0x7FFF);
 
-            // CanRedo must be true.
+            // CanRedo must be true after undo.
             Assert.True(CoreState.Undo.CanRedo, "CanRedo must be true after undo");
 
-            // Redo — verify palette bytes return to the edited state.
+            // -- Redo: the source slot pointer must roll FORWARD to newOffset.
             CoreState.Undo.RunRedo();
-            // After redo the palette at newOffset has the edited color.
-            ushort[] redoneColors = ImageBattleAnimePaletteCore.ReadPalette(rom, newOffset, 0);
+            Assert.Equal(newOffset, U.toOffset(rom.p32(sourceSlot)));
+            // And the palette read THROUGH the slot shows the EDITED colors.
+            ushort[] redoneColors = ImageBattleAnimePaletteCore.ReadPalette(
+                rom, U.toOffset(rom.p32(sourceSlot)), 0);
             Assert.NotNull(redoneColors);
-            Assert.Equal(editedR, redoneColors[0] & 0x1F);
+            for (int i = 0; i < 16; i++)
+                Assert.Equal(edited[i] & 0x7FFF, redoneColors[i] & 0x7FFF);
         }
         finally
         {
