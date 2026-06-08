@@ -231,11 +231,17 @@
                           Name="LearnInfoLink" Content="Click here for acquired level and skill details"
                           Click="OnLearnInfo" Classes="Hyperlink" HorizontalAlignment="Left" />
 
-                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                  <!-- #1011: Bulk Import/Export are DISABLED for the C-SkillSys variant — WinForms
+                       SkillAssignmentClassCSkillSysForm.ExportAllData/ImportAllData are empty stubs
+                       (the bulk serializer exists only on the non-C SkillSystem sibling). The tooltip
+                       lives on this ENABLED StackPanel because a disabled Avalonia control is not
+                       hit-testable and would not surface its own ToolTip on hover. -->
+                  <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0"
+                              ToolTip.Tip="Bulk Import/Export is not available for the C-SkillSys variant (unimplemented in WinForms too).">
                     <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ImportAll_Button"
-                            Name="ImportAllButton" Content="Bulk Import" Click="OnImportAll" MinWidth="140" />
+                            Name="ImportAllButton" Content="Bulk Import" IsEnabled="False" MinWidth="140" />
                     <Button AutomationProperties.AutomationId="SkillAssignmentClassCSkillSys_ExportAll_Button"
-                            Name="ExportAllButton" Content="Bulk Export" Click="OnExportAll" MinWidth="140" />
+                            Name="ExportAllButton" Content="Bulk Export" IsEnabled="False" MinWidth="140" />
                   </StackPanel>
 
                 </StackPanel>

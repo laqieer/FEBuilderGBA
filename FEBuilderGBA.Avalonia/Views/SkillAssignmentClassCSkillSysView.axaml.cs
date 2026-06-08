@@ -488,18 +488,11 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // No-op stubs (mirror WF — ExportAll/ImportAll are empty in WF).
+        // #1011: Bulk Export/Import are DISABLED in the view (WF stubs them —
+        // ExportAllData/ImportAllData are empty). The buttons carry no Click
+        // handler now; they are greyed out with an explanatory tooltip on the
+        // wrapping StackPanel rather than advertising a silent no-op.
         // -----------------------------------------------------------------
-
-        void OnExportAll(object? sender, RoutedEventArgs e)
-        {
-            Log.Notify("SkillAssignmentClassCSkillSysView.OnExportAll: not implemented (mirrors WF stub).");
-        }
-
-        void OnImportAll(object? sender, RoutedEventArgs e)
-        {
-            Log.Notify("SkillAssignmentClassCSkillSysView.OnImportAll: not implemented (mirrors WF stub).");
-        }
 
         void OnLearnInfo(object? sender, RoutedEventArgs e)
         {

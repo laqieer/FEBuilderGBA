@@ -24091,3 +24091,6 @@ FE8N Ver1 没有图标导入/导出功能 — WinForms 的 SkillConfigFE8NSkillF
 
 :FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008).
 FE8N Ver1 在 WinForms 中没有动画指针或动画 I/O（仅供显示）。设计上已禁用 (#1008)。
+
+:Bulk Import/Export is not available for the C-SkillSys variant (unimplemented in WinForms too).
+C-SkillSys 版本不支持批量导入/导出（WinForms 版本同样未实现）。
