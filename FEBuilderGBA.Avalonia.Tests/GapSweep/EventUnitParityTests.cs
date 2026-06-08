@@ -696,10 +696,6 @@ public class EventUnitParityTests
     // address over LoadMonsterProbabilityList's 12-byte stride.
     // -----------------------------------------------------------------
 
-    // FE8U (BE8E01) ROM-offset of the GBA pointer to the monster-probability
-    // table base (ROMFE8U.monster_probability_pointer). Version-fixed.
-    const uint Fe8uMonsterProbPointerOffset = 0x7834Cu;
-
     [Fact]
     public void ResolveAddressByClassIndex_InRange_ReturnsBasePlusStride()
     {
@@ -712,8 +708,11 @@ public class EventUnitParityTests
 
             const uint baseAddr = 0x00100000u; // safe offset, clear of the pointer slot
             const int count = 5;
-            // Plant the GBA pointer to the table base.
-            rom.write_p32(Fe8uMonsterProbPointerOffset, baseAddr);
+            // Plant the GBA pointer to the table base. Read the pointer-slot
+            // offset from RomInfo (not a hard-coded constant) so the test stays
+            // correct if ROMFE8U.monster_probability_pointer ever changes.
+            uint ptrSlot = rom.RomInfo.monster_probability_pointer;
+            rom.write_p32(ptrSlot, baseAddr);
             // Plant 5 non-terminated 12-byte entries (first byte != 0xFF so the
             // u8==0xFF terminator in LoadMonsterProbabilityList does not stop early).
             for (uint i = 0; i < count; i++)
@@ -744,7 +743,10 @@ public class EventUnitParityTests
 
             const uint baseAddr = 0x00100000u;
             const int count = 3;
-            rom.write_p32(Fe8uMonsterProbPointerOffset, baseAddr);
+            // Read the pointer-slot offset from RomInfo (not a hard-coded
+            // constant) so the test follows ROMFE8U if the offset ever changes.
+            uint ptrSlot = rom.RomInfo.monster_probability_pointer;
+            rom.write_p32(ptrSlot, baseAddr);
             for (uint i = 0; i < count; i++)
             {
                 rom.write_u8(baseAddr + i * 12u, i + 1u);
@@ -781,24 +783,40 @@ public class EventUnitParityTests
     [Fact]
     public void View_JumpMonsterProb_ResolvesClassIndexAndNavigates()
     {
-        // The View's JumpMonsterProb_Click must read B1 (_vm.ClassID), resolve
-        // the class_id row index via ResolveAddressByClassIndex, and Navigate to
-        // the MonsterProbabilityViewerView; the stale "does not currently expose
+        // The View's JumpMonsterProb_Click must read B1 from the LIVE control
+        // (ClassIDBox.Value), resolve the class_id row index via
+        // ResolveAddressByClassIndex, and Navigate to the
+        // MonsterProbabilityViewerView; the stale "does not currently expose
         // row-index navigation" limitation comment must be gone (#1018).
         string repoRoot = FindRepoRoot();
         string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
             "EventUnitView.axaml.cs");
         string source = File.ReadAllText(codeBehindPath);
 
-        Assert.Matches(
-            new Regex(@"void\s+JumpMonsterProb_Click\([^)]*\)\s*\{[\s\S]*?_vm\.ClassID", RegexOptions.Singleline),
-            source);
-        Assert.Matches(
-            new Regex(@"void\s+JumpMonsterProb_Click\([^)]*\)\s*\{[\s\S]*?ResolveAddressByClassIndex\(", RegexOptions.Singleline),
-            source);
-        Assert.Matches(
-            new Regex(@"void\s+JumpMonsterProb_Click\([^)]*\)\s*\{[\s\S]*?Navigate<MonsterProbabilityViewerView>\(", RegexOptions.Singleline),
-            source);
+        // Extract just the handler body so the "no stale VM read" assertion is
+        // scoped to this handler (other handlers legitimately read _vm.ClassID).
+        var handlerMatch = Regex.Match(
+            source,
+            @"void\s+JumpMonsterProb_Click\([^)]*\)\s*\{(?<body>[\s\S]*?)\n        \}",
+            RegexOptions.Singleline);
+        Assert.True(handlerMatch.Success, "JumpMonsterProb_Click handler not found");
+        string body = handlerMatch.Groups["body"].Value;
+
+        // FIX 1: reads the LIVE displayed control (ClassIDBox.Value), like WF
+        // (this.B1.Value) and the sibling jump handlers (UnitIDBox.Value) — not
+        // the stale-on-edit _vm.ClassID that only syncs on load / Write.
+        Assert.True(
+            body.Contains("ClassIDBox.Value"),
+            "JumpMonsterProb_Click must read the live ClassIDBox.Value (B1)");
+        Assert.False(
+            body.Contains("_vm.ClassID"),
+            "JumpMonsterProb_Click must NOT read the stale _vm.ClassID; use the live ClassIDBox.Value");
+        Assert.True(
+            body.Contains("ResolveAddressByClassIndex("),
+            "JumpMonsterProb_Click must resolve the class_id row index");
+        Assert.True(
+            body.Contains("Navigate<MonsterProbabilityViewerView>("),
+            "JumpMonsterProb_Click must Navigate to the MonsterProbabilityViewerView");
         Assert.False(
             source.Contains("does not currently expose row-index navigation"),
             "stale 'does not currently expose row-index navigation' comment must be removed");

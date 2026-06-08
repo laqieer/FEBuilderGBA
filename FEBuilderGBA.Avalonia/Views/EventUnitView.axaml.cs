@@ -528,7 +528,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 // 12-byte stride) and Navigate so the viewer opens on the
                 // class_id-indexed row, falling back to a plain open when the
                 // class_id is out of range / the table is unavailable.
-                uint classId = _vm.ClassID;  // B1
+                // Read the LIVE control (B1) like WF (`this.B1.Value`) and the
+                // sibling jump handlers (UnitIDBox.Value): the VM's cached
+                // class_id only syncs from ClassIDBox on load / to the VM on
+                // Write, so reading it would be STALE if the user edits B1 then
+                // jumps before writing — always read the displayed control.
+                uint classId = (uint)(ClassIDBox.Value ?? 0);  // B1
                 uint addr = new MonsterProbabilityViewerViewModel().ResolveAddressByClassIndex(classId);
                 if (addr != U.NOT_FOUND)
                     WindowManager.Instance.Navigate<MonsterProbabilityViewerView>(addr);
