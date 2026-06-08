@@ -220,7 +220,7 @@
               <Button AutomationProperties.AutomationId="SkillConfigFE8NVer3Skill_JumpToCombatArt_Button"
                       Name="JumpToCombatArtButton" Content="Move to COMBAT_ART"
                       Click="JumpToCombatArt_Click"
-                      ToolTip.Tip="PatchManagerView does not yet expose JumpToSelectStruct (tracked by #374)." />
+                      ToolTip.Tip="Opens the Patch Manager and filters/selects the FE8N SKILL COMBAT ART patch. Struct-level row selection is a #374 follow-up." />
             </StackPanel>
 
             <!-- Animation row: label + animation pointer + import/export buttons -->

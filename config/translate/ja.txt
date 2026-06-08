@@ -8883,8 +8883,8 @@ WF の N03 サブタブには固定の意味を持たない汎用 16 バイト (
 :Adds the effect of another skill (KnownGap: tracked by #374)
 他のスキルの効果を追加します (KnownGap: #374 で追跡中)
 
-:PatchManagerView does not yet expose JumpToSelectStruct (tracked by #374).
-PatchManagerView は JumpToSelectStruct をまだ公開していません (#374 で追跡中)。
+:Opens the Patch Manager and filters/selects the FE8N SKILL COMBAT ART patch. Struct-level row selection is a #374 follow-up.
+パッチマネージャーを開き、FE8N SKILL COMBAT ART パッチを絞り込んで選択します。構造体レベルの行選択は #374 のフォローアップです。
 
 :Move to COMBAT_ART
 COMBAT_ARTへ移動

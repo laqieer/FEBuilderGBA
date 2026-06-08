@@ -58,8 +58,11 @@ public class SkillConfigJumpWiringParityTests
             ReadViewSource("SkillConfigFE8NVer3SkillView.axaml.cs"),
             "JumpToCombatArt_Click");
 
-        Assert.Matches(@"WindowManager\.Instance\.Open<", body);
-        Assert.Contains("WindowManager.Instance.Open<PatchManagerView>", body);
+        // #1009: the handler now FILTERS + selects the combat-art patch via the
+        // PatchManagerView.JumpTo (#428) seam, instead of a bare unfiltered open.
+        Assert.Matches(@"WindowManager\.Instance\.Navigate<PatchManagerView>", body);
+        Assert.Contains("WindowManager.Instance.FindOpen<PatchManagerView>", body);
+        Assert.Contains("JumpTo(\"FE8N SKILL COMBAT ART\", 0)", body);
         Assert.DoesNotContain("Log.Debug", body);
     }
 

@@ -5,9 +5,12 @@
 // JumpParityScanner needs to cross-reference (Copilot plan-review #2):
 //   1. X_JUMP_TO_COMBAT_ART_Click -> PatchForm.JumpToSelectStruct(...)
 //      Avalonia counterpart: PatchManagerView (paired via the
-//      KnownExtraCrossViewMappings entry below). The AV view lacks a
-//      programmatic JumpToSelectStruct seam (tracked by #374) so the
-//      jump is declared as a KnownGap until that lands.
+//      KnownExtraCrossViewMappings entry below). #1009 implemented the
+//      filter-level jump: the handler now Navigates to PatchManagerView and
+//      calls JumpTo("FE8N SKILL COMBAT ART", 0) (the #428 filter seam) to
+//      filter + select the patch. Only the struct-level row selection
+//      (PatchManagerView has no inner struct list) remains gated on #374, so
+//      the IssueRef stays #374 to flag that residual gap.
 //   2. ImportButton_Click -> ErrorPaletteShowForm.JumpFormLow(...)
 //      Avalonia counterpart: ErrorPaletteShowView. The Import flow itself
 //      is no-op until ImageUtilSkillSystemsAnimeCreator extracts to Core
@@ -25,7 +28,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         public IReadOnlyList<NavigationTarget> GetNavigationTargets() => new[]
         {
-            // (1) WF X_JUMP_TO_COMBAT_ART_Click -> PatchForm.
+            // (1) WF X_JUMP_TO_COMBAT_ART_Click -> PatchForm. Filter-level jump
+            //     implemented (#1009: JumpTo("FE8N SKILL COMBAT ART", 0)); only
+            //     struct-level row selection remains gated on #374.
             new NavigationTarget(
                 CommandName: "JumpToCombatArt",
                 TargetViewType: typeof(PatchManagerView),
