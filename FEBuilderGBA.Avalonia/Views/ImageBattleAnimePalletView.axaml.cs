@@ -608,6 +608,31 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void Redo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
+                {
+                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    return;
+                }
+                if (!CoreState.Undo.RunRedo())
+                {
+                    CoreState.Services.ShowError("Redo failed.");
+                    return;
+                }
+                // Reload via the authoritative back-pointer slot (mirrors Undo_Click).
+                ReloadFromAuthoritativeSlot();
+                // Refresh the entry list so any post-redo address shifts are reflected.
+                RefreshListPreservingSelection();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Redo_Click failed: {0}", ex.Message);
+            }
+        }
+
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);
         public void SelectFirstItem() => EntryList.SelectFirst();
     }

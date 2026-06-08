@@ -160,17 +160,49 @@ public class ImageBattleAnimePalletParityTests
             RegexOptions.Singleline), code);
     }
 
+    /// <summary>
+    /// #994: the Redo button is now wired to CoreState.Undo.RunRedo() — the
+    /// stale "#399 WinForms-coupled PaletteFormRef" blocker was removed.
+    /// The button must carry Click="Redo_Click" and must NOT contain IsEnabled="False".
+    /// </summary>
     [Fact]
-    public void View_RedoButton_IsHonestlyDisabledKnownGap()
+    public void View_RedoButton_IsWiredAndEnabled()
     {
-        // Per Plan v6 Finding #2: the local palette-edit redo buffer is
-        // WF PaletteFormRef-coupled. The Redo button is rendered but
-        // disabled with an explanatory tooltip.
         string axaml = ReadAxaml();
-        // Find the Redo button section.
+        var rx = new Regex(
+            "AutomationId=\"ImageBattleAnimePallet_Redo_Button\"[\\s\\S]*?/>",
+            RegexOptions.Compiled);
+        Match m = rx.Match(axaml);
+        Assert.True(m.Success, "Redo button tag not found");
+        Assert.Contains("Click=\"Redo_Click\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// #994: the Redo_Click handler must call CoreState.Undo.RunRedo() and
+    /// guard on CanRedo. CanRedo must appear textually before RunRedo()
+    /// within the Redo_Click method body.
+    /// The stale "#399" / "WinForms-coupled" strings must be gone.
+    /// </summary>
+    [Fact]
+    public void View_RedoHandler_CallsRunRedo()
+    {
+        string source = File.ReadAllText(CodeBehindPath());
         Assert.Matches(new Regex(
-            @"AutomationId=""ImageBattleAnimePallet_Redo_Button""[\s\S]{0,400}IsEnabled=""False""",
-            RegexOptions.Singleline), axaml);
+            @"void\s+Redo_Click[\s\S]*?CoreState\.Undo\.CanRedo",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"void\s+Redo_Click[\s\S]*?CoreState\.Undo\.RunRedo\(\)",
+            RegexOptions.Compiled), source);
+        // Extract only the Redo_Click method body to check ordering.
+        int methodStart = source.IndexOf("void Redo_Click(", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0, "Redo_Click method not found");
+        int idxCanRedo = source.IndexOf("CoreState.Undo.CanRedo", methodStart, StringComparison.Ordinal);
+        int idxRunRedo = source.IndexOf("CoreState.Undo.RunRedo()", methodStart, StringComparison.Ordinal);
+        Assert.True(idxCanRedo >= 0 && idxRunRedo >= 0, "CanRedo and RunRedo must both be present");
+        Assert.True(idxCanRedo < idxRunRedo, "CanRedo must appear before RunRedo()");
+        // Stale strings must be gone.
+        Assert.DoesNotContain("WinForms-coupled", source);
     }
 
     /// <summary>
@@ -908,6 +940,76 @@ public class ImageBattleAnimePalletParityTests
 
             Assert.Equal(0,  roundtrip[1] & 0x1F);        // R=0
             Assert.Equal(31, (roundtrip[1] >> 5) & 0x1F); // G=31
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // #994: Functional edit->undo->redo round-trip for Battle Anime palette.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #994: write a battle-anime palette color, undo it, verify CanRedo is
+    /// true, redo it, verify the palette bytes return to the edited state.
+    /// After redo, asserts the palette byte round-trip; full relocation-slot
+    /// re-resolve assertion is impractical with the synthetic ROM (no PLIST
+    /// rescan) — at minimum the palette-byte round-trip is validated.
+    /// </summary>
+    [Fact]
+    public void BattleAnimePalette_EditUndoRedo_RoundTrip()
+    {
+        var (rom, paletteOffset, sourceSlot) = MakeRomWithSingleSlotPalette(new ushort[16]);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new ImageBattleAnimePalletViewModel();
+            vm.LoadEntry(paletteOffset, sourceSlot, paletteIndex: 0);
+
+            // Capture original palette color[0].
+            ushort[] origColors = ImageBattleAnimePaletteCore.ReadPalette(rom, paletteOffset, 0);
+            Assert.NotNull(origColors);
+            int origR = origColors[0] & 0x1F;
+
+            // Edit color[0] to max R.
+            vm.SetR(0, 248); // 248 >> 3 = 31
+
+            var undoService = new UndoService();
+            undoService.Begin("Edit palette R0");
+            uint newOffset = vm.Write();
+            undoService.Commit();
+
+            Assert.NotEqual(U.NOT_FOUND, newOffset);
+
+            // Verify the write produced a different R value.
+            ushort[] editedColors = ImageBattleAnimePaletteCore.ReadPalette(rom, newOffset, 0);
+            Assert.NotNull(editedColors);
+            int editedR = editedColors[0] & 0x1F;
+            Assert.Equal(31, editedR);
+
+            // Undo — reload and verify palette is back to original.
+            CoreState.Undo.RunUndo();
+            // After undo the source slot points back to paletteOffset.
+            ushort[] undoneColors = ImageBattleAnimePaletteCore.ReadPalette(rom, paletteOffset, 0);
+            Assert.NotNull(undoneColors);
+            Assert.Equal(origR, undoneColors[0] & 0x1F);
+
+            // CanRedo must be true.
+            Assert.True(CoreState.Undo.CanRedo, "CanRedo must be true after undo");
+
+            // Redo — verify palette bytes return to the edited state.
+            CoreState.Undo.RunRedo();
+            // After redo the palette at newOffset has the edited color.
+            ushort[] redoneColors = ImageBattleAnimePaletteCore.ReadPalette(rom, newOffset, 0);
+            Assert.NotNull(redoneColors);
+            Assert.Equal(editedR, redoneColors[0] & 0x1F);
         }
         finally
         {

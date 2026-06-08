@@ -370,8 +370,7 @@
                   Click="Undo_Click" />
           <Button AutomationProperties.AutomationId="ImageBattleAnimePallet_Redo_Button"
                   Name="RedoButton" Content="Redo" Width="100"
-                  IsEnabled="False"
-                  ToolTip.Tip="Deferred KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#399). Use the main ROM-level Undo via the toolbar." />
+                  Click="Redo_Click" />
         </StackPanel>
       </Border>
 

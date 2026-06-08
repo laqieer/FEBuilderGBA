@@ -514,6 +514,35 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        void PaletteRedo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
+                {
+                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    return;
+                }
+                if (!CoreState.Undo.RunRedo())
+                {
+                    CoreState.Services.ShowError("Redo failed.");
+                    return;
+                }
+                // This DELIBERATELY mirrors PaletteUndo_Click's full LoadEntry reload
+                // (redo = exact inverse of undo, WF parity) rather than the
+                // palette-only LoadPalette() refresh used for palette-index switches.
+                _vm.LoadEntry();
+                PopulateUI();
+                RefreshBattlePreview();
+                RefreshChipsetPreview();
+                RefreshImagePreviews();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PaletteRedo_Click failed: {0}", ex.Message);
+            }
+        }
+
         void BulkUndo_Click(object sender, RoutedEventArgs e)
         {
             try

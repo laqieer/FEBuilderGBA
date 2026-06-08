@@ -6,7 +6,9 @@
 //
 // All ROM writes are wrapped in UndoService.Begin/Commit/Rollback;
 // Undo is wired to CoreState.Undo.RunUndo() + reload, Redo is
-// deferred behind #500 (Core has no RunRedo() API).
+// wired to CoreState.Undo.RunRedo() (#994). The "#500 Core has no
+// RunRedo() API" blocker was stale — RunRedo()/CanRedo have existed
+// since #692.
 
 using System;
 using System.IO;
@@ -411,6 +413,46 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ImagePalletView.Undo_Click failed: {0}", ex.Message);
+            }
+        }
+
+        void Redo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null || !CoreState.Undo.CanRedo)
+                {
+                    CoreState.Services.ShowInfo("Nothing to redo.");
+                    return;
+                }
+                if (!CoreState.Undo.RunRedo())
+                {
+                    CoreState.Services.ShowError("Redo failed.");
+                    return;
+                }
+                // Reload so the displayed values reflect the post-redo ROM state.
+                // Preserve the palette-name overrides across reload.
+                if (_vm.IsLoaded)
+                {
+                    uint addr = _vm.PaletteAddress;
+                    int max = _vm.MaxPaletteCount;
+                    int idx = _vm.PaletteIndex;
+                    _vm.IsLoading = true;
+                    try
+                    {
+                        _vm.LoadEntry(addr, max, idx, _lastPaletteNames);
+                    }
+                    finally
+                    {
+                        _vm.IsLoading = false;
+                        _vm.MarkClean();
+                    }
+                    UpdateUI();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePalletView.Redo_Click failed: {0}", ex.Message);
             }
         }
 

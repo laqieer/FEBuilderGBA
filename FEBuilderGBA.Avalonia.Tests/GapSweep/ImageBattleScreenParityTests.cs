@@ -428,6 +428,122 @@ public class ImageBattleScreenParityTests
     }
 
     // -----------------------------------------------------------------
+    // #994: PaletteRedo button wired, BulkRedo stays deferred.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #994: the PaletteRedo button is now wired to CoreState.Undo.RunRedo().
+    /// Must carry Click="PaletteRedo_Click" and must NOT contain IsEnabled="False".
+    /// </summary>
+    [Fact]
+    public void View_PaletteRedoButton_IsWiredAndEnabled()
+    {
+        string axaml = ReadAxaml();
+        var rx = new Regex(
+            "AutomationId=\"ImageBattleScreen_PaletteRedo_Button\"[\\s\\S]*?/>",
+            RegexOptions.Compiled);
+        Match m = rx.Match(axaml);
+        Assert.True(m.Success, "PaletteRedo button tag not found");
+        Assert.Contains("Click=\"PaletteRedo_Click\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
+
+    /// <summary>
+    /// #994: PaletteRedo_Click handler must call CoreState.Undo.RunRedo()
+    /// and guard on CanRedo. CanRedo must appear before RunRedo() within
+    /// the PaletteRedo_Click method body.
+    /// </summary>
+    [Fact]
+    public void View_PaletteRedoHandler_CallsRunRedo()
+    {
+        string source = File.ReadAllText(CodeBehindPath());
+        Assert.Matches(new Regex(
+            @"void\s+PaletteRedo_Click[\s\S]*?CoreState\.Undo\.CanRedo",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"void\s+PaletteRedo_Click[\s\S]*?CoreState\.Undo\.RunRedo\(\)",
+            RegexOptions.Compiled), source);
+        // Extract only the PaletteRedo_Click method body to check ordering.
+        int methodStart = source.IndexOf("void PaletteRedo_Click(", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0, "PaletteRedo_Click method not found");
+        int idxCanRedo = source.IndexOf("CoreState.Undo.CanRedo", methodStart, StringComparison.Ordinal);
+        int idxRunRedo = source.IndexOf("CoreState.Undo.RunRedo()", methodStart, StringComparison.Ordinal);
+        Assert.True(idxCanRedo >= 0 && idxRunRedo >= 0);
+        Assert.True(idxCanRedo < idxRunRedo, "CanRedo must appear before RunRedo()");
+    }
+
+    /// <summary>
+    /// #994 regression guard: BulkRedo stays a documented deferral (#988) —
+    /// it must still have IsEnabled="False".
+    /// </summary>
+    [Fact]
+    public void View_BulkRedoButton_StaysDocumentedDeferral()
+    {
+        string axaml = ReadAxaml();
+        Assert.Matches(new Regex(
+            "AutomationId=\"ImageBattleScreen_BulkRedo_Button\"[\\s\\S]{0,400}IsEnabled=\"False\"",
+            RegexOptions.Compiled), axaml);
+    }
+
+    /// <summary>
+    /// #994: write a palette color via WritePalette, undo it, verify CanRedo
+    /// is true, redo it, verify the palette bytes return to the edited state.
+    /// </summary>
+    [Fact]
+    public void BattleScreenPalette_EditUndoRedo_RoundTrip()
+    {
+        var rom = MakeSyntheticRom();
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new ImageBattleScreenViewModel();
+            vm.LoadEntry();
+
+            // Capture original palette color[0] from ROM.
+            byte origLo = rom.Data[0x105000];
+            byte origHi = rom.Data[0x105001];
+
+            // Edit slot 0 to a known color (pure green = R0, G248, B0).
+            vm.SetR(0, 0);
+            vm.SetG(0, 248);
+            vm.SetB(0, 0);
+
+            var undoService = new UndoService();
+            undoService.Begin("Edit Palette");
+            bool wrote = vm.WritePalette();
+            undoService.Commit();
+            Assert.True(wrote, "WritePalette must succeed");
+
+            byte editedLo = rom.Data[0x105000];
+            byte editedHi = rom.Data[0x105001];
+            Assert.False(editedLo == origLo && editedHi == origHi,
+                "ROM bytes should have changed after palette write");
+
+            // Undo.
+            CoreState.Undo.RunUndo();
+            Assert.Equal(origLo, rom.Data[0x105000]);
+            Assert.Equal(origHi, rom.Data[0x105001]);
+
+            // CanRedo must be true after undo.
+            Assert.True(CoreState.Undo.CanRedo, "CanRedo must be true after undo");
+
+            // Redo.
+            CoreState.Undo.RunRedo();
+            Assert.Equal(editedLo, rom.Data[0x105000]);
+            Assert.Equal(editedHi, rom.Data[0x105001]);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
+    }
+
+    // -----------------------------------------------------------------
     // Phase 5 - Code-behind / write-handler assertions.
     // -----------------------------------------------------------------
 

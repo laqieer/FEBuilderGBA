@@ -124,29 +124,56 @@ public class ImagePalletParityTests
         Assert.Contains("AutomationId=\"ImagePallet_Redo_Button\"", axaml);
     }
 
+    // ===================================================================
+    // #994: Redo button is now wired to CoreState.Undo.RunRedo()
+    // ===================================================================
+
     /// <summary>
-    /// Redo is the sole remaining deferred affordance (Core has no
-    /// RunRedo() API yet); it must stay disabled. NOTE: Import / Export /
-    /// Clipboard were wired to PaletteCore + PaletteFormatConverter in
-    /// #777 and are now enabled (see
-    /// <see cref="View_PaletteIoButtons_AreEnabled"/>).
+    /// #994: the Redo button is now wired (not disabled) — the stale "#500 Core
+    /// has no RunRedo() API" blocker was removed. The button must carry
+    /// Click="Redo_Click" and must NOT contain IsEnabled="False".
     /// </summary>
-    [Theory]
-    [InlineData("ImagePallet_Redo_Button")]
-    public void View_DeferredButton_IsDisabledAndReferencesFollowupIssue(string automationId)
+    [Fact]
+    public void View_RedoButton_IsWiredAndEnabled()
     {
         string axaml = ReadAxaml();
-        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
-        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+        var rx = new System.Text.RegularExpressions.Regex(
+            "AutomationId=\"ImagePallet_Redo_Button\"[\\s\\S]*?/>",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+        System.Text.RegularExpressions.Match m = rx.Match(axaml);
+        Assert.True(m.Success, "Redo button tag not found");
+        Assert.Contains("Click=\"Redo_Click\"", m.Value);
+        Assert.DoesNotContain("IsEnabled=\"False\"", m.Value);
+    }
 
-        int elementStart = axaml.LastIndexOf('<', idx);
-        Assert.True(elementStart >= 0);
-        int elementEnd = FindElementEnd(axaml, elementStart);
-        Assert.True(elementEnd > elementStart);
-        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
-
-        Assert.Contains("IsEnabled=\"False\"", element);
-        Assert.Contains("#500", element);
+    /// <summary>
+    /// #994: the Redo_Click handler must call CoreState.Undo.RunRedo() and
+    /// guard on CanRedo. CanRedo must appear textually before RunRedo()
+    /// within the Redo_Click method body.
+    /// The stale "Core has no RunRedo" string must be gone.
+    /// </summary>
+    [Fact]
+    public void View_RedoHandler_CallsRunRedo()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        // Verify both calls exist in the Redo_Click method.
+        Assert.Matches(new System.Text.RegularExpressions.Regex(
+            @"void\s+Redo_Click[\s\S]*?CoreState\.Undo\.CanRedo",
+            System.Text.RegularExpressions.RegexOptions.Compiled), source);
+        Assert.Matches(new System.Text.RegularExpressions.Regex(
+            @"void\s+Redo_Click[\s\S]*?CoreState\.Undo\.RunRedo\(\)",
+            System.Text.RegularExpressions.RegexOptions.Compiled), source);
+        // Extract only the Redo_Click method body to check ordering.
+        // Find the method start, then the matching close brace.
+        int methodStart = source.IndexOf("void Redo_Click(", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0, "Redo_Click method not found");
+        // Find the first '!CoreState.Undo.CanRedo' after the method start.
+        int idxCanRedo = source.IndexOf("CoreState.Undo.CanRedo", methodStart, StringComparison.Ordinal);
+        int idxRunRedo = source.IndexOf("CoreState.Undo.RunRedo()", methodStart, StringComparison.Ordinal);
+        Assert.True(idxCanRedo >= 0 && idxRunRedo >= 0, "CanRedo and RunRedo must both be present");
+        Assert.True(idxCanRedo < idxRunRedo, "CanRedo must appear before RunRedo()");
+        // Stale strings must be gone.
+        Assert.DoesNotContain("Core has no RunRedo", source);
     }
 
     /// <summary>
@@ -433,6 +460,69 @@ public class ImagePalletParityTests
         Assert.Contains("Open<ImagePalletView>()", methodBody);
         Assert.Contains(".JumpTo(", methodBody);
         Assert.Contains("PalettePtr", methodBody);
+    }
+
+    // ===================================================================
+    // #994: Functional edit->undo->redo round-trip
+    // ===================================================================
+
+    /// <summary>
+    /// #994: write a palette, undo it, verify CanRedo is true, redo it,
+    /// verify the bytes are restored to the edited state.
+    /// </summary>
+    [Fact]
+    public void Palette_EditUndoRedo_RoundTrip()
+    {
+        var rom = MakeMinimalRomWithPaletteAt(0x100000u);
+        var prevRom = CoreState.ROM;
+        var prevUndo = CoreState.Undo;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
+            var vm = new ImagePalletViewModel();
+            vm.LoadEntry(0x100000u, 1, 0, null);
+
+            // Capture original bytes at slot 0.
+            byte origLo = rom.Data[0x100000];
+            byte origHi = rom.Data[0x100001];
+
+            // Edit slot 0 to a known color (pure green = 0, 248, 0).
+            var undoService = new UndoService();
+            undoService.Begin("Edit Palette");
+            vm.R1 = 0;
+            vm.G1 = 248;
+            vm.B1 = 0;
+            vm.Write();
+            undoService.Commit();
+
+            // ROM must have changed.
+            byte editedLo = rom.Data[0x100000];
+            byte editedHi = rom.Data[0x100001];
+            Assert.False(editedLo == origLo && editedHi == origHi,
+                "ROM bytes should have changed after the write");
+
+            // Undo — bytes must revert.
+            CoreState.Undo.RunUndo();
+            vm.LoadEntry(0x100000u, 1, 0, null);
+            Assert.Equal(origLo, rom.Data[0x100000]);
+            Assert.Equal(origHi, rom.Data[0x100001]);
+
+            // CanRedo must be true after undo.
+            Assert.True(CoreState.Undo.CanRedo, "CanRedo must be true after undo");
+
+            // Redo — bytes must return to the edited state.
+            CoreState.Undo.RunRedo();
+            vm.LoadEntry(0x100000u, 1, 0, null);
+            Assert.Equal(editedLo, rom.Data[0x100000]);
+            Assert.Equal(editedHi, rom.Data[0x100001]);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+        }
     }
 
     // ===================================================================
