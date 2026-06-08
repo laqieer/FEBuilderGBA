@@ -124,8 +124,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 // #1014: refresh the source-file affordance for the selected
                 // song (WF per-song "Song_" + hex(songId) ResourceCache key) so
                 // the Open Source File / Folder buttons show/hide for the
-                // recorded source. A -1 / unset id resolves to no recorded path.
-                _vm.RefreshSourceFile((uint)_vm.SelectedSongIndex);
+                // recorded source. When nothing is selected (SelectedSongIndex
+                // == -1) clear the affordance — do NOT cast -1 to 0xFFFFFFFF,
+                // which would query the bogus "Song_FFFFFFFF" key. #1058 review.
+                if (_vm.SelectedSongIndex < 0)
+                {
+                    _vm.SourceFilePath = string.Empty;
+                    _vm.IsSourceFileAvailable = false;
+                }
+                else
+                {
+                    _vm.RefreshSourceFile((uint)_vm.SelectedSongIndex);
+                }
                 UpdateUI();
             }
             catch (Exception ex)
@@ -421,7 +431,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     // per-song "Song_" + hex(songId) ResourceCache key so the
                     // Open Source File / Folder buttons become available. WF
                     // records ONLY on a successful import (here: after Commit).
-                    _vm.RecordSourceFile((uint)_vm.SelectedSongIndex, path);
+                    // Guard against an unselected song (SelectedSongIndex == -1)
+                    // so we never persist under the bogus "Song_FFFFFFFF" key. #1058 review.
+                    if (_vm.SelectedSongIndex >= 0)
+                        _vm.RecordSourceFile((uint)_vm.SelectedSongIndex, path);
                     UpdateUI();
                     CoreState.Services.ShowInfo(summary);
                 }
