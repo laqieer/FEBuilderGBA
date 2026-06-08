@@ -245,12 +245,11 @@ public class WorldMapImageParityTests
     // WorldMapImage_Main_Import_Button   — wired (#875, see View_ImportDarkButtons_AreWired)
     // WorldMapImage_Main_DarkImport_Button — wired (#875)
     // WorldMapImage_Main_DarkExport_Button — wired (#875)
+    // WorldMapImage_Main_DecreaseColor_Button — wired (#1013, see View_DecreaseColorButtons_AreWired)
+    // WorldMapImage_Main_OpenSource_Button / SelectSource_Button — wired (#1013, see View_SourceFileButtons_AreWired)
+    // WorldMapImage_Event_DecreaseColor_Button — wired (#1013)
     [InlineData("WorldMapImage_Main_Export_Button")]
-    [InlineData("WorldMapImage_Main_DecreaseColor_Button")]
-    [InlineData("WorldMapImage_Main_OpenSource_Button")]
-    [InlineData("WorldMapImage_Main_SelectSource_Button")]
     [InlineData("WorldMapImage_Event_Import_Button")]
-    [InlineData("WorldMapImage_Event_DecreaseColor_Button")]
     [InlineData("WorldMapImage_Mini_Import_Button")]
     [InlineData("WorldMapImage_PointIcon_Point1Import_Button")]
     [InlineData("WorldMapImage_PointIcon_Point2Import_Button")]
@@ -270,6 +269,97 @@ public class WorldMapImageParityTests
 
         Assert.Contains("IsEnabled=\"False\"", element);
         Assert.Contains("KnownGap", element);
+    }
+
+    /// <summary>
+    /// #1013: the Main + Event Decrease-Color Tool buttons are now wired
+    /// (previously KnownGap-disabled). Each must NOT be IsEnabled="False",
+    /// NOT reference KnownGap, and have a Click handler wired to the
+    /// corresponding code-behind handler (which opens DecreaseColorTSAToolView
+    /// + InitMethod 3/4).
+    /// </summary>
+    [Theory]
+    [InlineData("WorldMapImage_Main_DecreaseColor_Button", "MainDecreaseColor_Click", "InitMethod(3)")]
+    [InlineData("WorldMapImage_Event_DecreaseColor_Button", "EventDecreaseColor_Click", "InitMethod(4)")]
+    public void View_DecreaseColorButtons_AreWired(string automationId, string clickHandler, string initMethod)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("KnownGap", element);
+
+        // The click handler exists in the code-behind and routes through
+        // DecreaseColorTSAToolView with the correct InitMethod index.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains(clickHandler, source);
+        Assert.Contains("DecreaseColorTSAToolView", source);
+        Assert.Contains(initMethod, source);
+    }
+
+    /// <summary>
+    /// #1013: the Main Open Source File / Open Source Folder buttons are now
+    /// wired (previously KnownGap-disabled). Each must NOT be IsEnabled="False",
+    /// NOT reference KnownGap, be gated visible via
+    /// IsVisible="{Binding IsSourceFileAvailable}", and have a Click handler.
+    /// </summary>
+    [Theory]
+    [InlineData("WorldMapImage_Main_OpenSource_Button", "OpenSource_Click")]
+    [InlineData("WorldMapImage_Main_SelectSource_Button", "SelectSource_Click")]
+    public void View_SourceFileButtons_AreWired(string automationId, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
+        Assert.Contains("IsVisible=\"{Binding IsSourceFileAvailable}\"", element);
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("KnownGap", element);
+
+        // The click handler exists in the code-behind.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains(clickHandler, source);
+    }
+
+    /// <summary>
+    /// #1013: the main-import driver records the imported source-file path so
+    /// the Open Source File / Folder buttons become available. The dark-import
+    /// driver must NOT record one (WF dark import never updates ResourceCache).
+    /// </summary>
+    [Fact]
+    public void View_MainImportRecordsSource_DarkImportDoesNot()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        int mainIdx = source.IndexOf("DoMainImport", StringComparison.Ordinal);
+        Assert.True(mainIdx > 0);
+        int darkIdx = source.IndexOf("DoDarkImport", StringComparison.Ordinal);
+        Assert.True(darkIdx > 0);
+        // RecordSourceFile is called somewhere (main import path).
+        Assert.Contains("_vm.RecordSourceFile(imagePath)", source);
+        // The dark-import method body must NOT call RecordSourceFile. Find the
+        // public DoDarkImport task body and confirm it has no RecordSourceFile.
+        int darkBodyStart = source.IndexOf("public async System.Threading.Tasks.Task DoDarkImport", StringComparison.Ordinal);
+        Assert.True(darkBodyStart > 0);
+        // Scan to the next "public " method declaration after DoDarkImport.
+        int nextPublic = source.IndexOf("\n        public ", darkBodyStart + 10, StringComparison.Ordinal);
+        if (nextPublic < 0) nextPublic = source.Length;
+        string darkBody = source.Substring(darkBodyStart, nextPublic - darkBodyStart);
+        Assert.DoesNotContain("RecordSourceFile", darkBody);
     }
 
     /// <summary>
@@ -946,9 +1036,89 @@ public class WorldMapImageParityTests
         finally { CoreState.ROM = prev; }
     }
 
+    /// <summary>
+    /// #1013: RecordSourceFile writes the path under the fixed WF "WorldMap_"
+    /// ResourceCache key and sets IsSourceFileAvailable based on File.Exists;
+    /// RefreshSourceFile reads the same value back. A non-existent path leaves
+    /// IsSourceFileAvailable false (but SourceFilePath is still set).
+    /// </summary>
+    [Fact]
+    public void ViewModel_RecordAndRefreshSourceFile_RoundTripsViaResourceCache()
+    {
+        EnsureCoreStateBaseDirectory();
+        var prevRes = CoreState.ResourceCache;
+        string tempFile = Path.GetTempFileName();
+        try
+        {
+            var cache = new FEBuilderGBA.EtcCacheResource();
+            CoreState.ResourceCache = cache;
+
+            var vm = new WorldMapImageViewModel();
+
+            // Record a REAL temp file → available + path set.
+            vm.RecordSourceFile(tempFile);
+            Assert.Equal(tempFile, vm.SourceFilePath);
+            Assert.True(vm.IsSourceFileAvailable);
+
+            // Refresh reads the SAME value back from the "WorldMap_" key.
+            vm.SourceFilePath = string.Empty;
+            vm.IsSourceFileAvailable = false;
+            vm.RefreshSourceFile();
+            Assert.Equal(tempFile, vm.SourceFilePath);
+            Assert.True(vm.IsSourceFileAvailable);
+
+            // The fixed WF key is used (not per-index).
+            Assert.Equal(tempFile, cache.At("WorldMap_", string.Empty));
+
+            // A non-existent path → SourceFilePath set, but not available.
+            string missing = Path.Combine(Path.GetTempPath(), "nope_worldmap_xyz.png");
+            vm.RecordSourceFile(missing);
+            Assert.Equal(missing, vm.SourceFilePath);
+            Assert.False(vm.IsSourceFileAvailable);
+        }
+        finally
+        {
+            CoreState.ResourceCache = prevRes;
+            try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { /* best-effort cleanup */ }
+        }
+    }
+
+    /// <summary>
+    /// #1013: with no ResourceCache wired, RefreshSourceFile must clear the
+    /// affordance (false + empty path), never throw.
+    /// </summary>
+    [Fact]
+    public void ViewModel_RefreshSourceFile_NullCache_ClearsAffordance()
+    {
+        var prevRes = CoreState.ResourceCache;
+        try
+        {
+            CoreState.ResourceCache = null;
+            var vm = new WorldMapImageViewModel
+            {
+                SourceFilePath = "stale",
+                IsSourceFileAvailable = true,
+            };
+            vm.RefreshSourceFile();
+            Assert.False(vm.IsSourceFileAvailable);
+            Assert.Equal(string.Empty, vm.SourceFilePath);
+        }
+        finally { CoreState.ResourceCache = prevRes; }
+    }
+
     // ===================================================================
     // Helpers
     // ===================================================================
+
+    static void EnsureCoreStateBaseDirectory()
+    {
+        if (!string.IsNullOrEmpty(CoreState.BaseDirectory))
+            return;
+        string? assemblyDir = Path.GetDirectoryName(
+            System.Reflection.Assembly.GetExecutingAssembly().Location);
+        if (assemblyDir != null)
+            CoreState.BaseDirectory = assemblyDir;
+    }
 
     static int FindElementEnd(string axaml, int elementStart)
     {

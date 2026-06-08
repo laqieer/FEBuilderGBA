@@ -105,6 +105,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
 
+        // ---- #1013: Source-file affordance (mirrors ImageBGViewModel). WF
+        // WorldMapImageForm records the imported source-image path under the
+        // FIXED ResourceCache key "WorldMap_" (NOT per-index). Open Source
+        // File / Folder become available only when the recorded file exists. ----
+        const string SourceFileResourceKey = "WorldMap_";   // matches WF WorldMapImageForm
+        string _sourceFilePath = string.Empty;
+        bool _isSourceFileAvailable;
+        public string SourceFilePath { get => _sourceFilePath; set => SetField(ref _sourceFilePath, value); }
+        public bool IsSourceFileAvailable { get => _isSourceFileAvailable; set => SetField(ref _isSourceFileAvailable, value); }
+
+        /// <summary>Re-read the recorded World Map source-image path from ResourceCache (WF "WorldMap_" key).</summary>
+        public void RefreshSourceFile()
+        {
+            var cache = CoreState.ResourceCache as FEBuilderGBA.EtcCacheResource;
+            if (cache == null) { IsSourceFileAvailable = false; SourceFilePath = string.Empty; return; }
+            string path = cache.At(SourceFileResourceKey, string.Empty);
+            SourceFilePath = path ?? string.Empty;
+            IsSourceFileAvailable = !string.IsNullOrEmpty(SourceFilePath) && System.IO.File.Exists(SourceFilePath);
+        }
+
+        /// <summary>Record a new World Map source-image path after a successful MAIN import (WF ImportButton_Click).</summary>
+        public void RecordSourceFile(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            var cache = CoreState.ResourceCache as FEBuilderGBA.EtcCacheResource;
+            if (cache == null) return;
+            cache.Update(SourceFileResourceKey, path);
+            SourceFilePath = path;
+            IsSourceFileAvailable = System.IO.File.Exists(path);
+        }
+
         // ---- Reuse-based preview export gates (#843 NV5a) + main field map
         // (#846 NV5b) + county border (#849 NV5c). Each is set true only after a
         // successful render so the per-preview "Export PNG" button stays disabled
@@ -145,6 +176,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Point2ImagePtr = rom.u32(rom.RomInfo.worldmap_icon2_pointer);
             RoadImagePtr = rom.u32(rom.RomInfo.worldmap_road_tile_pointer);
             IconPalettePtr = rom.u32(rom.RomInfo.worldmap_icon_palette_pointer);
+            // #1013: re-populate the source-file affordance from ResourceCache
+            // (WF "WorldMap_" key) so Open Source File / Folder light up if a
+            // path was recorded by a previous import.
+            RefreshSourceFile();
             IsLoaded = true;
         }
 

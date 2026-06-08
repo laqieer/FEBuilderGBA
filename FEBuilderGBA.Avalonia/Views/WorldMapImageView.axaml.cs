@@ -13,6 +13,8 @@
 // A single top-level Undo button is present (Copilot CLI plan review C3 —
 // WinForms has no per-tab Undo; we don't introduce them either).
 using System;
+using System.Diagnostics;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Controls;
@@ -687,6 +689,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
                     _undoService.Commit();
                     _vm.MarkClean();
+                    // #1013: record the imported source-file path under the WF
+                    // "WorldMap_" ResourceCache key so Open Source File / Folder
+                    // become available. WF ImportButton_Click records ONLY on the
+                    // MAIN import (not the dark import).
+                    _vm.RecordSourceFile(imagePath);
                 }
                 catch (Exception ex)
                 {
@@ -919,6 +926,96 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Single interpolated string + full exception (Core Log.Error does
                 // not apply {0}/{1} substitution — see RenderInto).
                 Log.Error($"WorldMapImageView.ExportPreview({suggestedName}) failed: {ex}");
+            }
+        }
+
+        // ===================================================================
+        // #1013: Decrease Color Tool launchers (Main + Event tabs)
+        // ===================================================================
+
+        void MainDecreaseColor_Click(object? sender, RoutedEventArgs e)
+        {
+            // WF WorldMapImageForm.DecreaseColorTSAToolButton_Click → InitMethod(3) (world map main).
+            WindowManager.Instance.Open<DecreaseColorTSAToolView>().InitMethod(3);
+        }
+
+        void EventDecreaseColor_Click(object? sender, RoutedEventArgs e)
+        {
+            // WF DecreaseColorTSAToolForWorldmapEventButton_Click → InitMethod(4) (world map event).
+            WindowManager.Instance.Open<DecreaseColorTSAToolView>().InitMethod(4);
+        }
+
+        // ===================================================================
+        // #1013: Open Source File / Open Source Folder (Main tab)
+        // Mirrors ImageBGView.OpenSource_Click / SelectSource_Click. The
+        // recorded path lives in CoreState.ResourceCache under the FIXED WF
+        // "WorldMap_" key (see WorldMapImageViewModel). Buttons are gated
+        // visible only when IsSourceFileAvailable.
+        // ===================================================================
+
+        void OpenSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_vm.SourceFilePath))
+                {
+                    CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                if (!File.Exists(_vm.SourceFilePath))
+                {
+                    // The recorded path no longer exists — clear availability so the
+                    // buttons hide (IsVisible binding) and report the real cause.
+                    _vm.IsSourceFileAvailable = false;
+                    CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
+                    return;
+                }
+                var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapImageView.OpenSource_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Failed to open source file: {ex.Message}");
+            }
+        }
+
+        void SelectSource_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_vm.SourceFilePath))
+                {
+                    CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                if (!File.Exists(_vm.SourceFilePath))
+                {
+                    _vm.IsSourceFileAvailable = false;
+                    CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
+                    return;
+                }
+                if (OperatingSystem.IsWindows())
+                {
+                    var psi = new ProcessStartInfo("explorer.exe",
+                        $"/select,\"{_vm.SourceFilePath}\"")
+                        { UseShellExecute = true };
+                    Process.Start(psi);
+                }
+                else
+                {
+                    string? folder = Path.GetDirectoryName(_vm.SourceFilePath);
+                    if (!string.IsNullOrEmpty(folder))
+                    {
+                        var psi = new ProcessStartInfo(folder) { UseShellExecute = true };
+                        Process.Start(psi);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("WorldMapImageView.SelectSource_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError($"Failed to open source folder: {ex.Message}");
             }
         }
 

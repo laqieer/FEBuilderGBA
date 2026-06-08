@@ -112,16 +112,15 @@
 
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_DecreaseColor_Button"
                     Content="Decrease Color Tool"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: DecreaseColorTSAToolForm not yet ported." />
+                    Click="MainDecreaseColor_Click" />
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_OpenSource_Button"
                     Content="Open Source File"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: ResourceCache source-file feature not yet wired in Avalonia." />
+                    IsVisible="{Binding IsSourceFileAvailable}"
+                    Click="OpenSource_Click" />
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_SelectSource_Button"
                     Content="Open Source Folder"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: ResourceCache source-file feature not yet wired in Avalonia." />
+                    IsVisible="{Binding IsSourceFileAvailable}"
+                    Click="SelectSource_Click" />
           </StackPanel>
 
           <!-- Col 1: live main field-map preview (#846 NV5b — FE8-only, 480x320)
@@ -179,8 +178,7 @@
                     Click="EventExport_Click" />
             <Button AutomationProperties.AutomationId="WorldMapImage_Event_DecreaseColor_Button"
                     Content="Decrease Color Tool"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: DecreaseColorTSAToolForm not yet ported." />
+                    Click="EventDecreaseColor_Click" />
           </StackPanel>
 
           <!-- #843: live event preview (32x20 tiles = 256x160) via

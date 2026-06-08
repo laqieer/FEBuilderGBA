@@ -65,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// honest so a future full port can pick the mode without
         /// breaking existing callers.
         /// </summary>
-        /// <param name="methodIndex">WF method index — 2 = Battle BG.</param>
+        /// <param name="methodIndex">WF method index — 2 = Battle BG, 3 = world map main, 4 = world map event.</param>
         public void InitMethod(int methodIndex)
         {
             _vm.Method = methodIndex;
