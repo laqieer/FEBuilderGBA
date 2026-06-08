@@ -554,11 +554,38 @@ public class SkillConfigFE8NVer2SkillParityTests
         Assert.Contains("AutomationId=\"SkillConfigFE8NVer2Skill_JumpToEditor_Button\"", axaml);
     }
 
+    /// <summary>
+    /// #997: the List Expand button is intentionally DISABLED with an honest
+    /// "not yet implemented" tooltip (functional table expansion is a documented
+    /// follow-up — the skill-config tables are multi-table / multi-pointer per
+    /// patch variant). Asserts the disabled state, the removed no-op Click
+    /// handler, and that the stale #500 placeholder tooltip is gone.
+    /// </summary>
     [Fact]
-    public void View_HasListExpandButton_Wired()
+    public void View_ListExpandButton_IsDisabled()
     {
         string axaml = ReadAxaml();
-        Assert.Contains("AutomationId=\"SkillConfigFE8NVer2Skill_ListExpand_Button\"", axaml);
+
+        // Isolate the self-closing button element (`[^>]` spans newlines, so the
+        // match captures the whole element regardless of attribute wrapping).
+        var match = System.Text.RegularExpressions.Regex.Match(
+            axaml, "<Button[^>]*SkillConfigFE8NVer2Skill_ListExpand_Button[^>]*?/>");
+        Assert.True(match.Success, "List Expand button element not found in AXAML.");
+        string button = match.Value;
+
+        Assert.Contains("AutomationId=\"SkillConfigFE8NVer2Skill_ListExpand_Button\"", button);
+        Assert.Contains("IsEnabled=\"False\"", button);
+        Assert.DoesNotContain("Click=", button);
+
+        // The stale #500 / "Pending Core extraction" placeholder must be gone from
+        // the List Expand button element (other unrelated sibling buttons in this
+        // view keep their own #500 placeholders — out of scope for #997).
+        Assert.DoesNotContain("#500", button);
+        Assert.DoesNotContain("Pending Core extraction", button);
+
+        // The honest "not yet implemented" tooltip must live on the enabled wrapper.
+        Assert.Contains("ToolTip.Tip=", axaml);
+        Assert.Contains("List expansion is not yet implemented for the skill-config tables", axaml);
     }
 
     /// <summary>
