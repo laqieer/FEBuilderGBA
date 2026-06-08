@@ -455,12 +455,10 @@ Specialized utilities for different graphic types:
   Background Image editor's References list). `MakeListByUseBG(rom, bgId)` builds the `bgId→refs` map
   once per loaded ROM. **Cache-poisoning guard (#992):** pre-checks scanner prerequisites and returns
   empty WITHOUT caching when unsatisfied, so an early/headless call can't pin a permanently-empty cache.
-- `BattleAnimeRendererCore.CountAnimationPaletteBanks` (Core, READ-ONLY) — 32-color-mode detector
-  (#1033) replacing WF `ImageUtil.GetPalette16Count(DrawBitmap)`: `MaxOamPaletteBank` scans an OAM list
-  (same loop/terminators as `DrawOAMSprites`) for the max non-affine, non-bug (`bank<4`) 16-color bank;
-  `CountAnimationPaletteBanks` walks ALL sections/frames → `max(bank)+1`. Animation-wide CONSERVATIVE
-  (over-warns, never under-warns); affine sprites excluded (WF draws them at palette shift 0); safe
-  default 1 (no banner) on any guard failure. Drives the Avalonia Battle Animation Palette warning banner.
+- `BattleAnimeRendererCore.CountAnimationPaletteBanks`/`MaxOamPaletteBank` (Core, READ-ONLY) — 32-color
+  banner detector (#1033) replacing WF `GetPalette16Count`: scans all sections/frames' OAM for the max
+  non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner). Animation-wide CONSERVATIVE
+  (over-warns, never under-warns); affine excluded (WF draws them at shift 0); safe default 1 on guard fail.
 
 ### Caching System
 
