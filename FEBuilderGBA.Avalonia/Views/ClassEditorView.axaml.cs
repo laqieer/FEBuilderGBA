@@ -966,11 +966,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 var mgr = MakeCsvManager();
                 string? csv = await mgr.ReadCsvForUiAsync(this);
                 if (csv == null) return;
+                // #1016: thread the SELECTED class id (0-based AddressList
+                // index) so the FE8U MagicSplit MAG column is read into the
+                // correct record (WriteClass*MagicExtends index by cid).
+                int selIdx = ClassList.SelectedOriginalIndex;
+                uint? selUid = selIdx >= 0 ? (uint)selIdx : (uint?)null;
                 _undoService.Begin(R._("Import Class CSV"));
                 int written;
                 try
                 {
-                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr });
+                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr }, selUid);
                     _undoService.Commit();
                 }
                 catch { _undoService.Rollback(); throw; }
