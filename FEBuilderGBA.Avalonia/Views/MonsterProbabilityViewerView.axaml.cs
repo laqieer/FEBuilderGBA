@@ -13,6 +13,15 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly MonsterProbabilityViewerViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // True once Opened -> LoadList() has populated EntryList. A NavigateTo
+        // request that arrives BEFORE the list loads (the WindowManager.Navigate
+        // flow opens the window then immediately calls NavigateTo, but Avalonia
+        // raises Opened asynchronously after layout) is stashed in
+        // _pendingNavigateAddr and replayed once LoadList completes — otherwise
+        // EntryList.SelectAddress no-ops against the still-empty list (#1018).
+        bool _listLoaded;
+        uint? _pendingNavigateAddr;
+
         public string ViewTitle => "Monster Probability";
         public bool IsLoaded => _vm.CanWrite;
 
@@ -30,12 +39,20 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var items = _vm.LoadMonsterProbabilityList();
                 EntryList.SetItems(items);
+                _listLoaded = true;
             }
             catch (Exception ex)
             {
                 Log.Error("MonsterProbabilityViewerView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+
+            // Replay a navigation requested before the list was ready.
+            if (_pendingNavigateAddr is uint pending)
+            {
+                _pendingNavigateAddr = null;
+                EntryList.SelectAddress(pending);
+            }
         }
 
         void OnSelected(uint addr)
@@ -185,7 +202,19 @@ namespace FEBuilderGBA.Avalonia.Views
         async void ClassId5_Pick(object? sender, RoutedEventArgs e) => await PickClassIdInto(ClassId5Box);
         void ClassId5_ValueChanged(object? sender, IdFieldValueChangedEventArgs e) => RefreshClassName(ClassId5Box, e.NewValue);
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void NavigateTo(uint address)
+        {
+            // When the list has not yet loaded (WindowManager.Navigate calls
+            // NavigateTo synchronously right after Show(), before Avalonia
+            // raises Opened), stash the address so LoadList() can replay the
+            // selection — a direct SelectAddress would no-op (#1018).
+            if (!_listLoaded)
+            {
+                _pendingNavigateAddr = address;
+                return;
+            }
+            EntryList.SelectAddress(address);
+        }
         public void SelectFirstItem() => EntryList.SelectFirst();
         public ViewModelBase? DataViewModel => _vm;
     }

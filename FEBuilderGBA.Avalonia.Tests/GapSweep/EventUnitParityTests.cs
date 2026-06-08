@@ -688,6 +688,164 @@ public class EventUnitParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1018 — FE8 random-monster jump pre-selects the class_id row.
+    //
+    // WF: InputFormRef.JumpForm<MonsterProbabilityForm>(B1, "AddressList", B1)
+    // selects the AddressList row whose INDEX == class_id (B1). The Avalonia
+    // resolver maps that row index to the matching Monster Probability entry's
+    // address over LoadMonsterProbabilityList's 12-byte stride.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ResolveAddressByClassIndex_InRange_ReturnsBasePlusStride()
+    {
+        var vm = new MonsterProbabilityViewerViewModel();
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            const uint baseAddr = 0x00100000u; // safe offset, clear of the pointer slot
+            const int count = 5;
+            // Plant the GBA pointer to the table base. Read the pointer-slot
+            // offset from RomInfo (not a hard-coded constant) so the test stays
+            // correct if ROMFE8U.monster_probability_pointer ever changes.
+            uint ptrSlot = rom.RomInfo.monster_probability_pointer;
+            rom.write_p32(ptrSlot, baseAddr);
+            // Plant 5 non-terminated 12-byte entries (first byte != 0xFF so the
+            // u8==0xFF terminator in LoadMonsterProbabilityList does not stop early).
+            for (uint i = 0; i < count; i++)
+            {
+                uint entry = baseAddr + i * 12u;
+                rom.write_u8(entry, i + 1u); // B0 (class id slot 1), never 0xFF
+                // remaining 11 bytes stay 0 — fine, only the terminator byte matters
+            }
+
+            // Each in-range class_id index k resolves to base + k*12.
+            for (uint k = 0; k < count; k++)
+            {
+                Assert.Equal(baseAddr + k * 12u, vm.ResolveAddressByClassIndex(k));
+            }
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ResolveAddressByClassIndex_OutOfRange_ReturnsNotFound()
+    {
+        var vm = new MonsterProbabilityViewerViewModel();
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            const uint baseAddr = 0x00100000u;
+            const int count = 3;
+            // Read the pointer-slot offset from RomInfo (not a hard-coded
+            // constant) so the test follows ROMFE8U if the offset ever changes.
+            uint ptrSlot = rom.RomInfo.monster_probability_pointer;
+            rom.write_p32(ptrSlot, baseAddr);
+            for (uint i = 0; i < count; i++)
+            {
+                rom.write_u8(baseAddr + i * 12u, i + 1u);
+            }
+            // Terminate the table right after entry #3 so LoadMonsterProbabilityList
+            // yields exactly 3 rows.
+            rom.write_u8(baseAddr + (uint)count * 12u, 0xFF);
+
+            // k == count and k > count are out of range.
+            Assert.Equal(U.NOT_FOUND, vm.ResolveAddressByClassIndex((uint)count));
+            Assert.Equal(U.NOT_FOUND, vm.ResolveAddressByClassIndex((uint)count + 7u));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ResolveAddressByClassIndex_NoTable_ReturnsNotFound()
+    {
+        // A fresh FE8U ROM has an all-zero pointer slot, so the table base
+        // resolves to 0 (fails isSafetyOffset) and the list is empty — any
+        // class_id index must return NOT_FOUND with no exception.
+        var vm = new MonsterProbabilityViewerViewModel();
+        ROM rom = MakeFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            Assert.Equal(U.NOT_FOUND, vm.ResolveAddressByClassIndex(0u));
+            Assert.Equal(U.NOT_FOUND, vm.ResolveAddressByClassIndex(42u));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void View_JumpMonsterProb_ResolvesClassIndexAndNavigates()
+    {
+        // The View's JumpMonsterProb_Click must read B1 from the LIVE control
+        // (ClassIDBox.Value), resolve the class_id row index via
+        // ResolveAddressByClassIndex, and Navigate to the
+        // MonsterProbabilityViewerView; the stale "does not currently expose
+        // row-index navigation" limitation comment must be gone (#1018).
+        string repoRoot = FindRepoRoot();
+        string codeBehindPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "EventUnitView.axaml.cs");
+        string source = File.ReadAllText(codeBehindPath);
+
+        // Extract just the handler body so the "no stale VM read" assertion is
+        // scoped to this handler (other handlers legitimately read _vm.ClassID).
+        var handlerMatch = Regex.Match(
+            source,
+            @"void\s+JumpMonsterProb_Click\([^)]*\)\s*\{(?<body>[\s\S]*?)\n        \}",
+            RegexOptions.Singleline);
+        Assert.True(handlerMatch.Success, "JumpMonsterProb_Click handler not found");
+        string body = handlerMatch.Groups["body"].Value;
+
+        // FIX 1: reads the LIVE displayed control (ClassIDBox.Value), like WF
+        // (this.B1.Value) and the sibling jump handlers (UnitIDBox.Value) — not
+        // the stale-on-edit _vm.ClassID that only syncs on load / Write.
+        Assert.True(
+            body.Contains("ClassIDBox.Value"),
+            "JumpMonsterProb_Click must read the live ClassIDBox.Value (B1)");
+        Assert.False(
+            body.Contains("_vm.ClassID"),
+            "JumpMonsterProb_Click must NOT read the stale _vm.ClassID; use the live ClassIDBox.Value");
+        Assert.True(
+            body.Contains("ResolveAddressByClassIndex("),
+            "JumpMonsterProb_Click must resolve the class_id row index");
+        Assert.True(
+            body.Contains("Navigate<MonsterProbabilityViewerView>("),
+            "JumpMonsterProb_Click must Navigate to the MonsterProbabilityViewerView");
+        Assert.False(
+            source.Contains("does not currently expose row-index navigation"),
+            "stale 'does not currently expose row-index navigation' comment must be removed");
+    }
+
+    [Fact]
+    public void MonsterProbabilityView_NavigateTo_StashesPendingAddressBeforeListLoads()
+    {
+        // The viewer must defer a NavigateTo that arrives before the list loads
+        // (WindowManager.Navigate opens then immediately NavigateTo, but Avalonia
+        // raises Opened asynchronously) and replay it in LoadList — otherwise
+        // SelectAddress no-ops against the empty list (#1018 timing fix).
+        string repoRoot = FindRepoRoot();
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "MonsterProbabilityViewerView.axaml.cs");
+        string source = File.ReadAllText(viewPath);
+
+        // NavigateTo stashes the address into _pendingNavigateAddr when the list
+        // has not loaded yet.
+        Assert.Matches(
+            new Regex(@"void\s+NavigateTo\(uint\s+\w+\)\s*\{[\s\S]*?_listLoaded[\s\S]*?_pendingNavigateAddr\s*=", RegexOptions.Singleline),
+            source);
+        // LoadList replays the stashed address via SelectAddress.
+        Assert.Matches(
+            new Regex(@"_pendingNavigateAddr\s+is\s+uint[\s\S]*?SelectAddress\(", RegexOptions.Singleline),
+            source);
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

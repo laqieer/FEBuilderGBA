@@ -521,12 +521,24 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 // WF: InputFormRef.JumpForm<MonsterProbabilityForm>((uint)this.B1.Value, "AddressList", this.B1)
-                // The class_id (B1) is used as the row index in MonsterProbability's
-                // AddressList for pre-selection. We open the viewer without
-                // an explicit address because the Avalonia equivalent does
-                // not currently expose row-index navigation (tracked as a
-                // known limitation — see PR body).
-                WindowManager.Instance.Open<MonsterProbabilityViewerView>();
+                // The class_id (B1) is used as the AddressList ROW INDEX for
+                // pre-selection (selectedID == class_id). We resolve that row
+                // index to the matching Monster Probability entry address via
+                // ResolveAddressByClassIndex (LoadMonsterProbabilityList's
+                // 12-byte stride) and Navigate so the viewer opens on the
+                // class_id-indexed row, falling back to a plain open when the
+                // class_id is out of range / the table is unavailable.
+                // Read the LIVE control (B1) like WF (`this.B1.Value`) and the
+                // sibling jump handlers (UnitIDBox.Value): the VM's cached
+                // class_id only syncs from ClassIDBox on load / to the VM on
+                // Write, so reading it would be STALE if the user edits B1 then
+                // jumps before writing — always read the displayed control.
+                uint classId = (uint)(ClassIDBox.Value ?? 0);  // B1
+                uint addr = new MonsterProbabilityViewerViewModel().ResolveAddressByClassIndex(classId);
+                if (addr != U.NOT_FOUND)
+                    WindowManager.Instance.Navigate<MonsterProbabilityViewerView>(addr);
+                else
+                    WindowManager.Instance.Open<MonsterProbabilityViewerView>();
             }
             catch (Exception ex)
             {
