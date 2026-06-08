@@ -893,34 +893,35 @@ public class ImageMapActionAnimationParityTests
         uint sigAddr = pointerAddr + 4;
         canonicalSlot = pointerAddr;
 
-        // Canonical pointer (GBA format = base + 0x08000000).
-        BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, pointerAddr);
-        sig.CopyTo(bytes, sigAddr);
+        // Canonical pointer (GBA format = base + 0x08000000). Cast the buffer
+        // index to int (the | 0x08000000u value stays uint).
+        BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, (int)pointerAddr);
+        sig.CopyTo(bytes, (int)sigAddr);
 
         // Table rows: row 0 = 0 (reserved-null), rows 1..rowCount-1 = valid
         // pointers (per-row distinct marker), row `rowCount` = 0xFFFFFFFF
         // terminator so LoadList stops at exactly `rowCount` rows.
         uint size = ImageMapActionAnimationViewModel.SIZE; // 8
-        BitConverter.GetBytes(0u).CopyTo(bytes, LdrTableBase + 0);
+        BitConverter.GetBytes(0u).CopyTo(bytes, (int)(LdrTableBase + 0));
         for (int i = 1; i < rowCount; i++)
         {
             uint row = LdrTableBase + (uint)i * size;
-            BitConverter.GetBytes((0x00200000u + (uint)i * 0x100u) | 0x08000000u).CopyTo(bytes, row + 0);
+            BitConverter.GetBytes((0x00200000u + (uint)i * 0x100u) | 0x08000000u).CopyTo(bytes, (int)(row + 0));
         }
-        BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(bytes, LdrTableBase + (uint)rowCount * size);
+        BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(bytes, (int)(LdrTableBase + (uint)rowCount * size));
 
         // Known 0xFF free region for ExpandTableTo to relocate into.
         for (int i = 0; i < 0x4000; i++)
-            bytes[LdrFreeRegion + i] = 0xFF;
+            bytes[(int)(LdrFreeRegion + i)] = 0xFF;
 
         if (plantSecondaryRefs)
         {
             // SECOND raw 32-bit pointer to LdrTableBase.
-            BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, LdrRawSlot);
+            BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, (int)LdrRawSlot);
             // ARM Thumb LDR r0,[pc,#0] (0x4800) + its literal-pool slot.
-            bytes[LdrInstr + 0] = 0x00;
-            bytes[LdrInstr + 1] = 0x48;
-            BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, LdrLiteralSlot);
+            bytes[(int)(LdrInstr + 0)] = 0x00;
+            bytes[(int)(LdrInstr + 1)] = 0x48;
+            BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, (int)LdrLiteralSlot);
         }
 
         var rom = new ROM();

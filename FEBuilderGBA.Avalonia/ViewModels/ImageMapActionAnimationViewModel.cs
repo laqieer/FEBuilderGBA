@@ -554,8 +554,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // moved. RepointAllReferences returning 0 (clean ROM, no secondary
             // refs) is SUCCESS — do NOT roll back on 0. The canonical slot now
             // holds the new base and is therefore NOT re-matched (no double-write).
-            // MUST be the LAST ROM-mutating call.
-            DataExpansionCore.RepointAllReferences(rom, oldBase, result.NewBaseAddress, undo);  // #1025: also repoint raw + LDR-literal refs
+            //
+            // Pass null so RepointAllReferences uses the View's ambient
+            // UndoService scope rather than opening a second ROM.BeginUndoScope
+            // (overwrite-style; would clear the ambient scope on dispose). The
+            // caller always wraps ExpandList in UndoService.Begin, whose ambient
+            // scope auto-tracks every rom.write_* RepointAllReferences performs.
+            DataExpansionCore.RepointAllReferences(rom, oldBase, result.NewBaseAddress, null);  // #1025: also repoint raw + LDR-literal refs
 
             // Refresh the read-config from the new pointer base (NOT a ROM write).
             ReadStartAddress = result.NewBaseAddress;
