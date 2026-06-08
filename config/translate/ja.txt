@@ -10253,3 +10253,9 @@ ROMに取り込む
 グレー
 :Four Army
 4軍
+
+:FE8N Ver1 has no icon import/export — WinForms SkillConfigFE8NSkillForm is render-only, and this variant's icon address lacks the 0x100 page offset v2/v3 use. Disabled by design (#1008).
+FE8N Ver1 にはアイコンのインポート/エクスポートがありません — WinForms の SkillConfigFE8NSkillForm は表示専用であり、このバリアントのアイコンアドレスには v2/v3 が使用する 0x100 ページオフセットがありません。設計上無効 (#1008)。
+
+:FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008).
+FE8N Ver1 には WinForms でアニメーションポインタやアニメーションI/Oがありません（表示専用）。設計上無効 (#1008)。

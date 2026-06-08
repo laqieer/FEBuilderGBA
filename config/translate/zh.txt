@@ -24085,3 +24085,9 @@ AI脚本已导出到:
 灰色
 :Four Army
 第四军
+
+:FE8N Ver1 has no icon import/export — WinForms SkillConfigFE8NSkillForm is render-only, and this variant's icon address lacks the 0x100 page offset v2/v3 use. Disabled by design (#1008).
+FE8N Ver1 没有图标导入/导出功能 — WinForms 的 SkillConfigFE8NSkillForm 仅供显示，此变体的图标地址缺少 v2/v3 使用的 0x100 页面偏移。设计上已禁用 (#1008)。
+
+:FE8N Ver1 has no animation pointer or animation I/O in WinForms (render-only). Disabled by design (#1008).
+FE8N Ver1 在 WinForms 中没有动画指针或动画 I/O（仅供显示）。设计上已禁用 (#1008)。

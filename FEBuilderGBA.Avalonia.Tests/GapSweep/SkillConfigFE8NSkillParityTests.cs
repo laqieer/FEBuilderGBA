@@ -1454,4 +1454,97 @@ public class SkillConfigFE8NSkillParityTests
             throw new InvalidOperationException("Could not find FEBuilderGBA.sln from test base directory");
         return dir;
     }
+
+    // -----------------------------------------------------------------
+    // #1008 - FE8N Ver1 Animation/Image I/O buttons disabled by design.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// The four Image/Animation Import/Export buttons must carry IsEnabled="False"
+    /// in the Ver1 AXAML (no-op buttons disabled by design, #1008), and must
+    /// carry honest tooltips that say "Disabled by design" / "render-only"
+    /// rather than the stale "#500"/"Pending Core extraction" text.
+    /// </summary>
+    [Fact]
+    public void View_Fe8nVer1_AnimationAndImageIoButtons_AreDisabled()
+    {
+        string axaml = ReadAxaml();
+        string[] buttonIds = new[]
+        {
+            "SkillConfigFE8NSkill_ImageImport_Button",
+            "SkillConfigFE8NSkill_ImageExport_Button",
+            "SkillConfigFE8NSkill_AnimationImport_Button",
+            "SkillConfigFE8NSkill_AnimationExport_Button",
+        };
+
+        foreach (string buttonId in buttonIds)
+        {
+            // Scope to the exact <Button .../> element containing this AutomationId.
+            int idIdx = axaml.IndexOf(buttonId, StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, $"AutomationId '{buttonId}' not found in AXAML");
+
+            int btnStart = axaml.LastIndexOf("<Button", idIdx, StringComparison.Ordinal);
+            Assert.True(btnStart >= 0, $"Opening <Button tag not found before '{buttonId}'");
+
+            int btnEnd = axaml.IndexOf("/>", idIdx, StringComparison.Ordinal);
+            Assert.True(btnEnd >= 0, $"Closing /> not found after '{buttonId}'");
+
+            string btnElement = axaml.Substring(btnStart, btnEnd - btnStart + 2);
+
+            // Must be disabled.
+            Assert.True(btnElement.Contains("IsEnabled=\"False\""),
+                $"Button '{buttonId}' must carry IsEnabled=\"False\" (#1008)");
+
+            // Must NOT contain the stale #500 / "Pending Core extraction" tooltip.
+            Assert.False(btnElement.Contains("#500"),
+                $"Button '{buttonId}' must not reference the stale #500 tooltip");
+            Assert.False(btnElement.Contains("Pending Core extraction"),
+                $"Button '{buttonId}' must not carry the stale 'Pending Core extraction' tooltip");
+
+            // Must contain an honest disabled-by-design explanation.
+            bool hasDisabledByDesign = btnElement.Contains("Disabled by design")
+                || btnElement.Contains("render-only");
+            Assert.True(hasDisabledByDesign,
+                $"Button '{buttonId}' tooltip must mention 'Disabled by design' or 'render-only' (#1008)");
+        }
+    }
+
+    /// <summary>
+    /// Negative guard: the four equivalent I/O buttons in the Ver2 view must NOT
+    /// carry IsEnabled="False" — proves the disable did not leak from Ver1 to Ver2
+    /// (Ver2 has real wiring through SkillConfigIconIoHelper / SkillAnimeHelper).
+    /// </summary>
+    [Fact]
+    public void View_Fe8nVer2_IoButtons_StayEnabled()
+    {
+        string repoRoot = FindRepoRoot();
+        string ver2Axaml = File.ReadAllText(Path.Combine(repoRoot, "FEBuilderGBA.Avalonia",
+            "Views", "SkillConfigFE8NVer2SkillView.axaml"));
+
+        string[] buttonIds = new[]
+        {
+            "SkillConfigFE8NVer2Skill_ImageImport_Button",
+            "SkillConfigFE8NVer2Skill_ImageExport_Button",
+            "SkillConfigFE8NVer2Skill_AnimationImport_Button",
+            "SkillConfigFE8NVer2Skill_AnimationExport_Button",
+        };
+
+        foreach (string buttonId in buttonIds)
+        {
+            int idIdx = ver2Axaml.IndexOf(buttonId, StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, $"AutomationId '{buttonId}' not found in Ver2 AXAML");
+
+            int btnStart = ver2Axaml.LastIndexOf("<Button", idIdx, StringComparison.Ordinal);
+            Assert.True(btnStart >= 0, $"Opening <Button tag not found before '{buttonId}'");
+
+            int btnEnd = ver2Axaml.IndexOf("/>", idIdx, StringComparison.Ordinal);
+            Assert.True(btnEnd >= 0, $"Closing /> not found after '{buttonId}'");
+
+            string btnElement = ver2Axaml.Substring(btnStart, btnEnd - btnStart + 2);
+
+            // Ver2 buttons must NOT be disabled.
+            Assert.False(btnElement.Contains("IsEnabled=\"False\""),
+                $"Ver2 button '{buttonId}' must NOT carry IsEnabled=\"False\" — disable must not leak from Ver1 to Ver2");
+        }
+    }
 }
