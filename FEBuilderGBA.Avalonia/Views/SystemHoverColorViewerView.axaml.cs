@@ -62,13 +62,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void GBAColorBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
         {
-            // Live-preview: update swatch from current GBAColorBox value without writing to ROM.
-            uint c = (uint)(GBAColorBox.Value ?? 0);
-            uint r5 = c & 0x1F;
-            uint g5 = (c >> 5) & 0x1F;
-            uint b5 = (c >> 10) & 0x1F;
-            ColorPreview.Background = new SolidColorBrush(
-                Color.FromRgb((byte)(r5 * 8), (byte)(g5 * 8), (byte)(b5 * 8)));
+            // Live-preview: push the edited GBA Color into the VM so the bound
+            // read-only R/G/B NumericUpDowns re-decode and update, then refresh
+            // the swatch. The VM's GBAColor setter re-decodes ColorR/G/B; no ROM
+            // write happens here (that's deferred to Write_Click).
+            _vm.GBAColor = (uint)(GBAColorBox.Value ?? 0);
+            RefreshSwatch();
         }
 
         void RefreshSwatch()

@@ -137,6 +137,30 @@ public class SystemHoverColorViewerParityTests
     }
 
     // -----------------------------------------------------------------------
+    // VM live-sync: setting GBAColor keeps ColorR/G/B decoded in sync (#1044)
+    // -----------------------------------------------------------------------
+
+    [Theory]
+    [InlineData((ushort)0x0000)]   // black
+    [InlineData((ushort)0x7FFF)]   // white (R=G=B=31)
+    [InlineData((ushort)0x001F)]   // pure red  (R=31)
+    [InlineData((ushort)0x03E0)]   // pure green (G=31)
+    [InlineData((ushort)0x7C00)]   // pure blue  (B=31)
+    [InlineData((ushort)0x5678)]   // mixed
+    public void VM_SetGBAColor_KeepsColorChannelsInSync(ushort value)
+    {
+        // No ROM / CurrentAddr needed: this proves the property setter re-decodes
+        // ColorR/G/B live, so the View's bound NUDs update while editing — before
+        // any Write. (Copilot bot review on PR #1044.)
+        var vm = new SystemHoverColorViewerViewModel();
+        vm.GBAColor = value;
+
+        Assert.Equal((byte)((value & 0x1F) * 8), vm.ColorR);
+        Assert.Equal((byte)(((value >> 5) & 0x1F) * 8), vm.ColorG);
+        Assert.Equal((byte)(((value >> 10) & 0x1F) * 8), vm.ColorB);
+    }
+
+    // -----------------------------------------------------------------------
     // VM guard: Write returns NOT_FOUND when CanWrite==false or addr==0
     // -----------------------------------------------------------------------
 

@@ -29,8 +29,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentColor { get => _currentColor; set => SetField(ref _currentColor, value); }
         public string[] FilterNames => _filterNames;
 
-        /// <summary>Editable GBA BGR555 color value (0–65535).</summary>
-        public uint GBAColor { get => _gbaColor; set => SetField(ref _gbaColor, value); }
+        /// <summary>
+        /// Editable GBA BGR555 color value (0–65535).
+        /// Setting it keeps the read-only ColorR/G/B channels in sync so the
+        /// bound NumericUpDowns + swatch update live while the user edits, without
+        /// touching ROM or the persisted StatusMessage breakdown.
+        /// </summary>
+        public uint GBAColor
+        {
+            get => _gbaColor;
+            set
+            {
+                if (SetField(ref _gbaColor, value))
+                    DecodeAndSetRGB(value);
+            }
+        }
 
         /// <summary>Read-only decoded red channel (0–248, step 8).</summary>
         public byte ColorR { get => _colorR; set => SetField(ref _colorR, value); }
