@@ -29,10 +29,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isLoaded;
         bool _isLoading;
 
-        // Display-only disassembly backing state (#757). Populated by
-        // DisassembleScript() and kept around for possible future row
-        // selection. NO edit/write state lives here — opcode write-back is
-        // still deferred (see Write()/Write_Click).
+        // Display-only disassembly backing state. Populated by
+        // DisassembleScript() (#757) and edited in place by the per-row /
+        // structural helpers; opcode write-back IS implemented in
+        // WriteScript() (#760), which serializes these rows back to the ROM.
+        // These two lists are the display-only backing model for the
+        // Disassembly list — the canonical edit state, not a deferred stub.
         readonly List<EventScript.OneCode> _disassembled = new();
         readonly List<uint> _rowOffsets = new();
 
@@ -1070,6 +1072,57 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// The View uses this to pick a post-edit selection after New/Remove
         /// without re-materializing the display lines.</summary>
         public int RowCount => _disassembled.Count;
+
+        // ----------------------------------------------------------------
+        // List expansion (#1020). Mirrors WF
+        // AIScriptForm.AddressListExpandsEventNoCopyPointer.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Expand the active AI pointer table (ai1 when FilterIndex==0, ai2 when 1)
+        /// to <paramref name="newCount"/> 4-byte pointer slots. Mirrors WF
+        /// <c>AIScriptForm.AddressListExpandsEventNoCopyPointer</c>:
+        /// <see cref="DataExpansionCore.ExpandTableTo"/> copies the old slots,
+        /// zero-fills the new ones, writes the 0xFFFFFFFF terminator, wipes the old
+        /// region and repoints the canonical slot ai*[0]; this then repoints the two
+        /// additional consecutive base-pointer slots ai*[1]/ai*[2] that WF also
+        /// repoints (isPointer-guarded, so ROMs without them are unaffected). The
+        /// caller wraps this in an UndoService scope; ExpandTableTo + the write_p32
+        /// calls are recorded by that ambient scope. <paramref name="undo"/> is
+        /// reserved (kept for signature parity / future RepointAllReferences hardening).
+        /// </summary>
+        /// <returns>Empty string on success, an error message otherwise.</returns>
+        public string ExpandList(uint newCount, Undo.UndoData? undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+            uint tablePointer = (FilterIndex == 1) ? rom.RomInfo.ai2_pointer : rom.RomInfo.ai1_pointer;
+            if (!U.isSafetyOffset(tablePointer)) return R._("AI pointer table not found.");
+            if (newCount < ReadCount)
+                return R._("New count ({0}) must be greater than or equal to current count ({1}).", newCount, ReadCount);
+            if (newCount == ReadCount) return ""; // no-op success
+
+            var result = DataExpansionCore.ExpandTableTo(rom, tablePointer, 4, ReadCount, newCount);
+            if (!result.Success) return result.Error ?? R._("Table expansion failed.");
+
+            // WF: the AI table base lives in 3 consecutive pointer slots (ai*[3]).
+            // ExpandTableTo repointed slot [0]; repoint [1] and [2] too, guarded by
+            // isPointer (WF: `if (!U.isPointer(p)) continue;`) and an EOF bound.
+            for (uint i = 1; i < 3; i++)
+            {
+                uint slot = tablePointer + i * 4;
+                if (slot + 4 > (uint)rom.Data.Length) break;
+                if (U.isPointer(rom.u32(slot)))
+                    rom.write_p32(slot, result.NewBaseAddress);
+            }
+
+            // Refresh the read-config from the new pointer base (NOT a ROM write).
+            // The VM exposes the table base as TopAddress (there is no
+            // ReadStartAddress on this VM); LoadList() reseeds its scan from this.
+            TopAddress = result.NewBaseAddress;
+            ReadCount = result.NewCount;
+            return "";
+        }
 
         // ----------------------------------------------------------------
         // Legacy header-only commit (kept for the stable VM surface). The
