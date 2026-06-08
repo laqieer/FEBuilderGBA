@@ -206,8 +206,10 @@ namespace FEBuilderGBA.Avalonia.Views
         /// count, delegates to <see cref="ImageMapActionAnimationViewModel.ExpandList"/>
         /// inside an <see cref="UndoService"/> scope, then reloads the list.
         /// Mirrors WinForms <c>InputFormRef.OnAddressListExpandsEventHandler</c>
-        /// flow (prompt -> expand -> repoint -> reload), minus the LDR rescan
-        /// (KnownGap documented in <c>DataExpansionCore.ExpandTableTo</c>).
+        /// flow (prompt -> expand -> repoint -> reload). As of #1025 ExpandList
+        /// composes <c>DataExpansionCore.RepointAllReferences</c> (raw 32-bit +
+        /// ARM-Thumb LDR literal-pool repoint), so the LDR rescan is no longer a
+        /// gap — every reference to the moved table base is repointed.
         /// </summary>
         async void ListExpand_Click(object? sender, RoutedEventArgs e)
         {
@@ -247,7 +249,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Begin("Expand Map Action Animation List");
                 try
                 {
-                    string err = _vm.ExpandList(newCount);
+                    string err = _vm.ExpandList(newCount, _undoService.GetActiveUndoData());
                     if (!string.IsNullOrEmpty(err))
                     {
                         _undoService.Rollback();

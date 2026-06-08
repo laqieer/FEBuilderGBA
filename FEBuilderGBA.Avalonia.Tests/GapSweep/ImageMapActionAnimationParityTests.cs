@@ -386,7 +386,7 @@ public class ImageMapActionAnimationParityTests
     [Fact]
     public void ViewModel_ExpandList_RejectsSmallerCount()
     {
-        // VM smoke test — ExpandList(newCount) must reject a count smaller
+        // VM smoke test — ExpandList(newCount, undo) must reject a count smaller
         // than the current ReadCount with a non-empty error string.
         ROM prevRom = CoreState.ROM;
         var rom = MakeMinimalFe8uRom();
@@ -397,7 +397,7 @@ public class ImageMapActionAnimationParityTests
             var vm = new ImageMapActionAnimationViewModel();
             // Force ReadCount to a known non-zero value.
             vm.ReadCount = 10;
-            string err = vm.ExpandList(5);
+            string err = vm.ExpandList(5, null);
             Assert.False(string.IsNullOrEmpty(err));
         }
         finally
@@ -416,7 +416,7 @@ public class ImageMapActionAnimationParityTests
         {
             CoreState.ROM = null;
             var vm = new ImageMapActionAnimationViewModel();
-            string err = vm.ExpandList(10);
+            string err = vm.ExpandList(10, null);
             Assert.False(string.IsNullOrEmpty(err));
         }
         finally
@@ -450,7 +450,7 @@ public class ImageMapActionAnimationParityTests
             uint oldCount = vm.ReadCount;
             uint newCount = oldCount + 2;
 
-            string err = vm.ExpandList(newCount);
+            string err = vm.ExpandList(newCount, null);
             Assert.True(string.IsNullOrEmpty(err), err);
             Assert.Equal(newCount, vm.ReadCount);
             // New table must live at a different base.
@@ -672,9 +672,262 @@ public class ImageMapActionAnimationParityTests
         Assert.False(string.IsNullOrEmpty(err));
     }
 
+    // =================================================================
+    // #1025 — ExpandList now repoints ALL references (raw 32-bit + ARM-Thumb
+    // LDR literal-pool), not just the canonical pointer slot, by routing the
+    // post-ExpandTableTo repoint through DataExpansionCore.RepointAllReferences
+    // (#781). Mirrors the merged WorldMapImageListExpandTests /
+    // EventMapChangeListExpandTests "AllThreeRefs" behavior tests.
+    // =================================================================
+
+    // Synthetic-ROM layout for the #1025 LDR round-trip tests (all offsets;
+    // GBA pointers add 0x08000000). The canonical pointer slot is the
+    // FindAnimationPointer result slot (the search-start word), NOT a RomInfo
+    // offset — this editor locates its table by binary signature search.
+    const uint LdrTableBase = 0x00100000u;  // action-anime table base before expand
+    const uint LdrFreeRegion = 0x00180000u; // known 0xFF run -> ExpandTableTo lands here
+    const uint LdrRawSlot = 0x00004000u;    // a SECOND raw pointer to LdrTableBase
+    const uint LdrInstr = 0x00005000u;      // ARM Thumb LDR r0,[pc,#0] (0x4800)
+    const uint LdrLiteralSlot = LdrInstr + 4; // its literal-pool slot
+
+    /// <summary>
+    /// Behavior-level (real ROM-state) proof that ExpandList repoints the
+    /// canonical pointer, a SECOND raw 32-bit pointer, AND an ARM-Thumb LDR
+    /// literal-pool word — all to the new base — then restores all three (and
+    /// the wiped old region) on undo. This is the #1025 acceptance criterion.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExpandList_RepointsCanonicalRawAndLdrRefs_AndUndoRestores()
+    {
+        ROM prevRom = CoreState.ROM;
+        Undo prevUndo = CoreState.Undo;
+        ISystemTextEncoder prevEnc = CoreState.SystemTextEncoder;
+        IEtcCache prevCache = CoreState.CommentCache;
+        try
+        {
+            const int currentCount = 3;
+            ROM rom = MakeLdrTestRom(currentCount, out uint canonicalSlot);
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            EnsureSystemTextEncoder(rom);
+            CoreState.CommentCache = new HeadlessEtcCache();
+
+            // Sanity: all three references resolve to LdrTableBase before expand.
+            Assert.Equal(LdrTableBase, rom.p32(canonicalSlot));
+            Assert.Equal(LdrTableBase, rom.p32(LdrRawSlot));
+            Assert.Equal(LdrTableBase, rom.p32(LdrLiteralSlot));
+
+            var vm = new ImageMapActionAnimationViewModel();
+            var items = vm.LoadList();
+            Assert.Equal(currentCount, items.Count);
+            Assert.Equal((uint)currentCount, vm.ReadCount);
+
+            // Snapshot the old region so undo-restore can be asserted byte-exact.
+            byte[] oldRegion = rom.getBinaryData(LdrTableBase, (uint)(currentCount * (int)ImageMapActionAnimationViewModel.SIZE));
+
+            uint newCount = (uint)currentCount + 2;
+            string err = ExpandUnderUndo(vm, newCount);
+            Assert.Equal("", err);
+
+            // The table moved to a new base.
+            uint newBase = vm.ReadStartAddress;
+            Assert.NotEqual(LdrTableBase, newBase);
+            Assert.Equal(newCount, vm.ReadCount);
+
+            // ALL THREE references now point at the new base.
+            Assert.Equal(newBase, rom.p32(canonicalSlot));    // canonical (ExpandTableTo)
+            Assert.Equal(newBase, rom.p32(LdrRawSlot));        // raw secondary (RepointAllReferences)
+            Assert.Equal(newBase, rom.p32(LdrLiteralSlot));    // LDR literal (RepointAllReferences)
+
+            // Undo restores every reference + the wiped old region.
+            CoreState.Undo.RunUndo();
+            Assert.Equal(LdrTableBase, rom.p32(canonicalSlot));
+            Assert.Equal(LdrTableBase, rom.p32(LdrRawSlot));
+            Assert.Equal(LdrTableBase, rom.p32(LdrLiteralSlot));
+            Assert.Equal(oldRegion,
+                rom.getBinaryData(LdrTableBase, (uint)(currentCount * (int)ImageMapActionAnimationViewModel.SIZE)));
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+            CoreState.SystemTextEncoder = prevEnc;
+            CoreState.CommentCache = prevCache;
+        }
+    }
+
+    /// <summary>
+    /// Clean ROM (only the canonical pointer, no secondary refs) — ExpandList
+    /// succeeds because RepointAllReferences returns 0 (NOTE A: 0 is success,
+    /// not a rollback), and the canonical pointer resolves to the new base.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExpandList_CleanRom_NoSecondaryRefs_SucceedsAndCanonicalPointsToNewBase()
+    {
+        ROM prevRom = CoreState.ROM;
+        Undo prevUndo = CoreState.Undo;
+        ISystemTextEncoder prevEnc = CoreState.SystemTextEncoder;
+        IEtcCache prevCache = CoreState.CommentCache;
+        try
+        {
+            const int currentCount = 3;
+            // Plant ONLY the canonical pointer + table + free region (no raw/LDR refs).
+            ROM rom = MakeLdrTestRom(currentCount, out uint canonicalSlot, plantSecondaryRefs: false);
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            EnsureSystemTextEncoder(rom);
+            CoreState.CommentCache = new HeadlessEtcCache();
+
+            uint oldBase = rom.p32(canonicalSlot);
+            Assert.Equal(LdrTableBase, oldBase);
+
+            var vm = new ImageMapActionAnimationViewModel();
+            var items = vm.LoadList();
+            Assert.Equal(currentCount, items.Count);
+
+            uint newCount = (uint)currentCount + 1;
+            string err = ExpandUnderUndo(vm, newCount);
+            Assert.Equal("", err);
+
+            uint newBase = vm.ReadStartAddress;
+            Assert.NotEqual(LdrTableBase, newBase);
+            Assert.Equal(newCount, vm.ReadCount);
+            // Canonical pointer is NOT orphaned — it resolves to the new base.
+            Assert.Equal(newBase, rom.p32(canonicalSlot));
+
+            // Cross-check: a direct RepointAllReferences for the now-stale oldBase
+            // finds no remaining references and returns 0 without throwing.
+            int n = DataExpansionCore.RepointAllReferences(rom, oldBase, newBase, null);
+            Assert.Equal(0, n);
+        }
+        finally
+        {
+            CoreState.ROM = prevRom;
+            CoreState.Undo = prevUndo;
+            CoreState.SystemTextEncoder = prevEnc;
+            CoreState.CommentCache = prevCache;
+        }
+    }
+
+    /// <summary>
+    /// Source/signature guard — ExpandList now takes Undo.UndoData, calls
+    /// RepointAllReferences, the View passes GetActiveUndoData(), and the stale
+    /// "without the LDR-pointer rescan" doc is gone.
+    /// </summary>
+    [Fact]
+    public void ViewModel_ExpandList_Signature_TakesUndoData_AndCallsRepointAllReferences()
+    {
+        // Reflection: the 2-arg overload (uint, Undo.UndoData) exists; the
+        // old 1-arg (uint) overload is gone.
+        var t = typeof(ImageMapActionAnimationViewModel);
+        Assert.NotNull(t.GetMethod("ExpandList", new[] { typeof(uint), typeof(Undo.UndoData) }));
+        Assert.Null(t.GetMethod("ExpandList", new[] { typeof(uint) }));
+
+        string repoRoot = FindRepoRoot();
+        string vmPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "ViewModels",
+            "ImageMapActionAnimationViewModel.cs");
+        string vmSource = File.ReadAllText(vmPath);
+        Assert.True(vmSource.Contains("public string ExpandList(uint newCount, Undo.UndoData? undo)"),
+            "ExpandList must take the active Undo.UndoData (nullable).");
+        Assert.True(vmSource.Contains("DataExpansionCore.RepointAllReferences("),
+            "ExpandList must compose the all-reference (raw + LDR) repoint via RepointAllReferences.");
+        // The stale KnownGap doc must be gone.
+        Assert.False(vmSource.Contains("without the LDR-pointer rescan"),
+            "The stale 'without the LDR-pointer rescan' KnownGap doc must be removed.");
+
+        string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ImageMapActionAnimationView.axaml.cs");
+        string viewSource = File.ReadAllText(viewPath);
+        Assert.True(viewSource.Contains("_vm.ExpandList(newCount, _undoService.GetActiveUndoData())"),
+            "The View must pass the active UndoData into ExpandList.");
+    }
+
     // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
+
+    /// <summary>
+    /// Run ExpandList inside an ambient undo scope (mirrors the View's
+    /// UndoService.Begin/Commit), pushing the transaction onto CoreState.Undo
+    /// so CoreState.Undo.RunUndo() can roll it back. The active UndoData is
+    /// threaded into ExpandList so RepointAllReferences records its writes.
+    /// </summary>
+    static string ExpandUnderUndo(ImageMapActionAnimationViewModel vm, uint newCount)
+    {
+        var ud = CoreState.Undo.NewUndoData("MapActionAnimation ExpandList test");
+        string err;
+        using (ROM.BeginUndoScope(ud))
+        {
+            err = vm.ExpandList(newCount, ud);
+        }
+        if (string.IsNullOrEmpty(err))
+            CoreState.Undo.Push(ud);
+        return err;
+    }
+
+    /// <summary>
+    /// Build a synthetic FE8U ROM whose FindAnimationPointer binary-signature
+    /// search resolves to a canonical pointer slot pointing at
+    /// <see cref="LdrTableBase"/>, with <paramref name="rowCount"/> readable
+    /// rows, a known 0xFF free region for ExpandTableTo to relocate into, and
+    /// (optionally) a SECOND raw 32-bit pointer + an ARM-Thumb LDR literal-pool
+    /// load both referencing LdrTableBase. Returns the canonical slot offset
+    /// (the FindAnimationPointer result) via <paramref name="canonicalSlot"/>.
+    /// </summary>
+    static ROM MakeLdrTestRom(int rowCount, out uint canonicalSlot, bool plantSecondaryRefs = true)
+    {
+        EnsureCoreStateBaseDirectory();
+        var bytes = new byte[0x1100000];
+
+        // FE8U signature pattern used by FindAnimationPointer.
+        byte[] sig = { 0x14, 0x19, 0x08, 0x08, 0xF0, 0xE1, 0x03, 0x02,
+                       0xEC, 0xA4, 0x03, 0x02, 0x6C, 0xA5, 0x03, 0x02,
+                       0xFF, 0xFF, 0x00, 0x00 };
+
+        // ROMFE8U.compress_image_borderline_address == 0x1000000 — the search
+        // start. Place the pointer at the search start and the signature right
+        // after, so `p - sig.Length - 4` lands on the pointer (the canonical
+        // slot FindAnimationPointer returns).
+        uint searchStart = 0x1000000;
+        uint pointerAddr = searchStart;
+        uint sigAddr = pointerAddr + 4;
+        canonicalSlot = pointerAddr;
+
+        // Canonical pointer (GBA format = base + 0x08000000). Cast the buffer
+        // index to int (the | 0x08000000u value stays uint).
+        BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, (int)pointerAddr);
+        sig.CopyTo(bytes, (int)sigAddr);
+
+        // Table rows: row 0 = 0 (reserved-null), rows 1..rowCount-1 = valid
+        // pointers (per-row distinct marker), row `rowCount` = 0xFFFFFFFF
+        // terminator so LoadList stops at exactly `rowCount` rows.
+        uint size = ImageMapActionAnimationViewModel.SIZE; // 8
+        BitConverter.GetBytes(0u).CopyTo(bytes, (int)(LdrTableBase + 0));
+        for (int i = 1; i < rowCount; i++)
+        {
+            uint row = LdrTableBase + (uint)i * size;
+            BitConverter.GetBytes((0x00200000u + (uint)i * 0x100u) | 0x08000000u).CopyTo(bytes, (int)(row + 0));
+        }
+        BitConverter.GetBytes(0xFFFFFFFFu).CopyTo(bytes, (int)(LdrTableBase + (uint)rowCount * size));
+
+        // Known 0xFF free region for ExpandTableTo to relocate into.
+        for (int i = 0; i < 0x4000; i++)
+            bytes[(int)(LdrFreeRegion + i)] = 0xFF;
+
+        if (plantSecondaryRefs)
+        {
+            // SECOND raw 32-bit pointer to LdrTableBase.
+            BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, (int)LdrRawSlot);
+            // ARM Thumb LDR r0,[pc,#0] (0x4800) + its literal-pool slot.
+            bytes[(int)(LdrInstr + 0)] = 0x00;
+            bytes[(int)(LdrInstr + 1)] = 0x48;
+            BitConverter.GetBytes(LdrTableBase | 0x08000000u).CopyTo(bytes, (int)LdrLiteralSlot);
+        }
+
+        var rom = new ROM();
+        rom.LoadLow("synthetic-fe8u-ldr.gba", bytes, "BE8E01");
+        return rom;
+    }
 
     static string ReadAxaml()
     {
