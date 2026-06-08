@@ -505,19 +505,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Grow the action-animation pointer table to <paramref name="newCount"/>
         /// rows. Mirrors WinForms <c>InputFormRef.OnAddressListExpandsEventHandler</c>
-        /// + <c>InputFormRef.ExpandsArea(ExpandsFillOption.NO, ...)</c>, but
-        /// without the LDR-pointer rescan (KnownGap per #501).
+        /// + <c>InputFormRef.ExpandsArea(ExpandsFillOption.NO, ...)</c>. After
+        /// <c>ExpandTableTo</c> relocates the table it now composes the
+        /// all-reference (raw 32-bit + ARM-Thumb LDR literal-pool) repoint via
+        /// <see cref="DataExpansionCore.RepointAllReferences"/> (#1025), mirroring
+        /// the merged <c>WorldMapImageViewModel</c> / <c>EventMapChange</c> expand
+        /// pattern — not just the canonical pointer slot.
         ///
         /// Uses the editor's <see cref="ReadCount"/> as the current row count
         /// (the action-anime predicate <c>U.isSafetyPointerOrNull</c> accepts
         /// row 0 as a reserved-null entry, so <c>EstimateEntryCount</c> would
         /// undercount — see <see cref="DataExpansionCore.ExpandTableTo"/> XML
         /// doc). Caller is responsible for wrapping in an
-        /// <c>UndoService.Begin/Commit/Rollback</c> scope.
+        /// <c>UndoService.Begin/Commit/Rollback</c> scope and passing the active
+        /// <see cref="Undo.UndoData"/> so the all-reference repoint is recorded.
         /// </summary>
         /// <param name="newCount">Target row count (must be &gt;= current).</param>
+        /// <param name="undo">Active undo buffer for the ambient scope (may be
+        /// null — the helper then relies on whatever ambient scope the caller
+        /// already opened).</param>
         /// <returns>Empty on success, error string otherwise.</returns>
-        public string ExpandList(uint newCount)
+        public string ExpandList(uint newCount, Undo.UndoData? undo)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return R._("ROM not loaded.");
@@ -534,11 +542,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (newCount == ReadCount)
                 return ""; // no-op success
 
+            // Capture the OLD base BEFORE ExpandTableTo moves the table.
+            uint oldBase = rom.p32(animeP);
+
             var result = DataExpansionCore.ExpandTableTo(rom, animeP, SIZE, ReadCount, newCount);
             if (!result.Success)
                 return result.Error ?? R._("Table expansion failed.");
 
-            // Refresh the read-config from the new pointer base.
+            // Repoint EVERY raw 32-bit + ARM-Thumb LDR literal-pool reference to
+            // the old base — not just the canonical pointer ExpandTableTo already
+            // moved. RepointAllReferences returning 0 (clean ROM, no secondary
+            // refs) is SUCCESS — do NOT roll back on 0. The canonical slot now
+            // holds the new base and is therefore NOT re-matched (no double-write).
+            // MUST be the LAST ROM-mutating call.
+            DataExpansionCore.RepointAllReferences(rom, oldBase, result.NewBaseAddress, undo);  // #1025: also repoint raw + LDR-literal refs
+
+            // Refresh the read-config from the new pointer base (NOT a ROM write).
             ReadStartAddress = result.NewBaseAddress;
             ReadCount = result.NewCount;
             return "";

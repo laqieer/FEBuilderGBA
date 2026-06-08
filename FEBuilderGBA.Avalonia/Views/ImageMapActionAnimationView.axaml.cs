@@ -247,7 +247,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Begin("Expand Map Action Animation List");
                 try
                 {
-                    string err = _vm.ExpandList(newCount);
+                    string err = _vm.ExpandList(newCount, _undoService.GetActiveUndoData());
                     if (!string.IsNullOrEmpty(err))
                     {
                         _undoService.Rollback();
