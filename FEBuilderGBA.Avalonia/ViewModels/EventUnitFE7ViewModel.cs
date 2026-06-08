@@ -256,6 +256,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return newBase;
         }
 
+        /// <summary>
+        /// Allocate a new event-unit block with <paramref name="count"/> rows
+        /// (each row B0=1, trailing 0x00 terminator). Mirrors WF
+        /// <c>EventUnitFE7Form.CreateNewData</c> via the shared
+        /// <see cref="MapEventUnitCore.AllocNewUnitList"/> primitive (which uses
+        /// <c>rom.RomInfo.eventunit_data_size</c> — 16 for FE7).
+        /// Returns the new base ROM offset or <see cref="U.NOT_FOUND"/> on failure.
+        /// </summary>
+        /// <param name="count">Number of starter rows to allocate.</param>
+        /// <param name="undo">Optional active undo group — recommended when the
+        /// caller wants the allocation to be undoable (open an ambient undo
+        /// scope first and pass its <see cref="Undo.UndoData"/>). Passing
+        /// <c>null</c> is allowed and simply skips the explicit-undodata
+        /// rollback path, matching <see cref="MapEventUnitCore.AllocNewUnitList"/>.</param>
+        public uint NewAllocUnitList(uint count, Undo.UndoData? undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return U.NOT_FOUND;
+            return MapEventUnitCore.AllocNewUnitList(rom, count, undo);
+        }
+
         /// <summary>Legacy compatibility.</summary>
         public List<AddrResult> LoadList()
         {
