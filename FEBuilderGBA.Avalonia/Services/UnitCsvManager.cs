@@ -208,11 +208,21 @@ namespace FEBuilderGBA.Avalonia.Services
             // rowAddresses[0]; multi-row imports honor the embedded UID when
             // present so a reordered CSV writes to the correct units.
             bool isSingleRow = rowAddresses.Count == 1;
+            // #1016: the number of columns a row must have to carry the new
+            // FE8U MagicSplit MAG columns. A legacy pre-#1016 CSV (no MAG) has
+            // ExpectedColumnCount(false) columns; only consume MAG cells when a
+            // row's actual count matches ExpectedColumnCount(true). Without this
+            // a legacy CSV's first growth value would be read as base MAG and
+            // shift every following column.
+            int expectedWithMag = ExpectedColumnCount(withMag: true);
             for (int i = 0; i + startRow < rows.Count; i++)
             {
                 string[] cols = rows[i + startRow];
                 if (cols.Length == 0 || (cols.Length == 1 && string.IsNullOrWhiteSpace(cols[0]))) continue;
                 int colIdx = 0;
+                // #1016: this row carries MAG only when its column count matches
+                // the with-MAG layout (not merely "there are more columns").
+                bool rowHasMag = isUsingMagicSplit && cols.Length == expectedWithMag;
 
                 // Determine the destination address. Default = positional
                 // mapping (matches WF behavior when neither UID nor Name is
@@ -272,12 +282,13 @@ namespace FEBuilderGBA.Avalonia.Services
                             rom.write_u8(addr + o, (uint)(byte)sv);
                         colIdx++;
                     }
-                    // #1016: MAG base column (after the base block). Guarded on
-                    // colIdx < cols.Length so a non-MagicSplit CSV read against a
-                    // MagicSplit ROM does not over-read. `undo` is non-null here
-                    // (fail-fast above guarantees it when isUsingMagicSplit).
-                    // Lenient TryParse to match the Unit importer's style.
-                    if (isUsingMagicSplit && colIdx < cols.Length)
+                    // #1016: MAG base column (after the base block). Gated on
+                    // rowHasMag (row column count matches the with-MAG layout) so
+                    // a legacy no-MAG CSV imported into a MagicSplit ROM does NOT
+                    // consume a growth cell as MAG and shift the rest. `undo` is
+                    // non-null here (fail-fast above guarantees it). Lenient
+                    // TryParse to match the Unit importer's style.
+                    if (rowHasMag && colIdx < cols.Length)
                     {
                         if (sbyte.TryParse(cols[colIdx].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out sbyte mv))
                             MagicSplitUtil.WriteUnitBaseMagicExtends(rowId, addr, (uint)(byte)mv, undo!);
@@ -299,8 +310,9 @@ namespace FEBuilderGBA.Avalonia.Services
                         }
                         colIdx++;
                     }
-                    // #1016: MAG growth column (after the growth block).
-                    if (isUsingMagicSplit && colIdx < cols.Length)
+                    // #1016: MAG growth column (after the growth block). Gated on
+                    // rowHasMag (see the base-MAG read) for legacy-CSV safety.
+                    if (rowHasMag && colIdx < cols.Length)
                     {
                         if (float.TryParse(cols[colIdx].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float fmv))
                         {
@@ -329,6 +341,28 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         // ------ private helpers ------
+
+        /// <summary>
+        /// #1016 — number of CSV columns a data row is expected to have for the
+        /// current export option flags. <paramref name="withMag"/> adds the FE8U
+        /// MagicSplit "MAG" column at the end of the base block (offsets 12..19)
+        /// and the end of the growth block (offsets 28..34). Import compares a
+        /// row's actual column count to <c>ExpectedColumnCount(true)</c> to
+        /// decide whether the row really carries the new MAG columns or is a
+        /// legacy pre-#1016 CSV — so a legacy CSV imported into a FE8UMAGIC ROM
+        /// is NOT mis-parsed by consuming a stat cell as MAG. Mirrors the
+        /// column layout emitted by <see cref="BuildHeader"/>/<c>BuildDataRow</c>:
+        /// Name/UID prefix (1), base (8), growth (7), weplevel (8).
+        /// </summary>
+        int ExpectedColumnCount(bool withMag)
+        {
+            int n = 0;
+            if (_includeName || _includeUID) n += 1;
+            if (_includeBaseStats) n += 8 + (withMag ? 1 : 0);
+            if (_includeGrowths) n += 7 + (withMag ? 1 : 0);
+            if (_includeWepLevel) n += 8;
+            return n;
+        }
 
         string BuildHeader(bool isUsingMagicSplit)
         {

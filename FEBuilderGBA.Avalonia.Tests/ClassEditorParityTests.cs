@@ -916,6 +916,66 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        /// <summary>
+        /// #1016 back-compat: importing a LEGACY pre-#1016 Avalonia CSV (base +
+        /// growth + weplevel, NO MAG columns) into a FE8UMAGIC ROM must NOT
+        /// consume a stat cell as MAG and shift the rest (see the Unit twin).
+        /// Class base block is 7 cols, so a legacy row is 23 columns while the
+        /// with-MAG layout is 25 — the fix gates MAG on that count.
+        /// </summary>
+        [Fact]
+        public void Class_MagicSplitFE8U_LegacyNoMagCsv_DoesNotShiftColumns()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                var rom = FE8UMagicSplitTestRom.Make();
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.Equal(MagicSplitUtil.magic_split_enum.FE8UMAGIC, MagicSplitUtil.SearchMagicSplit());
+
+                uint addr = 0x500;
+                var mgr = new ClassCsvManager(
+                    useClipboard: false, includeUID: true, includeHeader: false,
+                    includeName: false, includeBaseStats: true, includeGrowths: true,
+                    includeWepLevel: true, growthsAsDecimal: false);
+
+                // Seed sentinel MAG for class 0 so we can prove it survives.
+                using (FE8UMagicSplitTestRom.BeginUndoScope(rom))
+                {
+                    var u = ROM.GetAmbientUndoData()!;
+                    MagicSplitUtil.WriteClassBaseMagicExtends(0, addr, ToByte(77), u);
+                    MagicSplitUtil.WriteClassGrowMagicExtends(0, addr, ToByte(88), u);
+                }
+
+                // Legacy row: uid(1) + base(7) + growth(7) + weplevel(8) = 23
+                // columns, NO MAG. The with-MAG layout would be 25 columns.
+                string legacy =
+                    "0, 21, 22, 23, 24, 25, 26, 27, 40, 41, 42, 43, 44, 45, 46, 1, 2, 3, 4, 5, 6, 7, 8\n";
+                using (FE8UMagicSplitTestRom.BeginUndoScope(rom))
+                {
+                    int n = mgr.ApplyImportCsv(rom, legacy, new[] { addr }, singleRowId: 0);
+                    Assert.Equal(1, n);
+                }
+
+                // Normal stats land in the right offsets (no shift).
+                for (uint o = 11; o <= 17; o++) Assert.Equal((sbyte)(21 + (o - 11)), (sbyte)rom.u8(addr + o));
+                for (uint o = 27; o <= 33; o++) Assert.Equal((sbyte)(40 + (o - 27)), (sbyte)rom.u8(addr + o));
+                for (uint o = 44; o <= 51; o++) Assert.Equal((sbyte)(1 + (o - 44)), (sbyte)rom.u8(addr + o));
+                // The growth LUCK (offset 33) is 46, NOT 1 (the buggy shift would
+                // have read the first weplevel value here).
+                Assert.Equal((sbyte)46, (sbyte)rom.u8(addr + 33));
+                // The sentinel MAG values are UNTOUCHED.
+                Assert.Equal((sbyte)77, (sbyte)MagicSplitUtil.GetClassBaseMagicExtends(0, addr));
+                Assert.Equal((sbyte)88, (sbyte)MagicSplitUtil.GetClassGrowMagicExtends(0, addr));
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
         // ---- #1016 Class MagicSplit test helpers ----
 
         static uint ToByte(int v) => (uint)(byte)(sbyte)v;
