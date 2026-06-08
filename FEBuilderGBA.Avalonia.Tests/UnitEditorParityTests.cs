@@ -545,6 +545,291 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(u2Before[o - 12], rom.Data[baseAddr + 2 * dataSize + o]);
         }
 
+        // =================================================================
+        // ---- #1016: FE8U MagicSplit (FE8UMAGIC) MAG column tests ----
+        // =================================================================
+
+        /// <summary>
+        /// Clean FE8U ROM with NO MagicSplit signature: SearchMagicSplit()==NO,
+        /// so the Unit CSV header + column counts are byte-identical to the
+        /// pre-#1016 baseline (regression guard).
+        /// </summary>
+        [Fact]
+        public void Unit_VanillaFE8U_NoMagicColumn_HeaderUnchanged()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                byte[] data = new byte[0x1000000];
+                Array.Copy(System.Text.Encoding.ASCII.GetBytes("BE8E01"), 0, data, 0xAC, 6);
+                var rom = new ROM();
+                rom.LoadLow("test.gba", data, "BE8E01");
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.Equal(MagicSplitUtil.magic_split_enum.NO, MagicSplitUtil.SearchMagicSplit());
+
+                uint baseAddr = 0x500;
+                var mgr = new UnitCsvManager(
+                    useClipboard: false, includeUID: false, includeHeader: true,
+                    includeName: false, includeBaseStats: true, includeGrowths: true,
+                    includeWepLevel: true, growthsAsDecimal: false);
+                string csv = mgr.BuildExportCsv(rom, new[] { baseAddr });
+                string header = csv.Split('\n')[0];
+                // Exact baseline header (no MAG): base 8 + growth 7 + weplevel 8.
+                Assert.Equal(
+                    "HP, STR, SKL, SPD, DEF, RES, LUCK, CON, HP, STR, SKL, SPD, DEF, RES, LUCK, " +
+                    "Sword, Lance, Axe, Bow, Staff, Anima, Light, Dark",
+                    header);
+                Assert.DoesNotContain("MAG", header);
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// FE6 ROM never matches FE8UMAGIC, so no MAG column is emitted.
+        /// </summary>
+        [Fact]
+        public void Unit_FE6_NoMagicColumn()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                byte[] data = new byte[0x800000];
+                Array.Copy(System.Text.Encoding.ASCII.GetBytes("AFEJ01"), 0, data, 0xAC, 6);
+                var rom = new ROM();
+                rom.LoadLow("test.gba", data, "AFEJ01");
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.NotEqual(MagicSplitUtil.magic_split_enum.FE8UMAGIC, MagicSplitUtil.SearchMagicSplit());
+
+                uint baseAddr = 0x500;
+                var mgr = new UnitCsvManager(
+                    useClipboard: false, includeUID: false, includeHeader: true,
+                    includeName: false, includeBaseStats: true, includeGrowths: true,
+                    includeWepLevel: false, growthsAsDecimal: false);
+                string header = mgr.BuildExportCsv(rom, new[] { baseAddr }).Split('\n')[0];
+                Assert.DoesNotContain("MAG", header);
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// FE8UMAGIC ROM: the Unit CSV header has exactly one "MAG" immediately
+        /// after the base block and one immediately after the growth block
+        /// (positions, not just Contains), weplevel columns shifted by +1 per
+        /// active block.
+        /// </summary>
+        [Fact]
+        public void Unit_MagicSplitFE8U_HeaderHasMagAtBaseAndGrowthEnds()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                var rom = FE8UMagicSplitTestRom.Make();
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.Equal(MagicSplitUtil.magic_split_enum.FE8UMAGIC, MagicSplitUtil.SearchMagicSplit());
+
+                uint baseAddr = 0x500;
+                var mgr = new UnitCsvManager(
+                    useClipboard: false, includeUID: false, includeHeader: true,
+                    includeName: false, includeBaseStats: true, includeGrowths: true,
+                    includeWepLevel: true, growthsAsDecimal: false);
+                string[] cols = mgr.BuildExportCsv(rom, new[] { baseAddr }).Split('\n')[0].Split(',');
+                for (int i = 0; i < cols.Length; i++) cols[i] = cols[i].Trim();
+
+                // Base block (0..7) then MAG at index 8.
+                Assert.Equal("CON", cols[7]);
+                Assert.Equal("MAG", cols[8]);
+                // Growth block (9..15) then MAG at index 16.
+                Assert.Equal("LUCK", cols[15]);
+                Assert.Equal("MAG", cols[16]);
+                // Weplevel shifted by +2 (one MAG per active block).
+                Assert.Equal("Sword", cols[17]);
+                Assert.Equal("Dark", cols[24]);
+                Assert.Equal(25, cols.Length); // 8+1 + 7+1 + 8
+                Assert.Equal(2, cols.Count(c => c == "MAG"));
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// Full Unit MagicSplit VALUE round-trip INCLUDING a SELECTED unit id
+        /// &gt; 0 (catches blockers 1+2: the right id is read/written). Seeds
+        /// distinct base+growth MAG per unit, exports anchored to the selected
+        /// id, then a SINGLE-ROW import (ExportSelected/ImportSelected shape)
+        /// with DIFFERENT MAG values must land on the SELECTED unit, not unit 0.
+        /// </summary>
+        [Fact]
+        public void Unit_MagicSplitFE8U_SelectedId_ValueRoundTrip()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                var rom = FE8UMagicSplitTestRom.Make();
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.Equal(MagicSplitUtil.magic_split_enum.FE8UMAGIC, MagicSplitUtil.SearchMagicSplit());
+
+                const uint dataSize = 52;
+                uint a0 = 0x500, a4 = 0x500 + 4 * dataSize;
+
+                var mgr = new UnitCsvManager(
+                    useClipboard: false, includeUID: true, includeHeader: false,
+                    includeName: false, includeBaseStats: true, includeGrowths: true,
+                    includeWepLevel: false, growthsAsDecimal: false);
+
+                // Seed: unit 0 -> base 1/grow 2 ; unit 4 -> base 7/grow 9.
+                using (FE8UMagicSplitTestRom.BeginUndoScope(rom))
+                {
+                    var u = ROM.GetAmbientUndoData()!;
+                    MagicSplitUtil.WriteUnitBaseMagicExtends(0, a0, ToByte(1), u);
+                    MagicSplitUtil.WriteUnitGrowMagicExtends(0, a0, ToByte(2), u);
+                    MagicSplitUtil.WriteUnitBaseMagicExtends(4, a4, ToByte(7), u);
+                    MagicSplitUtil.WriteUnitGrowMagicExtends(4, a4, ToByte(9), u);
+                }
+
+                // Export the SELECTED unit (id 4) — anchored to startingUid 4.
+                string selectedCsv = mgr.BuildExportCsv(rom, new[] { a4 }, startingUid: 4);
+                // The exported MAG-base (col 8 = uid + 8 base) must be 7 (unit 4),
+                // proving export reads MAG from the selected id, not unit 0.
+                string[] expCols = selectedCsv.Split('\n')[0].Split(',');
+                Assert.Equal("7", expCols[9].Trim()); // uid(0) + 8 base(1..8) -> MAG at 9
+
+                // Now SINGLE-ROW import a CSV with DIFFERENT MAG for the SELECTED
+                // unit id 4 (singleRowId=4): base 22 / grow 31. unit 0 must be
+                // untouched. Row shape: uid, <8 base>, MAG_base, <7 growth>, MAG_grow.
+                string importCsv =
+                    "4, 1, 2, 3, 4, 5, 6, 7, 8, 22, 10, 11, 12, 13, 14, 15, 16, 31\n";
+                using (FE8UMagicSplitTestRom.BeginUndoScope(rom))
+                {
+                    int n = mgr.ApplyImportCsv(rom, importCsv, new[] { a4 }, singleRowId: 4);
+                    Assert.Equal(1, n);
+                }
+
+                // Selected unit 4 got the imported MAG.
+                Assert.Equal((sbyte)22, (sbyte)MagicSplitUtil.GetUnitBaseMagicExtends(4, a4));
+                Assert.Equal((sbyte)31, (sbyte)MagicSplitUtil.GetUnitGrowMagicExtends(4, a4));
+                // Unit 0 unchanged (proves the write did NOT go to unit 0).
+                Assert.Equal((sbyte)1, (sbyte)MagicSplitUtil.GetUnitBaseMagicExtends(0, a0));
+                Assert.Equal((sbyte)2, (sbyte)MagicSplitUtil.GetUnitGrowMagicExtends(0, a0));
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// MagicSplit import without an active ambient undo scope must FAIL FAST.
+        /// </summary>
+        [Fact]
+        public void Unit_MagicSplitFE8U_ImportWithoutUndoScope_Throws()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                var rom = FE8UMagicSplitTestRom.Make();
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.Equal(MagicSplitUtil.magic_split_enum.FE8UMAGIC, MagicSplitUtil.SearchMagicSplit());
+
+                var mgr = new UnitCsvManager(
+                    useClipboard: false, includeUID: false, includeHeader: false,
+                    includeName: false, includeBaseStats: true, includeGrowths: false,
+                    includeWepLevel: false, growthsAsDecimal: false);
+                // base(8) + MAG(1) cols, no undo scope open.
+                string csv = "1, 2, 3, 4, 5, 6, 7, 8, 9\n";
+                Assert.Throws<InvalidOperationException>(
+                    () => mgr.ApplyImportCsv(rom, csv, new[] { 0x500u }));
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
+        /// <summary>
+        /// #1016 back-compat: importing a LEGACY pre-#1016 Avalonia CSV (base +
+        /// growth + weplevel, NO MAG columns) into a FE8UMAGIC ROM must NOT
+        /// consume a stat cell as MAG and shift the rest. With the old
+        /// <c>colIdx &lt; cols.Length</c> guard, the first growth value would be
+        /// written as base MAG, every growth column would shift by one, and
+        /// weplevel parsing would shift too — corrupting both the normal stat
+        /// bytes and the MagicSplit table. The fix gates MAG consumption on the
+        /// row's column count matching the with-MAG layout. Distinct per-column
+        /// values make the shift observable.
+        /// </summary>
+        [Fact]
+        public void Unit_MagicSplitFE8U_LegacyNoMagCsv_DoesNotShiftColumns()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                var rom = FE8UMagicSplitTestRom.Make();
+                CoreState.ROM = rom;
+                MagicSplitUtil.ClearCache();
+                Assert.Equal(MagicSplitUtil.magic_split_enum.FE8UMAGIC, MagicSplitUtil.SearchMagicSplit());
+
+                uint addr = 0x500;
+                var mgr = new UnitCsvManager(
+                    useClipboard: false, includeUID: true, includeHeader: false,
+                    includeName: false, includeBaseStats: true, includeGrowths: true,
+                    includeWepLevel: true, growthsAsDecimal: false);
+
+                // Seed sentinel MAG for unit 0 so we can prove it survives.
+                using (FE8UMagicSplitTestRom.BeginUndoScope(rom))
+                {
+                    var u = ROM.GetAmbientUndoData()!;
+                    MagicSplitUtil.WriteUnitBaseMagicExtends(0, addr, ToByte(77), u);
+                    MagicSplitUtil.WriteUnitGrowMagicExtends(0, addr, ToByte(88), u);
+                }
+
+                // Legacy row: uid(1) + base(8) + growth(7) + weplevel(8) = 24
+                // columns, NO MAG. The with-MAG layout would be 26 columns.
+                string legacy =
+                    "0, 30, 31, 32, 33, 34, 35, 36, 37, 40, 41, 42, 43, 44, 45, 46, 1, 2, 3, 4, 5, 6, 7, 8\n";
+                using (FE8UMagicSplitTestRom.BeginUndoScope(rom))
+                {
+                    int n = mgr.ApplyImportCsv(rom, legacy, new[] { addr }, singleRowId: 0);
+                    Assert.Equal(1, n);
+                }
+
+                // Normal stats land in the right offsets (no shift).
+                for (uint o = 12; o <= 19; o++) Assert.Equal((sbyte)(30 + (o - 12)), (sbyte)rom.u8(addr + o));
+                for (uint o = 28; o <= 34; o++) Assert.Equal((sbyte)(40 + (o - 28)), (sbyte)rom.u8(addr + o));
+                for (uint o = 20; o <= 27; o++) Assert.Equal((sbyte)(1 + (o - 20)), (sbyte)rom.u8(addr + o));
+                // The growth LUCK (offset 34) is 46, NOT 1 (the buggy shift would
+                // have read the first weplevel value here).
+                Assert.Equal((sbyte)46, (sbyte)rom.u8(addr + 34));
+                // The sentinel MAG values are UNTOUCHED (not overwritten by a
+                // shifted stat cell).
+                Assert.Equal((sbyte)77, (sbyte)MagicSplitUtil.GetUnitBaseMagicExtends(0, addr));
+                Assert.Equal((sbyte)88, (sbyte)MagicSplitUtil.GetUnitGrowMagicExtends(0, addr));
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+                MagicSplitUtil.ClearCache();
+            }
+        }
+
+        static uint ToByte(int v) => (uint)(byte)(sbyte)v;
+
         static string? FindRepoRoot()
         {
             string start = AppDomain.CurrentDomain.BaseDirectory;

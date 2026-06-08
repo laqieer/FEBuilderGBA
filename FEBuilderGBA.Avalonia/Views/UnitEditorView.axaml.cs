@@ -749,7 +749,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 var rom = CoreState.ROM;
                 if (rom == null) return;
                 if (_vm.CurrentAddr == 0) return;
-                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr);
+                // #1016: pass the SELECTED unit id (0-based AddressList index)
+                // so the exported single-row CSV carries the correct UID and
+                // the FE8U MagicSplit MAG column reads from the right unit
+                // record. Falls back to 0 when no selection is resolvable.
+                int idx = UnitList.SelectedOriginalIndex;
+                uint uid = idx >= 0 ? (uint)idx : 0u;
+                await MakeCsvManager().ExportSelectedAsync(this, rom, _vm.CurrentAddr, uid);
             }
             catch (Exception ex) { Log.Error("ExportSelected_Click failed: {0}", ex.Message); }
         }
@@ -797,11 +803,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 // Read CSV first (no undo scope across the picker await).
                 string? csv = await mgr.ReadCsvForUiAsync(this);
                 if (csv == null) return;
+                // #1016: thread the SELECTED unit id (0-based AddressList index)
+                // so the FE8U MagicSplit MAG column is read into the correct
+                // record (WriteUnit*MagicExtends index by uid).
+                int selIdx = UnitList.SelectedOriginalIndex;
+                uint? selUid = selIdx >= 0 ? (uint)selIdx : (uint?)null;
                 _undoService.Begin(R._("Import Unit CSV"));
                 int written;
                 try
                 {
-                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr });
+                    written = mgr.ApplyImportCsv(rom, csv, new[] { _vm.CurrentAddr }, selUid);
                     _undoService.Commit();
                 }
                 catch { _undoService.Rollback(); throw; }
