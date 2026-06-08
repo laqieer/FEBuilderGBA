@@ -957,9 +957,17 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (string.IsNullOrEmpty(_vm.SourceFilePath) || !File.Exists(_vm.SourceFilePath))
+                if (string.IsNullOrEmpty(_vm.SourceFilePath))
                 {
                     CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                if (!File.Exists(_vm.SourceFilePath))
+                {
+                    // The recorded path no longer exists — clear availability so the
+                    // buttons hide (IsVisible binding) and report the real cause.
+                    _vm.IsSourceFileAvailable = false;
+                    CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
                     return;
                 }
                 var psi = new ProcessStartInfo(_vm.SourceFilePath) { UseShellExecute = true };
@@ -976,9 +984,15 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                if (string.IsNullOrEmpty(_vm.SourceFilePath) || !File.Exists(_vm.SourceFilePath))
+                if (string.IsNullOrEmpty(_vm.SourceFilePath))
                 {
                     CoreState.Services?.ShowError("Source file is not recorded.");
+                    return;
+                }
+                if (!File.Exists(_vm.SourceFilePath))
+                {
+                    _vm.IsSourceFileAvailable = false;
+                    CoreState.Services?.ShowError($"Source file not found: {_vm.SourceFilePath}");
                     return;
                 }
                 if (OperatingSystem.IsWindows())
