@@ -377,423 +377,84 @@ Specialized utilities for different graphic types:
 - `ImageUtilMap.cs` - Map tiles
 - `ImageUtilMagic.cs` - Magic effects
 - `LZ77.cs` - GBA LZ77 compression (LZSS variant)
-- `LZ77ToolCore.cs` (Core) - Cross-platform helpers for the LZ77 Tool's Move + Recompress tabs.
-  Used by both WinForms `ToolLZ77Form` and Avalonia `ToolLZ77ViewModel`.
-  Uses ambient undo via `ROM.BeginUndoScope()`; LDR-first / raw-fallback pointer search
-  (event-aware path is explicitly out of scope — `MissingEventAwareCoverage` flag always set).
-- `ImageBattleScreenCore.EncodeTSAKeep` + `ImageBattleScreenCore.ImportBattleScreenBulk`
-  (Core; `EncodeTSAKeep` PURE, `ImportBattleScreenBulk` ROM-MUTATING) - Cross-platform
-  BULK whole-screen image import for the Battle Screen Layout editor (#988; ports WF
-  `ImageBattleScreenForm.ImportButton_Click` + `RevChipImage` + `ImageUtil.ImageToByteKeepTSA`,
-  enabling the Avalonia editor's greyed bulk Import/Export buttons). `EncodeTSAKeep(inputIndexedTiles,
-  map, originalTiles)` is the battle-screen-specific TSA-keeping tile encoder: it clones
-  `originalTiles`, and for each RAW battle-screen TSA cell `m` (CORRECTION 2 — `tile = m & 0xFF`
-  8-bit, `flip = (m>>8)&0x0F` (0/4=H/8=V/else=HV), `pal = m>>12`; matches
-  `RenderBattleScreenPreview`/WF `MakeBattleScreen`, NOT the generic 10-bit-tile layout) takes
-  the NEW input tile at that grid cell, applies the INVERSE flip (via the existing
-  `ImageImportCore.FlipTileH4bpp`/`FlipTileV4bpp`, which match `DecodeTileToPixels`' hFlip/vFlip
-  so encode+decode stay consistent), and copies it over at `tile*32`. The TSA itself is
-  unchanged; `0xFFFF`/out-of-bounds cells are skipped (WF per-cell guards); any size mismatch
-  returns `null` without throwing. `ImportBattleScreenBulk(rom, indexedPixels, gbaPalette)` is the
-  validate-all-before-mutate write seam (CORRECTION 3): PHASE 1 re-loads the 5 image strips (their
-  ORIGINAL uncompressed byte lengths = the chunk boundaries, port of `RevChipImage`), the TSA map,
-  the EXISTING 16-bank ROM palette, and validates the imported 256×160 dims + the SINGLE-bank
-  palette/indices + all 5 image pointer slots + the palette pointer slot BEFORE any write; PHASE 2
-  splits the `EncodeTSAKeep` result into the 5 strips by the captured original lengths, LZ77-writes
-  + repoints each (`ImageImportCore.WriteCompressedToROM`), then writes the merged palette + repoints
-  (`WriteRawToROM`) — ALL through the caller's ambient `ROM.BeginUndoScope`, returning a non-empty
-  error string on any failure (no partial commit; caller rolls back).
-  **PALETTE POLICY = SAFE single bank (#989, Copilot fix).** WF's multi-bank
-  `ImageToPalette(bitmap, 4)` path relies on a PRE-BANKED indexed source (each 8×8 cell's pixels
-  use exactly the bank its TSA `pal = m>>12` bits select); a flat re-quantized 0..63 index stream
-  can't satisfy that (the rendered bank comes from the TSA, not the quantizer), so source indices
-  16..63 would silently render with the WRONG bank. Rather than be silently wrong, the bulk import
-  is restricted to ONE palette bank (`BULK_MAX_COLORS = 16`): a >16-color source is REJECTED with a
-  localized error and NO mutation. The imported 16-color palette is merged into BANK 0 of the
-  EXISTING 16-bank ROM palette (banks 1..15 preserved verbatim, so TSA cells with `pal>0` keep
-  their colors); pixel indices must be 0..15. Full multi-bank correctness is a documented follow-up
-  (needs a bank-aware quantizer that honors per-cell TSA bank assignment). The Avalonia
-  `ImageBattleScreenView.BulkImport_Click` quantizes the PNG with `maxColors = BULK_MAX_COLORS + 1`
-  (so a >16-color source is DETECTED via `LoadResult.ColorCount` and rejected) and calls the seam
-  under one `UndoService` scope; `BulkExport_Click` reuses the composited-preview PNG path
-  (`BattlePreview.ExportPng`). Both bulk buttons are gated on the SAME render-success state
-  (`CanExportBattle`/`HasImage`) as the top Export PNG (CORRECTION 4). Bulk **Redo** stays a
-  documented deferral (local TSA redo buffer is WinForms-coupled; the functional Bulk **Undo**
-  covers ROM-level rollback).
-- `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) - Cross-platform EXPORT seam for
-  SkillSystems skill animations (ported from WinForms `ImageUtilSkillSystemsAnimeCreator.Export`).
-  `SkipCode(rom, animeAddr, out isDefender)` resolves the anime-config (FE8J direct;
-  FE8U skips the embedded `config/patch2/FE8U/skill/skillanimtemplate*.dmp` program and
-  flags the defender variant); `ExportSkillAnimation` walks frames to the `0xFFFF`
-  terminator, LZ77-decompresses OBJ+TSA, renders each 240×(≥160) via
-  `ImageUtilCore.DecodeTSA` (TILE-unit args, `opaqueIndex0:true` to match WF
-  `ByteToImage16Tile`); `BuildScriptLines` emits the `.txt` script. The shared
-  Avalonia `SkillConfigAnimeExportHelper` writes `.txt`+PNGs or an animated GIF
-  (`U.GameFrameSecToGifFrameSec` delays) for the 4 animation-bearing SkillConfig
-  views (FE8N Ver1 stays a stub) (#910).
-- `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) - Cross-platform IMPORT seam
-  for SkillSystems skill animations (SLICE 1 #916 FE8J + SLICE 2 #917 FE8U; ported
-  from WinForms `ImageUtilSkillSystemsAnimeCreator.Import`). **FE8J AND FE8U.**
-  `ParseScript` handles `D`/`S{hex}`/`{wait} {png}` lines (sound-id default `0x3d1`);
-  `ImportSkillAnimation` validates EVERYTHING before any mutation, encodes each
-  UNIQUE frame (dedup by **filename**) via `ImageImportCore.EncodeTSA` +
-  `LZ77.compress` (tiles + TSA) while keeping the **palette RAW 0x20 bytes (NEVER
-  compressed)**, forces 240×160, builds the frames table terminated by a **4-byte
-  `0xFFFF,0xFFFF`**, writes the 5-word config block (frames/tsalist/imagelist/pallist
-  as `U.toPointer`, then `sound_id` as a **RAW u32**), and repoints the slot via
-  `RecycleAddress.WriteAndWritePointerAmbient` LAST — all under one
-  `ROM.BeginUndoScope`, with a defensive `rom.Data` snapshot restored in-place on
-  ANY fault so a partial write never half-flips the slot or leaks freespace bytes.
-  **FE8U** (NOT `is_multibyte`) additionally PREPENDS the per-skill program template
-  (`config/patch2/FE8U/skill/skillanimtemplate*.dmp`, defender vs attack by the
-  leading `D` line; WF :589-598) to `mainData` before the config block. SLICE-2
-  guards: the template is read ONCE (`File.ReadAllBytes`) in the
-  validate-before-mutate phase (GUARD A) and carried verbatim into the write
-  (GUARD C, no endian/pad/truncate) — a missing/unreadable `.dmp` returns a clean
-  no-mutation error THERE, so the validated bytes == the written bytes and the
-  forced-failure byte-identity guarantee holds for FE8U too. The dir + 2 filenames
-  live in the SINGLE shared `FE8USkillTemplate` constants (GUARD E) used by BOTH
-  this prepend and the export `SkipCode` (which skips exactly this prefix on
-  re-read — the repointed slot points to the template START), so the two seams
-  can never drift. The shared Avalonia `SkillConfigAnimeImportHelper` wires the 4
-  SkillConfig views' Animation Import buttons (FE8N Ver1 stays a stub) (#913).
-  OLD-REGION RECYCLE (#914): the former parity gap is now CLOSED for single-import.
-  `EnumerateOldAnimeRegions(rom, oldAnimeAddress)` is a literal, STRICTLY
-  READ-ONLY port of WF `RecycleOldAnime` (`:637-784`) — it enumerates the slot's
-  CURRENT anime sub-regions (per-frame OBJ/TSA LZ77 + RAW 0x20 palette + the
-  program/config block + the three pointer lists, `count` per-frame so freed
-  block lengths byte-match WF) with WF's two-tier semantics (pre-walk guard
-  failure → EMPTY list; mid-walk bail → PARTIAL list, never cleared). It runs in
-  the validate phase BEFORE the defensive snapshot clone, so #885 byte-identity
-  on fault never depends on it, and threads into `WriteCore`'s `RecycleAddress`
-  pool via the new `recycleOldRegion` parameter (default `true`). Single-import
-  (Avalonia helper) reuses the freed region.
-  CROSS-SLOT SHARED-REGION SAFETY (#929): the `SubConfilctArea`-equivalent
-  skill-anime lacked is now `BuildSkillAnimeRegionRefcount(rom, animeBase, count)`
-  — a STRICTLY READ-ONLY refcount over EVERY slot's recyclable regions, keyed by
-  normalized data address (`Address.Addr`, NOT `Address.Pointer` — different
-  pointer slots referencing the SAME bytes is the normal sharing case). It counts
-  SLOT OWNERSHIP (per-slot `HashSet<uint>` dedup) NOT raw per-frame entries, so a
-  slot reusing a frame id stays `count==1`; only a region owned by ≥2 distinct
-  slots reaches `count>1`. An exclude-aware overload
-  `EnumerateOldAnimeRegions(rom, addr, IReadOnlySet<uint> excludeRegionAddrs)`
-  SKIPS any per-frame region OR config/list block whose data address is excluded
-  (the original `(rom, addr)` overload delegates with `null` — no behavior
-  change), and `ImportSkillAnimation` gained a trailing `excludeRegions = null`
-  param threaded into the recycle-pool build. **Bulk
-  (`SkillConfigSkillSystemBulkImportCore`) now recycles NON-SHARED regions**: it
-  computes the shared set once from the ORIGINAL pre-mutation state and passes
-  `recycleOldRegion:true, excludeRegions:shared` — conservative (originally-shared
-  regions stay excluded for the whole transaction; may leak but never corrupts a
-  co-owner; dynamic reclaim out of scope).
-- `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) - Cross-platform BULK-EXPORT
-  seam for the SkillSystems skill config (SLICE 1 of #920; ported from WinForms
-  `SkillConfigSkillSystemForm.ExportAllData`). `ExportAll(rom, textPointerLocation,
-  animePointerLocation, tsvPath, writeAnime) → string error` derefs BOTH pointer
-  LOCATIONS to bases (`rom.p32`), walks the `i < 255`-capped row count via
-  `Rom.getBlockDataCount`, writes a `*.SkillConfig.tsv` of `textID<TAB>animePtr`
-  hex rows, and for each EXTENDED-area anime (`animePtr != 0 && animePtr >=
-  U.toOffset(extends_address)`) renders via the merged
-  `SkillSystemsAnimeExportCore.ExportSkillAnimation` (#912) and hands the result +
-  the `anime{i:hex}` dir name to the `writeAnime` delegate (so Core stays free of
-  GUI image-save). Guards: CoreState.ROM-identity, NOT_FOUND locations (patch not
-  installed), unsafe bases. ZERO ROM mutation, no undo. The Avalonia
-  `SkillConfigSkillSystemView.BulkExport_Click` provides `writeAnime` — it writes
-  `anime{i:hex}/anime.txt` (via `SkillSystemsAnimeExportCore.BuildScriptLines`) +
-  per-frame PNGs and disposes each unique `IImage` once. BULK IMPORT = SLICE 2
-  (separate PR, #923).
-- `SkillConfigSkillSystemBulkImportCore.cs` (Core, ROM-MUTATING, BULK-ATOMIC) -
-  Cross-platform BULK-IMPORT seam for the SkillSystems skill config (SLICE 2 of
-  #923 / #885; ported from WinForms `SkillConfigSkillSystemForm.ImportAllData`).
-  `ImportAll(rom, textPointerLocation, animePointerLocation, tsvPath,
-  animeScriptDirResolver, imageProvider, applyRecycle=true) → string error`
-  reads a `*.SkillConfig.tsv` (one `textID<TAB>animePtr` hex row per skill, as
-  written by the export seam), derefs BOTH pointer LOCATIONS (after a `+3`
-  isSafetyOffset guard, #922 lesson), walks the `i < 255`-capped row count, and
-  for each skill with an `anime{i:hex}/anime.txt` re-imports the animation via
-  the merged `SkillSystemsAnimeImportCore.ImportSkillAnimation` (now with an
-  additive `manageSnapshot` param). The WHOLE multi-skill import is ONE ATOMIC
-  transaction: either every skill commits (exactly ONE undo record) or the ROM
-  is restored byte-identical to the pre-bulk snapshot (ZERO undo records). The
-  3 HIGH corruption fixes from the approved #923 plan: **H1** length-aware
-  restore — a per-skill anime import can GROW `rom.Data` (via RecycleAddress →
-  `write_resize_data`); the fault restore down-resizes back to `snap.Length`
-  BEFORE the in-place `Array.Copy`, so the trailing grown bytes can't survive.
-  **H2** return-value fault detection — `ImportSkillAnimation` signals failure
-  by RETURNING a non-empty string (not only by throwing); the bulk treats a
-  non-empty returned error OR a thrown exception OR a `NOT_FOUND` as a fault.
-  **H3** ONE `ROM.BeginUndoScope` wraps the whole loop, every per-skill import
-  runs with `manageSnapshot:false` (composing into the bulk scope instead of
-  opening its own non-reentrant scope), the scope is asserted alive across all
-  skills (`Rom.IsAmbientUndoScopeActive`), and exactly one record is pushed on
-  success. M/L: textID written ONLY when non-zero (M1); `applyRecycle` toggle
-  through the ported pure `SkillConfigSkillTextIDRecycle.Convert` (M2);
-  VALIDATE-ALL-BEFORE-MUTATE pre-loads every script + all PNGs (+ FE8U .dmp
-  template) so any validation failure mutates ZERO bytes (M3); malformed
-  `< 2`-field TSV rows skipped (L1); textID write uses the ambient `write_u16`
-  overload (L2). The Avalonia `SkillConfigSkillSystemView.BulkImport_Click`
-  wires it (reusing the single-import quantize loader for per-frame PNGs); the
-  Core seam OWNS the undo scope so the view does NOT open a UI UndoService scope
-  (that would clobber the non-reentrant ambient scope) (#923).
-  CROSS-SLOT RECYCLE (#929): bulk now RECYCLES old anime regions (closing the
-  #914 leak) — BEFORE the mutation loop it runs the read-only
-  `SkillSystemsAnimeImportCore.BuildSkillAnimeRegionRefcount(rom, animeBase,
-  count)` over the ORIGINAL state, builds `shared = {addr : count>1}`, and passes
-  `recycleOldRegion:true, excludeRegions:shared` into each per-skill
-  `ImportSkillAnimation`. A region owned by ≥2 distinct slots is NEVER recycled
-  (so a co-owning skill's bytes can't be overwritten); unshared old regions are
-  reclaimed so bulk re-import no longer grows the ROM unboundedly. Conservative
-  static pre-pass — an originally-shared region stays excluded for the whole
-  transaction (safe, may leak; dynamic reclaim out of scope).
-- `MapPListResolverCore.cs` (Core, READ-ONLY) - Cross-platform port of the
-  WinForms map-PLIST label resolver (`MapPointerForm.GetPListNameSplited` /
-  `GetPListNameNotSplite` / `ConvertBaseAddrToType` + `MapSettingForm.PLists` /
-  `GetMapPListsWhereAddr`) used by the MapPointer + MapChange + MapTileAnimation
-  Avalonia editors to show resolved map names (`MAP Ch1`, `MAPCHANGE Ch5`,
-  `ANIME1 Prologue`, `ANIME2 Ch18 …`, `OBJ …`, `NULL`, `-EMPTY-`, `UNK`) instead
-  of raw `0x08……` pointers / PLIST-hex labels (#952). `PLists`
-  reads each field from its REAL per-version source — `event_plist` from
-  `RomInfo.map_setting_event_plist_pos`, FE6 worldmap from
-  `map_setting_worldmap_plist_pos`, and the **PAL2 offset (146 vs 45) from the
-  ported `PatchDetection.SearchFlag0x28ToMapSecondPalettePatch`** (WF `PatchUtil`
-  now delegates to that single Core detector). EXTENDS (does NOT fork) the
-  `MapChangeCore.PlistType` enum (added MAP/EVENT/ANIMATION/ANIMATION2/
-  WORLDMAP_FE6ONLY + `GetPlistBasePointer`) and `MapSettingCore.GetMapNameWhereAddr`.
-  Subtleties preserved verbatim: OBJ is a packed u16 (`& 0xFF` low + `>>8 & 0xFF`
-  high both resolve to `OBJ`); ANIME1/ANIME2 both match under ANIMATION; PAL/PAL2
-  both under OBJECT; the FE6 WMEVENT branch fires on `worldmapevent_plist == 0`
-  (after the `plist==0 → NULL` early-return); split → `-EMPTY-` on no match,
-  non-split → `UNK`. Per-call LOCAL `ResolveCache` (mapAddr → PLists + name), no
-  global/static state. The MapPointer VM's old `GetPlistPointer(7)` bug (returned
-  `worldmap_point_pointer`) is FIXED to `map_worldmapevent_pointer` via the shared
-  base-pointer seam. The `ListParityHelper.BuildMapPointerList` /
-  `BuildMapChangeList` golden builders call the SAME resolver in lockstep;
-  independent Core oracle tests (`MapPListResolverCoreTests`) hand-build
-  expectations from raw map bytes on synthetic + real FE6/FE7U/FE8U ROMs.
-  MapTileAnimation rewire (#952 T5 slice B, bug #11): `MapTileAnimationView`
-  (the simple, menu-reachable editor) resolves each `map_tileanime1_pointer`
-  slot index — an ANIMATION PLIST id — via `ResolveLabel(rom, ANIMATION, i)`
-  (ANIME1 and ANIME2 both match under ANIMATION); `MapTileAnimation2Core.BuildPlistList`
-  resolves each FILTER-combo row via `ResolveLabel(rom, ANIMATION2, plist)` (the
-  broken-PLIST `(破損)` suffix is still appended). Lockstep golden builders:
-  `ListParityHelper.BuildMapTileAnimationList` + the new public
-  `BuildMapTileAnimation2FilterList`. **`MapTileAnimation1` anime1 PLIST filter
-  (#955, #957 W1c) — DONE** (the former deferral is CLOSED): the new
-  `MapTileAnimation1Core.BuildPlistList` enumerates the distinct anime1 PLISTs
-  referenced by the map settings (`anime1_plist` at map-setting `+9`), resolves
-  each FILTER-combo row via `ResolveLabel(rom, ANIMATION, plist)` → `ANIME1
-  MapName` (ANIME1/ANIME2 share the `map_tileanime1_pointer` base; both match
-  under ANIMATION), and resolves the selected PLIST's data table via
-  `MapChangeCore.PlistToOffsetAddr(ANIMATION, plist)` (broken-PLIST `(破損)`
-  suffix appended). `MapTileAnimation1Core.ScanEntries` walks the SELECTED
-  PLIST's 8-byte data records — **the anime1 schema is the inverse of anime2**:
-  `wait = u16@+0`, `length = u16@+2`, `imagePointer = p32@+4`, terminated by
-  `!isPointer(u32(addr+4))` (the image pointer is at `+4`, NOT `+0`). The
-  Avalonia `MapTileAnimation1View` now hosts the filter combo + selection bar
-  (mirroring anime2); the VM no longer treats `map_tileanime1_pointer` (the
-  PLIST TABLE) as a flat entry table. Lockstep golden builders:
-  `ListParityHelper.BuildMapTileAnimation1List` (rewired to PLIST-based) + the
-  new public `BuildMapTileAnimation1FilterList`.
-- `MapRenderCore.cs` (Core, READ-ONLY) - Cross-platform chapter-map +
-  change-map overlay renderer (ports WinForms `ImageUtilMap.DrawMap` /
-  `DrawChangeMap`). **FE7 obj2 (MR4) RESOLVED (#961 W2c):** `RenderMapImage` /
-  `RenderChangeMap` gained an OPTIONAL trailing `obj2Offset` parameter (default
-  0). The map-setting `obj_plist` (`map_setting +4`) is a packed u16 — LOW byte
-  = primary OBJ tileset PLIST, HIGH byte = FE7 secondary obj2 tileset PLIST
-  (FE6/FE8 keep the high byte 0). When the caller resolves a non-zero obj2 plist
-  (`(obj_plist >> 8) & 0xFF`), it passes that tileset's ROM offset; the obj2
-  LZ77 stream is decompressed and **concatenated onto the primary OBJ bytes
-  (primary first)** before `ImageUtilCore.DecodeTSA` — byte-for-byte the WF
-  `DrawMapChipOnly` order. A non-zero-but-truncated obj2 fails the whole render
-  (WF bail-to-BlankDummy parity). Avalonia `EventMapChangeViewModel.RenderChangePreview`
-  resolves the high byte and passes `obj2Offset`; FE6/FE8 are byte-identical to
-  the pre-#961 single-tileset path.
-- `MapStyleEditorViewModel.TryImportObjImage` (Avalonia, ROM-MUTATING, #976) —
-  the Map Style Editor OBJ import now supports the FE7 obj2 dual-tileset split
-  (ports WF `MapStyleEditorForm.WriteMapChipImage`). When a secondary obj2 PLIST
-  is present (high byte of `obj_plist != 0`, persisted as `_currentObjPlist2`),
-  the encoded tile sheet is split in half by BYTE length — first half →
-  primary OBJECT PLIST, second half → obj2 PLIST — each LZ77-compressed
-  independently and written via `MapChangeCore.WritePlistData`. Both writes
-  share the view's single ambient undo scope, so a failed second write rolls
-  BOTH back (atomicity). `CanImportObj` is gated on the secondary plist being
-  in-limit; FE6/FE8 single-tileset styles are unchanged.
-- `EventMapChangeViewModel.ImportChangeDataFromPointer` (Avalonia, ROM-MUTATING,
-  #961 W2c) — pointer-import for the Map Change Event editor (mirrors the intent
-  of WF `EventMapChangeForm` `button1` "変化データ ポインタ先へのインポート").
-  Reads `B3 × B4 × 2` RAW u16 bytes from a user-supplied SOURCE change-data
-  address, appends a COPY to ROM free space via
-  `RecycleAddress.WriteAndWritePointerAmbient`, and repoints the current
-  record's P8 (`CurrentAddr+8`) at the copy — the standard append+repoint
-  pattern (never overwrites in place, so a size mismatch can't corrupt
-  neighbours). All writes route through the ambient overload so the View's
-  `UndoService.Begin/Commit/Rollback` scope captures the whole transaction; any
-  returned error rolls back. `EventMapChangeView.PointerImport_Click` prompts for
-  the source address via `NumberInputDialog`, wraps the call in the undo scope,
-  and re-renders the change-overlay preview on success.
-- `TranslateTextUtilCore.cs` (Core, READ-ONLY, NETWORK-OPTIONAL) - Cross-platform
-  port of the two safe, high-value pieces of WinForms `TranslateTextUtil` for the
-  Avalonia Text Editor Translate tab (#967, follow-up to the #949 MVP).
-  `SplitEscapeSegments(text)` is a CORRECTED port of WF `SplitEscapeString`:
-  it splits into alternating literal-text and `@XXXX` (5-char hex) escape
-  segments (bundling a `@0003` immediately followed by `\r\n` into ONE segment)
-  and — unlike WF, which drops trailing literal after the last code — flushes the
-  tail so `string.Concat(SplitEscapeSegments(x)) == x` for ALL x. A `@` is only a
-  code boundary when it is followed by EXACTLY four hex digits (the position-based
-  `IsCodeAt` twin of `IsEscapeSegment`, single source of truth): a literal at-sign
-  in ordinary text (`email@example.com`, `hello@catworld`, a trailing `@`, or `@`
-  + fewer than four hex / non-hex chars) stays glued to its surrounding literal
-  segment instead of being fragmented (#971). `IsEscapeSegment` classifies a code
-  as `@` + exactly four hex digits. `LoadFixedDic(from, to)`
-  loads the shipped glossary `config/translate/dic_<from>_<to>.txt` (the single
-  `dic_ja_en.txt` serves both `ja→en` and reversed `en→ja`), tab-separated
-  `source\ttarget`, keys upper-cased, `\r\n` un-escaped, first-wins on dups;
-  missing file / null `CoreState.BaseDirectory` → empty dict, NO throw, and
-  (W2a SongNameResolverCore lesson) only a SUCCESSFUL load is cached — the cache
-  is `lock`-guarded and keyed by `(BaseDirectory, from, to)`. The orchestrator
-  `TranslateText(text, from, to, dic, useGoogle, translator=null)` splits → keeps
-  code segments VERBATIM (never sent to the translator) → glossary-first
-  (case-insensitive, trimmed) → else the injectable `translator` delegate
-  (default `new TranslateManage().Trans`, so unit tests run offline) → reassembles
-  in order. DEFERRED (documented): `InsertSerifnl` line-breaking (WinForms
-  System.Drawing font metrics), `FE8SkipFace48` face-code shift, and the full WF
-  ROM-pair text-id glossary. The Avalonia `TextViewerView.OnTranslateClick` calls
-  it (preserving the #949 off-UI-thread `Task.Run` + WebException-safe handling +
-  status label + empty-result rejection) instead of the raw `Trans`.
-- `UnitPaletteClassResolverCore.cs` (Core, READ-ONLY) - Cross-platform port of
-  WinForms `ImageUnitPaletteForm.MakeClassList` palette→class resolution (#985).
-  `ResolveDefaultPreviewClass(rom, slotIndex)` returns the FIRST class id that
-  uses unit-palette slot `slotIndex` (0-based = WF `AddressList.SelectedIndex`),
-  else 0 — so the Avalonia Unit Palette Editor's Edit tab can populate the
-  Battle Animation id + sample preview on every selection (the original bug:
-  empty Battle Animation + no preview). FE8 (`version >= 8`) scans the dedicated
-  `unit_palette_color/class_pointer` byte tables (`colorBase + i*7 + n`,
-  7 palettes/unit; `paletteid>0 && paletteid-1==slot` → `u8(classBase + i*7 + n)`);
-  FE6/FE7 reads the per-unit-record palette ids (`+35` low / `+36` high) and
-  resolves the base class (`unit+5`) or the PROMOTED class via a faithful
-  `GetHighClass` port (base class at `unit+5`; if it is a low class, promote via
-  the class table — `isHighClass` flag at `class+37` FE6 / `class+41` FE7, change
-  class at `class+5`). First match wins. `FindFirstClassWithAnime(rom)` is the
-  view's fallback (first class 1..N with `ClassFormCore.GetAnimeIDByClassID > 0`).
-  Pure, takes `rom` (no `CoreState.ROM`); guards EVERY pointer-location + computed
-  address (`U.isSafetyOffset`) — never throws. The Avalonia
-  `ImageUnitPaletteView.OnSelected` calls it after `SelectedPaletteSlot` is set,
-  before `UpdateUI`, then `RefreshSamplePreview` renders.
-- `WaitIconRenderCore.cs` (Core, READ-ONLY) - Cross-platform Unit Wait Icon
-  decode + crop seam (#991), extracted VERBATIM from the Avalonia
-  `PreviewIconHelper.LoadClassWaitIcon` decode pipeline (now a thin delegating
-  wrapper → single source of truth, zero drift). Resolves the 8-byte wait-icon
-  table entry (`unit_wait_icon_pointer` base; animType = raw byte @ `+2`, sprite
-  GBA pointer @ `+4`), LZ77-decompresses the strip, computes the strip height
-  (`CalcStripHeight` = WF `ImageUtil.CalcHeight(width, size, align=8)`), and
-  renders via `IImageService.Decode4bppTiles`. `RenderFrame(rom, idx, step, svc,
-  paletteType=0)` crops the step's frame per WF `DrawWaitUnitIcon`
-  (height16_limit=false): animType0 `(0,16*step,16,16)`, animType1
-  `(0,32*step+8,16,24)` (the #342/#667 Y=8 offset), animType2 `(0,32*step,32,32)`;
-  bounds-checked → null on short strip / unsafe ptr / null palette, NEVER throws.
-  `RenderFullSheet` returns the full decoded strip (no crop) for the editor's
-  X_PIC + PNG export. `RenderClassWaitIcon == RenderFrame(step:0, self)` preserves
-  the step-0 16x24@Y=8 list-preview parity. `GetPaletteColors(rom, paletteType)`
-  maps 0=self/1=npc/2=enemy/3=gray/4=four/5=lightrune/6=sepia to the matching
-  `unit_icon_*_palette_address` (`ImageUtilCore.GetPalette(addr,16)`; addr==0 →
-  null, so FE6 lightrune/sepia are blank). **rom-consistent palette read (#993
-  Copilot review):** `GetPaletteColors` reads via the new rom-aware
-  `ImageUtilCore.GetPalette(rom, offset, colorCount)` overload (the parameterless
-  one now delegates to it) so a Core seam never silently reads palette bytes from
-  a different ambient `CoreState.ROM` than the one it validated. The Avalonia
-  `ImageUnitWaitIconView` (no longer a stub) hosts W0/W2/P4 fields + undo-safe
-  Write, a 5-selectable palette combo (English-source `<TextBlock>` items
-  localized by `ViewTranslationHelper` via ja/en/zh `config/translate/`) + 0..2
-  step preview (full sheet + frame), Comment, jump-to-Move-Icon, and
-  PNG/animated-GIF export. The View `using`-disposes each freshly-rendered
-  `IImage` right after `SetImage` (which copies into a `WriteableBitmap`, not
-  retains) so the unmanaged SKBitmap is released without waiting for GC.
-- `WaitIconImportCore.cs` (Core, ROM-MUTATING) - Cross-platform static PNG/BMP
-  wait-icon sheet import (#991; ports WF `ImageUnitWaitIconFrom.ImportButton_Click`
-  write-back). `Import(rom, entryAddr, indexedPixels, width, height) → string`
-  validates dims → animType byte b2 (16x48→0 / 16x96→1 / 32x96→2, else localized
-  error + NO mutation), encodes via `ImageImportCore.EncodeDirectTiles4bpp`,
-  LZ77-writes + repoints the entry's `+4` pointer (`WriteCompressedToROM` OWNS the
-  +4 slot), and writes b2 into W2 (`write_u16` @ `+2`) — all under the CALLER's
-  ambient undo scope (the View owns `UndoService.Begin/Commit/Rollback`). A
-  defensive `rom.Data` snapshot is restored byte-identical on ANY fault
-  (length-aware: down-resize to snap length BEFORE `Array.Copy` so a
-  free-space resize-append can't survive — the #885/#923 pattern). The WF
-  interactive force-palette dialog is replaced by a nearest-color remap onto the
-  shared self-army palette done by the View's `Import_Click`
-  (`ImageImportService.LoadAndRemapToExistingPalette`, the entry has NO palette
-  slot) BEFORE the seam. Class back-refs live in `ClassFormCore`
-  (`GetClassIdWhereWaitIconId` @ class `+6`, `GetClassMoveIcon` @ class `+4`,
-  `GetClassNameWhereWaitIconId` → `NameResolver.GetClassName`) and drive the
-  list-label class name (lockstep `ListParityHelper.BuildImageUnitWaitIconList` ↔
-  VM `LoadList`, golden-test gated) + the Jump-to-Move-Icon button. The
-  move-icon field (`u8 @ class+4`) is a 1-BASED id (WF
-  `PreviewIconHelper.LoadMoveIcon` uses `id - 1`; `ImageUnitMoveIconViewModel`
-  is 0-based by table index), so `ImageUnitWaitIconViewModel.ResolveMoveIconEntryAddress`
-  navigates to `moveIconBase + (id - 1) * 8` (id 0 → no jump) — PR #993 Copilot
-  off-by-one fix, headless-tested on the computed target address. **Hardening
-  (#993 Copilot review):** `GetClassNameWhereWaitIconId` requires `rom ==
-  CoreState.ROM` (ReferenceEquals) before resolving via the ambient-ROM-bound
-  `NameResolver` (else "" — never a mismatched label); `GetClassMoveIcon` bounds
-  `classId` against the class-table row count (`GetClassCount`) so an
-  out-of-range id returns `U.NOT_FOUND` not an arbitrary byte; both
-  `GetClassMoveIcon` and `WaitIconRenderCore.TryResolveEntry` use `ulong`
-  address arithmetic + a ulong bounds check so a huge id can't wrap a `uint`
-  sum back into the table.
-  **Documented residual gaps:** (1) animated-GIF IMPORT is not a WF feature (WF
-  import is PNG/BMP single-frame; GIF is export-only); (2) the interactive
-  palette reorder/force dialog (WF `CheckPalette`/`ErrorPaletteShowForm`) is
-  replaced by automatic nearest-color remap; (3) old-region recycle on import is
-  deferred (always-append never corrupts shared sprites, may leak freespace on
-  repeated import); (4) list-expand barista repoint + source-file Open/Select
-  conveniences are deferred (editor edits existing entries only). The shared
-  list-termination contract (first non-pointer `@+4`) is kept unchanged; WF's
-  `P4==0 && flags!=0` non-terminal nuance is a documented pre-existing residual
-  (test-asserted current vanilla behavior).
-- `EventScriptReferenceScanner.cs` (Core, READ-ONLY) - Generic cross-platform
-  event-script cross-reference scanner (#990). `EnumerateEventEntries(rom)` is a
-  faithful port of WinForms `EventCondForm.MakeEventScriptPointer` (+ the FE7-only
-  `MakeEventScriptForFE7Tutorial` table) — it walks every map's event-condition
-  table via `MapSettingCore.MakeMapIDList` + `MapEventUnitCore.GetEventAddrForMap`/
-  `GetCondSlots` and yields each event-script entry point with VERIFIED per-cond
-  geometry: TURN (stride `eventcond_tern_size`, ptr `p32(addr+4)`, FE7 short-turn
-  `type==1`→`addr+=12`), TALK (`eventcond_talk_size`, ptr+4), OBJECT (fixed 12,
-  ptr+4, SKIP shop/chest — FE8 chest=0x14 shop=0x16-0x18, FE6/7 chest=0x12
-  shop=0x13-0x15), ALWAYS (fixed 12, ptr+4), TUTORIAL (fixed 4, ptr+0,
-  `!isPointer` stop), START/END (the cond-slot addr itself), + FE7 tutorial.
-  `FindAllArgReferences(rom, argType, keepZeroId)` GATES on
-  `CoreState.EventScript != null && ReferenceEquals(CoreState.ROM, rom) &&
-  CoreState.CommentCache != null` (the disasm path dereferences static
-  `CoreState.ROM` AND `CoreState.CommentCache.At`), disassembles
-  each entry (`es.DisAseemble`) iterating EVERY non-UNKNOWN command's args (10-
-  UNKNOWN cutoff + 4096-step guard + EOF bound, IF/LABEL→lastBranchAddr for
-  `IsExitCode`), recurses through `POINTER_EVENT` with a tracelist cycle guard,
-  buckets each `argType` ref by id value (`v>=0x7FFF` skipped, `v==0` dropped
-  unless `keepZeroId`), and DEDUPs each bucket by event-script-start address
-  (matches WF `UseValsID.RemoveDuplicates` for a single id). `ScanScriptForArg`
-  is exposed `internal` (InternalsVisibleTo Core.Tests) for synthetic tests.
-  DOCUMENTED RESIDUAL GAPS (event-script refs only): patch-config refs
-  (MULTICG/BGICON, the WF `PatchForm` struct-install scanner — WinForms-bound,
-  not ported) and ASM/MAP symbol refs (the WF `AsmMapFileAsmCache.GetVarsIDArray`
-  master list — headless ASM/MAP cache is a no-op) are NOT covered.
-- `BGReferenceFinder.cs` (Core, READ-ONLY) - Thin `ArgType.BG` wrapper over
-  `EventScriptReferenceScanner.FindAllArgReferences(rom, ArgType.BG,
-  keepZeroId:true)` with a per-ROM-instance cache (#990; restores the Avalonia
-  Background Image editor's always-empty References list, the WF
-  `InputFormRef.UpdateRef(X_REF, id, BG)` event-script source). `MakeListByUseBG(rom,
-  bgId)` builds the full `bgId→refs` map once per loaded ROM (cache keyed by ROM
-  instance identity — a new ROM load rebuilds; within-session edits don't
-  invalidate, matching WF's own cache-staleness model) and returns a COPY of the
-  bucket. CACHE-POISONING GUARD (#992): it PRE-CHECKS the scanner prerequisites
-  (`EventScript` + `CommentCache` wired AND `rom` is the active `CoreState.ROM`)
-  and, when NOT satisfied, returns empty WITHOUT caching — so an early/headless
-  call before CoreState finished initializing can't pin the same ROM instance to
-  a permanently-empty cache (the References list would never populate). Only a
-  real scan (prereqs satisfied) sets `_cachedRom`. `ResetCache()` for tests. The
-  Avalonia `ImageBGViewModel.RefreshXrefs(bgId)`
-  (mirroring `ImageBattleBGViewModel.RefreshXrefs`) calls it from `LoadEntry`; the
-  View's existing `XRefList.ItemsSource = XRefEntries.Select(x=>x.name)` binding
-  projects the populated list. Same residual gaps as the scanner.
+- `LZ77ToolCore.cs` (Core) — LZ77 Tool Move + Recompress tabs (WinForms `ToolLZ77Form` +
+  Avalonia `ToolLZ77ViewModel`). Ambient undo via `ROM.BeginUndoScope()`; LDR-first /
+  raw-fallback pointer search (event-aware path out of scope — `MissingEventAwareCoverage` always set).
+- `ImageBattleScreenCore` — `EncodeTSAKeep` (Core, PURE) + `ImportBattleScreenBulk` (Core,
+  ROM-MUTATING): BULK whole-screen import for the Battle Screen Layout editor (#988). `EncodeTSAKeep`
+  keeps the TSA and applies the INVERSE per-cell flip to each new tile; `ImportBattleScreenBulk` is
+  validate-all-before-mutate (splits into 5 strips, LZ77-writes + repoints each, then the palette,
+  under the caller's ambient undo — no partial commit). **Palette policy = SAFE single bank**
+  (`BULK_MAX_COLORS=16`; a >16-color source is REJECTED with NO mutation; the 16-color palette merges
+  into bank 0, banks 1–15 preserved; multi-bank quantizer is a documented follow-up). Bulk Redo deferred. #989.
+- `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) — SkillSystems skill-anime EXPORT: `SkipCode`
+  (FE8J direct; FE8U skips the `.dmp` program + flags defender), `ExportSkillAnimation` (walks frames
+  to the `0xFFFF` terminator, LZ77-decompresses OBJ+TSA), `BuildScriptLines`. Avalonia
+  `SkillConfigAnimeExportHelper` → `.txt`+PNG or GIF (FE8N Ver1 stub). #910/#912.
+- `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) — SkillSystems skill-anime IMPORT, FE8J #916
+  + FE8U #917. `ParseScript` reads the `D`/`S{hex}`/`{wait} {png}` lines; `ImportSkillAnimation`
+  validates EVERYTHING before mutating; palette kept **RAW 0x20
+  bytes (never compressed)**; forces 240×160; repoints the slot LAST under one undo scope with a
+  defensive snapshot restored byte-identical on ANY fault. **FE8U prepends** the per-skill `.dmp`
+  program template (shared `FE8USkillTemplate` constants, read once in the validate phase). Old-region
+  recycle via `EnumerateOldAnimeRegions` (#914); cross-slot safety via `BuildSkillAnimeRegionRefcount`
+  — a region owned by ≥2 slots is NEVER recycled (#929).
+- `SkillConfigSkillSystemBulkExportCore.cs` (Core, READ-ONLY) — `ExportAll` bulk-exports the
+  SkillSystems skill config to `*.SkillConfig.tsv` (`textID<TAB>animePtr` rows) + per-skill anime
+  dirs; the `writeAnime` delegate keeps Core free of GUI image-save. #920.
+- `SkillConfigSkillSystemBulkImportCore.cs` (Core, ROM-MUTATING, BULK-ATOMIC) — `ImportAll`
+  re-imports every skill as **ONE atomic transaction**: all commit (exactly one undo record) or the
+  ROM is restored byte-identical (zero records). Length-aware restore (H1), return-value fault
+  detection (H2), one shared `ROM.BeginUndoScope` with per-skill `manageSnapshot:false` (H3);
+  validate-all-before-mutate; cross-slot recycle of NON-shared regions only (#929). #923/#885.
+- `MapPListResolverCore.cs` (Core, READ-ONLY) — map-PLIST label resolver (`MAP Ch1`, `MAPCHANGE Ch5`,
+  `ANIME1/2`, `OBJ`, `NULL`, `-EMPTY-`, `UNK`) for the MapPointer/MapChange/MapTileAnimation editors,
+  via `PLists` + `ResolveLabel`. Extends (does NOT fork) `MapChangeCore.PlistType`; per-call LOCAL
+  cache. Drives the anime1 PLIST filter (`MapTileAnimation1Core.BuildPlistList` +
+  `MapTileAnimation1Core.ScanEntries`) and the anime2 filter — **anime1 schema is the inverse of anime2**
+  (`imagePointer` at `+4`, not `+0`). #952/#955/#957.
+- `MapRenderCore.cs` (Core, READ-ONLY) — chapter-map + change-map overlay renderer (ports
+  `ImageUtilMap.DrawMap`/`DrawChangeMap`). `RenderMapImage`/`RenderChangeMap` take an optional
+  `obj2Offset` for the **FE7 obj2 dual-tileset split**: `obj_plist` high byte selects a secondary
+  tileset whose LZ77 bytes are concatenated AFTER the primary OBJ bytes (WF order). FE6/8 unchanged. #961.
+- `MapStyleEditorViewModel.TryImportObjImage` (Avalonia, ROM-MUTATING) — Map Style Editor OBJ import
+  with the FE7 obj2 split: tile sheet split by BYTE length → primary OBJECT + obj2 PLISTs, each
+  LZ77-compressed and written under ONE undo scope (a failed 2nd write rolls both back). #976.
+- `EventMapChangeViewModel.ImportChangeDataFromPointer` (Avalonia, ROM-MUTATING) — Map Change Event
+  pointer-import: append a COPY of `B3×B4×2` source u16 bytes to free space + repoint P8
+  (append+repoint, never overwrites in place). All writes through the ambient undo overload. #961.
+- `TranslateTextUtilCore.cs` (Core, READ-ONLY, NETWORK-OPTIONAL) — Text Editor Translate tab:
+  `SplitEscapeSegments` (lossless literal/`@XXXX` split; `@` is a code boundary only before exactly
+  4 hex digits, so `email@x` stays literal), `LoadFixedDic` (shipped glossary; only successful loads
+  cached), `TranslateText` (code segments kept VERBATIM, glossary-first, injectable translator so
+  tests run offline). #949/#967/#971.
+- `UnitPaletteClassResolverCore.cs` (Core, READ-ONLY) — `ResolveDefaultPreviewClass(rom, slotIndex)`
+  returns the first class using a unit-palette slot so the Unit Palette Editor seeds Battle Animation
+  + preview (FE8 scans dedicated tables; FE6/7 read per-unit palette ids + a `GetHighClass` port).
+  `FindFirstClassWithAnime` is the fallback. Pure, guards every address, never throws. #985.
+- `WaitIconRenderCore.cs` (Core, READ-ONLY) — Unit Wait Icon decode + crop (#991), extracted verbatim
+  from `PreviewIconHelper.LoadClassWaitIcon` (now a thin wrapper → single source of truth).
+  `RenderFrame`/`RenderFullSheet`/`RenderClassWaitIcon` crop per animType (0/1/2; the #342/#667 Y=8
+  offset for type 1); `GetPaletteColors` maps 0..6 self/npc/enemy/gray/four/lightrune/sepia. Reads
+  palettes via the rom-aware `ImageUtilCore.GetPalette(rom, …)` overload (never the ambient ROM) (#993).
+- `WaitIconImportCore.cs` (Core, ROM-MUTATING) — static PNG/BMP wait-icon sheet import (#991).
+  `Import` validates dims → animType (16x48→0 / 16x96→1 / 32x96→2, else NO mutation), encodes, LZ77-
+  writes + repoints `+4`, writes b2 @ `+2`, all under the caller's ambient undo with a length-aware
+  byte-identical fault restore (#885/#923 pattern). Class back-refs in `ClassFormCore`
+  (`GetClassIdWhereWaitIconId`, `GetClassMoveIcon` — move-icon id is 1-BASED, #993 off-by-one fix).
+  Residual gaps: GIF import (export-only), interactive palette dialog (→ nearest-color remap),
+  old-region recycle (always-append).
+- `EventScriptReferenceScanner.cs` (Core, READ-ONLY) — generic event-script cross-reference scanner
+  (#990; ports `EventCondForm.MakeEventScriptPointer` + FE7 tutorial table). `EnumerateEventEntries`
+  yields every event entry point with verified per-cond geometry (TURN/TALK/OBJECT/ALWAYS/TUTORIAL/
+  START/END, shop/chest skipped); `FindAllArgReferences(rom, argType, keepZeroId)` GATES on
+  `CoreState.EventScript`/`CommentCache` wired AND `ReferenceEquals(CoreState.ROM, rom)`, disassembles
+  each entry, buckets refs by id, dedups by script-start. Residual gaps: patch-config + ASM/MAP refs not covered.
+- `BGReferenceFinder.cs` (Core, READ-ONLY) — thin `ArgType.BG` wrapper over
+  `EventScriptReferenceScanner.FindAllArgReferences` with a per-ROM-instance cache (#990; restores the
+  Background Image editor's References list). `MakeListByUseBG(rom, bgId)` builds the `bgId→refs` map
+  once per loaded ROM. **Cache-poisoning guard (#992):** pre-checks scanner prerequisites and returns
+  empty WITHOUT caching when unsatisfied, so an early/headless call can't pin a permanently-empty cache.
 
 ### Caching System
 
