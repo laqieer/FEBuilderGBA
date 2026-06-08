@@ -47,8 +47,7 @@
                     Name="UndoButton" Content="Undo" Click="Undo_Click" />
             <Button AutomationProperties.AutomationId="ImagePallet_Redo_Button"
                     Name="RedoButton" Content="Redo"
-                    IsEnabled="False"
-                    ToolTip.Tip="Pending Core RunRedo API - tracked by #500." />
+                    Click="Redo_Click" />
           </StackPanel>
         </Border>
 

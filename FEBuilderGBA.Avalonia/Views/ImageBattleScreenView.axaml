@@ -133,8 +133,7 @@
                         Click="PaletteUndo_Click" />
                 <Button AutomationProperties.AutomationId="ImageBattleScreen_PaletteRedo_Button"
                         Name="PaletteRedoButton" Content="Redo" Width="100"
-                        IsEnabled="False"
-                        ToolTip.Tip="KnownGap: local palette-edit redo (PaletteFormRef redo buffer) is WinForms-coupled (#393). Use the main ROM-level Undo via the toolbar." />
+                        Click="PaletteRedo_Click" />
               </StackPanel>
 
               <!-- RGB header row -->
