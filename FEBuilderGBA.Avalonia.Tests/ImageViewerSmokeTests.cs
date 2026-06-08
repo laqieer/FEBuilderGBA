@@ -532,7 +532,6 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData(typeof(ImageBattleBGViewModel))]
         [InlineData(typeof(ImageBattleScreenViewModel))]
         [InlineData(typeof(ImageCGViewModel))]
-        [InlineData(typeof(ImageFormRefViewerViewModel))]
         [InlineData(typeof(ImageGenericEnemyPortraitViewModel))]
         [InlineData(typeof(ImageMapActionAnimationViewModel))]
         [InlineData(typeof(ImagePalletViewModel))]

@@ -169,8 +169,6 @@ generate_editor "ImageMagicFEditor" "Magic Effect Editor (FEditor)"
 generate_editor "ImageMagicCSACreator" "CSA Magic Creator"
 generate_editor "ImageMapActionAnimation" "Map Action Animation"
 generate_editor "DecreaseColorTSATool" "Color Reduction Tool"
-generate_editor "ImageFormRefViewer" "Image Form Reference"
-generate_editor "InterpolatedPictureBoxViewer" "Interpolated Picture Box"
 
 # ==========================
 # B. Event Script Editors
@@ -255,7 +253,6 @@ generate_editor "MapMiniMapTerrainImage" "Mini-Map Terrain"
 generate_editor "MapTileAnimation1" "Tile Animation Type 1"
 generate_editor "MapTileAnimation2" "Tile Animation Type 2"
 generate_editor "MapLoadFunction" "Map Load Functions"
-generate_editor "MapPictureBoxViewer" "Map Picture Box"
 
 # ==========================
 # E. Audio/Sound Editors
