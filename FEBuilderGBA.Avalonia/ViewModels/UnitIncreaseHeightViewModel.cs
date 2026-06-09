@@ -74,6 +74,44 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return (baseAddr, count);
         }
 
+        /// <summary>
+        /// Resolve the ROM address of the height row for a given portrait id.
+        ///
+        /// The Unit Increase Height table is a DENSE FE8 table: row 0 belongs to
+        /// the first managed portrait id (<c>u8(switch2_address)</c>) and the rows
+        /// are contiguous from there. The id therefore maps to a row only when it
+        /// falls inside <c>[startId, startId + count)</c>, where <c>count</c> is the
+        /// RESOLVED row count from <see cref="ResolveTable"/> (raw switch byte + 1).
+        ///
+        /// Returns 0 ("no height row for this id") when the table is disabled, the
+        /// id is below the first managed id, the id is at/above the end of the
+        /// table (this also rejects the <c>0xFFFFFFFF</c> "no selection" sentinel
+        /// without unsigned underflow), or the resolved row would fall outside the
+        /// ROM. Never throws.
+        /// </summary>
+        public static uint IdToAddress(ROM rom, uint portraitId)
+        {
+            if (rom?.RomInfo == null) return 0;
+
+            var (baseAddr, count) = ResolveTable(rom);
+            if (baseAddr == 0 || count == 0) return 0;
+
+            uint startId = rom.u8(rom.RomInfo.unit_increase_height_switch2_address);
+
+            // Guard BEFORE subtracting so an id below the first managed id — or
+            // the 0xFFFFFFFF sentinel — can never underflow the unsigned math.
+            if (portraitId < startId) return 0;
+            if (portraitId >= startId + count) return 0;
+
+            uint addr = baseAddr + (portraitId - startId) * EntrySize;
+
+            // Full-row + safety bounds.
+            if ((long)addr + EntrySize > rom.Data.Length) return 0;
+            if (!U.isSafetyOffset(addr, rom)) return 0;
+
+            return addr;
+        }
+
         public List<AddrResult> LoadList()
         {
             ROM rom = CoreState.ROM;

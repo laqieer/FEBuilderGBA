@@ -26,6 +26,37 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         const uint SIZE = 28;
 
+        /// <summary>
+        /// Sentinel returned by <see cref="GetSelectedPortraitId"/> when no valid,
+        /// aligned portrait entry is selected. Distinct from any real portrait id.
+        /// </summary>
+        public const uint NoPortraitSelection = 0xFFFFFFFF;
+
+        /// <summary>
+        /// Resolve the portrait id (0-based row index) of the currently selected
+        /// entry from <see cref="CurrentAddr"/> and the portrait table base.
+        /// Returns <see cref="NoPortraitSelection"/> when nothing is selected, the
+        /// portrait pointer is missing/unsafe, the address is below the table base,
+        /// or the address is NOT entry-aligned (a non-aligned address yields no
+        /// selection rather than a floored wrong id). Never throws.
+        /// </summary>
+        public uint GetSelectedPortraitId()
+        {
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null || CurrentAddr == 0) return NoPortraitSelection;
+
+            uint pointer = rom.RomInfo.portrait_pointer;
+            if (pointer == 0) return NoPortraitSelection;
+
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr) || CurrentAddr < baseAddr) return NoPortraitSelection;
+
+            uint delta = CurrentAddr - baseAddr;
+            if (delta % SIZE != 0) return NoPortraitSelection;
+
+            return delta / SIZE;
+        }
+
         uint _currentAddr;
         bool _isLoaded;
         uint _portraitImagePtr, _miniPortraitPtr, _palettePtr, _mouthFramesPtr, _classCardPtr;
