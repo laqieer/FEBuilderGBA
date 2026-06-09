@@ -95,7 +95,7 @@
             <CheckBox AutomationProperties.AutomationId="EventUnit_ItemDropFlag_Check" Content="Drop Item" Name="ItemDropCheck" Margin="10,0,0,0" />
           </StackPanel>
 
-          <!-- After-coords read-only (B7 count + D8 pointer) -->
+          <!-- After-coords (B7 count + D8 pointer) read-only summary -->
           <TextBlock Grid.Row="6" Grid.Column="0" Text="After Coordinates:" VerticalAlignment="Center" Margin="0,2" />
           <StackPanel Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="0,2">
             <TextBlock Text="Count:" VerticalAlignment="Center" />
@@ -146,6 +146,47 @@
           <TextBlock Grid.Row="16" Grid.Column="0" Text="Comment:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox AutomationProperties.AutomationId="EventUnit_Comment_Input" Grid.Row="16" Grid.Column="1" Grid.ColumnSpan="2" Name="CommentBox" Margin="0,2" />
         </Grid>
+
+        <!-- Editable FE8 after-coord (move-path) list (#1017). FE8-only -->
+        <Border Name="AfterCoordsPanel" BorderBrush="Gray" BorderThickness="1" Padding="6" IsVisible="False">
+          <StackPanel Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="After Coordinate Move Path (FE8)" FontWeight="Bold" VerticalAlignment="Center" />
+              <Button AutomationProperties.AutomationId="EventUnit_AddCoord_Button" Content="Add Coord" Name="AddCoordBtn" Click="AddCoord_Click" />
+              <Button AutomationProperties.AutomationId="EventUnit_RemoveCoord_Button" Content="Remove Coord" Name="RemoveCoordBtn" Click="RemoveCoord_Click" IsEnabled="False" />
+            </StackPanel>
+            <TextBlock Text="Row 0 is the start position (X/Y/Ext persist to W4). Rows 1+ are the move-path steps." Foreground="Gray" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="40,70,70,70,80,90,70,70,80">
+              <TextBlock Grid.Column="0" Text="#" FontWeight="Bold" />
+              <TextBlock Grid.Column="1" Text="X" FontWeight="Bold" />
+              <TextBlock Grid.Column="2" Text="Y" FontWeight="Bold" />
+              <TextBlock Grid.Column="3" Text="Ext" FontWeight="Bold" />
+              <TextBlock Grid.Column="4" Text="Speed" FontWeight="Bold" />
+              <TextBlock Grid.Column="5" Text="UnitId" FontWeight="Bold" />
+              <TextBlock Grid.Column="6" Text="Unk1" FontWeight="Bold" />
+              <TextBlock Grid.Column="7" Text="Unk2" FontWeight="Bold" />
+              <TextBlock Grid.Column="8" Text="Wait" FontWeight="Bold" />
+            </Grid>
+            <ListBox AutomationProperties.AutomationId="EventUnit_AfterCoords_List" Name="AfterCoordsList"
+                     SelectionChanged="AfterCoordsList_SelectionChanged" MaxHeight="280">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Grid ColumnDefinitions="40,70,70,70,80,90,70,70,80">
+                    <TextBlock Grid.Column="0" Text="{Binding StartRowMarker}" VerticalAlignment="Center" />
+                    <NumericUpDown Grid.Column="1" FormatString="0" Minimum="0" Maximum="63" Width="64" Value="{Binding X}" />
+                    <NumericUpDown Grid.Column="2" FormatString="0" Minimum="0" Maximum="63" Width="64" Value="{Binding Y}" />
+                    <NumericUpDown Grid.Column="3" FormatString="0" Minimum="0" Maximum="7" Width="64" Value="{Binding Ext}" />
+                    <NumericUpDown Grid.Column="4" FormatString="0" Minimum="0" Maximum="255" Width="74" Value="{Binding Speed}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="5" FormatString="0" Minimum="0" Maximum="255" Width="84" Value="{Binding UnitId}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="6" FormatString="0" Minimum="0" Maximum="255" Width="64" Value="{Binding Unk1}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="7" FormatString="0" Minimum="0" Maximum="255" Width="64" Value="{Binding Unk2}" IsEnabled="{Binding IsAfterRow}" />
+                    <NumericUpDown Grid.Column="8" FormatString="0" Minimum="0" Maximum="65535" Width="74" Value="{Binding Wait}" IsEnabled="{Binding IsAfterRow}" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </StackPanel>
+        </Border>
 
         <!-- Address bar (Size / Selected Address / Write) -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="6">
