@@ -20,7 +20,49 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWriteClick;
+            RefetchButton.Click += OnRefetchClick;
+            JumpMapEditorButton.Click += OnJumpMapEditorClick;
+            JumpExitPointButton.Click += OnJumpExitPointClick;
             Opened += (_, _) => LoadList();
+        }
+
+        // 再取得 — reload the entry list and reselect the current entry. Zero mutation.
+        void OnRefetchClick(object? sender, RoutedEventArgs e)
+        {
+            uint keep = _vm.CurrentAddr;
+            LoadList();
+            if (keep != 0) EntryList.SelectAddress(keep);
+        }
+
+        // マップエディタへJump — Avalonia ADDRESS-keyed bridge. WF J_ID_MAPEDITOR
+        // passes the selected map id to MapEditorForm.JumpTo(mapid); here we pass
+        // CurrentAddr because MapEditorView keys its list by the same
+        // MakeMapIDList addresses (verified identical address space). Not a literal
+        // WF link-value match, but equivalent.
+        void OnJumpMapEditorClick(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.CurrentAddr == 0) return;
+            try { WindowManager.Instance.Navigate<MapEditorView>(_vm.CurrentAddr); }
+            catch (Exception ex) { Log.Error("MapSettingFE6View.JumpMapEditor failed: {0}", ex.ToString()); }
+        }
+
+        // 離脱ポイントへJump — map id -> exit-point table slot -> navigate.
+        void OnJumpExitPointClick(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.CurrentAddr == 0) return;
+            try
+            {
+                uint mapId = _vm.CurrentMapId;
+                if (mapId == U.NOT_FOUND) return;
+                uint slot = MapExitPointCore.GetMapEntrySlotAddr(CoreState.ROM, mapId);
+                if (slot == U.NOT_FOUND)
+                {
+                    CoreState.Services?.ShowInfo("No exit-point entry exists for this map.");
+                    return;
+                }
+                WindowManager.Instance.Navigate<MapExitPointView>(slot);
+            }
+            catch (Exception ex) { Log.Error("MapSettingFE6View.JumpExitPoint failed: {0}", ex.ToString()); }
         }
 
         void LoadList()

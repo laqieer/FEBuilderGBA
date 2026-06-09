@@ -124,6 +124,26 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// The exit-point pointer-table SLOT address for a given map id, taken
+        /// from the main (filter 0) table via <see cref="ListMapEntries(ROM, uint)"/>
+        /// (so it respects the <c>npc_blockadd</c> cap). Returns
+        /// <see cref="U.NOT_FOUND"/> when no entry exists for that map id.
+        /// PURE / read-only — used by the FE6 Map Settings "Jump to ExitPoint".
+        /// </summary>
+        public static uint GetMapEntrySlotAddr(ROM rom, uint mapId)
+        {
+            if (rom == null) return U.NOT_FOUND;
+
+            // filterIndex 0 is the DEFAULT / enemy exit-point table. NPC exit
+            // entries live in the npc_blockadd-shifted table (filter 1) and are
+            // intentionally NOT selected by this Map Settings jump.
+            var entries = ListMapEntries(rom, 0);
+            foreach (var e in entries)
+                if (e.tag == mapId) return e.addr;
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
         /// Walk the per-map exit-point block starting at
         /// <paramref name="exitPointAddr"/> (the dereferenced pointer value
         /// — NOT a slot). Each row is 4 bytes; the walk stops on the first
