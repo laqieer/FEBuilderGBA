@@ -399,8 +399,8 @@ namespace FEBuilderGBA.Core.Tests
             byte[] blockA = MakeEditedBlock(0x7C1F); // magenta (R31 B31)
             byte[] blockB = MakeEditedBlock(0x03FF); // yellow  (R31 G31)
 
-            IImage gridA = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, blockA);
-            IImage gridB = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, blockB);
+            using IImage gridA = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, blockA);
+            using IImage gridB = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, blockB);
             Assert.NotNull(gridA);
             Assert.NotNull(gridB);
             Assert.False(ByteArraysEqual(gridA.GetPixelData(), gridB.GetPixelData()),
@@ -418,7 +418,7 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeAnimeRom();
             CoreState.ROM = rom;
 
-            IImage grid = BattleAnimeRendererCore.RenderSampleBattleAnime(
+            using IImage grid = BattleAnimeRendererCore.RenderSampleBattleAnime(
                 RECORD_OFFSET, 0, 0, MakeEditedBlock(0x7C1F)); // magenta
             Assert.NotNull(grid);
             AssertPixel(grid, 0, 0, 248, 0, 248, 255); // magenta override, not green
@@ -432,8 +432,8 @@ namespace FEBuilderGBA.Core.Tests
             ROM rom = MakeAnimeRom();
             CoreState.ROM = rom;
 
-            IImage threeArg = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
-            IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage threeArg = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
+            using IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
             Assert.NotNull(threeArg);
             Assert.NotNull(nullBlock);
             Assert.True(ByteArraysEqual(threeArg.GetPixelData(), nullBlock.GetPixelData()),
@@ -451,8 +451,8 @@ namespace FEBuilderGBA.Core.Tests
             byte[] undersized = new byte[16];           // NOT 32 bytes
             U.write_u16(undersized, 5 * 2, 0x7C1F);     // would be magenta if honored
 
-            IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
-            IImage withUnder = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, undersized);
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage withUnder = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, undersized);
             Assert.NotNull(savedPath);
             Assert.NotNull(withUnder);
             Assert.True(ByteArraysEqual(savedPath.GetPixelData(), withUnder.GetPixelData()),
@@ -471,8 +471,8 @@ namespace FEBuilderGBA.Core.Tests
             byte[] oversized = new byte[64];            // NOT exactly 32 bytes
             U.write_u16(oversized, 5 * 2, 0x7C1F);      // would be magenta if honored
 
-            IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
-            IImage withOver  = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, oversized);
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage withOver  = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, oversized);
             Assert.NotNull(savedPath);
             Assert.NotNull(withOver);
             Assert.True(ByteArraysEqual(savedPath.GetPixelData(), withOver.GetPixelData()),
