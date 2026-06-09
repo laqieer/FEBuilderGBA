@@ -54,6 +54,17 @@ namespace FEBuilderGBA.Avalonia.Views
         byte[] _customPaletteBytes;
         string _customPaletteFilename = string.Empty;
 
+        // #1019 (Import jump): true once Opened -> LoadList() has populated
+        // EntryList. SetItems() auto-selects row 0, so a NavigateTo arriving
+        // BEFORE the list loads (the Portrait editor's JumpToImporter handler
+        // opens the importer then immediately NavigateTo's the edited slot,
+        // but Avalonia raises Opened asynchronously after layout) is stashed in
+        // _pendingNavigateAddr and REPLAYED after the row-0 auto-select so it
+        // overrides row 0 and lands on the intended slot. Mirrors the
+        // pending-navigate pattern in UnitIncreaseHeightView (#1081).
+        bool _listLoaded;
+        uint? _pendingNavigateAddr;
+
         PortraitPaletteMode CurrentPaletteMode =>
             PaletteShareRadio.IsChecked == true ? PortraitPaletteMode.SharePalette :
             PaletteCustomRadio.IsChecked == true ? PortraitPaletteMode.CustomPalette :
@@ -112,8 +123,19 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 var items = _vm.LoadList();
-                EntryList.SetItems(items);
+                EntryList.SetItems(items); // auto-selects row 0
                 RefreshImportButtonState();
+                _listLoaded = true;
+
+                // #1019: replay a navigation requested before the list was
+                // ready so it OVERRIDES the row-0 auto-select. The replay's
+                // SelectAddress re-runs OnSelected -> UpdateDetailPanel for the
+                // intended slot (loading its B20-B23 into the four NUDs).
+                if (_pendingNavigateAddr is uint pending)
+                {
+                    _pendingNavigateAddr = null;
+                    EntryList.SelectAddress(pending);
+                }
             }
             catch (Exception ex)
             {
@@ -663,7 +685,20 @@ namespace FEBuilderGBA.Avalonia.Views
             ImportButton.IsEnabled = hasImage && hasSlot;
         }
 
-        public void NavigateTo(uint address) => EntryList.SelectAddress(address);
+        public void NavigateTo(uint address)
+        {
+            // #1019: when the list has not yet loaded (JumpToImporter opens the
+            // importer then calls NavigateTo synchronously, before Avalonia
+            // raises Opened -> LoadList), stash the address so LoadList() can
+            // replay it after the row-0 auto-select. A direct SelectAddress
+            // would no-op against the still-empty list and row 0 would win.
+            if (!_listLoaded)
+            {
+                _pendingNavigateAddr = address;
+                return;
+            }
+            EntryList.SelectAddress(address);
+        }
 
         public void SelectFirstItem()
         {

@@ -706,7 +706,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToImporter_Click(object? sender, RoutedEventArgs e)
         {
-            try { WindowManager.Instance.Open<ImagePortraitImporterView>(); }
+            try
+            {
+                var view = WindowManager.Instance.Open<ImagePortraitImporterView>();
+                if (_vm.CurrentAddr != 0)
+                    view.NavigateTo(_vm.CurrentAddr);   // position the importer at the portrait being edited (right target + its B20-B23)
+            }
             catch (Exception ex) { Log.Error("JumpToImporter failed: {0}", ex.Message); }
         }
 
