@@ -111,23 +111,27 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.DoesNotContain("Name=\"JumpMapEditorPlaceholder\"", xaml);
             Assert.DoesNotContain("Name=\"JumpExitPointPlaceholder\"", xaml);
 
-            // The two deferred placeholders keep their disabled state — assert
-            // IsEnabled="False" still sits on each of their specific lines.
-            foreach (var line in xaml.Split('\n'))
+            // Scope the disabled-state assertions to each <Button> ELEMENT (not
+            // a single source line) so a harmless attribute-wrapping reformat
+            // can't spuriously fail the test (Copilot bot review on #1086).
+            // [^>]* matches across newlines, so this captures the full opening
+            // tag even when attributes wrap.
+            var buttonTags = System.Text.RegularExpressions.Regex.Matches(xaml, @"<Button\b[^>]*?/?>");
+            bool sawExpand = false, sawMapStyle = false, sawRefetch = false, sawJumpMap = false, sawJumpExit = false;
+            foreach (System.Text.RegularExpressions.Match m in buttonTags)
             {
-                if (line.Contains("Name=\"ExpandListPlaceholder\"") ||
-                    line.Contains("Name=\"MapStyleChangePlaceholder\""))
-                {
-                    Assert.Contains("IsEnabled=\"False\"", line);
-                }
-                // The three wired buttons must NOT carry IsEnabled="False".
-                if (line.Contains("Name=\"RefetchButton\"") ||
-                    line.Contains("Name=\"JumpMapEditorButton\"") ||
-                    line.Contains("Name=\"JumpExitPointButton\""))
-                {
-                    Assert.DoesNotContain("IsEnabled=\"False\"", line);
-                }
+                string el = m.Value;
+                // Deferred placeholders MUST keep IsEnabled="False".
+                if (el.Contains("Name=\"ExpandListPlaceholder\"")) { sawExpand = true; Assert.Contains("IsEnabled=\"False\"", el); }
+                if (el.Contains("Name=\"MapStyleChangePlaceholder\"")) { sawMapStyle = true; Assert.Contains("IsEnabled=\"False\"", el); }
+                // Wired buttons MUST NOT carry IsEnabled="False".
+                if (el.Contains("Name=\"RefetchButton\"")) { sawRefetch = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }
+                if (el.Contains("Name=\"JumpMapEditorButton\"")) { sawJumpMap = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }
+                if (el.Contains("Name=\"JumpExitPointButton\"")) { sawJumpExit = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }
             }
+            // Guard against the regex silently matching nothing.
+            Assert.True(sawExpand && sawMapStyle && sawRefetch && sawJumpMap && sawJumpExit,
+                "All five Button elements must be found by the element scan.");
 
             // AutomationIds preserved for all five buttons.
             Assert.Contains("MapSettingFE6_Refetch_Button", xaml);
