@@ -51,11 +51,14 @@
                 ToolTip.Tip="Expand the magic-effect + CSA spell tables to 254 entries."
                 HorizontalAlignment="Stretch" Margin="2"
                 Click="ListExpand_Click" />
-        <Label DockPanel.Dock="Bottom"
-               AutomationProperties.AutomationId="ImageMagicCSACreator_FindMoreData_Label"
-               Name="FindMoreDataLabel" Content="Find new resources online"
-               ToolTip.Tip="Pending Core extraction - tracked by #500."
-               HorizontalAlignment="Stretch" Margin="2" />
+        <!-- #1021 — working "Find new resources online" link (mirrors the
+             FEditor LinkInternet TextBlock: blue / underline / hand cursor). -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   AutomationProperties.AutomationId="ImageMagicCSACreator_FindMoreData_Label"
+                   Name="FindMoreDataLabel" Text="Find new resources online"
+                   Foreground="Blue" TextDecorations="Underline" Cursor="Hand"
+                   HorizontalAlignment="Stretch" Margin="2"
+                   PointerPressed="LinkInternet_Click" />
         <controls:AddressListControl AutomationProperties.AutomationId="ImageMagicCSACreator_Entry_List"
                                      Name="EntryList" />
       </DockPanel>
@@ -117,14 +120,17 @@
             <Label Grid.Row="8" Grid.Column="0" Content="Frame" VerticalAlignment="Center" Margin="0,4,0,0" />
             <NumericUpDown AutomationProperties.AutomationId="ImageMagicCSACreator_Frame_Input"
                            FormatString="0" Grid.Row="8" Grid.Column="1" Name="FrameBox" Width="80"
-                           Minimum="0" Maximum="255" Margin="0,4,0,0" />
+                           Minimum="0" Maximum="255" Margin="0,4,0,0"
+                           ValueChanged="FrameBox_ValueChanged" />
 
             <Label Grid.Row="9" Grid.Column="0" Content="Zoom" VerticalAlignment="Center" Margin="0,4,0,0" />
             <ComboBox AutomationProperties.AutomationId="ImageMagicCSACreator_Zoom_Combo"
-                      Grid.Row="9" Grid.Column="1" Name="ZoomComboBox" Width="160" Margin="0,4,0,0">
+                      Grid.Row="9" Grid.Column="1" Name="ZoomComboBox" Width="160" Margin="0,4,0,0"
+                      SelectionChanged="ZoomComboBox_SelectionChanged">
               <!-- TextBlock-inside-ComboBoxItem so ViewTranslationHelper
                    picks them up for ja/zh localization (Copilot CLI inline
-                   review #7 on PR #547). -->
+                   review #7 on PR #547). #1021 maps the selection to the
+                   GbaImageControl zoom (no ROM re-render). -->
               <ComboBoxItem><TextBlock Text="Zoom in" /></ComboBoxItem>
               <ComboBoxItem><TextBlock Text="Original size" /></ComboBoxItem>
             </ComboBox>
@@ -136,14 +142,18 @@
           </Grid>
         </Border>
 
-        <!-- Preview area (placeholder - live ImageUtilMagicCSACreator.Draw is WF-coupled) -->
+        <!-- #1021 — live 240×128 CSA frame preview via
+             MagicEffectExportCore.RenderCsaFramePreview (READ-ONLY). Mirrors the
+             FEditor MagicFramePreview GbaImageControl. -->
         <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
           <StackPanel Spacing="4">
             <Label AutomationProperties.AutomationId="ImageMagicCSACreator_Preview_Label"
                    Content="Preview" FontWeight="SemiBold" />
-            <Image AutomationProperties.AutomationId="ImageMagicCSACreator_Preview_Image"
-                   Name="PreviewImage" Width="400" Height="160"
-                   Stretch="Uniform" ToolTip.Tip="Pending Core extraction - tracked by #500." />
+            <controls:GbaImageControl
+                AutomationProperties.AutomationId="ImageMagicCSACreator_Preview_Image"
+                Name="MagicFramePreview"
+                Width="240" Height="160"
+                HorizontalAlignment="Left" />
           </StackPanel>
         </Border>
 

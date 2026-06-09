@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
+using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
@@ -152,12 +153,82 @@ namespace FEBuilderGBA.Avalonia.Views
             P16Box.Text = string.Format("0x{0:X08}", _vm.P16);
             DimComboBox.SelectedIndex = (int)_vm.DimMode;
             CommentBox.Text = _vm.Comment;
+            // #1021 — bound the frame spinner to the actual 0x86 frame count so
+            // the user can't scrub past the end (mirrors the FEditor preview).
+            int frameCount = _vm.GetFrameCount();
+            FrameBox.Maximum = frameCount > 0 ? frameCount - 1 : 0;
             FrameBox.Value = _vm.Frame;
             ZoomComboBox.SelectedIndex = (int)_vm.Zoom;
             BinInfoBox.Text = _vm.BinInfo;
             // #886
             UpdateIoButtonsEnabled();
             UpdateSourceButtonVisibility();
+            // #1021 — live CSA frame preview re-render on entry select.
+            RenderPreview();
+        }
+
+        /// <summary>
+        /// Render the current CSA frame and update the live preview control
+        /// (READ-ONLY). Clears the surface when the preview can't be produced.
+        /// Mirrors the FEditor <c>RenderPreview</c> (#1021).
+        /// </summary>
+        void RenderPreview()
+        {
+            try
+            {
+                if (!_vm.CanRenderPreview)
+                {
+                    MagicFramePreview.SetImage(null);
+                    return;
+                }
+                using IImage? img = _vm.RenderCsaFramePreview(out _);
+                MagicFramePreview.SetImage(img);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicCSACreatorView.RenderPreview: {0}", ex.Message);
+                MagicFramePreview.SetImage(null);
+            }
+        }
+
+        // #1021 — frame spinner drives live preview re-render (CSA had none).
+        void FrameBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm == null) return;
+            _vm.Frame = (uint)(FrameBox.Value ?? 0);
+            RenderPreview();
+        }
+
+        // #1021 — zoom combo maps to the GbaImageControl zoom; NO ROM re-render.
+        void ZoomComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_vm == null) return;
+            if (sender is not ComboBox combo) return;
+            int idx = combo.SelectedIndex;
+            if (idx < 0) return;
+            _vm.Zoom = (uint)idx;
+            // Index 0 = "Zoom in" (2x), index 1 = "Original size" (1x).
+            // GbaImageControl owns the zoom; clamps to [1..8] internally.
+            MagicFramePreview.Zoom = idx == 0 ? 2 : 1;
+        }
+
+        // #1021 — working "Find new resources online" link → MoreData wiki
+        // (mirrors ImageMagicFEditorView.LinkInternet_Click / WF GotoMoreData).
+        void LinkInternet_Click(object? sender, PointerPressedEventArgs e)
+        {
+            try
+            {
+                const string url = "https://github.com/laqieer/FEBuilderGBA/wiki/MoreData";
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageMagicCSACreatorView.LinkInternet: {0}", ex.Message);
+            }
         }
 
         // #886 — Export button enabled when CSA system is detected + entry selected.

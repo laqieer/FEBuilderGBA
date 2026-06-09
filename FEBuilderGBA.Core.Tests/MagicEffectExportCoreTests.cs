@@ -1144,5 +1144,454 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
         }
 
+        // ---------------------------------------------------------------
+        // #1021 — RenderCsaFramePreview (live 240×128 CSA composite)
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Plant a complete 2-frame CSA frame-data stream where frame 1's shared
+        /// BG slot index is &gt; 1 (proving slotIndex ≠ frameIndex). Both frames
+        /// have planted LZ77 OBJ/BG/TSA + raw palettes so the render succeeds.
+        ///   Frame 0: OBJ 0x500, BG 0x600, TSA 0x2000  → OBJ slot 0, BG slot 1.
+        ///   Frame 1: OBJ 0x900 (distinct), BG 0xA00, TSA 0x4000 → OBJ slot 2, BG slot 3.
+        /// </summary>
+        static uint PlantTwoFrameCsaStream(ROM rom, uint baseOff)
+        {
+            byte[] d = rom.Data;
+
+            // Frame 0 (32-byte CSA record).
+            d[baseOff + 3] = 0x86;
+            WriteU32Le(d, baseOff + 4,  0x08000500u); // OBJ img
+            WriteU32Le(d, baseOff + 8,  0u);          // OAMAbsoStart (front)
+            WriteU32Le(d, baseOff + 12, 0u);          // OAMBGAbsoStart (back)
+            WriteU32Le(d, baseOff + 16, 0x08000600u); // BG img
+            WriteU32Le(d, baseOff + 20, 0x08000700u); // OBJ pal
+            WriteU32Le(d, baseOff + 24, 0x08000800u); // BG pal
+            WriteU32Le(d, baseOff + 28, 0x08002000u); // TSA (+28)
+
+            // Frame 1 (distinct OBJ/BG/TSA → its shared BG slot is 3, NOT 1).
+            uint off1 = baseOff + 32;
+            d[off1 + 3] = 0x86;
+            WriteU32Le(d, off1 + 4,  0x08000900u);
+            WriteU32Le(d, off1 + 8,  0u);
+            WriteU32Le(d, off1 + 12, 0u);
+            WriteU32Le(d, off1 + 16, 0x08000A00u);
+            WriteU32Le(d, off1 + 20, 0x08000700u);
+            WriteU32Le(d, off1 + 24, 0x08000800u);
+            WriteU32Le(d, off1 + 28, 0x08004000u);
+
+            // Terminator after the 2nd 32-byte frame.
+            d[off1 + 32 + 3] = 0x80;
+
+            // Plant LZ77 + palettes for BOTH frames.
+            // BG tilesheet (19200 bytes), TSA for 240x160 (1200 bytes) → height 160.
+            PlantSmallLZ77(d, 0x500u, 8192);    // OBJ frame 0
+            PlantSmallLZ77(d, 0x600u, 19200);   // BG frame 0
+            PlantSmallLZ77(d, 0x2000u, 1200);   // TSA frame 0
+            PlantSmallLZ77(d, 0x900u, 8192);    // OBJ frame 1
+            PlantSmallLZ77(d, 0xA00u, 19200);   // BG frame 1
+            PlantSmallLZ77(d, 0x4000u, 1200);   // TSA frame 1
+            PlantRawPalette(d, 0x700u);         // OBJ pal
+            PlantRawPalette(d, 0x800u);         // BG pal
+
+            return baseOff;
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_Frame1SlotGreaterThan1_UsesSharedSlotMapping()
+        {
+            // slot-vs-frame regression: frame 1's shared BG slot is 3 (> 1), so
+            // passing frameIndex 1 directly as a slot index would render the WRONG
+            // slot. RenderCsaFramePreview must map frame 1 → its shared slots via
+            // ExportMagicScriptLines (isCsa:true) and still produce a non-null image.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x10000u;
+                PlantTwoFrameCsaStream(rom, baseOff);
+
+                // Cross-check the shared-slot mapping the renderer relies on:
+                // frame 1 maps to OBJ slot 2 + BG slot 3 (NOT slot 1).
+                System.Collections.Generic.List<int> objSlots, bgSlots;
+                System.Collections.Generic.List<MagicFrameMeta> frames;
+                MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, baseOff, "t_", false,
+                    out objSlots, out bgSlots, out frames, isCsa: true);
+                Assert.Equal(2, frames.Count);
+                Assert.Equal(2, objSlots[1]); // frame 1 OBJ shared slot
+                Assert.Equal(3, bgSlots[1]);  // frame 1 BG shared slot (> 1)
+
+                // Render frame 1 → non-null (proves the mapping, not frameIndex-as-slot).
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    rom, baseOff, 1u, 0u, 0u);
+                Assert.NotNull(img);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_CsaAwareScan_PopulatesBgTsaForFrame1()
+        {
+            // CSA-aware scan: ExportMagicScriptLines(isCsa:true) reads the +28 BG TSA
+            // field for frame 1 (proving the 32-byte CSA stride, not 28-byte FEditor).
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x11000u;
+                PlantTwoFrameCsaStream(rom, baseOff);
+
+                System.Collections.Generic.List<int> objSlots, bgSlots;
+                System.Collections.Generic.List<MagicFrameMeta> frames;
+                MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, baseOff, "t_", false,
+                    out objSlots, out bgSlots, out frames, isCsa: true);
+
+                Assert.Equal(2, frames.Count);
+                // Frame 1's +28 TSA pointer must be populated (CSA stride proof).
+                Assert.Equal(0x08004000u, frames[1].RawBgTsaPtr);
+                Assert.Equal(0x4000u, frames[1].BgTsaOffset);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_CompositeIs240x128()
+        {
+            // composite dims: the live preview is a 240×128 image regardless of the
+            // BG/OBJ source dims.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x12000u;
+                PlantTwoFrameCsaStream(rom, baseOff);
+
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    rom, baseOff, 0u, 0u, 0u);
+
+                Assert.NotNull(img);
+                Assert.Equal(MagicEffectExportCore.CSA_PREVIEW_WIDTH,  img.Width);
+                Assert.Equal(MagicEffectExportCore.CSA_PREVIEW_HEIGHT, img.Height);
+                Assert.Equal(240, img.Width);
+                Assert.Equal(128, img.Height);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_OutOfRangeFrame_ReturnsNull()
+        {
+            // guards: out-of-range frameIndex → null.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x13000u;
+                PlantTwoFrameCsaStream(rom, baseOff); // only 2 frames (0,1)
+
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    rom, baseOff, 5u, 0u, 0u); // frame 5 doesn't exist
+                Assert.Null(img);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_NullRom_ReturnsNull()
+        {
+            // guards: null ROM → null (no throw).
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                CoreState.ImageService = new StubImageService();
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    null, 0x10000u, 0u, 0u, 0u);
+                Assert.Null(img);
+            }
+            finally { CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_NoImageService_ReturnsNull()
+        {
+            // guards: no ImageService → null (no throw).
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = null;
+
+                uint baseOff = 0x14000u;
+                PlantTwoFrameCsaStream(rom, baseOff);
+
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    rom, baseOff, 0u, 0u, 0u);
+                Assert.Null(img);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_NoMutation_RomByteIdentical()
+        {
+            // no-mutation: RenderCsaFramePreview is strictly read-only.
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x15000u;
+                PlantTwoFrameCsaStream(rom, baseOff);
+
+                byte[] before = (byte[])rom.Data.Clone();
+
+                // Render both frames (and an out-of-range one) — none may mutate.
+                MagicEffectExportCore.RenderCsaFramePreview(rom, baseOff, 0u, 0u, 0u);
+                MagicEffectExportCore.RenderCsaFramePreview(rom, baseOff, 1u, 0u, 0u);
+                MagicEffectExportCore.RenderCsaFramePreview(rom, baseOff, 9u, 0u, 0u);
+
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        // ---------------------------------------------------------------
+        // #1076 FIX 1 — slot-namespace mismatch regression
+        // ---------------------------------------------------------------
+
+        /// <summary>
+        /// Plant a 3-frame CSA stream where frames 0 and 1 SHARE the same BG image
+        /// pointer (0x600) but have DIFFERENT +28 BG TSA pointers (0x2000 vs 0x4000),
+        /// and frame 2 is fully distinct. This makes the CSA hash namespace (BG hash
+        /// = BgPtr+TsaPtr) DIVERGE from the renderer namespace
+        /// (<see cref="MagicEffectExportCore.RenderObjFrameSlot"/> uses the NON-CSA BG
+        /// hash = BgPtr only, so frames 0 and 1 collide to ONE BG slot):
+        ///
+        ///   CSA namespace:      F0 OBJ→0 BG(0x600+0x2000)→1 | F1 OBJ→2 BG(0x600+0x4000)→3 | F2 OBJ→4 BG→5
+        ///   Renderer namespace: F0 OBJ→0 BG(0x600)→1        | F1 OBJ→2 BG(0x600)=slot1   | F2 OBJ→3 BG→4
+        ///
+        /// So the CSA <c>sharedObjSlots[2] = 4</c> points PAST the renderer's OBJ slots
+        /// {0,2,3} — the OLD code (indexing sharedObjSlots) would render OBJ slot 4,
+        /// find no frame, and silently drop the OBJ layer.
+        /// </summary>
+        static uint PlantSharedBgDifferentTsaStream(ROM rom, uint baseOff)
+        {
+            byte[] d = rom.Data;
+
+            // Frame 0: OBJ 0x500, BG 0x600, TSA 0x2000.
+            uint f0 = baseOff;
+            d[f0 + 3] = 0x86;
+            WriteU32Le(d, f0 + 4,  0x08000500u);
+            WriteU32Le(d, f0 + 8,  0u);
+            WriteU32Le(d, f0 + 12, 0u);
+            WriteU32Le(d, f0 + 16, 0x08000600u); // BG (SHARED)
+            WriteU32Le(d, f0 + 20, 0x08000700u);
+            WriteU32Le(d, f0 + 24, 0x08000800u);
+            WriteU32Le(d, f0 + 28, 0x08002000u); // TSA A
+
+            // Frame 1: OBJ 0x900 (distinct), BG 0x600 (SAME as F0), TSA 0x4000 (different).
+            uint f1 = baseOff + 32;
+            d[f1 + 3] = 0x86;
+            WriteU32Le(d, f1 + 4,  0x08000900u);
+            WriteU32Le(d, f1 + 8,  0u);
+            WriteU32Le(d, f1 + 12, 0u);
+            WriteU32Le(d, f1 + 16, 0x08000600u); // BG (SHARED with F0)
+            WriteU32Le(d, f1 + 20, 0x08000700u);
+            WriteU32Le(d, f1 + 24, 0x08000800u);
+            WriteU32Le(d, f1 + 28, 0x08004000u); // TSA B (different → CSA inserts an extra BG slot)
+
+            // Frame 2: fully distinct OBJ 0xD00, BG 0xE00, TSA 0x6000.
+            uint f2 = baseOff + 64;
+            d[f2 + 3] = 0x86;
+            WriteU32Le(d, f2 + 4,  0x08000D00u);
+            WriteU32Le(d, f2 + 8,  0u);
+            WriteU32Le(d, f2 + 12, 0u);
+            WriteU32Le(d, f2 + 16, 0x08000E00u);
+            WriteU32Le(d, f2 + 20, 0x08000700u);
+            WriteU32Le(d, f2 + 24, 0x08000800u);
+            WriteU32Le(d, f2 + 28, 0x08006000u);
+
+            // Terminator after the 3rd 32-byte frame.
+            d[f2 + 32 + 3] = 0x80;
+
+            // Plant LZ77 + palettes so each frame's OBJ/BG/TSA render succeeds.
+            PlantSmallLZ77(d, 0x500u, 8192);    // OBJ F0
+            PlantSmallLZ77(d, 0x600u, 19200);   // BG (shared F0+F1)
+            PlantSmallLZ77(d, 0x2000u, 1200);   // TSA A
+            PlantSmallLZ77(d, 0x900u, 8192);    // OBJ F1
+            PlantSmallLZ77(d, 0x4000u, 1200);   // TSA B
+            PlantSmallLZ77(d, 0xD00u, 8192);    // OBJ F2
+            PlantSmallLZ77(d, 0xE00u, 19200);   // BG F2
+            PlantSmallLZ77(d, 0x6000u, 1200);   // TSA F2
+            PlantRawPalette(d, 0x700u);         // OBJ pal (shared)
+            PlantRawPalette(d, 0x800u);         // BG pal (shared)
+
+            return baseOff;
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_SharedBgDifferentTsa_LaterFrame_KeepsObjLayer()
+        {
+            // #1076 FIX 1 regression: when earlier CSA frames share a BG image but
+            // differ in the +28 TSA pointer, the CSA hash namespace diverges from the
+            // renderer namespace. The OLD code (indexing sharedObjSlots[frameIndex] and
+            // passing it to RenderObjFrameSlot over the FULL frame list) would render a
+            // slot that does NOT exist in the renderer namespace → OBJ layer dropped.
+            // The fix renders the SELECTED frame via a single-frame list (OBJ slot 0).
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x20000u;
+                PlantSharedBgDifferentTsaStream(rom, baseOff);
+
+                System.Collections.Generic.List<int> objSlots, bgSlots;
+                System.Collections.Generic.List<MagicFrameMeta> frames;
+                MagicEffectExportCore.ExportMagicScriptLines(
+                    rom, baseOff, "t_", false,
+                    out objSlots, out bgSlots, out frames, isCsa: true);
+
+                // Prove the divergence the CLI flagged: the CSA scan gives frame 2's
+                // OBJ shared slot = 4 (because F1's distinct-TSA BG took an extra slot).
+                Assert.Equal(3, frames.Count);
+                Assert.Equal(4, objSlots[2]);
+
+                // OLD-code path: passing the CSA slot index (4) to RenderObjFrameSlot
+                // over the FULL list renders NOTHING — slot 4 is past the renderer's
+                // OBJ slots {0,2,3} (F0,F1 share a BG slot in the non-CSA namespace).
+                var objViaCsaSlot = MagicEffectExportCore.RenderObjFrameSlot(
+                    rom, frames, objSlots[2], 0u, 0u);
+                Assert.Null(objViaCsaSlot); // OBJ layer would be SILENTLY DROPPED
+
+                // FIX path: render frame 2's OBJ via a single-frame list at slot 0.
+                var single = new System.Collections.Generic.List<MagicFrameMeta> { frames[2] };
+                var objViaSingle = MagicEffectExportCore.RenderObjFrameSlot(
+                    rom, single, 0, 0u, 0u);
+                Assert.NotNull(objViaSingle); // OBJ layer rendered correctly
+
+                // End-to-end: RenderCsaFramePreview for the later frame returns a
+                // non-null composite (no longer drops the OBJ layer).
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    rom, baseOff, 2u, 0u, 0u);
+                Assert.NotNull(img);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
+        // ---------------------------------------------------------------
+        // #1076 FIX 2 — bgPalette[0] OPAQUE canvas fill (WF parity)
+        // ---------------------------------------------------------------
+
+        /// <summary>Plant a 16-color BG palette whose color 0 is a distinctive
+        /// (non-black) GBA color, so the canvas fill is detectable. The
+        /// StubImageService maps each 5-bit channel via <c>&lt;&lt;3</c>.</summary>
+        static void PlantBgPaletteWithColor0(byte[] data, uint offset, ushort gbaColor0)
+        {
+            if (offset + 0x20 > data.Length) return;
+            data[offset + 0] = (byte)(gbaColor0 & 0xFF);
+            data[offset + 1] = (byte)((gbaColor0 >> 8) & 0xFF);
+            for (int i = 1; i < 16; i++)
+            {
+                // Remaining colors: opaque red so any BG-covered pixel differs from fill.
+                ushort c = 0x001F;
+                data[offset + i * 2 + 0] = (byte)(c & 0xFF);
+                data[offset + i * 2 + 1] = (byte)((c >> 8) & 0xFF);
+            }
+        }
+
+        [Fact]
+        public void RenderCsaFramePreview_CanvasBackground_IsBgPalette0_NotTransparentBlack()
+        {
+            // #1076 FIX 2: WF fills the 240×128 canvas with bgPalette[0] (OPAQUE)
+            // BEFORE drawing the BG. With a 64px-tall BG (small TSA), the bottom rows
+            // (64..127) are NOT covered by the BG blit, so they must carry the
+            // palette[0] fill — NOT transparent black (all-zero RGBA).
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeMinimalRomSize(0x1100000);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                uint baseOff = 0x30000u;
+                byte[] d = rom.Data;
+
+                // One CSA frame with a SMALL TSA (480 bytes → 64px BG height).
+                d[baseOff + 3] = 0x86;
+                WriteU32Le(d, baseOff + 4,  0x08000500u); // OBJ img
+                WriteU32Le(d, baseOff + 8,  0u);
+                WriteU32Le(d, baseOff + 12, 0u);
+                WriteU32Le(d, baseOff + 16, 0x08000600u); // BG img
+                WriteU32Le(d, baseOff + 20, 0x08000700u); // OBJ pal
+                WriteU32Le(d, baseOff + 24, 0x08000800u); // BG pal
+                WriteU32Le(d, baseOff + 28, 0x08003000u); // TSA (small → 64px)
+                d[baseOff + 32 + 3] = 0x80;               // terminator
+
+                PlantSmallLZ77(d, 0x500u, 8192);   // OBJ tilesheet
+                PlantSmallLZ77(d, 0x600u, 8192);   // BG tilesheet
+                PlantSmallLZ77(d, 0x3000u, 480);   // small TSA → 64px BG height
+                PlantRawPalette(d, 0x700u);        // OBJ palette
+                // Distinctive BG palette color 0 = GBA 0x03E0 (green=31) → RGBA (0,248,0,255).
+                ushort gbaGreen = 0x03E0;
+                PlantBgPaletteWithColor0(d, 0x800u, gbaGreen);
+
+                var img = MagicEffectExportCore.RenderCsaFramePreview(
+                    rom, baseOff, 0u, 0u, 0u);
+                Assert.NotNull(img);
+
+                byte[] px = img.GetPixelData();
+                Assert.NotNull(px);
+
+                // Expected fill RGBA from the stub's GBAColorToRGBA(<<3):
+                //   r = (0x03E0 & 0x1F) << 3 = 0
+                //   g = ((0x03E0 >> 5) & 0x1F) << 3 = 31 << 3 = 248
+                //   b = ((0x03E0 >> 10) & 0x1F) << 3 = 0
+                byte expR = 0, expG = 248, expB = 0, expA = 255;
+
+                // Sample a pixel in the UNCOVERED region (row 100, col 120) — below the
+                // 64px BG. It must be the OPAQUE palette[0] fill, not transparent black.
+                int row = 100, col = 120;
+                int idx = (row * MagicEffectExportCore.CSA_PREVIEW_WIDTH + col) * 4;
+                Assert.Equal(expR, px[idx + 0]);
+                Assert.Equal(expG, px[idx + 1]);
+                Assert.Equal(expB, px[idx + 2]);
+                Assert.Equal(expA, px[idx + 3]);
+
+                // And it is explicitly NOT transparent black (the old all-zero canvas).
+                bool isTransparentBlack = px[idx + 0] == 0 && px[idx + 1] == 0
+                    && px[idx + 2] == 0 && px[idx + 3] == 0;
+                Assert.False(isTransparentBlack);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
     }
 }
