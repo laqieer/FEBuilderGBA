@@ -6771,6 +6771,9 @@ TSA
 :Failed to allocate new event-unit block.
 新規ユニット配置領域の確保に失敗しました。
 
+:Failed to allocate a new palette block. Check ROM free space.
+新規パレット領域の確保に失敗しました。ROMの空き容量を確認してください。
+
 :Allocated new event-unit block ({0} units) at 0x{1:X08}.
 新規ユニット配置領域({0}体)を 0x{1:X08} に確保しました。
 
@@ -10274,6 +10277,9 @@ Sappy エミュレータ再生は Windows 専用です（user32 P/Invoke）。Wi
 
 :Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately
 Core の alloc+repoint / DataExpansionCore の配線待ち — 別途追跡します
+
+:Allocate a fresh palette block in free space and repoint this slot's P12
+空き容量に新しいパレット領域を確保し、このスロットの P12 を貼り直します
 
 :Actual size
 等倍
