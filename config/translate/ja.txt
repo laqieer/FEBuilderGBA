@@ -10274,3 +10274,6 @@ Sappy エミュレータ再生は Windows 専用です（user32 P/Invoke）。Wi
 
 :Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately
 Core の alloc+repoint / DataExpansionCore の配線待ち — 別途追跡します
+
+:Actual size
+等倍

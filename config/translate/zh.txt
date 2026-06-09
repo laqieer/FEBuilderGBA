@@ -24106,3 +24106,6 @@ Sappy 模拟器播放为 Windows 专用（user32 P/Invoke），请使用 WinForm
 
 :Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately
 等待 Core 的 alloc+repoint / DataExpansionCore 接线 — 单独跟踪
+
+:Actual size
+实际大小

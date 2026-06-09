@@ -45,6 +45,16 @@ namespace FEBuilderGBA.Avalonia.Views
             PreviewPaletteTypeCombo.Items.Add(R._("4th Army"));
             PreviewPaletteTypeCombo.SelectedIndex = 0;
 
+            // #1006: populate the Zoom combo in code via R._() (same reason —
+            // ComboBoxItem.Content is not scanned by ViewTranslationHelper, so a
+            // XAML "Actual size" literal would never localize). Index 0 = 1x
+            // ("Actual size"), index i = (i+1)x; Zoom_SelectionChanged maps
+            // SelectedIndex + 1 -> GbaImageControl.Zoom (clamped 1..8).
+            ZoomCombo.Items.Clear();
+            ZoomCombo.Items.Add(R._("Actual size"));
+            for (int z = 2; z <= 8; z++) ZoomCombo.Items.Add(z + "x");
+            ZoomCombo.SelectedIndex = 0;
+
             // #840: the class selector + sub-palette combo both re-render the
             // sample preview (the cross-platform equivalent of WF
             // X_DISPLAY_CLASS_ValueChanged / PaletteIndexComboBox change ->
@@ -599,6 +609,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ImageUnitPaletteView.Clipboard_Click failed: {0}", ex.Message);
+                CoreState.Services?.ShowError("Failed to copy palette to clipboard.");
             }
         }
 
@@ -635,8 +646,14 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 if (CoreState.Undo == null) return;
-                CoreState.Undo.RunUndo();              // void; tolerate empty stack (no-op)
-                ReloadAfterUndoRedo();
+                // RunUndo() is void and no-ops on an empty stack. Only reload (which
+                // overwrites the spinners + marks clean) when the undo position
+                // actually moved — otherwise an empty-stack click would silently
+                // discard unsaved spinner edits (Copilot bot review on PR #1068).
+                int before = CoreState.Undo.Postion;
+                CoreState.Undo.RunUndo();
+                if (CoreState.Undo.Postion != before)
+                    ReloadAfterUndoRedo();
             }
             catch (Exception ex) { Log.Error("ImageUnitPaletteView.Undo_Click failed: {0}", ex.Message); }
         }

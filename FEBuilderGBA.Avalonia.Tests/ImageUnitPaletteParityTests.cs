@@ -215,16 +215,22 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void Axaml_ZoomCombo_HasExplicitFactorItems_NoFitWindow()
+        public void ZoomCombo_HasExplicitFactorItems_PopulatedInCodeViaR_NoFitWindow()
         {
-            string axaml = ReadViewAxaml();
-            string block = ExtractComboBlock(axaml, "ImageUnitPalette_Zoom_Combo");
-            // Index 0 = Actual size = 1x; index 7 = 8x (GbaImageControl clamps 1..8).
-            Assert.Contains("<ComboBoxItem>Actual size</ComboBoxItem>", block);
-            Assert.Contains("<ComboBoxItem>2x</ComboBoxItem>", block);
-            Assert.Contains("<ComboBoxItem>8x</ComboBoxItem>", block);
+            // Items are populated in code-behind via R._() (ComboBoxItem content is
+            // not localized by ViewTranslationHelper), so a XAML literal would never
+            // localize — Copilot bot review on PR #1068.
+            string src = ReadViewSource();
+            // Index 0 = Actual size = 1x; the loop adds 2x..8x; index i -> (i+1)x
+            // (GbaImageControl clamps 1..8).
+            Assert.Contains("ZoomCombo.Items.Add(R._(\"Actual size\"))", src);
+            Assert.Contains("ZoomCombo.Items.Add(z + \"x\")", src);
+            Assert.Contains("for (int z = 2; z <= 8; z++)", src);
             // "Fit window" dropped — not representable by GbaImageControl.Zoom.
-            Assert.DoesNotContain("Fit window", block);
+            Assert.DoesNotContain("Fit window", src);
+            // The XAML no longer hardcodes the items (they'd bypass localization).
+            string axaml = ReadViewAxaml();
+            Assert.DoesNotContain("<ComboBoxItem>Actual size</ComboBoxItem>", axaml);
         }
 
         [Fact]
@@ -337,23 +343,6 @@ namespace FEBuilderGBA.Avalonia.Tests
             int end = axaml.IndexOf('>', idIdx);
             Assert.True(start >= 0 && end > start, $"could not bound element for {automationId}");
             return axaml.Substring(start, end - start + 1);
-        }
-
-        /// <summary>
-        /// Extract a ComboBox declaration INCLUDING its nested children — from the
-        /// opening tag '&lt;ComboBox' that carries the AutomationId to the matching
-        /// '&lt;/ComboBox&gt;' close tag (so the nested ComboBoxItem rows are
-        /// covered).
-        /// </summary>
-        static string ExtractComboBlock(string axaml, string automationId)
-        {
-            int idIdx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
-            Assert.True(idIdx >= 0, $"AutomationId {automationId} not found in AXAML");
-            int start = axaml.LastIndexOf('<', idIdx);
-            int closeIdx = axaml.IndexOf("</ComboBox>", idIdx, StringComparison.Ordinal);
-            Assert.True(start >= 0 && closeIdx > start, $"could not bound ComboBox block for {automationId}");
-            int end = closeIdx + "</ComboBox>".Length;
-            return axaml.Substring(start, end - start);
         }
 
         // ===== WU1: WF row-acceptance parity =====

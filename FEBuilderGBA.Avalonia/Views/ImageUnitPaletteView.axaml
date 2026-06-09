@@ -180,18 +180,11 @@
               <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto" Margin="0,4,0,0">
                 <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Zoom_Label"
                            Grid.Column="0" Text="Zoom:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <!-- #1006: items populated in code-behind via R._() (ComboBoxItem
+                     content is not localized by ViewTranslationHelper) — see the ctor. -->
                 <ComboBox AutomationProperties.AutomationId="ImageUnitPalette_Zoom_Combo"
-                          Grid.Column="1" Name="ZoomCombo" Width="200" SelectedIndex="0"
-                          SelectionChanged="Zoom_SelectionChanged">
-                  <ComboBoxItem>Actual size</ComboBoxItem>
-                  <ComboBoxItem>2x</ComboBoxItem>
-                  <ComboBoxItem>3x</ComboBoxItem>
-                  <ComboBoxItem>4x</ComboBoxItem>
-                  <ComboBoxItem>5x</ComboBoxItem>
-                  <ComboBoxItem>6x</ComboBoxItem>
-                  <ComboBoxItem>7x</ComboBoxItem>
-                  <ComboBoxItem>8x</ComboBoxItem>
-                </ComboBox>
+                          Grid.Column="1" Name="ZoomCombo" Width="200"
+                          SelectionChanged="Zoom_SelectionChanged" />
               </Grid>
 
               <!-- Palette grid: 16 swatches in a 4x4 visual grid -->
