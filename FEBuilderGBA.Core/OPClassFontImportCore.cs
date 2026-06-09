@@ -53,9 +53,10 @@ namespace FEBuilderGBA.Core
             // Parameterized (NOT hardcoded 32x32) so a future FE8U 16x32 editor can reuse this.
             if (width <= 0 || height <= 0 || width % 8 != 0 || height % 8 != 0)
                 return R._("The image size is not correct. Width/height must be positive multiples of 8. Selected: {0}x{1}", width, height);
-            if (glyphPtrAddr == 0 || glyphPtrAddr + 4 > (uint)rom.Data.Length)
+            // Overflow-safe: long math so glyphPtrAddr+4 / width*height can't wrap.
+            if (glyphPtrAddr == 0 || (long)glyphPtrAddr + 4 > rom.Data.Length)
                 return R._("The glyph entry address is out of range.");
-            if (indexedPixels.Length < width * height)
+            if (indexedPixels.Length < (long)width * height)
                 return R._("Image data is too small for {0}x{1}.", width, height);
 
             byte[] tiles = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, width, height);

@@ -7,7 +7,7 @@
 // touches the D0 glyph pointer slot + ROM free space, so the round-trip plants a
 // glyph entry slot directly and decodes the written tiles. Validates:
 //   * 32x32 import repoints D0 to fresh in-free-space LZ77 data + round-trips
-//     back to the same 1024 4bpp-packed indices
+//     back to the same glyph (1024 pixel indices packed into 512 bytes of 4bpp tile data)
 //   * a size-mismatched buffer mutates ZERO bytes (byte-identical ROM + error)
 //   * a near-EOF glyph slot is rejected with NO mutation
 //   * null indexedPixels / null ROM are rejected with NO throw
