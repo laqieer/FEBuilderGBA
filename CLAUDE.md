@@ -464,6 +464,10 @@ Specialized utilities for different graphic types:
   4-byte-pointer table at `op_class_font_pointer` (reject id ≥ contiguous run; overflow-safe) → `RenderGlyphImage`
   LZ77-decompresses the 4bpp glyph → 32×32 `ImageUtilCore.ByteToImage16Tile` with `op_class_font_palette`.
   Drives the Avalonia `ClassOPDemoView` GbaImageControl preview (live on N1 spinner/selection); null on guard fail.
+- `OPClassFontImportCore.cs` (Core, ROM-MUTATING) — OP Class Font glyph PNG import (#999; wait-icon pattern).
+  `Import` validates dims (parameterized multiples of 8, NOT hardcoded 32×32), `EncodeDirectTiles4bpp` + LZ77-
+  writes + repoints the D0 glyph pointer under the caller's ambient undo, length-aware byte-identical fault
+  restore (#885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto the shared `op_class_font_palette`.
 
 ### Caching System
 
