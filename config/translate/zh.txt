@@ -20706,6 +20706,9 @@ ID=00 Empty 已预留为空数据。\r\n请勿设置 0x0 之外的值。
 :Failed to allocate new event-unit block.
 分配新的事件单位区块失败。
 
+:Failed to allocate a new palette block. Check ROM free space.
+分配新的调色板区块失败。请检查ROM的剩余空间。
+
 :Allocated new event-unit block ({0} units) at 0x{1:X08}.
 已在 0x{1:X08} 分配新的事件单位区块（{0} 个单位）。
 
@@ -24106,6 +24109,9 @@ Sappy 模拟器播放为 Windows 专用（user32 P/Invoke），请使用 WinForm
 
 :Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately
 等待 Core 的 alloc+repoint / DataExpansionCore 接线 — 单独跟踪
+
+:Allocate a fresh palette block in free space and repoint this slot's P12
+在空闲空间分配一个新的调色板区块，并重新指向此槽位的 P12
 
 :Actual size
 实际大小

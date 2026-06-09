@@ -169,10 +169,58 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new ImageUnitPaletteView();
             // #1006: Clipboard / Zoom / UNDO / REDO are now wired — they are no
-            // longer disabled KnownGap stubs (see WiredControls_AreEnabled). Only
-            // the two ROM-mutating allocation surfaces remain deferred stubs.
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_NewAlloc_Button")!.IsEnabled);
+            // longer disabled KnownGap stubs (see WiredControls_AreEnabled).
+            // #1067: New Palette Allocation is now wired too (NewAlloc_AreEnabled).
+            // Only the Expand List surface remains a deferred stub (split to a
+            // follow-up).
             Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Expand_Button")!.IsEnabled);
+        }
+
+        // ===== #1067: New Palette Allocation wiring =====
+
+        [AvaloniaFact]
+        public void NewAlloc_Button_IsEnabled()
+        {
+            var view = new ImageUnitPaletteView();
+            // #1067: the New Palette Allocation button is now wired + enabled.
+            Assert.True(FindByAutomationId<Button>(view, "ImageUnitPalette_NewAlloc_Button")!.IsEnabled);
+        }
+
+        [Fact]
+        public void Axaml_NewAlloc_HasHandler_AndNoStubTooltip_NorDisabled()
+        {
+            string axaml = ReadViewAxaml();
+            // The button has a Click handler.
+            Assert.Contains("Click=\"NewAlloc_Click\"", axaml);
+
+            string element = ExtractElement(axaml, "ImageUnitPalette_NewAlloc_Button");
+            // No longer disabled.
+            Assert.DoesNotContain("IsEnabled=\"False\"", element);
+            // The old "tracked separately" stub tooltip is gone; a meaningful
+            // tooltip is present.
+            Assert.DoesNotContain("tracked separately", element);
+            Assert.DoesNotContain("KnownGap", element);
+            Assert.Contains("repoint this slot's P12", element);
+        }
+
+        [Fact]
+        public void View_NewAllocClick_WrapsInUndoScope_AndCallsAllocNewPalette()
+        {
+            string src = ReadViewSource();
+            // NewAlloc_Click opens an undo scope, calls the Core seam, and
+            // commits / rolls back like PerformPaletteWrite.
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"void\s+NewAlloc_Click\([^)]*\)\s*\{[\s\S]*?_undoService\.Begin\(",
+                System.Text.RegularExpressions.RegexOptions.Singleline), src);
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"void\s+NewAlloc_Click\([^)]*\)\s*\{[\s\S]*?UnitPaletteWriteCore\.AllocNewPalette\(",
+                System.Text.RegularExpressions.RegexOptions.Singleline), src);
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"void\s+NewAlloc_Click\([^)]*\)\s*\{[\s\S]*?U\.NOT_FOUND[\s\S]*?_undoService\.Rollback\(\)",
+                System.Text.RegularExpressions.RegexOptions.Singleline), src);
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"void\s+NewAlloc_Click\([^)]*\)\s*\{[\s\S]*?_undoService\.Commit\(\)",
+                System.Text.RegularExpressions.RegexOptions.Singleline), src);
         }
 
         // ===== #1006: Clipboard / Zoom / UNDO / REDO wiring =====
@@ -237,9 +285,10 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void Axaml_DeferredControls_RemainDisabled_WithNonKnownGapTooltip()
         {
             string axaml = ReadViewAxaml();
+            // #1067: NewAlloc is now wired; only Expand List remains a deferred
+            // stub (split to a follow-up).
             foreach (var aid in new[]
             {
-                "ImageUnitPalette_NewAlloc_Button",
                 "ImageUnitPalette_Expand_Button",
             })
             {

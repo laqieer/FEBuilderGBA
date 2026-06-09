@@ -122,9 +122,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             var compressed = LZ77.compress(PackRgb555(MakeUniquePalette().r, MakeUniquePalette().g, MakeUniquePalette().b));
             var (rom, _, p12Slot) = BuildRomWithPaletteAt(compressed);
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, null!, new uint[16], new uint[16], 0, false, null));
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], null!, new uint[16], 0, false, null));
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], new uint[16], null!, 0, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, null!, new uint[16], new uint[16], 0, false, undo: null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], null!, new uint[16], 0, false, undo: null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], new uint[16], null!, 0, false, undo: null));
         }
 
         [Fact]
@@ -132,9 +132,9 @@ namespace FEBuilderGBA.Core.Tests
         {
             var compressed = LZ77.compress(PackRgb555(MakeUniquePalette().r, MakeUniquePalette().g, MakeUniquePalette().b));
             var (rom, _, p12Slot) = BuildRomWithPaletteAt(compressed);
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[15], new uint[16], new uint[16], 0, false, null));
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], new uint[17], new uint[16], 0, false, null));
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], new uint[16], new uint[8], 0, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[15], new uint[16], new uint[16], 0, false, undo: null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], new uint[17], new uint[16], 0, false, undo: null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], new uint[16], new uint[8], 0, false, undo: null));
         }
 
         [Fact]
@@ -144,10 +144,10 @@ namespace FEBuilderGBA.Core.Tests
             var (rom, _, p12Slot) = BuildRomWithPaletteAt(compressed);
             var r = new uint[16];
             r[5] = 32; // OUT OF 0-31 range
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, new uint[16], new uint[16], 0, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, new uint[16], new uint[16], 0, false, undo: null));
             var g = new uint[16];
             g[7] = 0xFFFFFFFF;
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], g, new uint[16], 0, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, new uint[16], g, new uint[16], 0, false, undo: null));
         }
 
         [Fact]
@@ -156,7 +156,7 @@ namespace FEBuilderGBA.Core.Tests
             var compressed = LZ77.compress(PackRgb555(MakeUniquePalette().r, MakeUniquePalette().g, MakeUniquePalette().b));
             var (rom, _, p12Slot) = BuildRomWithPaletteAt(compressed);
             var (r, g, b) = MakeUniformPalette();
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, -1, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, -1, false, undo: null));
         }
 
         [Fact]
@@ -167,7 +167,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.SwapNewROMDataDirect(data);
             CoreState.ROM = rom;
             var (r, g, b) = MakeUniquePalette();
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, 0x4Cu, r, g, b, 0, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, 0x4Cu, r, g, b, 0, false, undo: null));
         }
 
         [Fact]
@@ -184,7 +184,7 @@ namespace FEBuilderGBA.Core.Tests
             rom.SwapNewROMDataDirect(data);
             CoreState.ROM = rom;
             var (r, g, b) = MakeUniquePalette();
-            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, 0x4Cu, r, g, b, 0, false, null));
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, 0x4Cu, r, g, b, 0, false, undo: null));
         }
 
         // ===== Single-slot in-place writes (no other slots present) =====
@@ -198,7 +198,7 @@ namespace FEBuilderGBA.Core.Tests
             uint origP12 = rom.u32(p12Slot);
             int origLen = rom.Data.Length;
 
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rInit, gInit, bInit, 0, false, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rInit, gInit, bInit, 0, false, undo: null);
 
             Assert.Equal(origP12, result);
             Assert.Equal(origP12, rom.u32(p12Slot));
@@ -223,7 +223,7 @@ namespace FEBuilderGBA.Core.Tests
                 "Test invariant: uniform palette must compress smaller than unique palette.");
             int origRomLen = rom.Data.Length;
 
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo: null);
 
             Assert.Equal(origP12, result);
             Assert.Equal(origP12, rom.u32(p12Slot));
@@ -258,7 +258,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(newCompressedExpected.Length > oldCompressedLen,
                 "Test invariant: unique palette must compress larger than the uniform initial.");
 
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo: null);
 
             Assert.NotEqual(origP12, result);
             // Round-2 explicit ask: P12 slot updated to the new pointer.
@@ -282,7 +282,7 @@ namespace FEBuilderGBA.Core.Tests
             var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
 
             var (rNew, gNew, bNew) = MakeUniquePalette();
-            uint newP12 = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, null);
+            uint newP12 = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo: null);
             Assert.NotEqual(U.NOT_FOUND, newP12);
             byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(newP12));
             Assert.Equal(32, decompressed.Length);
@@ -311,7 +311,7 @@ namespace FEBuilderGBA.Core.Tests
             uint[] r = new uint[16], g = new uint[16], b = new uint[16];
             for (int i = 0; i < 16; i++) { r[i] = 31; g[i] = 31; b[i] = 31; }
 
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 0, false, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 0, false, undo: null);
             Assert.NotEqual(U.NOT_FOUND, result);
 
             byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
@@ -345,7 +345,7 @@ namespace FEBuilderGBA.Core.Tests
             // New Gray palette = pure red
             uint[] r = new uint[16], g = new uint[16], b = new uint[16];
             for (int i = 0; i < 16; i++) { r[i] = 31; g[i] = 0; b[i] = 0; }
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 3, false, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 3, false, undo: null);
             Assert.NotEqual(U.NOT_FOUND, result);
 
             byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
@@ -375,7 +375,7 @@ namespace FEBuilderGBA.Core.Tests
             // Pure blue for all slots.
             uint[] r = new uint[16], g = new uint[16], b = new uint[16];
             for (int i = 0; i < 16; i++) { r[i] = 0; g[i] = 0; b[i] = 31; }
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 0, true, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 0, true, undo: null);
             Assert.NotEqual(U.NOT_FOUND, result);
 
             byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
@@ -404,7 +404,7 @@ namespace FEBuilderGBA.Core.Tests
 
             uint[] r = new uint[16], g = new uint[16], b = new uint[16];
             for (int i = 0; i < 16; i++) { r[i] = 1; g[i] = 2; b[i] = 3; }
-            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 2, false, null);
+            uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, r, g, b, 2, false, undo: null);
             Assert.NotEqual(U.NOT_FOUND, result);
 
             byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
@@ -447,7 +447,7 @@ namespace FEBuilderGBA.Core.Tests
             using (ROM.BeginUndoScope(undo))
             {
                 var (rNew, gNew, bNew) = MakeUniformPalette();
-                uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo);
+                uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo: undo);
                 Assert.NotEqual(U.NOT_FOUND, result);
             }
             // Ambient scope recorded at least one entry per write_*: write_range
@@ -477,7 +477,7 @@ namespace FEBuilderGBA.Core.Tests
             using (ROM.BeginUndoScope(undo))
             {
                 var (rNew, gNew, bNew) = MakeUniquePalette();
-                uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo);
+                uint result = UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo: undo);
                 Assert.NotEqual(U.NOT_FOUND, result);
                 Assert.NotEqual(origP12, result);
             }
@@ -519,7 +519,7 @@ namespace FEBuilderGBA.Core.Tests
             using (ROM.BeginUndoScope(undo))
             {
                 var (rNew, gNew, bNew) = MakeUniformPalette();
-                UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo);
+                UnitPaletteWriteCore.WritePalette(rom, p12Slot, rNew, gNew, bNew, 0, false, undo: undo);
             }
 
             // Each address should appear AT MOST ONCE in the undo list
@@ -562,6 +562,313 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x03E0, c1);
             ushort c2 = (ushort)(raw[4] | (raw[5] << 8));
             Assert.Equal(0x7C00, c2);
+        }
+
+        // ===== #1067: New Palette Allocation (AllocNewPalette) =====
+
+        /// <summary>Decode a 16-color RGB555 bank from the decompressed buffer at
+        /// the given slot index into per-channel arrays.</summary>
+        static (uint[] r, uint[] g, uint[] b) DecodeBank(byte[] decompressed, int slot)
+        {
+            var r = new uint[16];
+            var g = new uint[16];
+            var b = new uint[16];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort c = (ushort)(decompressed[slot * 32 + i * 2] | (decompressed[slot * 32 + i * 2 + 1] << 8));
+                r[i] = (uint)(c & 0x1F);
+                g[i] = (uint)((c >> 5) & 0x1F);
+                b[i] = (uint)((c >> 10) & 0x1F);
+            }
+            return (r, g, b);
+        }
+
+        // (1) AllocNewPalette repoints P12 to a NEW offset even when the
+        // recompressed bytes would have fit in-place (forced append).
+        [Fact]
+        public void AllocNewPalette_ForcesAppend_RepointsP12_EvenWhenFitsInPlace()
+        {
+            // Two-bank initial stream so multi-bank is exercised.
+            byte[] rawInit = BuildMultiSlotRaw(2);
+            byte[] initialCompressed = LZ77.compress(rawInit);
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+            uint origP12 = rom.u32(p12Slot);
+            int origRomLen = rom.Data.Length;
+
+            // Edit bank 0 to a UNIFORM palette so the recompressed bytes would
+            // compress SMALLER than (or equal to) the original — i.e. the
+            // default WritePalette path would have taken the in-place branch.
+            var (rNew, gNew, bNew) = MakeUniformPalette();
+
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 0, false);
+
+            Assert.NotEqual(U.NOT_FOUND, result);
+            // P12 was repointed to a brand-new offset (NOT the original).
+            Assert.NotEqual(origP12, result);
+            Assert.Equal(result, rom.u32(p12Slot));
+            Assert.NotEqual(origP12, rom.u32(p12Slot));
+            // ROM grew (appended at the end).
+            Assert.True(rom.Data.Length > origRomLen, $"ROM should grow: was {origRomLen}, now {rom.Data.Length}");
+            Assert.True(U.toOffset(result) >= (uint)origRomLen, "new block should live in the appended region");
+        }
+
+        // (2) The new stream decodes back to the edited colors for the selected bank.
+        [Fact]
+        public void AllocNewPalette_NewStream_DecodesEditedBank()
+        {
+            byte[] rawInit = BuildMultiSlotRaw(2);
+            byte[] initialCompressed = LZ77.compress(rawInit);
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+
+            // Distinctive edited palette for bank 1.
+            var (rNew, gNew, bNew) = MakeUniquePalette();
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 1, false);
+            Assert.NotEqual(U.NOT_FOUND, result);
+
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
+            Assert.Equal(2 * 32, decompressed.Length);
+            var (rGot, gGot, bGot) = DecodeBank(decompressed, 1);
+            Assert.Equal(rNew, rGot);
+            Assert.Equal(gNew, gGot);
+            Assert.Equal(bNew, bGot);
+        }
+
+        // (3) The untouched bank(s) are preserved verbatim in the new stream.
+        [Fact]
+        public void AllocNewPalette_PreservesUntouchedBanks()
+        {
+            byte[] rawInit = BuildMultiSlotRaw(2);
+            byte[] initialCompressed = LZ77.compress(rawInit);
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+
+            // Edit bank 0 only -> bank 1 must survive byte-identical to rawInit.
+            uint[] r = new uint[16], g = new uint[16], b = new uint[16];
+            for (int i = 0; i < 16; i++) { r[i] = 31; g[i] = 31; b[i] = 31; } // pure white
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, r, g, b, 0, false);
+            Assert.NotEqual(U.NOT_FOUND, result);
+
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
+            Assert.Equal(2 * 32, decompressed.Length);
+            // Bank 0 = pure white.
+            for (int i = 0; i < 16; i++)
+            {
+                ushort c = (ushort)(decompressed[i * 2] | (decompressed[i * 2 + 1] << 8));
+                Assert.Equal(0x7FFF, c);
+            }
+            // Bank 1 = untouched (verbatim from rawInit).
+            for (int i = 0; i < 32; i++)
+            {
+                Assert.Equal(rawInit[32 + i], decompressed[32 + i]);
+            }
+        }
+
+        // (4) The OLD compressed block bytes are unchanged after alloc (no recycle).
+        [Fact]
+        public void AllocNewPalette_LeavesOldBlockUntouched()
+        {
+            byte[] rawInit = BuildMultiSlotRaw(2);
+            byte[] initialCompressed = LZ77.compress(rawInit);
+            uint initialPaletteOffset = 0x200;
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed, initialPaletteOffset);
+            uint origP12 = rom.u32(p12Slot);
+            uint oldOffset = U.toOffset(origP12);
+            uint oldLen = LZ77.getCompressedSize(rom.Data, oldOffset);
+
+            // Snapshot the old compressed block.
+            byte[] oldBlock = new byte[oldLen];
+            System.Array.Copy(rom.Data, oldOffset, oldBlock, 0, (int)oldLen);
+
+            var (rNew, gNew, bNew) = MakeUniquePalette();
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 0, false);
+            Assert.NotEqual(U.NOT_FOUND, result);
+            // The new block lives elsewhere.
+            Assert.NotEqual(oldOffset, U.toOffset(result));
+
+            // The OLD block bytes are byte-identical (shared-palette safety).
+            for (uint i = 0; i < oldLen; i++)
+            {
+                Assert.Equal(oldBlock[i], rom.Data[oldOffset + i]);
+            }
+        }
+
+        // (5) Invalid/zero P12 -> deterministic fresh SINGLE 32-byte bank.
+        [Fact]
+        public void AllocNewPalette_ZeroP12_BuildsFreshSingleBank()
+        {
+            // Build a ROM whose row P12 slot is ZERO (no pointer at all).
+            byte[] data = new byte[0x10000];
+            uint rowAddr = 0x40;
+            data[rowAddr + 0] = (byte)'P';
+            data[rowAddr + 1] = (byte)'a';
+            data[rowAddr + 2] = (byte)'l';
+            // P12 (offset +12) left as 0.
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            CoreState.ROM = rom;
+            uint p12Slot = rowAddr + 12;
+            int origRomLen = rom.Data.Length;
+
+            var (rNew, gNew, bNew) = MakeUniquePalette();
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 0, false);
+
+            Assert.NotEqual(U.NOT_FOUND, result);
+            Assert.Equal(result, rom.u32(p12Slot));
+            Assert.True(rom.Data.Length > origRomLen);
+
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(result));
+            // Exactly ONE 32-byte bank (deterministic single slot).
+            Assert.Equal(32, decompressed.Length);
+            var (rGot, gGot, bGot) = DecodeBank(decompressed, 0);
+            Assert.Equal(rNew, rGot);
+            Assert.Equal(gNew, gGot);
+            Assert.Equal(bNew, bGot);
+        }
+
+        [Fact]
+        public void AllocNewPalette_NonLZ77P12_BuildsFreshSingleBank()
+        {
+            // P12 points at junk (non-LZ77). The fresh-single-bank path applies.
+            byte[] data = new byte[0x10000];
+            for (int i = 0; i < 32; i++) data[0x200 + i] = 0xAB; // junk
+            uint rowAddr = 0x40;
+            uint gbaPtr = U.toPointer(0x200);
+            data[rowAddr + 12] = (byte)(gbaPtr & 0xFF);
+            data[rowAddr + 13] = (byte)((gbaPtr >> 8) & 0xFF);
+            data[rowAddr + 14] = (byte)((gbaPtr >> 16) & 0xFF);
+            data[rowAddr + 15] = (byte)((gbaPtr >> 24) & 0xFF);
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            CoreState.ROM = rom;
+            uint p12Slot = rowAddr + 12;
+
+            var (rNew, gNew, bNew) = MakeUniformPalette();
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 0, false);
+            Assert.NotEqual(U.NOT_FOUND, result);
+
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
+            Assert.Equal(32, decompressed.Length);
+            var (rGot, gGot, bGot) = DecodeBank(decompressed, 0);
+            Assert.Equal(rNew, rGot);
+            Assert.Equal(gNew, gGot);
+            Assert.Equal(bNew, bGot);
+            // The junk source bytes are left untouched.
+            for (int i = 0; i < 32; i++) Assert.Equal(0xAB, rom.Data[0x200 + i]);
+        }
+
+        // (6) Outer Undo.Rollback restores byte-identical (length + P12 + bytes).
+        [Fact]
+        public void AllocNewPalette_OuterUndo_RestoresByteIdentical()
+        {
+            byte[] rawInit = BuildMultiSlotRaw(2);
+            byte[] initialCompressed = LZ77.compress(rawInit);
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+
+            var prevUndo = CoreState.Undo;
+            try
+            {
+                CoreState.Undo = new Undo();
+                uint origP12 = rom.u32(p12Slot);
+                byte[] before = (byte[])rom.Data.Clone();
+
+                var (rNew, gNew, bNew) = MakeUniquePalette();
+                Undo.UndoData ud = CoreState.Undo.NewUndoData("AllocNewPalette outer-undo");
+                using (ROM.BeginUndoScope(ud))
+                {
+                    uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 0, false);
+                    Assert.NotEqual(U.NOT_FOUND, result);
+                }
+                if (ud.list.Count > 0)
+                {
+                    CoreState.Undo.Push(ud);
+                    CoreState.Undo.RunUndo();
+                }
+
+                // Byte-identical: length, P12, and every byte.
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(origP12, rom.u32(p12Slot));
+                for (int i = 0; i < before.Length; i++)
+                {
+                    if (before[i] != rom.Data[i])
+                        Assert.Fail($"Byte mismatch at 0x{i:X06}: before=0x{before[i]:X02}, after-undo=0x{rom.Data[i]:X02}");
+                }
+            }
+            finally { CoreState.Undo = prevUndo; }
+        }
+
+        // (7) Regression: WritePalette(forceNewAlloc:false) keeps in-place behavior
+        // byte-identical to the pre-change path (P12 unchanged, in-place write).
+        [Fact]
+        public void WritePalette_ForceNewAllocFalse_StillInPlace_WhenFits()
+        {
+            var (rInit, gInit, bInit) = MakeUniquePalette();
+            byte[] initialCompressed = LZ77.compress(PackRgb555(rInit, gInit, bInit));
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+            uint origP12 = rom.u32(p12Slot);
+            int origLen = rom.Data.Length;
+
+            // Same-size rewrite -> in-place when forceNewAlloc is false (default).
+            uint result = UnitPaletteWriteCore.WritePalette(
+                rom, p12Slot, rInit, gInit, bInit, 0, false, forceNewAlloc: false, undo: null);
+
+            Assert.Equal(origP12, result);
+            Assert.Equal(origP12, rom.u32(p12Slot)); // P12 unchanged
+            Assert.Equal(origLen, rom.Data.Length);   // no growth (in-place)
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(origP12));
+            Assert.Equal(PackRgb555(rInit, gInit, bInit), decompressed);
+        }
+
+        [Fact]
+        public void WritePalette_ForceNewAllocTrue_AppendsEvenWhenFits()
+        {
+            // Direct WritePalette force-append (the seam AllocNewPalette uses).
+            var (rInit, gInit, bInit) = MakeUniquePalette();
+            byte[] initialCompressed = LZ77.compress(PackRgb555(rInit, gInit, bInit));
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+            uint origP12 = rom.u32(p12Slot);
+            int origLen = rom.Data.Length;
+
+            uint result = UnitPaletteWriteCore.WritePalette(
+                rom, p12Slot, rInit, gInit, bInit, 0, false, forceNewAlloc: true, undo: null);
+
+            Assert.NotEqual(origP12, result);
+            Assert.Equal(result, rom.u32(p12Slot));
+            Assert.True(rom.Data.Length > origLen);
+        }
+
+        // (8) Fault restore: a bad input that passes the rom-null guard but fails
+        // validation inside the write must return NOT_FOUND with the ROM
+        // byte-identical (no partial mutation). We inject an out-of-range channel,
+        // which AppendFreshSingleBank / WritePalette both reject AFTER the
+        // snapshot is taken — proving the no-mutation-on-fault contract.
+        [Fact]
+        public void AllocNewPalette_BadInput_ReturnsNotFound_NoMutation()
+        {
+            byte[] rawInit = BuildMultiSlotRaw(2);
+            byte[] initialCompressed = LZ77.compress(rawInit);
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(initialCompressed);
+            uint origP12 = rom.u32(p12Slot);
+            byte[] before = (byte[])rom.Data.Clone();
+
+            var (r, g, b) = MakeUniquePalette();
+            r[3] = 0xFFFFFFFF; // out of 0-31 range -> rejected before any write
+
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, r, g, b, 0, false);
+
+            Assert.Equal(U.NOT_FOUND, result);
+            // ROM byte-identical: length, P12, and every byte.
+            Assert.Equal(before.Length, rom.Data.Length);
+            Assert.Equal(origP12, rom.u32(p12Slot));
+            for (int i = 0; i < before.Length; i++)
+            {
+                Assert.Equal(before[i], rom.Data[i]);
+            }
+        }
+
+        [Fact]
+        public void AllocNewPalette_NullRom_ReturnsNotFound()
+        {
+            var (r, g, b) = MakeUniquePalette();
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.AllocNewPalette(null!, 0x4Cu, r, g, b, 0, false));
         }
     }
 }

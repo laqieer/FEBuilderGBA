@@ -20,6 +20,8 @@
 // Cross-platform: depends only on Core LZ77 + ROM + U helpers. No WinForms,
 // no Avalonia, no System.Drawing dependencies.
 
+using System;
+
 namespace FEBuilderGBA
 {
     public static class UnitPaletteWriteCore
@@ -90,6 +92,15 @@ namespace FEBuilderGBA
         /// When true, every 32-byte slot in the decompressed stream is replaced
         /// with the new colors (matches WF `PaletteFormRef.OVERRAIDE_ALL_PALETTE`).
         /// </param>
+        /// <param name="forceNewAlloc">
+        /// When true, the in-place branch is skipped entirely and the helper
+        /// ALWAYS takes the reallocate (append at ROM end + repoint P12) path,
+        /// even when the new compressed bytes would fit within the original
+        /// buffer. This gives the slot its OWN independent palette block in free
+        /// space (the "New Palette Allocation" flow, #1067). The default
+        /// <c>false</c> preserves the original in-place-or-reallocate behavior
+        /// byte-identically — existing callers are unaffected.
+        /// </param>
         /// <param name="undo">
         /// Accepted for API parity but UNUSED. The helper relies on the
         /// caller having opened an ambient undo scope via
@@ -112,7 +123,8 @@ namespace FEBuilderGBA
             uint[] b,
             int paletteIndex,
             bool isOverrideAll,
-            Undo.UndoData? undo)
+            bool forceNewAlloc = false,
+            Undo.UndoData? undo = null)
         {
             // `undo` is intentionally ignored — see XML doc.
             _ = undo;
@@ -174,7 +186,10 @@ namespace FEBuilderGBA
             uint newCompressedLen = (uint)compressed.Length;
 
             // ----- In-place vs reallocate (writes go through the ambient undo scope) -----
-            if (newCompressedLen <= oldCompressedLen)
+            // forceNewAlloc skips the in-place branch entirely and always
+            // appends + repoints, giving the slot its own independent palette
+            // block (the "New Palette Allocation" flow, #1067).
+            if (!forceNewAlloc && newCompressedLen <= oldCompressedLen)
             {
                 rom.write_range(srcOffset, compressed);
                 uint trailing = oldCompressedLen - newCompressedLen;
@@ -199,6 +214,176 @@ namespace FEBuilderGBA
                 rom.write_p32(rowP12SlotOffset, appendOffset);
                 return newPointer;
             }
+        }
+
+        /// <summary>
+        /// Allocate a FRESH free-space palette block for the row's P12 slot and
+        /// repoint the slot to it (the "New Palette Allocation" flow, #1067).
+        /// Unlike <see cref="WritePalette"/> with the default in-place branch,
+        /// this ALWAYS appends a brand-new LZ77-compressed block at ROM end and
+        /// repoints P12 — even when the recompressed bytes would have fit in the
+        /// original buffer — so the slot gets its OWN independent palette and no
+        /// longer shares the previous block with any other slot.
+        ///
+        /// Multi-bank correctness: when the P12 slot points at a valid LZ77
+        /// stream this reuses <see cref="WritePalette"/>'s splice logic, so it
+        /// overwrites ONLY the <paramref name="paletteIndex"/> 32-byte bank
+        /// (unless <paramref name="isOverrideAll"/>), recompresses the FULL
+        /// decompressed stream, and preserves the untouched banks.
+        ///
+        /// Invalid / zero / non-LZ77 P12: there is no existing stream to splice
+        /// into, so a DETERMINISTIC fresh SINGLE 32-byte bank is built from the
+        /// supplied R/G/B (16 colors), LZ77-compressed, appended at ROM end, and
+        /// the P12 slot repointed to it. (<see cref="WritePalette"/> itself
+        /// early-outs to <see cref="U.NOT_FOUND"/> for a bad pointer because it
+        /// must not invent a stream during an in-place write; the New-Alloc flow
+        /// always allocates, so a fresh slot is the well-defined result.)
+        ///
+        /// The OLD compressed block is left UNTOUCHED (no recycle) — this is the
+        /// shared-palette safety guarantee: another slot may still reference it.
+        ///
+        /// Fault restore: a defensive byte-for-byte snapshot is taken before any
+        /// mutation. If the underlying write throws OR returns
+        /// <see cref="U.NOT_FOUND"/> (no free space / resize failure), the ROM is
+        /// restored byte-identical (length-aware, since a free-space append can
+        /// GROW <c>rom.Data</c>) and <see cref="U.NOT_FOUND"/> is returned. This
+        /// method NEVER throws.
+        ///
+        /// Undo handling matches <see cref="WritePalette"/>: writes record into
+        /// the caller's ambient <see cref="ROM.BeginUndoScope"/> automatically.
+        /// </summary>
+        /// <param name="rom">ROM to mutate. Must be non-null.</param>
+        /// <param name="rowP12SlotOffset">ROM offset of the row's P12 pointer slot.</param>
+        /// <param name="r">16 R channel values in 0-31 range.</param>
+        /// <param name="g">16 G channel values in 0-31 range.</param>
+        /// <param name="b">16 B channel values in 0-31 range.</param>
+        /// <param name="paletteIndex">Zero-based slot index to overwrite (ignored when override-all).</param>
+        /// <param name="isOverrideAll">When true, every 32-byte slot is replaced.</param>
+        /// <returns>
+        /// The freshly-allocated GBA pointer (0x08xxxxxx) the P12 slot now holds,
+        /// or <see cref="U.NOT_FOUND"/> on any invalid input or write fault (with
+        /// the ROM restored byte-identical).
+        /// </returns>
+        public static uint AllocNewPalette(
+            ROM rom,
+            uint rowP12SlotOffset,
+            uint[] r,
+            uint[] g,
+            uint[] b,
+            int paletteIndex,
+            bool isOverrideAll)
+        {
+            if (rom == null) return U.NOT_FOUND;
+
+            // Defensive snapshot — restored byte-identical on ANY fault so a
+            // failed alloc never leaves the ROM half-mutated (the #885/#923
+            // WaitIconImportCore / SkillSystemsAnimeImportCore pattern).
+            byte[] snapshot = (byte[])rom.Data.Clone();
+            try
+            {
+                uint result;
+                if (HasValidLz77Source(rom, rowP12SlotOffset))
+                {
+                    // Existing multi-bank stream: splice + force-append (preserves
+                    // untouched banks).
+                    result = WritePalette(
+                        rom, rowP12SlotOffset, r, g, b, paletteIndex, isOverrideAll,
+                        forceNewAlloc: true, undo: null);
+                }
+                else
+                {
+                    // No existing stream to splice into (zero / non-pointer /
+                    // non-LZ77 P12): build a deterministic fresh single bank,
+                    // append + repoint.
+                    result = AppendFreshSingleBank(rom, rowP12SlotOffset, r, g, b);
+                }
+                if (result == U.NOT_FOUND)
+                {
+                    RestoreSnapshot(rom, snapshot);
+                    return U.NOT_FOUND;
+                }
+                return result;
+            }
+            catch (Exception)
+            {
+                RestoreSnapshot(rom, snapshot);
+                return U.NOT_FOUND;
+            }
+        }
+
+        /// <summary>
+        /// True when the P12 slot at <paramref name="rowP12SlotOffset"/> holds a
+        /// valid in-bounds pointer to a decodable LZ77 stream of at least one
+        /// 32-byte palette bank — i.e. the same preconditions
+        /// <see cref="WritePalette"/> requires before it splices. Mirrors that
+        /// validation exactly so the splice-vs-fresh decision in
+        /// <see cref="AllocNewPalette"/> never feeds <see cref="WritePalette"/> a
+        /// pointer it would reject. Guarded against every fault; never throws.
+        /// </summary>
+        static bool HasValidLz77Source(ROM rom, uint rowP12SlotOffset)
+        {
+            try
+            {
+                if (rowP12SlotOffset + 4 > (uint)rom.Data.Length) return false;
+                uint rawP12 = rom.u32(rowP12SlotOffset);
+                if (!U.isPointer(rawP12)) return false;
+                uint srcOffset = U.toOffset(rawP12);
+                if (!U.isSafetyOffset(srcOffset, rom)) return false;
+                if (LZ77.getCompressedSize(rom.Data, srcOffset) == 0) return false;
+                byte[] decompressed = LZ77.decompress(rom.Data, srcOffset);
+                return decompressed != null && decompressed.Length >= RAW_PALETTE_BYTES;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Build a DETERMINISTIC fresh SINGLE 32-byte palette bank from the
+        /// supplied R/G/B (16 colors), LZ77-compress it, append at ROM end, and
+        /// repoint the P12 slot to it. Used by <see cref="AllocNewPalette"/> when
+        /// the slot has no existing LZ77 stream to splice into. Validates the
+        /// R/G/B inputs exactly like <see cref="WritePalette"/> and returns
+        /// <see cref="U.NOT_FOUND"/> on bad input or a resize failure (the caller
+        /// restores the snapshot). Writes record into the caller's ambient undo
+        /// scope.
+        /// </summary>
+        static uint AppendFreshSingleBank(ROM rom, uint rowP12SlotOffset, uint[] r, uint[] g, uint[] b)
+        {
+            if (r == null || g == null || b == null) return U.NOT_FOUND;
+            if (r.Length != PALETTE_COUNT || g.Length != PALETTE_COUNT || b.Length != PALETTE_COUNT)
+                return U.NOT_FOUND;
+            for (int i = 0; i < PALETTE_COUNT; i++)
+            {
+                if (r[i] > 0x1F || g[i] > 0x1F || b[i] > 0x1F) return U.NOT_FOUND;
+            }
+            if (rowP12SlotOffset + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
+
+            byte[] raw = PackRgb555(r, g, b);
+            byte[] compressed = LZ77.compress(raw);
+
+            uint appendOffset = (uint)rom.Data.Length;
+            uint newRomSize = appendOffset + (uint)compressed.Length;
+            if (!rom.write_resize_data(newRomSize)) return U.NOT_FOUND;
+
+            rom.write_range(appendOffset, compressed);
+            rom.write_p32(rowP12SlotOffset, appendOffset);
+            return U.toPointer(appendOffset);
+        }
+
+        /// <summary>
+        /// Length-aware byte-identical restore: a free-space append can GROW
+        /// <c>rom.Data</c> via <see cref="ROM.write_resize_data"/>, so down-resize
+        /// back to the snapshot length BEFORE the in-place copy (a naive
+        /// Array.Copy would leave the grown tail alive). Mirrors
+        /// <c>WaitIconImportCore.RestoreSnapshot</c> (#885/#923).
+        /// </summary>
+        static void RestoreSnapshot(ROM rom, byte[] snapshot)
+        {
+            if (rom.Data.Length != snapshot.Length)
+                rom.write_resize_data((uint)snapshot.Length);
+            Array.Copy(snapshot, rom.Data, snapshot.Length);
         }
     }
 }

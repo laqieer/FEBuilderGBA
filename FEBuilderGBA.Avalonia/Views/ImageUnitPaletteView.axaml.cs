@@ -433,6 +433,66 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
+        /// #1067: "New Palette Allocation" — allocate a FRESH free-space palette
+        /// block for the selected row and repoint its P12 pointer, giving the
+        /// slot its OWN independent palette (no longer sharing the previous
+        /// block). Mirrors <see cref="PerformPaletteWrite"/> exactly: same
+        /// spinner read, same paletteIndex/override-all read, same single undo
+        /// scope (Begin / Commit / Rollback) + reload + MarkClean. The only
+        /// difference is the Core seam — <see cref="UnitPaletteWriteCore.AllocNewPalette"/>
+        /// always appends + repoints (never in-place), and leaves the OLD block
+        /// untouched for shared-palette safety.
+        /// </summary>
+        void NewAlloc_Click(object? sender, RoutedEventArgs e)
+        {
+            if (_vm.CurrentAddr == 0)
+            {
+                Log.Error("ImageUnitPaletteView.NewAlloc: no selected entry.");
+                return;
+            }
+            var r = new uint[16];
+            var g = new uint[16];
+            var b = new uint[16];
+            for (int i = 0; i < 16; i++)
+            {
+                r[i] = (uint)(_rBoxes[i]?.Value ?? 0);
+                g[i] = (uint)(_gBoxes[i]?.Value ?? 0);
+                b[i] = (uint)(_bBoxes[i]?.Value ?? 0);
+            }
+            int paletteIndex = PaletteTypeCombo.SelectedIndex;
+            if (paletteIndex < 0) paletteIndex = 0;
+            bool isOverrideAll = PaletteOverrideAllCheck.IsChecked ?? false;
+            _undoService.Begin("New Unit Palette Allocation");
+            try
+            {
+                uint newP12 = UnitPaletteWriteCore.AllocNewPalette(
+                    CoreState.ROM,
+                    _vm.CurrentAddr + 12,
+                    r, g, b,
+                    paletteIndex,
+                    isOverrideAll);
+                if (newP12 == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    Log.Error("ImageUnitPaletteView.NewAlloc: AllocNewPalette returned NOT_FOUND (no free space or write fault).");
+                    CoreState.Services?.ShowError(R._("Failed to allocate a new palette block. Check ROM free space."));
+                    return;
+                }
+                _vm.PalettePointer = newP12;
+                PalettePointerBox.Text = $"0x{newP12:X08}";
+                PaletteAddressBox.Text = $"0x{newP12:X08}";
+                _undoService.Commit();
+                _vm.MarkClean();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("ImageUnitPaletteView.NewAlloc: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Failed to allocate a new palette block. Check ROM free space."));
+            }
+        }
+
+        /// <summary>
         /// #904: Export the rendered class battle-anime SAMPLE GRID preview as a
         /// PNG. Delegates to <see cref="Controls.GbaImageControl.ExportPng"/> on
         /// the SamplePreview control — that helper owns the Skia IImage backing

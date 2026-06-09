@@ -94,8 +94,8 @@
                          Name="PalettePointerBox" Width="160" HorizontalAlignment="Left" />
 
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_NewAlloc_Button"
-                        Content="New Palette Allocation" Margin="0,4,0,0" IsEnabled="False"
-                        ToolTip.Tip="Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately" />
+                        Content="New Palette Allocation" Margin="0,4,0,0" Click="NewAlloc_Click"
+                        ToolTip.Tip="Allocate a fresh palette block in free space and repoint this slot's P12" />
 
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Write_Button"
                         Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
