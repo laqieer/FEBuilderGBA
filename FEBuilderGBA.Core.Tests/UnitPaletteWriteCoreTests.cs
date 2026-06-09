@@ -755,6 +755,68 @@ namespace FEBuilderGBA.Core.Tests
             for (int i = 0; i < 32; i++) Assert.Equal(0xAB, rom.Data[0x200 + i]);
         }
 
+        // (5a) Copilot review: zero P12 + paletteIndex=2 (non-override) -> fresh
+        // buffer is >=3 banks, ONLY bank 2 carries the edited colors, banks 0/1
+        // are all-zero/black.
+        [Fact]
+        public void AllocNewPalette_ZeroP12_HonorsPaletteIndex_NonOverride()
+        {
+            byte[] data = new byte[0x10000];
+            uint rowAddr = 0x40;
+            data[rowAddr + 0] = (byte)'P';
+            // P12 (offset +12) left as 0.
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            CoreState.ROM = rom;
+            uint p12Slot = rowAddr + 12;
+
+            var (rNew, gNew, bNew) = MakeUniquePalette();
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 2, false);
+            Assert.NotEqual(U.NOT_FOUND, result);
+            Assert.Equal(result, rom.u32(p12Slot));
+
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(result));
+            // (paletteIndex + 1) = 3 banks.
+            Assert.Equal(3 * 32, decompressed.Length);
+            // Banks 0 and 1 are all-zero/black (untouched).
+            for (int i = 0; i < 2 * 32; i++) Assert.Equal((byte)0, decompressed[i]);
+            // Bank 2 = the edited colors.
+            var (rGot, gGot, bGot) = DecodeBank(decompressed, 2);
+            Assert.Equal(rNew, rGot);
+            Assert.Equal(gNew, gGot);
+            Assert.Equal(bNew, bGot);
+        }
+
+        // (5b) Copilot review: zero P12 + paletteIndex=2 + isOverrideAll=true ->
+        // ALL 3 banks decode to the edited colors.
+        [Fact]
+        public void AllocNewPalette_ZeroP12_OverrideAll_FillsEveryBank()
+        {
+            byte[] data = new byte[0x10000];
+            uint rowAddr = 0x40;
+            data[rowAddr + 0] = (byte)'P';
+            // P12 (offset +12) left as 0.
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            CoreState.ROM = rom;
+            uint p12Slot = rowAddr + 12;
+
+            var (rNew, gNew, bNew) = MakeUniquePalette();
+            uint result = UnitPaletteWriteCore.AllocNewPalette(rom, p12Slot, rNew, gNew, bNew, 2, true);
+            Assert.NotEqual(U.NOT_FOUND, result);
+
+            byte[] decompressed = LZ77.decompress(rom.Data, U.toOffset(rom.u32(p12Slot)));
+            Assert.Equal(3 * 32, decompressed.Length);
+            // EVERY bank decodes to the edited colors.
+            for (int s = 0; s < 3; s++)
+            {
+                var (rGot, gGot, bGot) = DecodeBank(decompressed, s);
+                Assert.Equal(rNew, rGot);
+                Assert.Equal(gNew, gGot);
+                Assert.Equal(bNew, bGot);
+            }
+        }
+
         // (6) Outer Undo.Rollback restores byte-identical (length + P12 + bytes).
         [Fact]
         public void AllocNewPalette_OuterUndo_RestoresByteIdentical()
@@ -838,7 +900,7 @@ namespace FEBuilderGBA.Core.Tests
         // (8) Fault restore: a bad input that passes the rom-null guard but fails
         // validation inside the write must return NOT_FOUND with the ROM
         // byte-identical (no partial mutation). We inject an out-of-range channel,
-        // which AppendFreshSingleBank / WritePalette both reject AFTER the
+        // which AppendFreshBanks / WritePalette both reject AFTER the
         // snapshot is taken — proving the no-mutation-on-fault contract.
         [Fact]
         public void AllocNewPalette_BadInput_ReturnsNotFound_NoMutation()

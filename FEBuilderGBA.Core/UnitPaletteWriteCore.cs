@@ -232,12 +232,17 @@ namespace FEBuilderGBA
         /// decompressed stream, and preserves the untouched banks.
         ///
         /// Invalid / zero / non-LZ77 P12: there is no existing stream to splice
-        /// into, so a DETERMINISTIC fresh SINGLE 32-byte bank is built from the
-        /// supplied R/G/B (16 colors), LZ77-compressed, appended at ROM end, and
-        /// the P12 slot repointed to it. (<see cref="WritePalette"/> itself
-        /// early-outs to <see cref="U.NOT_FOUND"/> for a bad pointer because it
-        /// must not invent a stream during an in-place write; the New-Alloc flow
-        /// always allocates, so a fresh slot is the well-defined result.)
+        /// into, so a DETERMINISTIC fresh buffer is built that still HONORS the
+        /// requested bank — <c>(paletteIndex + 1)</c> 32-byte banks, zero-filled,
+        /// with the supplied colors written into bank
+        /// <paramref name="paletteIndex"/> (or EVERY bank when
+        /// <paramref name="isOverrideAll"/>), LZ77-compressed, appended at ROM
+        /// end, and the P12 slot repointed to it. For <c>paletteIndex == 0</c>
+        /// non-override this is a single 32-byte bank.
+        /// (<see cref="WritePalette"/> itself early-outs to
+        /// <see cref="U.NOT_FOUND"/> for a bad pointer because it must not invent
+        /// a stream during an in-place write; the New-Alloc flow always
+        /// allocates, so a fresh slot is the well-defined result.)
         ///
         /// The OLD compressed block is left UNTOUCHED (no recycle) — this is the
         /// shared-palette safety guarantee: another slot may still reference it.
@@ -293,9 +298,10 @@ namespace FEBuilderGBA
                 else
                 {
                     // No existing stream to splice into (zero / non-pointer /
-                    // non-LZ77 P12): build a deterministic fresh single bank,
+                    // non-LZ77 P12): build a deterministic fresh buffer that
+                    // honors the requested bank (paletteIndex) + override-all,
                     // append + repoint.
-                    result = AppendFreshSingleBank(rom, rowP12SlotOffset, r, g, b);
+                    result = AppendFreshBanks(rom, rowP12SlotOffset, r, g, b, paletteIndex, isOverrideAll);
                 }
                 if (result == U.NOT_FOUND)
                 {
@@ -340,16 +346,29 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Build a DETERMINISTIC fresh SINGLE 32-byte palette bank from the
-        /// supplied R/G/B (16 colors), LZ77-compress it, append at ROM end, and
-        /// repoint the P12 slot to it. Used by <see cref="AllocNewPalette"/> when
-        /// the slot has no existing LZ77 stream to splice into. Validates the
-        /// R/G/B inputs exactly like <see cref="WritePalette"/> and returns
-        /// <see cref="U.NOT_FOUND"/> on bad input or a resize failure (the caller
-        /// restores the snapshot). Writes record into the caller's ambient undo
-        /// scope.
+        /// Build a DETERMINISTIC fresh palette buffer that HONORS the requested
+        /// bank, LZ77-compress it, append at ROM end, and repoint the P12 slot to
+        /// it. Used by <see cref="AllocNewPalette"/> when the slot has no existing
+        /// LZ77 stream to splice into. Mirrors <see cref="WritePalette"/>'s
+        /// resize/splice semantics applied to a fresh zero-filled buffer:
+        /// <list type="bullet">
+        /// <item>The buffer is <c>(paletteIndex + 1)</c> 32-byte banks long, so
+        /// the requested bank index is in range and any lower banks stay
+        /// black/zero.</item>
+        /// <item>When <paramref name="isOverrideAll"/> is true, the packed colors
+        /// fill EVERY 32-byte bank; otherwise only bank
+        /// <paramref name="paletteIndex"/> is written and lower banks stay zero.</item>
+        /// </list>
+        /// So <c>paletteIndex == 0</c> (non-override) is a single 32-byte bank
+        /// (backward compatible). Validates the R/G/B inputs and
+        /// <paramref name="paletteIndex"/> exactly like <see cref="WritePalette"/>
+        /// and returns <see cref="U.NOT_FOUND"/> on bad input or a resize failure
+        /// (the caller restores the snapshot). Writes record into the caller's
+        /// ambient undo scope.
         /// </summary>
-        static uint AppendFreshSingleBank(ROM rom, uint rowP12SlotOffset, uint[] r, uint[] g, uint[] b)
+        static uint AppendFreshBanks(
+            ROM rom, uint rowP12SlotOffset, uint[] r, uint[] g, uint[] b,
+            int paletteIndex, bool isOverrideAll)
         {
             if (r == null || g == null || b == null) return U.NOT_FOUND;
             if (r.Length != PALETTE_COUNT || g.Length != PALETTE_COUNT || b.Length != PALETTE_COUNT)
@@ -358,9 +377,27 @@ namespace FEBuilderGBA
             {
                 if (r[i] > 0x1F || g[i] > 0x1F || b[i] > 0x1F) return U.NOT_FOUND;
             }
+            if (paletteIndex < 0) return U.NOT_FOUND;
             if (rowP12SlotOffset + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
 
-            byte[] raw = PackRgb555(r, g, b);
+            byte[] newSlot = PackRgb555(r, g, b);
+
+            // Zero-filled buffer large enough to hold the requested bank index;
+            // lower banks remain black until the user edits them.
+            int bankCount = paletteIndex + 1;
+            byte[] raw = new byte[bankCount * RAW_PALETTE_BYTES];
+            if (isOverrideAll)
+            {
+                for (int s = 0; s < bankCount; s++)
+                {
+                    System.Buffer.BlockCopy(newSlot, 0, raw, s * RAW_PALETTE_BYTES, RAW_PALETTE_BYTES);
+                }
+            }
+            else
+            {
+                System.Buffer.BlockCopy(newSlot, 0, raw, paletteIndex * RAW_PALETTE_BYTES, RAW_PALETTE_BYTES);
+            }
+
             byte[] compressed = LZ77.compress(raw);
 
             uint appendOffset = (uint)rom.Data.Length;
