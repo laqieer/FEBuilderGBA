@@ -504,6 +504,30 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void GetMapIdFromAddr_ValidLookingRowAfterTerminator_ReturnsNotFound()
+        {
+            // Rows 0,1 valid; row 2 all-zero terminator; row 3 valid-looking
+            // (pointer-backed). MakeMapIDList stops at row 2 (count == 2), so the
+            // post-terminator row 3 is NOT an enumerated entry even though it
+            // passes IsMapSettingValid in isolation — must resolve to NOT_FOUND.
+            // (Regression for Copilot CLI review #1086 blocking finding #2.)
+            var rom = new ROM();
+            rom.LoadLow("synthetic-fe6.gba", new byte[0x1000000], "AFEJ01");
+            uint baseAddr = 0x200u;
+            uint dataSize = rom.RomInfo.map_setting_datasize;
+            WriteU32(rom.Data, (int)rom.RomInfo.map_setting_pointer, 0x08000000 + baseAddr);
+            WriteU32(rom.Data, (int)(baseAddr + 0u * dataSize), 0x08000300); // row 0 valid
+            WriteU32(rom.Data, (int)(baseAddr + 1u * dataSize), 0x08000300); // row 1 valid
+            // row 2 left all-zero → terminator (IsMapSettingValid false)
+            WriteU32(rom.Data, (int)(baseAddr + 3u * dataSize), 0x08000300); // row 3 valid-looking
+
+            Assert.Equal(2, MapSettingCore.MakeMapIDList(rom).Count);
+            Assert.Equal(0u, MapSettingCore.GetMapIdFromAddr(rom, baseAddr));
+            Assert.Equal(1u, MapSettingCore.GetMapIdFromAddr(rom, baseAddr + 1u * dataSize));
+            Assert.Equal(U.NOT_FOUND, MapSettingCore.GetMapIdFromAddr(rom, baseAddr + 3u * dataSize));
+        }
+
+        [Fact]
         public void GetMapIdFromAddr_RecordPastEof_ReturnsNotFound()
         {
             // The record START is in-bounds but start+datasize runs past EOF.

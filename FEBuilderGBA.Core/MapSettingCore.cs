@@ -109,12 +109,17 @@ namespace FEBuilderGBA
             // Overflow-safe full-row EOF bound — the entire record must be in ROM.
             if ((ulong)addr + dataSize > (ulong)rom.Data.Length) return U.NOT_FOUND;
 
-            // Validity gate: an aligned address PAST the table terminator (or on
-            // trailing garbage) must NOT produce a plausible map id. Reject any
-            // address that fails the same heuristic MakeMapIDList stops on.
-            if (!IsMapSettingValid(rom, addr)) return U.NOT_FOUND;
-
-            return delta / dataSize;
+            // Gate against the ENUMERATED list, not just IsMapSettingValid on the
+            // candidate row in isolation: MakeMapIDList stops at the first invalid
+            // (terminator) row, so a valid-looking row AFTER an earlier terminator
+            // is NOT a real map entry and must resolve to NOT_FOUND. Require the
+            // candidate id to be in the list AND map back to the exact same
+            // address (Copilot CLI review on #1086).
+            uint id = delta / dataSize;
+            var list = MakeMapIDList(rom);
+            if (id >= (uint)list.Count) return U.NOT_FOUND;
+            if (list[(int)id].addr != addr) return U.NOT_FOUND;
+            return id;
         }
 
         /// <summary>
