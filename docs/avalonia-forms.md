@@ -435,7 +435,7 @@ Editors for opening demos, fonts, prologues, and alpha names.
 | 250 | OPClassDemoFE7View | OPClassDemoFE7ViewModel | Class demo (FE7 variant) |
 | 251 | OPClassDemoFE7UView | OPClassDemoFE7UViewModel | Class demo (FE7U variant) |
 | 252 | OPClassDemoFE8UView | OPClassDemoFE8UViewModel | Class demo (FE8U variant) |
-| 253 | OPClassFontViewerView | OPClassFontViewerViewModel | Opening class font viewer |
+| 253 | OPClassFontViewerView | OPClassFontViewerViewModel | Opening class font editor (Write + Export PNG + Import PNG, #999) |
 | 254 | OPClassFontFE8UView | OPClassFontFE8UViewModel | Class font (FE8U variant) |
 | 255 | OPClassAlphaNameView | OPClassAlphaNameViewModel | Opening alpha name editor |
 | 256 | OPClassAlphaNameFE6View | OPClassAlphaNameFE6ViewModel | Alpha name (FE6 variant) |
