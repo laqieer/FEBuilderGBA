@@ -233,6 +233,18 @@ namespace FEBuilderGBA
                     if (img == null)
                     {
                         result.Error = err;
+                        // Dispose every unique IImage rendered so far. On error the
+                        // Frames list is cleared and the caller never receives (and so
+                        // can't dispose) these native bitmaps — interactive callers
+                        // (the SkillConfig preview) re-decode malformed animations
+                        // repeatedly, so a leak here accumulates. `cache` holds exactly
+                        // the unique rendered images; `result.Frames` only references
+                        // them. (Successful results transfer ownership to the caller.)
+                        foreach (var rendered in cache.Values)
+                        {
+                            try { rendered?.Dispose(); } catch { /* best-effort cleanup */ }
+                        }
+                        cache.Clear();
                         result.Frames.Clear();
                         return result;
                     }
