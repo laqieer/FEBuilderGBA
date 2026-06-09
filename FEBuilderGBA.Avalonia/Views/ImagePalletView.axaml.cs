@@ -41,6 +41,12 @@ namespace FEBuilderGBA.Avalonia.Views
         // writing the ROM, so an unsaved spinner edit is reflected live.
         Func<byte[], IImage?>? _renderPreview;
 
+        // True while UpdateUI() bulk-seeds the 48 NUDs from VM state. Nud_ValueChanged
+        // early-returns on it so the swatch refresh + the (potentially expensive)
+        // live-preview render fire ONCE at the end of UpdateUI instead of 48 times
+        // (Copilot bot review on #1087). User-driven edits run with this false.
+        bool _seedingNuds;
+
         // Intrinsic size of the most-recently rendered preview bitmap, so
         // ApplyZoom can rescale the already-rendered image without
         // re-invoking the (potentially expensive) render delegate.
@@ -79,6 +85,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Nud_ValueChanged(object? sender, global::Avalonia.Controls.NumericUpDownValueChangedEventArgs e)
         {
+            // Suppress the per-NUD swatch refresh + live render while UpdateUI is
+            // bulk-seeding the 48 NUDs — otherwise each seed fires this handler and
+            // the render delegate runs up to 48x per UpdateUI (Copilot bot #1087).
+            if (_seedingNuds) return;
             // Re-render the 16 swatches from current NUD values so the
             // user-edit -> swatch reflection is live (Copilot bot
             // round-3 inline review #1 on PR #586). The VM is NOT
@@ -136,11 +146,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // inline reviews #2 + #3 on PR #586).
                 _lastPaletteNames = paletteNames;
                 _vm.LoadEntry(paletteAddress, maxPaletteCount, defaultSelectPalette, paletteNames);
-                UpdateUI();
-                // Render the initial preview AFTER UpdateUI has seeded the NUDs
-                // and any IsLoading flag has cleared (so the bulk seed itself
-                // doesn't thrash the render).
-                RenderPreview();
+                UpdateUI(); // UpdateUI renders the preview once at its end.
             }
             catch (Exception ex)
             {
@@ -177,7 +183,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
             ZoomComboBox.SelectedIndex = _vm.ZoomIndex;
 
-            // Mirror the 48 NUDs from VM state.
+            // Mirror the 48 NUDs from VM state. Suppress the per-NUD handler for
+            // this bulk seed so the swatch refresh + live render fire ONCE below,
+            // not 48x (Copilot bot #1087).
+            _seedingNuds = true;
             R1Box.Value = _vm.R1; G1Box.Value = _vm.G1; B1Box.Value = _vm.B1;
             R2Box.Value = _vm.R2; G2Box.Value = _vm.G2; B2Box.Value = _vm.B2;
             R3Box.Value = _vm.R3; G3Box.Value = _vm.G3; B3Box.Value = _vm.B3;
@@ -194,8 +203,12 @@ namespace FEBuilderGBA.Avalonia.Views
             R14Box.Value = _vm.R14; G14Box.Value = _vm.G14; B14Box.Value = _vm.B14;
             R15Box.Value = _vm.R15; G15Box.Value = _vm.G15; B15Box.Value = _vm.B15;
             R16Box.Value = _vm.R16; G16Box.Value = _vm.G16; B16Box.Value = _vm.B16;
+            _seedingNuds = false;
 
             RefreshSwatches();
+            // Single live-preview render per UpdateUI (covers JumpTo, Write, Undo,
+            // Redo, palette-index switch) instead of the 48 per-NUD-seed renders.
+            RenderPreview();
         }
 
         void RefreshSwatches()
@@ -325,9 +338,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                // Skip during bulk VM seeding (UpdateUI mirrors 48 NUDs).
-                if (_vm.IsLoading) return;
-
+                // Bulk-seed suppression is handled by _seedingNuds in
+                // Nud_ValueChanged; UpdateUI calls this exactly once at its end,
+                // so it must run even when a caller holds _vm.IsLoading (e.g. the
+                // Write/Undo/Redo reload paths) — otherwise those would not update
+                // the preview at all.
                 var colors = new (byte r, byte g, byte b)[16];
                 colors[0]  = (NudByte(R1Box),  NudByte(G1Box),  NudByte(B1Box));
                 colors[1]  = (NudByte(R2Box),  NudByte(G2Box),  NudByte(B2Box));

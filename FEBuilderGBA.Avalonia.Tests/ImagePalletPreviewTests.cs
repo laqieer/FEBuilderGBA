@@ -8,6 +8,7 @@
 //      packer (PaletteCore.PackToBytes), NOT the 5-bit UnitPaletteWriteCore.PackRgb555.
 using System;
 using System.IO;
+using System.Linq;
 using global::Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA;
@@ -57,6 +58,33 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(zoom);
             zoom!.SelectedIndex = 2; // "2x"
             Assert.Equal(callsAfterJump, renderCalls);
+        }
+
+        [AvaloniaFact]
+        public void JumpTo_DoesNotInvokeRenderDelegate_PerNud_DuringSeed()
+        {
+            EnsureImageService();
+            var view = new ImagePalletView();
+
+            // Pre-dirty all 48 R/G/B NUDs so the subsequent JumpTo bulk-seed
+            // actually CHANGES them (a no-op seed wouldn't fire Nud_ValueChanged
+            // and wouldn't exercise the _seedingNuds suppression).
+            foreach (int slot in Enumerable.Range(1, 16))
+                foreach (string ch in new[] { "R", "G", "B" })
+                {
+                    var nud = view.FindControl<NumericUpDown>($"{ch}{slot}Box");
+                    if (nud != null) nud.Value = 99;
+                }
+
+            int calls = 0;
+            view.JumpTo(0x0u, maxPaletteCount: 1, defaultSelectPalette: 0, paletteNames: null,
+                renderPreview: _ => { calls++; return CoreState.ImageService!.CreateImage(4, 4); });
+
+            // With the _seedingNuds guard the 48-NUD seed must NOT invoke the
+            // render delegate per field — exactly one render happens at the end
+            // of UpdateUI. Without the fix this would be ~48 (Copilot #1087).
+            Assert.True(calls >= 1, "JumpTo must render the preview at least once.");
+            Assert.True(calls <= 2, $"Bulk NUD seed must not invoke the delegate per field; got {calls} calls.");
         }
 
         [AvaloniaFact]

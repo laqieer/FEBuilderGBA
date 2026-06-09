@@ -298,7 +298,7 @@
              the box), the 1x/2x/3x/4x modes set an explicit pixel size centered
              in the box (#1023). -->
         <Border Width="260" Height="260" BorderBrush="DimGray" BorderThickness="1"
-                Background="#202020" ClipToBounds="True">
+                Background="{DynamicResource MapEditorCanvasBrush}" ClipToBounds="True">
           <Image AutomationProperties.AutomationId="ImagePallet_Preview_Image"
                  Name="PreviewImage"
                  HorizontalAlignment="Center" VerticalAlignment="Center"
