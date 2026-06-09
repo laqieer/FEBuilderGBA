@@ -213,10 +213,12 @@
                              Minimum="0" Maximum="4294967295" />
             </StackPanel>
 
+            <!-- #1000: Mini strip import — single LZ77 image + 16-color palette;
+                 image-only (shared palette untouched). FE8-only via CanImportMini. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Mini_Import_Button"
                     Content="Import Image"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    IsEnabled="{Binding CanImportMini}"
+                    Click="MiniImport_Click" />
             <!-- #843: read-only Export PNG of the live mini-map preview. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Mini_Export_Button"
                     Name="MiniExportButton" Content="Export PNG"
@@ -247,10 +249,11 @@
               <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Image_Input"
                              FormatString="0" Name="Point1ImageBox" Width="170"
                              Minimum="0" Maximum="4294967295" />
+              <!-- #1000: Point1 strip import — image-only (shared icon palette untouched). -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Import_Button"
                       Content="Import"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: pending Core extraction." />
+                      IsEnabled="{Binding CanImportPoint1}"
+                      Click="Point1Import_Click" />
               <!-- #843: read-only Export PNG of the live point-1 preview. -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point1Export_Button"
                       Name="Point1ExportButton" Content="Export PNG"
@@ -265,10 +268,11 @@
               <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Image_Input"
                              FormatString="0" Name="Point2ImageBox" Width="170"
                              Minimum="0" Maximum="4294967295" />
+              <!-- #1000: Point2 strip import — image-only (shared icon palette untouched). -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Import_Button"
                       Content="Import"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: pending Core extraction." />
+                      IsEnabled="{Binding CanImportPoint2}"
+                      Click="Point2Import_Click" />
               <!-- #843: read-only Export PNG of the live point-2 preview. -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_Point2Export_Button"
                       Name="Point2ExportButton" Content="Export PNG"
@@ -283,10 +287,11 @@
               <NumericUpDown AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadImage_Input"
                              FormatString="0" Name="RoadImageBox" Width="170"
                              Minimum="0" Maximum="4294967295" />
+              <!-- #1000: Road strip import — image-only (shared icon palette untouched). -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadImport_Button"
                       Content="Import"
-                      IsEnabled="False"
-                      ToolTip.Tip="KnownGap: pending Core extraction." />
+                      IsEnabled="{Binding CanImportRoad}"
+                      Click="RoadImport_Click" />
               <!-- #843: read-only Export PNG of the live road preview. -->
               <Button AutomationProperties.AutomationId="WorldMapImage_PointIcon_RoadExport_Button"
                       Name="RoadExportButton" Content="Export PNG"

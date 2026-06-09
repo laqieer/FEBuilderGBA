@@ -862,6 +862,100 @@ namespace FEBuilderGBA.Avalonia.Views
             return result;
         }
 
+        // ===================================================================
+        // #1000: Strip image imports (Mini / Point1 / Point2 / Road).
+        //
+        // Each strip is a single LZ77 image pointer + a 16-color palette. The
+        // import is IMAGE-ONLY: open a PNG, strict-size remap onto the EXISTING
+        // strip palette (TryGetStripPalette), then ImageWorldMapCore.ImportIconStrip
+        // 4bpp-encodes + LZ77-writes + repoints the single image pointer under one
+        // undo scope. The shared palette is NOT written. Mirrors MainImport_Click's
+        // CoreState.Services?.ShowError / ShowInfo mechanism. FE8-only + nonzero-
+        // pointer gates keep FE6/FE7 disabled (their strip pointers are 0).
+        // ===================================================================
+
+        async void MiniImport_Click(object? sender, RoutedEventArgs e)
+            => await DoStripImport(
+                "World map mini palette is invalid.",
+                rom => rom.RomInfo.worldmap_mini_palette_pointer,
+                rom => rom.RomInfo.worldmap_mini_image_pointer,
+                64, 64,
+                "Import World Map Mini",
+                "Imported world map mini image.");
+
+        async void Point1Import_Click(object? sender, RoutedEventArgs e)
+            => await DoStripImport(
+                "World map icon palette is invalid.",
+                rom => rom.RomInfo.worldmap_icon_palette_pointer,
+                rom => rom.RomInfo.worldmap_icon1_pointer,
+                256, 64,
+                "Import World Map Point1",
+                "Imported world map point1 image.");
+
+        async void Point2Import_Click(object? sender, RoutedEventArgs e)
+            => await DoStripImport(
+                "World map icon palette is invalid.",
+                rom => rom.RomInfo.worldmap_icon_palette_pointer,
+                rom => rom.RomInfo.worldmap_icon2_pointer,
+                96, 32,
+                "Import World Map Point2",
+                "Imported world map point2 image.");
+
+        async void RoadImport_Click(object? sender, RoutedEventArgs e)
+            => await DoStripImport(
+                "World map icon palette is invalid.",
+                rom => rom.RomInfo.worldmap_icon_palette_pointer,
+                rom => rom.RomInfo.worldmap_road_tile_pointer,
+                8, 120,
+                "Import World Map Road",
+                "Imported world map road image.");
+
+        /// <summary>
+        /// Shared driver for the four single-LZ77-stream strip imports. Mirrors
+        /// <see cref="MainImport_Click"/>: read the existing strip palette through
+        /// the guarded Core helper, strict-size remap the opened PNG onto it, then
+        /// <see cref="ImageWorldMapCore.ImportIconStrip"/> (image-only, shared
+        /// palette untouched) under one undo scope. Refreshes previews on success.
+        /// </summary>
+        async System.Threading.Tasks.Task DoStripImport(
+            string paletteErrorMessage,
+            Func<ROM, uint> palettePointer,
+            Func<ROM, uint> imagePointer,
+            int widthPx, int heightPx,
+            string undoLabel, string successMessage)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+                if (!ImageWorldMapCore.TryGetStripPalette(rom, palettePointer(rom), out byte[] palette))
+                {
+                    CoreState.Services?.ShowError(paletteErrorMessage);
+                    return;
+                }
+                var result = await ImageImportService.LoadAndRemapToExistingPalette(
+                    this, widthPx, heightPx, palette, 16, strictSize: true);
+                if (result == null) return;
+                if (!result.Success) { CoreState.Services?.ShowError(result.Error); return; }
+
+                _undoService.Begin(undoLabel);
+                try
+                {
+                    var r = ImageWorldMapCore.ImportIconStrip(
+                        rom, imagePointer(rom), result.IndexedPixels, widthPx, heightPx);
+                    if (!r.Success) { _undoService.Rollback(); CoreState.Services?.ShowError(r.Error); return; }
+                    _undoService.Commit();
+                    RefreshPreviews();
+                    CoreState.Services?.ShowInfo(successMessage);
+                }
+                catch { _undoService.Rollback(); throw; }
+            }
+            catch (Exception ex)
+            {
+                CoreState.Services?.ShowError("Import failed: " + ex.Message);
+            }
+        }
+
         /// <summary>
         /// Export the dark field map preview as PNG. The cached dark render
         /// (<see cref="_darkFieldMapImage"/>) is saved via a save-file dialog.

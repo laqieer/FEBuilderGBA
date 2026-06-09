@@ -220,10 +220,13 @@ public class WorldMapImageParityTests
     }
 
     /// <summary>
-    /// Deferred affordances (image IMPORT round-trip, dark-map import/export,
-    /// decrease-color tool, open-source, select-source, and the border NV5c
-    /// preview's import/export) must be disabled and reference KnownGap in the
-    /// tooltip. No follow-up issues per task scope discipline.
+    /// Deferred affordances must be disabled and reference KnownGap in the
+    /// tooltip. After #1000 only THREE remain deferred: the Main full-image
+    /// EXPORT round-trip, the Event image IMPORT, and the Border image IMPORT
+    /// (OAM assembly). The four single-LZ77-stream strip imports (Mini / Point1 /
+    /// Point2 / Road) are now wired (#1000, see
+    /// <see cref="View_StripImportButtons_AreWired"/>). No follow-up issues per
+    /// task scope discipline.
     ///
     /// NOTE the Main tab keeps a DISTINCT pair of buttons: the full image
     /// IMPORT/EXPORT round-trip (<c>WorldMapImage_Main_Import_Button</c> /
@@ -248,12 +251,10 @@ public class WorldMapImageParityTests
     // WorldMapImage_Main_DecreaseColor_Button — wired (#1013, see View_DecreaseColorButtons_AreWired)
     // WorldMapImage_Main_OpenSource_Button / SelectSource_Button — wired (#1013, see View_SourceFileButtons_AreWired)
     // WorldMapImage_Event_DecreaseColor_Button — wired (#1013)
+    // WorldMapImage_Mini_Import_Button / Point1Import / Point2Import / RoadImport — wired
+    //   (#1000, see View_StripImportButtons_AreWired)
     [InlineData("WorldMapImage_Main_Export_Button")]
     [InlineData("WorldMapImage_Event_Import_Button")]
-    [InlineData("WorldMapImage_Mini_Import_Button")]
-    [InlineData("WorldMapImage_PointIcon_Point1Import_Button")]
-    [InlineData("WorldMapImage_PointIcon_Point2Import_Button")]
-    [InlineData("WorldMapImage_PointIcon_RoadImport_Button")]
     [InlineData("WorldMapImage_Border_Import_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesKnownGap(string automationId)
     {
@@ -396,6 +397,46 @@ public class WorldMapImageParityTests
         // Click handler exists in the code-behind.
         string source = File.ReadAllText(ViewCodeBehindPath());
         Assert.Contains(clickHandler, source);
+    }
+
+    /// <summary>
+    /// #1000: the four single-LZ77-stream strip Import buttons (Mini / Point1 /
+    /// Point2 / Road) are now wired (previously KnownGap-disabled). Each must:
+    ///   * be gated by its CanImport* binding,
+    ///   * have a Click handler wired,
+    ///   * NOT be IsEnabled="False" and NOT reference KnownGap, and
+    ///   * route through ImageWorldMapCore.ImportIconStrip + RefreshPreviews in
+    ///     the code-behind.
+    /// </summary>
+    [Theory]
+    [InlineData("WorldMapImage_Mini_Import_Button",            "CanImportMini",   "MiniImport_Click")]
+    [InlineData("WorldMapImage_PointIcon_Point1Import_Button", "CanImportPoint1", "Point1Import_Click")]
+    [InlineData("WorldMapImage_PointIcon_Point2Import_Button", "CanImportPoint2", "Point2Import_Click")]
+    [InlineData("WorldMapImage_PointIcon_RoadImport_Button",   "CanImportRoad",   "RoadImport_Click")]
+    public void View_StripImportButtons_AreWired(string automationId, string binding, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        // Wired button: gated by binding, wired to click handler, NOT a KnownGap stub.
+        Assert.Contains($"IsEnabled=\"{{Binding {binding}}}\"", element);
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.DoesNotContain("KnownGap", element);
+
+        // The click handler exists in the code-behind, routes through the Core
+        // import seam, and refreshes the previews after committing.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains(clickHandler, source);
+        Assert.Contains("ImageWorldMapCore.ImportIconStrip", source);
+        Assert.Contains("RefreshPreviews()", source);
     }
 
     /// <summary>

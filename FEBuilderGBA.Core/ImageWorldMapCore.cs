@@ -476,6 +476,102 @@ namespace FEBuilderGBA
             return ImportResult.Ok();
         }
 
+        // ==================================================================
+        // Single-LZ77-stream strip import (mini / point1 / point2 / road) +
+        // a public guarded palette helper (#1000).
+        //
+        // Each strip is a single LZ77 image pointer + a 16-color palette. The
+        // import is IMAGE-ONLY (the View nearest-color-remaps onto the existing
+        // palette first, so the shared palette is NOT written): 4bpp-encode →
+        // LZ77-compress → free-space append + repoint the single image pointer.
+        // The wait-icon / OP-class-font pattern (#991/#999). Defensive
+        // byte-identical fault restore (#885/#923) means a FAILED import mutates
+        // ZERO bytes. Runs under the CALLER's ambient undo scope (the View owns
+        // _undoService.Begin/Commit/Rollback).
+        // ==================================================================
+
+        /// <summary>
+        /// Image-only LZ77 strip import. Validates dims (&gt;0, %8==0, buffer
+        /// length via long math), validates <paramref name="imagePointerAddr"/>
+        /// in-range (+4 overflow-safe), 4bpp-encodes, LZ77-writes to free space +
+        /// repoints the single image pointer (<see cref="ImageImportCore.WriteCompressedToROM"/>
+        /// owns the slot). Defensive byte-identical fault restore (#885/#923): a
+        /// failed import mutates ZERO bytes. Never throws (catch -&gt;
+        /// <see cref="RestoreSnapshot"/> + Fail). The shared palette is NOT
+        /// written. ROM-MUTATING (runs under the caller's ambient undo scope).
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="imagePointerAddr">The single canonical image pointer slot
+        /// (RomInfo) for this strip — e.g. <c>worldmap_mini_image_pointer</c>.</param>
+        /// <param name="indexedPixels">Already-remapped indexed pixels (one byte
+        /// per pixel, row-major) at the strip's fixed dims. The caller must remap
+        /// to the existing shared strip palette first — the strip palette is NOT
+        /// written by this seam.</param>
+        /// <param name="widthPx">Strip pixel width (multiple of 8).</param>
+        /// <param name="heightPx">Strip pixel height (multiple of 8).</param>
+        public static ImportResult ImportIconStrip(ROM rom, uint imagePointerAddr,
+            byte[] indexedPixels, int widthPx, int heightPx)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return ImportResult.Fail("ROM not loaded.");
+            if (indexedPixels == null) return ImportResult.Fail("Invalid image data.");
+            if (widthPx <= 0 || heightPx <= 0 || widthPx % 8 != 0 || heightPx % 8 != 0)
+                return ImportResult.Fail(R.Error("The image size must be positive multiples of 8."));
+            if (indexedPixels.Length < (long)widthPx * heightPx) return ImportResult.Fail("Image pixel buffer too short.");
+            if (imagePointerAddr == 0 || (long)imagePointerAddr + 4 > rom.Data.Length)
+                return ImportResult.Fail("Image pointer slot is out of range.");
+
+            byte[] tiles = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, widthPx, heightPx);
+            if (tiles == null || tiles.Length == 0) return ImportResult.Fail("Failed to encode 4bpp tile data.");
+
+            // Defensive snapshot for the byte-identical restore on fault. The
+            // caller's ambient undo scope captures the writes for UNDO; this
+            // snapshot guarantees a FAILED import mutates ZERO bytes.
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                uint w = ImageImportCore.WriteCompressedToROM(rom, tiles, imagePointerAddr);
+                if (w == U.NOT_FOUND)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return ImportResult.Fail("Failed to write image. Check ROM free space.");
+                }
+                return ImportResult.Ok();
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                return ImportResult.Fail("World map strip import failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Public guarded helper so the View never uses unchecked p32/u32:
+        /// resolve the palette pointer slot to a data offset and read exactly 16
+        /// colors. Returns <c>false</c> (<paramref name="palette16"/> = null) on
+        /// an invalid / out-of-range / zero pointer slot. READ-ONLY.
+        /// </summary>
+        public static bool TryGetStripPalette(ROM rom, uint palettePointerAddr, out byte[] palette16)
+        {
+            palette16 = null;
+            if (rom?.Data == null) return false;
+            if (!TryResolveDataOffset(rom, palettePointerAddr, out uint palOff)) return false;
+            palette16 = ImageUtilCore.GetPalette(rom, palOff, ICON_PALETTE_COLORS);
+            return palette16 != null;
+        }
+
+        /// <summary>
+        /// Length-aware byte-identical restore: a free-space resize-append can
+        /// GROW rom.Data, so down-resize back to the snapshot length BEFORE the
+        /// in-place copy (a naive Array.Copy would leave the grown tail alive).
+        /// Mirrors <c>WaitIconImportCore.RestoreSnapshot</c> (#885/#923).
+        /// </summary>
+        static void RestoreSnapshot(ROM rom, byte[] snap)
+        {
+            if (rom.Data.Length != snap.Length)
+                rom.write_resize_data((uint)snap.Length);
+            Array.Copy(snap, rom.Data, snap.Length);
+        }
+
         /// <summary>
         /// Render the FE8 World Map DARK FIELD MAP preview — exactly like
         /// <see cref="TryRenderMainFieldMap"/> but using

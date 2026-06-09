@@ -470,6 +470,12 @@ Specialized utilities for different graphic types:
   `Import` validates dims (parameterized multiples of 8, NOT hardcoded 32×32), `EncodeDirectTiles4bpp` + LZ77-
   writes + repoints the D0 glyph pointer under the caller's ambient undo, length-aware byte-identical fault
   restore (#885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto the shared `op_class_font_palette`.
+- `ImageWorldMapCore.ImportIconStrip`/`TryGetStripPalette` (Core, ROM-MUTATING / READ-ONLY) — World Map
+  Mini/Point1/Point2/Road single-LZ77-stream strip image imports (#1000; wait-icon pattern). `ImportIconStrip`
+  validates dims (%8, long-math length, +4-overflow-safe slot), `EncodeDirectTiles4bpp` + LZ77-writes + repoints
+  the ONE image pointer; shared palette NOT written (View nearest-color-remaps onto it first); byte-identical
+  fault restore (#885/#923). `TryGetStripPalette` is the guarded 16-color palette read. Avalonia
+  `WorldMapImageView` 4 handlers + FE8-only+nonzero-pointer `CanImport{strip}` gates. Event/Border/legacy-Export deferred.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over the existing `StructMetadata.StructDef`; the Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (alongside CSV/TSV/EA) through them for
