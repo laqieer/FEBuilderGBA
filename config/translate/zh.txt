@@ -24265,3 +24265,18 @@ TSA类型:
 
 :Wave import failed: {0}
 波形导入失败: {0}
+
+:Apply
+应用
+
+:Voice
+音色
+
+:Target Voice
+目标音色
+
+:Reassign every instrument voice used across all tracks of this song. Set a new target voice for each row, then Apply.
+重新分配此乐曲所有音轨中使用的乐器音色。为每一行设置目标音色,然后点击「应用」。
+
+:Note: Volume / Pan / Tempo bulk changes are not yet ported (voice reassignment only).
+注意:音量 / 声相 / 速度的批量修改尚未移植(仅支持音色重新分配)。
