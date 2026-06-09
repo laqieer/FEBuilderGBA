@@ -18,6 +18,14 @@ namespace FEBuilderGBA.Avalonia.Views
         NumericUpDown[] _bBoxes = Array.Empty<NumericUpDown>();
         Border[] _swatches = Array.Empty<Border>();
 
+        // #1022: the 16 R/G/B spinners always edit sub-palette BLOCK 0 — the VM's
+        // LoadPaletteFromROM decodes the FIRST 16 colors (raw[i*2] for i in 0..15)
+        // into _r/_g/_b, and no combo SelectionChanged reloads them from another
+        // block (PaletteTypeCombo is only read by the Write path; the preview combo
+        // only drives PaletteTypeIndex). So the live-edited block aligns with the
+        // previewed sub-palette ONLY when PaletteTypeIndex == 0.
+        const int EditableBlockIndex = 0;
+
         public string ViewTitle => "Unit Palette Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -97,9 +105,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 _bBoxes[i] = this.FindControl<NumericUpDown>($"B{idx}Box")!;
                 _swatches[i] = this.FindControl<Border>($"Swatch{idx}")!;
                 int captureIdx = i;
-                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => RefreshSwatch(captureIdx);
-                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => RefreshSwatch(captureIdx);
-                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => RefreshSwatch(captureIdx);
+                // #1022: every USER R/G/B change repaints the single swatch AND
+                // live-recolors the sample battle-anime preview (the WF
+                // OnChangeColor live-recolor). Suppressed during programmatic bulk
+                // loads (UpdateUI / ApplyImportedChannels set _vm.IsLoading = true
+                // around their 48-spinner writes) so a single entry-load/import
+                // fires ZERO per-spinner renders — the load path runs ONE final
+                // RefreshSamplePreview() itself.
+                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
+                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
+                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
             }
         }
 
@@ -265,11 +280,22 @@ namespace FEBuilderGBA.Avalonia.Views
             // Render the 12-cell sample grid with the unit-palette override.
             try
             {
+                // #1022: live-recolor — feed the in-memory R/G/B spinners as the
+                // EXACT 32-byte override ONLY when the previewed sub-palette index
+                // equals the editable block (the spinners edit block 0). The
+                // alignment guard prevents an edit from recoloring a sub-palette
+                // the spinners are NOT editing (e.g. previewing Enemy while the
+                // spinners hold the Player block). When they don't align, pass null
+                // so the SAVED on-ROM palette renders.
+                byte[] edited = (_vm.PaletteTypeIndex == EditableBlockIndex)
+                    ? BuildEditedPaletteBlock()
+                    : null;
                 // IImage is IDisposable (Skia-backed). GbaImageControl.SetImage
                 // copies the pixels into an independent WriteableBitmap and does
                 // NOT take ownership, so dispose the freshly-rendered grid after
                 // SetImage has copied it (also covers the null case -> clear).
-                using IImage grid = _vm.RenderClassSamplePreview();
+                using IImage grid = _vm.RenderClassSamplePreview(
+                    (int)_vm.ClassID, _vm.SelectedPaletteSlot, _vm.PaletteTypeIndex, edited);
                 SamplePreview.SetImage(grid);
             }
             catch (Exception ex)
@@ -277,6 +303,28 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("ImageUnitPaletteView.RefreshSamplePreview failed: {0}", ex.Message);
                 SamplePreview.SetImage(null);
             }
+        }
+
+        /// <summary>
+        /// #1022: pack the 16 in-memory R/G/B NumericUpDowns into the EXACT 32-byte
+        /// little-endian RGB555 block (the live-edited sub-palette) via
+        /// <see cref="UnitPaletteWriteCore.PackRgb555"/> — the same encoder the
+        /// ROM write path uses. Reuses the Write path's spinner read so the
+        /// preview override is byte-for-byte what a Write would persist. Returns
+        /// exactly 32 bytes (16 colors x RGB555).
+        /// </summary>
+        byte[] BuildEditedPaletteBlock()
+        {
+            var r = new uint[16];
+            var g = new uint[16];
+            var b = new uint[16];
+            for (int i = 0; i < 16; i++)
+            {
+                r[i] = (uint)(_rBoxes.Length > i ? (_rBoxes[i]?.Value ?? 0) : 0);
+                g[i] = (uint)(_gBoxes.Length > i ? (_gBoxes[i]?.Value ?? 0) : 0);
+                b[i] = (uint)(_bBoxes.Length > i ? (_bBoxes[i]?.Value ?? 0) : 0);
+            }
+            return UnitPaletteWriteCore.PackRgb555(r, g, b);
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -492,16 +540,26 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Push 16 index-ordered RGB555 channel triples into the swatch
         /// NumericUpDowns (mirrors the <see cref="UpdateUI"/> swatch loop) and
         /// repaint each swatch. UI-only; no undo scope.
+        ///
+        /// #1022: wrapped in <c>_vm.IsLoading = true</c> so the 16 bulk spinner
+        /// writes do NOT each fire <see cref="RefreshSamplePreview"/> (the per-box
+        /// ValueChanged is suppressed while loading) — the import path renders the
+        /// preview ONCE itself after the write.
         /// </summary>
         void ApplyImportedChannels(uint[] r, uint[] g, uint[] b)
         {
-            for (int i = 0; i < 16; i++)
+            _vm.IsLoading = true;
+            try
             {
-                if (_rBoxes.Length > i && _rBoxes[i] != null) _rBoxes[i].Value = r[i];
-                if (_gBoxes.Length > i && _gBoxes[i] != null) _gBoxes[i].Value = g[i];
-                if (_bBoxes.Length > i && _bBoxes[i] != null) _bBoxes[i].Value = b[i];
-                RefreshSwatch(i);
+                for (int i = 0; i < 16; i++)
+                {
+                    if (_rBoxes.Length > i && _rBoxes[i] != null) _rBoxes[i].Value = r[i];
+                    if (_gBoxes.Length > i && _gBoxes[i] != null) _gBoxes[i].Value = g[i];
+                    if (_bBoxes.Length > i && _bBoxes[i] != null) _bBoxes[i].Value = b[i];
+                    RefreshSwatch(i);
+                }
             }
+            finally { _vm.IsLoading = false; }
         }
 
         void Reload_Click(object? sender, RoutedEventArgs e) => LoadList();

@@ -412,6 +412,138 @@ namespace FEBuilderGBA.Avalonia.Tests
             finally { CoreState.ROM = prevRom; }
         }
 
+        // ===== #1022: live-recolor — editedPaletteBlock overload =====
+
+        [Fact]
+        public void RenderClassSamplePreview_EditedBlockOverride_RecolorsPreview()
+        {
+            // #1022: passing an EXACT 32-byte edited block (idx5 = YELLOW) must
+            // recolor the preview to yellow — overriding BOTH the unit-palette
+            // slot's MAGENTA block AND the anime's own GREEN palette.
+            EnsureImageService();
+            var rom = MakePreviewRom();
+            var prevRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var vm = new ImageUnitPaletteViewModel
+                {
+                    ClassID = PREVIEW_CLASS_ID,
+                    SelectedPaletteSlot = 1,
+                    PaletteTypeIndex = 0,
+                };
+                byte[] edited = new byte[32];
+                U.write_u16(edited, 5 * 2, 0x03FF); // block idx5 = yellow (R31 G31)
+
+                using IImage grid = vm.RenderClassSamplePreview(
+                    (int)PREVIEW_CLASS_ID, 1, 0, edited);
+                Assert.NotNull(grid);
+                byte[] px = grid!.GetPixelData();
+                Assert.Equal(248, px[0]); // R (yellow)
+                Assert.Equal(248, px[1]); // G (yellow)
+                Assert.Equal(0, px[2]);   // B
+                Assert.Equal(255, px[3]); // A
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void RenderClassSamplePreview_NullEditedBlock_RendersSavedUnitPalette()
+        {
+            // #1022: a null edited block keeps the SAVED unit-palette slot render
+            // (MAGENTA), identical to the parameterless overload.
+            EnsureImageService();
+            var rom = MakePreviewRom();
+            var prevRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var vm = new ImageUnitPaletteViewModel
+                {
+                    ClassID = PREVIEW_CLASS_ID,
+                    SelectedPaletteSlot = 1,
+                    PaletteTypeIndex = 0,
+                };
+                using IImage grid = vm.RenderClassSamplePreview(
+                    (int)PREVIEW_CLASS_ID, 1, 0, null);
+                Assert.NotNull(grid);
+                byte[] px = grid!.GetPixelData();
+                Assert.Equal(248, px[0]); // R (magenta = saved unit palette)
+                Assert.Equal(0, px[1]);   // G
+                Assert.Equal(248, px[2]); // B
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        // ===== #1022: View source-text parity (the live-recolor wiring) =====
+        // These assert the View wiring directly (a source-text gate, the
+        // project-wide precedent for behaviour that only the running GUI would
+        // otherwise exercise — see the comment in MEMORY about cross-project
+        // source-text assertions caught only by these tests + CI).
+
+        static string ReadViewSource()
+        {
+            string? repoRoot = FindRepoRoot();
+            Assert.NotNull(repoRoot);
+            string path = Path.Combine(repoRoot!, "FEBuilderGBA.Avalonia",
+                "Views", "ImageUnitPaletteView.axaml.cs");
+            Assert.True(File.Exists(path), $"View source not found at {path}");
+            return File.ReadAllText(path);
+        }
+
+        [Fact]
+        public void View_RgbValueChanged_RefreshesSamplePreview_GuardedByIsLoading()
+        {
+            // The R/G/B ValueChanged handlers must call RefreshSamplePreview()
+            // guarded by !_vm.IsLoading (the bulk-load suppression).
+            string src = ReadViewSource();
+            Assert.Contains("if (!_vm.IsLoading) RefreshSamplePreview()", src);
+            // All three channels (R/G/B) wire the guarded refresh.
+            int guarded = System.Text.RegularExpressions.Regex.Matches(
+                src, @"if \(!_vm\.IsLoading\) RefreshSamplePreview\(\)").Count;
+            Assert.True(guarded >= 3,
+                $"expected R/G/B (>=3) guarded RefreshSamplePreview calls, found {guarded}");
+        }
+
+        [Fact]
+        public void View_BuildsEditedBlock_Via_PackRgb555_And_EditedBlockOverload()
+        {
+            string src = ReadViewSource();
+            // BuildEditedPaletteBlock uses the same encoder the Write path uses.
+            Assert.Contains("UnitPaletteWriteCore.PackRgb555", src);
+            Assert.Contains("byte[] BuildEditedPaletteBlock()", src);
+            // RefreshSamplePreview forwards the edited block to the 4-arg overload.
+            Assert.Contains("_vm.RenderClassSamplePreview(", src);
+            Assert.Contains("_vm.ClassID", src);
+        }
+
+        [Fact]
+        public void View_HasAlignmentGuard_PaletteTypeIndex_EqualsEditableBlockIndex()
+        {
+            string src = ReadViewSource();
+            // The edited block is only passed when the previewed sub-palette equals
+            // the editable block (block 0).
+            Assert.Contains("EditableBlockIndex", src);
+            Assert.Contains("_vm.PaletteTypeIndex == EditableBlockIndex", src);
+            Assert.Contains("const int EditableBlockIndex = 0", src);
+        }
+
+        [Fact]
+        public void View_StaleDeferredComment_IsGone_FromViewModel()
+        {
+            // The VM's old "OnChangeColor ... deferred" doc must be replaced — the
+            // editable block is no longer deferred.
+            string? repoRoot = FindRepoRoot();
+            Assert.NotNull(repoRoot);
+            string vmPath = Path.Combine(repoRoot!, "FEBuilderGBA.Avalonia",
+                "ViewModels", "ImageUnitPaletteViewModel.cs");
+            string vmSrc = File.ReadAllText(vmPath);
+            Assert.DoesNotContain("post-render bitmap-palette mutation", vmSrc);
+            Assert.DoesNotContain("is deferred", vmSrc);
+            // The new live-recolor doc is present.
+            Assert.Contains("Live-recolor (#1022)", vmSrc);
+        }
+
         static void EnsureImageService()
         {
             // Mirrors ClassEditorListPreviewTests: App.axaml.cs wires
