@@ -157,6 +157,30 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void RenderGlyphById_OversizedLz77Header_ReturnsNull_NoOom()
+        {
+            // #1059 review: a corrupt glyph pointer whose LZ77 header encodes a size
+            // beyond MAX_UNCOMP_DATA_LIMIT must return null (getUncompressSize == 0),
+            // NOT allocate a huge buffer in LZ77.decompress (OutOfMemoryException).
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                // Overwrite glyph 0's LZ77 header with a valid 0x10 type but an
+                // enormous (0xFFFFFF) uncompressed size — over the cap.
+                rom.Data[Glyph0Off + 0] = 0x10;
+                rom.Data[Glyph0Off + 1] = 0xFF;
+                rom.Data[Glyph0Off + 2] = 0xFF;
+                rom.Data[Glyph0Off + 3] = 0xFF;
+                using IImage img = ClassOPDemoFontRenderCore.RenderGlyphById(rom, 0);
+                Assert.Null(img);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
         public void RenderGlyphById_ZeroPalettePointer_ReturnsNull_NoThrow()
         {
             // #1059 review: a 0 palette-pointer slot (non-FE8 ROMs) must return null,

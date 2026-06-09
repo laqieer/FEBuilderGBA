@@ -71,6 +71,10 @@ namespace FEBuilderGBA
             if (!U.isPointer(image)) return null;                // WF BlankDummy → null preview
             uint imageOff = U.toOffset(image);
             if (!U.isSafetyOffset(imageOff, rom)) return null;
+            // getUncompressSize enforces MAX_UNCOMP_DATA_LIMIT (LZ77.decompress does NOT),
+            // so a corrupt/garbage pointer with a huge size header can't force an oversized
+            // allocation / OutOfMemoryException — return null for an invalid header. #1059 review.
+            if (LZ77.getUncompressSize(rom.Data, imageOff) == 0) return null;
             byte[] tileData = LZ77.decompress(rom.Data, imageOff);
             if (tileData == null || tileData.Length == 0) return null;
             // Guard the palette POINTER slot: a 0 slot (non-FE8 ROMs) or a near-EOF
