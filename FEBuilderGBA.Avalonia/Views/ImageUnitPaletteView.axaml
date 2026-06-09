@@ -95,7 +95,7 @@
 
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_NewAlloc_Button"
                         Content="New Palette Allocation" Margin="0,4,0,0" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        ToolTip.Tip="Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately" />
 
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Write_Button"
                         Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
@@ -180,15 +180,11 @@
               <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto" Margin="0,4,0,0">
                 <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Zoom_Label"
                            Grid.Column="0" Text="Zoom:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <!-- #1006: items populated in code-behind via R._() (ComboBoxItem
+                     content is not localized by ViewTranslationHelper) — see the ctor. -->
                 <ComboBox AutomationProperties.AutomationId="ImageUnitPalette_Zoom_Combo"
-                          Grid.Column="1" Name="ZoomCombo" Width="200" SelectedIndex="0" IsEnabled="False"
-                          ToolTip.Tip="KnownGap">
-                  <ComboBoxItem>Fit window</ComboBoxItem>
-                  <ComboBoxItem>Actual size</ComboBoxItem>
-                  <ComboBoxItem>2x</ComboBoxItem>
-                  <ComboBoxItem>3x</ComboBoxItem>
-                  <ComboBoxItem>4x</ComboBoxItem>
-                </ComboBox>
+                          Grid.Column="1" Name="ZoomCombo" Width="200"
+                          SelectionChanged="Zoom_SelectionChanged" />
               </Grid>
 
               <!-- Palette grid: 16 swatches in a 4x4 visual grid -->
@@ -340,18 +336,15 @@
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_PaletteWrite_Button"
                         Content="Palette Write" Name="PaletteWriteButton" Click="PaletteWrite_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Clipboard_Button"
-                        Content="Clipboard" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        Content="Clipboard" Name="ClipboardButton" Click="Clipboard_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Export_Button"
                         Content="Export Image" Name="ExportImageButton" Click="ExportImage_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Import_Button"
                         Content="Import Image" Name="ImportImageButton" Click="ImportImage_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_UNDO_Button"
-                        Content="UNDO" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        Content="UNDO" Name="UndoButton" Click="Undo_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_REDO_Button"
-                        Content="REDO" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        Content="REDO" Name="RedoButton" Click="Redo_Click" />
               </StackPanel>
             </StackPanel>
           </TabItem>
@@ -384,7 +377,7 @@
                         Content="Reload List" Click="Reload_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Expand_Button"
                         Content="Expand List" IsEnabled="False"
-                        ToolTip.Tip="KnownGap" />
+                        ToolTip.Tip="Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately" />
               </StackPanel>
             </StackPanel>
           </TabItem>

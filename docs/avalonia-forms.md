@@ -272,7 +272,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 150 | ImageCGView | ImageCGViewModel | CG (cutscene graphic) editor |
 | 151 | ImageCGFE7UView | ImageCGFE7UViewModel | CG editor (FE7U variant) |
 | 152 | ImageChapterTitleFE7View | ImageChapterTitleFE7ViewModel | Chapter title image (FE7) |
-| 153 | ImageUnitPaletteView | ImageUnitPaletteViewModel | Unit sprite palette editor (live-recolors the sample battle-anime preview while editing R/G/B colors, #1022) |
+| 153 | ImageUnitPaletteView | ImageUnitPaletteViewModel | Unit sprite palette editor (live-recolors the sample battle-anime preview while editing R/G/B colors, #1022; Clipboard/Zoom/Undo/Redo controls wired, #1006 — Expand List + New Palette Allocation deferred to a follow-up) |
 | 154 | ImageUnitWaitIconView | ImageUnitWaitIconViewModel | Unit wait/idle icon editor |
 | 155 | ImageUnitMoveIconView | ImageUnitMoveIconViewModel | Unit move icon editor |
 | 156 | ImageSystemAreaView | ImageSystemAreaViewModel | System area graphics editor |
