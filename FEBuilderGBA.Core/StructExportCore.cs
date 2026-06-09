@@ -1264,6 +1264,103 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Format the struct layout as a C-header (".h") string, porting the
+        /// WinForms <c>DumpStructSelectDialogForm.MakeStructString</c> output.
+        /// The first line is <c>struct {Name} {//{Name}</c>; each field emits one
+        /// line keyed off <see cref="StructMetadata.FieldType"/>:
+        /// Byte→<c>byte    _{Offset};//{Name}</c>, Word→<c>ushort   _{Offset};//{Name}</c>,
+        /// DWord→<c>dword   _{Offset};//{Name}</c>, Pointer→<c>void*   _{Offset};//{Name}</c>
+        /// (spacing matches WinForms exactly; <c>_{Offset}</c> uses the DECIMAL
+        /// field offset like WinForms <c>nm.Id</c>). The footer is
+        /// <c>}; sizeof({DataSize})</c>. <see cref="ExportToSTRUCT"/> writes
+        /// exactly this string to disk.
+        /// </summary>
+        /// <remarks>
+        /// Documented fidelity gap vs WinForms: WinForms distinguishes a
+        /// signed-byte (<c>sbyte</c>) widget from <c>byte</c>, but the headless
+        /// <see cref="StructMetadata.FieldType.Byte"/> carries no signedness, so
+        /// all single bytes emit <c>byte</c>. WinForms hidden <c>h</c> widgets
+        /// have no headless analog (already absent from the metadata).
+        /// </remarks>
+        public static string FormatSTRUCT(StructMetadata.StructDef structDef)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"struct {structDef.Name} {{//{structDef.Name}");
+
+            foreach (var field in structDef.Fields)
+            {
+                string comment = ";//" + field.Name;
+                switch (field.Type)
+                {
+                    case StructMetadata.FieldType.Byte:
+                        sb.AppendLine("byte    _" + field.Offset + comment);
+                        break;
+                    case StructMetadata.FieldType.Word:
+                        sb.AppendLine("ushort   _" + field.Offset + comment);
+                        break;
+                    case StructMetadata.FieldType.DWord:
+                        sb.AppendLine("dword   _" + field.Offset + comment);
+                        break;
+                    case StructMetadata.FieldType.Pointer:
+                        sb.AppendLine("void*   _" + field.Offset + comment);
+                        break;
+                }
+            }
+
+            sb.AppendLine("}; sizeof(" + structDef.DataSize + ")");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Format a No$gba memory map (".nmm") string, porting the WinForms
+        /// <c>DumpStructSelectDialogForm.MakNMMString</c> header + per-field block.
+        /// The header is the magic <c>1</c>, a <c>{Name} by FEBuilderGBA</c> title,
+        /// the 0x-prefixed base address, the entry count, the block size, then two
+        /// <c>NULL</c> lines and a blank line. Each field (in Fields order) emits
+        /// its Name, decimal Offset, size (1/2/4), the type code <c>NEHU</c>, a
+        /// <c>NULL</c> dropdown filename, and a blank line. <see cref="ExportToNMM"/>
+        /// writes exactly this string to disk.
+        /// </summary>
+        /// <remarks>
+        /// Documented fidelity gaps vs WinForms:
+        /// (a) WinForms' per-field dropdown enumeration aux-files
+        /// (<c>MakeNMMDropDownList</c>/<c>addFiles</c>) are widget-tree-driven and
+        /// out of scope — all dropdown filenames emit <c>NULL</c>. The output stays
+        /// a structurally valid No$gba memory map with correct field
+        /// names/offsets/sizes/types; only the named value-dropdowns are absent.
+        /// (b) The type-code display radix defaults to hex (<c>H</c>) — this is NOT
+        /// a "WinForms default": WinForms derives H/D per-control from
+        /// <c>NumericUpDown.Hexadecimal</c> (some UnitForm controls like B11/B25 are
+        /// decimal), which the headless metadata does not carry. Signedness defaults
+        /// to <c>U</c> (unsigned); the signed-byte variant has no headless analog.
+        /// </remarks>
+        public static string FormatNMM(ROM rom, TableDef table, StructMetadata.StructDef structDef)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("1");
+            sb.AppendLine(structDef.Name + " by FEBuilderGBA");
+            sb.AppendLine(U.To0xHexString(table.GetBaseAddress(rom)));
+            sb.AppendLine(table.GetEntryCount(rom).ToString());
+            sb.AppendLine(table.GetDataSize(rom).ToString());
+            sb.AppendLine("NULL");
+            sb.AppendLine("NULL");
+            sb.AppendLine();
+
+            foreach (var field in structDef.Fields)
+            {
+                sb.AppendLine(field.Name);
+                sb.AppendLine(field.Offset.ToString()); // decimal index
+                sb.AppendLine(field.Size.ToString());   // 1, 2, or 4
+                // Type code: N + E(no dropdown) + H(hex radix default) + U(unsigned default).
+                sb.AppendLine("NEHU");
+                sb.AppendLine("NULL");                   // dropdown filename
+                sb.AppendLine();
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// Export table data to a TSV file. Output is byte-identical to
         /// <see cref="FormatTSV"/>.
         /// </summary>
@@ -1289,6 +1386,24 @@ namespace FEBuilderGBA
         public static void ExportToEA(List<Dictionary<string, string>> entries, StructMetadata.StructDef structDef, string outputPath)
         {
             File.WriteAllText(outputPath, FormatEA(entries, structDef), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// Export the struct layout to a C-header (".h") file. Output is
+        /// byte-identical to <see cref="FormatSTRUCT"/>.
+        /// </summary>
+        public static void ExportToSTRUCT(StructMetadata.StructDef structDef, string outputPath)
+        {
+            File.WriteAllText(outputPath, FormatSTRUCT(structDef), Encoding.UTF8);
+        }
+
+        /// <summary>
+        /// Export the struct layout to a No$gba memory map (".nmm") file. Output
+        /// is byte-identical to <see cref="FormatNMM"/>.
+        /// </summary>
+        public static void ExportToNMM(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath)
+        {
+            File.WriteAllText(outputPath, FormatNMM(rom, table, structDef), Encoding.UTF8);
         }
 
         /// <summary>RFC 4180 CSV quoting: double-quote fields containing commas, quotes, or newlines.</summary>

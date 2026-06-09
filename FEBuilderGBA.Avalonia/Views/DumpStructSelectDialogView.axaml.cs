@@ -131,9 +131,11 @@ namespace FEBuilderGBA.Avalonia.Views
         // shows a file-save dialog, and writes StructExportCore.ExportToTSV/CSV/EA
         // output (byte-identical to the CLI) — addressing the DumpStruct
         // export/import portion of #439 (not the issue's full parity scope).
-        // When the address resolves to NO known table, we fall back to the honest
-        // hex-dump preview banner. STRUCT/NMM are not backed by the Core seam, so
-        // they always use the preview banner.
+        // STRUCT/NMM are also backed by the Core seam (#1012): they open the text
+        // preview dialog whose body is _vm.MakeExportText, which now returns the
+        // struct-aware FormatSTRUCT (.h C-header) / FormatNMM (No$gba memory map)
+        // output for a resolved table. When the address resolves to NO known
+        // table, ALL formats fall back to the honest hex-dump preview banner.
         // ===================================================================
 
         void CSVButton_Click(object? sender, RoutedEventArgs e)

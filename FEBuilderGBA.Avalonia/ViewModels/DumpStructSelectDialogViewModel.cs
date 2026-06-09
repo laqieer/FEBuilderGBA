@@ -103,52 +103,55 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // ===================================================================
         // Export text builders.
         //
-        // CSV/TSV/EA now produce struct-aware output via StructExportCore when
-        // the loaded address falls inside a known ROM data table (units,
-        // classes, items, ...). The dispatcher resolves the table from the
-        // address alone (StructExportCore.ResolveTableAt), so it no longer
-        // needs the source editor's InputFormRef widget tree — closing the
-        // long-standing Avalonia-vs-WinForms gap tracked from #439 (#770).
+        // CSV/TSV/EA/STRUCT/NMM now produce struct-aware output via
+        // StructExportCore when the loaded address falls inside a known ROM data
+        // table (units, classes, items, ...). The dispatcher resolves the table
+        // from the address alone (StructExportCore.ResolveTableAt), so it no
+        // longer needs the source editor's InputFormRef widget tree — closing the
+        // long-standing Avalonia-vs-WinForms gap tracked from #439 (#770) and
+        // extended to STRUCT (.h C-header) + NMM (No$gba memory map) in #1012.
         //
-        // STRUCT/NMM (and any address that resolves to no known table) still
-        // fall back to the honest 128-byte hex dump in MakeStubExportText.
+        // CSV/TSV/EA emit per-entry table DATA; STRUCT/NMM emit the struct LAYOUT
+        // (field names/offsets/types). Any address that resolves to no known
+        // table (or no ROM) still falls back to the honest 128-byte hex dump in
+        // MakeStubExportText.
         // ===================================================================
 
         /// <summary>
         /// Build the export preview text for a given format button.
-        /// For CSV/TSV/EA, if the loaded address falls inside a known ROM struct
-        /// table, returns the raw struct-aware formatter output (header-first, no
-        /// banner/prefix) — byte-identical to the CLI <c>--export-data</c> command.
-        /// Otherwise (STRUCT/NMM, or no table matched / no ROM loaded) falls back
-        /// to the honest hex dump from <see cref="MakeStubExportText"/>.
+        /// For CSV/TSV/EA/STRUCT/NMM, if the loaded address falls inside a known
+        /// ROM struct table, returns the raw struct-aware formatter output —
+        /// byte-identical to the CLI <c>--export-data</c> writers. CSV/TSV/EA emit
+        /// the table data; STRUCT emits the C-header layout and NMM the No$gba
+        /// memory map. Otherwise (no table matched / no ROM loaded) falls back to
+        /// the honest hex dump from <see cref="MakeStubExportText"/>.
         /// </summary>
         public string MakeExportText(string format)
         {
-            if (format == "CSV" || format == "TSV" || format == "EA")
+            if (format is "CSV" or "TSV" or "EA" or "STRUCT" or "NMM")
             {
                 ROM? rom = CoreState.ROM;
                 if (rom != null)
                 {
                     var table = StructExportCore.ResolveTableAt(rom, CurrentAddr);
-                    if (table != null)
+                    var sd = table != null ? StructExportCore.LoadStructDef(rom, table) : null;
+                    if (table != null && sd != null)
                     {
-                        var sd = StructExportCore.LoadStructDef(rom, table);
-                        if (sd != null)
+                        if (format == "STRUCT") return StructExportCore.FormatSTRUCT(sd);
+                        if (format == "NMM") return StructExportCore.FormatNMM(rom, table, sd);
+                        var entries = StructExportCore.ExportTable(rom, table, sd);
+                        return format switch
                         {
-                            var entries = StructExportCore.ExportTable(rom, table, sd);
-                            return format switch
-                            {
-                                "CSV" => StructExportCore.FormatCSV(entries, sd),
-                                "TSV" => StructExportCore.FormatTSV(entries, sd),
-                                "EA" => StructExportCore.FormatEA(entries, sd),
-                                _ => MakeStubExportText(format),
-                            };
-                        }
+                            "CSV" => StructExportCore.FormatCSV(entries, sd),
+                            "TSV" => StructExportCore.FormatTSV(entries, sd),
+                            "EA" => StructExportCore.FormatEA(entries, sd),
+                            _ => MakeStubExportText(format),
+                        };
                     }
                 }
             }
 
-            // STRUCT / NMM, or no resolvable table / no ROM → honest hex fallback.
+            // Unresolved address / no ROM → honest hex fallback.
             return MakeStubExportText(format);
         }
 
@@ -162,9 +165,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // ===================================================================
         // Honest-stub export text builder. Returns a placeholder hex dump of
-        // 128 bytes starting at the loaded address. Used as the fallback for
-        // STRUCT/NMM and for any address that does not resolve to a known
-        // struct table. KEPT (per #770) as the honest fallback path.
+        // 128 bytes starting at the loaded address. Used as the fallback for any
+        // address that does not resolve to a known struct table (or when no ROM
+        // is loaded) across ALL export formats — including STRUCT/NMM, which
+        // produce struct-aware output for RESOLVED tables (#1012) but fall back
+        // here otherwise. KEPT (per #770) as the honest fallback path.
         // ===================================================================
 
         /// <summary>

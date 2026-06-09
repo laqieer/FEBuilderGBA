@@ -200,27 +200,62 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void MakeExportText_STRUCT_AlwaysFallsBackToHexBanner()
+        public void MakeExportText_STRUCT_ResolvedTable_ProducesStructAwareOutput()
         {
             RomTestHelper.WithRom("FE8U", () =>
             {
                 var vm = new DumpStructSelectDialogViewModel();
-                vm.LoadAddress(UnitsEntryAddr()); // even over a known table
+                vm.LoadAddress(UnitsEntryAddr()); // inside the units table
                 string text = vm.MakeExportText("STRUCT");
-                Assert.Contains("# STRUCT export", text);
-                Assert.False(text.StartsWith("Index"), "STRUCT must use the hex fallback, not the struct header");
+                // Struct-aware C-header layout, NOT the honest hex banner (#1012).
+                Assert.DoesNotContain("Avalonia stub", text);
+                Assert.DoesNotContain("# STRUCT export", text);
+                Assert.StartsWith("struct ", text);
+                Assert.Contains("}; sizeof(", text);
             });
         }
 
         [Fact]
-        public void MakeExportText_NMM_AlwaysFallsBackToHexBanner()
+        public void MakeExportText_NMM_ResolvedTable_ProducesStructAwareOutput()
         {
             RomTestHelper.WithRom("FE8U", () =>
             {
                 var vm = new DumpStructSelectDialogViewModel();
                 vm.LoadAddress(UnitsEntryAddr());
                 string text = vm.MakeExportText("NMM");
+                // Struct-aware No$gba memory map, NOT the honest hex banner (#1012).
+                Assert.DoesNotContain("Avalonia stub", text);
+                Assert.DoesNotContain("# NMM export", text);
+                Assert.StartsWith("1", text);             // NMM magic line
+                Assert.Contains("by FEBuilderGBA", text); // title line
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_STRUCT_AtHeaderAddress_FallsBackToHexBanner()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(0x100); // GBA header — no struct table
+                string text = vm.MakeExportText("STRUCT");
+                // Unresolved address → honest hex fallback (banner present).
+                Assert.Contains("# STRUCT export", text);
+                Assert.Contains("Avalonia stub", text);
+                Assert.False(text.StartsWith("struct "), "unresolved STRUCT must use the hex fallback");
+            });
+        }
+
+        [Fact]
+        public void MakeExportText_NMM_AtHeaderAddress_FallsBackToHexBanner()
+        {
+            RomTestHelper.WithRom("FE8U", () =>
+            {
+                var vm = new DumpStructSelectDialogViewModel();
+                vm.LoadAddress(0x100); // GBA header — no struct table
+                string text = vm.MakeExportText("NMM");
                 Assert.Contains("# NMM export", text);
+                Assert.Contains("Avalonia stub", text);
             });
         }
 

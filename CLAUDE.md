@@ -468,6 +468,11 @@ Specialized utilities for different graphic types:
   `Import` validates dims (parameterized multiples of 8, NOT hardcoded 32×32), `EncodeDirectTiles4bpp` + LZ77-
   writes + repoints the D0 glyph pointer under the caller's ambient undo, length-aware byte-identical fault
   restore (#885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto the shared `op_class_font_palette`.
+- `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
+  C-header) + NMM (No$gba memory map) export over the existing `StructMetadata.StructDef`; the Avalonia
+  `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (alongside CSV/TSV/EA) through them for
+  a resolved table, hex stub only for unresolved addresses. Documented gaps: no headless signed-byte/hex-radix
+  per-control distinction, NMM dropdown aux-files emit `NULL`. #1012.
 
 ### Caching System
 
