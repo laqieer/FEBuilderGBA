@@ -159,6 +159,14 @@ namespace FEBuilderGBA
 
             try
             {
+                // Guard a corrupt LZ77 header that advertises a huge uncompressed
+                // size: getUncompressSize enforces MAX_UNCOMP_DATA_LIMIT (raw
+                // LZ77.decompress does NOT), so a garbage/corrupt OBJ pointer can't
+                // force an oversized allocation that stalls the UI preview. Mirrors
+                // ClassOPDemoFontRenderCore. Copilot review on PR #1077.
+                if (LZ77.getUncompressSize(rom.Data, objOffset) == 0)
+                    return null;
+
                 // OBJ data is LZ77-compressed.
                 byte[] obj = LZ77.decompress(rom.Data, objOffset);
                 if (obj == null || obj.Length == 0)

@@ -124,7 +124,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
-            IImage? img = ImageUtilMapActionAnimationCore.RenderFrameImage(
+            // GbaImageControl.SetImage synchronously copies the pixels into a
+            // WriteableBitmap and does NOT take ownership of the source IImage, so
+            // dispose the freshly-decoded image here — otherwise frequent
+            // re-renders (selection / pointer-edit changes) leak native Skia
+            // memory. Copilot review on PR #1077.
+            using IImage? img = ImageUtilMapActionAnimationCore.RenderFrameImage(
                 CoreState.ROM, f.ImagePointer, f.PalettePointer);
             MapActionPreview.SetImage(img);
         }

@@ -53,9 +53,10 @@ public class ToolAnimationCreatorPreviewTests
         System.Array.Copy(compressed, 0, data, OBJ_OFFSET, compressed.Length);
 
         // Frame row: wait=1, img -> OBJ_OFFSET, pal -> PAL_OFFSET (GBA pointers).
-        data[baseAddr] = 1;
-        WriteU32(data, baseAddr + 4u, U.toPointer((uint)OBJ_OFFSET));
-        WriteU32(data, baseAddr + 8u, U.toPointer((uint)PAL_OFFSET));
+        int b = (int)baseAddr;
+        data[b] = 1;
+        WriteU32(data, b + 4, U.toPointer((uint)OBJ_OFFSET));
+        WriteU32(data, b + 8, U.toPointer((uint)PAL_OFFSET));
         // Terminator at baseAddr+12 (already zero).
 
         var rom = new ROM();
@@ -63,7 +64,7 @@ public class ToolAnimationCreatorPreviewTests
         return rom;
     }
 
-    static void WriteU32(byte[] data, uint addr, uint v)
+    static void WriteU32(byte[] data, int addr, uint v)
     {
         data[addr + 0] = (byte)(v & 0xFF);
         data[addr + 1] = (byte)((v >> 8) & 0xFF);
