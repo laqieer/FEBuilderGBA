@@ -66,6 +66,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // — NOT N2B0 which is the fixed 0x05 marker (per the orphan
             // WF designer + Copilot CLI plan-review v2 finding #2 nit).
             N2B2Box.ValueChanged += OnN2B2Changed;
+            // #1032: editing the N1 glyph id live-updates the font-glyph image
+            // preview (mirrors WF OPCLASSDEMOFONT ValueChanged re-render). Gated
+            // by `_vm.IsLoading` so the load-time spinner writes don't render
+            // mid-load (the explicit post-selection RefreshN1GlyphPreview() in
+            // OnN1Selected handles the selection case).
+            N1B0Box.ValueChanged += OnN1B0Changed;
 
             // ComboBox.Items strings are NOT scanned by ViewTranslationHelper
             // (Copilot bot review thread `PRRT_kwDOH0Mc1M6ETSJC` on PR #544),
@@ -382,6 +388,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 finally { _vm.IsLoading = false; }
 
+                // #1032: clear any stale glyph preview when switching to a class
+                // with no N1 entries or an invalid JP-name pointer. SetItems on
+                // an empty list does NOT fire a selection callback, so this
+                // explicit clear is required.
+                N1GlyphPreview?.SetImage(null);
+
                 _n1Rows = rows;
                 var items = new List<AddrResult>();
                 for (int i = 0; i < _n1Rows.Count; i++)
@@ -417,6 +429,38 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ClassOPDemoView.OnN1Selected failed: {0}", ex.Message);
+            }
+            // #1032: refresh the font-glyph image preview from the just-loaded
+            // glyph id. Run OUTSIDE the `_vm.IsLoading` gate above so it isn't
+            // skipped (the ValueChanged handler is gated by IsLoading).
+            RefreshN1GlyphPreview();
+        }
+
+        // #1032: editing the N1 glyph id live-updates the preview, mirroring the
+        // WF OPCLASSDEMOFONT ValueChanged re-render. Gated by `_vm.IsLoading`.
+        void OnN1B0Changed(object? sender, NumericUpDownValueChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            RefreshN1GlyphPreview();
+        }
+
+        /// <summary>
+        /// Render the N1 JP-name font glyph for the current Glyph: id into the
+        /// preview control. Port of WF OPClassFontForm.DrawFontByID/DrawFont via
+        /// the cross-platform ClassOPDemoFontRenderCore. A null/invalid id
+        /// clears the preview (GbaImageControl.SetImage(null)).
+        /// </summary>
+        void RefreshN1GlyphPreview()
+        {
+            try
+            {
+                N1GlyphPreview?.SetImage(
+                    ClassOPDemoFontRenderCore.RenderGlyphById(CoreState.ROM, (uint)(N1B0Box.Value ?? 0)));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ClassOPDemoView.RefreshN1GlyphPreview failed: {0}", ex.Message);
+                N1GlyphPreview?.SetImage(null);
             }
         }
 

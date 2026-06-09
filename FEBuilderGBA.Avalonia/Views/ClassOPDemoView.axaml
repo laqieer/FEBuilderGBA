@@ -18,7 +18,10 @@
        N2 (anime spec tuple): single 6-byte tuple (orphan validator `i < 1`).
 
        KnownGap: BattleAnimePreview reason=Live ImageBattleAnimeForm.DrawBattleAnime PNG rendering is a large WinForms-only dep; deferred consistent with PRs #544/#549/#537. -->
-  <!-- KnownGap: N1FontGlyphPreview reason=N1_L_0_OPCLASSDEMOFONT PictureBox preview is a WinForms-only graphics pipeline; deferred consistent with PRs #544/#549/#537. -->
+  <!-- #1032: the former N1FontGlyphPreview KnownGap is REMOVED — the N1 JP-name
+       font-glyph image preview is now implemented via the cross-platform
+       ClassOPDemoFontRenderCore (port of WF OPClassFontForm.DrawFontByID/DrawFont)
+       and the GbaImageControl in the N1 sub-bar below. -->
   <!-- KnownGap: PatchAwareUI reason=Orphan ClassOPDemoForm constructor has zero PatchUtil calls; OPClassReelSort/Over255 affordances live in canonical OPClassDemoViewerView (PR #544). -->
   <Grid RowDefinitions="Auto,Auto,*" ColumnDefinitions="270,*">
 
@@ -212,8 +215,8 @@
           <DockPanel>
             <Label DockPanel.Dock="Top" Content="Japanese Name Pointer Target"
                    FontWeight="Bold" />
-            <!-- N1 sub-bar: Write Pointer / Address / Size / Selected / Glyph spinner / Write / List Expand -->
-            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
+            <!-- N1 sub-bar: Write Pointer / Address / Size / Selected / Glyph spinner / Write / List Expand / Glyph image preview (#1032) -->
+            <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
               <Button Grid.Column="0"
                       AutomationProperties.AutomationId="ClassOPDemo_N1_WritePtr_Button"
                       Name="N1WritePtrButton" Content="Write JP Name Pointer"
@@ -247,6 +250,17 @@
                       AutomationProperties.AutomationId="ClassOPDemo_N1_ListExpand_Button"
                       Name="N1ListExpandButton" Content="List Expand"
                       Click="N1_ListExpand_Click" Margin="8,0,0,0" />
+              <!-- #1032: N1 JP-name font-glyph image preview. Renders the 32x32
+                   4bpp glyph for the current Glyph: id via
+                   ClassOPDemoFontRenderCore (port of WF
+                   OPClassFontForm.DrawFontByID/DrawFont). -->
+              <Label Grid.Column="11" Content="Glyph:" Margin="12,0,2,0" VerticalAlignment="Center" />
+              <Border Grid.Column="12" BorderBrush="Gray" BorderThickness="1"
+                      Width="48" Height="48" VerticalAlignment="Center">
+                <controls:GbaImageControl
+                    AutomationProperties.AutomationId="ClassOPDemo_N1_GlyphPreview"
+                    Name="N1GlyphPreview" Width="48" Height="48" />
+              </Border>
             </Grid>
             <controls:AddressListControl
                 AutomationProperties.AutomationId="ClassOPDemo_N1_List"
