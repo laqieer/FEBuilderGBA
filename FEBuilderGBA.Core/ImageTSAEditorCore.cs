@@ -424,11 +424,14 @@ namespace FEBuilderGBA
             {
                 // RAW: slice width8*height8*2 bytes at the resolved data offset,
                 // clamped to ROM end (missing trailing bytes stay zero).
+                // cellCountL is already capped at int.MaxValue, but *2 can exceed
+                // it — bound-check before the (int) array allocation.
                 long needBytes = cellCountL * TSA_CELL_BYTES;
+                if (needBytes > int.MaxValue) return null;
                 long available = (long)rom.Data.Length - tsaAddr;
                 if (available <= 0) return null;
                 int sliceLen = (int)Math.Min(needBytes, available);
-                tsaBytes = new byte[needBytes];
+                tsaBytes = new byte[(int)needBytes];
                 Array.Copy(rom.Data, tsaAddr, tsaBytes, 0, sliceLen);
             }
 

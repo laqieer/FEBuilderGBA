@@ -248,6 +248,69 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // -----------------------------------------------------------------
+        // Outer-transaction rollback: TSA write SUCCEEDS, then the palette half
+        // FAILS -> the View's one undo scope rolls back to zero net mutation.
+        // This is the riskiest write path (LZ77 append + repoint) — Copilot CLI
+        // review on PR #1072 required an EXECUTABLE test, not just static parity.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void WriteTsaCells_Lz77_OuterScopeRollback_RestoresByteIdentical()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                ushort[] planted = { Cell(1, false, false, 0), Cell(0, false, false, 0) };
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(CellsToBytes(planted)));
+                rom.write_p32(TSA_LZ_SLOT, TSA_LZ_OFFSET);
+
+                ROM prevRom = CoreState.ROM;
+                Undo prevUndo = CoreState.Undo;
+                try
+                {
+                    var undo = new Undo();
+                    CoreState.ROM = rom;
+                    CoreState.Undo = undo;
+
+                    byte[] preData = (byte[])rom.Data.Clone();
+                    uint preSlot = rom.u32(TSA_LZ_SLOT);
+
+                    var ud = new Undo.UndoData
+                    {
+                        time = DateTime.Now,
+                        name = "WriteTSA",
+                        list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                        filesize = (uint)rom.Data.Length,
+                    };
+
+                    // TSA half: LZ77 append + repoint, captured by the outer scope.
+                    ushort[] edited = { Cell(2, true, false, 5), Cell(3, false, true, 2) };
+                    using (ROM.BeginUndoScope(ud))
+                    {
+                        string err = ImageTSAEditorCore.WriteTsaCells(
+                            rom, 2, 1, true, TSA_LZ_SLOT, TSA_LZ_OFFSET, edited);
+                        Assert.Equal("", err);
+                    }
+                    Assert.NotEqual(preSlot, rom.u32(TSA_LZ_SLOT)); // repointed
+                    Assert.True(rom.Data.Length >= preData.Length); // appended
+
+                    // Palette half "fails" -> the View rolls the one scope back.
+                    undo.Rollback(ud);
+
+                    // Byte-identical restore: length, pointer slot, every byte.
+                    Assert.Equal(preData.Length, rom.Data.Length);
+                    Assert.Equal(preSlot, rom.u32(TSA_LZ_SLOT));
+                    Assert.True(preData.AsSpan().SequenceEqual(rom.Data));
+                }
+                finally
+                {
+                    CoreState.ROM = prevRom;
+                    CoreState.Undo = prevUndo;
+                }
+            });
+        }
+
+        // -----------------------------------------------------------------
         // RenderMainImageFromCells — an edited cell changes pixels.
         // -----------------------------------------------------------------
 
