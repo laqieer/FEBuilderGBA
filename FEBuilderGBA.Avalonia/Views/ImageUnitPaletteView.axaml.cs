@@ -2,6 +2,7 @@ using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -633,6 +634,87 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         void Reload_Click(object? sender, RoutedEventArgs e) => LoadList();
+
+        /// <summary>
+        /// #1078: "Expand List" handler. Prompts for a new entry count, then
+        /// delegates to <see cref="ImageUnitPaletteViewModel.ExpandList"/> inside
+        /// an <see cref="UndoService"/> scope, and reloads the list. Mirrors
+        /// <see cref="ImageMapActionAnimationView.ListExpand_Click"/> (prompt ->
+        /// expand -> repoint -> reload). The VM's ExpandList is PREDICATE-AWARE:
+        /// it uses the real (sentinel-excluded) row count, FIRST-fills new rows
+        /// from a non-empty template row + clears each new P12 so the rows are
+        /// scan-visible, writes a FULL all-zero terminator row, and repoints all
+        /// raw + LDR-literal references via
+        /// <see cref="DataExpansionCore.RepointAllReferences"/>.
+        /// </summary>
+        async void Expand_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+
+                // Real (sentinel-excluded) current row count.
+                int listCount = _vm.GetListCount();
+                int realCount = listCount - 1;
+                if (realCount < 1)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: the unit-palette list has no rows."));
+                    return;
+                }
+                uint currentCount = (uint)realCount;
+
+                // Default = current count + 1, max = 512 (LoadList's scan bound).
+                uint defaultCount = currentCount + 1;
+                if (defaultCount > 512) defaultCount = 512;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new entry count for the unit-palette list (current: {0}, max: 512).",
+                        currentCount),
+                    R._("List Expansion"),
+                    defaultCount,
+                    currentCount,
+                    512);
+                if (chosen == null) return; // user cancelled
+                uint newCount = chosen.Value;
+                if (newCount == currentCount)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count equals current count."));
+                    return;
+                }
+
+                _undoService.Begin("Expand Unit Palette List");
+                try
+                {
+                    string err = _vm.ExpandList(newCount, _undoService.GetActiveUndoData());
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded unit-palette list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("ImageUnitPaletteView.Expand_Click inner failed: {0}", inner.Message);
+                    CoreState.Services?.ShowError(R._("List expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.Expand_Click failed: {0}", ex.Message);
+            }
+        }
 
         /// <summary>
         /// #1006: Palette-to-clipboard. Mirrors the #974 TSA-editor pattern

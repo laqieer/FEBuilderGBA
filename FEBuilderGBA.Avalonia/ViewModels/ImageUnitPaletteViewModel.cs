@@ -317,6 +317,117 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public int GetListCount() => LoadList().Count;
 
+        // ----------------------------------------------------------------
+        // List expansion (#1078) — predicate-aware grow of the unit-palette table
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Grow the unit-palette pointer table to <paramref name="newCount"/>
+        /// rows. Mirrors WinForms <c>ImageUnitPaletteForm</c>'s
+        /// <c>ExpandsArea(ExpandsFillOption.FIRST, ...)</c> +
+        /// <c>AddressListExpandsEventNoCopyP12</c> flow, but is PREDICATE-AWARE
+        /// for the Unit Palette row scan (which differs from #501's pointer-first
+        /// scan):
+        /// <list type="bullet">
+        ///   <item><b>Real count, not the sentinel count.</b> <see cref="GetListCount"/>
+        ///         includes the trailing <c>AddrResult(0,"Unit Palette Editor",0)</c>
+        ///         sentinel, so the current row count is <c>GetListCount() - 1</c>.</item>
+        ///   <item><b>Full all-zero terminator row.</b> <see cref="LoadList"/>
+        ///         accepts a row when <c>P12</c> is a valid pointer OR
+        ///         (<c>P12==0 &amp;&amp; name!=0</c>), and stops only on a full
+        ///         zero row. A bare <c>0xFFFFFFFF</c> dword terminator would be a
+        ///         phantom valid row, so <see cref="DataExpansionCore.ExpandTableTo"/>
+        ///         is called with <c>fullZeroTerminatorRow: true</c>.</item>
+        ///   <item><b>FIRST-fill + clear P12.</b> New rows copy the 12-byte
+        ///         identifier of a non-empty TEMPLATE row and clear their own
+        ///         <c>P12</c> (so each new row is scan-visible as
+        ///         <c>P12==0 &amp;&amp; name!=0</c>), mirroring WF
+        ///         <c>ExpandsFillOption.FIRST</c> + <c>NoCopyP12</c>.</item>
+        ///   <item><b>All-reference repoint.</b> After the table moves,
+        ///         <see cref="DataExpansionCore.RepointAllReferences"/> repoints
+        ///         every raw 32-bit + ARM-Thumb LDR literal-pool reference to the
+        ///         old base (0 repointed is success — do not roll back).</item>
+        /// </list>
+        ///
+        /// <para>Validate-all-before-mutate: when NO non-empty template row
+        /// exists (every row's first identifier dword is zero), this returns an
+        /// error string WITHOUT mutating the ROM. The caller wraps the call in an
+        /// <c>UndoService.Begin/Commit/Rollback</c> scope; all writes here use the
+        /// AMBIENT (no-undo) overloads so they are auto-tracked by that scope —
+        /// the <paramref name="undo"/> param exists for API parity only.</para>
+        /// </summary>
+        /// <param name="newCount">Target row count (must be &gt;= current real count).</param>
+        /// <param name="undo">Unused; present for API parity with sibling ExpandList
+        /// methods. Writes are ambient (the caller opens the undo scope).</param>
+        /// <returns>Empty on success, error string otherwise.</returns>
+        public string ExpandList(uint newCount, Undo.UndoData? undo)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return R._("ROM not loaded.");
+
+            uint pointer = rom.RomInfo != null ? rom.RomInfo.image_unit_palette_pointer : 0;
+            if (pointer == 0) return R._("Unit palette table not found in this ROM.");
+            if (!U.isSafetyOffset(rom.p32(pointer), rom))
+                return R._("Unit palette table pointer is invalid.");
+
+            // Real row count excludes the trailing sentinel row that LoadList
+            // appends (AddrResult(0, "Unit Palette Editor", 0)).
+            int listCount = GetListCount();
+            int realCount = listCount - 1;
+            if (realCount < 1)
+                return R._("Cannot expand: the unit-palette list has no rows.");
+            if (newCount > 512)
+                return R._("New count ({0}) exceeds the maximum of 512.", newCount);
+            if (newCount < (uint)realCount)
+                return R._("New count ({0}) must be greater than or equal to current count ({1}).",
+                    newCount, realCount);
+            if (newCount == (uint)realCount)
+                return ""; // no-op success
+
+            // Template-row selection (guardrail #1): the FIRST row whose first
+            // identifier dword is non-zero. If NONE exists, refuse WITHOUT
+            // mutating anything.
+            uint oldBase = rom.p32(pointer);
+            int templateIdx = -1;
+            for (int i = 0; i < realCount; i++)
+            {
+                if (rom.u32(oldBase + (uint)(i * (int)SIZE) + 0) != 0)
+                {
+                    templateIdx = i;
+                    break;
+                }
+            }
+            if (templateIdx < 0)
+                return R._("Cannot expand: no non-empty template row was found.");
+
+            // Grow the table with a FULL all-zero 16-byte terminator row.
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointer, SIZE, (uint)realCount, newCount, fullZeroTerminatorRow: true);
+            if (!result.Success)
+                return result.Error ?? R._("Table expansion failed.");
+
+            // Repoint EVERY raw 32-bit + ARM-Thumb LDR literal-pool reference to
+            // the old base BEFORE the FIRST-fill (per review). 0 repointed (clean
+            // ROM, no secondary refs) is SUCCESS — do NOT roll back on 0. Pass
+            // null so the caller's ambient UndoService scope auto-tracks the writes.
+            DataExpansionCore.RepointAllReferences(rom, oldBase, result.NewBaseAddress, null);
+
+            // FIRST-fill the new rows from the template row's 12 identifier bytes,
+            // then clear each new row's P12 (WF ExpandsFillOption.FIRST +
+            // AddressListExpandsEventNoCopyP12) so each new row is scan-visible
+            // (P12==0 && name!=0). All writes ambient (caller owns the undo scope).
+            byte[] templateIdent = rom.getBinaryData(
+                result.NewBaseAddress + (uint)(templateIdx * (int)SIZE), 12);
+            for (int i = realCount; i < (int)newCount; i++)
+            {
+                uint rowAddr = result.NewBaseAddress + (uint)(i * (int)SIZE);
+                rom.write_range(rowAddr, templateIdent);
+                rom.write_u32(rowAddr + 12, 0);
+            }
+
+            return "";
+        }
+
         /// <summary>Get the base address of the unit-palette table as a hex string, or "" if unavailable.</summary>
         public string LoadListBaseAddress()
         {

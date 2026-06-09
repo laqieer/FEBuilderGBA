@@ -874,5 +874,184 @@ namespace FEBuilderGBA.Core.Tests
                     Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
             }
         }
+
+        // ──────── fullZeroTerminatorRow (#1078) ────────
+
+        [Fact]
+        public void ExpandTableTo_FullZeroTerminatorRow_FreeSpace_WritesAllZeroTerminatorRow()
+        {
+            // #1078: with fullZeroTerminatorRow:true the terminator is a FULL
+            // entrySize-byte all-zero row (NOT a 0xFFFFFFFF dword). Pre-fill the
+            // target free region (rows + the would-be terminator-row bytes) with
+            // 0xFF so the assertion proves the helper EXPLICITLY zeroes the
+            // terminator row rather than leaving leftover 0xFF.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 3;
+            uint newCount = 7;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            // Recognizable old rows.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x10 + e);
+
+            // 0xFF free region big enough for newCount rows + a full terminator
+            // row (and then some). Pre-fill 0xFF so leftover bytes are detectable.
+            uint freeBase = 0x100100;
+            for (int i = 0; i < (int)((newCount + 4) * entrySize); i++)
+                rom.Data[freeBase + (uint)i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+
+            // Old rows preserved.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal((byte)(0x10 + e), rom.Data[nb + e * entrySize + b]);
+
+            // New rows zero-filled.
+            for (uint e = currentCount; e < newCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal(0x00, rom.Data[nb + e * entrySize + b]);
+
+            // The FULL entrySize-byte terminator row at newBase + newCount*entrySize
+            // must be all 0x00 — proves explicit zeroing, not leftover 0xFF, and
+            // that NO 0xFFFFFFFF dword was written.
+            uint termAddr = nb + newCount * entrySize;
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[termAddr + b]);
+        }
+
+        [Fact]
+        public void ExpandTableTo_FullZeroTerminatorRow_ResizePath_TerminatorAndRollback()
+        {
+            // #1078: resize/no-free-space path with fullZeroTerminatorRow:true.
+            // ROM has NO 0xFF free run, so the helper must resize. Same terminator
+            // + row assertions; outer Undo.Rollback restores byte-identical.
+            var rom = MakeRom(0x10000);   // 64 KB, all 0x00 → no 0xFF free space.
+            CoreState.ROM = rom;
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0xA0 + e);
+
+            byte[] snapshot = new byte[rom.Data.Length];
+            Array.Copy(rom.Data, snapshot, rom.Data.Length);
+
+            var ud = new Undo.UndoData
+            {
+                time = DateTime.Now,
+                name = "ExpandTableTo full-zero terminator resize test",
+                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                filesize = (uint)rom.Data.Length,
+            };
+
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(ud))
+            {
+                result = DataExpansionCore.ExpandTableTo(
+                    rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
+            }
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+
+            // Old rows preserved at the new base.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal((byte)(0xA0 + e), rom.Data[nb + e * entrySize + b]);
+
+            // New rows zero, FULL terminator row zero.
+            for (uint e = currentCount; e < newCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal(0x00, rom.Data[nb + e * entrySize + b]);
+            uint termAddr = nb + newCount * entrySize;
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[termAddr + b]);
+
+            // Outer rollback restores byte-identical (length + every byte).
+            // Roll back recorded positions in reverse order, then truncate the
+            // ROM back to the pre-resize length (the resize path grew it).
+            for (int i = ud.list.Count - 1; i >= 0; i--)
+            {
+                var up = ud.list[i];
+                Array.Copy(up.data, 0, rom.Data, up.addr, up.data.Length);
+            }
+            // After undo positions are restored, the prefix must match the
+            // snapshot. (The appended tail past the original length is the
+            // resize remainder; the undo system tracks filesize for the real
+            // Rollback — here we assert the original-region bytes are intact.)
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                if (snapshot[i] != rom.Data[i])
+                    Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
+            }
+        }
+
+        [Fact]
+        public void ExpandTableTo_DefaultPath_StillWritesFFFFFFFFDword()
+        {
+            // Default-path strict regression: fullZeroTerminatorRow:false (the
+            // #501 caller) must still reserve only +4 and write the 0xFFFFFFFF
+            // dword terminator — unchanged by the #1078 generalization.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x30 + e);
+
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: false);
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+            uint termAddr = nb + newCount * entrySize;
+            // Default path: a single 0xFFFFFFFF dword terminator (NOT an all-zero row).
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+        }
+
+        [Fact]
+        public void ExpandTableTo_DefaultPath_OmittedArg_IsByteIdenticalToFalse()
+        {
+            // The omitted-arg call (existing #501 callers) must behave exactly
+            // like fullZeroTerminatorRow:false — same new base, same 0xFFFFFFFF
+            // dword terminator.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 8;
+            uint currentCount = 3;
+            uint newCount = 6;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (int i = 0; i < 256; i++)
+                rom.Data[0x100100 + i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+            uint termAddr = result.NewBaseAddress + newCount * entrySize;
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+        }
     }
 }

@@ -228,12 +228,19 @@ namespace FEBuilderGBA
         ///         counts row 0 as valid even when it is all zero.</item>
         ///   <item>Zero-fills the new (<paramref name="newCount"/> -
         ///         <paramref name="currentCount"/>) rows.</item>
-        ///   <item>Writes a <c>0xFFFFFFFF</c> terminator at
-        ///         <c>newBase + newCount * entrySize</c> so pointer-first
-        ///         scan predicates (<c>!U.isSafetyPointerOrNull(D0)</c>) stop
-        ///         at exactly <paramref name="newCount"/> rows even when the
-        ///         helper resizes the ROM into a freshly-zeroed region. The
-        ///         allocation request size is therefore <c>(newCount * entrySize) + 4</c>.</item>
+        ///   <item>Writes a terminator at <c>newBase + newCount * entrySize</c>
+        ///         so row scans stop at exactly <paramref name="newCount"/> rows
+        ///         even when the helper resizes the ROM into a freshly-zeroed
+        ///         region. By default (<paramref name="fullZeroTerminatorRow"/>
+        ///         <c>== false</c>, the #501 caller) this is a single
+        ///         <c>0xFFFFFFFF</c> dword for pointer-first scan predicates
+        ///         (<c>!U.isSafetyPointerOrNull(D0)</c>) and the allocation
+        ///         request size is <c>(newCount * entrySize) + 4</c>. When
+        ///         <paramref name="fullZeroTerminatorRow"/> <c>== true</c> (the
+        ///         #1078 Unit-Palette caller) the terminator is a FULL
+        ///         <paramref name="entrySize"/>-byte all-zero row (NO
+        ///         <c>0xFFFFFFFF</c> dword) and the allocation request size is
+        ///         <c>(newCount * entrySize) + entrySize</c>.</item>
         ///   <item>Wipes the OLD region with <c>0x00</c> (matches WF
         ///         <c>InputFormRef.ExpandsArea</c> at line 10787; intentionally
         ///         differs from <see cref="ExpandTable"/> which uses
@@ -281,7 +288,18 @@ namespace FEBuilderGBA
         /// <param name="currentCount">Number of rows currently in the table
         /// (use the editor's row count — <i>not</i> <see cref="EstimateEntryCount"/>).</param>
         /// <param name="newCount">Target row count. Must be &gt;= <paramref name="currentCount"/>.</param>
-        public static ExpandResult ExpandTableTo(ROM rom, uint pointerAddr, uint entrySize, uint currentCount, uint newCount)
+        /// <param name="fullZeroTerminatorRow">Terminator policy for the row
+        /// immediately past <paramref name="newCount"/>. <c>false</c> (default —
+        /// byte-identical to the #501 caller) reserves and writes a single
+        /// <c>0xFFFFFFFF</c> terminator dword (4 bytes). <c>true</c> reserves and
+        /// writes a FULL <paramref name="entrySize"/>-byte all-zero terminator
+        /// row (NO <c>0xFFFFFFFF</c> dword) — required when the row-scan
+        /// predicate treats a <c>0xFFFFFFFF</c>-first/zero-tail row as a phantom
+        /// valid entry (e.g. the Unit Palette editor's
+        /// <c>P12==0 &amp;&amp; name!=0</c> acceptance, #1078). The allocation
+        /// request size is therefore <c>(newCount * entrySize) +
+        /// (fullZeroTerminatorRow ? entrySize : 4)</c>.</param>
+        public static ExpandResult ExpandTableTo(ROM rom, uint pointerAddr, uint entrySize, uint currentCount, uint newCount, bool fullZeroTerminatorRow = false)
         {
             if (rom == null || rom.Data == null)
                 return Fail("ROM is null.");
@@ -296,6 +314,11 @@ namespace FEBuilderGBA
             if (oldBase == 0 || oldBase >= (uint)rom.Data.Length)
                 return Fail("Table pointer is invalid (null or out of bounds).");
 
+            // Bytes reserved past the last row for the terminator. The default
+            // (#501) policy is a single 0xFFFFFFFF dword (4 bytes); the
+            // full-zero-row policy (#1078) reserves a whole entrySize-byte row.
+            uint terminatorReserve = fullZeroTerminatorRow ? entrySize : 4;
+
             // Overflow guards for both `currentCount * entrySize` and
             // `newCount * entrySize` — without these, a malicious / corrupt
             // `currentCount` could wrap to a tiny value that passes the
@@ -306,15 +329,16 @@ namespace FEBuilderGBA
                 return Fail("currentCount * entrySize overflows 32-bit address space.");
             uint oldTableSize = currentCount * entrySize;
             // Overflow guard for newCount * entrySize (newCount >= currentCount,
-            // so currentCount can't bypass this on a single check). Reserve 4
-            // bytes for the trailing 0xFFFFFFFF terminator so the +4 below
-            // also can't wrap.
-            if (entrySize != 0 && newCount > (uint.MaxValue - 4) / entrySize)
+            // so currentCount can't bypass this on a single check). Reserve the
+            // terminator bytes so the `newTableSize + terminatorReserve` alloc
+            // below also can't wrap.
+            if (entrySize != 0 && newCount > (uint.MaxValue - terminatorReserve) / entrySize)
                 return Fail("newCount * entrySize overflows 32-bit address space.");
             uint newTableSize = newCount * entrySize;
 
-            // Verify old table fits in ROM.
-            if (oldBase + oldTableSize > (uint)rom.Data.Length)
+            // Verify old table fits in ROM. Use a wrap-safe `size > Length - addr`
+            // form (oldBase < Length already, so Length - oldBase can't wrap).
+            if (oldTableSize > (uint)rom.Data.Length - oldBase)
                 return Fail("Current table extends beyond ROM bounds.");
 
             // No-op fast path — newCount == currentCount.
@@ -328,9 +352,11 @@ namespace FEBuilderGBA
                 };
             }
 
-            // Allocate newCount * entrySize + 4 bytes (the +4 is the
-            // explicit 0xFFFFFFFF terminator dword).
-            uint allocSize = newTableSize + 4;
+            // Allocate newCount * entrySize + terminatorReserve bytes (the
+            // reserve is either the 4-byte 0xFFFFFFFF terminator dword, or a
+            // full entrySize-byte all-zero terminator row — see
+            // fullZeroTerminatorRow).
+            uint allocSize = newTableSize + terminatorReserve;
             uint newBase = FindFreeSpace(rom, allocSize);
             if (newBase == U.NOT_FOUND)
             {
@@ -377,12 +403,20 @@ namespace FEBuilderGBA
                 rom.write_fill(newRowsStart, newRowsSize, 0x00);
             }
 
-            // Write the explicit 0xFFFFFFFF terminator at
-            // newBase + newCount * entrySize. Required so pointer-first row
-            // scans stop at exactly newCount even when surrounding bytes are
-            // 0x00 (e.g. after a ROM resize into a zeroed region).
+            // Write the explicit terminator at newBase + newCount * entrySize.
+            // Required so row scans stop at exactly newCount even when
+            // surrounding bytes are 0x00 (e.g. after a ROM resize into a zeroed
+            // region). Two policies (see fullZeroTerminatorRow):
+            //   false (#501): a single 0xFFFFFFFF dword.
+            //   true  (#1078): a FULL entrySize-byte all-zero row, so a scan
+            //                  predicate that accepts a 0xFFFFFFFF-first row
+            //                  (or reads past a 4-byte terminator into the
+            //                  next row's fields) still stops here.
             uint termAddr = newBase + newTableSize;
-            rom.write_u32(termAddr, 0xFFFFFFFF);
+            if (fullZeroTerminatorRow)
+                rom.write_fill(termAddr, entrySize, 0x00);
+            else
+                rom.write_u32(termAddr, 0xFFFFFFFF);
 
             // Wipe the OLD region with 0x00 — matches WF
             // InputFormRef.ExpandsArea line 10787. NOTE: ExpandTable (the +1

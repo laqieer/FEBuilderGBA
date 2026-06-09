@@ -165,15 +165,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void KnownGap_Controls_AreDisabled()
+        public void AllControls_AreWired_NoneRemainDisabledStubs()
         {
             var view = new ImageUnitPaletteView();
-            // #1006: Clipboard / Zoom / UNDO / REDO are now wired — they are no
-            // longer disabled KnownGap stubs (see WiredControls_AreEnabled).
-            // #1067: New Palette Allocation is now wired too (NewAlloc_AreEnabled).
-            // Only the Expand List surface remains a deferred stub (split to a
-            // follow-up).
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Expand_Button")!.IsEnabled);
+            // #1006: Clipboard / Zoom / UNDO / REDO are wired. #1067: New Palette
+            // Allocation is wired. #1078: Expand List is now wired too — every
+            // former KnownGap stub on this editor is enabled.
+            Assert.True(FindByAutomationId<Button>(view, "ImageUnitPalette_Expand_Button")!.IsEnabled);
         }
 
         // ===== #1067: New Palette Allocation wiring =====
@@ -282,22 +280,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void Axaml_DeferredControls_RemainDisabled_WithNonKnownGapTooltip()
+        public void Axaml_ExpandButton_IsWired_NoStubTooltip_NorDisabled()
         {
             string axaml = ReadViewAxaml();
-            // #1067: NewAlloc is now wired; only Expand List remains a deferred
-            // stub (split to a follow-up).
-            foreach (var aid in new[]
-            {
-                "ImageUnitPalette_Expand_Button",
-            })
-            {
-                string element = ExtractElement(axaml, aid);
-                Assert.Contains("IsEnabled=\"False\"", element);
-                // The tooltip is the concrete follow-up text, NOT KnownGap.
-                Assert.DoesNotContain("KnownGap", element);
-                Assert.Contains("tracked separately", element);
-            }
+            // #1078: the Expand List button is now wired + enabled with a
+            // meaningful tooltip and a Click handler.
+            Assert.Contains("Click=\"Expand_Click\"", axaml);
+
+            string element = ExtractElement(axaml, "ImageUnitPalette_Expand_Button");
+            // No longer disabled.
+            Assert.DoesNotContain("IsEnabled=\"False\"", element);
+            // The old "tracked separately" stub tooltip is gone; a meaningful
+            // tooltip is present.
+            Assert.DoesNotContain("tracked separately", element);
+            Assert.DoesNotContain("KnownGap", element);
+            Assert.Contains("Expand the unit-palette list", element);
         }
 
         [Fact]
