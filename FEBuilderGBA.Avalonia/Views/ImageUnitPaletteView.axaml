@@ -376,8 +376,8 @@
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Reload_Button"
                         Content="Reload List" Click="Reload_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Expand_Button"
-                        Content="Expand List" IsEnabled="False"
-                        ToolTip.Tip="Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately" />
+                        Content="Expand List" Click="Expand_Click"
+                        ToolTip.Tip="Expand the unit-palette list to a specified entry count" />
               </StackPanel>
             </StackPanel>
           </TabItem>

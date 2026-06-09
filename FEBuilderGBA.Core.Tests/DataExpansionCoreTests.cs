@@ -485,12 +485,14 @@ namespace FEBuilderGBA.Core.Tests
         readonly ROM? _savedRom;
         readonly IEtcCache? _savedComment;
         readonly IEtcCache? _savedLint;
+        readonly Undo? _savedUndo;
 
         public DataExpansionCoreExpandTableToTests()
         {
             _savedRom = CoreState.ROM;
             _savedComment = CoreState.CommentCache;
             _savedLint = CoreState.LintCache;
+            _savedUndo = CoreState.Undo;
         }
 
         public void Dispose()
@@ -498,6 +500,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = _savedRom;
             CoreState.CommentCache = _savedComment;
             CoreState.LintCache = _savedLint;
+            CoreState.Undo = _savedUndo;
         }
 
         /// <summary>Helper: build a minimal ROM with LoadLow using ROMFE0 ("NAZO").</summary>
@@ -873,6 +876,259 @@ namespace FEBuilderGBA.Core.Tests
                 if (snapshot[i] != rom.Data[i])
                     Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
             }
+        }
+
+        // ──────── fullZeroTerminatorRow (#1078) ────────
+
+        [Fact]
+        public void ExpandTableTo_FullZeroTerminatorRow_FreeSpace_WritesAllZeroTerminatorRow()
+        {
+            // #1078: with fullZeroTerminatorRow:true the terminator is a FULL
+            // entrySize-byte all-zero row (NOT a 0xFFFFFFFF dword). Pre-fill the
+            // target free region (rows + the would-be terminator-row bytes) with
+            // 0xFF so the assertion proves the helper EXPLICITLY zeroes the
+            // terminator row rather than leaving leftover 0xFF.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 3;
+            uint newCount = 7;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            // Recognizable old rows.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x10 + e);
+
+            // 0xFF free region big enough for newCount rows + a full terminator
+            // row (and then some). Pre-fill 0xFF so leftover bytes are detectable.
+            uint freeBase = 0x100100;
+            for (int i = 0; i < (int)((newCount + 4) * entrySize); i++)
+                rom.Data[freeBase + (uint)i] = 0xFF;
+
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
+            Assert.True(result.Success, result.Error);
+
+            uint nb = result.NewBaseAddress;
+
+            // Old rows preserved.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal((byte)(0x10 + e), rom.Data[nb + e * entrySize + b]);
+
+            // New rows zero-filled.
+            for (uint e = currentCount; e < newCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal(0x00, rom.Data[nb + e * entrySize + b]);
+
+            // The FULL entrySize-byte terminator row at newBase + newCount*entrySize
+            // must be all 0x00 — proves explicit zeroing, not leftover 0xFF, and
+            // that NO 0xFFFFFFFF dword was written.
+            uint termAddr = nb + newCount * entrySize;
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[termAddr + b]);
+        }
+
+        [Fact]
+        public void ExpandTableTo_FullZeroTerminatorRow_ResizePath_TerminatorAndRollback()
+        {
+            // #1078: resize/no-free-space path with fullZeroTerminatorRow:true.
+            // ROM has NO 0xFF free run, so the helper must resize (grows the ROM).
+            // Same terminator + row assertions; the REAL filesize-restoring
+            // rollback (CoreState.Undo.RunUndo) must restore the ORIGINAL length
+            // AND every byte — proving the resize path is fully reversible
+            // (Copilot review on PR #1080: a manual reverse-copy of the recorded
+            // positions does NOT restore the resized length).
+            var rom = MakeRom(0x10000);   // 64 KB, all 0x00 → no 0xFF free space.
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0xA0 + e);
+
+            int originalLength = rom.Data.Length;
+            byte[] snapshot = new byte[originalLength];
+            Array.Copy(rom.Data, snapshot, originalLength);
+
+            // NewUndoData captures the pre-expansion filesize so RunUndo can
+            // down-resize the ROM back to it (the same pattern as
+            // MagicListExpandCoreTests / the View's UndoService.Begin).
+            var ud = CoreState.Undo.NewUndoData("ExpandTableTo full-zero terminator resize test");
+            DataExpansionCore.ExpandResult result;
+            using (ROM.BeginUndoScope(ud))
+            {
+                result = DataExpansionCore.ExpandTableTo(
+                    rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
+            }
+            Assert.True(result.Success, result.Error);
+            // The resize path actually grew the ROM (otherwise this test wouldn't
+            // exercise the filesize-restore branch).
+            Assert.True(rom.Data.Length > originalLength,
+                $"expected the resize path to grow the ROM beyond {originalLength}, got {rom.Data.Length}");
+
+            uint nb = result.NewBaseAddress;
+
+            // Old rows preserved at the new base.
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal((byte)(0xA0 + e), rom.Data[nb + e * entrySize + b]);
+
+            // New rows zero, FULL terminator row zero.
+            for (uint e = currentCount; e < newCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    Assert.Equal(0x00, rom.Data[nb + e * entrySize + b]);
+            uint termAddr = nb + newCount * entrySize;
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[termAddr + b]);
+
+            // REAL rollback: push the transaction then RunUndo. RunUndo restores
+            // BOTH the recorded byte ranges AND the original filesize (Patch
+            // down-resizes rom.Data back to ud.filesize).
+            CoreState.Undo.Push(ud);
+            CoreState.Undo.RunUndo();
+
+            // Length restored to the ORIGINAL (pre-resize) length.
+            Assert.Equal(originalLength, rom.Data.Length);
+            // AND every byte over the whole original length matches the snapshot.
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                if (snapshot[i] != rom.Data[i])
+                    Assert.Fail($"Byte mismatch at 0x{i:X06}: snapshot=0x{snapshot[i]:X02}, post-rollback=0x{rom.Data[i]:X02}");
+            }
+        }
+
+        // The ONLY 0xFF free run in the strict default-path tests below. Sized so
+        // it fits newTableSize + 4 (=84) but NOT newTableSize + entrySize (=96):
+        //   entrySize=16, currentCount=2, newCount=5 -> newTableSize = 80.
+        //   default reserve (+4)        -> allocSize 84  <= 88  -> FITS the run.
+        //   full-row reserve (+entrySize=16) -> allocSize 96  >  88  -> does NOT fit.
+        // 88 is in [84, 95] (Copilot review on PR #1080: a 256-byte run fit BOTH
+        // reserves, so a regression to a full-row default would have passed). The
+        // run start 0x100100 is 4-byte aligned (FindFreeSpace returns 4-aligned
+        // bases) and the rest of the ROM is 0x00, so this is the only free run.
+        const uint StrictRunStart = 0x100100;
+        const int StrictRunLen = 88;
+
+        /// <summary>Plant the single 88-byte 0xFF free run; the rest of the ROM
+        /// stays 0x00 so it is the only candidate FindFreeSpace can pick.</summary>
+        static void PlantStrictFreeRun(ROM rom)
+        {
+            for (int i = 0; i < StrictRunLen; i++)
+                rom.Data[StrictRunStart + (uint)i] = 0xFF;
+        }
+
+        [Fact]
+        public void ExpandTableTo_DefaultPath_FitsPlus4Run_LandsInRun_AndWritesFFFFFFFFDword()
+        {
+            // Strict default-path regression (Copilot review on PR #1080): with
+            // fullZeroTerminatorRow:false the helper must reserve only +4, so an
+            // 84-byte alloc fits the 88-byte run -> NewBaseAddress == StrictRunStart.
+            // If the code regressed to reserving a full entrySize row (96 > 88) it
+            // would relocate/resize and NewBaseAddress would NOT be StrictRunStart,
+            // failing this test. Terminator must be the 0xFFFFFFFF dword.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;   // newTableSize = 80; +4 = 84 <= 88, +entrySize = 96 > 88
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x30 + e);
+
+            PlantStrictFreeRun(rom);
+
+            // Sanity: FindFreeSpace places the +4 alloc (84 B) at the run start,
+            // but does NOT fit the +entrySize alloc (96 B) anywhere.
+            Assert.Equal(StrictRunStart, DataExpansionCore.FindFreeSpace(rom, newCount * entrySize + 4));
+            Assert.Equal(U.NOT_FOUND, DataExpansionCore.FindFreeSpace(rom, newCount * entrySize + entrySize));
+
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: false);
+            Assert.True(result.Success, result.Error);
+
+            // PROOF the default reserves only +4: the 84-byte table fit the
+            // 88-byte run (it would NOT have if a full 96-byte row were reserved).
+            Assert.Equal(StrictRunStart, result.NewBaseAddress);
+
+            uint termAddr = result.NewBaseAddress + newCount * entrySize;
+            // Default path: a single 0xFFFFFFFF dword terminator (NOT an all-zero row).
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+        }
+
+        [Fact]
+        public void ExpandTableTo_OmittedArg_LandsInPlus4Run_LikeFalse()
+        {
+            // The omitted-arg call (existing #501 callers) must behave exactly
+            // like fullZeroTerminatorRow:false: with only the strict +4 run
+            // available it STILL lands at StrictRunStart (proving the default
+            // reserve is +4, not a full entrySize row) and writes the 0xFFFFFFFF
+            // dword terminator.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            PlantStrictFreeRun(rom);
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+            Assert.Equal(StrictRunStart, result.NewBaseAddress);
+            uint termAddr = result.NewBaseAddress + newCount * entrySize;
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+        }
+
+        [Fact]
+        public void ExpandTableTo_FullZeroTerminatorRow_DoesNotFitPlus4Run_Relocates()
+        {
+            // Mirror of the strict default-path test: with the SAME 88-byte run,
+            // fullZeroTerminatorRow:true needs newTableSize + entrySize (=96),
+            // which does NOT fit the 88-byte run, so the helper must relocate
+            // (resize the ROM) -> NewBaseAddress != StrictRunStart. This proves
+            // the TRUE path reserves the full entrySize row (Copilot review).
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x30 + e);
+
+            PlantStrictFreeRun(rom);
+            int originalLength = rom.Data.Length;
+
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
+            Assert.True(result.Success, result.Error);
+
+            // The 96-byte alloc could NOT use the 88-byte run, so it relocated
+            // (here: resized the ROM, since no other free run exists).
+            Assert.NotEqual(StrictRunStart, result.NewBaseAddress);
+            Assert.True(rom.Data.Length > originalLength,
+                $"expected the full-row reserve to relocate via resize beyond {originalLength}, got {rom.Data.Length}");
+
+            // FULL entrySize-byte all-zero terminator row (NO 0xFFFFFFFF dword).
+            uint termAddr = result.NewBaseAddress + newCount * entrySize;
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[termAddr + b]);
         }
     }
 }

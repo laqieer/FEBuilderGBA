@@ -10373,3 +10373,36 @@ TSAタイプ:
 
 :Raw
 無圧縮
+
+:Expand the unit-palette list to a specified entry count
+ユニットパレットリストを指定したエントリ数まで拡張します
+
+:Cannot expand: the unit-palette list has no rows.
+拡張できません: ユニットパレットリストに行がありません。
+
+:Enter the new entry count for the unit-palette list (current: {0}, max: 512).
+ユニットパレットリストの新しいエントリ数を入力してください (現在: {0}, 最大: 512)。
+
+:Expanded unit-palette list to {0} entries.
+ユニットパレットリストを{0}エントリに拡張しました。
+
+:Unit palette table not found in this ROM.
+このROMにユニットパレットテーブルが見つかりません。
+
+:Unit palette table pointer is invalid.
+ユニットパレットテーブルのポインタが無効です。
+
+:New count ({0}) exceeds the maximum of 512.
+新しい数({0})が最大値512を超えています。
+
+:Cannot expand: no non-empty template row was found.
+拡張できません: 空でないテンプレート行が見つかりませんでした。
+
+:Load a ROM first.
+先にROMを読み込んでください。
+
+:No change: new count equals current count.
+変更なし: 新しい数が現在の数と同じです。
+
+:New count ({0}) must be greater than or equal to current count ({1}).
+新しい数({0})は現在の数({1})以上である必要があります。

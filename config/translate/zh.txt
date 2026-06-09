@@ -24205,3 +24205,36 @@ TSA类型:
 
 :Raw
 未压缩
+
+:Expand the unit-palette list to a specified entry count
+将单位调色板列表扩展到指定的条目数
+
+:Cannot expand: the unit-palette list has no rows.
+无法扩展: 单位调色板列表没有行。
+
+:Enter the new entry count for the unit-palette list (current: {0}, max: 512).
+请输入单位调色板列表的新条目数 (当前: {0}, 最大: 512)。
+
+:Expanded unit-palette list to {0} entries.
+已将单位调色板列表扩展到{0}个条目。
+
+:Unit palette table not found in this ROM.
+在此ROM中未找到单位调色板表。
+
+:Unit palette table pointer is invalid.
+单位调色板表指针无效。
+
+:New count ({0}) exceeds the maximum of 512.
+新数量({0})超过了最大值512。
+
+:Cannot expand: no non-empty template row was found.
+无法扩展: 未找到非空的模板行。
+
+:Load a ROM first.
+请先加载ROM。
+
+:No change: new count equals current count.
+无变化: 新数量等于当前数量。
+
+:New count ({0}) must be greater than or equal to current count ({1}).
+新数量({0})必须大于或等于当前数量({1})。
