@@ -712,7 +712,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToStatusHeight_Click(object? sender, RoutedEventArgs e)
         {
-            try { WindowManager.Instance.Open<UnitIncreaseHeightView>(); }
+            try
+            {
+                var view = WindowManager.Instance.Open<UnitIncreaseHeightView>();
+                // Best-effort pre-selection of the selected portrait's height row.
+                // An out-of-range id (no height row, or NoPortraitSelection) just
+                // leaves the default first row selected — no error (#1019).
+                view.NavigateToId(_vm.GetSelectedPortraitId());
+            }
             catch (Exception ex) { Log.Error("JumpToStatusHeight failed: {0}", ex.Message); }
         }
 
