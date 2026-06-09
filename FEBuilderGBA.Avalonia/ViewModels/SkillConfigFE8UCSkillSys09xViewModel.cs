@@ -233,11 +233,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Runtime UI string runs through R._ so the ja/zh translation
             // entries pick it up - ViewTranslationHelper only translates
             // AXAML literals, not VM-set TextBox values. Copilot bot review
-            // on PR #516 (round 4).
+            // on PR #516 (round 4). The per-frame preview is rendered by the
+            // View via SkillConfigAnimePreview / SkillSystemsAnimeExportCore
+            // (#1010), so the BinInfoText is now just the factual address.
             BinInfoText = IsAnimationValid
-                ? string.Format(R._("Animation @ 0x{0:X08} ({1})"),
-                    animPtr,
-                    R._("preview unavailable - tracked by #500"))
+                ? string.Format(R._("Animation @ 0x{0:X08}"), animPtr)
                 : "";
 
             IsLoaded = true;

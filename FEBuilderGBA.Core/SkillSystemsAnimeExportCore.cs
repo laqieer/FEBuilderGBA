@@ -245,6 +245,17 @@ namespace FEBuilderGBA
             return result;
         }
 
+        /// <summary>Bounds-checked frame image accessor. Returns the EXACT stored
+        /// IImage reference for the given frame, or null if the result is null/errored
+        /// or the index is out of range. Does NOT clone or dispose.</summary>
+        public static IImage GetFrameImage(SkillAnimeExportResult result, int index)
+        {
+            if (result == null || result.Frames == null) return null;
+            if (!string.IsNullOrEmpty(result.Error)) return null;
+            if (index < 0 || index >= result.Frames.Count) return null;
+            return result.Frames[index].Image;
+        }
+
         /// <summary>
         /// Render a single frame image (mirrors WF <c>DrawFrameImage</c>):
         /// deref obj/tsa/pal via id, LZ77-decompress obj+tsa, render via

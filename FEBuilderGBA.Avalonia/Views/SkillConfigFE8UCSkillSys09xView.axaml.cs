@@ -21,6 +21,7 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly SkillConfigFE8UCSkillSys09xViewModel _vm = new();
         readonly UndoService _undoService = new();
+        readonly SkillConfigAnimePreview _animePreview = new();
         bool _suppressZoomChange;
         bool _suppressFrameChange;
         Bitmap? _currentIconBitmap;
@@ -39,6 +40,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 DisposeBitmap(ref _currentIconBitmap);
                 DisposeBitmap(ref _currentPreviewBitmap);
+                _animePreview.Clear();
             };
         }
 
@@ -132,20 +134,27 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (_vm.IsAnimationValid)
             {
+                // #1010 — render the per-frame preview via the cross-platform
+                // READ-ONLY SkillSystemsAnimeExportCore decode (cached by anime
+                // pointer in _animePreview).
+                bool hasFrames = _animePreview.Load(CoreState.ROM, _vm.AnimationPointer);
+                int frameCount = _animePreview.FrameCount;
+                // Clamp SelectedFrame into range BEFORE rendering (a shorter
+                // animation on a same-row pointer change).
+                if (frameCount > 0 && _vm.SelectedFrame >= (uint)frameCount) _vm.SelectedFrame = (uint)(frameCount - 1);
                 _suppressFrameChange = true;
-                try { ShowFrameUpDown.Value = _vm.SelectedFrame; }
+                try
+                {
+                    ShowFrameUpDown.Maximum = Math.Max(0, frameCount - 1);
+                    ShowFrameUpDown.Value = _vm.SelectedFrame;
+                }
                 finally { _suppressFrameChange = false; }
-
                 BinInfoBox.Text = _vm.BinInfoText;
-                // Real frame rendering depends on the WinForms-only
-                // ImageUtilSkillSystemsAnimeCreator (#500). Until that
-                // moves to Core, leave the preview Image blank but show the
-                // animation address text so the user knows the pointer is
-                // valid.
-                SetPreviewBitmap(null);
+                SetPreviewBitmap(hasFrames ? _animePreview.TryGetFrameBitmap((int)_vm.SelectedFrame) : null);
             }
             else
             {
+                _animePreview.Clear();
                 SetPreviewBitmap(null);
                 BinInfoBox.Text = "";
             }
@@ -166,6 +175,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Write();
                 _undoService.Commit();
                 _vm.MarkClean();
+                // #1010 — the animation pointer may have changed; drop the
+                // cached decode and re-render the preview for the new pointer.
+                _animePreview.Clear();
+                UpdateUI();
             }
             catch (Exception ex)
             {
@@ -261,6 +274,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 this, _vm.AnimationPointer, _undoService);
             if (!ok) return;
 
+            // #1010 — the animation bytes changed; drop the cached decode.
+            _animePreview.Clear();
             OnSelected(_vm.CurrentAddr);
             LoadList();
             EntryList.SelectAddress(_vm.CurrentAddr);
@@ -294,7 +309,8 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.IsAnimationValid) return;
             _vm.SelectedFrame = (uint)(ShowFrameUpDown.Value ?? 0);
             BinInfoBox.Text = _vm.BinInfoText;
-            // Real per-frame rendering pending #500.
+            // #1010 — render the selected frame from the cached decode.
+            SetPreviewBitmap(_animePreview.TryGetFrameBitmap((int)_vm.SelectedFrame));
         }
 
         void ShowZoomComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
