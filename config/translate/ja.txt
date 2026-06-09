@@ -10343,3 +10343,27 @@ TSA セル
 
 :Wait
 待機
+
+:TSA Address:
+TSAアドレス:
+
+:TSA Type:
+TSAタイプ:
+
+:(4bpp + LZ77 image)
+(4bpp + LZ77画像)
+
+:None
+なし
+
+:Compressed
+圧縮
+
+:Compressed Header
+圧縮ヘッダ
+
+:Raw Header
+無圧縮ヘッダ
+
+:Raw
+無圧縮

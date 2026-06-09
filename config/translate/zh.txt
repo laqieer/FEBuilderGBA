@@ -24175,3 +24175,27 @@ TSA 单元格
 
 :Wait
 等待
+
+:TSA Address:
+TSA地址:
+
+:TSA Type:
+TSA类型:
+
+:(4bpp + LZ77 image)
+(4bpp + LZ77图像)
+
+:None
+无
+
+:Compressed
+压缩
+
+:Compressed Header
+压缩头
+
+:Raw Header
+未压缩头
+
+:Raw
+未压缩

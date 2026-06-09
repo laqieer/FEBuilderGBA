@@ -23,6 +23,7 @@
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
       </Grid.RowDefinitions>
 
       <TextBlock Grid.Row="0" Grid.Column="0" Text="Image Address:" VerticalAlignment="Center" Margin="0,0,8,4" />
@@ -32,16 +33,26 @@
       <TextBox AutomationProperties.AutomationId="GraphicsTool_PaletteAddr_Input" Grid.Row="0" Grid.Column="3" x:Name="PaletteAddrBox" Watermark="0x08000000"
                Text="{Binding PaletteAddressText}" Margin="0,0,0,4" />
 
-      <TextBlock Grid.Row="1" Grid.Column="0" Text="Tiles X:" VerticalAlignment="Center" Margin="0,0,8,4" />
-      <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_TilesX_Input" Grid.Row="1" Grid.Column="1" x:Name="TilesXBox" Value="{Binding TileCountX}"
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="TSA Address:" VerticalAlignment="Center" Margin="0,0,8,4" />
+      <TextBox AutomationProperties.AutomationId="GraphicsTool_TsaAddr_Input" Grid.Row="1" Grid.Column="1" x:Name="TsaAddrBox" Watermark="0x08000000"
+               Text="{Binding TsaAddressText}" Margin="0,0,16,4" />
+      <TextBlock Grid.Row="1" Grid.Column="2" Text="TSA Type:" VerticalAlignment="Center" Margin="0,0,8,4" />
+      <ComboBox AutomationProperties.AutomationId="GraphicsTool_TsaType_Combo" Grid.Row="1" Grid.Column="3" x:Name="TsaTypeCombo"
+                SelectedIndex="{Binding TsaTypeIndex}" Margin="0,0,0,4" HorizontalAlignment="Stretch" />
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="Tiles X:" VerticalAlignment="Center" Margin="0,0,8,4" />
+      <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_TilesX_Input" Grid.Row="2" Grid.Column="1" x:Name="TilesXBox" Value="{Binding TileCountX}"
                      Minimum="1" Maximum="64" FormatString="0" Margin="0,0,16,4" />
-      <TextBlock Grid.Row="1" Grid.Column="2" Text="Tiles Y:" VerticalAlignment="Center" Margin="0,0,8,4" />
-      <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_TilesY_Input" Grid.Row="1" Grid.Column="3" x:Name="TilesYBox" Value="{Binding TileCountY}"
+      <TextBlock Grid.Row="2" Grid.Column="2" Text="Tiles Y:" VerticalAlignment="Center" Margin="0,0,8,4" />
+      <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_TilesY_Input" Grid.Row="2" Grid.Column="3" x:Name="TilesYBox" Value="{Binding TileCountY}"
                      Minimum="1" Maximum="64" FormatString="0" Margin="0,0,0,4" />
 
-      <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
-        <CheckBox AutomationProperties.AutomationId="GraphicsTool_Is4bpp_Check" x:Name="Is4bppCheck" Content="4bpp" IsChecked="{Binding Is4bpp}" />
-        <CheckBox AutomationProperties.AutomationId="GraphicsTool_Compressed_Check" x:Name="CompressedCheck" Content="LZ77 Compressed" IsChecked="{Binding IsCompressed}" />
+      <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
+        <!-- Is4bpp/LZ77 are DISABLED in TSA mode: the TSA-composited path is
+             fixed 4bpp + LZ77 image (#1030). The inline note appears in TSA mode. -->
+        <CheckBox AutomationProperties.AutomationId="GraphicsTool_Is4bpp_Check" x:Name="Is4bppCheck" Content="4bpp" IsChecked="{Binding Is4bpp}" IsEnabled="{Binding !TsaModeActive}" />
+        <CheckBox AutomationProperties.AutomationId="GraphicsTool_Compressed_Check" x:Name="CompressedCheck" Content="LZ77 Compressed" IsChecked="{Binding IsCompressed}" IsEnabled="{Binding !TsaModeActive}" />
+        <TextBlock Text="(4bpp + LZ77 image)" VerticalAlignment="Center" Foreground="Gray" IsVisible="{Binding TsaModeActive}" />
         <TextBlock Text="Zoom:" VerticalAlignment="Center" />
         <NumericUpDown AutomationProperties.AutomationId="GraphicsTool_Zoom_Input" x:Name="ZoomBox" Value="{Binding Zoom}" Minimum="1" Maximum="8"
                        FormatString="0" Width="80" />
