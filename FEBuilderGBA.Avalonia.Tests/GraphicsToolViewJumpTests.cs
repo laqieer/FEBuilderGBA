@@ -350,6 +350,55 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         /// <summary>
+        /// #1074: Jump must set the image2-join + compressed-palette context.
+        /// <c>imageType == 2</c> -> <c>IsImage2Join</c> (NOT merely image2 != 0,
+        /// refinement #5); <c>paletteType == 1</c> -> <c>IsCompressedPalette</c>;
+        /// a nonzero <c>image2</c> -> <c>Image2AddressText</c> (hex), a 0 image2
+        /// -> "".
+        /// </summary>
+        [AvaloniaFact]
+        public void Jump_SetsImage2JoinAndCompressedPalette()
+        {
+            var view = new GraphicsToolView();
+            view.Jump(
+                width: 240, height: 160,
+                image: 0x08400000u, imageType: 2,   // join mode
+                tsa: 0x08500000u, tsaType: 1,
+                palette: 0x08600000u, paletteType: 1, // compressed palette
+                paletteCount: 8,
+                image2: 0x08700000u);
+
+            var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
+            Assert.True(vm.IsImage2Join);
+            Assert.True(vm.IsCompressedPalette);
+            Assert.Contains("0x08700000", vm.Image2AddressText, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// #1074 refinement #5: IsImage2Join is gated on imageType == 2, NOT on
+        /// image2 != 0. A non-join imageType that still carries a 2nd address must
+        /// NOT set the join flag. paletteType != 1 leaves IsCompressedPalette
+        /// false, and a 0 image2 leaves Image2AddressText empty.
+        /// </summary>
+        [AvaloniaFact]
+        public void Jump_NonJoinImageType_DoesNotSetImage2Join_AndZeroImage2IsEmpty()
+        {
+            var view = new GraphicsToolView();
+            view.Jump(
+                width: 240, height: 160,
+                image: 0x08400000u, imageType: 0,    // NOT join mode
+                tsa: 0x08500000u, tsaType: 1,
+                palette: 0x08600000u, paletteType: 0, // raw palette
+                paletteCount: 8,
+                image2: 0u);                          // null 2nd image
+
+            var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
+            Assert.False(vm.IsImage2Join);
+            Assert.False(vm.IsCompressedPalette);
+            Assert.Equal("", vm.Image2AddressText);
+        }
+
+        /// <summary>
         /// Source parity: the AXAML binds Is4bppCheck + CompressedCheck
         /// IsEnabled to the inverse of TsaModeActive (so the TSA path is visibly
         /// fixed 4bpp + LZ77 image), and the VM DrawTiles references

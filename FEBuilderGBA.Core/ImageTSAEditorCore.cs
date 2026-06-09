@@ -52,6 +52,11 @@ namespace FEBuilderGBA
         /// addresses. Returns the composed <see cref="IImage"/> sized
         /// <paramref name="width8"/>*8 x <paramref name="height8"/>*8 pixels, or
         /// <c>null</c> on any null/out-of-bounds/corrupt input (never throws).
+        ///
+        /// 8-arg back-compat wrapper (#1074 refinement #4): delegates to the
+        /// 10-arg overload with <c>image2Addr: 0</c> + <c>isCompressedPalette:
+        /// false</c>, so this call is BYTE-IDENTICAL to the pre-#1074 behaviour
+        /// (#1030 entrypoints, the #810 tests).
         /// </summary>
         /// <param name="rom">Loaded ROM.</param>
         /// <param name="width8">Canvas width in 8-pixel tiles.</param>
@@ -63,18 +68,74 @@ namespace FEBuilderGBA
         /// <param name="paletteAddr">Resolved ROM offset of the palette block.</param>
         public static IImage TryRenderMainImage(ROM rom, uint width8, uint height8,
             uint imageAddr, bool isHeaderTSA, bool isLZ77TSA, uint tsaAddr, uint paletteAddr)
+            => TryRenderMainImage(rom, width8, height8, imageAddr, isHeaderTSA,
+                isLZ77TSA, tsaAddr, paletteAddr, 0u, false);
+
+        /// <summary>
+        /// Render the TSA-composited main image with optional <b>image2-join</b>
+        /// and <b>compressed-palette</b> support (#1074). Returns the composed
+        /// <see cref="IImage"/> sized <paramref name="width8"/>*8 x
+        /// <paramref name="height8"/>*8 pixels, or <c>null</c> on any
+        /// null/out-of-bounds/corrupt input (never throws).
+        ///
+        /// With the defaults (<paramref name="image2Addr"/> = 0,
+        /// <paramref name="isCompressedPalette"/> = false) this is BYTE-IDENTICAL
+        /// to the pre-#1074 8-arg render path (#1030 byte-identical).
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="width8">Canvas width in 8-pixel tiles.</param>
+        /// <param name="height8">Canvas height in 8-pixel tiles.</param>
+        /// <param name="imageAddr">Resolved ROM offset of the LZ77 tile image.</param>
+        /// <param name="isHeaderTSA">True if the TSA stream carries a {w,h} header.</param>
+        /// <param name="isLZ77TSA">True if the TSA stream is LZ77-compressed.</param>
+        /// <param name="tsaAddr">Resolved ROM offset of the TSA stream.</param>
+        /// <param name="paletteAddr">Resolved ROM offset of the palette block.</param>
+        /// <param name="image2Addr">Resolved ROM offset of a SECOND LZ77 tile
+        ///   image to join after the first (WF <c>ImageOption == 2</c>, order
+        ///   <c>image ++ image2</c>). 0 or invalid ⇒ single image (no join).</param>
+        /// <param name="isCompressedPalette">True if the palette block is an LZ77
+        ///   stream (WF <c>PaletteOption == 1</c>); false ⇒ RAW palette read.</param>
+        public static IImage TryRenderMainImage(ROM rom, uint width8, uint height8,
+            uint imageAddr, bool isHeaderTSA, bool isLZ77TSA, uint tsaAddr, uint paletteAddr,
+            uint image2Addr = 0, bool isCompressedPalette = false)
         {
             if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
             if (CoreState.ImageService == null) return null;
             if (width8 == 0 || height8 == 0) return null;
 
-            // Shared LZ77-image-decode + raw-palette read (with the truncation
-            // guards). Behaviour-preserving extraction -- see
-            // TryLoadTSATileAndPalette. RenderChipList reuses the SAME loader.
+            // Shared LZ77-image-decode + palette read (raw OR compressed, with the
+            // truncation guards). See TryLoadTSATileAndPalette. RenderChipList /
+            // RenderRawTilesheet reuse the SAME loader (raw palette only).
             if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
-                                          out byte[] tileData, out byte[] palette))
+                                          out byte[] tileData, out byte[] palette,
+                                          isCompressedPalette))
             {
                 return null;
+            }
+
+            // --- image2 join (#1074, mirrors WF ImageOption == 2; order
+            // image ++ image2) ---
+            // If image2Addr is a valid non-zero LZ77 pointer, decompress it and
+            // concatenate AFTER the first image's tiles so a TSA cell with a tile
+            // index >= image1's tile count reaches the joined image2 tiles. An
+            // invalid / zero image2 is a no-op (single image). Never throws.
+            if (image2Addr != 0
+                && U.isSafetyOffset(image2Addr, rom)
+                && IsLZ77HeaderSafe(rom, image2Addr))
+            {
+                uint img2Compressed = LZ77.getCompressedSize(rom.Data, image2Addr);
+                if (img2Compressed != 0
+                    && (ulong)image2Addr + img2Compressed <= (ulong)rom.Data.Length)
+                {
+                    byte[] tile2 = LZ77.decompress(rom.Data, image2Addr);
+                    if (tile2 != null && tile2.Length != 0)
+                    {
+                        byte[] joined = new byte[tileData.Length + tile2.Length];
+                        Array.Copy(tileData, 0, joined, 0, tileData.Length);
+                        Array.Copy(tile2, 0, joined, tileData.Length, tile2.Length);
+                        tileData = joined;
+                    }
+                }
             }
 
             int wTiles = (int)width8;
@@ -85,6 +146,11 @@ namespace FEBuilderGBA
             // --- TSA data ---
             if (isLZ77TSA)
             {
+                // #1074 refinement #1: a TSA pointer in the last 1-3 ROM bytes
+                // passes isSafetyOffset yet would throw inside getCompressedSize
+                // (it reads input[tsaAddr+3]). Guard the full 4-byte LZ77 header
+                // BEFORE getCompressedSize (mirrors the image path).
+                if (!IsLZ77HeaderSafe(rom, tsaAddr)) return null;
                 uint tsaCompressed = LZ77.getCompressedSize(rom.Data, tsaAddr);
                 if (tsaCompressed == 0) return null;
                 if ((ulong)tsaAddr + tsaCompressed > (ulong)rom.Data.Length) return null;
@@ -149,9 +215,11 @@ namespace FEBuilderGBA
 
             // Same LZ77-image-decode + raw-palette read as TryRenderMainImage
             // (inherits the isSafetyOffset / getCompressedSize / end-of-ROM
-            // truncation guards). The chip list never reads the TSA stream.
+            // truncation guards). The chip list never reads the TSA stream and
+            // always uses a RAW palette (isCompressedPalette: false).
             if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
-                                          out byte[] tileData, out byte[] palette))
+                                          out byte[] tileData, out byte[] palette,
+                                          isCompressedPalette: false))
             {
                 return null;
             }
@@ -234,9 +302,11 @@ namespace FEBuilderGBA
             if (CoreState.ImageService == null) return null;
 
             // Same LZ77-image-decode + raw-palette read as TryRenderMainImage /
-            // RenderChipList. The raw tilesheet never reads the TSA stream.
+            // RenderChipList. The raw tilesheet never reads the TSA stream and
+            // always uses a RAW palette (isCompressedPalette: false).
             if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
-                                          out byte[] tileData, out byte[] palette))
+                                          out byte[] tileData, out byte[] palette,
+                                          isCompressedPalette: false))
             {
                 return null;
             }
@@ -271,8 +341,8 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Shared loader extracted from <see cref="TryRenderMainImage"/> (#819):
-        /// LZ77-decode the tile image and read the raw (≤512-byte) palette block
-        /// from already-resolved ROM addresses. Behaviour-preserving -- returns
+        /// LZ77-decode the tile image and read the palette block from
+        /// already-resolved ROM addresses. Behaviour-preserving -- returns
         /// <c>false</c> exactly where the inline block previously returned
         /// <c>null</c> (the #810 <see cref="TryRenderMainImage"/> tests pin this).
         ///
@@ -280,12 +350,30 @@ namespace FEBuilderGBA
         /// <c>LZ77.decompress</c> silently returns a zero-filled buffer on a
         /// truncated stream, so <c>getCompressedSize == 0</c> + an end-of-ROM
         /// bound check is the truncation guard (mirrors ImageBattleScreenCore's
-        /// TryLoadChipsetAndPalette). The palette read is RAW (no LZ77), clamped
-        /// to ROM end; <c>DecodeTileToPixels</c> bounds-checks short palettes so
-        /// a clamped read is safe.
+        /// TryLoadChipsetAndPalette).
+        ///
+        /// Palette read (#1074):
+        /// <list type="bullet">
+        ///   <item><paramref name="isCompressedPalette"/> <c>false</c> — RAW read
+        ///     (no LZ77), clamped to ROM end (≤512 bytes / 16 banks). UNCHANGED:
+        ///     byte-for-byte identical to the pre-#1074 loader for every existing
+        ///     caller. <c>DecodeTileToPixels</c> bounds-checks short palettes so a
+        ///     clamped read is safe.</item>
+        ///   <item><paramref name="isCompressedPalette"/> <c>true</c> — the palette
+        ///     address is an LZ77 stream (WF <c>PaletteOption == 1</c>): guard the
+        ///     full 4-byte header (<see cref="IsLZ77HeaderSafe"/>) +
+        ///     <c>getCompressedSize != 0</c> + an end-of-ROM bound, decompress,
+        ///     then clamp to <see cref="PALETTE_BYTES"/> (512) like WF
+        ///     <c>U.subrange(decompressed, 0, 0x20*16)</c> — take up to 512 bytes
+        ///     (fewer if the decompressed buffer is shorter; NOT required to be
+        ///     exactly 512). A decode FAILURE (bad header / null / empty) returns
+        ///     <c>false</c> — NO silent fall back to a raw read (so the
+        ///     paletteType==1 failure surfaces as a null render, #1074
+        ///     refinement #2).</item>
+        /// </list>
         /// </summary>
         static bool TryLoadTSATileAndPalette(ROM rom, uint imageAddr, uint paletteAddr,
-            out byte[] tiles, out byte[] palette)
+            out byte[] tiles, out byte[] palette, bool isCompressedPalette)
         {
             tiles = null;
             palette = null;
@@ -309,17 +397,40 @@ namespace FEBuilderGBA
             byte[] tileData = LZ77.decompress(rom.Data, imageAddr);
             if (tileData == null || tileData.Length == 0) return false;
 
-            // --- Palette: RAW up to 512 bytes (16 banks), clamped to ROM end
-            // (no LZ77). ---
+            // --- Palette ---
             if (!U.isSafetyOffset(paletteAddr, rom)) return false;
-            int palBytes = PALETTE_BYTES;
-            if ((ulong)paletteAddr + (ulong)palBytes > (ulong)rom.Data.Length)
+
+            byte[] palBuf;
+            if (isCompressedPalette)
             {
-                palBytes = (int)((ulong)rom.Data.Length - paletteAddr);
+                // LZ77-compressed palette (WF PaletteOption == 1). Guard the full
+                // 4-byte header + truncation BEFORE decompress, then clamp to 512
+                // bytes (WF U.subrange(decompressed, 0, 0x20*16)). A decode
+                // failure returns false -- NO raw fallback (#1074 refinement #2).
+                if (!IsLZ77HeaderSafe(rom, paletteAddr)) return false;
+                uint palCompressed = LZ77.getCompressedSize(rom.Data, paletteAddr);
+                if (palCompressed == 0) return false;
+                if ((ulong)paletteAddr + palCompressed > (ulong)rom.Data.Length) return false;
+                byte[] decompressed = LZ77.decompress(rom.Data, paletteAddr);
+                if (decompressed == null || decompressed.Length == 0) return false;
+
+                // Clamp to PALETTE_BYTES (take fewer if the buffer is shorter).
+                int palLen = Math.Min(decompressed.Length, PALETTE_BYTES);
+                palBuf = new byte[palLen];
+                Array.Copy(decompressed, palBuf, palLen);
             }
-            if (palBytes <= 0) return false;
-            byte[] palBuf = new byte[palBytes];
-            Array.Copy(rom.Data, paletteAddr, palBuf, 0, palBytes);
+            else
+            {
+                // RAW up to 512 bytes (16 banks), clamped to ROM end (no LZ77).
+                int palBytes = PALETTE_BYTES;
+                if ((ulong)paletteAddr + (ulong)palBytes > (ulong)rom.Data.Length)
+                {
+                    palBytes = (int)((ulong)rom.Data.Length - paletteAddr);
+                }
+                if (palBytes <= 0) return false;
+                palBuf = new byte[palBytes];
+                Array.Copy(rom.Data, paletteAddr, palBuf, 0, palBytes);
+            }
 
             tiles = tileData;
             palette = palBuf;
@@ -463,8 +574,10 @@ namespace FEBuilderGBA
             if (width8 == 0 || height8 == 0) return null;
             if (cells == null) return null;
 
+            // In-memory cell editing always renders against a RAW palette.
             if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
-                                          out byte[] tileData, out byte[] palette))
+                                          out byte[] tileData, out byte[] palette,
+                                          isCompressedPalette: false))
             {
                 return null;
             }

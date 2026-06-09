@@ -982,6 +982,270 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // =================================================================
+        // image2-join + compressed paletteType (#1074) — the 10-arg
+        // TryRenderMainImage overload.
+        //   * image2 join: a 2nd LZ77 tile image is concatenated AFTER the
+        //     first (order image ++ image2), so a TSA cell with a tile index
+        //     >= image1's tile count reaches the joined image2 tiles.
+        //   * compressed palette: the palette address is an LZ77 stream
+        //     (paletteType == 1) clamped to <=512 bytes.
+        //   * backward-compat: the 8-arg wrapper == the 10-arg with
+        //     image2Addr:0, isCompressedPalette:false.
+        //   * no-throw: corrupt/near-EOF compressed palette -> null (NOT a raw
+        //     fallback); invalid/zero image2 -> single image; near-EOF LZ77-TSA
+        //     pointer -> null.
+        // Reuses the MarkerTiles + StandardPalette synthetic harness.
+        // =================================================================
+
+        // Image2 lives at a separate offset from IMAGE_OFFSET (0x1000) and the
+        // TSA (0x4000) / palette (0x8000) so the planted streams never overlap.
+        const uint IMAGE2_OFFSET = 0x2000;
+
+        /// <summary>image2 = a single tile that is entirely color index 2
+        /// (green in bank 0). Joined after MarkerTiles()'s 2 tiles, this becomes
+        /// tile index 2.</summary>
+        static byte[] Image2GreenTile()
+        {
+            byte[] tiles = new byte[1 * 32];
+            FillTile(tiles, 0, 2); // all index 2
+            return tiles;
+        }
+
+        [Fact]
+        public void Image2Join_TsaCellReachesSecondImageTile()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());                  // 2 tiles (idx 0,1)
+                PlantBytes(rom, IMAGE2_OFFSET, LZ77.compress(Image2GreenTile())); // tile idx 2
+                PlantPalette(rom, StandardPalette());
+                // TSA cell references tile index 2 -> ONLY reachable via image2.
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(2, false, false, 0) });
+
+                using IImage joined = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: IMAGE2_OFFSET, isCompressedPalette: false);
+
+                Assert.NotNull(joined);
+                // image2 tile 2 is all green -> pixel (0,0) is green.
+                AssertPixel(joined, 0, 0, 0, 248, 0, 255);
+
+                // WITHOUT image2 the same tile index 2 is out of range -> that
+                // cell renders blank (alpha 0). Prove the two renders differ.
+                using IImage single = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: false);
+
+                Assert.NotNull(single);
+                byte[] singlePx = single.GetPixelData();
+                Assert.Equal(0, singlePx[(0 * single.Width + 0) * 4 + 3]); // (0,0) transparent
+                Assert.NotEqual(joined.GetPixelData(), single.GetPixelData());
+            });
+        }
+
+        [Fact]
+        public void Image2Join_ZeroOrInvalid_RendersSingleImage()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 0) });
+
+                // image2Addr 0 -> no-op (single image), no throw.
+                using IImage zero = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: false);
+                Assert.NotNull(zero);
+                AssertPixel(zero, 0, 0, 0, 248, 0, 255); // tile 1 marker
+
+                // image2Addr pointing at a zero-filled (non-LZ77) region -> no-op
+                // (single image), no throw, byte-identical to the zero case.
+                using IImage invalid = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0xC000u, isCompressedPalette: false);
+                Assert.NotNull(invalid);
+                Assert.Equal(zero.GetPixelData(), invalid.GetPixelData());
+            });
+        }
+
+        [Fact]
+        public void CompressedPalette_Bank0_EqualsRawPaletteRender()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 0) });
+
+                byte[] rawPal = StandardPalette();           // 512-byte raw palette
+
+                // Render A: RAW palette at PALETTE_OFFSET (isCompressedPalette:false).
+                PlantPalette(rom, rawPal);
+                using IImage rawRender = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: false);
+                Assert.NotNull(rawRender);
+
+                // Render B: the SAME colors, LZ77-compressed, decoded with
+                // isCompressedPalette:true at a separate offset.
+                const uint COMP_PAL_OFFSET = 0xA000;
+                PlantBytes(rom, COMP_PAL_OFFSET, LZ77.compress(rawPal));
+                using IImage compRender = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, COMP_PAL_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: true);
+                Assert.NotNull(compRender);
+
+                // Identical colors -> identical PNG.
+                Assert.Equal(rawRender.EncodePng(), compRender.EncodePng());
+            });
+        }
+
+        [Fact]
+        public void CompressedPalette_NonzeroBank512Bytes_EqualsRawPaletteRender()
+        {
+            // Refinement #3: exercise a FULL 512-byte palette with a NONZERO bank
+            // (bank 3), not only bank 0, so the compressed decode covers the
+            // whole 16-bank block.
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                // Cell uses palette bank 3.
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 3) });
+
+                // 512-byte palette: bank 3 idx1 = blue, idx2 = white (so the
+                // bank-3 colors are nonzero and distinct from bank 0).
+                byte[] rawPal = new byte[512];
+                SetColor(rawPal, 3, 1, BLUE);
+                SetColor(rawPal, 3, 2, WHITE);
+                Assert.Equal(512, rawPal.Length);
+
+                PlantPalette(rom, rawPal);
+                using IImage rawRender = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: false);
+                Assert.NotNull(rawRender);
+                // bank 3 idx2 (marker) = white; idx1 = blue.
+                AssertPixel(rawRender, 0, 0, 248, 248, 248, 255);
+                AssertPixel(rawRender, 1, 0, 0, 0, 248, 255);
+
+                const uint COMP_PAL_OFFSET = 0xA000;
+                PlantBytes(rom, COMP_PAL_OFFSET, LZ77.compress(rawPal));
+                using IImage compRender = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, COMP_PAL_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: true);
+                Assert.NotNull(compRender);
+
+                Assert.Equal(rawRender.EncodePng(), compRender.EncodePng());
+            });
+        }
+
+        [Fact]
+        public void EightArgWrapper_EqualsTenArgWithDefaults()
+        {
+            // Refinement #4: the 8-arg back-compat wrapper must be byte-identical
+            // to the 10-arg with image2Addr:0, isCompressedPalette:false.
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+                PlantRawCells(rom, TSA_OFFSET, new ushort[]
+                {
+                    Cell(1, false, false, 0), Cell(0, false, false, 0),
+                    Cell(1, true, false, 0),  Cell(1, false, true, 0),
+                });
+
+                using IImage eight = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 2, 2, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET);
+                using IImage ten = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 2, 2, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: false);
+
+                Assert.NotNull(eight);
+                Assert.NotNull(ten);
+                Assert.Equal(eight.EncodePng(), ten.EncodePng());
+            });
+        }
+
+        [Fact]
+        public void CompressedPalette_CorruptStream_ReturnsNull_NoRawFallback()
+        {
+            // Refinement #2: a bad compressed-palette stream returns null (NOT a
+            // silent raw read), so a paletteType==1 failure is visible.
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 0) });
+                // PALETTE_OFFSET holds a valid RAW palette, but we ask for a
+                // compressed decode -> the (non-LZ77) bytes there are not a valid
+                // stream -> getCompressedSize == 0 -> null (no raw fallback).
+                PlantPalette(rom, StandardPalette());
+
+                using IImage img = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: true);
+                Assert.Null(img);
+            });
+        }
+
+        [Fact]
+        public void CompressedPalette_NearRomEnd_ReturnsNull_NoThrow()
+        {
+            // Refinement #2: a truncated LZ77 palette near the ROM end must return
+            // null (no throw, no raw fallback).
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantRawCells(rom, TSA_OFFSET, new ushort[] { Cell(1, false, false, 0) });
+                // Valid 0x10 header claiming 0x100 bytes, planted 4 bytes from the
+                // ROM end -> getCompressedSize == 0.
+                uint addr = (uint)rom.Data.Length - 4;
+                rom.Data[addr + 0] = 0x10;
+                rom.Data[addr + 1] = 0x00;
+                rom.Data[addr + 2] = 0x01;
+                rom.Data[addr + 3] = 0x00;
+
+                using IImage img = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, false, TSA_OFFSET, addr,
+                    image2Addr: 0u, isCompressedPalette: true);
+                Assert.Null(img);
+            });
+        }
+
+        [Fact]
+        public void Lz77Tsa_PointerNearRomEnd_ReturnsNull_NoThrow()
+        {
+            // Refinement #1: an LZ77-TSA pointer in the last 1-3 ROM bytes passes
+            // isSafetyOffset but would throw inside getCompressedSize without the
+            // 4-byte-header guard. With the guard it returns null (no throw — there
+            // is no try/catch here).
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                int addr = rom.Data.Length - 3;       // only 3 header bytes in-bounds
+                rom.Data[addr + 0] = 0x10;            // LZ77 magic
+                rom.Data[addr + 1] = 0x00;
+                rom.Data[addr + 2] = 0x01;
+                // addr+3 is out of range -- the guard must reject BEFORE
+                // getCompressedSize touches input[addr+3].
+
+                using IImage img = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, 1, 1, IMAGE_OFFSET, false, true /*isLZ77TSA*/, (uint)addr, PALETTE_OFFSET,
+                    image2Addr: 0u, isCompressedPalette: false);
+                Assert.Null(img);
+            });
+        }
+
         // -----------------------------------------------------------------
         // Helpers
         // -----------------------------------------------------------------
