@@ -737,7 +737,18 @@ namespace FEBuilderGBA
             IImageService svc = CoreState.ImageService;
             if (svc == null) return null;
 
-            // 1. CSA-aware scan + per-frame shared-slot mapping (slotIndex ≠ frameIndex).
+            // 1. CSA-aware scan to get the per-frame `frames` list (correct +28 TSA).
+            //    NOTE (#1076 FIX 1): we deliberately do NOT index sharedObjSlots /
+            //    sharedBgSlots here. Those slot indices live in the CSA hash namespace
+            //    (BG hash = RawBgImagePtr + RawBgTsaPtr), but RenderObjFrameSlot /
+            //    RenderCsaBgFrameSlot rebuild the shared namespace differently
+            //    (RenderObjFrameSlot uses the NON-CSA BG hash = RawBgImagePtr). When
+            //    earlier CSA frames share a BG image but differ in the +28 TSA pointer,
+            //    the CSA scan inserts extra BG slots the renderer does NOT — so a CSA
+            //    slot index can point past the renderer's namespace and silently drop
+            //    the OBJ layer. Instead we render the SELECTED frame via a SINGLE-frame
+            //    list, which sidesteps the divergence: the lone frame is OBJ slot 0 and
+            //    (since the OBJ hash is registered first) BG slot 1.
             List<int> sharedObjSlots, sharedBgSlots;
             List<MagicFrameMeta> frames;
             ExportMagicScriptLines(
@@ -748,15 +759,17 @@ namespace FEBuilderGBA
             if (frames.Count == 0) return null;
             if (frameIndex >= (uint)frames.Count) return null;
 
-            int objSlot = sharedObjSlots[(int)frameIndex];
-            int bgSlot  = sharedBgSlots[(int)frameIndex];
+            // 2. Render the selected frame from a single-frame list (FIX 1).
+            //    OBJ → slot 0; CSA BG → slot 1 (OBJ hash occupies slot 0 first, so the
+            //    BG hash lands at slot 1 in BOTH the renderer namespace and the export).
+            var selectedFrame = frames[(int)frameIndex];
+            var single = new List<MagicFrameMeta> { selectedFrame };
 
-            // 2. Render the per-frame slots.
             //    BG: 240×(160|64) TSA-composited (CSA +28).
             //    OBJ: 480×160, front in the LEFT 240px, back in the RIGHT 240px.
-            IImage bg  = RenderCsaBgFrameSlot(rom, frames, bgSlot);
+            IImage bg  = RenderCsaBgFrameSlot(rom, single, 1);
             IImage obj = RenderObjFrameSlot(
-                rom, frames, objSlot, objRightToLeftOAM, objBGRightToLeftOAM);
+                rom, single, 0, objRightToLeftOAM, objBGRightToLeftOAM);
 
             byte[] bgPx  = bg?.GetPixelData();
             byte[] objPx = obj?.GetPixelData();
@@ -767,10 +780,23 @@ namespace FEBuilderGBA
                 // 3. Composite into a 240×128 canvas (mirror WF DrawFrameImage).
                 byte[] canvas = new byte[CSA_PREVIEW_WIDTH * CSA_PREVIEW_HEIGHT * 4];
 
-                // 3a. BG first. WF fills with bgPalette[0] then draws BG; honour
+                // 3-pre (#1076 FIX 2): WF Blank()-fills the whole canvas with the BG
+                // palette's color 0 (OPAQUE) BEFORE drawing the BG, so palette-index-0
+                // BG pixels (alpha 0) and rows not covered by a 64px-tall BG show the WF
+                // background fill instead of transparent-black holes. Read the selected
+                // frame's RAW 16-color BG palette (offset +24) and fill with entry 0.
+                if (selectedFrame.BgPaletteOffset + 0x20 <= (uint)rom.Data.Length)
+                {
+                    byte[] bgPalette = rom.getBinaryData(selectedFrame.BgPaletteOffset, 0x20);
+                    byte[] fillColor = GBAPaletteColor0(bgPalette, svc); // RGBA, alpha 255
+                    FillBackground(canvas, CSA_PREVIEW_WIDTH, CSA_PREVIEW_HEIGHT, fillColor);
+                }
+
+                // 3a. BG. WF then draws the BG over the palette[0] fill; honour
                 //     IsExpandsBG (the preceding 0x85/0x53 command scales the top
                 //     64px of the BG into the full 240×128). When not expanding,
-                //     the BG is blitted 1:1.
+                //     the BG is blitted 1:1. The BG's own transparent (index-0)
+                //     pixels then show the palette[0] fill underneath.
                 if (bgPx != null && bgW == CSA_PREVIEW_WIDTH && bgH > 0)
                 {
                     bool bgExpands = IsCsaExpandsBG(rom, frameDataAddr, frameIndex);
