@@ -181,6 +181,62 @@ public class ClassOPDemoParityTests
         Assert.Contains("AutomationId=\"ClassOPDemo_AnimeShared_List\"", axaml);
     }
 
+    // -----------------------------------------------------------------
+    // #1032 — N1 JP-name font-glyph image preview (port of WF
+    // OPClassFontForm.DrawFontByID/DrawFont via ClassOPDemoFontRenderCore).
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_HasN1GlyphPreview_AndNoFontGlyphKnownGap()
+    {
+        string axaml = ReadAxaml();
+        // The real GbaImageControl preview is now present...
+        Assert.Contains("AutomationId=\"ClassOPDemo_N1_GlyphPreview_Image\"", axaml);
+        Assert.Contains("<controls:GbaImageControl", axaml);
+        // ...and the former N1FontGlyphPreview KnownGap is removed.
+        Assert.DoesNotContain("KnownGap: N1FontGlyphPreview", axaml);
+    }
+
+    [Fact]
+    public void View_RefreshN1GlyphPreview_CallsCoreRenderer()
+    {
+        string source = ReadCodeBehind();
+        // The refresh method renders via the Core port and clears on null.
+        Assert.Matches(new Regex(
+            @"void\s+RefreshN1GlyphPreview[\s\S]*?ClassOPDemoFontRenderCore\.RenderGlyphById",
+            RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_SubscribesToN1B0BoxValueChanged_AndRefreshes()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(@"N1B0Box\.ValueChanged\s*\+=", RegexOptions.Compiled), source);
+        // The value-change path calls the refresh.
+        Assert.Matches(new Regex(
+            @"void\s+OnN1B0Changed[\s\S]*?RefreshN1GlyphPreview\(\)",
+            RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_OnN1Selected_RefreshesGlyphPreview()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"void\s+OnN1Selected[\s\S]*?RefreshN1GlyphPreview\(\)",
+            RegexOptions.Compiled), source);
+    }
+
+    [Fact]
+    public void View_ApplyN1Rows_ClearsGlyphPreview()
+    {
+        string source = ReadCodeBehind();
+        // ApplyN1Rows (incl. the empty-list/reset path) clears the stale preview.
+        Assert.Matches(new Regex(
+            @"void\s+ApplyN1Rows[\s\S]*?N1GlyphPreview\??\.SetImage\(null\)",
+            RegexOptions.Compiled), source);
+    }
+
     [Fact]
     public void View_HasInlinePreviewLabels()
     {
@@ -497,9 +553,12 @@ public class ClassOPDemoParityTests
         var rx = new Regex(@"KnownGap:\s*(\S+(?:\s+\S+)*?)\s+reason=(.+?)\s*-->",
             RegexOptions.Compiled);
         var matches = rx.Matches(axaml);
+        // #1032: the N1FontGlyphPreview KnownGap was removed (implemented via
+        // ClassOPDemoFontRenderCore). The remaining markers are the
+        // battle-anime PNG preview + the patch-aware UI deferral.
         Assert.True(matches.Count >= 2,
             $"AXAML must contain at least 2 KnownGap markers (battle-anime PNG preview, " +
-            $"font glyph PNG preview); found {matches.Count}.");
+            $"patch-aware UI); found {matches.Count}.");
         foreach (Match m in matches)
         {
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[1].Value),

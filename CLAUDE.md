@@ -459,6 +459,11 @@ Specialized utilities for different graphic types:
   banner detector (#1033) replacing WF `GetPalette16Count`: scans all sections/frames' OAM for the max
   non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner). Animation-wide CONSERVATIVE
   (over-warns, never under-warns); affine excluded (WF draws them at shift 0); safe default 1 on guard fail.
+- `ClassOPDemoFontRenderCore.cs` (Core, READ-ONLY) — Class OP Demo N1 JP-name font-glyph preview (#1032;
+  ports WF `OPClassFontForm.DrawFontByID`/`DrawFont`). `RenderGlyphById(rom,id)` bounded-DataCount-scans the
+  4-byte-pointer table at `op_class_font_pointer` (reject id ≥ contiguous run; overflow-safe) → `RenderGlyphImage`
+  LZ77-decompresses the 4bpp glyph → 32×32 `ImageUtilCore.ByteToImage16Tile` with `op_class_font_palette`.
+  Drives the Avalonia `ClassOPDemoView` GbaImageControl preview (live on N1 spinner/selection); null on guard fail.
 
 ### Caching System
 
