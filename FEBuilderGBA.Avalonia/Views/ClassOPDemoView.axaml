@@ -258,7 +258,7 @@
               <Border Grid.Column="12" BorderBrush="Gray" BorderThickness="1"
                       Width="48" Height="48" VerticalAlignment="Center">
                 <controls:GbaImageControl
-                    AutomationProperties.AutomationId="ClassOPDemo_N1_GlyphPreview"
+                    AutomationProperties.AutomationId="ClassOPDemo_N1_GlyphPreview_Image"
                     Name="N1GlyphPreview" Width="48" Height="48" />
               </Border>
             </Grid>

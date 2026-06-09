@@ -191,7 +191,7 @@ public class ClassOPDemoParityTests
     {
         string axaml = ReadAxaml();
         // The real GbaImageControl preview is now present...
-        Assert.Contains("AutomationId=\"ClassOPDemo_N1_GlyphPreview\"", axaml);
+        Assert.Contains("AutomationId=\"ClassOPDemo_N1_GlyphPreview_Image\"", axaml);
         Assert.Contains("<controls:GbaImageControl", axaml);
         // ...and the former N1FontGlyphPreview KnownGap is removed.
         Assert.DoesNotContain("KnownGap: N1FontGlyphPreview", axaml);
