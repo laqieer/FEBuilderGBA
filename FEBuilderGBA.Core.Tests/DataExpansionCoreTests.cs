@@ -1006,12 +1006,100 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
-        [Fact]
-        public void ExpandTableTo_DefaultPath_StillWritesFFFFFFFFDword()
+        // The ONLY 0xFF free run in the strict default-path tests below. Sized so
+        // it fits newTableSize + 4 (=84) but NOT newTableSize + entrySize (=96):
+        //   entrySize=16, currentCount=2, newCount=5 -> newTableSize = 80.
+        //   default reserve (+4)        -> allocSize 84  <= 88  -> FITS the run.
+        //   full-row reserve (+entrySize=16) -> allocSize 96  >  88  -> does NOT fit.
+        // 88 is in [84, 95] (Copilot review on PR #1080: a 256-byte run fit BOTH
+        // reserves, so a regression to a full-row default would have passed). The
+        // run start 0x100100 is 4-byte aligned (FindFreeSpace returns 4-aligned
+        // bases) and the rest of the ROM is 0x00, so this is the only free run.
+        const uint StrictRunStart = 0x100100;
+        const int StrictRunLen = 88;
+
+        /// <summary>Plant the single 88-byte 0xFF free run; the rest of the ROM
+        /// stays 0x00 so it is the only candidate FindFreeSpace can pick.</summary>
+        static void PlantStrictFreeRun(ROM rom)
         {
-            // Default-path strict regression: fullZeroTerminatorRow:false (the
-            // #501 caller) must still reserve only +4 and write the 0xFFFFFFFF
-            // dword terminator — unchanged by the #1078 generalization.
+            for (int i = 0; i < StrictRunLen; i++)
+                rom.Data[StrictRunStart + (uint)i] = 0xFF;
+        }
+
+        [Fact]
+        public void ExpandTableTo_DefaultPath_FitsPlus4Run_LandsInRun_AndWritesFFFFFFFFDword()
+        {
+            // Strict default-path regression (Copilot review on PR #1080): with
+            // fullZeroTerminatorRow:false the helper must reserve only +4, so an
+            // 84-byte alloc fits the 88-byte run -> NewBaseAddress == StrictRunStart.
+            // If the code regressed to reserving a full entrySize row (96 > 88) it
+            // would relocate/resize and NewBaseAddress would NOT be StrictRunStart,
+            // failing this test. Terminator must be the 0xFFFFFFFF dword.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;   // newTableSize = 80; +4 = 84 <= 88, +entrySize = 96 > 88
+
+            WritePointer(rom, pointerAddr, tableBase);
+            for (uint e = 0; e < currentCount; e++)
+                for (uint b = 0; b < entrySize; b++)
+                    rom.Data[tableBase + e * entrySize + b] = (byte)(0x30 + e);
+
+            PlantStrictFreeRun(rom);
+
+            // Sanity: FindFreeSpace places the +4 alloc (84 B) at the run start,
+            // but does NOT fit the +entrySize alloc (96 B) anywhere.
+            Assert.Equal(StrictRunStart, DataExpansionCore.FindFreeSpace(rom, newCount * entrySize + 4));
+            Assert.Equal(U.NOT_FOUND, DataExpansionCore.FindFreeSpace(rom, newCount * entrySize + entrySize));
+
+            var result = DataExpansionCore.ExpandTableTo(
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: false);
+            Assert.True(result.Success, result.Error);
+
+            // PROOF the default reserves only +4: the 84-byte table fit the
+            // 88-byte run (it would NOT have if a full 96-byte row were reserved).
+            Assert.Equal(StrictRunStart, result.NewBaseAddress);
+
+            uint termAddr = result.NewBaseAddress + newCount * entrySize;
+            // Default path: a single 0xFFFFFFFF dword terminator (NOT an all-zero row).
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+        }
+
+        [Fact]
+        public void ExpandTableTo_OmittedArg_LandsInPlus4Run_LikeFalse()
+        {
+            // The omitted-arg call (existing #501 callers) must behave exactly
+            // like fullZeroTerminatorRow:false: with only the strict +4 run
+            // available it STILL lands at StrictRunStart (proving the default
+            // reserve is +4, not a full entrySize row) and writes the 0xFFFFFFFF
+            // dword terminator.
+            var rom = MakeRom(0x200000);
+            uint pointerAddr = 0x10;
+            uint tableBase = 0x200;
+            uint entrySize = 16;
+            uint currentCount = 2;
+            uint newCount = 5;
+
+            WritePointer(rom, pointerAddr, tableBase);
+            PlantStrictFreeRun(rom);
+
+            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
+            Assert.True(result.Success, result.Error);
+            Assert.Equal(StrictRunStart, result.NewBaseAddress);
+            uint termAddr = result.NewBaseAddress + newCount * entrySize;
+            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+        }
+
+        [Fact]
+        public void ExpandTableTo_FullZeroTerminatorRow_DoesNotFitPlus4Run_Relocates()
+        {
+            // Mirror of the strict default-path test: with the SAME 88-byte run,
+            // fullZeroTerminatorRow:true needs newTableSize + entrySize (=96),
+            // which does NOT fit the 88-byte run, so the helper must relocate
+            // (resize the ROM) -> NewBaseAddress != StrictRunStart. This proves
+            // the TRUE path reserves the full entrySize row (Copilot review).
             var rom = MakeRom(0x200000);
             uint pointerAddr = 0x10;
             uint tableBase = 0x200;
@@ -1024,40 +1112,23 @@ namespace FEBuilderGBA.Core.Tests
                 for (uint b = 0; b < entrySize; b++)
                     rom.Data[tableBase + e * entrySize + b] = (byte)(0x30 + e);
 
-            for (int i = 0; i < 256; i++)
-                rom.Data[0x100100 + i] = 0xFF;
+            PlantStrictFreeRun(rom);
+            int originalLength = rom.Data.Length;
 
             var result = DataExpansionCore.ExpandTableTo(
-                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: false);
+                rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
             Assert.True(result.Success, result.Error);
 
-            uint nb = result.NewBaseAddress;
-            uint termAddr = nb + newCount * entrySize;
-            // Default path: a single 0xFFFFFFFF dword terminator (NOT an all-zero row).
-            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
-        }
+            // The 96-byte alloc could NOT use the 88-byte run, so it relocated
+            // (here: resized the ROM, since no other free run exists).
+            Assert.NotEqual(StrictRunStart, result.NewBaseAddress);
+            Assert.True(rom.Data.Length > originalLength,
+                $"expected the full-row reserve to relocate via resize beyond {originalLength}, got {rom.Data.Length}");
 
-        [Fact]
-        public void ExpandTableTo_DefaultPath_OmittedArg_IsByteIdenticalToFalse()
-        {
-            // The omitted-arg call (existing #501 callers) must behave exactly
-            // like fullZeroTerminatorRow:false — same new base, same 0xFFFFFFFF
-            // dword terminator.
-            var rom = MakeRom(0x200000);
-            uint pointerAddr = 0x10;
-            uint tableBase = 0x200;
-            uint entrySize = 8;
-            uint currentCount = 3;
-            uint newCount = 6;
-
-            WritePointer(rom, pointerAddr, tableBase);
-            for (int i = 0; i < 256; i++)
-                rom.Data[0x100100 + i] = 0xFF;
-
-            var result = DataExpansionCore.ExpandTableTo(rom, pointerAddr, entrySize, currentCount, newCount);
-            Assert.True(result.Success, result.Error);
+            // FULL entrySize-byte all-zero terminator row (NO 0xFFFFFFFF dword).
             uint termAddr = result.NewBaseAddress + newCount * entrySize;
-            Assert.Equal(0xFFFFFFFFu, rom.u32(termAddr));
+            for (uint b = 0; b < entrySize; b++)
+                Assert.Equal(0x00, rom.Data[termAddr + b]);
         }
     }
 }
