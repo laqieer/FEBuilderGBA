@@ -26,7 +26,6 @@ namespace FEBuilderGBA.Avalonia.Views
         public GraphicsToolView()
         {
             InitializeComponent();
-            DataContext = _vm;
 
             // ComboBox.Items strings are NOT scanned by ViewTranslationHelper
             // (ClassOPDemoView precedent — Copilot bot review thread on PR #544),
@@ -35,13 +34,16 @@ namespace FEBuilderGBA.Avalonia.Views
             // consumed by GraphicsToolViewViewModel.MapTsaType:
             //   0 = None, 1 = Compressed, 2 = Compressed Header,
             //   3 = Raw Header, 4 = Raw.
-            // Populate BEFORE the SelectedIndex binding fires so a Jump()-driven
-            // index lands on an existing item.
+            // Populate BEFORE `DataContext = _vm` (below) so the SelectedIndex
+            // binding applies onto already-present items (Copilot bot review on
+            // PR #1075 — items must exist before the binding fires).
             TsaTypeCombo.Items.Add(R._("None"));
             TsaTypeCombo.Items.Add(R._("Compressed"));
             TsaTypeCombo.Items.Add(R._("Compressed Header"));
             TsaTypeCombo.Items.Add(R._("Raw Header"));
             TsaTypeCombo.Items.Add(R._("Raw"));
+
+            DataContext = _vm;
 
             _vm.IsLoading = true;
             _vm.Initialize();
@@ -181,12 +183,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // #1030: feed the TSA context to the preview so existing
                 // entrypoints (ImageBattleBGView, ImageBGView) open in
-                // TSA-composited mode. Same null-preserving normalization the
-                // image/palette population above uses (0 -> "" so a null TSA
-                // pointer is NOT shown as a valid ROM read). The combo index
-                // space IS the WF TSAOption space that MapTsaType consumes, so
-                // the incoming tsaType maps to the combo index directly (clamped
-                // defensively to the 5 populated items 0..4).
+                // TSA-composited mode. A 0 TSA pointer maps to "" (empty box)
+                // so a null TSA is not shown/read as a valid ROM address —
+                // unlike image/palette above which format 0 as "0x00000000"
+                // via NormalizeGbaPointer. The combo index space IS the WF
+                // TSAOption space that MapTsaType consumes, so the incoming
+                // tsaType maps to the combo index directly (clamped defensively
+                // to the 5 populated items 0..4).
                 _vm.TsaAddressText = tsa == 0 ? "" : $"0x{NormalizeGbaPointer(tsa):X08}";
                 _vm.TsaTypeIndex = System.Math.Clamp(tsaType, 0, 4);
 
