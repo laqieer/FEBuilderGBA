@@ -191,7 +191,7 @@ Editors for event scripts, conditions, units, templates, and related data.
 | 90 | EventScriptPopupView | EventScriptPopupViewModel | Event script popup editor |
 | 91 | EventCondView | EventCondViewModel | Event condition editor |
 | 92 | EventCondMainView | EventCondMainViewModel | Nested sub-view for conditions |
-| 93 | EventUnitView | EventUnitViewModel | Event unit placement editor |
+| 93 | EventUnitView | EventUnitViewModel | Event unit placement editor — FE8 editable after-coord (move-path) list (#1017): row 0 is the synthetic START pos (X/Y/Ext persist to W4, synthetic fields disabled), rows 1+ are the 8-byte blob records (X/Y/Ext/Speed/UnitId/Unk1/Unk2/Wait); Add/Remove + in-place-vs-append+repoint write via Core `EventUnitCoordCore`; FE8-gated |
 | 94 | EventUnitFE6View | EventUnitFE6ViewModel | Event unit placement (FE6) |
 | 95 | EventUnitFE7View | EventUnitFE7ViewModel | Event unit placement (FE7) |
 | 96 | EventUnitSimView | EventUnitSimViewModel | Simplified event unit editor |

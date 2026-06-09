@@ -10304,3 +10304,42 @@ TSA セル
 
 :Per-cell editing supports non-header TSA only — header-TSA editing tracked separately.
 セル単位の編集は非ヘッダ TSA のみ対応 — ヘッダ TSA の編集は別途対応予定です。
+
+:After Coordinate Move Path (FE8)
+配置後の移動座標 (FE8)
+
+:Add Coord
+座標を追加
+
+:Remove Coord
+座標を削除
+
+:Row 0 is the start position (X/Y/Ext persist to W4). Rows 1+ are the move-path steps.
+行0は開始位置（X/Y/ExtはW4に保存）。行1以降は移動経路のステップです。
+
+:The after-coord list must contain at least the start row.
+移動座標リストには少なくとも開始行が必要です。
+
+:Too many after-coords: {0} (max {1}).
+移動座標が多すぎます: {0} (最大 {1})。
+
+:The event-unit block address is out of range.
+イベントユニットブロックのアドレスが範囲外です。
+
+:Failed to write after-coords. Check ROM free space.
+移動座標の書き込みに失敗しました。ROMの空き容量を確認してください。
+
+:After-coord write failed: {0}
+移動座標の書き込みに失敗しました: {0}
+
+:UnitId
+ユニットID
+
+:Unk1
+不明1
+
+:Unk2
+不明2
+
+:Wait
+待機

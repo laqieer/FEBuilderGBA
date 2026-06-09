@@ -24136,3 +24136,42 @@ TSA 单元格
 
 :Per-cell editing supports non-header TSA only — header-TSA editing tracked separately.
 逐单元格编辑仅支持非头部 TSA — 头部 TSA 的编辑另行跟踪处理。
+
+:After Coordinate Move Path (FE8)
+到达坐标移动路径 (FE8)
+
+:Add Coord
+添加坐标
+
+:Remove Coord
+删除坐标
+
+:Row 0 is the start position (X/Y/Ext persist to W4). Rows 1+ are the move-path steps.
+第0行是起始位置（X/Y/Ext保存到W4）。第1行及以后是移动路径步骤。
+
+:The after-coord list must contain at least the start row.
+到达坐标列表必须至少包含起始行。
+
+:Too many after-coords: {0} (max {1}).
+到达坐标过多: {0} (最大 {1})。
+
+:The event-unit block address is out of range.
+事件单位数据块地址超出范围。
+
+:Failed to write after-coords. Check ROM free space.
+写入到达坐标失败。请检查ROM空闲空间。
+
+:After-coord write failed: {0}
+写入到达坐标失败: {0}
+
+:UnitId
+单位ID
+
+:Unk1
+未知1
+
+:Unk2
+未知2
+
+:Wait
+等待

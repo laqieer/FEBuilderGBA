@@ -1,9 +1,70 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
+    /// <summary>
+    /// One editable FE8 after-coord (move-path) row. Index 0 is the synthetic
+    /// START row (X/Y/Ext only — persisted to W4); indices 1+ are the 8-byte
+    /// blob records (Speed/UnitId/Unk1/Unk2/Wait become editable). The
+    /// <see cref="IsStartRow"/> flag drives the View's per-row enable logic so
+    /// the start row's synthetic fields stay disabled.
+    /// </summary>
+    public partial class Fe8CoordRowViewModel : ViewModelBase
+    {
+        uint _x, _y, _ext, _speed, _unitId, _unk1, _unk2, _wait;
+        bool _isStartRow;
+
+        public uint X { get => _x; set => SetField(ref _x, value); }
+        public uint Y { get => _y; set => SetField(ref _y, value); }
+        public uint Ext { get => _ext; set => SetField(ref _ext, value); }
+        public uint Speed { get => _speed; set => SetField(ref _speed, value); }
+        public uint UnitId { get => _unitId; set => SetField(ref _unitId, value); }
+        public uint Unk1 { get => _unk1; set => SetField(ref _unk1, value); }
+        public uint Unk2 { get => _unk2; set => SetField(ref _unk2, value); }
+        public uint Wait { get => _wait; set => SetField(ref _wait, value); }
+
+        /// <summary>True for index 0 (the START row). Bound (inverted) to the
+        /// View's Speed/UnitId/Unk1/Unk2/Wait NumericUpDown IsEnabled so the
+        /// synthetic fields are read-only; only X/Y/Ext are editable.</summary>
+        public bool IsStartRow
+        {
+            get => _isStartRow;
+            set
+            {
+                if (SetField(ref _isStartRow, value))
+                {
+                    OnPropertyChanged(nameof(IsAfterRow));
+                    OnPropertyChanged(nameof(StartRowMarker));
+                }
+            }
+        }
+
+        /// <summary>Inverse of <see cref="IsStartRow"/> — convenience binding
+        /// for the disabled synthetic-field NumericUpDowns.</summary>
+        public bool IsAfterRow => !_isStartRow;
+
+        /// <summary>Row marker shown in the list's "#" column — "S" for the
+        /// START row, blank otherwise (the ListBox supplies the ordinal).</summary>
+        public string StartRowMarker => _isStartRow ? "S" : "";
+
+        public Fe8Coord ToCoord() => new Fe8Coord
+        {
+            X = _x, Y = _y, Ext = _ext, Speed = _speed,
+            UnitId = _unitId, Unk1 = _unk1, Unk2 = _unk2, Wait = _wait,
+        };
+
+        public static Fe8CoordRowViewModel FromCoord(Fe8Coord c, bool isStartRow) => new Fe8CoordRowViewModel
+        {
+            X = c.X, Y = c.Y, Ext = c.Ext, Speed = c.Speed,
+            UnitId = c.UnitId, Unk1 = c.Unk1, Unk2 = c.Unk2, Wait = c.Wait,
+            IsStartRow = isStartRow,
+        };
+    }
+
     /// <summary>
     /// ViewModel for EventUnitForm (FE8 — 20-byte unit placement blocks).
     /// Provides 3-level navigation: Map -> Unit Group -> Unit.
@@ -112,6 +173,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint Reserved6 { get => _reserved6; set => SetField(ref _reserved6, value); }
         public uint CoordCount { get => _coordCount; set => SetField(ref _coordCount, value); }
         public uint CoordPointer { get => _coordPointer; set => SetField(ref _coordPointer, value); }
+
+        /// <summary>
+        /// Editable FE8 after-coord (move-path) list (#1017). Index 0 is the
+        /// synthetic START row (sourced from / persisted to W4); indices 1+ are
+        /// the 8-byte blob records at D8. Populated on <see cref="LoadEntry"/>
+        /// when <see cref="IsFE8"/>, written back through
+        /// <see cref="EventUnitCoordCore.WriteAfterCoords"/> on
+        /// <see cref="WriteEntry"/>.
+        /// </summary>
+        public ObservableCollection<Fe8CoordRowViewModel> AfterCoords { get; } = new();
+
+        /// <summary>True when the loaded ROM is FE8 (20-byte unit block). The
+        /// after-coord list editor is FE8-only — the View gates the whole panel
+        /// on this flag.</summary>
+        public bool IsFE8
+        {
+            get => _isFE8;
+            set => SetField(ref _isFE8, value);
+        }
+        bool _isFE8;
         public uint Item1 { get => _item1; set => SetField(ref _item1, value); }
         public uint Item2 { get => _item2; set => SetField(ref _item2, value); }
         public uint Item3 { get => _item3; set => SetField(ref _item3, value); }
@@ -437,7 +518,63 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Comment = "";
             }
 
+            // FE8 detection — the after-coord list editor is FE8-only (20-byte
+            // unit block). FE7's 16-byte block has no after-coord list.
+            IsFE8 = dataSize == 20;
+            ReloadAfterCoords(rom);
+
             IsLoaded = true;
+        }
+
+        /// <summary>
+        /// Rebuild <see cref="AfterCoords"/> from the live W4/B7/D8 values via
+        /// <see cref="EventUnitCoordCore.ReadAfterCoords"/>. Non-FE8 ROMs leave
+        /// the list empty. Index 0 is flagged <c>IsStartRow</c>.
+        /// </summary>
+        void ReloadAfterCoords(ROM rom)
+        {
+            AfterCoords.Clear();
+            if (!IsFE8 || rom == null) return;
+
+            var coords = EventUnitCoordCore.ReadAfterCoords(rom, UnitGrowth, CoordCount, CoordPointer);
+            for (int i = 0; i < coords.Count; i++)
+                AfterCoords.Add(Fe8CoordRowViewModel.FromCoord(coords[i], isStartRow: i == 0));
+        }
+
+        /// <summary>
+        /// Append a new after-coord row with sane defaults (copies the last
+        /// row's X/Y, zero everything else). No-op for non-FE8. The new row is
+        /// never the START row.
+        /// </summary>
+        public void AddCoord()
+        {
+            if (!IsFE8) return;
+            // Cap at the START row + 255 after-coords (B7 is a u8).
+            if (AfterCoords.Count - 1 >= EventUnitCoordCore.MaxAfterCoordRecords) return;
+
+            uint x = 0, y = 0;
+            if (AfterCoords.Count > 0)
+            {
+                Fe8CoordRowViewModel last = AfterCoords[AfterCoords.Count - 1];
+                x = last.X;
+                y = last.Y;
+            }
+            AfterCoords.Add(new Fe8CoordRowViewModel
+            {
+                X = x, Y = y, Ext = 0, Speed = 0, UnitId = 0,
+                Unk1 = 0, Unk2 = 0, Wait = 0, IsStartRow = false,
+            });
+        }
+
+        /// <summary>
+        /// Remove the after-coord row at <paramref name="index"/>. Refuses index
+        /// 0 (the synthetic START row) and out-of-range indices.
+        /// </summary>
+        public void RemoveCoord(int index)
+        {
+            if (!IsFE8) return;
+            if (index <= 0 || index >= AfterCoords.Count) return; // never remove the START row
+            AfterCoords.RemoveAt(index);
         }
 
         public void WriteEntry()
@@ -446,6 +583,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || CurrentAddr == 0) return;
 
             uint addr = CurrentAddr;
+
+            // FE8 after-coord list (#1017): the START row (AfterCoords[0])
+            // owns W4, and B7/D8 are owned by the blob writer. Sync UnitGrowth
+            // from the START row BEFORE EditorFormRef.WriteFields so the field
+            // write and the coord write agree on W4, then let WriteAfterCoords
+            // own B7/D8 (and re-stamp W4 from list[0]).
+            if (IsFE8 && AfterCoords.Count > 0)
+            {
+                Fe8CoordRowViewModel startRow = AfterCoords[0];
+                UnitGrowth = U.MakeFe8UnitPos(startRow.X, startRow.Y, startRow.Ext);
+            }
+
             var values = new Dictionary<string, uint>
             {
                 ["B0"] = UnitID, ["B1"] = ClassID, ["B2"] = LeaderUnitID, ["B3"] = UnitInfo,
@@ -454,6 +603,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B16"] = AI1Primary, ["B17"] = AI2Secondary, ["B18"] = AI3TargetRecovery, ["B19"] = AI4Retreat,
             };
             EditorFormRef.WriteFields(rom, addr, values, Fields);
+
+            // FE8 after-coord blob write (#1017). Field addresses are the unit
+            // base + fixed offsets: W4=+4, B7=+7, D8=+8. WriteAfterCoords does
+            // the in-place-vs-append+repoint blob write, the count-0 clear, and
+            // re-stamps W4 from list[0] — all under the caller's ambient undo
+            // scope with a byte-identical restore on any fault. It NEVER throws;
+            // a non-empty return is a localized error surfaced to the user.
+            if (IsFE8 && AfterCoords.Count > 0)
+            {
+                var list = new List<Fe8Coord>(AfterCoords.Count);
+                foreach (Fe8CoordRowViewModel row in AfterCoords)
+                    list.Add(row.ToCoord());
+
+                string err = EventUnitCoordCore.WriteAfterCoords(
+                    rom, addr + 4, addr + 7, addr + 8, list);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    CoreState.Services?.ShowError(err);
+                }
+                else
+                {
+                    // Re-read the (possibly repointed) B7/D8/W4 so the VM + UI
+                    // reflect the new pointer/count, then rebuild the row list.
+                    var reread = EditorFormRef.ReadFields(rom, addr, Fields);
+                    UnitGrowth = reread["W4"];
+                    CoordCount = reread["B7"];
+                    CoordPointer = reread["D8"];
+                    ReloadAfterCoords(rom);
+                }
+            }
 
             // Persist the Comment to CoreState.CommentCache. The cache is a
             // separate annotation store and lives OUTSIDE the ROM undo
