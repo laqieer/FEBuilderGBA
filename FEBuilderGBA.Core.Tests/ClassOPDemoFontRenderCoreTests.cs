@@ -157,6 +157,25 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void RenderGlyphById_ZeroPalettePointer_ReturnsNull_NoThrow()
+        {
+            // #1059 review: a 0 palette-pointer slot (non-FE8 ROMs) must return null,
+            // NOT silently read palette bytes from offset 0. Also proves the guard
+            // doesn't throw when the resolved palette offset is unsafe.
+            var prevRom = CoreState.ROM;
+            using var svc = new ImageServiceScope();
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                U.write_u32(rom.Data, rom.RomInfo.op_class_font_palette_pointer, 0);
+                using IImage img = ClassOPDemoFontRenderCore.RenderGlyphById(rom, 0);
+                Assert.Null(img);
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
         public void RenderGlyphById_NullRom_ReturnsNull()
         {
             using var svc = new ImageServiceScope();

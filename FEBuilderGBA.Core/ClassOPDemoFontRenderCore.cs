@@ -34,7 +34,9 @@ namespace FEBuilderGBA
         {
             if (rom?.RomInfo == null || CoreState.ImageService == null) return null;
             uint tablePtr = rom.RomInfo.op_class_font_pointer;
-            if (!U.isSafetyOffset(tablePtr, rom)) return null;
+            // isSafetyOffset only checks tablePtr < Data.Length, not that the 4-byte
+            // p32 read is in-bounds; guard tablePtr+4 so rom.p32 can't throw. #1059 review.
+            if (!U.isSafetyOffset(tablePtr, rom) || tablePtr + 4 > (uint)rom.Data.Length) return null;
             uint tableBase = rom.p32(tablePtr);
             if (!U.isSafetyOffset(tableBase, rom)) return null;
 
@@ -71,10 +73,16 @@ namespace FEBuilderGBA
             if (!U.isSafetyOffset(imageOff, rom)) return null;
             byte[] tileData = LZ77.decompress(rom.Data, imageOff);
             if (tileData == null || tileData.Length == 0) return null;
-            uint palette = rom.p32(rom.RomInfo.op_class_font_palette_pointer);
+            // Guard the palette POINTER slot: a 0 slot (non-FE8 ROMs) or a near-EOF
+            // address would otherwise read garbage / throw in p32. Then validate the
+            // RESOLVED palette offset before rendering. #1059 review.
+            uint palPtr = rom.RomInfo.op_class_font_palette_pointer;
+            if (!U.isSafetyOffset(palPtr, rom) || palPtr + 4 > (uint)rom.Data.Length) return null;
+            uint palOff = U.toOffset(rom.p32(palPtr));
+            if (!U.isSafetyOffset(palOff, rom)) return null;
             // 4x4 tiles = 32x32, single 16-color palette read straight from rom.Data
             // (mirrors WF DrawFont's ByteToImage16Tile(32,32, imageUZ,0, rom.Data, palOff)).
-            return ImageUtilCore.ByteToImage16Tile(tileData, 0, rom.Data, (int)U.toOffset(palette), 32, 32);
+            return ImageUtilCore.ByteToImage16Tile(tileData, 0, rom.Data, (int)palOff, 32, 32);
         }
     }
 }
