@@ -769,14 +769,14 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1014: the wave/instrument Export/Import buttons (N00 trio, N08 trio,
-    /// and the instrument-set InstExport/InstImport) stay disabled (deferred to
-    /// #1057). Each must remain IsEnabled="False", carry NO Click handler, and
-    /// drop the stale "Pending Core extraction" wording.
+    /// #1057 (N00 slice): the wave/instrument Export/Import buttons for the
+    /// OTHER wave categories (N08 trio, N10, N18, and the instrument-set
+    /// InstExport/InstImport) stay disabled — only N00 (DirectSound) is wired in
+    /// this slice (tightening #4). Each remaining button must keep
+    /// IsEnabled="False" and carry NO Click handler. (The N00 Export/Import
+    /// buttons are now ENABLED — see <see cref="View_N00_WaveButtons_Enabled_WithClick"/>.)
     /// </summary>
     [Theory]
-    [InlineData("SongInstrument_N00_Export_Button")]
-    [InlineData("SongInstrument_N00_Import_Button")]
     [InlineData("SongInstrument_N08_Export_Button")]
     [InlineData("SongInstrument_N08_Import_Button")]
     [InlineData("SongInstrument_N10_Export_Button")]
@@ -797,6 +797,29 @@ public class SongInstrumentParityTests
 
         Assert.Contains("IsEnabled=\"False\"", element);
         Assert.DoesNotContain("Click=", element);
+    }
+
+    /// <summary>
+    /// #1057 (N00 slice): the N00 DirectSound Export/Import buttons are now
+    /// ENABLED and carry their Click handlers (the wave I/O Core port —
+    /// SongDirectSoundWavCore — landed). They must NOT carry IsEnabled="False"
+    /// and MUST wire the export/import click handlers.
+    /// </summary>
+    [Theory]
+    [InlineData("SongInstrument_N00_Export_Button", "N00_Export_Click")]
+    [InlineData("SongInstrument_N00_Import_Button", "N00_Import_Click")]
+    public void View_N00_WaveButtons_Enabled_WithClick(string automationId, string clickHandler)
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+
+        Assert.DoesNotContain("IsEnabled=\"False\"", element);
+        Assert.Contains($"Click=\"{clickHandler}\"", element);
     }
 
     /// <summary>

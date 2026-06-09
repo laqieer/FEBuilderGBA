@@ -7,10 +7,13 @@
 // both the manifest and the click-handler wiring — see
 // `SongInstrumentViewModel.NavigationTargets.cs`.
 using System;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -477,6 +480,99 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.Error("SongInstrumentView.Write_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // N00 DirectSound wave Export/Import (#1057). Only the DirectSound
+        // (N00) category is wired in this slice — N03 (Wave Memory) and the
+        // other wave-pointer tabs (N08/N10/N18) stay disabled. The Core port
+        // (SongDirectSoundWavCore) owns the GBA-sample <-> WAV conversion and
+        // the RAW append + P4 repoint with a byte-identical fault restore.
+        // -----------------------------------------------------------------
+
+        async void N00_Export_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            if (!_vm.IsDirectSound)
+            {
+                CoreState.Services.ShowError(
+                    R._("This instrument is not a DirectSound voice; there is no wave sample to export."));
+                return;
+            }
+
+            try
+            {
+                byte[] wav = SongDirectSoundWavCore.ExportWave(CoreState.ROM, _vm.WavePtr);
+                if (wav == null)
+                {
+                    CoreState.Services.ShowError(
+                        R._("Could not decode the DirectSound sample. The wave pointer may be invalid."));
+                    return;
+                }
+
+                string suggested = $"wave_0x{_vm.CurrentAddr:X06}.wav";
+                string? path = await FileDialogHelper.SaveFile(
+                    this, R._("Export Wave"), R._("Wave Files"), "*.wav", suggested);
+                if (string.IsNullOrEmpty(path)) return;
+
+                File.WriteAllBytes(path, wav);
+                CoreState.Services.ShowInfo(R._("Wave exported to {0}", path));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongInstrumentView.N00_Export_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Wave export failed: {0}", ex.Message));
+            }
+        }
+
+        async void N00_Import_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            if (!_vm.IsDirectSound)
+            {
+                CoreState.Services.ShowError(
+                    R._("This instrument is not a DirectSound voice; a wave sample cannot be imported here."));
+                return;
+            }
+
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(this, R._("Import Wave"), "*.wav");
+                if (string.IsNullOrEmpty(path)) return;
+
+                byte[] bytes = File.ReadAllBytes(path);
+
+                _undoService.Begin("Import DirectSound Wave");
+                try
+                {
+                    // P4 wave-pointer slot = voice entry +4 (passed as OFFSET;
+                    // ImportWave converts it to a GBA pointer via write_p32).
+                    uint newPtr = SongDirectSoundWavCore.ImportWave(
+                        CoreState.ROM, _vm.CurrentAddr + 4, bytes, out string err);
+                    if (newPtr == U.NOT_FOUND)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError(err ?? R._("Wave import failed."));
+                        return;
+                    }
+
+                    _vm.WavePtr = newPtr;
+                    SetNumericByName("N00_P4_Box", _vm.WavePtr);
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    CoreState.Services.ShowInfo(R._("Wave imported. The sample pointer is now 0x{0:X08}.", newPtr));
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("SongInstrumentView.N00_Import_Click failed: {0}", ex.Message);
+                    CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongInstrumentView.N00_Import_Click outer failed: {0}", ex.Message);
             }
         }
 

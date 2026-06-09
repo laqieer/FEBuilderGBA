@@ -10406,3 +10406,27 @@ TSAタイプ:
 
 :New count ({0}) must be greater than or equal to current count ({1}).
 新しい数({0})は現在の数({1})以上である必要があります。
+
+:Export this DirectSound instrument's GBA sample to a WAV file.
+この DirectSound 楽器の GBA サンプルを WAV ファイルに書き出します。
+
+:Import a WAV file as this DirectSound instrument's GBA sample (appends to free space and repoints).
+WAV ファイルをこの DirectSound 楽器の GBA サンプルとして読み込みます（空き領域に追記してポインタを張り替えます）。
+
+:Export Wave
+波形の書き出し
+
+:Wave Files
+Wave ファイル
+
+:This instrument is not a DirectSound voice; there is no wave sample to export.
+この楽器は DirectSound ボイスではありません。書き出す波形サンプルがありません。
+
+:Could not decode the DirectSound sample. The wave pointer may be invalid.
+DirectSound サンプルをデコードできませんでした。波形ポインタが無効である可能性があります。
+
+:This instrument is not a DirectSound voice; a wave sample cannot be imported here.
+この楽器は DirectSound ボイスではありません。ここに波形サンプルを読み込むことはできません。
+
+:Wave import failed.
+波形の読み込みに失敗しました。
