@@ -335,5 +335,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public List<AddrResult> LoadList() => LoadMapSettingList();
         public uint TilesetPLIST => ObjectTypePLIST;
         public uint MapPLIST => MapPointerPLIST;
+
+        /// <summary>
+        /// Current map id (list index) derived from <see cref="CurrentAddr"/>,
+        /// or <see cref="U.NOT_FOUND"/> when the address does not resolve to an
+        /// enumerated map-setting entry. Read on demand by the jump handlers, so
+        /// it does not raise PropertyChanged.
+        /// </summary>
+        public uint CurrentMapId => MapSettingCore.GetMapIdFromAddr(CoreState.ROM, CurrentAddr);
     }
 }

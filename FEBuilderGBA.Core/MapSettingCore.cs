@@ -66,6 +66,54 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Map a map-setting DATA address back to its map id (list index).
+        /// Inverse of <see cref="MakeMapIDList(ROM)"/>'s
+        /// <c>baseAddr + i*dataSize</c>. PURE / read-only.
+        ///
+        /// Returns <see cref="U.NOT_FOUND"/> when the rom/RomInfo is null, the
+        /// map-setting pointer slot or datasize is unusable, the table base is
+        /// unsafe, <paramref name="addr"/> is below the table base, not aligned
+        /// to a row boundary, has a row that runs past EOF, or is an aligned
+        /// address that does NOT correspond to an enumerated map entry (i.e. it
+        /// fails the same terminator/validity heuristic the list builder uses —
+        /// this rejects a plausible-but-bogus id for an aligned address past the
+        /// table terminator). Pointer-form input (0x080xxxxx) is normalized to a
+        /// ROM offset before the lookup.
+        /// </summary>
+        public static uint GetMapIdFromAddr(ROM rom, uint addr)
+        {
+            if (rom == null || rom.RomInfo == null) return U.NOT_FOUND;
+            if (addr == U.NOT_FOUND) return U.NOT_FOUND;
+
+            // Accept a GBA pointer (0x080xxxxx) as well as a raw ROM offset.
+            if (U.isPointer(addr)) addr = U.toOffset(addr);
+
+            uint basePointer = rom.RomInfo.map_setting_pointer;
+            uint dataSize = rom.RomInfo.map_setting_datasize;
+            if (basePointer == 0 || dataSize == 0) return U.NOT_FOUND;
+
+            // Guard the pointer SLOT before dereferencing it via p32.
+            if (!U.isSafetyOffset(basePointer, rom)) return U.NOT_FOUND;
+
+            uint baseAddr = rom.p32(basePointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;
+
+            if (addr < baseAddr) return U.NOT_FOUND;
+            uint delta = addr - baseAddr;
+            if (delta % dataSize != 0) return U.NOT_FOUND;
+
+            // Overflow-safe full-row EOF bound — the entire record must be in ROM.
+            if ((ulong)addr + dataSize > (ulong)rom.Data.Length) return U.NOT_FOUND;
+
+            // Validity gate: an aligned address PAST the table terminator (or on
+            // trailing garbage) must NOT produce a plausible map id. Reject any
+            // address that fails the same heuristic MakeMapIDList stops on.
+            if (!IsMapSettingValid(rom, addr)) return U.NOT_FOUND;
+
+            return delta / dataSize;
+        }
+
+        /// <summary>
         /// Get the number of valid maps in <c>CoreState.ROM</c>.
         /// </summary>
         public static int GetMapCount()

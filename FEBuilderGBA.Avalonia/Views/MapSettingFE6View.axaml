@@ -10,7 +10,7 @@
       <TextBlock DockPanel.Dock="Top" Text="先頭アドレス" Margin="2,0,2,2" FontWeight="Bold" />
       <TextBlock DockPanel.Dock="Top" Text="読込数" Margin="2,0,2,2" Foreground="Gray" FontSize="11" />
       <Button AutomationProperties.AutomationId="MapSettingFE6_ExpandList_Button" DockPanel.Dock="Top" Name="ExpandListPlaceholder" Content="リストの拡張" IsEnabled="False" Margin="2" />
-      <Button AutomationProperties.AutomationId="MapSettingFE6_Refetch_Button" DockPanel.Dock="Top" Name="RefetchPlaceholder" Content="再取得" IsEnabled="False" Margin="2" />
+      <Button AutomationProperties.AutomationId="MapSettingFE6_Refetch_Button" DockPanel.Dock="Top" Name="RefetchButton" Content="再取得" Margin="2" />
       <controls:AddressListControl AutomationProperties.AutomationId="MapSettingFE6_Entry_List" Name="EntryList" />
     </DockPanel>
 
@@ -262,10 +262,12 @@
               <TextBlock Grid.Row="3" Grid.Column="3" Text="ワールドマップポイントY" VerticalAlignment="Center" />
               <NumericUpDown AutomationProperties.AutomationId="MapSettingFE6_B66_Input" FormatString="0" Grid.Row="3" Grid.Column="4" Name="NB66" Minimum="0" Maximum="255" />
 
-              <!-- KnownGap placeholders for WF jump-to-editor links. Surface
-                   as non-functional Buttons so labels-sweep sees them. -->
-              <Button AutomationProperties.AutomationId="MapSettingFE6_JumpMapEditor_Button" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Name="JumpMapEditorPlaceholder" Content="マップエディタへJump" IsEnabled="False" Margin="0,4,0,0" />
-              <Button AutomationProperties.AutomationId="MapSettingFE6_JumpExitPoint_Button" Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2" Name="JumpExitPointPlaceholder" Content="離脱ポイントへJump" IsEnabled="False" Margin="0,4,0,0" />
+              <!-- WF jump-to-editor links (#1003). MapEditorView keys its list by
+                   the same MakeMapIDList addresses, so the editor jump passes
+                   CurrentAddr; the exit-point jump resolves the map id to its
+                   pointer-table slot via MapExitPointCore. -->
+              <Button AutomationProperties.AutomationId="MapSettingFE6_JumpMapEditor_Button" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Name="JumpMapEditorButton" Content="マップエディタへJump" Margin="0,4,0,0" />
+              <Button AutomationProperties.AutomationId="MapSettingFE6_JumpExitPoint_Button" Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="2" Name="JumpExitPointButton" Content="離脱ポイントへJump" Margin="0,4,0,0" />
             </Grid>
           </StackPanel>
         </Border>

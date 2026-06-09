@@ -402,6 +402,50 @@ public class MapExitPointCoreTests
         Assert.Equal(0u, count);
     }
 
+    // -----------------------------------------------------------------
+    // GetMapEntrySlotAddr — map id -> filter-0 pointer-table slot (#1003)
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void GetMapEntrySlotAddr_NullRom_ReturnsNotFound()
+    {
+        Assert.Equal(U.NOT_FOUND, MapExitPointCore.GetMapEntrySlotAddr(null!, 0));
+    }
+
+    [Fact]
+    public void GetMapEntrySlotAddr_ValidMapId_ReturnsBasePlusMapIdTimesFour()
+    {
+        // tableAddr is the filter-0 base; map 0 -> base, map 2 -> base + 2*4.
+        ROM rom = MakeFe8uWithExitTable(enemyCount: 4, npcCount: 2);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint baseAddr = MapExitPointCore.ResolveBaseAddress(rom, filterIndex: 0);
+            Assert.Equal(baseAddr, MapExitPointCore.GetMapEntrySlotAddr(rom, 0));
+            Assert.Equal(baseAddr + 2u * 4u, MapExitPointCore.GetMapEntrySlotAddr(rom, 2));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void GetMapEntrySlotAddr_MapIdBeyondPopulatedRange_ReturnsNotFound()
+    {
+        // The synthetic ROM plants 4 enemy entries then a zero (NULL) slot.
+        // A map id well beyond the populated/cap range has no entry in
+        // ListMapEntries(rom, 0), so the slot lookup must report NOT_FOUND.
+        ROM rom = MakeFe8uWithExitTable(enemyCount: 4, npcCount: 2);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            uint npcBlockAdd = rom.RomInfo.map_exit_point_npc_blockadd; // FE8U = 65 (the cap)
+            Assert.Equal(U.NOT_FOUND, MapExitPointCore.GetMapEntrySlotAddr(rom, npcBlockAdd));
+            Assert.Equal(U.NOT_FOUND, MapExitPointCore.GetMapEntrySlotAddr(rom, 0xFFFFu));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
     [Fact]
     public void NewAlloc_RolledBackByUndoScope_RestoresOriginalPointer()
     {
