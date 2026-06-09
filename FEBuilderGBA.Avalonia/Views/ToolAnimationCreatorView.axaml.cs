@@ -10,9 +10,11 @@
 // Create_Click branches on context (ROM vs file). BrowseImage_Click is wired
 // through the StorageProvider file picker.
 using System;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA; // Core: ImageUtilMapActionAnimationCore, CoreState, IImage
 using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -23,6 +25,11 @@ namespace FEBuilderGBA.Avalonia.Views
     {
         readonly ToolAnimationCreatorViewViewModel _vm = new();
         readonly UndoService _undoService = new();
+
+        // The frame whose PropertyChanged we are currently subscribed to so the
+        // live preview re-renders when its Image/Palette pointer changes. We must
+        // unsubscribe before re-subscribing (and on close) to avoid leaks.
+        EditableMapActionFrame? _previewTrackedFrame;
 
         public string ViewTitle => "Animation Creator";
         public bool IsLoaded => _vm.IsLoaded;
@@ -71,7 +78,70 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             // Mirror the list selection into _vm.SelectedFrame so the right-
             // pane edit controls follow the active row.
-            _vm.SelectedFrame = FramesList.SelectedItem as EditableMapActionFrame;
+            var frame = FramesList.SelectedItem as EditableMapActionFrame;
+            _vm.SelectedFrame = frame;
+
+            // Track the newly-selected frame so the live preview re-renders when
+            // its Image/Palette pointer changes. Unsubscribe from the previously
+            // tracked frame first to avoid handler leaks.
+            if (!ReferenceEquals(_previewTrackedFrame, frame))
+            {
+                if (_previewTrackedFrame != null)
+                    _previewTrackedFrame.PropertyChanged -= OnTrackedFramePropertyChanged;
+                _previewTrackedFrame = frame;
+                if (_previewTrackedFrame != null)
+                    _previewTrackedFrame.PropertyChanged += OnTrackedFramePropertyChanged;
+            }
+
+            RenderPreview();
+        }
+
+        void OnTrackedFramePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // Re-render whenever the image or palette pointer changes (null name =
+            // bulk reset → re-render to be safe).
+            if (e.PropertyName == null
+                || e.PropertyName == nameof(EditableMapActionFrame.ImagePointer)
+                || e.PropertyName == nameof(EditableMapActionFrame.PalettePointer))
+            {
+                RenderPreview();
+            }
+        }
+
+        /// <summary>
+        /// Read-only live preview of the selected Map-Action frame. Decodes the
+        /// frame's OBJ + palette through the Core RenderFrameImage seam and pushes
+        /// the result into the GbaImageControl. No ROM mutation, no undo.
+        /// </summary>
+        void RenderPreview()
+        {
+            if (MapActionPreview == null) return;
+
+            var f = _vm.SelectedFrame;
+            if (f == null || CoreState.ROM == null)
+            {
+                MapActionPreview.SetImage(null);
+                return;
+            }
+
+            // GbaImageControl.SetImage synchronously copies the pixels into a
+            // WriteableBitmap and does NOT take ownership of the source IImage, so
+            // dispose the freshly-decoded image here — otherwise frequent
+            // re-renders (selection / pointer-edit changes) leak native Skia
+            // memory. Copilot review on PR #1077.
+            using IImage? img = ImageUtilMapActionAnimationCore.RenderFrameImage(
+                CoreState.ROM, f.ImagePointer, f.PalettePointer);
+            MapActionPreview.SetImage(img);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            if (_previewTrackedFrame != null)
+            {
+                _previewTrackedFrame.PropertyChanged -= OnTrackedFramePropertyChanged;
+                _previewTrackedFrame = null;
+            }
+            base.OnClosed(e);
         }
 
         async void BrowseImage_Click(object? sender, RoutedEventArgs e)
