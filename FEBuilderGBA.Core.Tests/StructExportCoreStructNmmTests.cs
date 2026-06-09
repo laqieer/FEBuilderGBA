@@ -43,13 +43,17 @@ namespace FEBuilderGBA.Core.Tests
 
         /// <summary>
         /// Build a synthetic FE8U ROM, install it into CoreState, run the action,
-        /// then restore prior CoreState. Skips (no-op) if config metadata is not
-        /// reachable (so LoadStructDef would return null).
+        /// then restore prior CoreState. FAILS LOUDLY if config/data (the source of
+        /// the struct metadata) is not reachable — a silent no-op here would let the
+        /// whole assertion body be skipped and report a false-positive pass. The
+        /// repo-root config/data is present in CI and every dev checkout.
         /// </summary>
         static void WithSyntheticFE8U(Action<ROM> action)
         {
             EnsureBaseDirectory();
-            if (CoreState.BaseDirectory == null) return; // can't load struct metadata
+            Assert.True(CoreState.BaseDirectory != null,
+                "config/data BaseDirectory must resolve so LoadStructDef can read the struct metadata "
+                + "(repo-root config/data is present in CI and dev checkouts); refusing to no-op this test.");
 
             var savedRom = CoreState.ROM;
             try
@@ -64,6 +68,14 @@ namespace FEBuilderGBA.Core.Tests
             {
                 CoreState.ROM = savedRom;
             }
+        }
+
+        /// <summary>Assert the file does NOT begin with a UTF-8 BOM (EF BB BF).</summary>
+        static void AssertNoUtf8Bom(string path)
+        {
+            byte[] bytes = File.ReadAllBytes(path);
+            bool hasBom = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF;
+            Assert.False(hasBom, "exported file must not start with a UTF-8 BOM");
         }
 
         // ===================================================================
@@ -217,6 +229,8 @@ namespace FEBuilderGBA.Core.Tests
                     StructExportCore.ExportToSTRUCT(sd, path);
                     Assert.Equal(StructExportCore.FormatSTRUCT(sd),
                         File.ReadAllText(path, System.Text.Encoding.UTF8));
+                    // No UTF-8 BOM (external .h consumers + WF no-BOM parity).
+                    AssertNoUtf8Bom(path);
                 }
                 finally
                 {
@@ -240,6 +254,8 @@ namespace FEBuilderGBA.Core.Tests
                     StructExportCore.ExportToNMM(rom, table, sd, path);
                     Assert.Equal(StructExportCore.FormatNMM(rom, table, sd),
                         File.ReadAllText(path, System.Text.Encoding.UTF8));
+                    // No UTF-8 BOM — the strict ".nmm" magic "1" must be byte 0.
+                    AssertNoUtf8Bom(path);
                 }
                 finally
                 {

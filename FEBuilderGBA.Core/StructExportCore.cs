@@ -1388,22 +1388,29 @@ namespace FEBuilderGBA
             File.WriteAllText(outputPath, FormatEA(entries, structDef), Encoding.UTF8);
         }
 
+        /// <summary>UTF-8 WITHOUT a BOM. The .h/.nmm files are consumed by
+        /// external tools (a C compiler / No$gba), and a leading BOM corrupts
+        /// the strict ".nmm" magic line ("1") and pollutes the .h; this also
+        /// matches the WinForms U.WriteAllText default (UTF-8 no-BOM).</summary>
+        static readonly UTF8Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
         /// <summary>
         /// Export the struct layout to a C-header (".h") file. Output is
-        /// byte-identical to <see cref="FormatSTRUCT"/>.
+        /// byte-identical to <see cref="FormatSTRUCT"/> (UTF-8, no BOM).
         /// </summary>
         public static void ExportToSTRUCT(StructMetadata.StructDef structDef, string outputPath)
         {
-            File.WriteAllText(outputPath, FormatSTRUCT(structDef), Encoding.UTF8);
+            File.WriteAllText(outputPath, FormatSTRUCT(structDef), Utf8NoBom);
         }
 
         /// <summary>
         /// Export the struct layout to a No$gba memory map (".nmm") file. Output
-        /// is byte-identical to <see cref="FormatNMM"/>.
+        /// is byte-identical to <see cref="FormatNMM"/> (UTF-8, no BOM — the
+        /// strict ".nmm" magic line must be the very first byte).
         /// </summary>
         public static void ExportToNMM(ROM rom, TableDef table, StructMetadata.StructDef structDef, string outputPath)
         {
-            File.WriteAllText(outputPath, FormatNMM(rom, table, structDef), Encoding.UTF8);
+            File.WriteAllText(outputPath, FormatNMM(rom, table, structDef), Utf8NoBom);
         }
 
         /// <summary>RFC 4180 CSV quoting: double-quote fields containing commas, quotes, or newlines.</summary>

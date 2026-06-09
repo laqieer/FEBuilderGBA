@@ -120,11 +120,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// Build the export preview text for a given format button.
         /// For CSV/TSV/EA/STRUCT/NMM, if the loaded address falls inside a known
-        /// ROM struct table, returns the raw struct-aware formatter output —
-        /// byte-identical to the CLI <c>--export-data</c> writers. CSV/TSV/EA emit
-        /// the table data; STRUCT emits the C-header layout and NMM the No$gba
-        /// memory map. Otherwise (no table matched / no ROM loaded) falls back to
-        /// the honest hex dump from <see cref="MakeStubExportText"/>.
+        /// ROM struct table, returns the raw struct-aware formatter output from
+        /// <see cref="StructExportCore"/> (matching its <c>ExportTo*</c> writers):
+        /// CSV/TSV/EA emit the table data, STRUCT the C-header layout, NMM the
+        /// No$gba memory map. (The CLI <c>--export-data</c> command exposes only
+        /// CSV/TSV/EA today — STRUCT/NMM are produced by these Core formatters but
+        /// are not yet CLI-exposed.) Otherwise (no table matched / no ROM loaded)
+        /// falls back to the honest hex dump from <see cref="MakeStubExportText"/>.
         /// </summary>
         public string MakeExportText(string format)
         {
