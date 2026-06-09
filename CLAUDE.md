@@ -389,8 +389,10 @@ Specialized utilities for different graphic types:
   into bank 0, banks 1–15 preserved; multi-bank quantizer is a documented follow-up). Bulk Redo deferred. #989.
 - `SkillSystemsAnimeExportCore.cs` (Core, READ-ONLY) — SkillSystems skill-anime EXPORT: `SkipCode`
   (FE8J direct; FE8U skips the `.dmp` program + flags defender), `ExportSkillAnimation` (walks frames
-  to the `0xFFFF` terminator, LZ77-decompresses OBJ+TSA), `BuildScriptLines`. Avalonia
-  `SkillConfigAnimeExportHelper` → `.txt`+PNG or GIF (FE8N Ver1 stub). #910/#912.
+  to the `0xFFFF` terminator, LZ77-decompresses OBJ+TSA), `BuildScriptLines`, `GetFrameImage`
+  (bounds-checked frame accessor, #1010). Avalonia `SkillConfigAnimeExportHelper` → `.txt`+PNG or GIF
+  (FE8N Ver1 stub); `SkillConfigAnimePreview` renders the per-frame preview on the 4 SkillConfig editors
+  (pointer-cached decode + IImage disposal, #1010). #910/#912.
 - `SkillSystemsAnimeImportCore.cs` (Core, ROM-MUTATING) — SkillSystems skill-anime IMPORT, FE8J #916
   + FE8U #917. `ParseScript` reads the `D`/`S{hex}`/`{wait} {png}` lines; `ImportSkillAnimation`
   validates EVERYTHING before mutating; palette kept **RAW 0x20

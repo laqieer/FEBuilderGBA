@@ -22,11 +22,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// LoadEntry populates both the u16 textId and the u32 animation pointer
     /// (read via <c>p32</c>, so the editor value is a ROM OFFSET not a raw
     /// GBA pointer). Write persists BOTH fields under a single undo scope
-    /// owned by the View code-behind (matches PR #516 pattern). Real image
-    /// import/export and animation creator/editor depend on Core extraction
-    /// of <c>ImageUtilSkillSystemsAnimeCreator</c> tracked by #500; the
-    /// corresponding buttons render with a tooltip but no-op until that
-    /// lands.
+    /// owned by the View code-behind (matches PR #516 pattern). The per-frame
+    /// animation preview is rendered by the View via the cross-platform
+    /// READ-ONLY <see cref="FEBuilderGBA.SkillSystemsAnimeExportCore"/> decode
+    /// (issue 1010).
     ///
     /// Declared <c>partial</c> so the Phase 4 navigation manifest can live in
     /// a sibling <c>.NavigationTargets.cs</c> file.
@@ -304,11 +303,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Runtime UI string runs through R._ so the ja/zh translation
             // entries pick it up - ViewTranslationHelper only translates
             // AXAML literals, not VM-set TextBox values (Copilot bot review
-            // on PR #516 round 4).
+            // on PR #516 round 4). The per-frame preview is rendered by the
+            // View via SkillConfigAnimePreview / SkillSystemsAnimeExportCore
+            // (#1010), so the BinInfoText is now just the factual address.
             BinInfoText = IsAnimationValid
-                ? string.Format(R._("Animation @ 0x{0:X08} ({1})"),
-                    animPtr,
-                    R._("preview unavailable - tracked by #500"))
+                ? string.Format(R._("Animation @ 0x{0:X08}"), animPtr)
                 : "";
 
             IsLoaded = true;

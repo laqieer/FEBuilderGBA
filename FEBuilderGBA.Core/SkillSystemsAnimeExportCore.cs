@@ -233,6 +233,18 @@ namespace FEBuilderGBA
                     if (img == null)
                     {
                         result.Error = err;
+                        // Dispose every unique IImage rendered so far. On error the
+                        // Frames list is cleared and the caller never receives (and so
+                        // can't dispose) these native bitmaps — interactive callers
+                        // (the SkillConfig preview) re-decode malformed animations
+                        // repeatedly, so a leak here accumulates. `cache` holds exactly
+                        // the unique rendered images; `result.Frames` only references
+                        // them. (Successful results transfer ownership to the caller.)
+                        foreach (var rendered in cache.Values)
+                        {
+                            try { rendered?.Dispose(); } catch { /* best-effort cleanup */ }
+                        }
+                        cache.Clear();
                         result.Frames.Clear();
                         return result;
                     }
@@ -243,6 +255,17 @@ namespace FEBuilderGBA
             }
 
             return result;
+        }
+
+        /// <summary>Bounds-checked frame image accessor. Returns the EXACT stored
+        /// IImage reference for the given frame, or null if the result is null/errored
+        /// or the index is out of range. Does NOT clone or dispose.</summary>
+        public static IImage GetFrameImage(SkillAnimeExportResult result, int index)
+        {
+            if (result == null || result.Frames == null) return null;
+            if (!string.IsNullOrEmpty(result.Error)) return null;
+            if (index < 0 || index >= result.Frames.Count) return null;
+            return result.Frames[index].Image;
         }
 
         /// <summary>

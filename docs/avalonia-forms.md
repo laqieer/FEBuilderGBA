@@ -464,14 +464,14 @@ Editors for various skill system implementations.
 |---|------|-----------|-------------|
 | 266 | SkillAssignmentUnitSkillSystemView | SkillAssignmentUnitSkillSystemViewModel | Unit skill assignment (SkillSystem) |
 | 267 | SkillAssignmentClassSkillSystemView | SkillAssignmentClassSkillSystemViewModel | Class skill assignment (SkillSystem) |
-| 268 | SkillConfigSkillSystemView | SkillConfigSkillSystemViewModel | Skill config (SkillSystem) |
+| 268 | SkillConfigSkillSystemView | SkillConfigSkillSystemViewModel | Skill config (SkillSystem) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
 | 269 | SkillAssignmentUnitCSkillSysView | SkillAssignmentUnitCSkillSysViewModel | Unit skill assignment (CSkillSys) |
 | 270 | SkillAssignmentClassCSkillSysView | SkillAssignmentClassCSkillSysViewModel | Class skill assignment (CSkillSys) |
 | 271 | SkillAssignmentUnitFE8NView | SkillAssignmentUnitFE8NViewModel | Unit skill assignment (FE8N) |
 | 272 | SkillConfigFE8NSkillView | SkillConfigFE8NSkillViewModel | Skill config (FE8N) |
-| 273 | SkillConfigFE8NVer2SkillView | SkillConfigFE8NVer2SkillViewModel | Skill config (FE8N v2) |
-| 274 | SkillConfigFE8NVer3SkillView | SkillConfigFE8NVer3SkillViewModel | Skill config (FE8N v3) |
-| 275 | SkillConfigFE8UCSkillSys09xView | SkillConfigFE8UCSkillSys09xViewModel | Skill config (FE8U CSkillSys 0.9.x) |
+| 273 | SkillConfigFE8NVer2SkillView | SkillConfigFE8NVer2SkillViewModel | Skill config (FE8N v2) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
+| 274 | SkillConfigFE8NVer3SkillView | SkillConfigFE8NVer3SkillViewModel | Skill config (FE8N v3) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
+| 275 | SkillConfigFE8UCSkillSys09xView | SkillConfigFE8UCSkillSys09xViewModel | Skill config (FE8U CSkillSys 0.9.x) — renders the per-frame animation preview via Core `SkillSystemsAnimeExportCore` (#1010) |
 | 276 | SkillSystemsEffectivenessReworkClassTypeView | SkillSystemsEffectivenessReworkClassTypeViewModel | Effectiveness rework class type |
 | 277 | SkillSystemsCSkillRechainView | SkillSystemsCSkillRechainViewModel | CSkill rechain editor |
 
