@@ -24262,3 +24262,6 @@ TSA类型:
 
 :Wave import failed.
 波形导入失败。
+
+:Wave import failed: {0}
+波形导入失败: {0}

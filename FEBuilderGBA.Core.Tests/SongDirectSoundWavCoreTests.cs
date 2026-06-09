@@ -267,10 +267,16 @@ namespace FEBuilderGBA.Core.Tests
 
                 Assert.Null(err);
                 Assert.NotEqual(U.NOT_FOUND, newPtr);
-                // Return value is U.toPointer(appendOffset) == toPointer(lenBefore).
-                Assert.Equal(U.toPointer(lenBefore), newPtr);
+                // Return value is U.toPointer(appendOffset) where appendOffset is
+                // the WORD-ALIGNED ROM length (Padding4) — the P4 pointer must be
+                // 4-byte aligned. (ROM_LEN is already aligned, so Padding4 is a
+                // no-op here; the non-aligned case is covered by the dedicated
+                // alignment test below.)
+                Assert.Equal(U.toPointer(U.Padding4(lenBefore)), newPtr);
                 // P4 slot now stores that GBA pointer.
                 Assert.Equal(newPtr, rom.u32(VOICE_ENTRY + 4));
+                // The appended-sample OFFSET is 4-byte aligned.
+                Assert.Equal(0u, U.toOffset(newPtr) % 4);
 
                 // The appended sample decodes back via ByteToWav (the new sample
                 // is uncompressed — flag byte 0 from WavToByte's header).
@@ -281,6 +287,48 @@ namespace FEBuilderGBA.Core.Tests
                 // Old sample bytes unchanged.
                 byte[] oldSampleAfter = rom.getBinaryData(SAMPLE_OFFSET, 16 + oldPcm.Length + 1);
                 Assert.Equal(oldSampleRegion, oldSampleAfter);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // 4b. ImportWave 4-byte alignment (Copilot review): a NON-word-aligned
+        //     ROM length must still yield a 4-byte-aligned P4 GBA pointer. We
+        //     build a ROM whose Data.Length is lenBefore + 2 (not a multiple of
+        //     4) and assert the appended sample offset == Padding4(lenBefore),
+        //     the pointer is word-aligned, and the sample decodes back.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void ImportWave_NonAlignedRomLength_RepointsWordAligned()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                // ROM_LEN is 4-aligned; +2 makes the length deliberately NOT a
+                // multiple of 4. LoadLow assigns Data directly (no padding).
+                var rom = new ROM();
+                byte[] data = new byte[ROM_LEN + 2];
+                Array.Fill(data, (byte)0xFF);
+                for (uint i = 0; i < 0x1000; i++) data[i] = 0x00;
+                rom.LoadLow("synth.gba", data, "BE8E01");
+                CoreState.ROM = rom;
+
+                uint lenBefore = (uint)rom.Data.Length;
+                Assert.NotEqual(0u, lenBefore % 4); // sanity: genuinely misaligned
+
+                byte[] wav = MakeMinimalWav(bitsPerSample: 8, dataBytes: 100);
+                uint newPtr = SongDirectSoundWavCore.ImportWave(rom, VOICE_ENTRY + 4, wav, out string err);
+
+                Assert.Null(err);
+                Assert.NotEqual(U.NOT_FOUND, newPtr);
+                // Append offset is the WORD-ALIGNED old length, skipping the gap.
+                Assert.Equal(U.toPointer(U.Padding4(lenBefore)), newPtr);
+                Assert.Equal(newPtr, rom.u32(VOICE_ENTRY + 4));
+                // The repointed offset is 4-byte aligned.
+                uint newOff = U.toOffset(newPtr);
+                Assert.Equal(0u, newOff % 4);
+                // And the appended sample decodes back.
+                Assert.NotNull(SongDirectSoundWavCore.ByteToWav(rom.Data, newOff));
             }
             finally { CoreState.ROM = savedRom; }
         }

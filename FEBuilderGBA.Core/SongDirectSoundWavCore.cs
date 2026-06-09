@@ -362,9 +362,15 @@ namespace FEBuilderGBA.Core
             byte[] snapshot = (byte[])rom.Data.Clone();
             try
             {
-                uint appendOffset = (uint)rom.Data.Length;
-                // Append the RAW sample at ROM end.
-                if (!rom.write_resize_data((uint)(appendOffset + sample.Length)))
+                // Word-align the append offset so the repointed P4 GBA pointer
+                // lands on a 4-byte boundary even when the current ROM length is
+                // not word-aligned (mirrors ImageImportCore.AppendToRomEnd /
+                // U.Padding4). The single write_resize_data both pads the
+                // 0..3-byte gap between the old length and appendOffset AND
+                // reserves the sample — the padding bytes become part of the
+                // resized buffer (and are undone by the snapshot/undo on fault).
+                uint appendOffset = U.Padding4((uint)rom.Data.Length);
+                if (!rom.write_resize_data(appendOffset + (uint)sample.Length))
                 {
                     RestoreSnapshot(rom, snapshot);
                     error = R._("Failed to allocate ROM space for the wave sample.");

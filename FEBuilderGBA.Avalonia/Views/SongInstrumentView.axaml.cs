@@ -572,7 +572,12 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.N00_Import_Click outer failed: {0}", ex.Message);
+                // Pre-Begin scope: the file dialog / File.ReadAllBytes can throw
+                // (permissions, missing/locked file) BEFORE _undoService.Begin, so
+                // no undo scope is open here and no Rollback is needed. Surface a
+                // user-facing error instead of failing silently (Copilot review).
+                Log.Error("SongInstrumentView.N00_Import_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Wave import failed: {0}", ex.Message));
             }
         }
 
