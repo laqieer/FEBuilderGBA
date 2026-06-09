@@ -271,13 +271,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // In WinForms, `SongTrackAllChangeTrackForm.Init(P4, Tracks)`
                 // takes the instrument-set pointer and the full Tracks list.
-                // The Avalonia target view can't yet accept a Tracks list
-                // through Navigate, so we pass the instrument-set address
-                // (the closest single-uint context). When the target editor
-                // becomes fully functional this navigation may also need
-                // a `Tracks` payload — out of scope for #412. (Copilot bot
-                // review #4 / PR #558.)
-                WindowManager.Instance.Navigate<SongTrackAllChangeTrackView>(_vm.InstrumentAddr);
+                // Navigate carries a single uint, so #1015 passes the SONG
+                // HEADER address (CurrentAddr) instead of the instrument-set
+                // pointer: the Bulk Track Change editor re-derives the full
+                // track list — and the distinct 0xBD voices used across them —
+                // straight from the header (TrackCount @+0, InstrumentAddr
+                // @+4), so no separate Tracks payload is needed.
+                WindowManager.Instance.Navigate<SongTrackAllChangeTrackView>(_vm.CurrentAddr);
             }
             catch (Exception ex)
             {

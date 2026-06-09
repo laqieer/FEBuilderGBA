@@ -15,6 +15,40 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SongTrackAllChangeTrack_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <TextBlock Text="Reassign every instrument voice used across all tracks of this song. Set a new target voice for each row, then Apply."
+                   TextWrapping="Wrap" Opacity="0.8" />
+
+        <!-- Column captions for the voice-remap list. -->
+        <Grid ColumnDefinitions="80,120,*" Margin="0,4,0,0">
+          <TextBlock Grid.Column="0" Text="Voice" FontWeight="Bold" />
+          <TextBlock Grid.Column="1" Text="Target Voice" FontWeight="Bold" />
+          <TextBlock Grid.Column="2" Text="Instrument" FontWeight="Bold" />
+        </Grid>
+
+        <ListBox AutomationProperties.AutomationId="SongTrackAllChangeTrack_Voice_List"
+                 Name="VoiceList" ItemsSource="{Binding Rows}"
+                 MinHeight="240" MaxHeight="420">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="80,120,*">
+                <TextBlock Grid.Column="0" Text="{Binding From}" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Column="1" Minimum="0" Maximum="127" Increment="1"
+                               Value="{Binding To, Mode=TwoWay}"
+                               FormatString="0" Margin="0,1" />
+                <TextBlock Grid.Column="2" Text="{Binding InstrumentName}"
+                           VerticalAlignment="Center" TextWrapping="NoWrap" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <Button AutomationProperties.AutomationId="SongTrackAllChangeTrack_Apply_Button"
+                Name="ApplyButton" Content="Apply" Click="Apply_Click"
+                HorizontalAlignment="Left" MinWidth="120" Margin="0,4,0,0" />
+
+        <TextBlock Text="Note: Volume / Pan / Tempo bulk changes are not yet ported (voice reassignment only)."
+                   TextWrapping="Wrap" Opacity="0.6" FontStyle="Italic" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
