@@ -353,5 +353,45 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(string.IsNullOrEmpty(err));
             Assert.Equal(before, rom.Data);
         }
+
+        // ------------------------------------------------------------------
+        // Corrupt/truncated TRACK STREAM (a valid pointer table, but a track's
+        // code stream is truncated so ParseTrackOne could read past EOF, e.g.
+        // 0xB2/0xB3 loop p32(addr+1)). The seam wraps ParseTracks in try/catch
+        // and must never throw / never partially mutate (#1088 bot re-review).
+        // ------------------------------------------------------------------
+
+        /// <summary>One track whose pointer targets a 0xB2 (loop) code at the
+        /// very ROM end, so the 4-byte loop address read overruns the buffer.</summary>
+        static ROM BuildCorruptTrackStreamRom()
+        {
+            byte[] data = new byte[0x420];
+            data[SongAddr] = 1;                       // trackCount = 1
+            WriteGbaPtr(data, SongAddr + 8, 0x41C);   // track0 -> 0x41C
+            data[0x41C] = 0xB2;                       // loop; p32(0x41D) runs to 0x421 > 0x420
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            return rom;
+        }
+
+        [Fact]
+        public void GetDistinctVoices_CorruptTrackStream_ReturnsEmptyNoThrow()
+        {
+            var rom = BuildCorruptTrackStreamRom();
+            var list = SongVoiceChangeCore.GetDistinctVoices(rom, SongAddr);
+            Assert.Empty(list); // try/catch (or EOF-safe read) -> no crash
+        }
+
+        [Fact]
+        public void ApplyVoiceChanges_CorruptTrackStream_NoThrowNoMutation()
+        {
+            var rom = BuildCorruptTrackStreamRom();
+            byte[] before = (byte[])rom.Data.Clone();
+            string err = SongVoiceChangeCore.ApplyVoiceChanges(
+                rom, SongAddr, new Dictionary<int, int> { { 5, 9 } });
+            // Either an error (parse caught) or "" (no 0xBD voices found) — but
+            // NEVER a throw and NEVER a partial mutation.
+            Assert.Equal(before, rom.Data);
+        }
     }
 }

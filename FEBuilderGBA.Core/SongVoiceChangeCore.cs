@@ -71,7 +71,12 @@ namespace FEBuilderGBA
             // — guarding only songAddr+8 lets a later slot read past EOF (#1088).
             if ((ulong)songAddr + 8 + (ulong)trackCount * 4 > (ulong)rom.Data.Length) return list;
 
-            var tracks = SongMidiCore.ParseTracks(rom, songAddr, trackCount);
+            // ParseTrackOne can still read past a truncated/corrupt TRACK stream
+            // (e.g. 0xB2/0xB3 read p32(addr+1) without a per-code EOF check), so
+            // treat ANY parse failure as "no voices" to honor never-throws (#1088).
+            List<SongMidiCore.Track> tracks;
+            try { tracks = SongMidiCore.ParseTracks(rom, songAddr, trackCount); }
+            catch { return list; }
 
             var seen = new HashSet<int>();
             foreach (var t in tracks)
@@ -133,7 +138,12 @@ namespace FEBuilderGBA
             // return an error with ZERO mutation, never throw (#1088).
             if ((ulong)songAddr + 8 + (ulong)trackCount * 4 > (ulong)rom.Data.Length)
                 return R._("Song track table runs past ROM end.");
-            var tracks = SongMidiCore.ParseTracks(rom, songAddr, trackCount);
+            // ParseTrackOne can throw on a truncated/corrupt TRACK stream (e.g.
+            // 0xB2/0xB3 p32(addr+1)) — catch it and return an error BEFORE any
+            // write so the seam never throws and never partially mutates (#1088).
+            List<SongMidiCore.Track> tracks;
+            try { tracks = SongMidiCore.ParseTracks(rom, songAddr, trackCount); }
+            catch { return R._("Song track data is corrupt or truncated."); }
 
             // Collect target write sites + validate EVERYTHING before any write.
             var writes = new List<(uint addr, byte val)>();
