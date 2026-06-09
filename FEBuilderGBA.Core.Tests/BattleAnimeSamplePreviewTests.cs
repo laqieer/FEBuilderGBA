@@ -370,6 +370,116 @@ namespace FEBuilderGBA.Core.Tests
             AssertPixel(grid, 0, 0, 0, 248, 0, 255); // green = record's own palette
         }
 
+        // ================================================================
+        // #1022 — live-recolor: EXACT 32-byte in-memory palette-block override
+        // (the 4th param). When supplied AND exactly 32 bytes long it is used as
+        // the palette DIRECTLY (bypassing ROM resolution); null / non-32 falls
+        // back byte-identically to the saved (ResolveSamplePaletteBlock) path.
+        // ================================================================
+
+        // Build a 32-byte (16-color RGB555) block whose index-5 color is `gbaColor`.
+        // The section-0 synthetic sprite draws color index 5, so grid pixel (0,0)
+        // reflects index 5 of the rendered palette block.
+        static byte[] MakeEditedBlock(ushort idx5Color)
+        {
+            byte[] block = new byte[32];
+            U.write_u16(block, 5 * 2, idx5Color);
+            return block;
+        }
+
+        [Fact]
+        public void RenderSample_EditedBlockOverride_TwoDistinctBlocks_DifferInPixels()
+        {
+            // Two DISTINCT 32-byte override blocks (block A idx5 = magenta, block B
+            // idx5 = yellow) must produce DIFFERENT rendered pixels — the override
+            // recolors the preview live.
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            byte[] blockA = MakeEditedBlock(0x7C1F); // magenta (R31 B31)
+            byte[] blockB = MakeEditedBlock(0x03FF); // yellow  (R31 G31)
+
+            using IImage gridA = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, blockA);
+            using IImage gridB = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, blockB);
+            Assert.NotNull(gridA);
+            Assert.NotNull(gridB);
+            Assert.False(ByteArraysEqual(gridA.GetPixelData(), gridB.GetPixelData()),
+                "two distinct edited palette blocks must render different pixels");
+            // Deterministic: each block's idx5 color shows at grid (0,0).
+            AssertPixel(gridA, 0, 0, 248, 0, 248, 255); // magenta
+            AssertPixel(gridB, 0, 0, 248, 248, 0, 255); // yellow
+        }
+
+        [Fact]
+        public void RenderSample_EditedBlockOverride_TakesPriorityOverSavedPalette()
+        {
+            // Even with a valid record-own (green) palette, an EXACT 32-byte edited
+            // block (idx5 = magenta) wins — proves it bypasses ROM resolution.
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            using IImage grid = BattleAnimeRendererCore.RenderSampleBattleAnime(
+                RECORD_OFFSET, 0, 0, MakeEditedBlock(0x7C1F)); // magenta
+            Assert.NotNull(grid);
+            AssertPixel(grid, 0, 0, 248, 0, 248, 255); // magenta override, not green
+        }
+
+        [Fact]
+        public void RenderSample_EditedBlockNull_IsIdenticalToThreeArgPath()
+        {
+            // overridePaletteBlock == null must be byte-identical to the existing
+            // 3-arg saved-palette path (record's own palette, green).
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            using IImage threeArg = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0);
+            using IImage nullBlock = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            Assert.NotNull(threeArg);
+            Assert.NotNull(nullBlock);
+            Assert.True(ByteArraysEqual(threeArg.GetPixelData(), nullBlock.GetPixelData()),
+                "null edited block must match the 3-arg saved-palette path exactly");
+        }
+
+        [Fact]
+        public void RenderSample_EditedBlockUndersized_FallsBackToSavedPalette()
+        {
+            // A non-32-byte block (e.g. 16 bytes) is IGNORED — the saved palette
+            // (record's own green) is used, identical to the null path.
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            byte[] undersized = new byte[16];           // NOT 32 bytes
+            U.write_u16(undersized, 5 * 2, 0x7C1F);     // would be magenta if honored
+
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage withUnder = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, undersized);
+            Assert.NotNull(savedPath);
+            Assert.NotNull(withUnder);
+            Assert.True(ByteArraysEqual(savedPath.GetPixelData(), withUnder.GetPixelData()),
+                "an undersized (non-32-byte) block must fall back to the saved palette");
+            AssertPixel(withUnder, 0, 0, 0, 248, 0, 255); // green = saved palette, not magenta
+        }
+
+        [Fact]
+        public void RenderSample_EditedBlockOversized_FallsBackToSavedPalette()
+        {
+            // A block LONGER than 32 bytes (e.g. 64) is also IGNORED (the check is
+            // EXACT 32, not >= 32) — the saved palette is used.
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            byte[] oversized = new byte[64];            // NOT exactly 32 bytes
+            U.write_u16(oversized, 5 * 2, 0x7C1F);      // would be magenta if honored
+
+            using IImage savedPath = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, null);
+            using IImage withOver  = BattleAnimeRendererCore.RenderSampleBattleAnime(RECORD_OFFSET, 0, 0, oversized);
+            Assert.NotNull(savedPath);
+            Assert.NotNull(withOver);
+            Assert.True(ByteArraysEqual(savedPath.GetPixelData(), withOver.GetPixelData()),
+                "an oversized (non-exactly-32-byte) block must fall back to the saved palette");
+            AssertPixel(withOver, 0, 0, 0, 248, 0, 255); // green = saved palette
+        }
+
         [Fact]
         public void RenderSample_NullRom_ReturnsNull()
         {

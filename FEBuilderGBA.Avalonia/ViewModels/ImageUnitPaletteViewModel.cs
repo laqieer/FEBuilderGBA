@@ -257,14 +257,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///      <see cref="BattleAnimeRendererCore.GetUnitPaletteAddr"/> (the WF
         ///      <c>GetPaletteAddr(paletteno)</c> = <c>p32(IDToAddr(paletteno-1)+12)</c>);
         ///   4. render via the palette-override overload of
-        ///      <see cref="BattleAnimeRendererCore.RenderSampleBattleAnime(uint,int,uint)"/>,
+        ///      <see cref="BattleAnimeRendererCore.RenderSampleBattleAnime(uint,int,uint,byte[])"/>,
         ///      so the BASE is the unit palette, not the anime palette.
         ///
-        /// <para><b>Phase-1 parity (like #822):</b> uses the SAVED unit palette
-        /// (the on-ROM <c>p32(...)</c> block). The live <c>OnChangeColor</c>
-        /// post-render bitmap-palette mutation (WF
-        /// <c>ImageUnitPaletteForm.cs:321-333</c>) is deferred — acceptable
-        /// because the rendered base is already the unit palette.</para>
+        /// <para><b>Live-recolor (#1022):</b> when <paramref name="editedPaletteBlock"/>
+        /// is a valid EXACT 32-byte block (the view's in-memory R/G/B spinners), it
+        /// is forwarded to the renderer's 4th param and used DIRECTLY as the
+        /// palette — the cross-platform mirror of WF
+        /// <c>ImageUnitPaletteForm.OnChangeColor</c> (ImageUnitPaletteForm.cs:321-333),
+        /// which live-recolors the preview as the user edits colors. When
+        /// <paramref name="editedPaletteBlock"/> is null (the parameterless overload,
+        /// or the previewed sub-palette is NOT the editable block), the SAVED on-ROM
+        /// unit palette is rendered exactly as before.</para>
         ///
         /// <para>Null-safe: returns null on null ROM/ImageService, an
         /// unresolvable class / anime / palette slot, or a blank render — the
@@ -274,7 +278,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <param name="paletteno">1-based unit-palette slot (the WF
         /// <c>AddressList.SelectedIndex + 1</c> custompalette override).</param>
         /// <param name="paletteIndex">Sub-palette / SwapPalette index.</param>
-        public IImage RenderClassSamplePreview(int classID, int paletteno, int paletteIndex)
+        /// <param name="editedPaletteBlock">Optional EXACT 32-byte live-edited
+        /// palette block (#1022). Forwarded to the renderer's 4th param; null =
+        /// render the saved on-ROM palette.</param>
+        public IImage RenderClassSamplePreview(int classID, int paletteno, int paletteIndex,
+            byte[] editedPaletteBlock = null)
         {
             ROM rom = CoreState.ROM;
             if (rom == null || rom.RomInfo == null || CoreState.ImageService == null) return null;
@@ -301,7 +309,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (paletteOverride == U.NOT_FOUND) paletteOverride = 0;
 
             // 4. render with the UNIT palette override + the paletteIndex sub-palette.
-            return BattleAnimeRendererCore.RenderSampleBattleAnime(recordOffset, paletteIndex, paletteOverride);
+            //    #1022: forward the live-edited 32-byte block (or null) so an
+            //    in-progress R/G/B edit recolors the preview directly.
+            return BattleAnimeRendererCore.RenderSampleBattleAnime(
+                recordOffset, paletteIndex, paletteOverride, editedPaletteBlock);
         }
 
         public int GetListCount() => LoadList().Count;

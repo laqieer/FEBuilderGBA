@@ -613,8 +613,21 @@ namespace FEBuilderGBA
         /// <param name="paletteIndex">Sub-palette (palette-type) index: 0=Player, 1=Enemy, 2=Other, 3=4th.</param>
         /// <param name="paletteOverrideAddr">GBA pointer to the override palette
         /// block (the unit palette). 0 = use the record's own <c>rec+0x1C</c> palette.</param>
+        /// <param name="overridePaletteBlock">Optional EXACT 32-byte (16-color
+        /// little-endian RGB555) palette block — the live-edited sub-palette from
+        /// the Unit Palette editor's in-memory R/G/B spinners (#1022). When non-null
+        /// AND exactly 32 bytes long, it is used as the rendered palette DIRECTLY,
+        /// bypassing all ROM palette resolution (LZ77 decompress + sub-palette
+        /// slice). This is the cross-platform mirror of WinForms
+        /// <c>ImageUnitPaletteForm.OnChangeColor</c> (ImageUnitPaletteForm.cs:321-333),
+        /// which live-recolors the sample preview as the user edits colors. When
+        /// null OR not exactly 32 bytes long, behaviour falls back BYTE-IDENTICALLY
+        /// to <see cref="ResolveSamplePaletteBlock"/> (so the
+        /// <paramref name="paletteOverrideAddr"/> / record-own resolution is
+        /// unchanged for the existing 3-arg callers, which pass null).</param>
         /// <returns>A 360x290 composite IImage, or null on failure.</returns>
-        public static IImage RenderSampleBattleAnime(uint animeRecordAddr, int paletteIndex, uint paletteOverrideAddr)
+        public static IImage RenderSampleBattleAnime(uint animeRecordAddr, int paletteIndex,
+            uint paletteOverrideAddr, byte[] overridePaletteBlock = null)
         {
             ROM rom = CoreState.ROM;
             IImageService svc = CoreState.ImageService;
@@ -669,10 +682,18 @@ namespace FEBuilderGBA
             }
             if (oamData == null) return null;
 
-            // Palette (LZ77-compressed) → slice the paletteIndex-th 16-color block.
-            // `effectivePaletteRaw` is the unit-palette override when one was
-            // supplied, otherwise the record's own palette.
-            byte[] paletteSubBytes = ResolveSamplePaletteBlock(rom, effectivePaletteRaw, paletteIndex);
+            // Palette: the live-edited in-memory block (#1022) takes priority when
+            // an EXACT 32-byte override is supplied — used as the palette DIRECTLY,
+            // bypassing all ROM resolution (the WF OnChangeColor live-recolor). Any
+            // null / non-32-byte value falls back byte-identically to the saved
+            // path (LZ77-decompress `effectivePaletteRaw` then slice the
+            // paletteIndex-th 16-color block; `effectivePaletteRaw` is the
+            // unit-palette override when one was supplied, otherwise the record's
+            // own palette).
+            byte[] paletteSubBytes =
+                (overridePaletteBlock != null && overridePaletteBlock.Length == 32)
+                    ? overridePaletteBlock
+                    : ResolveSamplePaletteBlock(rom, effectivePaletteRaw, paletteIndex);
             if (paletteSubBytes == null) return null;
 
             // --- Collect 12 cropped 90x90 cells (mirror DrawSample) ---

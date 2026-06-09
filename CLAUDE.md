@@ -481,6 +481,12 @@ Specialized utilities for different graphic types:
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (alongside CSV/TSV/EA) through them for
   a resolved table, hex stub only for unresolved addresses. Documented gaps: no headless signed-byte/hex-radix
   per-control distinction, NMM dropdown aux-files emit `NULL`. #1012.
+- `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core,
+  READ-ONLY) — live-recolor the Unit Palette editor sample preview from the in-memory R/G/B spinners (WF
+  `OnChangeColor`): the Avalonia `ImageUnitPaletteView` packs the 16 spinners via `UnitPaletteWriteCore.PackRgb555`
+  and forwards them through `ImageUnitPaletteViewModel.RenderClassSamplePreview(...,editedBlock)` ONLY when
+  `PaletteTypeIndex == EditableBlockIndex` (=0, the block the spinners edit); bulk loads suppressed via
+  `IsLoading`; null/non-32 falls back byte-identical to the saved palette. #1022.
 
 ### Caching System
 
