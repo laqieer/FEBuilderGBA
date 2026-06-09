@@ -24238,3 +24238,30 @@ TSA类型:
 
 :New count ({0}) must be greater than or equal to current count ({1}).
 新数量({0})必须大于或等于当前数量({1})。
+
+:Export this DirectSound instrument's GBA sample to a WAV file.
+将此 DirectSound 乐器的 GBA 采样导出为 WAV 文件。
+
+:Import a WAV file as this DirectSound instrument's GBA sample (appends to free space and repoints).
+将 WAV 文件作为此 DirectSound 乐器的 GBA 采样导入（追加到空闲空间并重定向指针）。
+
+:Export Wave
+导出波形
+
+:Wave Files
+波形文件
+
+:This instrument is not a DirectSound voice; there is no wave sample to export.
+该乐器不是 DirectSound 声音；没有可导出的波形采样。
+
+:Could not decode the DirectSound sample. The wave pointer may be invalid.
+无法解码 DirectSound 采样。波形指针可能无效。
+
+:This instrument is not a DirectSound voice; a wave sample cannot be imported here.
+该乐器不是 DirectSound 声音；无法在此导入波形采样。
+
+:Wave import failed.
+波形导入失败。
+
+:Wave import failed: {0}
+波形导入失败: {0}

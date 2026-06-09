@@ -145,21 +145,21 @@
                              TextDecorations="Underline" Cursor="Hand" VerticalAlignment="Center" />
                   <NumericUpDown AutomationProperties.AutomationId="SongInstrument_N00_P4_Input"
                                  Name="N00_P4_Box" Width="160" Minimum="0" Maximum="4294967295" FormatString="0" />
-                  <!-- #1014: Sappy preview is Windows-only; wave Export/Import is
-                       deferred to #1057. Each disabled button carries its honest
-                       tooltip on an ENABLED Border wrapper (#997/#1011 pattern). -->
+                  <!-- #1014: Sappy preview is Windows-only (still disabled).
+                       Wave Export/Import are wired in #1057 (N00 DirectSound
+                       slice) via SongDirectSoundWavCore. -->
                   <Border ToolTip.Tip="Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.">
                     <Button AutomationProperties.AutomationId="SongInstrument_N00_Preview_Button"
                             Name="N00_PreviewButton" Content="Preview" Width="80" IsEnabled="False" />
                   </Border>
-                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
-                    <Button AutomationProperties.AutomationId="SongInstrument_N00_Export_Button"
-                            Name="N00_ExportButton" Content="音データ 書出" Width="120" IsEnabled="False" />
-                  </Border>
-                  <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
-                    <Button AutomationProperties.AutomationId="SongInstrument_N00_Import_Button"
-                            Name="N00_ImportButton" Content="音データ 読込" Width="120" IsEnabled="False" />
-                  </Border>
+                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Export_Button"
+                          Name="N00_ExportButton" Content="音データ 書出" Width="120"
+                          ToolTip.Tip="Export this DirectSound instrument's GBA sample to a WAV file."
+                          Click="N00_Export_Click" />
+                  <Button AutomationProperties.AutomationId="SongInstrument_N00_Import_Button"
+                          Name="N00_ImportButton" Content="音データ 読込" Width="120"
+                          ToolTip.Tip="Import a WAV file as this DirectSound instrument's GBA sample (appends to free space and repoints)."
+                          Click="N00_Import_Click" />
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <TextBlock AutomationProperties.AutomationId="SongInstrument_N00_J_8_Label"
