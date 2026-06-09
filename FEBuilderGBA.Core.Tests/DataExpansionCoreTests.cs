@@ -485,12 +485,14 @@ namespace FEBuilderGBA.Core.Tests
         readonly ROM? _savedRom;
         readonly IEtcCache? _savedComment;
         readonly IEtcCache? _savedLint;
+        readonly Undo? _savedUndo;
 
         public DataExpansionCoreExpandTableToTests()
         {
             _savedRom = CoreState.ROM;
             _savedComment = CoreState.CommentCache;
             _savedLint = CoreState.LintCache;
+            _savedUndo = CoreState.Undo;
         }
 
         public void Dispose()
@@ -498,6 +500,7 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = _savedRom;
             CoreState.CommentCache = _savedComment;
             CoreState.LintCache = _savedLint;
+            CoreState.Undo = _savedUndo;
         }
 
         /// <summary>Helper: build a minimal ROM with LoadLow using ROMFE0 ("NAZO").</summary>
@@ -932,10 +935,15 @@ namespace FEBuilderGBA.Core.Tests
         public void ExpandTableTo_FullZeroTerminatorRow_ResizePath_TerminatorAndRollback()
         {
             // #1078: resize/no-free-space path with fullZeroTerminatorRow:true.
-            // ROM has NO 0xFF free run, so the helper must resize. Same terminator
-            // + row assertions; outer Undo.Rollback restores byte-identical.
+            // ROM has NO 0xFF free run, so the helper must resize (grows the ROM).
+            // Same terminator + row assertions; the REAL filesize-restoring
+            // rollback (CoreState.Undo.RunUndo) must restore the ORIGINAL length
+            // AND every byte — proving the resize path is fully reversible
+            // (Copilot review on PR #1080: a manual reverse-copy of the recorded
+            // positions does NOT restore the resized length).
             var rom = MakeRom(0x10000);   // 64 KB, all 0x00 → no 0xFF free space.
             CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
             uint pointerAddr = 0x10;
             uint tableBase = 0x200;
             uint entrySize = 16;
@@ -947,17 +955,14 @@ namespace FEBuilderGBA.Core.Tests
                 for (uint b = 0; b < entrySize; b++)
                     rom.Data[tableBase + e * entrySize + b] = (byte)(0xA0 + e);
 
-            byte[] snapshot = new byte[rom.Data.Length];
-            Array.Copy(rom.Data, snapshot, rom.Data.Length);
+            int originalLength = rom.Data.Length;
+            byte[] snapshot = new byte[originalLength];
+            Array.Copy(rom.Data, snapshot, originalLength);
 
-            var ud = new Undo.UndoData
-            {
-                time = DateTime.Now,
-                name = "ExpandTableTo full-zero terminator resize test",
-                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
-                filesize = (uint)rom.Data.Length,
-            };
-
+            // NewUndoData captures the pre-expansion filesize so RunUndo can
+            // down-resize the ROM back to it (the same pattern as
+            // MagicListExpandCoreTests / the View's UndoService.Begin).
+            var ud = CoreState.Undo.NewUndoData("ExpandTableTo full-zero terminator resize test");
             DataExpansionCore.ExpandResult result;
             using (ROM.BeginUndoScope(ud))
             {
@@ -965,6 +970,10 @@ namespace FEBuilderGBA.Core.Tests
                     rom, pointerAddr, entrySize, currentCount, newCount, fullZeroTerminatorRow: true);
             }
             Assert.True(result.Success, result.Error);
+            // The resize path actually grew the ROM (otherwise this test wouldn't
+            // exercise the filesize-restore branch).
+            Assert.True(rom.Data.Length > originalLength,
+                $"expected the resize path to grow the ROM beyond {originalLength}, got {rom.Data.Length}");
 
             uint nb = result.NewBaseAddress;
 
@@ -981,18 +990,15 @@ namespace FEBuilderGBA.Core.Tests
             for (uint b = 0; b < entrySize; b++)
                 Assert.Equal(0x00, rom.Data[termAddr + b]);
 
-            // Outer rollback restores byte-identical (length + every byte).
-            // Roll back recorded positions in reverse order, then truncate the
-            // ROM back to the pre-resize length (the resize path grew it).
-            for (int i = ud.list.Count - 1; i >= 0; i--)
-            {
-                var up = ud.list[i];
-                Array.Copy(up.data, 0, rom.Data, up.addr, up.data.Length);
-            }
-            // After undo positions are restored, the prefix must match the
-            // snapshot. (The appended tail past the original length is the
-            // resize remainder; the undo system tracks filesize for the real
-            // Rollback — here we assert the original-region bytes are intact.)
+            // REAL rollback: push the transaction then RunUndo. RunUndo restores
+            // BOTH the recorded byte ranges AND the original filesize (Patch
+            // down-resizes rom.Data back to ud.filesize).
+            CoreState.Undo.Push(ud);
+            CoreState.Undo.RunUndo();
+
+            // Length restored to the ORIGINAL (pre-resize) length.
+            Assert.Equal(originalLength, rom.Data.Length);
+            // AND every byte over the whole original length matches the snapshot.
             for (int i = 0; i < snapshot.Length; i++)
             {
                 if (snapshot[i] != rom.Data[i])

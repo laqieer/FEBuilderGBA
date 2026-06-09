@@ -25,15 +25,18 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class ImageUnitPaletteExpandTests : IDisposable
     {
         readonly ROM? _savedRom;
+        readonly Undo? _savedUndo;
 
         public ImageUnitPaletteExpandTests()
         {
             _savedRom = CoreState.ROM;
+            _savedUndo = CoreState.Undo;
         }
 
         public void Dispose()
         {
             CoreState.ROM = _savedRom;
+            CoreState.Undo = _savedUndo;
         }
 
         const uint SIZE = 16;
@@ -204,36 +207,55 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void ExpandList_OuterRollback_RestoresByteIdentical()
+        public void ExpandList_OuterRollback_ResizePath_RestoresLengthAndBytes()
         {
-            var rom = MakeRom(out _);
+            // Build a ROM with NO 0xFF free run so ExpandList must RESIZE the ROM,
+            // then prove the REAL filesize-restoring rollback (CoreState.Undo.RunUndo,
+            // the same path the View's UndoService.Rollback uses) restores BOTH the
+            // original length AND every byte (Copilot review on PR #1080 — a manual
+            // reverse-copy of recorded positions does NOT restore the resized length).
+            byte[] data = new byte[0x40000]; // 256 KB, all 0x00 → no 0xFF free space.
+            U.write_u32(data, POINTER_SLOT, U.toPointer(TABLE_BASE));
+            U.write_u32(data, SECONDARY_PTR_SLOT, U.toPointer(TABLE_BASE));
+            WriteName(data, TABLE_BASE + 0 * SIZE, "PLY0");
+            WriteName(data, TABLE_BASE + 1 * SIZE, "ENMY");
+            WriteName(data, TABLE_BASE + 2 * SIZE, "OTHR");
+            // Row 3 is the all-zero terminator (already 0x00). No free region.
+            var rom = new ROM();
+            rom.LoadLow("synth.gba", data, "NAZO");
+            SetRomInfo(rom, new StubRomInfo(POINTER_SLOT));
             CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+
             var vm = new ImageUnitPaletteViewModel();
             int realCount = vm.LoadList(rom).Count - 1;
+            Assert.Equal(3, realCount);
             uint newCount = (uint)(realCount + 4);
 
-            byte[] snapshot = new byte[rom.Data.Length];
-            Array.Copy(rom.Data, snapshot, rom.Data.Length);
+            int originalLength = rom.Data.Length;
+            byte[] snapshot = new byte[originalLength];
+            Array.Copy(rom.Data, snapshot, originalLength);
 
-            var ud = new Undo.UndoData
-            {
-                time = DateTime.Now,
-                name = "Expand Unit Palette rollback test",
-                list = new System.Collections.Generic.List<Undo.UndoPostion>(),
-                filesize = (uint)rom.Data.Length,
-            };
+            // NewUndoData captures the pre-expansion filesize so RunUndo restores
+            // BOTH bytes AND length.
+            var ud = CoreState.Undo.NewUndoData("Expand Unit Palette resize rollback test");
             using (ROM.BeginUndoScope(ud))
             {
                 Assert.Equal("", vm.ExpandList(newCount, ud));
             }
+            // The resize path actually grew the ROM (otherwise this test wouldn't
+            // exercise the filesize-restore branch).
+            Assert.True(rom.Data.Length > originalLength,
+                $"expected the resize path to grow the ROM beyond {originalLength}, got {rom.Data.Length}");
 
-            // Roll back the recorded positions in reverse order.
-            for (int i = ud.list.Count - 1; i >= 0; i--)
-            {
-                var up = ud.list[i];
-                Array.Copy(up.data, 0, rom.Data, up.addr, up.data.Length);
-            }
+            // REAL rollback: push the transaction then RunUndo (restores byte
+            // ranges + down-resizes rom.Data back to ud.filesize).
+            CoreState.Undo.Push(ud);
+            CoreState.Undo.RunUndo();
 
+            // Length restored to the ORIGINAL (pre-resize) length AND every byte
+            // matches the snapshot.
+            Assert.Equal(originalLength, rom.Data.Length);
             for (int i = 0; i < snapshot.Length; i++)
             {
                 if (snapshot[i] != rom.Data[i])

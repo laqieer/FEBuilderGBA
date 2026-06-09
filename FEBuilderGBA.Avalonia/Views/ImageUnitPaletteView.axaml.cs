@@ -712,7 +712,13 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
+                // Defensively roll back any undo scope left open by an exception
+                // thrown before the inner try (e.g. from the dialog or the
+                // count-prep path) and surface the error to the user (Copilot
+                // review on PR #1080 — the outer catch previously only logged).
+                try { _undoService.Rollback(); } catch { /* no active scope — ignore */ }
                 Log.Error("ImageUnitPaletteView.Expand_Click failed: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("List expansion failed: {0}", ex.Message));
             }
         }
 
