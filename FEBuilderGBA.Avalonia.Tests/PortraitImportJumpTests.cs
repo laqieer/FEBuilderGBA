@@ -89,48 +89,52 @@ namespace FEBuilderGBA.Avalonia.Tests
             using (UseRom(rom))
             {
                 var view = new ImagePortraitImporterView();
-                var list = view.FindControl<AddressListControl>("EntryList");
-                Assert.NotNull(list);
+                try
+                {
+                    var list = view.FindControl<AddressListControl>("EntryList");
+                    Assert.NotNull(list);
 
-                // List not yet loaded (Opened/LoadList fires on Show()).
-                Assert.Equal(0, list!.ItemCount);
+                    // List not yet loaded (Opened/LoadList fires on Show()).
+                    Assert.Equal(0, list!.ItemCount);
 
-                // Target a NON-row-0 slot (3rd entry) so the "right slot"
-                // assertion is meaningful — its B20-B23 differ from row 0's.
-                const uint targetIdx = 2;
-                uint targetAddr = DefaultPortraitBase + targetIdx * PortraitEntrySize;
-                uint row0Addr = DefaultPortraitBase; // entry 0
+                    // Target a NON-row-0 slot (3rd entry) so the "right slot"
+                    // assertion is meaningful — its B20-B23 differ from row 0's.
+                    const uint targetIdx = 2;
+                    uint targetAddr = DefaultPortraitBase + targetIdx * PortraitEntrySize;
+                    uint row0Addr = DefaultPortraitBase; // entry 0
 
-                // NavigateTo BEFORE the list loads -> stashes the pending nav.
-                view.NavigateTo(targetAddr);
+                    // NavigateTo BEFORE the list loads -> stashes the pending nav.
+                    view.NavigateTo(targetAddr);
 
-                // Trigger Opened -> LoadList(), which auto-selects row 0 then
-                // replays the pending nav so it overrides row 0.
-                view.Show();
-                Dispatcher.UIThread.RunJobs();
+                    // Trigger Opened -> LoadList(), which auto-selects row 0 then
+                    // replays the pending nav so it overrides row 0.
+                    view.Show();
+                    Dispatcher.UIThread.RunJobs();
 
-                Assert.True(list.ItemCount > 0);
-                Assert.NotNull(list.SelectedItem);
+                    Assert.True(list.ItemCount > 0);
+                    Assert.NotNull(list.SelectedItem);
 
-                // The importer must land on the TARGET slot, NOT row 0.
-                Assert.NotEqual(row0Addr, list.SelectedItem!.addr);
-                Assert.Equal(targetAddr, list.SelectedItem!.addr);
+                    // The importer must land on the TARGET slot, NOT row 0.
+                    Assert.NotEqual(row0Addr, list.SelectedItem!.addr);
+                    Assert.Equal(targetAddr, list.SelectedItem!.addr);
 
-                // ...and the four Detail NUDs must reflect the target slot's
-                // B20-B23 (the core "right coords" assertion).
-                var mouthX = view.FindControl<NumericUpDown>("MouthBlockXInput");
-                var mouthY = view.FindControl<NumericUpDown>("MouthBlockYInput");
-                var eyeX = view.FindControl<NumericUpDown>("EyeBlockXInput");
-                var eyeY = view.FindControl<NumericUpDown>("EyeBlockYInput");
-                Assert.NotNull(mouthX);
-                Assert.NotNull(mouthY);
-                Assert.NotNull(eyeX);
-                Assert.NotNull(eyeY);
+                    // ...and the four Detail NUDs must reflect the target slot's
+                    // B20-B23 (the core "right coords" assertion).
+                    var mouthX = view.FindControl<NumericUpDown>("MouthBlockXInput");
+                    var mouthY = view.FindControl<NumericUpDown>("MouthBlockYInput");
+                    var eyeX = view.FindControl<NumericUpDown>("EyeBlockXInput");
+                    var eyeY = view.FindControl<NumericUpDown>("EyeBlockYInput");
+                    Assert.NotNull(mouthX);
+                    Assert.NotNull(mouthY);
+                    Assert.NotNull(eyeX);
+                    Assert.NotNull(eyeY);
 
-                Assert.Equal(rom.u8(targetAddr + 20), (byte)(mouthX!.Value ?? -1));
-                Assert.Equal(rom.u8(targetAddr + 21), (byte)(mouthY!.Value ?? -1));
-                Assert.Equal(rom.u8(targetAddr + 22), (byte)(eyeX!.Value ?? -1));
-                Assert.Equal(rom.u8(targetAddr + 23), (byte)(eyeY!.Value ?? -1));
+                    Assert.Equal(rom.u8(targetAddr + 20), (byte)(mouthX!.Value ?? -1));
+                    Assert.Equal(rom.u8(targetAddr + 21), (byte)(mouthY!.Value ?? -1));
+                    Assert.Equal(rom.u8(targetAddr + 22), (byte)(eyeX!.Value ?? -1));
+                    Assert.Equal(rom.u8(targetAddr + 23), (byte)(eyeY!.Value ?? -1));
+                }
+                finally { view.Close(); }
             }
         }
 
@@ -141,26 +145,30 @@ namespace FEBuilderGBA.Avalonia.Tests
             using (UseRom(rom))
             {
                 var view = new ImagePortraitImporterView();
-                var list = view.FindControl<AddressListControl>("EntryList");
-                Assert.NotNull(list);
+                try
+                {
+                    var list = view.FindControl<AddressListControl>("EntryList");
+                    Assert.NotNull(list);
 
-                view.Show(); // list loads now (auto-selects row 0)
-                Dispatcher.UIThread.RunJobs();
-                Assert.True(list!.ItemCount > 0);
+                    view.Show(); // list loads now (auto-selects row 0)
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.True(list!.ItemCount > 0);
 
-                uint addr1 = DefaultPortraitBase + 1 * PortraitEntrySize;
-                uint addr3 = DefaultPortraitBase + 3 * PortraitEntrySize;
+                    uint addr1 = DefaultPortraitBase + 1 * PortraitEntrySize;
+                    uint addr3 = DefaultPortraitBase + 3 * PortraitEntrySize;
 
-                // First navigation selects immediately.
-                view.NavigateTo(addr1);
-                Dispatcher.UIThread.RunJobs();
-                Assert.NotNull(list.SelectedItem);
-                Assert.Equal(addr1, list.SelectedItem!.addr);
+                    // First navigation selects immediately.
+                    view.NavigateTo(addr1);
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.NotNull(list.SelectedItem);
+                    Assert.Equal(addr1, list.SelectedItem!.addr);
 
-                // Repeated navigation: latest wins (idempotent on re-call).
-                view.NavigateTo(addr3);
-                Dispatcher.UIThread.RunJobs();
-                Assert.Equal(addr3, list.SelectedItem!.addr);
+                    // Repeated navigation: latest wins (idempotent on re-call).
+                    view.NavigateTo(addr3);
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.Equal(addr3, list.SelectedItem!.addr);
+                }
+                finally { view.Close(); }
             }
         }
 
@@ -222,31 +230,49 @@ namespace FEBuilderGBA.Avalonia.Tests
             using (UseRom(rom))
             {
                 var view = new ImagePortraitImporterView();
-                var list = view.FindControl<AddressListControl>("EntryList");
-                view.Show();
-                Dispatcher.UIThread.RunJobs();
-                uint row0 = DefaultPortraitBase;
-                Assert.Equal(row0, list!.SelectedItem!.addr);
+                try
+                {
+                    var list = view.FindControl<AddressListControl>("EntryList");
+                    view.Show();
+                    Dispatcher.UIThread.RunJobs();
+                    uint row0 = DefaultPortraitBase;
+                    Assert.Equal(row0, list!.SelectedItem!.addr);
 
-                // Unknown address — no exception, selection unchanged.
-                view.NavigateTo(0xDEADBEEF);
-                Dispatcher.UIThread.RunJobs();
-                Assert.Equal(row0, list.SelectedItem!.addr);
+                    // Unknown address — no exception, selection unchanged.
+                    view.NavigateTo(0xDEADBEEF);
+                    Dispatcher.UIThread.RunJobs();
+                    Assert.Equal(row0, list.SelectedItem!.addr);
+                }
+                finally { view.Close(); }
             }
         }
 
         // Resolve the source file path of an Avalonia View for source-parity
-        // assertions, walking up from the test bin dir to the repo root.
+        // assertions. Anchor on the repo root (FEBuilderGBA.sln) rather than a
+        // fixed directory-level count so the lookup is robust to the test
+        // runner's output-path depth (Copilot review). Mirrors the
+        // FindRepoRoot() helper used elsewhere in Avalonia.Tests.
         static string LocateView(string fileName)
         {
-            string dir = AppContext.BaseDirectory;
-            for (int i = 0; i < 10 && dir != null; i++)
+            string root = FindRepoRoot()
+                ?? throw new System.IO.FileNotFoundException(
+                    "Could not find repo root (FEBuilderGBA.sln) for source-parity assertion.");
+            string candidate = System.IO.Path.Combine(root, "FEBuilderGBA.Avalonia", "Views", fileName);
+            if (!System.IO.File.Exists(candidate))
+                throw new System.IO.FileNotFoundException(
+                    $"Could not locate {fileName} for source-parity assertion.", candidate);
+            return candidate;
+        }
+
+        static string? FindRepoRoot()
+        {
+            for (System.IO.DirectoryInfo? dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+                 dir != null; dir = dir.Parent)
             {
-                string candidate = System.IO.Path.Combine(dir, "FEBuilderGBA.Avalonia", "Views", fileName);
-                if (System.IO.File.Exists(candidate)) return candidate;
-                dir = System.IO.Path.GetDirectoryName(dir);
+                if (System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
             }
-            throw new System.IO.FileNotFoundException($"Could not locate {fileName} for source-parity assertion.");
+            return null;
         }
     }
 }
