@@ -520,15 +520,22 @@ namespace FEBuilderGBA
             if (imagePointerAddr == 0 || (long)imagePointerAddr + 4 > rom.Data.Length)
                 return ImportResult.Fail("Image pointer slot is out of range.");
 
-            byte[] tiles = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, widthPx, heightPx);
-            if (tiles == null || tiles.Length == 0) return ImportResult.Fail("Failed to encode 4bpp tile data.");
-
             // Defensive snapshot for the byte-identical restore on fault. The
             // caller's ambient undo scope captures the writes for UNDO; this
-            // snapshot guarantees a FAILED import mutates ZERO bytes.
+            // snapshot guarantees a FAILED import mutates ZERO bytes. Taken
+            // BEFORE the encode so the encode is INSIDE the try (the "never
+            // throws" contract must hold even if EncodeDirectTiles4bpp throws
+            // on an unexpected input — the encode does not mutate the ROM, so
+            // the restore is a no-op in that case).
             byte[] snap = (byte[])rom.Data.Clone();
             try
             {
+                byte[] tiles = ImageImportCore.EncodeDirectTiles4bpp(indexedPixels, widthPx, heightPx);
+                if (tiles == null || tiles.Length == 0)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return ImportResult.Fail("Failed to encode 4bpp tile data.");
+                }
                 uint w = ImageImportCore.WriteCompressedToROM(rom, tiles, imagePointerAddr);
                 if (w == U.NOT_FOUND)
                 {

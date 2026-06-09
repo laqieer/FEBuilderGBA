@@ -431,12 +431,20 @@ public class WorldMapImageParityTests
         Assert.DoesNotContain("IsEnabled=\"False\"", element);
         Assert.DoesNotContain("KnownGap", element);
 
-        // The click handler exists in the code-behind, routes through the Core
-        // import seam, and refreshes the previews after committing.
+        // Scope the wiring assertions to the SPECIFIC handler (not the whole
+        // file, which would false-positive if any unrelated method contained the
+        // strings while this handler was broken). Each strip handler is an
+        // expression-bodied delegation to the shared DoStripImport driver, and
+        // that driver is what routes through the Core seam + refreshes previews.
         string source = File.ReadAllText(ViewCodeBehindPath());
-        Assert.Contains(clickHandler, source);
-        Assert.Contains("ImageWorldMapCore.ImportIconStrip", source);
-        Assert.Contains("RefreshPreviews()", source);
+        string handlerBody = ExpressionBody(source, $"void {clickHandler}(");
+        Assert.True(handlerBody.Length > 0, $"{clickHandler} not found in code-behind");
+        Assert.Contains("DoStripImport", handlerBody);
+
+        string driverBody = MethodBody(source, "Task DoStripImport(");
+        Assert.True(driverBody.Length > 0, "DoStripImport driver not found in code-behind");
+        Assert.Contains("ImageWorldMapCore.ImportIconStrip", driverBody);
+        Assert.Contains("RefreshPreviews()", driverBody);
     }
 
     /// <summary>
@@ -1171,6 +1179,37 @@ public class WorldMapImageParityTests
             else if (c == '>' && !inAttrValue) return i;
         }
         return -1;
+    }
+
+    /// <summary>The expression-bodied member (<c>=&gt; ...;</c>) starting at the
+    /// first occurrence of <paramref name="declFragment"/>: from the fragment up
+    /// to and including the next <c>;</c>. Empty string if not found. Used to
+    /// scope an assertion to ONE specific method instead of the whole file.</summary>
+    static string ExpressionBody(string source, string declFragment)
+    {
+        int i = source.IndexOf(declFragment, StringComparison.Ordinal);
+        if (i < 0) return "";
+        int semi = source.IndexOf(';', i);
+        return semi < 0 ? source.Substring(i) : source.Substring(i, semi - i + 1);
+    }
+
+    /// <summary>The brace-matched method body starting at the first occurrence of
+    /// <paramref name="declFragment"/> (from the fragment through the matching
+    /// closing <c>}</c>). Empty string if not found. Scopes an assertion to ONE
+    /// specific method instead of the whole file.</summary>
+    static string MethodBody(string source, string declFragment)
+    {
+        int i = source.IndexOf(declFragment, StringComparison.Ordinal);
+        if (i < 0) return "";
+        int brace = source.IndexOf('{', i);
+        if (brace < 0) return "";
+        int depth = 0;
+        for (int j = brace; j < source.Length; j++)
+        {
+            if (source[j] == '{') depth++;
+            else if (source[j] == '}') { depth--; if (depth == 0) return source.Substring(i, j - i + 1); }
+        }
+        return source.Substring(i);
     }
 
     static void AssertOccurrences(string haystack, string needle, int expected)
