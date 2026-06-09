@@ -328,16 +328,42 @@ namespace FEBuilderGBA
         /// </summary>
         public static IImage DrawPortraitMap(uint mapFacePtr, uint palettePtr)
         {
-            uint mapFace = U.toOffset(mapFacePtr);
             uint palette = U.toOffset(palettePtr);
-
-            if (mapFace == 0 || !U.isSafetyOffset(mapFace) || !U.isSafetyOffset(palette))
+            if (!U.isSafetyOffset(palette))
                 return null;
 
             byte[] gbaPalette = ImageUtilCore.GetPalette(palette, 16);
             if (gbaPalette == null) return null;
 
-            return ImageUtilCore.LoadROMTiles4bpp(mapFace, gbaPalette, 4, 4, true);
+            return DrawPortraitMap(mapFacePtr, gbaPalette);
+        }
+
+        /// <summary>
+        /// Render the FE portrait map face (4x4 tiles, 4bpp) with an EXPLICIT 16-color
+        /// GBA palette block instead of reading the palette from a ROM pointer — used
+        /// by the Palette Editor live preview so an in-memory edit renders without
+        /// writing the ROM (#1023). The block must be the same 32-byte little-endian
+        /// BGR555 format that <see cref="ImageUtilCore.GetPalette(uint,int)"/> returns
+        /// and that <see cref="PaletteCore.PackToBytes"/> produces. Guards:
+        /// null ROM/ImageService, null/short block (&lt; 32 bytes), zero/unsafe
+        /// mapFacePtr -&gt; null. A longer (multi-bank) buffer is sliced to its first
+        /// 32 bytes so an accidental multi-block buffer never leaks into the render.
+        /// </summary>
+        public static IImage DrawPortraitMap(uint mapFacePtr, byte[] gbaPaletteBlock)
+        {
+            if (CoreState.ROM == null || CoreState.ImageService == null) return null;
+            uint mapFace = U.toOffset(mapFacePtr);
+            if (mapFace == 0 || !U.isSafetyOffset(mapFace)) return null;
+            if (gbaPaletteBlock == null || gbaPaletteBlock.Length < PaletteCore.PALETTE_BLOCK_SIZE)
+                return null;
+
+            byte[] block = gbaPaletteBlock;
+            if (block.Length > PaletteCore.PALETTE_BLOCK_SIZE)
+            {
+                block = new byte[PaletteCore.PALETTE_BLOCK_SIZE];
+                Array.Copy(gbaPaletteBlock, block, PaletteCore.PALETTE_BLOCK_SIZE);
+            }
+            return ImageUtilCore.LoadROMTiles4bpp(mapFace, block, 4, 4, true);
         }
 
         /// <summary>

@@ -698,8 +698,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 // ImagePalletView (#400 - Copilot CLI plan review #2).
                 // Portraits use a single palette block, so
                 // maxPaletteCount=1 hides the palette-index combo.
+                //
+                // #1023: also pass a render delegate so the Palette Editor's
+                // live preview shows THIS portrait's mini/map face recolored by
+                // the grid colors (block-overload renders WITHOUT writing the
+                // ROM, so an unsaved edit is reflected live).
+                // DrawPortraitMap renders the 4x4-tile mini/map face — that is
+                // MiniPortraitPtr (u32@4), NOT PortraitImagePtr (u32@0, the
+                // LZ77-compressed 96x80 main face which this raw-tile renderer
+                // cannot decode). Mirrors the VM's own MiniPortraitImage pairing.
+                uint mapFacePtr = _vm.MiniPortraitPtr;
                 var window = WindowManager.Instance.Open<ImagePalletView>();
-                window.JumpTo(_vm.PalettePtr, maxPaletteCount: 1, defaultSelectPalette: 0, paletteNames: null);
+                window.JumpTo(_vm.PalettePtr, maxPaletteCount: 1, defaultSelectPalette: 0, paletteNames: null,
+                    renderPreview: block => PortraitRendererCore.DrawPortraitMap(mapFacePtr, block));
             }
             catch (Exception ex) { Log.Error("JumpToPalette failed: {0}", ex.Message); }
         }

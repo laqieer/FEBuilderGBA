@@ -22236,8 +22236,8 @@ Core RunRedo API 待支持 - 由 #500 跟踪。
 :Palette Index
 调色板索引
 
-:Live bitmap preview pending Core extraction - tracked by #500.
-实时位图预览待 Core 抽出 - 由 #500 跟踪。
+:Live bitmap-of-the-graphic preview recolored by the grid colors (#1023).
+由网格颜色重新着色的图形实时位图预览 (#1023)。
 
 :Edit R/G/B 0-248 (5-bit ticks)
 编辑 R/G/B 0-248 (5位步进)
