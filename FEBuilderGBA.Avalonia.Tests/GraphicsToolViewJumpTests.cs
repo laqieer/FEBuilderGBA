@@ -280,6 +280,115 @@ namespace FEBuilderGBA.Avalonia.Tests
     }
 
     /// <summary>
+    /// Parity tests for the Graphics Tool TSA-composited preview (#1030).
+    /// Verifies the new TSA Address input + TSA Type combo controls exist, that
+    /// Is4bppCheck/CompressedCheck enablement is bound to the TSA-mode gate, that
+    /// the VM DrawTiles references ImageTSAEditorCore.TryRenderMainImage, and
+    /// that Jump sets the TSA fields.
+    /// </summary>
+    public class GraphicsToolTsaPreviewParityTests
+    {
+        /// <summary>
+        /// The new TSA Address TextBox + TSA Type ComboBox controls must exist
+        /// in the view, and the combo must be populated with the 5 TSA-type
+        /// items (None / Compressed / Compressed Header / Raw Header / Raw).
+        /// </summary>
+        [AvaloniaFact]
+        public void TsaAddrAndTypeControls_Exist()
+        {
+            var view = new GraphicsToolView();
+            var tsaAddr = view.FindControl<TextBox>("TsaAddrBox");
+            var tsaCombo = view.FindControl<ComboBox>("TsaTypeCombo");
+
+            Assert.NotNull(tsaAddr);
+            Assert.NotNull(tsaCombo);
+            Assert.Equal(5, tsaCombo!.Items.Count);
+        }
+
+        /// <summary>
+        /// Jump must populate the VM's TSA fields so existing entrypoints
+        /// (ImageBattleBGView passes tsaType=1, ImageBGView passes tsaType=3)
+        /// open the Graphics Tool in TSA-composited mode.
+        /// </summary>
+        [AvaloniaFact]
+        public void Jump_SetsTsaFields()
+        {
+            var view = new GraphicsToolView();
+            view.Jump(
+                width: 240, height: 160,
+                image: 0x08400000u, imageType: 0,
+                tsa: 0x08500000u, tsaType: 1,
+                palette: 0x08600000u, paletteType: 1,
+                paletteCount: 8, image2: 0);
+
+            var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
+            Assert.Contains("0x08500000", vm.TsaAddressText, System.StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(1, vm.TsaTypeIndex);
+            Assert.True(vm.TsaModeActive);
+        }
+
+        /// <summary>
+        /// A null (0) TSA pointer must be preserved as an empty TSA address (NOT
+        /// normalized to 0x08000000) — same null-preserving rule the image /
+        /// palette population uses.
+        /// </summary>
+        [AvaloniaFact]
+        public void Jump_ZeroTsa_LeavesTsaAddressEmpty()
+        {
+            var view = new GraphicsToolView();
+            view.Jump(
+                width: 240, height: 160,
+                image: 0x08400000u, imageType: 0,
+                tsa: 0u, tsaType: 0,
+                palette: 0x08600000u, paletteType: 0,
+                paletteCount: 8, image2: 0);
+
+            var vm = (FEBuilderGBA.Avalonia.ViewModels.GraphicsToolViewViewModel)view.DataContext!;
+            Assert.Equal("", vm.TsaAddressText);
+            Assert.Equal(0, vm.TsaTypeIndex);
+            Assert.False(vm.TsaModeActive);
+        }
+
+        /// <summary>
+        /// Source parity: the AXAML binds Is4bppCheck + CompressedCheck
+        /// IsEnabled to the inverse of TsaModeActive (so the TSA path is visibly
+        /// fixed 4bpp + LZ77 image), and the VM DrawTiles references
+        /// ImageTSAEditorCore.TryRenderMainImage.
+        /// </summary>
+        [Fact]
+        public void Source_BindsCheckboxEnablement_And_VmUsesTryRenderMainImage()
+        {
+            var asm = typeof(GraphicsToolView).Assembly;
+            var asmDir = System.IO.Path.GetDirectoryName(asm.Location) ?? string.Empty;
+            var dir = new System.IO.DirectoryInfo(asmDir);
+            while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                dir = dir.Parent;
+            if (dir == null) return; // source tree not available — skip
+
+            var axamlPath = System.IO.Path.Combine(
+                dir.FullName, "FEBuilderGBA.Avalonia", "Views", "GraphicsToolView.axaml");
+            var vmPath = System.IO.Path.Combine(
+                dir.FullName, "FEBuilderGBA.Avalonia", "ViewModels", "GraphicsToolViewViewModel.cs");
+            if (!System.IO.File.Exists(axamlPath) || !System.IO.File.Exists(vmPath))
+                return;
+
+            var axaml = System.IO.File.ReadAllText(axamlPath);
+            var vm = System.IO.File.ReadAllText(vmPath);
+
+            // Both checkboxes gate enablement on !TsaModeActive.
+            Assert.Matches(
+                @"x:Name=""Is4bppCheck""[^>]*IsEnabled=""\{Binding !TsaModeActive\}""",
+                axaml);
+            Assert.Matches(
+                @"x:Name=""CompressedCheck""[^>]*IsEnabled=""\{Binding !TsaModeActive\}""",
+                axaml);
+
+            // The TSA-composited preview routes through the existing render core.
+            Assert.Contains("ImageTSAEditorCore.TryRenderMainImage", vm, System.StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
     /// Smoke test for the `DecreaseColorTSAToolView.InitMethod(int)`
     /// surface — verifies the mode flows through to the VM.
     /// </summary>

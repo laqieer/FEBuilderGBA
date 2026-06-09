@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _statusMessage = "Graphics Tool browser. Enter addresses and click Draw to view tiles.";
         string _imageAddressText = string.Empty;
         string _paletteAddressText = string.Empty;
+        string _tsaAddressText = string.Empty;
+        int _tsaTypeIndex;
         int _tileCountX = 8;
         int _tileCountY = 8;
         bool _is4bpp = true;
@@ -22,6 +24,29 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string ImageAddressText { get => _imageAddressText; set => SetField(ref _imageAddressText, value); }
         /// <summary>ROM address of the palette data (hex string).</summary>
         public string PaletteAddressText { get => _paletteAddressText; set => SetField(ref _paletteAddressText, value); }
+        /// <summary>ROM address of the TSA data (hex string). Only consumed when
+        /// <see cref="TsaTypeIndex"/> &gt; 0.</summary>
+        public string TsaAddressText { get => _tsaAddressText; set => SetField(ref _tsaAddressText, value); }
+        /// <summary>
+        /// WinForms <c>TSAOption.SelectedIndex</c> value (0 = None/plain tiles,
+        /// 1 = Compressed, 2 = Compressed Header, 3 = Raw Header, 4 = Raw).
+        /// When &gt; 0 the preview routes through the TSA-composited path.
+        /// </summary>
+        public int TsaTypeIndex
+        {
+            get => _tsaTypeIndex;
+            set
+            {
+                if (SetField(ref _tsaTypeIndex, value))
+                    OnPropertyChanged(nameof(TsaModeActive));
+            }
+        }
+        /// <summary>
+        /// True when a TSA type other than None is selected. The View binds
+        /// <c>Is4bppCheck</c>/<c>CompressedCheck</c> enablement to its inverse —
+        /// the TSA path is fixed 4bpp + LZ77 image.
+        /// </summary>
+        public bool TsaModeActive => TsaTypeIndex > 0;
         /// <summary>Number of tiles horizontally.</summary>
         public int TileCountX { get => _tileCountX; set => SetField(ref _tileCountX, value); }
         /// <summary>Number of tiles vertically.</summary>
@@ -83,6 +108,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return null;
             }
 
+            // --- TSA-composited preview path (#1030) --------------------------
+            // When a TSA type other than None is selected AND a TSA address is
+            // entered, route the preview through the EXISTING
+            // ImageTSAEditorCore.TryRenderMainImage (no new render logic). The
+            // TSA path is FIXED 4bpp + LZ77 image; the View disables
+            // Is4bpp/IsCompressed in this mode. The TSA-type -> flags mapping is
+            // the SAME one the TSA Editor button path uses (MapTsaType), so
+            // existing Jump callers render correctly. image2-join + compressed
+            // paletteType are deferred follow-ups.
+            uint tsaParsed = ParseHex(TsaAddressText);
+            if (TsaTypeIndex > 0 && tsaParsed != 0)
+            {
+                ROM rom = CoreState.ROM;
+                uint tsaOff = U.toOffset(tsaParsed);     // GBA pointer -> ROM offset
+                uint imgOff = U.toOffset(imageAddr);     // normalize image too
+                uint palOff = U.toOffset(paletteAddr);   // normalize palette too
+                var (isLZ77TSA, isHeaderTSA) = MapTsaType(TsaTypeIndex);
+
+                int w8 = TileCountX;
+                int h8 = TileCountY;
+                // Mirror ImageTSAEditorViewModel.Init's header-TSA min-dimension
+                // clamp (Width8 = Math.Max(256/8, w); Height8 = Math.Max(160/8, h)).
+                if (isHeaderTSA) { w8 = Math.Max(32, w8); h8 = Math.Max(20, h8); }
+
+                IImage? tsaImage = ImageTSAEditorCore.TryRenderMainImage(
+                    rom, (uint)w8, (uint)h8, imgOff, isHeaderTSA, isLZ77TSA, tsaOff, palOff);
+
+                if (tsaImage == null)
+                {
+                    StatusMessage = $"Error: Could not render TSA-composited image at image 0x{imgOff:X08}, tsa 0x{tsaOff:X08}.";
+                    CurrentImage = null;
+                    ImageInfo = string.Empty;
+                    return null;
+                }
+
+                CurrentImage = tsaImage;
+                ImageInfo = $"TSA · 4bpp · LZ77 image ({w8}x{h8} tiles)";
+                StatusMessage = $"Loaded TSA-composited {tsaImage.Width}x{tsaImage.Height} image.";
+                return tsaImage;
+            }
+
             // Auto-convert GBA pointer to ROM offset
             if (imageAddr >= 0x08000000 && imageAddr < 0x0A000000)
                 imageAddr -= 0x08000000;
@@ -120,6 +186,32 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             StatusMessage = $"Loaded {image.Width}x{image.Height} image from 0x{imageAddr + 0x08000000:X08}.";
 
             return image;
+        }
+
+        /// <summary>
+        /// Map a WinForms <c>TSAOption.SelectedIndex</c> value to the
+        /// <c>(isLZ77TSA, isHeaderTSA)</c> flag pair consumed by
+        /// <see cref="ImageTSAEditorCore.TryRenderMainImage"/>. This is the SAME
+        /// mapping the TSA Editor button path (<c>GraphicsToolView.TSAEditor_Click</c>)
+        /// has always used, extracted here so the preview and the editor button
+        /// share ONE source of truth:
+        /// <list type="bullet">
+        ///   <item>0 = None / plain tiles (no TSA composite).</item>
+        ///   <item>1 = Compressed (LZ77).</item>
+        ///   <item>2 = Compressed Header (LZ77 + header).</item>
+        ///   <item>3 = Raw Header.</item>
+        ///   <item>4 = Raw (else).</item>
+        /// </list>
+        /// </summary>
+        internal static (bool isLZ77TSA, bool isHeaderTSA) MapTsaType(int tsaType)
+        {
+            switch (tsaType)
+            {
+                case 1: return (true, false);   // LZ77
+                case 2: return (true, true);    // LZ77 + header
+                case 3: return (false, true);   // raw header
+                default: return (false, false); // 0 (None) / 4 (Raw) -> raw
+            }
         }
 
         /// <summary>Parse a hex string like "0x80000", "80000", or "0x08080000".</summary>

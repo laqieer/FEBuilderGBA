@@ -27,6 +27,22 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             InitializeComponent();
             DataContext = _vm;
+
+            // ComboBox.Items strings are NOT scanned by ViewTranslationHelper
+            // (ClassOPDemoView precedent — Copilot bot review thread on PR #544),
+            // so route the TSA-type labels through R._() so ja/zh locales pick
+            // them up. The index order MUST equal the WF TSAOption index space
+            // consumed by GraphicsToolViewViewModel.MapTsaType:
+            //   0 = None, 1 = Compressed, 2 = Compressed Header,
+            //   3 = Raw Header, 4 = Raw.
+            // Populate BEFORE the SelectedIndex binding fires so a Jump()-driven
+            // index lands on an existing item.
+            TsaTypeCombo.Items.Add(R._("None"));
+            TsaTypeCombo.Items.Add(R._("Compressed"));
+            TsaTypeCombo.Items.Add(R._("Compressed Header"));
+            TsaTypeCombo.Items.Add(R._("Raw Header"));
+            TsaTypeCombo.Items.Add(R._("Raw"));
+
             _vm.IsLoading = true;
             _vm.Initialize();
             _vm.IsLoading = false;
@@ -75,13 +91,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint zimgPointer = U.GrepPointer(rom.Data, U.toPointer(_navImageAddr));
                 uint tsaPointer = U.GrepPointer(rom.Data, U.toPointer(_navTsaAddr));
 
-                // Mirror WF TSAOption.SelectedIndex mapping:
+                // Mirror WF TSAOption.SelectedIndex mapping via the SHARED helper
+                // (#1030 — the same GraphicsToolViewViewModel.MapTsaType the
+                // TSA-composited preview path uses, so the button and the preview
+                // agree on the flags):
                 //   1 = LZ77; 2 = LZ77 + header; 3 = raw header; else raw.
-                bool isHeaderTSA = false;
-                bool isLZ77TSA = false;
-                if (_navTsaType == 1) { isLZ77TSA = true; }
-                else if (_navTsaType == 2) { isLZ77TSA = true; isHeaderTSA = true; }
-                else if (_navTsaType == 3) { isHeaderTSA = true; }
+                var (isLZ77TSA, isHeaderTSA) =
+                    GraphicsToolViewViewModel.MapTsaType(_navTsaType);
 
                 uint paletteOffset = U.toOffset(_navPaletteAddr);
                 uint palettePointer = U.GrepPointer(rom.Data, U.toPointer(_navPaletteAddr));
@@ -113,15 +129,14 @@ namespace FEBuilderGBA.Avalonia.Views
         /// directly, so we perform the same `/ 8` conversion here.
         ///
         /// <para>
-        /// Note: the Avalonia <c>GraphicsToolViewViewModel</c> currently
-        /// renders the tile + palette pair only (no separate TSA field).
-        /// The <paramref name="tsa"/> / <paramref name="tsaType"/> /
-        /// <paramref name="paletteType"/> / <paramref name="image2"/>
-        /// parameters are accepted for WinForms signature parity but are
-        /// not consumed by the Avalonia preview path. Callers that need
-        /// TSA-aware decoding should use the editor view that owns the
-        /// TSA pointer (e.g. <c>ImageBattleBGView</c>) which renders the
-        /// preview separately.
+        /// Note (#1030): the Avalonia <c>GraphicsToolViewViewModel</c> now
+        /// consumes <paramref name="tsa"/> + <paramref name="tsaType"/> and
+        /// routes the preview through <c>ImageTSAEditorCore.TryRenderMainImage</c>
+        /// (TSA-composited, fixed 4bpp + LZ77 image). The
+        /// <paramref name="paletteType"/> (compressed palette) and
+        /// <paramref name="image2"/> (2nd-image join) parameters are still
+        /// accepted for WinForms signature parity but are NOT yet consumed by
+        /// the Avalonia preview path — both are deferred follow-ups.
         /// </para>
         ///
         /// Parameter semantics mirror WF (see <c>GraphicsToolForm.Draw()</c>
@@ -163,6 +178,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 // null-pointer call as a valid ROM read.)
                 _vm.ImageAddressText = $"0x{NormalizeGbaPointer(image):X08}";
                 _vm.PaletteAddressText = $"0x{NormalizeGbaPointer(palette):X08}";
+
+                // #1030: feed the TSA context to the preview so existing
+                // entrypoints (ImageBattleBGView, ImageBGView) open in
+                // TSA-composited mode. Same null-preserving normalization the
+                // image/palette population above uses (0 -> "" so a null TSA
+                // pointer is NOT shown as a valid ROM read). The combo index
+                // space IS the WF TSAOption space that MapTsaType consumes, so
+                // the incoming tsaType maps to the combo index directly (clamped
+                // defensively to the 5 populated items 0..4).
+                _vm.TsaAddressText = tsa == 0 ? "" : $"0x{NormalizeGbaPointer(tsa):X08}";
+                _vm.TsaTypeIndex = System.Math.Clamp(tsaType, 0, 4);
 
                 // WF passes pixels; AV stores tile counts. Convert.
                 _vm.TileCountX = System.Math.Max(1, width / 8);
