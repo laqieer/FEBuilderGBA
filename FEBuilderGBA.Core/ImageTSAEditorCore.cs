@@ -326,6 +326,268 @@ namespace FEBuilderGBA
             return true;
         }
 
+        // =================================================================
+        // Per-cell TSA editing (#1005) — NON-header TSA ONLY.
+        //
+        // A non-header TSA is a clean row-major width8*height8 grid of u16
+        // GBA "screen entries". Each entry packs:
+        //   bits 0-9  = tile index   (& 0x3FF)
+        //   bit  10   = H-flip        (0x400)
+        //   bit  11   = V-flip        (0x800)
+        //   bits 12-15 = palette bank ((entry >> 12) & 0xF)
+        // The serialize below is the EXACT inverse of DecodeTSA's unpack at
+        // ImageUtilCore.cs (tileIndex = entry & 0x3FF; hFlip = entry & 0x400;
+        // vFlip = entry & 0x800; palIndex = (entry >> 12) & 0xF), stored
+        // little-endian.
+        //
+        // Header-TSA editing is OUT OF SCOPE (bottom-to-top 32-wide stride +
+        // margin complexity, tracked separately): these methods refuse / are
+        // never called for isHeaderTSA.
+        // =================================================================
+
+        const int TSA_CELL_BYTES = 2; // one GBA screen entry = u16
+
+        /// <summary>
+        /// READ-ONLY: the number of 8x8 tiles in the LZ77 tile image at
+        /// <paramref name="imageAddr"/> (4bpp = 32 bytes/tile). Used by the
+        /// per-cell editor to clamp the editable tile-id range. Returns 0
+        /// (never throws) on any null/out-of-bounds/corrupt input.
+        /// </summary>
+        public static int GetTilesheetTileCount(ROM rom, uint imageAddr)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return 0;
+            if (!IsLZ77HeaderSafe(rom, imageAddr)) return 0;
+            uint imgCompressed = LZ77.getCompressedSize(rom.Data, imageAddr);
+            if (imgCompressed == 0) return 0;
+            if ((ulong)imageAddr + imgCompressed > (ulong)rom.Data.Length) return 0;
+            byte[] tileData = LZ77.decompress(rom.Data, imageAddr);
+            if (tileData == null || tileData.Length == 0) return 0;
+            return tileData.Length / 32; // 4bpp = 32 bytes/tile
+        }
+
+        /// <summary>
+        /// Serialize one non-header TSA cell to its GBA screen-entry u16. This
+        /// is the EXACT inverse of <see cref="ImageUtilCore.DecodeTSA"/>'s
+        /// bit-unpack: <c>(tileId &amp; 0x3FF) | (h?0x400:0) | (v?0x800:0) |
+        /// ((bank &amp; 0xF) &lt;&lt; 12)</c>.
+        /// </summary>
+        public static ushort SerializeCell(int tileId, bool hflip, bool vflip, int bank)
+        {
+            return (ushort)((tileId & 0x3FF)
+                | (hflip ? 0x400 : 0)
+                | (vflip ? 0x800 : 0)
+                | ((bank & 0xF) << 12));
+        }
+
+        /// <summary>
+        /// READ-ONLY: decode the current NON-header TSA into a row-major
+        /// <c>width8*height8</c> array of GBA screen-entry u16 cells.
+        ///
+        /// LZ77 path: guard the full 4-byte header before getCompressedSize,
+        /// then decompress and slice the first <c>width8*height8</c> entries
+        /// (a short stream is zero-padded so the grid is always full-length).
+        /// RAW path: slice <c>width8*height8*2</c> bytes at the resolved data
+        /// offset (clamped; missing trailing bytes are zero).
+        ///
+        /// Returns <c>null</c> (never throws) on any null/out-of-bounds/corrupt
+        /// input. The caller MUST NOT call this for header-TSA — there is no
+        /// isHeaderTSA parameter precisely because this path is non-header only.
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="width8">Canvas width in 8-pixel tiles.</param>
+        /// <param name="height8">Canvas height in 8-pixel tiles.</param>
+        /// <param name="isLZ77TSA">True if the TSA stream is LZ77-compressed.</param>
+        /// <param name="tsaAddr">Resolved ROM offset of the TSA stream.</param>
+        public static ushort[] DecodeTsaCells(ROM rom, uint width8, uint height8,
+            bool isLZ77TSA, uint tsaAddr)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (width8 == 0 || height8 == 0) return null;
+
+            long cellCountL = (long)width8 * (long)height8;
+            if (cellCountL <= 0 || cellCountL > int.MaxValue) return null;
+            int cellCount = (int)cellCountL;
+
+            if (!U.isSafetyOffset(tsaAddr, rom)) return null;
+
+            byte[] tsaBytes;
+            if (isLZ77TSA)
+            {
+                if (!IsLZ77HeaderSafe(rom, tsaAddr)) return null;
+                uint tsaCompressed = LZ77.getCompressedSize(rom.Data, tsaAddr);
+                if (tsaCompressed == 0) return null;
+                if ((ulong)tsaAddr + tsaCompressed > (ulong)rom.Data.Length) return null;
+                tsaBytes = LZ77.decompress(rom.Data, tsaAddr);
+                if (tsaBytes == null || tsaBytes.Length == 0) return null;
+            }
+            else
+            {
+                // RAW: slice width8*height8*2 bytes at the resolved data offset,
+                // clamped to ROM end (missing trailing bytes stay zero).
+                long needBytes = cellCountL * TSA_CELL_BYTES;
+                long available = (long)rom.Data.Length - tsaAddr;
+                if (available <= 0) return null;
+                int sliceLen = (int)Math.Min(needBytes, available);
+                tsaBytes = new byte[needBytes];
+                Array.Copy(rom.Data, tsaAddr, tsaBytes, 0, sliceLen);
+            }
+
+            ushort[] cells = new ushort[cellCount];
+            int avail = tsaBytes.Length / TSA_CELL_BYTES;
+            int n = Math.Min(cellCount, avail);
+            for (int i = 0; i < n; i++)
+            {
+                int p = i * TSA_CELL_BYTES;
+                cells[i] = (ushort)(tsaBytes[p] | (tsaBytes[p + 1] << 8));
+            }
+            return cells;
+        }
+
+        /// <summary>
+        /// READ-ONLY: render the NON-header main image from in-memory cells —
+        /// serialize <paramref name="cells"/> to TSA bytes then feed
+        /// <see cref="ImageUtilCore.DecodeTSA"/> (same code path as
+        /// <see cref="TryRenderMainImage"/>'s raw non-header branch). Tile data
+        /// + palette come from ROM via the shared loader. Returns <c>null</c>
+        /// (never throws) on any null/out-of-bounds/corrupt input or when
+        /// <paramref name="cells"/> is null.
+        /// </summary>
+        public static IImage RenderMainImageFromCells(ROM rom, uint width8, uint height8,
+            uint imageAddr, ushort[] cells, uint paletteAddr)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (width8 == 0 || height8 == 0) return null;
+            if (cells == null) return null;
+
+            if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
+                                          out byte[] tileData, out byte[] palette))
+            {
+                return null;
+            }
+
+            int wTiles = (int)width8;
+            int hTiles = (int)height8;
+
+            // Serialize cells to a row-major little-endian byte buffer and decode
+            // with the SAME DecodeTSA the read-only ROM path uses (tsaOffset 0).
+            byte[] tsaBytes = new byte[cells.Length * TSA_CELL_BYTES];
+            for (int i = 0; i < cells.Length; i++)
+            {
+                tsaBytes[i * TSA_CELL_BYTES] = (byte)(cells[i] & 0xFF);
+                tsaBytes[i * TSA_CELL_BYTES + 1] = (byte)(cells[i] >> 8);
+            }
+
+            return ImageUtilCore.DecodeTSA(tileData, tsaBytes, palette, wTiles, hTiles, true, 0);
+        }
+
+        /// <summary>
+        /// ROM-MUTATING, NON-header ONLY: serialize <paramref name="cells"/>
+        /// (row-major little-endian) and write them back to the TSA stream.
+        ///
+        ///   * <paramref name="isLZ77TSA"/> true  → LZ77-compress + append to
+        ///     free space + repoint the POINTER SLOT
+        ///     (<paramref name="tsaPointerSlot"/>) via
+        ///     <see cref="ImageImportCore.WriteCompressedToROM"/>.
+        ///   * raw → bounds-check <c>[tsaDataAddr, tsaDataAddr+bytes)</c> and
+        ///     assert the serialized byte length EQUALS the existing
+        ///     <c>width8*height8*2</c> footprint (SAME-SIZE in-place overwrite —
+        ///     a raw TSA has no length header to grow), then
+        ///     <c>rom.write_range(tsaDataAddr, bytes)</c> (NOT the silently-no-op
+        ///     WriteBytes). No repoint on the raw path.
+        ///
+        /// Runs inside the caller's ambient undo scope. A defensive byte-identical
+        /// snapshot (#885/#923) is restored on ANY fault — including a free-space
+        /// resize-append inside WriteCompressedToROM — so a failed write mutates
+        /// ZERO bytes. Never throws; returns "" on success or a localized error.
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="width8">Canvas width in 8-pixel tiles.</param>
+        /// <param name="height8">Canvas height in 8-pixel tiles.</param>
+        /// <param name="isLZ77TSA">True if the TSA stream is LZ77-compressed.</param>
+        /// <param name="tsaPointerSlot">Pointer-table slot that holds the TSA
+        ///   data pointer (used by the LZ77 repoint path).</param>
+        /// <param name="tsaDataAddr">Resolved ROM offset of the TSA stream
+        ///   (used by the raw in-place path).</param>
+        /// <param name="cells">Row-major width8*height8 cells to serialize.</param>
+        public static string WriteTsaCells(ROM rom, uint width8, uint height8,
+            bool isLZ77TSA, uint tsaPointerSlot, uint tsaDataAddr, ushort[] cells)
+        {
+            if (rom == null || rom.Data == null) return R._("ROM is not loaded.");
+            if (cells == null) return R._("No TSA cell data.");
+            if (width8 == 0 || height8 == 0) return R._("TSA dimensions are invalid.");
+
+            long cellCountL = (long)width8 * (long)height8;
+            if (cellCountL <= 0 || cellCountL > int.MaxValue || cells.Length != cellCountL)
+            {
+                return R._("TSA cell count {0} does not match {1}x{2}.",
+                    cells.Length, width8, height8);
+            }
+
+            // Serialize row-major little-endian (inverse of DecodeTSA's unpack).
+            byte[] bytes = new byte[cells.Length * TSA_CELL_BYTES];
+            for (int i = 0; i < cells.Length; i++)
+            {
+                bytes[i * TSA_CELL_BYTES] = (byte)(cells[i] & 0xFF);
+                bytes[i * TSA_CELL_BYTES + 1] = (byte)(cells[i] >> 8);
+            }
+
+            // Defensive snapshot: the ambient undo scope captures the writes for
+            // UNDO; this snapshot guarantees a FAILED write mutates ZERO bytes
+            // (length-aware restore handles a free-space resize-append).
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                if (isLZ77TSA)
+                {
+                    // LZ77: compress + append to free space + repoint the SLOT.
+                    uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, bytes, tsaPointerSlot);
+                    if (writeAddr == U.NOT_FOUND)
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Failed to write TSA data. Check ROM free space.");
+                    }
+                    return "";
+                }
+
+                // RAW: SAME-SIZE in-place overwrite at the resolved data addr.
+                // A raw TSA has no length header, so the serialized length MUST
+                // equal the existing width8*height8*2 footprint.
+                long footprint = cellCountL * TSA_CELL_BYTES;
+                if (bytes.Length != footprint)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return R._("TSA raw write size mismatch.");
+                }
+                if (!U.isSafetyOffset(tsaDataAddr, rom)
+                    || (ulong)tsaDataAddr + (ulong)bytes.Length > (ulong)rom.Data.Length)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return R._("TSA data range is outside ROM bounds.");
+                }
+                rom.write_range(tsaDataAddr, bytes);
+                return "";
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                return R._("TSA write failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Length-aware byte-identical restore (#885/#923): a free-space
+        /// resize-append can GROW rom.Data, so down-resize back to the snapshot
+        /// length BEFORE the in-place copy (a naive Array.Copy would leave the
+        /// grown tail alive).
+        /// </summary>
+        static void RestoreSnapshot(ROM rom, byte[] snap)
+        {
+            if (rom.Data.Length != snap.Length)
+                rom.write_resize_data((uint)snap.Length);
+            Array.Copy(snap, rom.Data, snap.Length);
+        }
+
         // The GBA LZ77 stream header is 4 bytes (0x10 + a 3-byte uncompressed
         // size). LZ77.getCompressedSize reads input[offset + 3] but only rejects
         // when FEWER THAN 3 bytes remain, so a pointer to the LAST 1-3 bytes of

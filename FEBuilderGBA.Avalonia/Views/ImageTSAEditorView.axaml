@@ -32,7 +32,8 @@
 
   <!-- BattleCanvasRender RESOLVED (#808): the TSA-composited main image is now rendered cross-platform via ImageTSAEditorCore.TryRenderMainImage into BattlePreview, with a read-only Export PNG button. Note: export is intentionally NOT byte-identical to the WF canvas for TSA tile indices >= 0x100 because the Core decoder uses the full 10-bit index (& 0x3FF) like ImageUtil.ByteToImage16Tile, whereas the WF TSA canvas masks tile numbers to 8 bits (& 0xff). The 10-bit value is the on-ROM truth, so this is acceptable for a read-only export. -->
   <!-- ChipsetListRender RESOLVED (#819): the chip-list thumbnail (WF MakeCHIPLIST / PATHCHIPLIST_Paint) is now rendered cross-platform via ImageTSAEditorCore.RenderChipList into ChipListPreview — the main-image tiles in WF's 4-column (orig / Hflip / Vflip / HVflip) single-palette-bank-0 strip, read-only. Follow-up to #808/#810 (shared TSA tile/palette loader) and #807 (the 8-col/2-bank battle-screen sibling). -->
-  <!-- KnownGap: TSAByteWrite reason=ImageFormRef.WriteImageData does pointer-aware reallocation when LZ77 recompressed TSA exceeds the original allocation; mirroring that requires the full WinForms write pipeline. This is the SOLE remaining deferral in this editor: the Avalonia TSA editor has NO per-cell TSA-edit grid, so there is no edited TSA to write back (tilesheet import #901 already covers full image replacement). Becomes actionable only when a TSA cell-edit grid is added (separate future issue). Only the palette-write path is exercised by the Write button. -->
+  <!-- RESOLVED (#1005): TSAByteWrite (NON-header TSA) — the TSA Cell tab adds a per-cell X/Y editor (Tile ID + H/V flip + palette bank) and the Write button now writes BOTH the edited TSA and the palette under ONE undo scope. Raw TSA is overwritten in place (same-size); LZ77 TSA is recompressed, appended to free space, and the pointer slot repointed (ImageTSAEditorCore.WriteTsaCells). Header-TSA editing is DEFERRED to a follow-up (bottom-to-top 32-wide stride + margin complexity), so the cell-edit panel stays disabled (CanEditCells gate) when IsHeaderTSA. -->
+  <!-- KnownGap: HeaderTSACellWrite reason=header-TSA uses a {w,h}-header bottom-to-top 32-wide stride with a right-margin, unlike the clean row-major non-header grid this editor now writes; porting that decode/encode geometry is tracked as a #1005 follow-up. The cell-edit panel is disabled (CanEditCells) for header-TSA. -->
   <!-- RESOLVED (#974): PaletteToClipboard — PaletteClipboard_Click now packs the 16 palette entries to GBA 5-5-5 big-endian hex (mirroring WF PaletteFormRef.PALETTE_TO_CLIPBOARD_BUTTON_Click) and copies to the system clipboard via the Avalonia IClipboard.SetTextAsync async API. See ImageTSAEditorViewModel.BuildPaletteClipboardHex + PaletteClipboard_Click. -->
   <!-- RESOLVED (#901): MainImageImport — image1_Import is now wired (tilesheet-only). The WF TSA editor builds its main-image ImageFormRef with tsa_pointer=0 and only the ZIMAGE control, so Import encodes a SAME-SIZE PNG to plain 4bpp tiles (ImageToByte16Tile via ImageImportCore.EncodeDirectTiles4bpp), LZ77-compresses, and repoints ONLY the ZImg pointer — TSA + palette are untouched. See TSAImageImportCore.ImportTSAImage + MainImageImport_Click. -->
   <!-- RESOLVED (#974): MainImageExport — MainImageExport_Click now renders the raw 4bpp tilesheet (LZ77-decompressed ZImg, 8-tile-wide strip) via ImageTSAEditorCore.RenderRawTilesheet and saves it to PNG via GbaImageControl.ExportPng. DISTINCT from the read-only TSA-composited Export PNG (#808, ImageTSAEditor_Battle_ExportPng_Button). See ImageTSAEditorViewModel.RenderRawTilesheet + MainImageExport_Click. -->
@@ -111,7 +112,7 @@
     <!-- ===== Row 1 Col 1: Battle canvas + TSAInfo + TabControl ===== -->
     <Grid Grid.Row="1" Grid.Column="1" RowDefinitions="*,Auto,Auto" Margin="4">
 
-      <!-- Battle canvas (TSA-rendered main image, #808). Render is read-only; TSA byte write stays KnownGap: TSAByteWrite. -->
+      <!-- Battle canvas (TSA-rendered main image, #808). For non-header TSA the preview tracks in-memory cell edits (#1005); header-TSA stays read-only. -->
       <Border Grid.Row="0" BorderBrush="DarkGray" BorderThickness="1" Margin="0,0,0,4">
         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
           <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_Battle_Image"
@@ -444,6 +445,64 @@
               <controls:GbaImageControl AutomationProperties.AutomationId="ImageTSAEditor_MainImage_Image"
                                         Name="MainImagePreview" MinWidth="316" MinHeight="128" />
             </Border>
+
+          </StackPanel>
+        </TabItem>
+
+        <!-- TSA Cell tab (#1005): per-cell editor for NON-header TSA. The whole
+             panel is gated on CanEditCells (HasCells && !IsHeaderTSA) so it stays
+             disabled for header-TSA, whose bottom-to-top stride is deferred. -->
+        <TabItem AutomationProperties.AutomationId="ImageTSAEditor_TsaCell_Tab" Header="TSA Cell">
+          <StackPanel Margin="6" Spacing="6" IsEnabled="{Binding CanEditCells}">
+
+            <!-- Header-TSA note: per-cell editing is non-header only (#1005). -->
+            <TextBlock Text="Per-cell editing supports non-header TSA only — header-TSA editing tracked separately."
+                       TextWrapping="Wrap" Foreground="DarkOrange" />
+
+            <!-- Cell X / Cell Y selectors -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label Content="Cell X" VerticalAlignment="Center" Width="80"
+                     HorizontalContentAlignment="Right" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_TsaCellX_Input"
+                             FormatString="0" Name="TsaCellXBox" Width="100"
+                             Minimum="0" Maximum="0" VerticalAlignment="Center" />
+              <Label Content="Cell Y" VerticalAlignment="Center" Width="80"
+                     HorizontalContentAlignment="Right" Margin="12,0,0,0" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_TsaCellY_Input"
+                             FormatString="0" Name="TsaCellYBox" Width="100"
+                             Minimum="0" Maximum="0" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Tile ID -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label Content="Tile ID" VerticalAlignment="Center" Width="80"
+                     HorizontalContentAlignment="Right" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_TsaCellTileId_Input"
+                             FormatString="0" Name="TsaCellTileIdBox" Width="100"
+                             Minimum="0" Maximum="1023" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Flip flags -->
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <CheckBox AutomationProperties.AutomationId="ImageTSAEditor_TsaCellHFlip_Check"
+                        Name="TsaCellHFlipCheck" Content="H-Flip" />
+              <CheckBox AutomationProperties.AutomationId="ImageTSAEditor_TsaCellVFlip_Check"
+                        Name="TsaCellVFlipCheck" Content="V-Flip" />
+            </StackPanel>
+
+            <!-- Palette Bank -->
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Label Content="Palette Bank" VerticalAlignment="Center" Width="80"
+                     HorizontalContentAlignment="Right" />
+              <NumericUpDown AutomationProperties.AutomationId="ImageTSAEditor_TsaCellBank_Input"
+                             FormatString="0" Name="TsaCellBankBox" Width="100"
+                             Minimum="0" Maximum="15" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Apply to Cell -->
+            <Button AutomationProperties.AutomationId="ImageTSAEditor_TsaCellApply_Button"
+                    Name="TsaCellApplyButton" Content="Apply to Cell"
+                    Click="TsaCellApply_Click" HorizontalAlignment="Left" />
 
           </StackPanel>
         </TabItem>

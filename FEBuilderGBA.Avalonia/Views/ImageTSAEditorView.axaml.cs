@@ -25,6 +25,11 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly ImageTSAEditorViewModel _vm = new();
         readonly UndoService _undoService = new();
 
+        // Suppresses the Cell X / Cell Y ValueChanged -> field-load reentrancy
+        // while we programmatically push a cell's values into the editor fields
+        // (#1005). Without this, seeding the fields would re-trigger the loader.
+        bool _suppressCellLoad;
+
         public string ViewTitle => "TSA Tile Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -56,6 +61,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // Same for changes to the Palette Address spinner — the spinner
             // is the WF-equivalent of the editable PaletteAddress field.
             PaletteAddressBox.ValueChanged += (_, _) => ReloadPaletteIntoGrid();
+            // TSA Cell selectors (#1005): changing Cell X / Cell Y loads that
+            // cell's current values into the Tile ID / flip / bank fields. The
+            // _suppressCellLoad guard keeps the programmatic field-seed from
+            // re-triggering this handler.
+            TsaCellXBox.ValueChanged += (_, _) => LoadSelectedCellIntoFields();
+            TsaCellYBox.ValueChanged += (_, _) => LoadSelectedCellIntoFields();
             // Redo is now wired to the global Core Undo stack (#974):
             // CoreState.Undo.RunRedo() + CanRedo already exist (the Map Style
             // editor's Redo_Click uses the same pattern). The buttons stay
@@ -112,6 +123,95 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateInfoLabel();
             RefreshBattleCanvas();
             RefreshChipList();
+
+            // Configure the TSA Cell editor (#1005). The panel auto-disables via
+            // CanEditCells for header-TSA; for non-header TSA we set the X/Y/Tile
+            // ID ranges and seed the fields from cell (0,0).
+            ConfigureTsaCellEditor();
+        }
+
+        /// <summary>
+        /// Set the TSA Cell editor's X/Y/Tile ID NumericUpDown ranges from the
+        /// decoded cell grid and seed the fields from cell (0,0) (#1005). No-op
+        /// of the seed when there are no editable cells (header-TSA / corrupt
+        /// TSA), in which case the panel is already disabled via CanEditCells.
+        /// </summary>
+        void ConfigureTsaCellEditor()
+        {
+            if (!_vm.CanEditCells) return;
+
+            _suppressCellLoad = true;
+            try
+            {
+                TsaCellXBox.Minimum = 0;
+                TsaCellXBox.Maximum = Math.Max(0, _vm.CellCols - 1);
+                TsaCellXBox.Value = 0;
+
+                TsaCellYBox.Minimum = 0;
+                TsaCellYBox.Maximum = Math.Max(0, _vm.CellRows - 1);
+                TsaCellYBox.Value = 0;
+
+                TsaCellTileIdBox.Minimum = 0;
+                TsaCellTileIdBox.Maximum = Math.Max(0, _vm.MaxTileId);
+            }
+            finally { _suppressCellLoad = false; }
+
+            // Seed the Tile ID / flip / bank fields from cell (0,0).
+            LoadSelectedCellIntoFields();
+        }
+
+        /// <summary>
+        /// Decode the cell at the current (Cell X, Cell Y) selection and push
+        /// its tile id / H-flip / V-flip / palette bank into the editor fields
+        /// (#1005). Guarded by <c>_suppressCellLoad</c> so the programmatic
+        /// field-seed cannot re-enter via the X/Y ValueChanged handlers.
+        /// </summary>
+        void LoadSelectedCellIntoFields()
+        {
+            if (_suppressCellLoad) return;
+            if (!_vm.CanEditCells) return;
+
+            int x = (int)(TsaCellXBox.Value ?? 0m);
+            int y = (int)(TsaCellYBox.Value ?? 0m);
+            ushort entry = _vm.GetCell(x, y);
+
+            int tileId = entry & 0x3FF;
+            bool hflip = (entry & 0x400) != 0;
+            bool vflip = (entry & 0x800) != 0;
+            int bank = (entry >> 12) & 0xF;
+
+            _suppressCellLoad = true;
+            try
+            {
+                TsaCellTileIdBox.Value = Math.Min(tileId, _vm.MaxTileId);
+                TsaCellHFlipCheck.IsChecked = hflip;
+                TsaCellVFlipCheck.IsChecked = vflip;
+                TsaCellBankBox.Value = bank;
+            }
+            finally { _suppressCellLoad = false; }
+        }
+
+        /// <summary>
+        /// "Apply to Cell" button (#1005). Bit-packs the editor fields into the
+        /// selected cell via <see cref="ImageTSAEditorViewModel.SetCell"/> then
+        /// re-renders the BattlePreview so the canvas reflects the in-memory
+        /// edit immediately (the ROM is written only on the Write button).
+        /// </summary>
+        void TsaCellApply_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanEditCells) return;
+
+            int x = (int)(TsaCellXBox.Value ?? 0m);
+            int y = (int)(TsaCellYBox.Value ?? 0m);
+            int tileId = (int)(TsaCellTileIdBox.Value ?? 0m);
+            bool hflip = TsaCellHFlipCheck.IsChecked == true;
+            bool vflip = TsaCellVFlipCheck.IsChecked == true;
+            int bank = (int)(TsaCellBankBox.Value ?? 0m);
+
+            _vm.SetCell(x, y, tileId, hflip, vflip, bank);
+
+            // Re-render the TSA-composited canvas from the in-memory cells.
+            BattlePreview.SetImage(_vm.RenderMainImage());
         }
 
         /// <summary>
@@ -296,22 +396,41 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Main Write button (top toolbar). In WinForms this writes TSA +
-        /// palette in one shot via ImageFormRef.WriteImageData. The TSA-
-        /// byte-write path is deferred (KnownGap: TSAByteWrite), so this
-        /// button writes the active palette only. Disabled until Init().
+        /// palette in one shot via ImageFormRef.WriteImageData. We now write
+        /// BOTH under ONE undo scope (#1005): the edited NON-header TSA cells
+        /// (when CanEditCells) followed by the active palette. A failed TSA
+        /// write rolls the whole transaction back so neither half persists.
+        /// Header-TSA leaves CanEditCells false, so only the palette is written
+        /// (the prior behavior). Disabled until Init().
         /// </summary>
         void Write_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsContextLoaded) return;
 
-            _undoService.Begin("TSA Editor Write");
+            _undoService.Begin("Write TSA");
             try
             {
+                // 1. TSA cells (non-header only). On a non-empty error string,
+                //    roll back the whole scope before the palette half runs.
+                if (_vm.CanEditCells)
+                {
+                    string err = _vm.WriteTsa();
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                }
+
+                // 2. Palette half (existing). Owns no undo scope of its own —
+                //    the outer scope above is the single transaction.
                 PerformPaletteWrite();
                 _undoService.Commit();
                 _vm.MarkClean();
-                // A palette write changes the rendered colors -> refresh the
-                // read-only chip-list thumbnail so it tracks the new palette.
+                // The TSA / palette changed -> re-render both previews so they
+                // track the persisted bytes.
+                RefreshBattleCanvas();
                 RefreshChipList();
             }
             catch (Exception ex)
@@ -470,9 +589,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void PaletteRedo_Click(object? sender, RoutedEventArgs e) => Redo_Click(sender, e);
 
         // -----------------------------------------------------------------
-        // KnownGap inert stubs — IsEnabled=False in AXAML, Click handler
-        // is present so the View_AllButtons_AreWiredOrExplicitlyInert test
-        // passes (one or the other is required by the audit; we have both).
+        // Wired button handlers — Clipboard / MainImage Import / Export.
         // -----------------------------------------------------------------
 
         /// <summary>

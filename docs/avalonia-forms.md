@@ -278,7 +278,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 156 | ImageSystemAreaView | ImageSystemAreaViewModel | System area graphics editor |
 | 157 | ImageGenericEnemyPortraitView | ImageGenericEnemyPortraitViewModel | Generic enemy portrait editor (preview + PNG Export / Image Import) |
 | 158 | ImageRomAnimeView | ImageRomAnimeViewModel | ROM-stored animation editor |
-| 159 | ImageTSAEditorView | ImageTSAEditorViewModel | Tile Screen Arrangement editor |
+| 159 | ImageTSAEditorView | ImageTSAEditorViewModel | Tile Screen Arrangement editor (palette write + raw-tilesheet import/export + per-cell TSA editing & TSA write-back for NON-header TSA, #1005; header-TSA per-cell editing deferred) |
 | 160 | ImageTSAAnimeView | ImageTSAAnimeViewModel | TSA animation editor |
 | 161 | ImageTSAAnime2View | ImageTSAAnime2ViewModel | TSA animation editor (type 2) |
 | 162 | ImagePalletView | ImagePalletViewModel | Palette viewer/editor |
