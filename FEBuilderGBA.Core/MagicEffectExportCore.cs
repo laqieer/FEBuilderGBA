@@ -685,6 +685,261 @@ namespace FEBuilderGBA
         }
 
         // -----------------------------------------------------------------------
+        // RenderCsaFramePreview — live 240×128 CSA frame composite (#1021)
+        // -----------------------------------------------------------------------
+
+        /// <summary>Live-preview canvas width — mirrors WF
+        /// <c>ImageUtilMagicCSACreator.SCREEN_TILE_WIDTH*8 = 240</c>.</summary>
+        public const int CSA_PREVIEW_WIDTH  = 240; // 240/8 tiles * 8
+        /// <summary>Live-preview canvas height — mirrors WF
+        /// <c>ImageUtilMagicCSACreator.SCREEN_TILE_HEIGHT*8 = 128</c>.</summary>
+        public const int CSA_PREVIEW_HEIGHT = 128; // 64*2/8 tiles * 8
+
+        /// <summary>
+        /// Render a single CSA-Creator frame as a 240×128 live-preview image
+        /// (READ-ONLY: zero ROM mutation). Mirrors WF
+        /// <c>ImageUtilMagicCSACreator.Draw</c> →
+        /// <c>DrawFrameImage</c> composite order:
+        /// <list type="number">
+        ///   <item>BG (honoring the <c>IsExpandsBG</c> top-64 vertical scale driven by
+        ///     the preceding 0x85 <c>0x53</c> command);</item>
+        ///   <item>OBJ <b>back</b> layer (the RIGHT 240px of the 480×160
+        ///     <see cref="RenderObjFrameSlot"/> output);</item>
+        ///   <item>OBJ <b>front</b> layer (the LEFT 240px), each alpha-over.</item>
+        /// </list>
+        ///
+        /// <para><b>slotIndex ≠ frameIndex.</b> The per-frame OBJ/BG <em>shared</em>
+        /// slot indices are obtained from
+        /// <see cref="ExportMagicScriptLines"/> with <c>isCsa:true</c> (one entry per
+        /// frame in <c>sharedObjSlots</c>/<c>sharedBgSlots</c>). One CSA frame can map
+        /// to OBJ slot 0 + BG slot 1, so <paramref name="frameIndex"/> is NEVER passed
+        /// directly as a slot index.</para>
+        ///
+        /// <para>Returns <c>null</c> (never throws) on any guard failure: null ROM,
+        /// no ImageService, a failed/empty CSA scan, an out-of-range
+        /// <paramref name="frameIndex"/>, or a failed slot render.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="frameDataAddr">P0 — GBA pointer (or raw offset) to the CSA
+        ///   frame-data script.</param>
+        /// <param name="frameIndex">0-based index of the 0x86 frame to render.</param>
+        /// <param name="objRightToLeftOAM">P4 — front OAM table base.</param>
+        /// <param name="objBGRightToLeftOAM">P12 — back (BG) OAM table base.</param>
+        /// <returns>A 240×128 <see cref="IImage"/>, or <c>null</c>.</returns>
+        public static IImage RenderCsaFramePreview(
+            ROM rom,
+            uint frameDataAddr,
+            uint frameIndex,
+            uint objRightToLeftOAM,
+            uint objBGRightToLeftOAM)
+        {
+            if (rom == null || rom.Data == null) return null;
+            IImageService svc = CoreState.ImageService;
+            if (svc == null) return null;
+
+            // 1. CSA-aware scan + per-frame shared-slot mapping (slotIndex ≠ frameIndex).
+            List<int> sharedObjSlots, sharedBgSlots;
+            List<MagicFrameMeta> frames;
+            ExportMagicScriptLines(
+                rom, frameDataAddr, string.Empty, false,
+                out sharedObjSlots, out sharedBgSlots, out frames,
+                isCsa: true);
+
+            if (frames.Count == 0) return null;
+            if (frameIndex >= (uint)frames.Count) return null;
+
+            int objSlot = sharedObjSlots[(int)frameIndex];
+            int bgSlot  = sharedBgSlots[(int)frameIndex];
+
+            // 2. Render the per-frame slots.
+            //    BG: 240×(160|64) TSA-composited (CSA +28).
+            //    OBJ: 480×160, front in the LEFT 240px, back in the RIGHT 240px.
+            IImage bg  = RenderCsaBgFrameSlot(rom, frames, bgSlot);
+            IImage obj = RenderObjFrameSlot(
+                rom, frames, objSlot, objRightToLeftOAM, objBGRightToLeftOAM);
+
+            byte[] bgPx  = bg?.GetPixelData();
+            byte[] objPx = obj?.GetPixelData();
+            int bgW = bg?.Width ?? 0, bgH = bg?.Height ?? 0;
+
+            try
+            {
+                // 3. Composite into a 240×128 canvas (mirror WF DrawFrameImage).
+                byte[] canvas = new byte[CSA_PREVIEW_WIDTH * CSA_PREVIEW_HEIGHT * 4];
+
+                // 3a. BG first. WF fills with bgPalette[0] then draws BG; honour
+                //     IsExpandsBG (the preceding 0x85/0x53 command scales the top
+                //     64px of the BG into the full 240×128). When not expanding,
+                //     the BG is blitted 1:1.
+                if (bgPx != null && bgW == CSA_PREVIEW_WIDTH && bgH > 0)
+                {
+                    bool bgExpands = IsCsaExpandsBG(rom, frameDataAddr, frameIndex);
+                    if (bgExpands)
+                    {
+                        // Scale the BG's top 64px up to fill the 240×128 canvas
+                        // (mirrors WF ImageUtil.Scale(retImage,0,0,W,H, bg,0,0,W,64)).
+                        int srcScaleH = Math.Min(64, bgH);
+                        ScaleBgIntoCanvas(bgPx, bgW, bgH, srcScaleH,
+                            canvas, CSA_PREVIEW_WIDTH, CSA_PREVIEW_HEIGHT);
+                    }
+                    else
+                    {
+                        // 1:1 blit of the top 128px (mirrors WF BitBlt opaque copy).
+                        BlitOpaque(bgPx, bgW, bgH, canvas,
+                            CSA_PREVIEW_WIDTH, CSA_PREVIEW_HEIGHT);
+                    }
+                }
+
+                // 3b. OBJ back layer = the RIGHT 240px of the 480×160 OBJ image.
+                // 3c. OBJ front layer = the LEFT 240px. Both alpha-over.
+                if (objPx != null
+                    && obj.Width == OBJ_EXPORT_WIDTH && obj.Height == OBJ_EXPORT_HEIGHT)
+                {
+                    AlphaOverObjHalf(objPx, OBJ_EXPORT_WIDTH, OBJ_EXPORT_HEIGHT,
+                        srcX0: 240, canvas, CSA_PREVIEW_WIDTH, CSA_PREVIEW_HEIGHT); // back
+                    AlphaOverObjHalf(objPx, OBJ_EXPORT_WIDTH, OBJ_EXPORT_HEIGHT,
+                        srcX0: 0,   canvas, CSA_PREVIEW_WIDTH, CSA_PREVIEW_HEIGHT); // front
+                }
+
+                var image = svc.CreateImage(CSA_PREVIEW_WIDTH, CSA_PREVIEW_HEIGHT);
+                image.SetPixelData(canvas);
+                return image;
+            }
+            finally
+            {
+                bg?.Dispose();
+                obj?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Determine whether the BG of the <paramref name="frameIndex"/>-th 0x86 frame
+        /// should be vertically expanded (mirrors WF
+        /// <c>ImageUtilMagicCSACreator.IsExpandsBG</c>): a preceding 0x85 command
+        /// whose first byte is <c>0x53</c> with <c>byte[1] &gt;= 0x01</c> sets the
+        /// expand flag, which persists until overridden. EOF-safe; read-only.
+        /// </summary>
+        static bool IsCsaExpandsBG(ROM rom, uint frameDataAddr, uint frameIndex)
+        {
+            if (rom == null || rom.Data == null) return false;
+            uint frameDataOffset = U.isSafetyPointer(frameDataAddr)
+                ? U.toOffset(frameDataAddr) : frameDataAddr;
+            if (!U.isSafetyOffset(frameDataOffset, rom)) return false;
+
+            byte[] data = rom.Data;
+            uint dataLen = (uint)data.Length;
+            uint limiter = frameDataOffset + SCAN_LIMITER;
+            if (limiter > dataLen) limiter = dataLen;
+
+            uint frameI = 0;
+            bool bgExpands = false;
+            for (uint n = frameDataOffset; n < limiter; n += 4)
+            {
+                if (n + 4 > dataLen) break;
+                byte cmd = data[n + 3];
+
+                if (cmd == 0x80) // terminator (with 0x01 continuation tolerance)
+                {
+                    if (n + 2 <= dataLen && data[n + 1] == 0x01) continue;
+                    break;
+                }
+                if (cmd != 0x86)
+                {
+                    if (cmd == 0x85)
+                    {
+                        // WF: a 0x53 command sets/clears the expand flag.
+                        if (data[n + 0] == 0x53)
+                            bgExpands = (data[n + 1] >= 0x01);
+                        continue;
+                    }
+                    break; // unknown command
+                }
+
+                if (frameI == frameIndex) return bgExpands;
+                if (n + 32 > dataLen) break; // CSA stride = 32
+                frameI++;
+                n += 24 + 4; // 28 (inside) + 4 (outer) = 32
+            }
+            return bgExpands;
+        }
+
+        /// <summary>Scale the top <paramref name="srcScaleH"/> rows of a 240-wide BG
+        /// into the full <paramref name="dstW"/>×<paramref name="dstH"/> canvas
+        /// (nearest-neighbour, opaque). Mirrors WF
+        /// <c>ImageUtil.Scale(retImage,0,0,W,H, bg,0,0,W,64)</c>.</summary>
+        static void ScaleBgIntoCanvas(
+            byte[] src, int srcW, int srcTotalH, int srcScaleH,
+            byte[] dst, int dstW, int dstH)
+        {
+            if (src == null || dst == null || srcScaleH <= 0) return;
+            for (int dy = 0; dy < dstH; dy++)
+            {
+                int sy = dy * srcScaleH / dstH;
+                if (sy >= srcTotalH) sy = srcTotalH - 1;
+                if (sy < 0) continue;
+                for (int dx = 0; dx < dstW; dx++)
+                {
+                    int sx = dx; // 1:1 horizontally (both 240 wide)
+                    if (sx >= srcW) sx = srcW - 1;
+                    int si = (sy * srcW + sx) * 4;
+                    int di = (dy * dstW + dx) * 4;
+                    if (si + 3 >= src.Length || di + 3 >= dst.Length) continue;
+                    dst[di]     = src[si];
+                    dst[di + 1] = src[si + 1];
+                    dst[di + 2] = src[si + 2];
+                    dst[di + 3] = src[si + 3];
+                }
+            }
+        }
+
+        /// <summary>Opaque 1:1 blit of the top-left <paramref name="dstW"/>×<paramref name="dstH"/>
+        /// of a BG image into the canvas (mirrors WF non-expand BitBlt).</summary>
+        static void BlitOpaque(
+            byte[] src, int srcW, int srcH,
+            byte[] dst, int dstW, int dstH)
+        {
+            if (src == null || dst == null) return;
+            int h = Math.Min(srcH, dstH);
+            int w = Math.Min(srcW, dstW);
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                int si = (y * srcW + x) * 4;
+                int di = (y * dstW + x) * 4;
+                if (si + 3 >= src.Length || di + 3 >= dst.Length) continue;
+                dst[di]     = src[si];
+                dst[di + 1] = src[si + 1];
+                dst[di + 2] = src[si + 2];
+                dst[di + 3] = src[si + 3];
+            }
+        }
+
+        /// <summary>Alpha-over (source-over) the 240-wide half of the 480×160 OBJ image
+        /// starting at <paramref name="srcX0"/> onto the canvas. A source pixel with
+        /// alpha==0 is skipped (mirrors WF BitBlt transparency flag 1).</summary>
+        static void AlphaOverObjHalf(
+            byte[] src, int srcW, int srcH, int srcX0,
+            byte[] dst, int dstW, int dstH)
+        {
+            if (src == null || dst == null) return;
+            int h = Math.Min(srcH, dstH);
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < dstW; x++)
+            {
+                int sx = srcX0 + x;
+                if (sx >= srcW) break;
+                int si = (y * srcW + sx) * 4;
+                int di = (y * dstW + x) * 4;
+                if (si + 3 >= src.Length || di + 3 >= dst.Length) continue;
+                if (src[si + 3] == 0) continue; // transparent → keep BG
+                dst[di]     = src[si];
+                dst[di + 1] = src[si + 1];
+                dst[di + 2] = src[si + 2];
+                dst[di + 3] = src[si + 3];
+            }
+        }
+
+        // -----------------------------------------------------------------------
         // Convenience slot counters (shared-hash aware — FIX 1)
         // -----------------------------------------------------------------------
 

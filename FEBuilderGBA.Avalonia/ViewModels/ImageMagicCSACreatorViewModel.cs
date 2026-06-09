@@ -296,6 +296,75 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return "";
         }
 
+        // ---- #1021 — live CSA frame preview (READ-ONLY) ----
+
+        /// <summary>
+        /// True when <see cref="RenderCsaFramePreview"/> can produce a non-null
+        /// image (the CSA Creator magic system is detected and an entry is
+        /// loaded). Gates the live preview re-render in the view, mirroring the
+        /// FEditor <c>CanExportMagicFrame</c> gate.
+        /// </summary>
+        public bool CanRenderPreview =>
+            _magicKind == MagicSystemKind.CsaCreator && IsLoaded;
+
+        /// <summary>
+        /// Render the currently-selected CSA frame as a 240×128 live preview using
+        /// the live P0/Frame/P4/P12 values (READ-ONLY). Mirrors the FEditor
+        /// <c>RenderMagicFramePreview</c>: gated on <c>rom != null</c> +
+        /// <c>MagicKind == CsaCreator</c> + <c>IsLoaded</c>, then delegates to
+        /// <see cref="MagicEffectExportCore.RenderCsaFramePreview"/>.
+        ///
+        /// <para>Pointer mapping (CSA): P0 = frame-data; P4 = OBJRightToLeft OAM;
+        /// P12 = OBJBGRightToLeft OAM.</para>
+        /// </summary>
+        /// <param name="log">Diagnostic text (empty on success, reason on null).</param>
+        /// <returns>A 240×128 <see cref="IImage"/>, or <c>null</c>.</returns>
+        public IImage RenderCsaFramePreview(out string log)
+        {
+            log = string.Empty;
+            var rom = CoreState.ROM;
+            if (rom == null)
+            {
+                log = "ROM not loaded.";
+                return null;
+            }
+            if (_magicKind != MagicSystemKind.CsaCreator)
+            {
+                log = "CSA Creator magic system not detected.";
+                return null;
+            }
+            if (!IsLoaded)
+            {
+                log = "No CSA entry loaded.";
+                return null;
+            }
+            // P0=frameData, P4=OBJRightToLeftOAM, P12=OBJBGRightToLeftOAM.
+            var img = MagicEffectExportCore.RenderCsaFramePreview(rom, P0, Frame, P4, P12);
+            if (img == null) log = "Frame render produced no image.";
+            return img;
+        }
+
+        /// <summary>
+        /// Count of 0x86 frames in the currently-loaded CSA animation (P0
+        /// frame-data stream). Used by the view to bound <c>FrameBox.Maximum</c>.
+        /// Returns 0 when no system / entry is loaded. READ-ONLY.
+        /// </summary>
+        public int GetFrameCount()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return 0;
+            if (_magicKind != MagicSystemKind.CsaCreator) return 0;
+            if (!IsLoaded) return 0;
+
+            List<int> sharedObjSlots, sharedBgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, P0, string.Empty, false,
+                out sharedObjSlots, out sharedBgSlots, out frames,
+                isCsa: true);
+            return frames.Count;
+        }
+
         // ---- IDataVerifiable ----
 
         public int GetListCount() => LoadList().Count;

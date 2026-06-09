@@ -468,6 +468,98 @@ public class ImageMagicCSACreatorParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1021 — live CSA frame preview + working MoreData link.
+    // -----------------------------------------------------------------
+
+    /// <summary>
+    /// #1021: the dead static &lt;Image PreviewImage&gt; placeholder is replaced
+    /// by a GbaImageControl named MagicFramePreview (mirrors the FEditor preview),
+    /// and the "#500" placeholder tooltip is gone.
+    /// </summary>
+    [Fact]
+    public void View_PreviewIsGbaImageControl_NoStubTooltip()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("controls:GbaImageControl", axaml);
+        Assert.Contains("Name=\"MagicFramePreview\"", axaml);
+        // The dead Image placeholder named PreviewImage must be gone.
+        Assert.DoesNotContain("Name=\"PreviewImage\"", axaml);
+        // The "#500" pending-extraction tooltips on the preview + link must be gone.
+        Assert.DoesNotContain("Pending Core extraction - tracked by #500.", axaml);
+    }
+
+    /// <summary>
+    /// #1021: the code-behind has a RenderPreview() that calls the VM's
+    /// RenderCsaFramePreview, and a FrameBox.ValueChanged handler that re-renders.
+    /// </summary>
+    [Fact]
+    public void View_HasRenderPreview_AndFrameValueChangedHandler()
+    {
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("void RenderPreview()", source);
+        Assert.Contains("RenderCsaFramePreview(out", source);
+        Assert.Contains("void FrameBox_ValueChanged(", source);
+        // The FrameBox ValueChanged handler must be wired in the AXAML.
+        string axaml = ReadAxaml();
+        Assert.Contains("ValueChanged=\"FrameBox_ValueChanged\"", axaml);
+    }
+
+    /// <summary>
+    /// #1021: the zoom combo maps to the GbaImageControl zoom (no ROM re-render).
+    /// </summary>
+    [Fact]
+    public void View_ZoomCombo_MapsToImageControlZoom()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("SelectionChanged=\"ZoomComboBox_SelectionChanged\"", axaml);
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("void ZoomComboBox_SelectionChanged(", source);
+        Assert.Contains("MagicFramePreview.Zoom", source);
+    }
+
+    /// <summary>
+    /// #1021 Part A: the "Find new resources online" label is now a working
+    /// link — a TextBlock with PointerPressed="LinkInternet_Click" + a handler
+    /// mirroring the FEditor's MoreData wiki opener.
+    /// </summary>
+    [Fact]
+    public void View_FindMoreDataLink_IsWired_ToMoreData()
+    {
+        string axaml = ReadAxaml();
+        int idx = axaml.IndexOf("AutomationId=\"ImageMagicCSACreator_FindMoreData_Label\"",
+            StringComparison.Ordinal);
+        Assert.True(idx >= 0, "FindMoreData label AutomationId not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        int elementEnd = axaml.IndexOf("/>", idx, StringComparison.Ordinal);
+        Assert.True(elementEnd > elementStart);
+        string element = axaml.Substring(elementStart, elementEnd - elementStart + 2);
+
+        // Must be a clickable link (blue / underline) wired to LinkInternet_Click.
+        Assert.Contains("PointerPressed=\"LinkInternet_Click\"", element);
+        Assert.Contains("TextDecorations=\"Underline\"", element);
+        Assert.DoesNotContain("#500", element);
+
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("void LinkInternet_Click(", source);
+        Assert.Contains("wiki/MoreData", source);
+    }
+
+    /// <summary>
+    /// #1021: the ViewModel exposes the read-only RenderCsaFramePreview + the
+    /// CanRenderPreview gate (CsaCreator + IsLoaded) the view wires.
+    /// </summary>
+    [Fact]
+    public void ViewModel_CanRenderPreview_GatedOnCsaAndLoaded()
+    {
+        var vm = new ImageMagicCSACreatorViewModel();
+        // Not loaded + no system → cannot render; preview returns null.
+        Assert.False(vm.CanRenderPreview);
+        var img = vm.RenderCsaFramePreview(out string log);
+        Assert.Null(img);
+        Assert.False(string.IsNullOrEmpty(log));
+    }
+
+    // -----------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------
 

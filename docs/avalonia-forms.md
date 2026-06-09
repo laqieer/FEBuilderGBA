@@ -283,7 +283,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 161 | ImageTSAAnime2View | ImageTSAAnime2ViewModel | TSA animation editor (type 2) |
 | 162 | ImagePalletView | ImagePalletViewModel | Palette viewer/editor |
 | 163 | ImageMagicFEditorView | ImageMagicFEditorViewModel | Magic effect frame editor |
-| 164 | ImageMagicCSACreatorView | ImageMagicCSACreatorViewModel | Magic CSA (compressed sprite) creator |
+| 164 | ImageMagicCSACreatorView | ImageMagicCSACreatorViewModel | Magic CSA (compressed sprite) creator — live 240×128 frame preview (`MagicEffectExportCore.RenderCsaFramePreview`, READ-ONLY; BG→OBJ-back→OBJ-front composite, honors `IsExpandsBG`) on entry-select / Frame spinner / Zoom; working "Find new resources online" → MoreData wiki link (#1021) |
 | 165 | ImageMapActionAnimationView | ImageMapActionAnimationViewModel | Map action animation editor |
 | 166 | ImageFormRefViewerView | ImageFormRefViewerViewModel | Image form reference viewer |
 | 167 | InterpolatedPictureBoxViewerView | InterpolatedPictureBoxViewerViewModel | Interpolated image viewer |
