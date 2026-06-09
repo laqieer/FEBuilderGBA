@@ -564,6 +564,122 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Reload_Click(object? sender, RoutedEventArgs e) => LoadList();
 
+        /// <summary>
+        /// #1006: Palette-to-clipboard. Mirrors the #974 TSA-editor pattern
+        /// (<see cref="ImageTSAEditorView.PaletteClipboard_Click"/>): pack the 16
+        /// current palette entries to GBA 5-5-5 big-endian hex (4 chars/entry,
+        /// 64 chars total) and copy via the Avalonia <c>IClipboard.SetTextAsync</c>
+        /// async API. Read-only: never writes ROM.
+        ///
+        /// The Unit Palette R/G/B NumericUpDowns hold 5-BIT channels (0..31),
+        /// whereas <see cref="ImageTSAEditorViewModel.BuildPaletteClipboardHex"/>
+        /// expects 8-BIT R/G/B (it <c>&gt;&gt;3</c>s internally back to 5-5-5). So
+        /// each channel is expanded 5-bit -&gt; 8-bit via <c>(c&lt;&lt;3)|(c&gt;&gt;2)</c>
+        /// (replicate the top 3 bits in the low nibble) before packing, so the
+        /// round-trip preserves the original 5-bit value (e.g. channel 31 -&gt; 0x1F,
+        /// NOT 3).
+        /// </summary>
+        async void Clipboard_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var rgb = new (byte R, byte G, byte B)[16];
+                for (int i = 0; i < 16; i++)
+                {
+                    byte Exp(decimal? v) { int c = (int)(v ?? 0) & 0x1F; return (byte)((c << 3) | (c >> 2)); }
+                    rgb[i] = (Exp(_rBoxes[i]?.Value), Exp(_gBoxes[i]?.Value), Exp(_bBoxes[i]?.Value));
+                }
+                string hex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(rgb);
+
+                var cb = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
+                if (cb == null) { CoreState.Services?.ShowError("Clipboard is not available."); return; }
+                await cb.SetTextAsync(hex);
+                Log.Notify($"ImageUnitPalette: palette copied to clipboard ({hex}).");
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.Clipboard_Click failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// #1006: Zoom the sample-preview <see cref="Controls.GbaImageControl"/>.
+        /// The combo items are explicit integer factors (index 0 = "Actual size"
+        /// = 1x, index 1 = "2x", … index 7 = "8x"), so the factor is
+        /// <c>SelectedIndex + 1</c>. <see cref="Controls.GbaImageControl.Zoom"/>
+        /// clamps to 1..8 internally. Guarded during a programmatic load so a
+        /// SelectedIndex change made while loading doesn't fire.
+        /// </summary>
+        void Zoom_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_vm.IsLoading) return;
+            try
+            {
+                int factor = (ZoomCombo.SelectedIndex < 0) ? 1 : ZoomCombo.SelectedIndex + 1;
+                SamplePreview.Zoom = factor;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImageUnitPaletteView.Zoom_SelectionChanged failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// #1006: Undo the last ROM change. Mirrors
+        /// <see cref="ImageBattleAnimePalletView"/>: <c>CoreState.Undo.RunUndo()</c>
+        /// is void and tolerates an empty stack (no-op), then re-read the reverted
+        /// ROM into the UI via <see cref="ReloadAfterUndoRedo"/>.
+        /// </summary>
+        void Undo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null) return;
+                CoreState.Undo.RunUndo();              // void; tolerate empty stack (no-op)
+                ReloadAfterUndoRedo();
+            }
+            catch (Exception ex) { Log.Error("ImageUnitPaletteView.Undo_Click failed: {0}", ex.Message); }
+        }
+
+        /// <summary>
+        /// #1006: Redo the last undone ROM change. Mirrors
+        /// <see cref="ImageBattleAnimePalletView.Redo_Click"/>:
+        /// <c>CoreState.Undo.RunRedo()</c> returns <c>bool</c>; an empty redo stack
+        /// returns <c>false</c> -&gt; no-op (no reload). On success, re-read the ROM.
+        /// </summary>
+        void Redo_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.Undo == null || !CoreState.Undo.RunRedo()) return;   // empty -> no-op
+                ReloadAfterUndoRedo();
+            }
+            catch (Exception ex) { Log.Error("ImageUnitPaletteView.Redo_Click failed: {0}", ex.Message); }
+        }
+
+        /// <summary>
+        /// #1006: After an Undo/Redo reverts the ROM bytes, re-read the current
+        /// entry (P12 + the decompressed 16 R/G/B channels) and push the reverted
+        /// values back into the 48 spinners. Reuses the exact same entry-load calls
+        /// the editor runs on selection (<see cref="ImageUnitPaletteViewModel.LoadEntry"/>
+        /// -&gt; <see cref="UpdateUI"/> -&gt; <see cref="RefreshSamplePreview"/>),
+        /// wrapped in <c>IsLoading</c> so the 48 bulk spinner writes don't each
+        /// fire a swatch/preview render, then <c>MarkClean()</c> since SetField
+        /// during the reload would otherwise leave the VM marked dirty.
+        /// </summary>
+        void ReloadAfterUndoRedo()
+        {
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.LoadEntry(_vm.CurrentAddr);   // re-read P12 + decompress spinners from the reverted ROM
+                UpdateUI();                       // push VM channels back to the 16 spinners
+                RefreshSamplePreview();
+            }
+            finally { _vm.IsLoading = false; }
+            _vm.MarkClean();                      // SetField during reload would leave it dirty
+        }
+
         static uint ParseHexText(string? text)
         {
             if (string.IsNullOrWhiteSpace(text)) return 0;

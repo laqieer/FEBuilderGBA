@@ -10271,3 +10271,6 @@ Sappy エミュレータ再生は Windows 専用です（user32 P/Invoke）。Wi
 
 :Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.
 波形/楽器のエクスポート/インポートはクロスプラットフォーム対応の予定機能です（SongUtil の DirectSound 移植が必要） — #1057 で管理。
+
+:Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately
+Core の alloc+repoint / DataExpansionCore の配線待ち — 別途追跡します

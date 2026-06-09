@@ -24103,3 +24103,6 @@ Sappy 模拟器播放为 Windows 专用（user32 P/Invoke），请使用 WinForm
 
 :Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.
 波形/乐器的导出/导入是计划中的跨平台增强功能（需移植 SongUtil 的 DirectSound 解码） — 见 #1057。
+
+:Pending Core alloc+repoint / DataExpansionCore wiring — tracked separately
+等待 Core 的 alloc+repoint / DataExpansionCore 接线 — 单独跟踪

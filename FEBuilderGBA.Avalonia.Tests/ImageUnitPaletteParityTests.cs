@@ -168,16 +168,192 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void KnownGap_Controls_AreDisabled()
         {
             var view = new ImageUnitPaletteView();
-            // Per the v3 plan, write-back is functional; only the genuinely-unported
-            // surfaces are disabled stubs.
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_UNDO_Button")!.IsEnabled);
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_REDO_Button")!.IsEnabled);
+            // #1006: Clipboard / Zoom / UNDO / REDO are now wired — they are no
+            // longer disabled KnownGap stubs (see WiredControls_AreEnabled). Only
+            // the two ROM-mutating allocation surfaces remain deferred stubs.
             Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_NewAlloc_Button")!.IsEnabled);
             Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Expand_Button")!.IsEnabled);
-            Assert.False(FindByAutomationId<Button>(view, "ImageUnitPalette_Clipboard_Button")!.IsEnabled);
-            // #904: Export/Import Image are now functional — they are no longer
-            // disabled KnownGap stubs.
-            Assert.False(FindByAutomationId<ComboBox>(view, "ImageUnitPalette_Zoom_Combo")!.IsEnabled);
+        }
+
+        // ===== #1006: Clipboard / Zoom / UNDO / REDO wiring =====
+
+        [AvaloniaFact]
+        public void WiredControls_AreEnabled()
+        {
+            var view = new ImageUnitPaletteView();
+            // #1006: the four controls are now wired and enabled.
+            Assert.True(FindByAutomationId<Button>(view, "ImageUnitPalette_Clipboard_Button")!.IsEnabled);
+            Assert.True(FindByAutomationId<ComboBox>(view, "ImageUnitPalette_Zoom_Combo")!.IsEnabled);
+            Assert.True(FindByAutomationId<Button>(view, "ImageUnitPalette_UNDO_Button")!.IsEnabled);
+            Assert.True(FindByAutomationId<Button>(view, "ImageUnitPalette_REDO_Button")!.IsEnabled);
+        }
+
+        [Fact]
+        public void Axaml_WiredControls_HaveHandlers_AndNoKnownGap()
+        {
+            string axaml = ReadViewAxaml();
+            // The four wired controls have Click/SelectionChanged handlers.
+            Assert.Contains("Click=\"Clipboard_Click\"", axaml);
+            Assert.Contains("SelectionChanged=\"Zoom_SelectionChanged\"", axaml);
+            Assert.Contains("Click=\"Undo_Click\"", axaml);
+            Assert.Contains("Click=\"Redo_Click\"", axaml);
+
+            // None of the four wired control declarations carry IsEnabled="False"
+            // or the KnownGap tooltip. Inspect each control's element text.
+            foreach (var aid in new[]
+            {
+                "ImageUnitPalette_Clipboard_Button",
+                "ImageUnitPalette_Zoom_Combo",
+                "ImageUnitPalette_UNDO_Button",
+                "ImageUnitPalette_REDO_Button",
+            })
+            {
+                string element = ExtractElement(axaml, aid);
+                Assert.DoesNotContain("IsEnabled=\"False\"", element);
+                Assert.DoesNotContain("KnownGap", element);
+            }
+        }
+
+        [Fact]
+        public void Axaml_ZoomCombo_HasExplicitFactorItems_NoFitWindow()
+        {
+            string axaml = ReadViewAxaml();
+            string block = ExtractComboBlock(axaml, "ImageUnitPalette_Zoom_Combo");
+            // Index 0 = Actual size = 1x; index 7 = 8x (GbaImageControl clamps 1..8).
+            Assert.Contains("<ComboBoxItem>Actual size</ComboBoxItem>", block);
+            Assert.Contains("<ComboBoxItem>2x</ComboBoxItem>", block);
+            Assert.Contains("<ComboBoxItem>8x</ComboBoxItem>", block);
+            // "Fit window" dropped — not representable by GbaImageControl.Zoom.
+            Assert.DoesNotContain("Fit window", block);
+        }
+
+        [Fact]
+        public void Axaml_DeferredControls_RemainDisabled_WithNonKnownGapTooltip()
+        {
+            string axaml = ReadViewAxaml();
+            foreach (var aid in new[]
+            {
+                "ImageUnitPalette_NewAlloc_Button",
+                "ImageUnitPalette_Expand_Button",
+            })
+            {
+                string element = ExtractElement(axaml, aid);
+                Assert.Contains("IsEnabled=\"False\"", element);
+                // The tooltip is the concrete follow-up text, NOT KnownGap.
+                Assert.DoesNotContain("KnownGap", element);
+                Assert.Contains("tracked separately", element);
+            }
+        }
+
+        [Fact]
+        public void View_CodeBehind_References_WiredPatterns()
+        {
+            string src = ReadViewSource();
+            // Clipboard reuses the #974 helper + the 5-bit -> 8-bit expansion.
+            Assert.Contains("BuildPaletteClipboardHex", src);
+            Assert.Contains("(c << 3) | (c >> 2)", src);
+            // Undo/Redo mirror the CoreState.Undo pattern.
+            Assert.Contains("CoreState.Undo.RunUndo()", src);
+            Assert.Contains("CoreState.Undo.RunRedo()", src);
+            // Zoom drives the GbaImageControl preview.
+            Assert.Contains("SamplePreview.Zoom", src);
+            // The shared reload uses IsLoading + MarkClean.
+            Assert.Contains("void ReloadAfterUndoRedo()", src);
+            Assert.Contains("_vm.MarkClean()", src);
+        }
+
+        // ===== #1006: Unit-Palette 5-bit -> 8-bit clipboard round-trip =====
+
+        /// <summary>The exact 5-bit -&gt; 8-bit channel expansion the Clipboard
+        /// handler uses: <c>(c&lt;&lt;3)|(c&gt;&gt;2)</c>, replicating the top 3 bits
+        /// into the low nibble so the value round-trips back through the
+        /// <c>&gt;&gt;3</c> inside <see cref="ImageTSAEditorViewModel.BuildPaletteClipboardHex"/>.</summary>
+        static byte Exp5to8(int c) { c &= 0x1F; return (byte)((c << 3) | (c >> 2)); }
+
+        [Fact]
+        public void Clipboard_5bitChannels_RoundTrip_Through_BuildPaletteClipboardHex()
+        {
+            // Unit Palette spinners hold 5-bit channels (0..31). Entry 0 = white
+            // (31,31,31), entry 1 = pure red (31,0,0), entry 2 = pure green,
+            // entry 3 = pure blue, rest black.
+            var rgb = new (byte R, byte G, byte B)[16];
+            rgb[0] = (Exp5to8(31), Exp5to8(31), Exp5to8(31)); // 0x7FFF -> big16 FF7F
+            rgb[1] = (Exp5to8(31), Exp5to8(0), Exp5to8(0));   // 0x001F -> big16 1F00
+            rgb[2] = (Exp5to8(0), Exp5to8(31), Exp5to8(0));   // 0x03E0 -> big16 E003
+            rgb[3] = (Exp5to8(0), Exp5to8(0), Exp5to8(31));   // 0x7C00 -> big16 007C
+
+            string hex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(rgb);
+
+            Assert.Equal(64, hex.Length);
+            // Channel 31 must land at 0x1F in the packed word (NOT 3) — proving the
+            // 5-bit value survives the expand-then-(>>3) round-trip.
+            Assert.Equal("FF7F", hex.Substring(0, 4));
+            Assert.Equal("1F00", hex.Substring(4, 4));
+            Assert.Equal("E003", hex.Substring(8, 4));
+            Assert.Equal("007C", hex.Substring(12, 4));
+            Assert.Equal(string.Concat(System.Linq.Enumerable.Repeat("0000", 12)),
+                hex.Substring(16));
+        }
+
+        [Fact]
+        public void Clipboard_5bitExpansion_Channel31_PacksTo0x1F_Not3()
+        {
+            // The whole point of the expansion: a raw 5-bit 31 fed UNEXPANDED to
+            // BuildPaletteClipboardHex (which >>3s) would collapse to 3. The view
+            // expands first, so the packed channel reads back as 0x1F.
+            var rgb = new (byte R, byte G, byte B)[16];
+            rgb[0] = (Exp5to8(31), 0, 0); // expanded red = 248 -> >>3 = 31 = 0x1F
+
+            string hex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(rgb);
+            // word = 0x001F (R=31), big-endian display = "1F00".
+            Assert.Equal("1F00", hex.Substring(0, 4));
+
+            // Counter-example: feeding 31 UNEXPANDED collapses R to 3 -> 0x0003.
+            var wrong = new (byte R, byte G, byte B)[16];
+            wrong[0] = (31, 0, 0);
+            string wrongHex = ImageTSAEditorViewModel.BuildPaletteClipboardHex(wrong);
+            Assert.Equal("0300", wrongHex.Substring(0, 4)); // 0x0003 big-endian
+        }
+
+        static string ReadViewAxaml()
+        {
+            string? repoRoot = FindRepoRoot();
+            Assert.NotNull(repoRoot);
+            string path = Path.Combine(repoRoot!, "FEBuilderGBA.Avalonia",
+                "Views", "ImageUnitPaletteView.axaml");
+            Assert.True(File.Exists(path), $"View AXAML not found at {path}");
+            return File.ReadAllText(path);
+        }
+
+        /// <summary>
+        /// Extract the single XAML element (from its opening tag '&lt;' up to the
+        /// matching '&gt;' or '/&gt;') that declares the given AutomationId.
+        /// </summary>
+        static string ExtractElement(string axaml, string automationId)
+        {
+            int idIdx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, $"AutomationId {automationId} not found in AXAML");
+            int start = axaml.LastIndexOf('<', idIdx);
+            int end = axaml.IndexOf('>', idIdx);
+            Assert.True(start >= 0 && end > start, $"could not bound element for {automationId}");
+            return axaml.Substring(start, end - start + 1);
+        }
+
+        /// <summary>
+        /// Extract a ComboBox declaration INCLUDING its nested children — from the
+        /// opening tag '&lt;ComboBox' that carries the AutomationId to the matching
+        /// '&lt;/ComboBox&gt;' close tag (so the nested ComboBoxItem rows are
+        /// covered).
+        /// </summary>
+        static string ExtractComboBlock(string axaml, string automationId)
+        {
+            int idIdx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+            Assert.True(idIdx >= 0, $"AutomationId {automationId} not found in AXAML");
+            int start = axaml.LastIndexOf('<', idIdx);
+            int closeIdx = axaml.IndexOf("</ComboBox>", idIdx, StringComparison.Ordinal);
+            Assert.True(start >= 0 && closeIdx > start, $"could not bound ComboBox block for {automationId}");
+            int end = closeIdx + "</ComboBox>".Length;
+            return axaml.Substring(start, end - start);
         }
 
         // ===== WU1: WF row-acceptance parity =====
