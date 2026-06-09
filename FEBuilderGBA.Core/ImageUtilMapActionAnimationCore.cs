@@ -57,9 +57,10 @@ namespace FEBuilderGBA
 
             int count = 0;
             uint limiter = animeAddress + 1024 * 1024;
-            limiter = (uint)Math.Min(limiter, rom.Data.Length);
+            // Cap so a full 12-byte row (read up to n+8..n+11) never overruns EOF.
+            limiter = (uint)Math.Min(limiter, Math.Max(0, rom.Data.Length - 12 + 1));
 
-            for (uint n = animeAddress; n < limiter; n += 12)
+            for (uint n = animeAddress; n + 12 <= (uint)rom.Data.Length && n < limiter; n += 12)
             {
                 uint term1 = U.u32(rom.Data, n);
                 uint term2 = U.u32(rom.Data, n + 4);
@@ -78,7 +79,8 @@ namespace FEBuilderGBA
             uint limiter = animeAddress + 1024 * 1024;
             limiter = (uint)Math.Min(limiter, data.Length);
 
-            for (uint n = animeAddress; n < limiter; n += 12)
+            // Stop before a partial 12-byte row would overrun EOF (n+4..n+11 read).
+            for (uint n = animeAddress; n + 12 <= (uint)data.Length && n < limiter; n += 12)
             {
                 uint term1 = U.u32(data, n);
                 uint term2 = U.u32(data, n + 4);
@@ -107,25 +109,72 @@ namespace FEBuilderGBA
             //   void*  pal;   // offset +8
             // } // sizeof() == 12
 
+            // Explicit 12-byte frame-row bounds guard so the no-throw contract is
+            // self-evident and does not merely rely on rom.p32's EOF tolerance.
+            if ((long)frame + 12 > rom.Data.Length)
+                return null;
+
             uint objOffset = rom.p32(frame + 4);
             uint palOffset = rom.p32(frame + 8);
 
-            if (!U.isSafetyOffset(objOffset))
+            // rom.p32 already returns a ROM offset (post-toOffset, 0 if OOR);
+            // RenderFrameImage re-applies U.toOffset which is a no-op for an
+            // already-converted offset (< 0x08000000), so passing the offset is safe.
+            return RenderFrameImage(rom, objOffset, palOffset);
+        }
+
+        /// <summary>
+        /// ROM-aware renderer for a single map-action animation frame's image.
+        /// Decodes the LZ77-compressed 4bpp OBJ tiles pointed to by
+        /// <paramref name="imagePointer"/> using the 16-color palette pointed to by
+        /// <paramref name="palettePointer"/>, producing a 64x64 (8x8 tiles) IImage.
+        ///
+        /// Does NOT use the ambient <see cref="CoreState.ROM"/> — reads exclusively
+        /// from the supplied <paramref name="rom"/>. Both pointers may be GBA
+        /// pointers or already-converted ROM offsets (<see cref="U.toOffset"/> is
+        /// idempotent for offsets). READ-ONLY: never mutates the ROM.
+        ///
+        /// Never throws — any bad pointer, short/corrupt LZ77 stream, missing
+        /// palette, or unexpected exception returns null (blank-dummy contract,
+        /// mirroring WaitIconRenderCore / SkillSystemsAnimeExportCore).
+        /// </summary>
+        /// <param name="rom">ROM to read from (not the ambient CoreState.ROM).</param>
+        /// <param name="imagePointer">GBA pointer / offset to LZ77-compressed 4bpp OBJ tiles.</param>
+        /// <param name="palettePointer">GBA pointer / offset to the raw 0x20-byte palette.</param>
+        /// <returns>Rendered 64x64 IImage, or null on any failure.</returns>
+        public static IImage RenderFrameImage(ROM rom, uint imagePointer, uint palettePointer)
+        {
+            if (rom == null || rom.Data == null)
                 return null;
-            if (!U.isSafetyOffset(palOffset))
+            if (CoreState.ImageService == null)
                 return null;
 
-            // OBJ data is LZ77-compressed
-            byte[] obj = LZ77.decompress(rom.Data, objOffset);
-            if (obj == null || obj.Length == 0)
+            uint objOffset = U.toOffset(imagePointer);
+            uint palOffset = U.toOffset(palettePointer);
+
+            if (!U.isSafetyOffset(objOffset, rom))
+                return null;
+            if (!U.isSafetyOffset(palOffset, rom))
                 return null;
 
-            // PAL is 0x20 bytes (16 colors, 2 bytes each) uncompressed
-            byte[] palette = ImageUtilCore.GetPalette(palOffset, 16);
-            if (palette == null)
-                return null;
+            try
+            {
+                // OBJ data is LZ77-compressed.
+                byte[] obj = LZ77.decompress(rom.Data, objOffset);
+                if (obj == null || obj.Length == 0)
+                    return null;
 
-            return CoreState.ImageService.Decode4bppTiles(obj, 0, SCREEN_WIDTH, SCREEN_HEIGHT, palette);
+                // PAL is 0x20 bytes (16 colors, 2 bytes each) uncompressed.
+                byte[] palette = ImageUtilCore.GetPalette(rom, palOffset, 16);
+                if (palette == null)
+                    return null;
+
+                return CoreState.ImageService.Decode4bppTiles(obj, 0, SCREEN_WIDTH, SCREEN_HEIGHT, palette);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
     }
 }
