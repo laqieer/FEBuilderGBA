@@ -602,6 +602,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["B12"] = Item1, ["B13"] = Item2, ["B14"] = Item3, ["B15"] = Item4,
                 ["B16"] = AI1Primary, ["B17"] = AI2Secondary, ["B18"] = AI3TargetRecovery, ["B19"] = AI4Retreat,
             };
+
+            // For FE8, WriteAfterCoords (below) is the SOLE authority for W4/B7/D8:
+            // it re-stamps W4 from list[0] and does the in-place-vs-append+repoint
+            // blob write AFTER capturing the OLD P8/B7 from the ROM. Letting
+            // WriteFields write B7/D8 here first would clobber the old pointer
+            // (and could leave D8 corrupted on a failed/restored write), so drop
+            // them from the field write — WriteFields skips keys not present.
+            // (Copilot bot review on PR #1073.)
+            if (IsFE8 && AfterCoords.Count > 0)
+            {
+                values.Remove("W4");
+                values.Remove("B7");
+                values.Remove("D8");
+            }
             EditorFormRef.WriteFields(rom, addr, values, Fields);
 
             // FE8 after-coord blob write (#1017). Field addresses are the unit

@@ -133,6 +133,22 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0xFFu, list[0].Unk1);
         }
 
+        [Fact]
+        public void ReadAfterCoords_NullRom_StillReturnsStartRowFromW4()
+        {
+            // The START row is a pure parse of W4 (no ROM read), so the
+            // "always >=1 row" contract holds even with a null ROM — only the
+            // blob records need the ROM (Copilot bot review on PR #1073).
+            uint w4 = U.MakeFe8UnitPos(7, 12, 0);
+            var list = EventUnitCoordCore.ReadAfterCoords(null, w4, b7: 5, p8: 0x08001000);
+
+            Assert.Single(list);
+            Assert.Equal(7u, list[0].X);
+            Assert.Equal(12u, list[0].Y);
+            Assert.Equal(0xFFu, list[0].Unk1);
+            Assert.Equal(0xFFu, list[0].Unk2);
+        }
+
         // ---------------------------------------------------------------
         // WRITE — add a coord (append path, grows beyond old size)
         // ---------------------------------------------------------------

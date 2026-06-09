@@ -55,9 +55,11 @@ namespace FEBuilderGBA.Core
         public static List<Fe8Coord> ReadAfterCoords(ROM rom, uint w4, uint b7, uint p8)
         {
             var list = new List<Fe8Coord>();
-            if (rom == null) return list;
 
-            // index 0 — synthetic START row from W4.
+            // index 0 — synthetic START row from W4. This is a PURE parse of w4
+            // (no ROM read), so the start row is present even with a null ROM —
+            // honoring the "always returns >=1 row" contract (Copilot bot review
+            // on PR #1073). Only the blob records below need the ROM.
             var start = new Fe8Coord
             {
                 X = U.ParseFe8UnitPosX(w4),
@@ -70,6 +72,8 @@ namespace FEBuilderGBA.Core
                 Wait = 0,
             };
             list.Add(start);
+
+            if (rom == null) return list;
 
             // indices 1+ — the after-coord blob records (8 bytes each).
             uint count = b7;
