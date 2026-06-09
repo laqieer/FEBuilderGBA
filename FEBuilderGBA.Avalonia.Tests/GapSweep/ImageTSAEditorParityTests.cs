@@ -526,10 +526,11 @@ public class ImageTSAEditorParityTests
     /// surface with a non-empty `reason=`. Mirrors the acceptance-criterion
     /// audit trail required by Copilot CLI.
     ///
-    /// After #974 only ONE KnownGap remains in this editor: TSAByteWrite
-    /// (PaletteToClipboard / MainImageExport are now wired and RESOLVED;
-    /// BattleCanvasRender resolved in #808, ChipsetListRender in #819,
-    /// MainImageImport in #901).
+    /// After #1005 the non-header TSAByteWrite is RESOLVED (the TSA Cell tab +
+    /// Write button now write non-header TSA). The sole remaining KnownGap is
+    /// HeaderTSACellWrite — header-TSA per-cell editing is deferred to a
+    /// follow-up. (PaletteToClipboard / MainImageExport wired #974;
+    /// BattleCanvasRender #808, ChipsetListRender #819, MainImageImport #901.)
     /// </summary>
     [Fact]
     public void View_KnownGapBlock_HasNonEmptyReasons()
@@ -540,21 +541,24 @@ public class ImageTSAEditorParityTests
         var matches = rx.Matches(axaml);
         Assert.True(matches.Count >= 1,
             $"AXAML must contain the sole remaining KnownGap marker " +
-            $"(TSAByteWrite); found {matches.Count}.");
-        // The remaining KnownGap cluster for this editor is exactly TSAByteWrite.
-        bool hasTsaByteWrite = false;
+            $"(HeaderTSACellWrite); found {matches.Count}.");
+        // The remaining KnownGap cluster for this editor is exactly HeaderTSACellWrite.
+        bool hasHeaderTsaCellWrite = false;
         foreach (Match m in matches)
         {
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[1].Value),
                 $"KnownGap entry must name a feature: '{m.Value}'");
             Assert.False(string.IsNullOrWhiteSpace(m.Groups[2].Value),
                 $"KnownGap entry must have a reason: '{m.Value}'");
-            if (m.Groups[1].Value.Contains("TSAByteWrite")) hasTsaByteWrite = true;
+            if (m.Groups[1].Value.Contains("HeaderTSACellWrite")) hasHeaderTsaCellWrite = true;
         }
-        Assert.True(hasTsaByteWrite, "The TSAByteWrite KnownGap marker must remain.");
-        // The two now-wired surfaces must NOT have lingering KnownGap markers.
+        Assert.True(hasHeaderTsaCellWrite, "The HeaderTSACellWrite KnownGap marker must remain.");
+        // The now-resolved surfaces must NOT have lingering KnownGap markers.
         Assert.DoesNotContain("KnownGap: PaletteToClipboard", axaml);
         Assert.DoesNotContain("KnownGap: MainImageExport", axaml);
+        // #1005: the non-header TSAByteWrite KnownGap is GONE (the Write button
+        // now writes non-header TSA + palette under one undo scope).
+        Assert.DoesNotContain("KnownGap: TSAByteWrite", axaml);
     }
 
     // -----------------------------------------------------------------
@@ -1209,6 +1213,195 @@ public class ImageTSAEditorParityTests
             var vm = new ImageTSAEditorViewModel();
             vm.LoadEntry(0);
             Assert.False(vm.IsLoaded); // LoadEntry early-returns when no ROM
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // #1005: per-cell TSA editing — TSA Cell tab + Write writes the TSA.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void View_HasTsaCellTab()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCell_Tab\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellX_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellY_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellTileId_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellHFlip_Check\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellVFlip_Check\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellBank_Input\"", axaml);
+        Assert.Contains("AutomationId=\"ImageTSAEditor_TsaCellApply_Button\"", axaml);
+        Assert.Contains("Click=\"TsaCellApply_Click\"", axaml);
+    }
+
+    /// <summary>
+    /// The TSA Cell panel must gate IsEnabled on CanEditCells so it stays
+    /// disabled for header-TSA (whose bottom-to-top stride is deferred).
+    /// </summary>
+    [Fact]
+    public void View_TsaCellPanel_GatedOnCanEditCells()
+    {
+        string axaml = ReadAxaml();
+        // The TSA Cell tab's content StackPanel binds IsEnabled to CanEditCells.
+        Assert.Contains("IsEnabled=\"{Binding CanEditCells}\"", axaml);
+    }
+
+    /// <summary>
+    /// The header-TSA-only note must be present near the cell panel and
+    /// must use the exact plan wording (a translation key in ja/zh).
+    /// </summary>
+    [Fact]
+    public void View_TsaCellPanel_HasHeaderTsaNote()
+    {
+        string axaml = ReadAxaml();
+        Assert.Contains(
+            "Per-cell editing supports non-header TSA only", axaml);
+    }
+
+    /// <summary>
+    /// Apply-to-cell must call the VM's SetCell bit-packer then re-render the
+    /// BattlePreview from the in-memory cells.
+    /// </summary>
+    [Fact]
+    public void View_TsaCellApplyHandler_CallsSetCellThenRenders()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"void\s+TsaCellApply_Click[\s\S]*?_vm\.SetCell\(",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"void\s+TsaCellApply_Click[\s\S]*?BattlePreview\.SetImage\(\s*_vm\.RenderMainImage\(\)\s*\)",
+            RegexOptions.Compiled), source);
+    }
+
+    /// <summary>
+    /// The Write button must now call _vm.WriteTsa() (gated on CanEditCells)
+    /// before PerformPaletteWrite, all inside the SAME _undoService scope, and
+    /// roll back the whole transaction on a non-empty TSA error string.
+    /// </summary>
+    [Fact]
+    public void View_WriteHandler_WritesTsaThenPaletteUnderOneScope()
+    {
+        string source = ReadCodeBehind();
+        // WriteTsa is called inside Write_Click, gated on CanEditCells.
+        Assert.Matches(new Regex(
+            @"void\s+Write_Click[\s\S]*?_vm\.CanEditCells[\s\S]*?_vm\.WriteTsa\(\)",
+            RegexOptions.Compiled), source);
+        // It still opens ONE undo scope (Begin ... Commit) and the TSA half
+        // precedes PerformPaletteWrite.
+        Assert.Matches(new Regex(
+            @"void\s+Write_Click[\s\S]*?_undoService\.Begin[\s\S]*?_vm\.WriteTsa\(\)[\s\S]*?PerformPaletteWrite\(\)[\s\S]*?_undoService\.Commit",
+            RegexOptions.Compiled), source);
+        // A non-empty TSA error rolls back before the palette half runs.
+        Assert.Matches(new Regex(
+            @"void\s+Write_Click[\s\S]*?WriteTsa\(\)[\s\S]*?string\.IsNullOrEmpty\(err\)[\s\S]*?_undoService\.Rollback",
+            RegexOptions.Compiled), source);
+    }
+
+    /// <summary>
+    /// The code-behind must wire the Cell X / Cell Y selectors to a field-load
+    /// helper with reentrancy suppression (so seeding the fields doesn't loop).
+    /// </summary>
+    [Fact]
+    public void View_WiresCellSelectorsWithSuppression()
+    {
+        string source = ReadCodeBehind();
+        Assert.Matches(new Regex(
+            @"TsaCellXBox\.ValueChanged[\s\S]*?LoadSelectedCellIntoFields",
+            RegexOptions.Compiled), source);
+        Assert.Matches(new Regex(
+            @"TsaCellYBox\.ValueChanged[\s\S]*?LoadSelectedCellIntoFields",
+            RegexOptions.Compiled), source);
+        Assert.Contains("_suppressCellLoad", source);
+    }
+
+    // -----------------------------------------------------------------
+    // #1005: ViewModel per-cell editing — GetCell/SetCell/CanEditCells/WriteTsa.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_HeaderTsa_HasNoCells_CanEditCellsFalse()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            // Header-TSA: per-cell editing is out of scope (#1005).
+            vm.Init(32u, 20u, 0u, isHeaderTSA: true, isLZ77TSA: false,
+                    tsaPointer: 0u, palettePointer: U.NOT_FOUND,
+                    paletteAddress: 0u, paletteCount: 1);
+
+            Assert.False(vm.HasCells);
+            Assert.False(vm.CanEditCells);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_NonHeaderRaw_DecodesEditableCells()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Plant a 2x1 LZ77 tile image + raw 2-cell TSA + the pointer slots.
+            uint imgSlot = 0x100000u, tsaSlot = 0x100010u;
+            uint imgData = 0x200000u, tsaData = 0x210000u;
+            byte[] tiles = new byte[2 * 32];          // 2 tiles
+            byte[] comp = LZ77.compress(tiles);
+            Array.Copy(comp, 0, rom.Data, (int)imgData, comp.Length);
+            rom.write_p32(imgSlot, imgData);
+            ushort c0 = ImageTSAEditorCore.SerializeCell(1, true, false, 3);
+            ushort c1 = ImageTSAEditorCore.SerializeCell(0, false, true, 1);
+            U.write_u16(rom.Data, tsaData + 0, c0);
+            U.write_u16(rom.Data, tsaData + 2, c1);
+            rom.write_p32(tsaSlot, tsaData);
+
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(2u, 1u, imgSlot, isHeaderTSA: false, isLZ77TSA: false,
+                    tsaPointer: tsaSlot, palettePointer: U.NOT_FOUND,
+                    paletteAddress: 0u, paletteCount: 1);
+
+            Assert.True(vm.HasCells);
+            Assert.True(vm.CanEditCells);
+            Assert.Equal(2, vm.CellCols);
+            Assert.Equal(1, vm.CellRows);
+            Assert.Equal(c0, vm.GetCell(0, 0));
+            Assert.Equal(c1, vm.GetCell(1, 0));
+            // MaxTileId clamps to tilesheetTileCount-1 = 1.
+            Assert.Equal(1, vm.MaxTileId);
+
+            // SetCell bit-packs and clamps the tile id to MaxTileId.
+            vm.SetCell(0, 0, tileId: 999, hflip: false, vflip: true, bank: 2);
+            ushort edited = vm.GetCell(0, 0);
+            Assert.Equal(1, edited & 0x3FF);            // clamped to MaxTileId
+            Assert.Equal(0, edited & 0x400);            // hflip cleared
+            Assert.NotEqual(0, edited & 0x800);         // vflip set
+            Assert.Equal(2, (edited >> 12) & 0xF);      // bank 2
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_WriteTsa_HeaderTsa_ReturnsErrorNotEmpty()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, 0u, isHeaderTSA: true, isLZ77TSA: false,
+                    tsaPointer: 0u, palettePointer: U.NOT_FOUND,
+                    paletteAddress: 0u, paletteCount: 1);
+            // No editable cells -> WriteTsa refuses with a non-empty error.
+            Assert.False(string.IsNullOrEmpty(vm.WriteTsa()));
         }
         finally { CoreState.ROM = prevRom; }
     }

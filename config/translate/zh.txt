@@ -24109,3 +24109,30 @@ Sappy 模拟器播放为 Windows 专用（user32 P/Invoke），请使用 WinForm
 
 :Actual size
 实际大小
+
+:Cell X
+单元格 X
+
+:Cell Y
+单元格 Y
+
+:Tile ID
+图块 ID
+
+:H-Flip
+水平翻转
+
+:V-Flip
+垂直翻转
+
+:Palette Bank
+调色板组
+
+:Apply to Cell
+应用到单元格
+
+:TSA Cell
+TSA 单元格
+
+:Per-cell editing supports non-header TSA only — header-TSA editing tracked separately.
+逐单元格编辑仅支持非头部 TSA — 头部 TSA 的编辑另行跟踪处理。
