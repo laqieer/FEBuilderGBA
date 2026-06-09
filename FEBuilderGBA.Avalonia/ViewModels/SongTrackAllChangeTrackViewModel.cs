@@ -16,15 +16,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     /// value == <see cref="From"/> to <see cref="To"/>.</summary>
     public class VoiceRow : ViewModelBase
     {
+        int _from;
         int _to;
+        string _instrumentName = string.Empty;
 
-        public int From { get; set; }
+        // All setters raise PropertyChanged (via SetField) so the
+        // UtilityViewModelSweepTests.PropertyChanged_FiresOnSet sweep over every
+        // ViewModelBase subclass passes — plain auto-property setters fail it.
+        public int From { get => _from; set => SetField(ref _from, value); }
         /// <summary>Editable target voice (0..127). Identity (To == From) is a
         /// no-op when applied.</summary>
         public int To { get => _to; set => SetField(ref _to, value); }
         /// <summary>Resolved instrument name for <see cref="From"/> (or a hex
         /// fallback when no instrument list is available).</summary>
-        public string InstrumentName { get; set; } = string.Empty;
+        public string InstrumentName { get => _instrumentName; set => SetField(ref _instrumentName, value); }
 
         /// <summary>List-row label, e.g. "Voice 5 -> 9 (Strings)".</summary>
         public string Display => $"{R._("Voice")} {From} -> {To}"
