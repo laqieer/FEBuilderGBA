@@ -293,10 +293,18 @@
       <StackPanel Spacing="4">
         <Label AutomationProperties.AutomationId="ImagePallet_Preview_Label"
                Content="Preview" FontWeight="SemiBold" />
-        <Image AutomationProperties.AutomationId="ImagePallet_Preview_Image"
-               Name="PreviewImage" Width="260" Height="260"
-               Stretch="Uniform"
-               ToolTip.Tip="Live bitmap preview pending Core extraction - tracked by #500." />
+        <!-- Fixed 260x260 preview box. The inner Image is sized by ApplyZoom:
+             "Fit to window" leaves Width/Height unset (Uniform-stretched to fill
+             the box), the 1x/2x/3x/4x modes set an explicit pixel size centered
+             in the box (#1023). -->
+        <Border Width="260" Height="260" BorderBrush="DimGray" BorderThickness="1"
+                Background="#202020" ClipToBounds="True">
+          <Image AutomationProperties.AutomationId="ImagePallet_Preview_Image"
+                 Name="PreviewImage"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None"
+                 ToolTip.Tip="Live bitmap-of-the-graphic preview recolored by the grid colors (#1023)." />
+        </Border>
 
         <!-- R/G/B row labels (mirrors WF label53/label52/label51 +
              label48/label49/label50). One axis label per channel so

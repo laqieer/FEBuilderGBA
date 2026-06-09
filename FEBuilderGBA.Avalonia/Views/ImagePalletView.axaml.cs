@@ -33,6 +33,20 @@ namespace FEBuilderGBA.Avalonia.Views
         // PR #586).
         string[]? _lastPaletteNames;
 
+        // Live bitmap-of-the-graphic preview (#1023). The caller (eg.
+        // ImagePortraitView) supplies a render delegate that takes the
+        // 16-color GBA palette block (32 bytes) currently shown in the
+        // grid and returns the rendered graphic recolored with it. When
+        // null, the preview is cleared. The delegate renders WITHOUT
+        // writing the ROM, so an unsaved spinner edit is reflected live.
+        Func<byte[], IImage?>? _renderPreview;
+
+        // Intrinsic size of the most-recently rendered preview bitmap, so
+        // ApplyZoom can rescale the already-rendered image without
+        // re-invoking the (potentially expensive) render delegate.
+        double _previewBaseW;
+        double _previewBaseH;
+
         public string ViewTitle => "Palette Editor";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -71,6 +85,10 @@ namespace FEBuilderGBA.Avalonia.Views
             // touched here - VM sync happens at Write time via
             // ReadNudsIntoVm().
             RefreshSwatchesFromNuds();
+            // Re-render the live graphic preview from the edited colors
+            // (#1023). Guarded inside RenderPreview against the bulk NUD
+            // seed UpdateUI performs while IsLoading is set.
+            RenderPreview();
         }
 
         // ---- entry / list loading ----
@@ -102,10 +120,16 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Open<ImagePalletView>() to carry the palette address +
         /// multi-palette metadata (Copilot CLI plan review #2).
         /// </summary>
-        public void JumpTo(uint paletteAddress, int maxPaletteCount = 1, int defaultSelectPalette = 0, string[]? paletteNames = null)
+        public void JumpTo(uint paletteAddress, int maxPaletteCount = 1, int defaultSelectPalette = 0, string[]? paletteNames = null,
+            Func<byte[], IImage?>? renderPreview = null)
         {
             try
             {
+                // Store the live-preview render delegate (#1023). When non-null
+                // the preview area shows the supplied graphic recolored by the
+                // 16 grid colors; when null the preview is cleared.
+                _renderPreview = renderPreview;
+
                 // Cache the names so subsequent reload paths (Write,
                 // Undo) keep the override labels - passing null to
                 // LoadEntry would drop them (Copilot bot round-3
@@ -113,6 +137,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _lastPaletteNames = paletteNames;
                 _vm.LoadEntry(paletteAddress, maxPaletteCount, defaultSelectPalette, paletteNames);
                 UpdateUI();
+                // Render the initial preview AFTER UpdateUI has seeded the NUDs
+                // and any IsLoading flag has cleared (so the bulk seed itself
+                // doesn't thrash the render).
+                RenderPreview();
             }
             catch (Exception ex)
             {
@@ -265,16 +293,170 @@ namespace FEBuilderGBA.Avalonia.Views
             image.InvalidateVisual();
         }
 
+        // ---- live bitmap-of-the-graphic preview (#1023) ----
+
+        /// <summary>
+        /// Render the live preview of the source graphic recolored by the 16
+        /// colors CURRENTLY in the R/G/B NumericUpDowns (so an unsaved edit is
+        /// reflected immediately, without writing the ROM). When no render
+        /// delegate was supplied via <see cref="JumpTo"/>, or the delegate
+        /// returns null / throws, the preview is cleared. Guarded against the
+        /// bulk NUD seed performed by <see cref="UpdateUI"/> via the VM
+        /// IsLoading flag so a single LoadEntry doesn't trigger 48 redundant
+        /// renders.
+        /// </summary>
+        void RenderPreview()
+        {
+            // Pack the 16 colors from the CURRENT control values (8-bit each,
+            // clamped 0..255 by NudByte) into the 32-byte GBA BGR555 block via
+            // PaletteCore.PackToBytes — the SAME byte format
+            // ImageUtilCore.GetPalette(ptr,16) returns, so the rendered colors
+            // match a post-Write ROM read. PackToBytes (8-bit input) is used
+            // deliberately, NOT UnitPaletteWriteCore.PackRgb555 (5-bit input)
+            // which would corrupt mid-range channel values.
+            try
+            {
+                if (_renderPreview == null)
+                {
+                    DisposePreview();
+                    PreviewImage.Source = null;
+                    _previewBaseW = 0;
+                    _previewBaseH = 0;
+                    return;
+                }
+
+                // Skip during bulk VM seeding (UpdateUI mirrors 48 NUDs).
+                if (_vm.IsLoading) return;
+
+                var colors = new (byte r, byte g, byte b)[16];
+                colors[0]  = (NudByte(R1Box),  NudByte(G1Box),  NudByte(B1Box));
+                colors[1]  = (NudByte(R2Box),  NudByte(G2Box),  NudByte(B2Box));
+                colors[2]  = (NudByte(R3Box),  NudByte(G3Box),  NudByte(B3Box));
+                colors[3]  = (NudByte(R4Box),  NudByte(G4Box),  NudByte(B4Box));
+                colors[4]  = (NudByte(R5Box),  NudByte(G5Box),  NudByte(B5Box));
+                colors[5]  = (NudByte(R6Box),  NudByte(G6Box),  NudByte(B6Box));
+                colors[6]  = (NudByte(R7Box),  NudByte(G7Box),  NudByte(B7Box));
+                colors[7]  = (NudByte(R8Box),  NudByte(G8Box),  NudByte(B8Box));
+                colors[8]  = (NudByte(R9Box),  NudByte(G9Box),  NudByte(B9Box));
+                colors[9]  = (NudByte(R10Box), NudByte(G10Box), NudByte(B10Box));
+                colors[10] = (NudByte(R11Box), NudByte(G11Box), NudByte(B11Box));
+                colors[11] = (NudByte(R12Box), NudByte(G12Box), NudByte(B12Box));
+                colors[12] = (NudByte(R13Box), NudByte(G13Box), NudByte(B13Box));
+                colors[13] = (NudByte(R14Box), NudByte(G14Box), NudByte(B14Box));
+                colors[14] = (NudByte(R15Box), NudByte(G15Box), NudByte(B15Box));
+                colors[15] = (NudByte(R16Box), NudByte(G16Box), NudByte(B16Box));
+
+                byte[] block = PaletteCore.PackToBytes(colors);
+
+                IImage? coreImg = _renderPreview(block);
+                Bitmap? bmp = coreImg != null ? ImageConversionHelper.ToAvaloniaBitmap(coreImg) : null;
+                // The Core IImage is fully consumed by the PNG encode inside
+                // ToAvaloniaBitmap; dispose it if disposable so rapid spinner
+                // edits don't accumulate native handles.
+                (coreImg as IDisposable)?.Dispose();
+
+                if (bmp == null)
+                {
+                    DisposePreview();
+                    PreviewImage.Source = null;
+                    _previewBaseW = 0;
+                    _previewBaseH = 0;
+                    return;
+                }
+
+                DisposePreview();
+                _previewBaseW = bmp.PixelSize.Width;
+                _previewBaseH = bmp.PixelSize.Height;
+                PreviewImage.Source = bmp;
+                ApplyZoom();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ImagePalletView.RenderPreview failed: {0}", ex.Message);
+                try
+                {
+                    DisposePreview();
+                    PreviewImage.Source = null;
+                    _previewBaseW = 0;
+                    _previewBaseH = 0;
+                }
+                catch { /* never throw to the UI */ }
+            }
+        }
+
+        void DisposePreview()
+        {
+            if (PreviewImage.Source is IDisposable d)
+                d.Dispose();
+        }
+
+        /// <summary>
+        /// Apply the current Zoom-combo selection to the already-rendered
+        /// preview bitmap. This NEVER re-invokes the render delegate — it only
+        /// rescales the displayed image, mirroring WF where the zoom combo just
+        /// changes the draw scale. Zoom item mapping:
+        ///   0 = Fit to window (Uniform stretch inside the 260x260 area),
+        ///   1 = Original size (1x), 2 = 2x, 3 = 3x, 4 = 4x.
+        /// Nearest-neighbour interpolation keeps GBA pixels crisp.
+        /// </summary>
+        void ApplyZoom()
+        {
+            RenderOptions.SetBitmapInterpolationMode(PreviewImage, BitmapInterpolationMode.None);
+
+            int idx = ZoomComboBox.SelectedIndex;
+            if (idx < 0) idx = _vm.ZoomIndex;
+            if (idx < 0) idx = 0;
+
+            if (idx == 0)
+            {
+                // Fit to window: clear explicit size and let the 260x260
+                // container Uniform-stretch the image.
+                PreviewImage.Width = double.NaN;
+                PreviewImage.Height = double.NaN;
+                PreviewImage.Stretch = Stretch.Uniform;
+                return;
+            }
+
+            // 1 = 1x, 2 = 2x, 3 = 3x, 4 = 4x.
+            int scale = idx; // idx 1..4 maps directly to the multiplier.
+            if (scale < 1) scale = 1;
+
+            // Base = intrinsic rendered size; fall back to a 32x32 GBA mini
+            // portrait base when nothing has rendered yet.
+            double baseW = _previewBaseW > 0 ? _previewBaseW : 32;
+            double baseH = _previewBaseH > 0 ? _previewBaseH : 32;
+
+            // Clamp so an extreme scale can't blow past the 260x260 preview box
+            // by an absurd amount (keeps it usable; mirrors the fixed preview
+            // area in the AXAML).
+            const double MaxDim = 256;
+            double w = baseW * scale;
+            double h = baseH * scale;
+            if (w > MaxDim || h > MaxDim)
+            {
+                double f = Math.Min(MaxDim / w, MaxDim / h);
+                w *= f;
+                h *= f;
+            }
+
+            PreviewImage.Stretch = Stretch.Fill;
+            PreviewImage.Width = w;
+            PreviewImage.Height = h;
+        }
+
         // ---- event handlers ----
 
         void Zoom_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             // Persist the selected zoom into the VM (mirrors WF
-            // PaletteZoomComboBox_SelectedIndexChanged - WF re-renders
-            // the bitmap preview; live preview is #500-deferred here).
+            // PaletteZoomComboBox_SelectedIndexChanged), then rescale the
+            // already-rendered preview bitmap (#1023). ApplyZoom NEVER
+            // re-invokes the render delegate — it only changes the displayed
+            // size, so switching zoom is cheap.
             int idx = ZoomComboBox.SelectedIndex;
             if (idx < 0) idx = 0;
             _vm.ZoomIndex = idx;
+            ApplyZoom();
         }
 
         void PaletteIndex_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -295,6 +477,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.MarkClean();
             }
             UpdateUI();
+            // The newly-selected palette block changes the displayed colors,
+            // so re-render the live preview with them (#1023).
+            RenderPreview();
         }
 
         void Write_Click(object? sender, RoutedEventArgs e)
@@ -348,6 +533,9 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.MarkClean();
                 }
                 UpdateUI();
+                // Re-render the preview from the post-write quantized colors
+                // so the displayed graphic matches the saved ROM bytes (#1023).
+                RenderPreview();
 
                 CoreState.Services?.ShowInfo(R._("Palette written."));
             }
@@ -408,6 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         _vm.MarkClean();
                     }
                     UpdateUI();
+                    RenderPreview(); // reflect the post-undo colors (#1023)
                 }
             }
             catch (Exception ex)
@@ -448,6 +637,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         _vm.MarkClean();
                     }
                     UpdateUI();
+                    RenderPreview(); // reflect the post-redo colors (#1023)
                 }
             }
             catch (Exception ex)
