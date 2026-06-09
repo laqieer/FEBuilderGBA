@@ -538,7 +538,7 @@ Editors for miscellaneous ROM structure data.
 | # | View | ViewModel | Description |
 |---|------|-----------|-------------|
 | 306 | Command85PointerView | Command85PointerViewModel | Command 0x85 pointer table editor |
-| 307 | DumpStructSelectDialogView | DumpStructSelectDialogViewModel | Struct dump selection dialog |
+| 307 | DumpStructSelectDialogView | DumpStructSelectDialogViewModel | Struct dump selection dialog (CSV/TSV/EA/STRUCT/NMM all export struct-aware output for resolved tables via `StructExportCore`; STRUCT=.h C-header, NMM=No$gba memory map — #1012) |
 | 308 | DumpStructSelectToTextDialogView | DumpStructSelectToTextDialogViewModel | Struct dump to text dialog |
 | 309 | ResourceView | ResourceViewModel | Resource table viewer |
 
