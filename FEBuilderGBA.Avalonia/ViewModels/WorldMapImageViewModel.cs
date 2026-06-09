@@ -638,20 +638,67 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>True when the FE8 dark palette Import button should be enabled.</summary>
         public bool CanImportDark { get => _canImportDark; set => SetField(ref _canImportDark, value); }
 
+        // ---- #1000: strip import gates (Mini / Point1 / Point2 / Road) ----
+        bool _canImportMini, _canImportPoint1, _canImportPoint2, _canImportRoad;
+
+        /// <summary>True when the Mini strip Import button should be enabled
+        /// (FE8 + nonzero, resolvable image AND palette pointer slots).</summary>
+        public bool CanImportMini { get => _canImportMini; set => SetField(ref _canImportMini, value); }
+
+        /// <summary>True when the Point1 strip Import button should be enabled.</summary>
+        public bool CanImportPoint1 { get => _canImportPoint1; set => SetField(ref _canImportPoint1, value); }
+
+        /// <summary>True when the Point2 strip Import button should be enabled.</summary>
+        public bool CanImportPoint2 { get => _canImportPoint2; set => SetField(ref _canImportPoint2, value); }
+
+        /// <summary>True when the Road strip Import button should be enabled.</summary>
+        public bool CanImportRoad { get => _canImportRoad; set => SetField(ref _canImportRoad, value); }
+
         bool _canExportDark;
         /// <summary>True after a successful TryRenderDarkFieldMap — gates the Dark Export button.</summary>
         public bool CanExportDark { get => _canExportDark; set => SetField(ref _canExportDark, value); }
 
         /// <summary>
-        /// Refresh the CanImportMain / CanImportDark gates: both are enabled
-        /// only when a FE8 ROM is loaded (same gate as TryRenderMainFieldMap).
-        /// Called from LoadAll.
+        /// Refresh the CanImportMain / CanImportDark gates and the four #1000
+        /// strip-import gates. Main/Dark are enabled only on a FE8 ROM (same gate
+        /// as TryRenderMainFieldMap). Each strip gate is FE8-only AND requires a
+        /// nonzero, resolvable image pointer slot AND a nonzero, resolvable
+        /// palette pointer slot (FE6/FE7 have these as 0, so they stay disabled).
+        /// Called from LoadAll / RefreshPreviews.
         /// </summary>
         public void RefreshImportGates()
         {
-            bool isFE8 = CoreState.ROM?.RomInfo?.version == 8;
+            ROM rom = CoreState.ROM;
+            bool isFE8 = rom?.RomInfo?.version == 8;
             CanImportMain = isFE8;
             CanImportDark = isFE8;
+
+            CanImportMini = isFE8 && CanImportStrip(rom,
+                rom?.RomInfo?.worldmap_mini_image_pointer ?? 0,
+                rom?.RomInfo?.worldmap_mini_palette_pointer ?? 0);
+            CanImportPoint1 = isFE8 && CanImportStrip(rom,
+                rom?.RomInfo?.worldmap_icon1_pointer ?? 0,
+                rom?.RomInfo?.worldmap_icon_palette_pointer ?? 0);
+            CanImportPoint2 = isFE8 && CanImportStrip(rom,
+                rom?.RomInfo?.worldmap_icon2_pointer ?? 0,
+                rom?.RomInfo?.worldmap_icon_palette_pointer ?? 0);
+            CanImportRoad = isFE8 && CanImportStrip(rom,
+                rom?.RomInfo?.worldmap_road_tile_pointer ?? 0,
+                rom?.RomInfo?.worldmap_icon_palette_pointer ?? 0);
+        }
+
+        /// <summary>
+        /// A strip is importable when its image pointer slot is nonzero and its
+        /// palette pointer slot resolves to a readable 16-color palette (via the
+        /// guarded <see cref="ImageWorldMapCore.TryGetStripPalette"/>). The image
+        /// slot must also be a nonzero, in-range slot (the import seam re-checks
+        /// the +4 bounds, but the gate refuses an unset 0 slot up front).
+        /// </summary>
+        static bool CanImportStrip(ROM rom, uint imagePointerSlot, uint palettePointerSlot)
+        {
+            if (rom?.Data == null) return false;
+            if (imagePointerSlot == 0 || (ulong)imagePointerSlot + 4 > (ulong)rom.Data.Length) return false;
+            return ImageWorldMapCore.TryGetStripPalette(rom, palettePointerSlot, out _);
         }
 
         // ---- indexed-image load (platform-agnostic — reads EXISTING ROM indexed data) ----

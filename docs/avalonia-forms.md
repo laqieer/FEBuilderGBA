@@ -421,7 +421,7 @@ Editors for world map nodes, paths, events, and images.
 | 243 | WorldMapPathView | WorldMapPathViewModel | World map path editor |
 | 244 | WorldMapPathEditorView | WorldMapPathEditorViewModel | World map path visual editor |
 | 245 | WorldMapPathMoveEditorView | WorldMapPathMoveEditorViewModel | World map path movement editor |
-| 246 | WorldMapImageView | WorldMapImageViewModel | World map image editor |
+| 246 | WorldMapImageView | WorldMapImageViewModel | World map image editor — Main/Dark import (#875), Mini/Point1/Point2/Road strip image imports wired via `ImageWorldMapCore.ImportIconStrip` (single-LZ77-stream, image-only nearest-color remap, FE8-only gates, #1000); Event/Border image imports + legacy full Export are deferred follow-ups |
 | 247 | WorldMapImageFE6View | WorldMapImageFE6ViewModel | World map image (FE6) |
 | 248 | WorldMapImageFE7View | WorldMapImageFE7ViewModel | World map image (FE7) |
 
