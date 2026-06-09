@@ -10,6 +10,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _paletteAddressText = string.Empty;
         string _tsaAddressText = string.Empty;
         int _tsaTypeIndex;
+        string _image2AddressText = string.Empty;
+        bool _isImage2Join;
+        bool _isCompressedPalette;
         int _tileCountX = 8;
         int _tileCountY = 8;
         bool _is4bpp = true;
@@ -47,6 +50,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// the TSA path is fixed 4bpp + LZ77 image.
         /// </summary>
         public bool TsaModeActive => TsaTypeIndex > 0;
+        /// <summary>
+        /// ROM address of a SECOND image to join after the first (hex string)
+        /// — WF "Image 2" (#1074). Only consumed when <see cref="IsImage2Join"/>
+        /// is set AND a TSA type other than None is selected. Empty / 0 ⇒ no join
+        /// (single image).
+        /// </summary>
+        public string Image2AddressText { get => _image2AddressText; set => SetField(ref _image2AddressText, value); }
+        /// <summary>
+        /// True when the second image (<see cref="Image2AddressText"/>) is joined
+        /// after the first (WF <c>ImageOption == 2</c>, order image ++ image2,
+        /// #1074). Set by <c>Jump(...)</c> from <c>imageType == 2</c>.
+        /// </summary>
+        public bool IsImage2Join { get => _isImage2Join; set => SetField(ref _isImage2Join, value); }
+        /// <summary>
+        /// True when the palette block is an LZ77-compressed stream (WF
+        /// <c>PaletteOption == 1</c>, #1074). Set by <c>Jump(...)</c> from
+        /// <c>paletteType == 1</c>. Forwarded to
+        /// <see cref="ImageTSAEditorCore.TryRenderMainImage"/>.
+        /// </summary>
+        public bool IsCompressedPalette { get => _isCompressedPalette; set => SetField(ref _isCompressedPalette, value); }
         /// <summary>Number of tiles horizontally.</summary>
         public int TileCountX { get => _tileCountX; set => SetField(ref _tileCountX, value); }
         /// <summary>Number of tiles vertically.</summary>
@@ -108,15 +131,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return null;
             }
 
-            // --- TSA-composited preview path (#1030) --------------------------
+            // --- TSA-composited preview path (#1030 / #1074) -----------------
             // When a TSA type other than None is selected AND a TSA address is
             // entered, route the preview through the EXISTING
             // ImageTSAEditorCore.TryRenderMainImage (no new render logic). The
             // TSA path is FIXED 4bpp + LZ77 image; the View disables
             // Is4bpp/IsCompressed in this mode. The TSA-type -> flags mapping is
             // the SAME one the TSA Editor button path uses (MapTsaType), so
-            // existing Jump callers render correctly. image2-join + compressed
-            // paletteType are deferred follow-ups.
+            // existing Jump callers render correctly. #1074 adds the optional
+            // image2-join (IsImage2Join + Image2AddressText) and compressed
+            // paletteType (IsCompressedPalette) carried in from Jump.
             uint tsaParsed = ParseHex(TsaAddressText);
             if (TsaTypeIndex > 0 && tsaParsed != 0)
             {
@@ -126,6 +150,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint palOff = U.toOffset(paletteAddr);   // normalize palette too
                 var (isLZ77TSA, isHeaderTSA) = MapTsaType(TsaTypeIndex);
 
+                // #1074: optional 2nd-image join. Only resolve image2 when the
+                // join flag is set (Jump maps imageType==2); a missing/empty
+                // address parses to 0 -> single image (Core treats 0 as no-op).
+                uint image2Off = IsImage2Join ? U.toOffset(ParseHex(Image2AddressText)) : 0u;
+
                 int w8 = TileCountX;
                 int h8 = TileCountY;
                 // Mirror ImageTSAEditorViewModel.Init's header-TSA min-dimension
@@ -133,7 +162,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (isHeaderTSA) { w8 = Math.Max(32, w8); h8 = Math.Max(20, h8); }
 
                 IImage? tsaImage = ImageTSAEditorCore.TryRenderMainImage(
-                    rom, (uint)w8, (uint)h8, imgOff, isHeaderTSA, isLZ77TSA, tsaOff, palOff);
+                    rom, (uint)w8, (uint)h8, imgOff, isHeaderTSA, isLZ77TSA, tsaOff, palOff,
+                    image2Off, IsCompressedPalette);
 
                 if (tsaImage == null)
                 {
@@ -144,7 +174,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
 
                 CurrentImage = tsaImage;
-                ImageInfo = $"TSA · 4bpp · LZ77 image ({w8}x{h8} tiles)";
+                string image2Tag = (IsImage2Join && image2Off != 0) ? " · +image2" : "";
+                string palTag = IsCompressedPalette ? " · LZ77 palette" : "";
+                ImageInfo = $"TSA · 4bpp · LZ77 image{image2Tag}{palTag} ({w8}x{h8} tiles)";
                 StatusMessage = $"Loaded TSA-composited {tsaImage.Width}x{tsaImage.Height} image.";
                 return tsaImage;
             }

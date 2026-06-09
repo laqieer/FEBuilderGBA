@@ -131,14 +131,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// directly, so we perform the same `/ 8` conversion here.
         ///
         /// <para>
-        /// Note (#1030): the Avalonia <c>GraphicsToolViewViewModel</c> now
-        /// consumes <paramref name="tsa"/> + <paramref name="tsaType"/> and
+        /// Note (#1030 / #1074): the Avalonia <c>GraphicsToolViewViewModel</c>
+        /// now consumes <paramref name="tsa"/> + <paramref name="tsaType"/> and
         /// routes the preview through <c>ImageTSAEditorCore.TryRenderMainImage</c>
-        /// (TSA-composited, fixed 4bpp + LZ77 image). The
-        /// <paramref name="paletteType"/> (compressed palette) and
-        /// <paramref name="image2"/> (2nd-image join) parameters are still
-        /// accepted for WinForms signature parity but are NOT yet consumed by
-        /// the Avalonia preview path — both are deferred follow-ups.
+        /// (TSA-composited, fixed 4bpp + LZ77 image). #1074 additionally wires
+        /// <paramref name="image2"/> (2nd-image join, gated on
+        /// <paramref name="imageType"/> == 2) and <paramref name="paletteType"/>
+        /// == 1 (LZ77-compressed palette) into that same preview path.
         /// </para>
         ///
         /// Parameter semantics mirror WF (see <c>GraphicsToolForm.Draw()</c>
@@ -149,8 +148,8 @@ namespace FEBuilderGBA.Avalonia.Views
         ///     (single, 2nd-joined, or other compressed modes);
         ///     1 = raw uncompressed. Battle BG callsites pass 0.</item>
         ///   <item><c>tsaType</c> / <c>paletteType</c>: 1 = LZ77-compressed
-        ///     in Battle BG callsites; 0 = raw. (Recorded on the WF VM;
-        ///     not yet consumed by the Avalonia decoder — see note above.)</item>
+        ///     in Battle BG callsites; 0 = raw. <c>paletteType == 1</c> now
+        ///     selects the LZ77-compressed palette decode (#1074).</item>
         ///   <item><c>paletteCount</c>: number of 16-color rows the WF form
         ///     would show.</item>
         /// </list>
@@ -163,9 +162,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <param name="tsa">ROM offset or GBA pointer of the TSA data.</param>
         /// <param name="tsaType">WF `TSAOption.SelectedIndex` value (kept for parity).</param>
         /// <param name="palette">ROM offset or GBA pointer of the palette.</param>
-        /// <param name="paletteType">WF `PaletteOption.SelectedIndex` value (kept for parity).</param>
+        /// <param name="paletteType">WF `PaletteOption.SelectedIndex` value
+        ///   (1 = LZ77-compressed palette decode, #1074).</param>
         /// <param name="paletteCount">Number of 16-color rows the WF form would show.</param>
-        /// <param name="image2">Secondary image address (WF "Image 2" — unused in AV preview).</param>
+        /// <param name="image2">Secondary image address (WF "Image 2"); joined
+        ///   after the first when <paramref name="imageType"/> == 2 (#1074).</param>
         public void Jump(int width, int height, uint image, int imageType,
             uint tsa, int tsaType, uint palette, int paletteType,
             int paletteCount, uint image2)
@@ -192,6 +193,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 // to the 5 populated items 0..4).
                 _vm.TsaAddressText = tsa == 0 ? "" : $"0x{NormalizeGbaPointer(tsa):X08}";
                 _vm.TsaTypeIndex = System.Math.Clamp(tsaType, 0, 4);
+
+                // #1074: feed the image2-join + compressed-palette context to the
+                // preview. A 0 image2 pointer maps to "" (empty box) like the TSA
+                // address above. IsImage2Join is gated on the WF imageType == 2
+                // (the join mode), NOT merely image2 != 0 (#1074 refinement #5),
+                // so a non-join mode that still carries a 2nd address does not
+                // accidentally join. IsCompressedPalette mirrors WF
+                // PaletteOption == 1 (paletteType == 1).
+                _vm.Image2AddressText = image2 == 0 ? "" : $"0x{NormalizeGbaPointer(image2):X08}";
+                _vm.IsImage2Join = (imageType == 2);
+                _vm.IsCompressedPalette = (paletteType == 1);
 
                 // WF passes pixels; AV stores tile counts. Convert.
                 _vm.TileCountX = System.Math.Max(1, width / 8);

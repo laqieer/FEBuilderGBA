@@ -294,7 +294,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 172 | BattleTerrainViewerView | BattleTerrainViewerViewModel | Battle terrain viewer |
 | 173 | ChapterTitleViewerView | ChapterTitleViewerViewModel | Chapter title image viewer |
 | 174 | BigCGViewerView | BigCGViewerViewModel | Large CG image viewer |
-| 175 | GraphicsToolView | GraphicsToolViewViewModel | Graphics tool main view (TSA-composited preview via ImageTSAEditorCore.TryRenderMainImage, #1030; image2-join + compressed paletteType deferred) |
+| 175 | GraphicsToolView | GraphicsToolViewViewModel | Graphics tool main view (TSA-composited preview via ImageTSAEditorCore.TryRenderMainImage, #1030; image2-join + LZ77-compressed paletteType wired in via the 10-arg overload, #1074) |
 | 176 | GraphicsToolPatchMakerView | GraphicsToolPatchMakerViewViewModel | Graphics patch creation tool |
 | 177 | MantAnimationView | MantAnimationViewModel | Map/mant animation viewer |
 | 178 | OAMSPView | OAMSPViewModel | OAM sprite editor |

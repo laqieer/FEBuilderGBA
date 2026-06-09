@@ -19,9 +19,11 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class GraphicsToolViewModelTsaTests
     {
         // Resolved ROM data offsets for the planted streams.
-        const uint IMAGE_OFFSET   = 0x1000;
-        const uint TSA_LZ_OFFSET  = 0x6000;
-        const uint PALETTE_OFFSET = 0x8000;
+        const uint IMAGE_OFFSET    = 0x1000;
+        const uint IMAGE2_OFFSET   = 0x2000;
+        const uint TSA_LZ_OFFSET   = 0x6000;
+        const uint PALETTE_OFFSET  = 0x8000;
+        const uint COMP_PAL_OFFSET = 0xA000;
 
         // GBA 5-5-5 colors used in the planted palette.
         const ushort RED   = 0x001F;
@@ -217,6 +219,116 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(160, image.Height);
                 Assert.Contains("32x20", vm.ImageInfo);
             });
+        }
+
+        // -----------------------------------------------------------------
+        // #1074 — image2-join + compressed paletteType behavioral tests.
+        // Setting Image2AddressText/IsImage2Join/IsCompressedPalette on the VM
+        // and calling DrawTiles must reflect the image2 tile / compressed-palette
+        // colors in the rendered CurrentImage.
+        // -----------------------------------------------------------------
+
+        /// <summary>image2 = a single tile that is entirely color index 2 (green
+        /// in bank 0). Joined after MarkerTiles()'s 2 tiles -> tile index 2.</summary>
+        static byte[] Image2GreenTile()
+        {
+            byte[] tiles = new byte[1 * 32];
+            FillTile(tiles, 0, 2);
+            return tiles;
+        }
+
+        [Fact]
+        public void DrawTiles_Image2Join_RendersSecondImageTile()
+        {
+            WithRomAndService(rom =>
+            {
+                PlantImage(rom, MarkerTiles());                  // tiles 0,1
+                PlantBytes(rom, IMAGE2_OFFSET, LZ77.compress(Image2GreenTile())); // tile 2
+                PlantPalette(rom, StandardPalette());
+                // TSA cell references tile index 2 -> only reachable via image2.
+                ushort[] cells = { Cell(2, false, false, 0) };
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(CellsToBytes(
+                    new ushort[] { cells[0], Cell(0, false, false, 0) }))); // pad to >=4 bytes
+
+                var vm = new GraphicsToolViewViewModel();
+                vm.ImageAddressText   = "0x" + U.toPointer(IMAGE_OFFSET).ToString("X8");
+                vm.PaletteAddressText = "0x" + U.toPointer(PALETTE_OFFSET).ToString("X8");
+                vm.TsaAddressText     = "0x" + U.toPointer(TSA_LZ_OFFSET).ToString("X8");
+                vm.Image2AddressText  = "0x" + U.toPointer(IMAGE2_OFFSET).ToString("X8");
+                vm.IsImage2Join = true;
+                vm.TileCountX = 2;   // 2 cells
+                vm.TileCountY = 1;
+                vm.TsaTypeIndex = 1; // Compressed (LZ77), non-header
+
+                var image = vm.DrawTiles();
+                Assert.NotNull(image);
+                // tile 2 (image2) is all green -> first cell (0,0) is green.
+                AssertPixel(image!, 0, 0, 0, 248, 0, 255);
+                Assert.Contains("+image2", vm.ImageInfo);
+
+                // WITHOUT the join, the SAME tile index 2 is out of range -> that
+                // cell is blank (transparent). Prove the renders differ.
+                var noJoin = new GraphicsToolViewViewModel();
+                noJoin.ImageAddressText   = vm.ImageAddressText;
+                noJoin.PaletteAddressText = vm.PaletteAddressText;
+                noJoin.TsaAddressText     = vm.TsaAddressText;
+                noJoin.IsImage2Join = false; // join disabled
+                noJoin.TileCountX = 2;
+                noJoin.TileCountY = 1;
+                noJoin.TsaTypeIndex = 1;
+                var noJoinImg = noJoin.DrawTiles();
+                Assert.NotNull(noJoinImg);
+                Assert.NotEqual(image!.GetPixelData(), noJoinImg!.GetPixelData());
+            });
+        }
+
+        [Fact]
+        public void DrawTiles_CompressedPalette_MatchesRawPaletteRender()
+        {
+            WithRomAndService(rom =>
+            {
+                PlantImage(rom, MarkerTiles());
+                ushort[] cells = { Cell(1, false, false, 0), Cell(0, false, false, 0) };
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(CellsToBytes(cells)));
+
+                byte[] rawPal = StandardPalette();
+                PlantPalette(rom, rawPal);                                  // raw
+                PlantBytes(rom, COMP_PAL_OFFSET, LZ77.compress(rawPal));    // compressed
+
+                // Raw-palette render.
+                var raw = new GraphicsToolViewViewModel();
+                raw.ImageAddressText   = "0x" + U.toPointer(IMAGE_OFFSET).ToString("X8");
+                raw.PaletteAddressText = "0x" + U.toPointer(PALETTE_OFFSET).ToString("X8");
+                raw.TsaAddressText     = "0x" + U.toPointer(TSA_LZ_OFFSET).ToString("X8");
+                raw.TileCountX = 2; raw.TileCountY = 1; raw.TsaTypeIndex = 1;
+                raw.IsCompressedPalette = false;
+                var rawImg = raw.DrawTiles();
+                Assert.NotNull(rawImg);
+
+                // Compressed-palette render of the SAME colors.
+                var comp = new GraphicsToolViewViewModel();
+                comp.ImageAddressText   = "0x" + U.toPointer(IMAGE_OFFSET).ToString("X8");
+                comp.PaletteAddressText = "0x" + U.toPointer(COMP_PAL_OFFSET).ToString("X8");
+                comp.TsaAddressText     = "0x" + U.toPointer(TSA_LZ_OFFSET).ToString("X8");
+                comp.TileCountX = 2; comp.TileCountY = 1; comp.TsaTypeIndex = 1;
+                comp.IsCompressedPalette = true;
+                var compImg = comp.DrawTiles();
+                Assert.NotNull(compImg);
+                Assert.Contains("LZ77 palette", comp.ImageInfo);
+
+                // Identical colors -> identical pixels.
+                Assert.Equal(rawImg!.GetPixelData(), compImg!.GetPixelData());
+            });
+        }
+
+        static void AssertPixel(IImage img, int x, int y, byte r, byte g, byte b, byte a)
+        {
+            byte[] px = img.GetPixelData();
+            int idx = (y * img.Width + x) * 4;
+            Assert.Equal(r, px[idx + 0]);
+            Assert.Equal(g, px[idx + 1]);
+            Assert.Equal(b, px[idx + 2]);
+            Assert.Equal(a, px[idx + 3]);
         }
 
         // -----------------------------------------------------------------
