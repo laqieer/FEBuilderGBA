@@ -93,7 +93,11 @@ namespace FEBuilderGBA
             if (basePointer == 0 || dataSize == 0) return U.NOT_FOUND;
 
             // Guard the pointer SLOT before dereferencing it via p32.
+            // isSafetyOffset only checks basePointer < Data.Length; p32 reads 4
+            // bytes, so also require the full 4-byte slot to be in ROM (overflow
+            // -safe) to keep this method truly non-throwing as documented.
             if (!U.isSafetyOffset(basePointer, rom)) return U.NOT_FOUND;
+            if ((ulong)basePointer + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
 
             uint baseAddr = rom.p32(basePointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return U.NOT_FOUND;

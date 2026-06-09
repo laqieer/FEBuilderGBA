@@ -61,14 +61,20 @@ namespace FEBuilderGBA.Avalonia.Tests
 
         private static string FindProjectRoot()
         {
-            string dir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 12; i++)
+            // Try the build-output dir first, then the current working dir —
+            // some CI runners/layouts launch the test host from a different CWD,
+            // so a single starting point is brittle (matches sibling tests).
+            foreach (var start in new[] { AppDomain.CurrentDomain.BaseDirectory, Directory.GetCurrentDirectory() })
             {
-                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
-                    return dir;
-                string? parent = Path.GetDirectoryName(dir);
-                if (parent == null || parent == dir) break;
-                dir = parent;
+                string dir = start;
+                for (int i = 0; i < 12; i++)
+                {
+                    if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                        return dir;
+                    string? parent = Path.GetDirectoryName(dir);
+                    if (parent == null || parent == dir) break;
+                    dir = parent;
+                }
             }
             throw new InvalidOperationException("Could not find project root (FEBuilderGBA.sln)");
         }
