@@ -58,6 +58,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!_vm.IsLoaded) return;
 
+            // No-op apply: don't open/commit an undo scope or claim "applied"
+            // when no row was edited (Copilot bot review #1088).
+            if (!_vm.HasPendingChanges)
+            {
+                CoreState.Services.ShowInfo(R._("No voice changes to apply."));
+                return;
+            }
+
             _undoService.Begin("Bulk Track Change");
             try
             {

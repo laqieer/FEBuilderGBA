@@ -53,6 +53,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Editable voice-remap rows (one per distinct 0xBD voice).</summary>
         public ObservableCollection<VoiceRow> Rows { get; } = new();
 
+        /// <summary>True when at least one row has an edited target voice
+        /// (<c>To != From</c>). The view checks this before opening an undo scope
+        /// so a no-op Apply neither mutates nor reports "applied" (#1088).</summary>
+        public bool HasPendingChanges
+        {
+            get { foreach (var r in Rows) if (r.To != r.From) return true; return false; }
+        }
+
         // Backwards-compat alias for older list/jump wiring that read CurrentAddr.
         public uint CurrentAddr { get => _songAddr; set => SetField(ref _songAddr, value); }
 

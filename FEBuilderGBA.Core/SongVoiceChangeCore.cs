@@ -66,6 +66,11 @@ namespace FEBuilderGBA
             if (trackCount > 16) trackCount = 16;
             if (trackCount == 0) return list;
 
+            // Full track-pointer-table bound: ParseTracks reads trackCount 4-byte
+            // slots at songAddr+8+ti*4, so the WHOLE table must fit (overflow-safe)
+            // — guarding only songAddr+8 lets a later slot read past EOF (#1088).
+            if ((ulong)songAddr + 8 + (ulong)trackCount * 4 > (ulong)rom.Data.Length) return list;
+
             var tracks = SongMidiCore.ParseTracks(rom, songAddr, trackCount);
 
             var seen = new HashSet<int>();
@@ -123,6 +128,11 @@ namespace FEBuilderGBA
 
             uint trackCount = rom.u8(songAddr);
             if (trackCount > 16) trackCount = 16;
+            // Full track-pointer-table bound (overflow-safe): ParseTracks reads
+            // trackCount 4-byte slots at songAddr+8+ti*4 — a truncated table must
+            // return an error with ZERO mutation, never throw (#1088).
+            if ((ulong)songAddr + 8 + (ulong)trackCount * 4 > (ulong)rom.Data.Length)
+                return R._("Song track table runs past ROM end.");
             var tracks = SongMidiCore.ParseTracks(rom, songAddr, trackCount);
 
             // Collect target write sites + validate EVERYTHING before any write.

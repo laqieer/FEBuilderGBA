@@ -315,5 +315,43 @@ namespace FEBuilderGBA.Core.Tests
                     Assert.Equal(42, rom.Data[vAddr]);
             }
         }
+
+        // ------------------------------------------------------------------
+        // Truncated track-pointer TABLE (the header itself runs the +8+ti*4
+        // pointer slots past EOF) — must NOT throw and must NOT mutate (#1088).
+        // ------------------------------------------------------------------
+
+        /// <summary>Build a ROM whose song header at 0x300 is safe to read, but
+        /// trackCount=16 makes the +8+16*4 pointer table overrun the buffer end.</summary>
+        static ROM BuildTruncatedTableRom()
+        {
+            // 0x308 (header end) fits; 0x300+8+16*4 = 0x348 overruns 0x320.
+            byte[] data = new byte[0x320];
+            data[SongAddr] = 16; // trackCount; the pointer table runs past EOF
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            return rom;
+        }
+
+        [Fact]
+        public void GetDistinctVoices_TruncatedTrackPointerTable_ReturnsEmptyNoThrow()
+        {
+            var rom = BuildTruncatedTableRom();
+            var list = SongVoiceChangeCore.GetDistinctVoices(rom, SongAddr);
+            Assert.Empty(list); // no IndexOutOfRange; honors "never throws"
+        }
+
+        [Fact]
+        public void ApplyVoiceChanges_TruncatedTrackPointerTable_ErrorAndByteIdentical()
+        {
+            // Failure path: returns a localized error with ZERO surviving
+            // mutation (byte-identical) and no committed write — never throws.
+            var rom = BuildTruncatedTableRom();
+            byte[] before = (byte[])rom.Data.Clone();
+            string err = SongVoiceChangeCore.ApplyVoiceChanges(
+                rom, SongAddr, new Dictionary<int, int> { { 5, 9 } });
+            Assert.False(string.IsNullOrEmpty(err));
+            Assert.Equal(before, rom.Data);
+        }
     }
 }
