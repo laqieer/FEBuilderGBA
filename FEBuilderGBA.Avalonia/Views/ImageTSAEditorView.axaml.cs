@@ -8,9 +8,13 @@
 // open path stays harmless.
 //
 // All ROM-write handlers (Write / PaletteWrite) go through
-// _undoService.Begin/Commit/Rollback. The Clipboard / MainImageImport /
-// MainImageExport buttons are explicit IsEnabled=False stubs whose Click
-// handlers short-circuit — covered by KnownGap markers in the AXAML.
+// _undoService.Begin/Commit/Rollback. The Write button persists BOTH the edited
+// per-cell TSA (non-header; _vm.WriteTsa -> ImageTSAEditorCore.WriteTsaCells) and
+// the palette under ONE undo scope (#1005). The MainImageImport / MainImageExport
+// buttons are fully wired (#901/#974) and gated on IsContextLoaded; the Clipboard
+// button is wired and always enabled (read-only — copies the grid to the system
+// clipboard, no ROM context needed). None are IsEnabled=False stubs. Header-TSA
+// per-cell editing is deferred to #1071.
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input.Platform;
