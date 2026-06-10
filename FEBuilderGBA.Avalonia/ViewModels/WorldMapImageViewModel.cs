@@ -662,6 +662,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// image / TSA / palette).</summary>
         public bool CanImportEvent { get => _canImportEvent; set => SetField(ref _canImportEvent, value); }
 
+        // ---- #1064 PR2: county-border OAM/AP import gate ----
+        bool _canImportBorder;
+
+        /// <summary>True when the Border image Import button should be enabled
+        /// (FE8 + a county-border palette pointer + a selected 12-byte border
+        /// record). The Core <see cref="ImageWorldMapCore.ImportBorder"/> re-checks
+        /// these guards before any write.</summary>
+        public bool CanImportBorder { get => _canImportBorder; set => SetField(ref _canImportBorder, value); }
+
         bool _canExportDark;
         /// <summary>True after a successful TryRenderDarkFieldMap — gates the Dark Export button.</summary>
         public bool CanExportDark { get => _canExportDark; set => SetField(ref _canExportDark, value); }
@@ -699,6 +708,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // 0x0. The Core ImportEvent re-checks these guards before any write.
             CanImportEvent = isFE8
                 && CanImportEventStreams(rom);
+
+            // #1064 PR2: the border OAM/AP import needs a FE8 ROM with a non-zero
+            // county-border palette pointer (FE6/FE7 have it as 0x0) AND a selected
+            // 12-byte border record (BorderCurrentAddr != 0, set by LoadBorderEntry).
+            // The Core ImportBorder re-checks these guards before any write.
+            CanImportBorder = isFE8
+                && (rom?.RomInfo?.worldmap_county_border_palette_pointer ?? 0) != 0
+                && BorderCurrentAddr != 0;
         }
 
         /// <summary>The event import is reachable when all three
@@ -846,6 +863,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null) return "ROM not loaded.";
             bool ok = ImageWorldMapCore.ImportEvent(rom, rgba, srcWidth, srcHeight, out string error);
+            return ok ? null : error;
+        }
+
+        /// <summary>
+        /// #1064 PR2 — import the World Map county BORDER graphic (OAM/AP assembly)
+        /// from the two already-decoded INDEXED sheets (the main border sheet + its
+        /// <c>_NAME</c> companion, each 248×160) + the 16-color palette. Delegates to
+        /// <see cref="ImageWorldMapCore.ImportBorder"/>, which assembles the seat +
+        /// AP-data block and LZ77-writes the image to the selected record's P0 + raw-
+        /// writes the AP to P4 under the caller's ambient undo scope. Returns null on
+        /// success, or an error string on failure (ROM byte-identical on any failure).
+        /// </summary>
+        public string ImportBorder(byte[] sheetIndexed, byte[] nameIndexed,
+            byte[] palette16, uint originX, uint originY)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "ROM not loaded.";
+            if (BorderCurrentAddr == 0) return "Select a border record first.";
+            bool ok = ImageWorldMapCore.ImportBorder(
+                rom, sheetIndexed, nameIndexed, palette16,
+                originX, originY, BorderCurrentAddr, out string error);
             return ok ? null : error;
         }
 

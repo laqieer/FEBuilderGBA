@@ -190,6 +190,9 @@ namespace FEBuilderGBA.Avalonia.Views
             finally { _vm.IsLoading = prevLoading; _vm.MarkClean(); }
             // #849 NV5c: render the border AP preview after loading the record.
             RenderBorderPreview();
+            // #1064 PR2: the border import gate depends on a selected record
+            // (BorderCurrentAddr is now set), so refresh it after selection.
+            _vm.RefreshImportGates();
         }
 
         /// <summary>
@@ -236,6 +239,151 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>Export the border AP preview as PNG.</summary>
         async void BorderExport_Click(object? sender, RoutedEventArgs e)
             => await ExportPreview(BorderDrawSampleImage, "worldmap_border");
+
+        // ===================================================================
+        // #1064 PR2: County-border OAM/AP image import.
+        //
+        // The border graphic is a parts-sheet image + an AP-OAM block addressed
+        // by the selected 12-byte border record (P0 = image pointer, P4 = AP
+        // pointer). The import:
+        //   1. file dialog for the main sheet -> resolve the {name}_NAME{ext}
+        //      companion in the same folder (error if missing).
+        //   2. Read the EXISTING 16-color border palette via the guarded Core
+        //      helper, then REMAP both sheets onto it (image+AP only — the palette
+        //      is NOT written, matching WF + the Copilot plan-review blocking fix:
+        //      encoded tile indices use existing-ROM palette indices, never a
+        //      discarded reducer palette).
+        //   3. _undoService.Begin -> VM.ImportBorder (Core assembles + writes P0/P4
+        //      with a byte-identical fault restore) -> Commit + re-render / Rollback
+        //      + ShowError. FE8-only + selected-record gate via CanImportBorder.
+        // ===================================================================
+
+        async void BorderImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenImageFile(this);
+                if (path == null) return;
+                await DoBorderImport(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"WorldMapImageView.BorderImport_Click failed: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Injectable border-import driver (testable without UI). Resolves the
+        /// <c>_NAME</c> companion, remaps both 248×160 sheets onto the EXISTING ROM
+        /// border palette (image+AP only), then the Core
+        /// <see cref="ImageWorldMapCore.ImportBorder"/> (via the VM) assembles the
+        /// seat + AP block and writes the selected record's P0/P4 under one undo
+        /// scope with a byte-identical fault restore.
+        /// </summary>
+        // NOTE: this driver does no I/O await of its own (the file dialog is
+        // awaited by BorderImport_Click; the load/remap + VM import are
+        // synchronous), so it returns a completed Task rather than being `async`
+        // (avoids CS1998 — Copilot bot review on PR #1099). It stays Task-returning
+        // so BorderImport_Click can `await` it and headless tests can drive it.
+        public System.Threading.Tasks.Task DoBorderImport(string sheetPath)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return System.Threading.Tasks.Task.CompletedTask;
+
+            // 1. Resolve the {name}_NAME{ext} companion in the same folder.
+            string namePath = MakeBorderNameImageFileName(sheetPath);
+            if (!File.Exists(namePath))
+            {
+                CoreState.Services?.ShowError(R._(
+                    "The companion name image is missing.\r\nExpected: {0}", namePath));
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+
+            // 2. Read the EXISTING 16-color border palette (guarded; pointer-to-
+            //    pointer slot). FE6/FE7 have this as 0 -> the gate already disables
+            //    the button, but re-check here for the injectable entry point.
+            if (!ImageWorldMapCore.TryGetStripPalette(
+                    rom, rom.RomInfo.worldmap_county_border_palette_pointer, out byte[] palette16))
+            {
+                CoreState.Services?.ShowError(R._("The world map border palette is invalid."));
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+
+            // 3. Remap BOTH sheets onto the existing palette (strict 248x160,
+            //    nearest-color). The palette is NOT written — only the indices.
+            var sheet = ImageImportService.LoadAndRemapFromFile(
+                sheetPath, ImageUtilBorderAPCore.SRC_WIDTH, ImageUtilBorderAPCore.SRC_HEIGHT,
+                palette16, 16, strictSize: true);
+            if (sheet == null || !sheet.Success)
+            {
+                CoreState.Services?.ShowError(sheet?.Error ?? R._("Failed to load the border image."));
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+            var name = ImageImportService.LoadAndRemapFromFile(
+                namePath, ImageUtilBorderAPCore.SRC_WIDTH, ImageUtilBorderAPCore.SRC_HEIGHT,
+                palette16, 16, strictSize: true);
+            if (name == null || !name.Success)
+            {
+                CoreState.Services?.ShowError(name?.Error ?? R._("Failed to load the border name image."));
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+
+            // 4. Assemble + write under one undo scope. The origin comes from the
+            //    record's current W8/W10 NUDs (clamped inside the Core; W8/W10 are
+            //    NOT persisted — WF parity).
+            uint originX = NudU32(Border_W8Box);
+            uint originY = NudU32(Border_W10Box);
+
+            _undoService.Begin("Import World Map Border");
+            try
+            {
+                string? err = _vm.ImportBorder(
+                    sheet.IndexedPixels, name.IndexedPixels, palette16, originX, originY);
+                if (!string.IsNullOrEmpty(err))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(err);
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+                _undoService.Commit();
+                // Reload the record so P0/P4 reflect the freshly-written pointers,
+                // then re-render the border AP preview from the new streams. Wrap
+                // the reload in an IsLoading scope so LoadBorderEntry's SetField
+                // writes don't flip IsDirty back true after the committed import
+                // (Copilot PR #1099 review); MarkClean AFTER the reload.
+                bool prevLoading = _vm.IsLoading;
+                try
+                {
+                    _vm.IsLoading = true;
+                    _vm.LoadBorderEntry(_vm.BorderCurrentAddr);
+                    Border_P0Box.Value = _vm.BorderP0;
+                    Border_P4Box.Value = _vm.BorderP4;
+                }
+                finally { _vm.IsLoading = prevLoading; }
+                _vm.MarkClean();
+                RenderBorderPreview();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error($"WorldMapImageView.DoBorderImport write failed: {ex}");
+                CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+            }
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Resolve the border name-image companion path: same directory,
+        /// <c>{base}_NAME{ext}</c>. Mirrors WF
+        /// <c>ImageUtilBorderAP.MakeBorderNameImageFileName</c>.
+        /// </summary>
+        static string MakeBorderNameImageFileName(string borderFilename)
+        {
+            string baseDir = Path.GetDirectoryName(borderFilename) ?? "";
+            string name = Path.GetFileNameWithoutExtension(borderFilename);
+            string ext = Path.GetExtension(borderFilename);
+            return Path.Combine(baseDir, name + "_NAME" + ext);
+        }
 
         // #668: routed event from the unified EditorTopBar control.
         void OnBorderTopBarReloadRequested(object? sender, RoutedEventArgs e)

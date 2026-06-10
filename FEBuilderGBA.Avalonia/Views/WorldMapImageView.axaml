@@ -443,9 +443,11 @@
 
               <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
                 <Button AutomationProperties.AutomationId="WorldMapImage_Border_Import_Button"
+                        Name="BorderImportButton"
                         Content="Import Image"
-                        IsEnabled="False"
-                        ToolTip.Tip="KnownGap: border import (OAM assembly) is a separate follow-up." />
+                        IsEnabled="{Binding CanImportBorder}"
+                        Click="BorderImport_Click"
+                        ToolTip.Tip="Import a county border image (assembles OAM/AP). Requires a companion _NAME image in the same folder." />
                 <Button AutomationProperties.AutomationId="WorldMapImage_Border_Export_Button"
                         Name="BorderExportButton"
                         Content="Export Image"

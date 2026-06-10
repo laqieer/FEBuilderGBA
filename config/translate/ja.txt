@@ -10564,3 +10564,6 @@ A: TSAを利用しないBG224色(会話用)
 メインフィールドマッププレビューをPNGとして書き出します。
 :Import a 240x160 event image (auto-reduced to World Map (event) / 4 palettes).
 240x160のイベント画像をインポートします（ワールドマップ(イベント用)/4パレットへ自動減色）。
+:Import a county border image (assembles OAM/AP). Requires a companion _NAME image in the same folder.
+国境画像をインポートします(OAM/APを組み立てます)。同じフォルダに_NAMEのコンパニオン画像が必要です。
+

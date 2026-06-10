@@ -241,35 +241,41 @@ public class WorldMapImageParityTests
     /// EXPORT PNG (<c>WorldMapImage_Border_Export_Button</c>) is now functional
     /// (#849 NV5c) and is asserted by
     /// <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
-    /// Only <c>WorldMapImage_Border_Import_Button</c> stays deferred (OAM assembly
-    /// is PR 2 of #1064).
+    ///
+    /// As of #1064 PR2 (closes #1064 + #1000), the Border image IMPORT
+    /// (<c>WorldMapImage_Border_Import_Button</c>) is also wired — NO World Map
+    /// Image button stays KnownGap-deferred. See <see cref="View_BorderImport_IsWired"/>.
     /// </summary>
-    [Theory]
-    // WorldMapImage_Main_Import_Button   — wired (#875, see View_ImportDarkButtons_AreWired)
-    // WorldMapImage_Main_DarkImport_Button — wired (#875)
-    // WorldMapImage_Main_DarkExport_Button — wired (#875)
-    // WorldMapImage_Main_Export_Button   — wired (#1064 PR1, see View_EventImportAndLegacyMainExport_AreWired)
-    // WorldMapImage_Event_Import_Button  — wired (#1064 PR1, see View_EventImportAndLegacyMainExport_AreWired)
-    // WorldMapImage_Main_DecreaseColor_Button — wired (#1013, see View_DecreaseColorButtons_AreWired)
-    // WorldMapImage_Main_OpenSource_Button / SelectSource_Button — wired (#1013, see View_SourceFileButtons_AreWired)
-    // WorldMapImage_Event_DecreaseColor_Button — wired (#1013)
-    // WorldMapImage_Mini_Import_Button / Point1Import / Point2Import / RoadImport — wired
-    //   (#1000, see View_StripImportButtons_AreWired)
-    [InlineData("WorldMapImage_Border_Import_Button")]
-    public void View_DeferredButton_IsDisabledAndReferencesKnownGap(string automationId)
+    [Fact]
+    public void View_BorderImport_IsWired()
     {
         string axaml = ReadAxaml();
-        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
-        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
 
-        int elementStart = axaml.LastIndexOf('<', idx);
-        Assert.True(elementStart >= 0);
-        int elementEnd = FindElementEnd(axaml, elementStart);
-        Assert.True(elementEnd > elementStart);
-        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
+        // --- Border Import button: gated by CanImportBorder, wired to the click
+        //     handler, NOT a KnownGap-disabled stub. ---
+        string borderBtn = ElementFor(axaml, "WorldMapImage_Border_Import_Button");
+        Assert.Contains("IsEnabled=\"{Binding CanImportBorder}\"", borderBtn);
+        Assert.Contains("Click=\"BorderImport_Click\"", borderBtn);
+        Assert.DoesNotContain("IsEnabled=\"False\"", borderBtn);
+        Assert.DoesNotContain("KnownGap", borderBtn);
 
-        Assert.Contains("IsEnabled=\"False\"", element);
-        Assert.Contains("KnownGap", element);
+        // --- Code-behind: DoBorderImport resolves the _NAME companion, remaps both
+        //     sheets onto the EXISTING palette, and routes through the VM driver
+        //     under one undo scope. ---
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("BorderImport_Click", source);
+        string driverBody = MethodBody(source, "Task DoBorderImport(");
+        Assert.True(driverBody.Length > 0, "DoBorderImport driver not found in code-behind");
+        Assert.Contains("_NAME", driverBody);
+        Assert.Contains("TryGetStripPalette", driverBody);          // existing palette read
+        Assert.Contains("LoadAndRemapFromFile", driverBody);        // remap onto existing palette
+        Assert.Contains("_vm.ImportBorder(", driverBody);
+        Assert.Contains("_undoService.Begin(\"Import World Map Border\")", driverBody);
+
+        // --- VM: ImportBorder driver routes through the Core seam + gate. ---
+        string vm = File.ReadAllText(ViewModelPath());
+        Assert.Contains("ImageWorldMapCore.ImportBorder", vm);
+        Assert.Contains("CanImportBorder", vm);
     }
 
     /// <summary>

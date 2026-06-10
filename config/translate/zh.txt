@@ -24402,3 +24402,6 @@ A: 不使用 TSA 的背景 224 色(对话用)
 将主战场地图预览导出为PNG。
 :Import a 240x160 event image (auto-reduced to World Map (event) / 4 palettes).
 导入240x160事件图像（自动减色为世界地图(事件用)/4个调色板）。
+:Import a county border image (assembles OAM/AP). Requires a companion _NAME image in the same folder.
+导入国境图像(组装OAM/AP)。需要同一文件夹中有_NAME配套图像。
+
