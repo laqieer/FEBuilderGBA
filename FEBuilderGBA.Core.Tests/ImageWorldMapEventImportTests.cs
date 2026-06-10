@@ -311,18 +311,17 @@ namespace FEBuilderGBA.Core.Tests
 
         // ================================================================
         // Atomic fault restore — PARTIAL write (Copilot finding #4): force the
-        // failure AFTER ZIMAGE+ZHEADERTSA succeed by making the palette pointer
-        // slot near-EOF so the palette repoint (write_p32 of the +4 slot) is the
-        // first guard to fail... but WriteRawToROM still finds free space and only
-        // fails the repoint. We instead force the palette write to fail by filling
-        // the ROM so the palette has NO free space AFTER the two big writes have
-        // consumed/repointed. Simpler+robust: shrink the ROM so the first two
-        // writes append+grow, then the third triggers the 32MB ceiling.
+        // failure AFTER the ZIMAGE + ZHEADERTSA writes SUCCEED (and GROW the ROM)
+        // so only the THIRD (palette) write fails — proving the snapshot restores
+        // the partial appends + the two ROM grows.
         //
-        // Practical realization: a ROM sized so that the ZIMAGE + ZHEADERTSA
-        // appends push the end past 0x02000000 only on the THIRD (palette) append.
-        // Assert byte- AND length-identical restore proving the partial writes +
-        // grows were rolled back.
+        // To make the first two appends actually succeed (rather than the first
+        // failing immediately, which would just duplicate the no-free-space test),
+        // the 0x01-filled ROM (no internal free runs) is sized so its headroom to
+        // the 32MB ceiling holds EXACTLY the two compressed streams' aligned append
+        // sizes but NOT the +128-byte palette. The exact sizes are computed by
+        // running the SAME reduce + encode + LZ77 path ImportEvent uses (a flat
+        // single-color source keeps the streams small + deterministic).
         // ================================================================
 
         [Fact]
@@ -331,17 +330,35 @@ namespace FEBuilderGBA.Core.Tests
             var savedRom = CoreState.ROM;
             try
             {
-                // Size the 0x01-filled ROM just under the 32MB ceiling so the first
-                // two LZ77 appends fit (each grows the ROM) but the third (palette)
-                // append crosses 0x02000000 and AppendToRomEnd returns NOT_FOUND.
-                // Headroom = (32MB - size) must hold ZIMAGE+ZHEADERTSA appends but
-                // NOT the +128 palette append. Two small streams ≈ a few hundred
-                // bytes; reserve ~512 B of headroom.
                 const uint MAX = 0x02000000;
-                uint size = MAX - 512;
+
+                // Build the SAME source the import uses and run the reduce + encode
+                // to learn the exact compressed ZIMAGE + ZHEADERTSA byte counts, so
+                // we can size the ROM so the two appends fit and the palette does not.
+                byte[] rgba = MakeFlatRgba(SRC_W, SRC_H, 200, 120, 40);
+                var r = DecreaseColorConvertCore.Convert(rgba, SRC_W, SRC_H,
+                    maxPalette: 4, yohaku: 16, reserve1st: true, ignoreTSA: false);
+                Assert.Equal(CANVAS_W, r.Width);
+                Assert.Equal(CANVAS_H, r.Height);
+                var (local, banks) = SplitBanked(r.IndexData, r.Width, r.Height);
+                var tsa = ImageImportCore.EncodeTSAMultiPalette(local, CANVAS_W, CANVAS_H, banks);
+                byte[] headerTsa = ImageImportCore.EncodeHeaderTSA(tsa.TSAData, CANVAS_W, CANVAS_H, 2);
+                int zimg = LZ77.compress(tsa.TileData).Length;
+                int zhdr = LZ77.compress(headerTsa).Length;
+
+                // FindAndWriteData aligns each append to 4 bytes (U.Padding4) and
+                // AppendToRomEnd also Padding4-aligns the current length before
+                // appending. With a ROM length that is already a multiple of 4,
+                // headroom = Padding4(zimg) + Padding4(zhdr) lets BOTH stream
+                // appends fit while the subsequent 128-byte palette append crosses
+                // the 32MB ceiling (AppendToRomEnd -> NOT_FOUND).
+                uint headroom = Padding4((uint)zimg) + Padding4((uint)zhdr);
+                uint size = MAX - headroom;
+                size = size & ~3u; // keep the start length 4-aligned
+
                 var rom = new ROM();
                 byte[] data = new byte[size];
-                Array.Fill(data, (byte)0x01); // no internal free runs
+                Array.Fill(data, (byte)0x01); // no 0x00/0xFF free runs anywhere
                 rom.LoadLow("synth.gba", data, "BE8E01");
                 CoreState.ROM = rom;
 
@@ -351,16 +368,61 @@ namespace FEBuilderGBA.Core.Tests
                 byte[] before = (byte[])rom.Data.Clone();
                 int beforeLen = rom.Data.Length;
 
-                byte[] rgba = MakeTwoRegionRgba(SRC_W, SRC_H);
                 bool ok = ImageWorldMapCore.ImportEvent(rom, rgba, SRC_W, SRC_H, out string err);
 
                 Assert.False(ok);
                 Assert.False(string.IsNullOrEmpty(err));
-                // Length restored — the ZIMAGE/ZHEADERTSA grows were rolled back.
+                // The palette write is the one that fails (the two stream writes
+                // succeeded + grew the ROM), so the error names the palette step.
+                Assert.Contains("palette", err, StringComparison.OrdinalIgnoreCase);
+                // Byte- AND length-identical: the ZIMAGE/ZHEADERTSA appends + the
+                // two ROM grows were fully rolled back.
                 Assert.Equal(beforeLen, rom.Data.Length);
                 Assert.Equal(before, rom.Data);
             }
             finally { CoreState.ROM = savedRom; }
+        }
+
+        /// <summary>U.Padding4 is internal to Core; mirror it for the test sizing.</summary>
+        static uint Padding4(uint v) => (v + 3u) & ~3u;
+
+        /// <summary>Split a banked index buffer (value = bank*16 + local) into local
+        /// 4bpp pixels + per-8x8-tile bank — the same split ImportEvent performs.</summary>
+        static (byte[] local, int[] banks) SplitBanked(byte[] idx, int w, int h)
+        {
+            int tilesX = w / 8, tilesY = h / 8;
+            byte[] local = new byte[w * h];
+            int[] banks = new int[tilesX * tilesY];
+            for (int ty = 0; ty < tilesY; ty++)
+                for (int tx = 0; tx < tilesX; tx++)
+                {
+                    int bank = 0; bool set = false;
+                    for (int y8 = 0; y8 < 8; y8++)
+                        for (int x8 = 0; x8 < 8; x8++)
+                        {
+                            int pos = (ty * 8 + y8) * w + (tx * 8 + x8);
+                            int v = idx[pos];
+                            local[pos] = (byte)(v & 0x0F);
+                            if (!set && !((v / 16) == 0 && (v & 0x0F) == 0)) { bank = v / 16; set = true; }
+                        }
+                    banks[ty * tilesX + tx] = bank;
+                }
+            return (local, banks);
+        }
+
+        /// <summary>A flat single-color 240x160 RGBA image — reduces to a single
+        /// unique tile (tiny, deterministic ZIMAGE/ZHEADERTSA for size math).</summary>
+        static byte[] MakeFlatRgba(int w, int h, byte r, byte g, byte b)
+        {
+            byte[] rgba = new byte[w * h * 4];
+            for (int i = 0; i < w * h; i++)
+            {
+                rgba[i * 4 + 0] = r;
+                rgba[i * 4 + 1] = g;
+                rgba[i * 4 + 2] = b;
+                rgba[i * 4 + 3] = 255;
+            }
+            return rgba;
         }
 
         // ================================================================

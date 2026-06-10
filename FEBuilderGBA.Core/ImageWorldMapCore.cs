@@ -707,7 +707,9 @@ namespace FEBuilderGBA
                 }
                 if (r.PaletteBankCount > EVENT_MAX_BANKS)
                 {
-                    error = R.Error("Reduce the image to World Map (event) / 4 palettes first.");
+                    error = R.Error(
+                        "The world map event image needs {0} palette banks, but only {1} are available. Simplify the source image so it fits in {1} 16-color palettes and re-import.",
+                        r.PaletteBankCount, EVENT_MAX_BANKS);
                     return false;
                 }
                 string bankErr = ValidateEventBankedIndices(r.IndexData, r.Width, r.Height);
@@ -717,7 +719,7 @@ namespace FEBuilderGBA
                 if (!SplitEventBankedIndices(r.IndexData, r.Width, r.Height,
                         out byte[] localPixels, out int[] tileBanks))
                 {
-                    error = R.Error("Reduce the image to World Map (event) / 4 palettes first.");
+                    error = R.Error("Could not encode the reduced world map event image. Simplify the source image and re-import.");
                     return false;
                 }
 
@@ -801,8 +803,8 @@ namespace FEBuilderGBA
                             if (bank > EVENT_MAX_BANKS - 1)
                             {
                                 return R.Error(
-                                    "Tile at X:{0} Y:{1} uses palette bank {2}, but the world map event only has {3} banks (0..{4}). Reduce the image to World Map (event) / 4 palettes first.",
-                                    x, y, bank, EVENT_MAX_BANKS, EVENT_MAX_BANKS - 1);
+                                    "The world map event image needs more than {0} palette banks: the tile at X:{1} Y:{2} requires bank {3} (only banks 0..{4} are available). Simplify the source image so it fits in {0} 16-color palettes and re-import.",
+                                    EVENT_MAX_BANKS, x, y, bank, EVENT_MAX_BANKS - 1);
                             }
                             // An all-zero pixel (bank 0, local 0) is transparent and
                             // does not pin the tile's bank — it is valid in any bank.
@@ -811,7 +813,7 @@ namespace FEBuilderGBA
                             else if (bank != tileBank)
                             {
                                 return R.Error(
-                                    "TSA format violation. Starting at X:{0} Y:{1}, within the 8x8 region, pixel at X:{2} Y:{3} uses a different palette number {4}. Others use palette number {5}.\r\n\r\nReduce the image to World Map (event) / 4 palettes first.",
+                                    "The world map event image cannot be encoded: every 8x8 tile must use a single 16-color palette bank. The tile starting at X:{0} Y:{1} mixes banks — the pixel at X:{2} Y:{3} needs bank {4} while the rest of the tile uses bank {5}. Simplify the source image so each tile uses one palette and re-import.",
                                     x, y, x + x8, y + y8, bank, tileBank);
                             }
                         }
