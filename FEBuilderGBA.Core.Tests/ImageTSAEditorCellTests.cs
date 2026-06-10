@@ -442,6 +442,358 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        // =================================================================
+        // HEADER-TSA per-cell editing (#1071).
+        // =================================================================
+
+        // Build an ASYMMETRIC header-TSA stream: {mhx, mhy} + (mhx+1)*(mhy+1)
+        // distinct nonzero u16 cells in stride order.
+        static byte[] MakeHeaderTsa(int mhx, int mhy, int baseVal = 0x100)
+        {
+            int cells = (mhx + 1) * (mhy + 1);
+            byte[] tsa = new byte[2 + cells * 2];
+            tsa[0] = (byte)mhx;
+            tsa[1] = (byte)mhy;
+            for (int k = 0; k < cells; k++)
+            {
+                ushort v = (ushort)(baseVal + k * 7 + 1);
+                tsa[2 + k * 2] = (byte)(v & 0xFF);
+                tsa[2 + k * 2 + 1] = (byte)(v >> 8);
+            }
+            return tsa;
+        }
+
+        // The editor's stride index map for a header cell (headerx, headery).
+        static int HeaderCellIndex(int mhy, int x, int y) => (mhy - y) * 32 + x;
+
+        // -----------------------------------------------------------------
+        // DecodeHeaderTsaCells — RAW + LZ77 returns the stride array + dims.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void DecodeHeaderTsaCells_Raw_ReturnsTileAndDims()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                int mhx = 3, mhy = 2;
+                byte[] tsa = MakeHeaderTsa(mhx, mhy);
+                PlantBytes(rom, TSA_RAW_OFFSET, tsa);
+
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, false, TSA_RAW_OFFSET, out int dmhx, out int dmhy);
+
+                Assert.NotNull(tile);
+                Assert.Equal(mhx, dmhx);
+                Assert.Equal(mhy, dmhy);
+                // The decoded tile array is canvas-sized (32*20).
+                Assert.Equal(32 * 20, tile.Length);
+            });
+        }
+
+        [Fact]
+        public void DecodeHeaderTsaCells_Lz77_ReturnsTileAndDims()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                int mhx = 2, mhy = 3;
+                byte[] tsa = MakeHeaderTsa(mhx, mhy);
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(tsa));
+
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, true, TSA_LZ_OFFSET, out int dmhx, out int dmhy);
+
+                Assert.NotNull(tile);
+                Assert.Equal(mhx, dmhx);
+                Assert.Equal(mhy, dmhy);
+            });
+        }
+
+        [Fact]
+        public void DecodeHeaderTsaCells_CorruptHeader_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                // Oversized mhx => DecodeHeaderTSAToCells.IsValidHeader false.
+                byte[] bad = new byte[2 + 4];
+                bad[0] = 40; bad[1] = 2;
+                PlantBytes(rom, TSA_RAW_OFFSET, bad);
+
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, false, TSA_RAW_OFFSET, out int dmhx, out int dmhy);
+
+                Assert.Null(tile);
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // WriteHeaderTsaCells — RAW in-place (same-size, no growth, edit lands).
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void WriteHeaderTsaCells_Raw_EditLands_NoGrowth()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                int mhx = 3, mhy = 2;
+                byte[] tsa = MakeHeaderTsa(mhx, mhy);
+                PlantBytes(rom, TSA_RAW_OFFSET, tsa);
+                rom.write_p32(TSA_RAW_SLOT, TSA_RAW_OFFSET);
+                uint slotBefore = rom.u32(TSA_RAW_SLOT);
+                int lenBefore = rom.Data.Length;
+
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, false, TSA_RAW_OFFSET, out int dmhx, out int dmhy);
+                Assert.NotNull(tile);
+
+                // Edit header cell (1,0) -> a new screen entry.
+                ushort newEntry = ImageTSAEditorCore.SerializeCell(7, true, false, 3);
+                tile[HeaderCellIndex(dmhy, 1, 0)] = newEntry;
+
+                string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                    rom, tile, dmhx, dmhy, false, TSA_RAW_SLOT, TSA_RAW_OFFSET);
+                Assert.Equal("", err);
+
+                // No growth, no repoint on the raw path.
+                Assert.Equal(lenBefore, rom.Data.Length);
+                Assert.Equal(slotBefore, rom.u32(TSA_RAW_SLOT));
+
+                // Re-decode: the edit landed at cell (1,0).
+                ushort[] readBack = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, false, TSA_RAW_OFFSET, out _, out _);
+                Assert.NotNull(readBack);
+                Assert.Equal(newEntry, readBack[HeaderCellIndex(dmhy, 1, 0)]);
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // WriteHeaderTsaCells — LZ77 repoint to fresh data.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void WriteHeaderTsaCells_Lz77_RepointsSlot_EditLands()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                int mhx = 2, mhy = 2;
+                byte[] tsa = MakeHeaderTsa(mhx, mhy);
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(tsa));
+                rom.write_p32(TSA_LZ_SLOT, TSA_LZ_OFFSET);
+                uint slotBefore = rom.u32(TSA_LZ_SLOT);
+
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, true, TSA_LZ_OFFSET, out int dmhx, out int dmhy);
+                Assert.NotNull(tile);
+
+                ushort newEntry = ImageTSAEditorCore.SerializeCell(5, false, true, 2);
+                tile[HeaderCellIndex(dmhy, 2, 1)] = newEntry;
+
+                string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                    rom, tile, dmhx, dmhy, true, TSA_LZ_SLOT, TSA_LZ_OFFSET);
+                Assert.Equal("", err);
+
+                // The slot was repointed to fresh free-space data.
+                uint slotAfter = rom.u32(TSA_LZ_SLOT);
+                Assert.NotEqual(slotBefore, slotAfter);
+
+                // Decompress + re-decode via the NEW target -> the edit landed.
+                uint newDataAddr = rom.p32(TSA_LZ_SLOT);
+                ushort[] readBack = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, true, newDataAddr, out _, out _);
+                Assert.NotNull(readBack);
+                Assert.Equal(newEntry, readBack[HeaderCellIndex(dmhy, 2, 1)]);
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // Failure / guard paths mutate ZERO bytes (byte-identical incl. length).
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void WriteHeaderTsaCells_InvalidDims_MutatesZeroBytes()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                byte[] snap = (byte[])rom.Data.Clone();
+                ushort[] tile = new ushort[32 * 20];
+
+                // mhx=40 > 32 -> rejected before any mutation.
+                string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                    rom, tile, 40, 2, false, TSA_RAW_SLOT, TSA_RAW_OFFSET);
+
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(snap.Length, rom.Data.Length);
+                Assert.Equal(snap, rom.Data);
+            });
+        }
+
+        [Fact]
+        public void WriteHeaderTsaCells_DegenerateSerialize_MutatesZeroBytes()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                byte[] snap = (byte[])rom.Data.Clone();
+
+                // A too-small tile array makes SerializeHeaderTSA return the
+                // 2-byte degenerate output (n = mhy<<5 >= tile.Length), which
+                // WriteHeaderTsaCells must reject — NO mutation.
+                ushort[] tooSmall = new ushort[8];
+                string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                    rom, tooSmall, 1, 20, false, TSA_RAW_SLOT, TSA_RAW_OFFSET);
+
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(snap, rom.Data);
+            });
+        }
+
+        [Fact]
+        public void WriteHeaderTsaCells_Raw_OutOfBoundsRegion_MutatesZeroBytes()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                int mhx = 3, mhy = 2;
+                byte[] tsa = MakeHeaderTsa(mhx, mhy);
+                PlantBytes(rom, TSA_RAW_OFFSET, tsa);
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, false, TSA_RAW_OFFSET, out int dmhx, out int dmhy);
+                Assert.NotNull(tile);
+
+                byte[] snap = (byte[])rom.Data.Clone();
+                int lenBefore = rom.Data.Length;
+
+                // tsaDataAddr near the ROM end -> the same-size write would run
+                // past EOF -> bounds check fails, NO mutation.
+                uint badAddr = (uint)rom.Data.Length - 4; // header footprint > 4
+                string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                    rom, tile, dmhx, dmhy, false, TSA_RAW_SLOT, badAddr);
+
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(lenBefore, rom.Data.Length);
+                Assert.Equal(snap, rom.Data);
+            });
+        }
+
+        [Fact]
+        public void WriteHeaderTsaCells_NullTile_ReturnsErrorNoMutation()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                byte[] snap = (byte[])rom.Data.Clone();
+                string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                    rom, null, 3, 2, false, TSA_RAW_SLOT, TSA_RAW_OFFSET);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(snap, rom.Data);
+            });
+        }
+
+        [Fact]
+        public void WriteHeaderTsaCells_Lz77_OuterScopeRollback_RestoresByteIdentical()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                int mhx = 2, mhy = 2;
+                byte[] tsa = MakeHeaderTsa(mhx, mhy);
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(tsa));
+                rom.write_p32(TSA_LZ_SLOT, TSA_LZ_OFFSET);
+
+                ROM prevRom = CoreState.ROM;
+                Undo prevUndo = CoreState.Undo;
+                try
+                {
+                    var undo = new Undo();
+                    CoreState.ROM = rom;
+                    CoreState.Undo = undo;
+
+                    byte[] preData = (byte[])rom.Data.Clone();
+                    uint preSlot = rom.u32(TSA_LZ_SLOT);
+
+                    ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                        rom, 32, 20, true, TSA_LZ_OFFSET, out int dmhx, out int dmhy);
+                    Assert.NotNull(tile);
+                    tile[HeaderCellIndex(dmhy, 1, 1)] =
+                        ImageTSAEditorCore.SerializeCell(9, true, true, 4);
+
+                    var ud = new Undo.UndoData
+                    {
+                        time = DateTime.Now,
+                        name = "WriteHeaderTSA",
+                        list = new System.Collections.Generic.List<Undo.UndoPostion>(),
+                        filesize = (uint)rom.Data.Length,
+                    };
+
+                    using (ROM.BeginUndoScope(ud))
+                    {
+                        string err = ImageTSAEditorCore.WriteHeaderTsaCells(
+                            rom, tile, dmhx, dmhy, true, TSA_LZ_SLOT, TSA_LZ_OFFSET);
+                        Assert.Equal("", err);
+                    }
+                    Assert.NotEqual(preSlot, rom.u32(TSA_LZ_SLOT)); // repointed
+                    Assert.True(rom.Data.Length >= preData.Length); // appended
+
+                    // Palette half "fails" -> the View rolls the one scope back.
+                    undo.Rollback(ud);
+
+                    Assert.Equal(preData.Length, rom.Data.Length);
+                    Assert.Equal(preSlot, rom.u32(TSA_LZ_SLOT));
+                    Assert.True(preData.AsSpan().SequenceEqual(rom.Data));
+                }
+                finally
+                {
+                    CoreState.ROM = prevRom;
+                    CoreState.Undo = prevUndo;
+                }
+            });
+        }
+
+        // -----------------------------------------------------------------
+        // RenderHeaderMainImageFromCells — an edited header cell changes pixels.
+        // -----------------------------------------------------------------
+
+        [Fact]
+        public void RenderHeaderMainImageFromCells_EditedCell_DiffersFromUnedited()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                PlantImage(rom, MarkerTiles());
+                PlantPalette(rom, StandardPalette());
+
+                // All-zero header cells -> the unedited render is fully blank
+                // (tile 0 is skipped). Editing one in-region cell to tile 1
+                // (the green-marker tile) makes that 8x8 block render, so the
+                // pixels differ.
+                int mhx = 1, mhy = 1;
+                byte[] tsa = new byte[2 + (mhx + 1) * (mhy + 1) * 2];
+                tsa[0] = (byte)mhx; tsa[1] = (byte)mhy; // all cells zero
+                PlantBytes(rom, TSA_RAW_OFFSET, tsa);
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, false, TSA_RAW_OFFSET, out int dmhx, out int dmhy);
+                Assert.NotNull(tile);
+
+                IImage before = ImageTSAEditorCore.RenderHeaderMainImageFromCells(
+                    rom, 32, 20, IMAGE_OFFSET, tile, dmhx, dmhy, PALETTE_OFFSET);
+                Assert.NotNull(before);
+
+                ushort[] edited = (ushort[])tile.Clone();
+                edited[HeaderCellIndex(dmhy, 0, 0)] =
+                    ImageTSAEditorCore.SerializeCell(1, false, false, 0);
+                IImage after = ImageTSAEditorCore.RenderHeaderMainImageFromCells(
+                    rom, 32, 20, IMAGE_OFFSET, edited, dmhx, dmhy, PALETTE_OFFSET);
+                Assert.NotNull(after);
+
+                Assert.NotEqual(before.GetPixelData(), after.GetPixelData());
+            });
+        }
+
         // -----------------------------------------------------------------
         // Helpers (mirror ImageTSAEditorCoreTests.cs)
         // -----------------------------------------------------------------

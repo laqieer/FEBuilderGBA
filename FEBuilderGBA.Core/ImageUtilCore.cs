@@ -173,28 +173,89 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Decode TSA with a 2-byte header (used by Big CG, OP Prologue).
-        /// Matches WinForms ImageUtil.ByteToHeaderTSA: reads header (width,height),
-        /// then fills a 32-wide tile grid bottom-to-top starting at row=headerY.
+        /// Result of <see cref="DecodeHeaderTSAToCells"/>: the 32-wide
+        /// bottom-to-top-stride <c>tile[]</c> array plus the decoded header
+        /// dimensions, and an explicit <see cref="IsValidHeader"/> bit that
+        /// distinguishes a genuine header decode from the corrupt/fallback
+        /// cases (<c>tsaData.Length &lt; 2</c>, <c>masterHeaderX/Y &gt; 32</c>,
+        /// or a header start <c>n &gt;= size</c>).
+        ///
+        /// <para>The renderer (<see cref="DecodeHeaderTSA"/>) keeps its existing
+        /// public fallback behavior byte/pixel-identical by checking this bit;
+        /// the editor path (<c>ImageTSAEditorCore.DecodeHeaderTsaCells</c>) only
+        /// exposes editable cells when <see cref="IsValidHeader"/> is true, so
+        /// the ViewModel never enables per-cell editing from fallback cells
+        /// (Copilot review on #1071).</para>
         /// </summary>
-        public static IImage DecodeHeaderTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
-            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true,
-            int tsaAddend = 0, int paletteShift = 0)
+        public readonly struct HeaderTSACells
         {
-            if (CoreState.ImageService == null) return null;
+            /// <summary>The decoded 32-wide bottom-to-top-stride tile array
+            /// (null when the input was empty / unusable).</summary>
+            public readonly ushort[] Tile;
+            /// <summary>Decoded <c>masterHeaderX = tsaData[0]</c> (0 when invalid).</summary>
+            public readonly int MasterHeaderX;
+            /// <summary>Decoded <c>masterHeaderY = tsaData[1]</c> (0 when invalid).</summary>
+            public readonly int MasterHeaderY;
+            /// <summary>True only for a genuine in-range header decode; false for
+            /// every corrupt/fallback case <see cref="DecodeHeaderTSA"/> would
+            /// linear-decode or blank.</summary>
+            public readonly bool IsValidHeader;
 
+            public HeaderTSACells(ushort[] tile, int mhx, int mhy, bool valid)
+            {
+                Tile = tile;
+                MasterHeaderX = mhx;
+                MasterHeaderY = mhy;
+                IsValidHeader = valid;
+            }
+        }
+
+        /// <summary>
+        /// Decode a header-TSA stream into the 32-wide bottom-to-top-stride
+        /// <c>tile[]</c> array shared by the renderer, the per-cell editor, and
+        /// the serializer (#1071). This is the EXACT stride that
+        /// <see cref="DecodeHeaderTSA"/> used inline, extracted verbatim so there
+        /// is ONE geometry (no duplication):
+        /// <code>
+        ///   i = 2; n = masterHeaderY &lt;&lt; 5;
+        ///   for (headery 0..mhy) { for (headerx 0..mhx) { tile[n] = entry + addend; i+=2; n++; }
+        ///                          n -= masterHeaderX; n -= 0x21; }
+        /// </code>
+        ///
+        /// <para><see cref="HeaderTSACells.IsValidHeader"/> is false for the same
+        /// corrupt cases <see cref="DecodeHeaderTSA"/> falls back on
+        /// (<c>tsaData.Length &lt; 2</c>, <c>masterHeaderX/Y &gt; 32</c>, header
+        /// start <c>n &gt;= size</c>) so callers can preserve fallback rendering
+        /// while refusing to edit fallback cells. Never throws.</para>
+        ///
+        /// <para><c>SerializeHeaderTSA</c> is the EXACT inverse of this fill for
+        /// the editor path (<paramref name="tsaAddend"/> == 0).</para>
+        /// </summary>
+        /// <param name="tsaData">The (already decompressed / raw-sliced) TSA
+        ///   stream: a 2-byte <c>{masterHeaderX, masterHeaderY}</c> header
+        ///   followed by little-endian u16 cells in stride order.</param>
+        /// <param name="screenWidthTiles">Canvas width in 8-pixel tiles.</param>
+        /// <param name="screenHeightTiles">Canvas height in 8-pixel tiles.</param>
+        /// <param name="tsaAddend">Per-entry addend (BigCG uses a nonzero value;
+        ///   the editor path uses 0). The serializer's <c>tsaSubtrahend</c> is
+        ///   the inverse.</param>
+        public static HeaderTSACells DecodeHeaderTSAToCells(byte[] tsaData,
+            int screenWidthTiles, int screenHeightTiles, int tsaAddend = 0)
+        {
             int size = screenWidthTiles * screenHeightTiles;
 
-            if (tsaData.Length < 2)
-                return DecodeTSA(tileData, tsaData, gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, 0);
+            if (tsaData == null || tsaData.Length < 2)
+                return new HeaderTSACells(null, 0, 0, false);
 
             int masterHeaderX = tsaData[0];
             int masterHeaderY = tsaData[1];
             if (masterHeaderX > 32 || masterHeaderY > 32)
-                return DecodeTSA(tileData, tsaData, gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, 0);
+                return new HeaderTSACells(null, masterHeaderX, masterHeaderY, false);
 
             if (masterHeaderX * masterHeaderY > size)
                 size = masterHeaderX * masterHeaderY;
+            if (size <= 0)
+                return new HeaderTSACells(null, masterHeaderX, masterHeaderY, false);
 
             ushort[] tile = new ushort[size];
 
@@ -206,7 +267,7 @@ namespace FEBuilderGBA
             // Start position: bottom-to-top fill matching WinForms ByteToHeaderTSA
             int n = masterHeaderY << 5; // masterHeaderY * 32
             if (n >= size)
-                return DecodeTSA(tileData, new byte[0], gbaPalette, screenWidthTiles, screenHeightTiles, is4bpp, 0);
+                return new HeaderTSACells(null, masterHeaderX, masterHeaderY, false);
 
             for (int headery = 0; headery <= masterHeaderY; headery++)
             {
@@ -226,6 +287,122 @@ namespace FEBuilderGBA
             }
 
             done:
+            return new HeaderTSACells(tile, masterHeaderX, masterHeaderY, true);
+        }
+
+        /// <summary>
+        /// Serialize a 32-wide bottom-to-top-stride <c>tile[]</c> array back to a
+        /// header-TSA byte stream — the EXACT inverse of
+        /// <see cref="DecodeHeaderTSAToCells"/> for the editor path
+        /// (<c>tsaAddend == 0</c>): emit the 2-byte
+        /// <c>{masterHeaderX, masterHeaderY}</c> header, then walk the SAME
+        /// stride emitting <c>(ushort)(tile[n] - tsaSubtrahend)</c> little-endian.
+        /// <code>
+        ///   out[0] = mhx; out[1] = mhy;
+        ///   i = 2; n = mhy &lt;&lt; 5;
+        ///   for (headery 0..mhy) { for (headerx 0..mhx) { v = tile[n]-sub; out[i]=v&amp;0xFF; out[i+1]=v&gt;&gt;8; i+=2; n++; }
+        ///                          n -= mhx; n -= 0x21; }
+        /// </code>
+        /// Output length = <c>2 + (mhx+1)*(mhy+1)*2</c>. The original
+        /// <c>{mhx, mhy}</c> header is PRESERVED (never recomputed from the
+        /// min-clamped canvas dimensions).
+        ///
+        /// <para>Returns a 2-byte degenerate <c>{0,0}</c> output (NOT a throw) for
+        /// any invalid input — null tile, <paramref name="masterHeaderX"/> /
+        /// <paramref name="masterHeaderY"/> out of <c>[0,32]</c>, a header start
+        /// <c>n &gt;= tile.Length</c>, or a per-cell index out of range. A
+        /// ROM-mutating caller MUST treat any output whose length is not the
+        /// expected <c>2 + (mhx+1)*(mhy+1)*2</c> as an error and refuse to write
+        /// (Copilot review on #1071).</para>
+        /// </summary>
+        /// <param name="tile">The 32-wide bottom-to-top-stride tile array (e.g.
+        ///   from <see cref="DecodeHeaderTSAToCells"/>).</param>
+        /// <param name="masterHeaderX">The ORIGINAL header X (preserved verbatim).</param>
+        /// <param name="masterHeaderY">The ORIGINAL header Y (preserved verbatim).</param>
+        /// <param name="tsaSubtrahend">Per-entry subtrahend (inverse of the
+        ///   decoder's addend; 0 for the editor path).</param>
+        public static byte[] SerializeHeaderTSA(ushort[] tile, int masterHeaderX,
+            int masterHeaderY, int tsaSubtrahend = 0)
+        {
+            if (tile == null) return new byte[2];
+            if (masterHeaderX < 0 || masterHeaderY < 0) return new byte[2];
+            if (masterHeaderX > 32 || masterHeaderY > 32) return new byte[2];
+
+            int outLength = 2 + (masterHeaderX + 1) * (masterHeaderY + 1) * 2;
+            byte[] outBytes = new byte[outLength];
+            outBytes[0] = (byte)masterHeaderX;
+            outBytes[1] = (byte)masterHeaderY;
+
+            int i = 2; // skip header
+            int n = masterHeaderY << 5; // masterHeaderY * 32
+            if (n >= tile.Length) return new byte[2];
+
+            for (int headery = 0; headery <= masterHeaderY; headery++)
+            {
+                for (int headerx = 0; headerx <= masterHeaderX; headerx++)
+                {
+                    if (i + 1 >= outLength) return new byte[2];
+                    if (n < 0 || n >= tile.Length) return new byte[2];
+
+                    ushort v = (ushort)(tile[n] - tsaSubtrahend);
+                    outBytes[i] = (byte)(v & 0xFF);
+                    outBytes[i + 1] = (byte)((v >> 8) & 0xFF);
+
+                    i += 2;
+                    n++;
+                }
+                n = n - masterHeaderX;
+                n = n - (0x42 / 2); // = n - 0x21
+            }
+
+            return outBytes;
+        }
+
+        /// <summary>
+        /// Decode TSA with a 2-byte header (used by Big CG, OP Prologue).
+        /// Matches WinForms ImageUtil.ByteToHeaderTSA: reads header (width,height),
+        /// then fills a 32-wide tile grid bottom-to-top starting at row=headerY.
+        ///
+        /// <para>Refactored (#1071) to obtain the stride-filled <c>tile[]</c> via
+        /// the shared <see cref="DecodeHeaderTSAToCells"/> helper — the public
+        /// render behavior (including the linear-<see cref="DecodeTSA"/> fallback
+        /// for short / oversized / unusable headers) is preserved byte/pixel-
+        /// identical via the helper's <see cref="HeaderTSACells.IsValidHeader"/>
+        /// bit.</para>
+        /// </summary>
+        public static IImage DecodeHeaderTSA(byte[] tileData, byte[] tsaData, byte[] gbaPalette,
+            int screenWidthTiles, int screenHeightTiles, bool is4bpp = true,
+            int tsaAddend = 0, int paletteShift = 0)
+        {
+            if (CoreState.ImageService == null) return null;
+
+            // Shared geometry (#1071). When the header is NOT valid, reproduce the
+            // EXACT pre-refactor fallbacks: a too-short / oversized header linear-
+            // decodes the raw stream; a header whose start row is out of range
+            // (tsaData.Length >= 2, mhx/mhy in range, but n >= size) blank-decodes
+            // (DecodeTSA with an empty TSA) — byte/pixel-identical to before.
+            HeaderTSACells decoded = DecodeHeaderTSAToCells(
+                tsaData, screenWidthTiles, screenHeightTiles, tsaAddend);
+
+            if (!decoded.IsValidHeader)
+            {
+                bool oversized = tsaData != null && tsaData.Length >= 2
+                    && (tsaData[0] > 32 || tsaData[1] > 32);
+                bool tooShort = tsaData == null || tsaData.Length < 2;
+                if (tooShort || oversized)
+                {
+                    // Short / oversized header -> linear-decode the raw stream
+                    // (matches the pre-#1071 fallback paths).
+                    return DecodeTSA(tileData, tsaData ?? new byte[0], gbaPalette,
+                        screenWidthTiles, screenHeightTiles, is4bpp, 0);
+                }
+                // In-range header but unusable start (n >= size) -> blank decode.
+                return DecodeTSA(tileData, new byte[0], gbaPalette,
+                    screenWidthTiles, screenHeightTiles, is4bpp, 0);
+            }
+
+            ushort[] tile = decoded.Tile;
+
             // Render using the decoded TSA tile array
             int width = screenWidthTiles * 8;
             int height = screenHeightTiles * 8;
