@@ -104,6 +104,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     OnPropertyChanged(nameof(IsLoadedDirectSound));
                     OnPropertyChanged(nameof(IsLoadedDirectSoundFixedFreq));
+                    OnPropertyChanged(nameof(IsLoadedDirectSoundReverse));
+                    OnPropertyChanged(nameof(IsLoadedDirectSoundFixedFreqReverse));
                 }
             }
         }
@@ -114,8 +116,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>True when the LOADED entry's ROM header byte is 0x08
         /// (DirectSound Fixed Freq). Gates the N08 wave Export/Import (#1057 Copilot
-        /// pt 1). Scope is N08-only: 0x10 / 0x18 stay disabled.</summary>
+        /// pt 1).</summary>
         public bool IsLoadedDirectSoundFixedFreq => _loadedHeaderByte == 0x08;
+
+        /// <summary>True when the LOADED entry's ROM header byte is 0x10
+        /// (DirectSound Reverse). Gates the N10 wave Export/Import (#1001 PR1).
+        /// The "Reverse" is the instrument-entry playback type, NOT a different P4
+        /// sample header/body — the on-ROM sample layout is identical to N00/N08,
+        /// so it reuses SongDirectSoundWavCore verbatim (Copilot-confirmed).</summary>
+        public bool IsLoadedDirectSoundReverse => _loadedHeaderByte == 0x10;
+
+        /// <summary>True when the LOADED entry's ROM header byte is 0x18
+        /// (DirectSound Fixed Freq Reverse). Gates the N18 wave Export/Import
+        /// (#1001 PR1). Same DirectSound sample layout as N00/N08/N10.</summary>
+        public bool IsLoadedDirectSoundFixedFreqReverse => _loadedHeaderByte == 0x18;
 
         // Raw per-byte access (B1..B11) — see field declarations above.
         // Each property setter routes through SetField so PropertyChanged

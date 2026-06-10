@@ -7625,8 +7625,10 @@ OBJBGLeftToRight
 :Import Music File
 音楽をファイルから読み込む
 
-:Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.
-MIDIファイルのインポート（プレビューのみ）。完全なインポートディスパッチ（MIDI / Wave / Instrument）はCoreの抽出待ちです。
+:Imports a MIDI (.mid) or a raw RIFF WAV (.wav, builds a one-track song that plays the sample). Instrument (.s/.instrument) import is pending PR2.
+MIDI（.mid）または生のRIFF WAV（.wav、サンプルを再生する1トラックの曲を作成）をインポートします。楽器（.s/.instrument）のインポートはPR2で対応予定です。
+:Music Files
+音楽ファイル
 
 :Export Music File
 音楽をファイルへ書き出す

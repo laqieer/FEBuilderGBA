@@ -16,6 +16,7 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -375,24 +376,49 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // Import dispatcher (#1001 PR1). The single "Import Music File" button now
+        // routes by file extension: .mid/.midi -> the existing MIDI import; .wav
+        // -> the whole-song WAV import (build a one-track song that plays the
+        // sample). .s/.instrument stay routed to a "coming in PR2" message — the
+        // .instrument reuse + the .s/SelectInstrument assembler land in PR2.
         async void ImportMidi_Click(object? sender, RoutedEventArgs e)
         {
             if (!_vm.IsLoaded) return;
 
             try
             {
+                var musicType = new FilePickerFileType(R._("Music Files")) { Patterns = new[] { "*.mid", "*.midi", "*.wav" } };
                 var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
+                var wavType = new FilePickerFileType(R._("Wave Files")) { Patterns = new[] { "*.wav" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    Title = R._("Import MIDI"),
+                    Title = R._("Import Music File"),
                     AllowMultiple = false,
-                    FileTypeFilter = new[] { midiType, allType },
+                    FileTypeFilter = new[] { musicType, midiType, wavType, allType },
                 });
 
                 if (files.Count == 0) return;
                 string? path = files[0].TryGetLocalPath();
                 if (string.IsNullOrEmpty(path)) return;
+
+                // Dispatch by extension (case-insensitive).
+                string ext = Path.GetExtension(path).ToLowerInvariant();
+                if (ext == ".wav")
+                {
+                    await ImportWaveAsSong(path);
+                    return;
+                }
+                if (ext == ".s" || ext == ".instrument")
+                {
+                    // PR2 scope: .instrument reuse + the .s/SelectInstrument
+                    // assembler. Not wired here.
+                    CoreState.Services.ShowInfo(R._(
+                        "Instrument import (.s / .instrument) is coming in a follow-up (#1001 PR2). " +
+                        "This release supports MIDI (.mid) and raw RIFF WAV (.wav) import."));
+                    return;
+                }
+                // Default: MIDI import (.mid/.midi or any other extension).
 
                 // Parse and show MIDI metadata preview first so the user can
                 // confirm the file before it overwrites the song.
@@ -448,6 +474,94 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("ImportMidi_Click failed: {0}", ex.Message);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // #1001 PR1: whole-song WAV import. Build an ENTIRE one-track song that
+        // plays the imported RIFF WAV sample (sample + 2-row voicegroup +
+        // one-track playback stream + song header) and repoint the selected
+        // song-table entry at it, in one validate-before-mutate transaction with
+        // a byte-identical fault restore (SongTrackWaveImportCore). The song-table
+        // slot is the SAME slot the MIDI import repoints
+        // (GetSelectedSongTableEntryAddr).
+        //
+        // useLoop defaults to FALSE for WF parity: WF's import dialog initializes
+        // LoopComboBox to index 0 = ループしない (no loop), so the default song
+        // ends at FINE with no GOTO (Copilot plan review pt 3).
+        // -----------------------------------------------------------------
+        async System.Threading.Tasks.Task ImportWaveAsSong(string path)
+        {
+            // WF parity: SongID 0 is write-protected (silence song).
+            if (_vm.SelectedSongIndex == 0)
+            {
+                CoreState.Services.ShowError(R._("Song ID 0 is write-protected (silence song)."));
+                return;
+            }
+
+            uint slot = _vm.GetSelectedSongTableEntryAddr();
+            if (slot == U.NOT_FOUND)
+            {
+                CoreState.Services.ShowError(R._(
+                    "Cannot resolve the song-table entry for the selected song."));
+                return;
+            }
+
+            bool confirm = CoreState.Services.ShowQuestion(R._(
+                "Import this WAV as a new one-track song? This appends a sample, a " +
+                "voicegroup, a playback track and a song header to ROM free space " +
+                "and repoints the song-table entry. The operation is a single undo step."));
+            if (!confirm) return;
+
+            byte[] bytes;
+            try
+            {
+                bytes = File.ReadAllBytes(path);
+            }
+            catch (Exception ex)
+            {
+                // File read can throw (permissions / missing) BEFORE any undo
+                // scope is open — surface the error, no Rollback needed.
+                Log.Error("SongTrackView.ImportWaveAsSong read failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
+                return;
+            }
+
+            _undoService.Begin("Import Wave as Song");
+            try
+            {
+                // useLoop:false for WF parity (no-loop is the WF default).
+                uint headerPtr = SongTrackWaveImportCore.ImportWaveAsSong(
+                    CoreState.ROM, slot, bytes, useLoop: false, out string err);
+                if (headerPtr == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(err ?? R._("Wave import failed."));
+                    return;
+                }
+
+                _undoService.Commit();
+                _vm.MarkClean();
+
+                // Repoint the editor at the freshly-built song header so the UI
+                // shows the new track immediately.
+                if (U.isPointer(headerPtr))
+                    _vm.LoadEntry(U.toOffset(headerPtr));
+
+                // Record the imported WAV source path under the WF per-song key so
+                // the Open Source File / Folder buttons become available (only on a
+                // successful import; guard the unselected-song case).
+                if (_vm.SelectedSongIndex >= 0)
+                    _vm.RecordSourceFile((uint)_vm.SelectedSongIndex, path);
+                UpdateUI();
+                CoreState.Services.ShowInfo(R._(
+                    "Wave imported as a new song at 0x{0:X08}.", U.toOffset(headerPtr)));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongTrackView.ImportWaveAsSong failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
             }
         }
 

@@ -484,19 +484,22 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // DirectSound wave Export/Import (#1057). The N00 (type 0x00) and N08
-        // (type 0x08 "DirectSound Fixed Freq") DirectSound voices share the EXACT
-        // same sample format (header type byte at +0, sample pointer P4 at +4), so
-        // both reuse SongDirectSoundWavCore.ExportWave / ImportWave verbatim. N03
-        // (Wave Memory) and the reverse DirectSound tabs N10 (0x10) / N18 (0x18)
-        // stay DISABLED in this slice — only 0x00 and 0x08 are unlocked.
+        // DirectSound wave Export/Import (#1057 N00/N08; #1001 PR1 N10/N18). The
+        // N00 (0x00), N08 (0x08 "DirectSound Fixed Freq"), N10 (0x10 "DirectSound
+        // Reverse") and N18 (0x18 "DirectSound Fixed Freq Reverse") voices ALL
+        // share the EXACT same on-ROM sample format (header type byte at +0,
+        // sample pointer P4 at +4) — the "Reverse"/"Fixed Freq" variants only
+        // change the instrument-entry PLAYBACK type, not the P4 sample header/body
+        // (Copilot-confirmed). So all four reuse SongDirectSoundWavCore.ExportWave
+        // / ImportWave verbatim. N03 (Wave Memory) stays DISABLED.
         //
         // The gates use the VM's LoadedHeaderByte (the on-ROM byte captured at
         // LoadEntry), NOT the mutable HeaderByte/Category, so a loaded 0x10/0x18
         // entry switched to the N08 tab in-memory cannot be repointed as if it
         // were a 0x08 voice (#1057 Copilot plan review pt 1). The shared
-        // ExportWaveTo / ImportWaveInto helpers take the active tab's P4 box name
-        // so N00 updates N00_P4_Box and N08 updates N08_P4_Box.
+        // ExportWaveGated / ImportWaveGated helpers take the active tab's P4 box
+        // name so each tab updates its OWN P4 box (N00->N00_P4_Box, ...,
+        // N18->N18_P4_Box).
         // -----------------------------------------------------------------
 
         async void N00_Export_Click(object? sender, RoutedEventArgs e)
@@ -512,16 +515,41 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void N08_Export_Click(object? sender, RoutedEventArgs e)
         {
-            // N08-only: gate on the LOADED ROM byte 0x08. 0x10 / 0x18 stay disabled
-            // and are NOT unlocked here (#1057 scope).
+            // Gate on the LOADED ROM byte 0x08.
             await ExportWaveGated(_vm.IsLoadedDirectSoundFixedFreq);
         }
 
         async void N08_Import_Click(object? sender, RoutedEventArgs e)
         {
-            // N08-only: import slot is THIS entry's own P4 (CurrentAddr + 4) and the
-            // success update targets N08_P4_Box (not N00_P4_Box).
+            // Import slot is THIS entry's own P4 (CurrentAddr + 4) and the success
+            // update targets N08_P4_Box (not N00_P4_Box).
             await ImportWaveGated(_vm.IsLoadedDirectSoundFixedFreq, "N08_P4_Box");
+        }
+
+        async void N10_Export_Click(object? sender, RoutedEventArgs e)
+        {
+            // N10 (DirectSound Reverse, 0x10): same DirectSound sample layout as
+            // N00/N08 (Copilot-confirmed). Gate on the LOADED ROM byte 0x10.
+            await ExportWaveGated(_vm.IsLoadedDirectSoundReverse);
+        }
+
+        async void N10_Import_Click(object? sender, RoutedEventArgs e)
+        {
+            // Import slot is THIS entry's own P4 (CurrentAddr + 4); success updates
+            // the N10 tab's OWN P4 box.
+            await ImportWaveGated(_vm.IsLoadedDirectSoundReverse, "N10_P4_Box");
+        }
+
+        async void N18_Export_Click(object? sender, RoutedEventArgs e)
+        {
+            // N18 (DirectSound Fixed Freq Reverse, 0x18): same DirectSound sample
+            // layout as N00/N08/N10. Gate on the LOADED ROM byte 0x18.
+            await ExportWaveGated(_vm.IsLoadedDirectSoundFixedFreqReverse);
+        }
+
+        async void N18_Import_Click(object? sender, RoutedEventArgs e)
+        {
+            await ImportWaveGated(_vm.IsLoadedDirectSoundFixedFreqReverse, "N18_P4_Box");
         }
 
         // Shared DirectSound wave EXPORT used by N00 + N08. Reads the pointer value
