@@ -159,8 +159,10 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
+                // Keep the low-level/English-only detail in the log; show the
+                // user the standard localized failure status (SetReduceStatus(-1)).
                 Log.Error("DecreaseColorTSAToolView.Reduce failed: {0}", ex.Message);
-                _vm.StatusMessage = ex.Message;
+                _vm.SetReduceStatus(-1);
             }
             finally
             {
