@@ -818,18 +818,18 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1057 (PR1): the wave/instrument Export/Import buttons for the STILL-
-    /// DEFERRED categories — the REVERSE DirectSound tabs N10 (0x10) / N18 (0x18)
-    /// and the instrument-set InstImport — stay disabled. N00 (0x00) + N08 (0x08)
-    /// DirectSound and InstExport ARE wired now (see the positive tests). Each
-    /// remaining button must keep IsEnabled="False" and carry NO Click handler.
+    /// #1057: the wave/instrument Export/Import buttons for the STILL-DEFERRED
+    /// categories — the REVERSE DirectSound tabs N10 (0x10) / N18 (0x18) — stay
+    /// disabled. N00 (0x00) + N08 (0x08) DirectSound, InstExport AND InstImport
+    /// (the recursive ROM-mutating set import, PR2) ARE wired now (see the
+    /// positive tests). Each remaining button must keep IsEnabled="False" and
+    /// carry NO Click handler.
     /// </summary>
     [Theory]
     [InlineData("SongInstrument_N10_Export_Button")]
     [InlineData("SongInstrument_N10_Import_Button")]
     [InlineData("SongInstrument_N18_Export_Button")]
     [InlineData("SongInstrument_N18_Import_Button")]
-    [InlineData("SongInstrument_InstImport_Button")]
     public void View_WaveButtons_StayDisabled_NoClick(string automationId)
     {
         string axaml = ReadAxaml();
@@ -845,11 +845,11 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1057 (PR1): the N00 + N08 DirectSound Export/Import buttons AND the
-    /// instrument-set InstExport button are now ENABLED and carry their Click
-    /// handlers (the wave I/O Core port SongDirectSoundWavCore + the recursive
-    /// export SongInstrumentSetCore landed). They must NOT carry IsEnabled="False"
-    /// and MUST wire the click handlers.
+    /// #1057: the N00 + N08 DirectSound Export/Import buttons AND the
+    /// instrument-set InstExport (PR1) + InstImport (PR2) buttons are ENABLED and
+    /// carry their Click handlers (the wave I/O Core port SongDirectSoundWavCore +
+    /// the recursive export/import SongInstrumentSetCore landed). They must NOT
+    /// carry IsEnabled="False" and MUST wire the click handlers.
     /// </summary>
     [Theory]
     [InlineData("SongInstrument_N00_Export_Button", "N00_Export_Click")]
@@ -857,6 +857,7 @@ public class SongInstrumentParityTests
     [InlineData("SongInstrument_N08_Export_Button", "N08_Export_Click")]
     [InlineData("SongInstrument_N08_Import_Button", "N08_Import_Click")]
     [InlineData("SongInstrument_InstExport_Button", "InstExport_Click")]
+    [InlineData("SongInstrument_InstImport_Button", "InstImport_Click")]
     public void View_N00_WaveButtons_Enabled_WithClick(string automationId, string clickHandler)
     {
         string axaml = ReadAxaml();

@@ -18,6 +18,7 @@
 //     pointer SKIP behavior
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FEBuilderGBA;
 using FEBuilderGBA.Core;
 using Xunit;
@@ -736,6 +737,491 @@ namespace FEBuilderGBA.Core.Tests
                 var rows = sink.Indexes["vg.instrument"];
                 Assert.Single(rows);
                 Assert.Equal("08", Cols(rows[0])[0]);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // =================================================================
+        // IMPORT (#1057 PR2) — recursive ROM-MUTATING instrument-set import.
+        // =================================================================
+
+        // The Sink doubles as a reader for ImportAll: readLines/readFile look up the
+        // in-memory index/side-file collections ExportAll filled. Missing name => null
+        // (so the Core's validate phase reports it cleanly).
+        static Func<string, string[]> ReadLinesFrom(Sink sink) =>
+            name => sink.Indexes.TryGetValue(name, out var lines) ? lines.ToArray() : null;
+        static Func<string, byte[]> ReadFileFrom(Sink sink) =>
+            name => sink.Files.TryGetValue(name, out var bytes) ? bytes : null;
+
+        // Build a complete synthetic voicegroup exercising every nesting shape:
+        //   voice 0: 0x08 DirectSound (uncompressed sample)
+        //   voice 1: 0x03 Wave Memory (16-byte wave)
+        //   voice 2: 0x80 Drum nesting a CHILD voicegroup (whose voice 0 is a nonzero
+        //            @SELF+0C back-ref into itself, voice 1 a Wave Memory)
+        //   voice 3: 0x40 Multisample (sub-voicegroup + 128-byte keymap)
+        //   voice 4: 0x01 SquareWave (data-less terminator-prefix)
+        static void BuildRichVoicegroup(ROM rom)
+        {
+            // ---- voice 0: DirectSound 0x08 ----
+            uint s0 = 0x8000;
+            WriteDirectSoundSample(rom, s0, 12000, 80);
+            WriteVoice(rom, VOCA_BASE + 0x00, 0x08, 0x11, 0x22, 0x33,
+                U.toPointer(s0), 0, 0x44, 0x55, 0x66, 0x77);
+
+            // ---- voice 1: Wave Memory 0x03 ----
+            uint w1 = 0x9000;
+            for (int i = 0; i < 16; i++) rom.write_u8((uint)(w1 + i), (byte)(0xA0 + i));
+            WriteVoice(rom, VOCA_BASE + 0x0C, 0x03, 1, 2, 3,
+                U.toPointer(w1), 0, 4, 5, 6, 7);
+
+            // ---- voice 2: Drum 0x80 -> child voicegroup at 0x2000 ----
+            uint childBase = 0x2000;
+            // child voice 0: drum -> child base + 0x0C  => @SELF+0C (nonzero!)
+            WriteVoice(rom, childBase + 0x00, 0x80, 0, 0, 0,
+                U.toPointer(childBase + 0x0C), 0, 0, 0, 0, 0);
+            // child voice 1: Wave Memory (keeps child DataCount == 2 so +0x0C is in range)
+            uint cw = 0xA000;
+            for (int i = 0; i < 16; i++) rom.write_u8((uint)(cw + i), (byte)(0x30 + i));
+            WriteVoice(rom, childBase + 0x0C, 0x03, 0, 0, 0,
+                U.toPointer(cw), 0, 0, 0, 0, 0);
+            WriteVoice(rom, VOCA_BASE + 0x18, 0x80, 0xAA, 0xBB, 0xCC,
+                U.toPointer(childBase), 0, 0xD0, 0xD1, 0xD2, 0xD3);
+
+            // ---- voice 3: Multisample 0x40 -> sub-voicegroup at 0x2100 + keymap ----
+            uint subBase = 0x2100;
+            uint sw = 0xB000;
+            for (int i = 0; i < 16; i++) rom.write_u8((uint)(sw + i), (byte)(0x50 + i));
+            WriteVoice(rom, subBase, 0x03, 0, 0, 0, U.toPointer(sw), 0, 0, 0, 0, 0);
+            uint keymap = 0x3000;
+            for (int i = 0; i < 128; i++) rom.write_u8((uint)(keymap + i), (byte)(i & 0xFF));
+            WriteVoice(rom, VOCA_BASE + 0x24, 0x40, 0x10, 0x20, 0x30,
+                U.toPointer(subBase), U.toPointer(keymap), 0, 0, 0, 0);
+
+            // ---- voice 4: SquareWave 0x01 (data-less) ----
+            WriteVoice(rom, VOCA_BASE + 0x30, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+
+        // -----------------------------------------------------------------
+        // I-1. Round-trip byte-equivalence: export a rich voicegroup, import it into
+        //      a FRESH region, re-export the imported group, and assert the
+        //      re-exported TSV + side files are byte-equivalent to the FIRST export.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_RoundTrip_ReExportIsByteEquivalent()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                BuildRichVoicegroup(rom);
+
+                // First export.
+                var export1 = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export1.WriteFile, export1.WriteLines);
+
+                // Import into the SAME rom (the imported set is appended at ROM end).
+                var undo = new Undo().NewUndoData("import");
+                uint importedBase;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    importedBase = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export1), ReadFileFrom(export1),
+                        appendBinaryData: null, out string err);
+                    Assert.Equal((string)null, err);
+                }
+                Assert.NotEqual(U.NOT_FOUND, importedBase);
+
+                // Re-export the IMPORTED voicegroup.
+                var export2 = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, importedBase, "vg",
+                    export2.WriteFile, export2.WriteLines);
+
+                // The re-exported index + every side file must be byte-equivalent.
+                Assert.Equal(export1.Indexes.Keys.OrderBy(k => k),
+                             export2.Indexes.Keys.OrderBy(k => k));
+                foreach (var kv in export1.Indexes)
+                    Assert.Equal(kv.Value, export2.Indexes[kv.Key]);
+
+                Assert.Equal(export1.Files.Keys.OrderBy(k => k),
+                             export2.Files.Keys.OrderBy(k => k));
+                foreach (var kv in export1.Files)
+                    Assert.Equal(kv.Value, export2.Files[kv.Key]);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-2. Deferred write-back correctness: nested child pointers point at the
+        //      child's imported base; @SELF pointers point at the imported root group
+        //      (correct offsets, 4-byte aligned).
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_DeferredWriteBack_ChildAndSelfPointersResolveCorrectly()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // Root voicegroup:
+                //   voice 0: drum -> child voicegroup (nested)
+                //   voice 1: square wave (so DataCount stays >= 2)
+                uint childBase = 0x2000;
+                // child voice 0: drum -> child base + 0x0C => @SELF+0C
+                WriteVoice(rom, childBase + 0x00, 0x80, 0, 0, 0,
+                    U.toPointer(childBase + 0x0C), 0, 0, 0, 0, 0);
+                WriteVoice(rom, childBase + 0x0C, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                WriteVoice(rom, VOCA_BASE + 0x00, 0x80, 0, 0, 0,
+                    U.toPointer(childBase), 0, 0, 0, 0, 0);
+                WriteVoice(rom, VOCA_BASE + 0x0C, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                var undo = new Undo().NewUndoData("import");
+                uint root;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    root = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal((string)null, err);
+                }
+                Assert.NotEqual(U.NOT_FOUND, root);
+
+                // Root voice 0 (0x80 drum) P4 must point at the imported CHILD base —
+                // which lives at a DIFFERENT offset than `root` (it was appended
+                // before the root blob).
+                uint rootV0P4 = rom.p32(root + 0x00 + 4);   // offset form
+                Assert.True(U.isSafetyOffset(rootV0P4, rom));
+                Assert.NotEqual(root, rootV0P4);            // child != root base
+                Assert.Equal(0u, rootV0P4 % 4);             // 4-byte aligned
+
+                // The imported child's voice 0 (0x80) is a @SELF+0C self-ref: its P4
+                // must point at the imported child base + 0x0C.
+                uint childImported = rootV0P4;
+                uint childV0P4 = rom.p32(childImported + 0x00 + 4);
+                Assert.Equal(childImported + 0x0C, childV0P4);
+                Assert.Equal(0u, childV0P4 % 4);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-3a. No-mutation on a MISSING side file: ImportAll fails and the ROM is
+        //       byte-identical to before (snapshot compare).
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_MissingSideFile_NoMutation_RomByteIdentical()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // A single DirectSound voice referencing a side .bin we DON'T provide.
+                uint s0 = 0x8000;
+                WriteDirectSoundSample(rom, s0, 12000, 64);
+                WriteVoice(rom, VOCA_BASE, 0x08, 0, 0, 0, U.toPointer(s0), 0, 0, 0, 0, 0);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                // Drop the DirectSound side file so the validate phase rejects it.
+                export.Files.Remove("vg0x00.DirectSound.bin");
+
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = new Undo().NewUndoData("import");
+                uint result;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    result = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+                Assert.Equal(before, rom.Data);              // byte-identical
+                Assert.Empty(undo.list);                     // zero undo records
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-3b. No-mutation on a MALFORMED index row: a row with too few columns.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_MalformedRow_NoMutation_RomByteIdentical()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                var export = new Sink();
+                // A deliberately malformed index: a single 2-column row.
+                export.Indexes["bad.instrument"] = new List<string> { "00\t11" };
+
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = new Undo().NewUndoData("import");
+                uint result;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    result = SongInstrumentSetCore.ImportAll(
+                        rom, "bad.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-3c. No-mutation on a MISALIGNED @SELF offset (not 12-byte aligned) and on
+        //       an OUT-OF-RANGE @SELF offset (past the imported blob). Both reject
+        //       with NO mutation (finding 4).
+        // -----------------------------------------------------------------
+        [Theory]
+        [InlineData("@SELF+5")]    // misaligned (5 % 12 != 0)
+        [InlineData("@SELF+9000")] // out of range (way past a 2-record blob)
+        public void Import_BadSelfOffset_NoMutation_RomByteIdentical(string selfToken)
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                var export = new Sink();
+                // A 2-record drum index whose voice 0 carries the bad @SELF token.
+                export.Indexes["bad.instrument"] = new List<string>
+                {
+                    "80\t00\t00\t00\t" + selfToken + "\t00\t00\t00\t00",
+                    "01\t00\t00\t00\t00\t00\t00\t00\t00\t00\t00\t00",
+                };
+
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = new Undo().NewUndoData("import");
+                uint result;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    result = SongInstrumentSetCore.ImportAll(
+                        rom, "bad.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-3d. No-mutation when the APPEND fails AFTER a partial parent append /
+        //       partial fixups: a fault-injecting appender that succeeds for the first
+        //       N blobs then fails. ImportAll must restore the ROM byte-identical
+        //       (shrinks back the length + restores all pointer slots).
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_AppenderFailsMidway_NoMutation_RomByteIdentical()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                BuildRichVoicegroup(rom);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                byte[] before = (byte[])rom.Data.Clone();
+
+                // A fault-injecting appender: it genuinely appends the first few blobs
+                // (growing the ROM + writing data) but returns NOT_FOUND on the 4th —
+                // i.e. AFTER several real appends, proving the restore shrinks the
+                // length back and undoes the partial writes.
+                int call = 0;
+                Func<byte[], uint> faultyAppender = buf =>
+                {
+                    call++;
+                    if (call >= 4) return U.NOT_FOUND;     // fail mid-allocation
+                    uint off = U.Padding4((uint)rom.Data.Length);
+                    rom.write_resize_data(off + (uint)buf.Length);
+                    rom.write_range(off, buf);
+                    return off;
+                };
+
+                var undo = new Undo().NewUndoData("import");
+                uint result;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    result = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        faultyAppender, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+
+                // ROM restored byte-identical despite the partial appends (length
+                // shrunk back, all bytes match).
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-4. Undo rollback: after a SUCCESSFUL import, running the undo restores the
+        //      ROM length and every pointer slot byte-identically.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_Success_UndoRollback_RestoresRomByteIdentical()
+        {
+            var savedRom = CoreState.ROM;
+            var savedUndo = CoreState.Undo;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                BuildRichVoicegroup(rom);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                byte[] before = (byte[])rom.Data.Clone();
+
+                var undo = CoreState.Undo.NewUndoData("import");
+                uint importedBase;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    importedBase = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal((string)null, err);
+                }
+                Assert.NotEqual(U.NOT_FOUND, importedBase);
+                // The import GREW the ROM (appended the imported set).
+                Assert.True(rom.Data.Length > before.Length);
+
+                // Push + run the undo: the ROM must come back byte-identical.
+                CoreState.Undo.Push(undo);
+                CoreState.Undo.RunUndo();
+
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = savedRom; CoreState.Undo = savedUndo; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-5. @BROKENDATA round-trips to @SELF+0 (WF parity, finding 5): an index row
+        //      with @BROKENDATA imports to a self-reference at the voicegroup base, so
+        //      a re-export emits @SELF+0 for that nested record.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_BrokenData_MapsToSelfPlus0()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // A nested .Drum.instrument whose voice 0 is @BROKENDATA, referenced by
+                // the root index voice 0 (0x80 drum).
+                var export = new Sink();
+                export.Indexes["vg.instrument"] = new List<string>
+                {
+                    "80\t00\t00\t00\tvg0x00.Drum.instrument\t00\t00\t00\t00",
+                    "01\t00\t00\t00\t00\t00\t00\t00\t00\t00\t00\t00",
+                };
+                export.Indexes["vg0x00.Drum.instrument"] = new List<string>
+                {
+                    "80\t00\t00\t00\t@BROKENDATA\t00\t00\t00\t00",
+                    "01\t00\t00\t00\t00\t00\t00\t00\t00\t00\t00\t00",
+                };
+
+                var undo = new Undo().NewUndoData("import");
+                uint root;
+                using (ROM.BeginUndoScope(undo))
+                {
+                    root = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal((string)null, err);
+                }
+                Assert.NotEqual(U.NOT_FOUND, root);
+
+                // Re-export the imported root: the nested .Drum voice 0 must read back
+                // as @SELF+0 (the @BROKENDATA collapsed to a base self-ref).
+                var reexport = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, root, "vg",
+                    reexport.WriteFile, reexport.WriteLines);
+
+                var childRows = reexport.Indexes["vg0x00.Drum.instrument"];
+                Assert.Equal("@SELF+0", Cols(childRows[0])[4]);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-6. Null / guard inputs never throw (ROM null, missing index, null delegates).
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_NullAndGuard_Inputs_NoThrow()
+        {
+            var sink = new Sink();
+            // Null ROM.
+            uint r = SongInstrumentSetCore.ImportAll(
+                null, "vg.instrument", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string e1);
+            Assert.Equal(U.NOT_FOUND, r);
+            Assert.False(string.IsNullOrEmpty(e1));
+
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // Missing index file.
+                uint r2 = SongInstrumentSetCore.ImportAll(
+                    rom, "nope.instrument", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string e2);
+                Assert.Equal(U.NOT_FOUND, r2);
+                Assert.False(string.IsNullOrEmpty(e2));
+
+                // Null delegates.
+                uint r3 = SongInstrumentSetCore.ImportAll(
+                    rom, "vg.instrument", null, null, null, out string e3);
+                Assert.Equal(U.NOT_FOUND, r3);
+                Assert.False(string.IsNullOrEmpty(e3));
+
+                // Empty index name.
+                uint r4 = SongInstrumentSetCore.ImportAll(
+                    rom, "", ReadLinesFrom(sink), ReadFileFrom(sink), null, out string e4);
+                Assert.Equal(U.NOT_FOUND, r4);
             }
             finally { CoreState.ROM = savedRom; }
         }

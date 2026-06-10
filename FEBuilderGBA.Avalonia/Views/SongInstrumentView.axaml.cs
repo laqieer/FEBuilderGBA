@@ -669,6 +669,96 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // -----------------------------------------------------------------
+        // InstImport (#1057 PR2) — recursive ROM-MUTATING voicegroup import. The
+        // inverse of InstExport: open a TSV index file, resolve its directory, then
+        // read its side + nested files relative to that directory and append the
+        // whole imported set to free space (single transaction, validate-before-
+        // mutate, byte-identical fault restore — all in the Core seam
+        // SongInstrumentSetCore.ImportAll), repointing the loaded voicegroup's song
+        // reference(s) to the new base. Mirrors the N00/InstExport handlers'
+        // try/catch + pre-Begin file-dialog-exception structure.
+        // -----------------------------------------------------------------
+        async void InstImport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            if (CoreState.ROM == null) return;
+
+            // The voicegroup base the editor is currently editing.
+            uint vocaBase = _vm.BaseAddr;
+            if (vocaBase == 0)
+            {
+                CoreState.Services.ShowError(
+                    R._("No instrument set (voicegroup) is loaded to import into."));
+                return;
+            }
+
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(
+                    this, R._("Import Instrument"), "*.instrument");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string dir = Path.GetDirectoryName(path) ?? ".";
+                string indexName = Path.GetFileName(path);
+
+                // The Core emits/consumes RELATIVE filename tokens; resolve each
+                // against the chosen index directory (never the process CWD, never
+                // an absolute path inside the TSV). A missing file -> null so the
+                // Core reports it cleanly during the validate phase.
+                Func<string, string[]> readLines = name =>
+                {
+                    string p = Path.Combine(dir, name);
+                    return File.Exists(p) ? File.ReadAllLines(p) : null;
+                };
+                Func<string, byte[]> readFile = name =>
+                {
+                    string p = Path.Combine(dir, name);
+                    return File.Exists(p) ? File.ReadAllBytes(p) : null;
+                };
+
+                _undoService.Begin("Import Instrument Set");
+                try
+                {
+                    if (!_vm.ImportLoadedVoicegroup(indexName, readLines, readFile,
+                            out uint newBase, out string err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError(
+                            err ?? R._("Instrument set import failed."));
+                        return;
+                    }
+
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // Re-list from the new base so all imported rows show. The
+                    // read-config bar's First Address still holds the OLD base, and
+                    // LoadList prefers that explicit value, so sync it first.
+                    if (TopBar != null)
+                        TopBar.ReadStartAddress = newBase;
+                    LoadList();
+                    UpdateExpandButtonState();
+
+                    CoreState.Services.ShowInfo(R._(
+                        "Instrument set imported at 0x{0:X08}.", newBase));
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("SongInstrumentView.InstImport_Click failed: {0}", ex.Message);
+                    CoreState.Services.ShowError(R._("Instrument set import failed: {0}", ex.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                // Pre-Begin scope: the file dialog can throw BEFORE _undoService.Begin,
+                // so no undo scope is open here and no Rollback is needed.
+                Log.Error("SongInstrumentView.InstImport_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Instrument set import failed: {0}", ex.Message));
+            }
+        }
+
         static string GetActiveTabPrefix(byte headerByte)
         {
             switch (headerByte)

@@ -40,6 +40,16 @@ namespace FEBuilderGBA.Avalonia.Tests
             return File.ReadAllText(path);
         }
 
+        static string ReadViewModel()
+        {
+            string? repoRoot = FindRepoRoot();
+            Assert.NotNull(repoRoot);
+            string path = Path.Combine(repoRoot!, "FEBuilderGBA.Avalonia", "ViewModels",
+                "SongInstrumentViewModel.cs");
+            Assert.True(File.Exists(path), $"Missing {path}");
+            return File.ReadAllText(path);
+        }
+
         [Fact]
         public void Axaml_N00_Export_And_Import_Buttons_Enabled_With_Clicks()
         {
@@ -180,25 +190,25 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // -----------------------------------------------------------------
-        // POSITIVE (#1057 PR1): InstExport is enabled + wired to the recursive
-        // read-only Core export seam; InstImport stays deferred (disabled).
+        // POSITIVE (#1057): InstExport (PR1, read-only) AND InstImport (PR2,
+        // ROM-mutating) are both enabled + wired to the recursive Core seam.
         // -----------------------------------------------------------------
         [Fact]
-        public void Axaml_InstExport_Enabled_InstImport_Disabled()
+        public void Axaml_InstExport_And_InstImport_Enabled()
         {
             string axaml = ReadView(".axaml");
 
             AssertButtonEnabled(axaml, "SongInstrument_InstExport_Button");
             Assert.Contains("Click=\"InstExport_Click\"", axaml);
 
-            // InstImport stays disabled (deferred to PR 2).
+            // InstImport is now ENABLED + wired (PR2): not disabled, has a Click.
             int impIdx = axaml.IndexOf("SongInstrument_InstImport_Button", StringComparison.Ordinal);
             Assert.True(impIdx >= 0);
             int start = axaml.LastIndexOf('<', impIdx);
             int end = axaml.IndexOf('>', impIdx);
             string impEl = axaml.Substring(start, end - start + 1);
-            Assert.Contains("IsEnabled=\"False\"", impEl);
-            Assert.DoesNotContain("Click=", impEl);
+            Assert.DoesNotContain("IsEnabled=\"False\"", impEl);
+            Assert.Contains("Click=\"InstImport_Click\"", impEl);
         }
 
         [Fact]
@@ -217,6 +227,38 @@ namespace FEBuilderGBA.Avalonia.Tests
             if (next < 0) next = cs.IndexOf("\n        void ", handlerIdx + 10, StringComparison.Ordinal);
             string body = next > handlerIdx ? cs.Substring(handlerIdx, next - handlerIdx) : cs.Substring(handlerIdx);
             Assert.DoesNotContain("_undoService.Begin", body);
+        }
+
+        // -----------------------------------------------------------------
+        // POSITIVE (#1057 PR2): InstImport routes through the recursive ROM-mutating
+        // Core import seam under a SINGLE undo scope (Begin/Commit/Rollback), via the
+        // VM's ImportLoadedVoicegroup helper.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void CodeBehind_InstImport_RoutesThroughCoreSeam_UnderUndoScope()
+        {
+            string cs = ReadView(".axaml.cs");
+            Assert.Contains("InstImport_Click", cs);
+            // The View delegates to the VM helper which calls the Core import seam.
+            Assert.Contains("ImportLoadedVoicegroup", cs);
+
+            int handlerIdx = cs.IndexOf("void InstImport_Click", StringComparison.Ordinal);
+            Assert.True(handlerIdx >= 0);
+            int next = cs.IndexOf("\n        static string GetActiveTabPrefix", handlerIdx + 10, StringComparison.Ordinal);
+            string body = next > handlerIdx ? cs.Substring(handlerIdx, next - handlerIdx) : cs.Substring(handlerIdx);
+            // ROM-mutating: opens an undo scope and commits / rolls back.
+            Assert.Contains("_undoService.Begin", body);
+            Assert.Contains("_undoService.Commit", body);
+            Assert.Contains("_undoService.Rollback", body);
+        }
+
+        [Fact]
+        public void ViewModel_ImportLoadedVoicegroup_RoutesThroughCoreImportSeam()
+        {
+            string vm = ReadViewModel();
+            Assert.Contains("ImportLoadedVoicegroup", vm);
+            // The VM helper calls the recursive Core import seam.
+            Assert.Contains("SongInstrumentSetCore.ImportAll", vm);
         }
 
         // Assert the Button element carrying the given AutomationId does NOT have

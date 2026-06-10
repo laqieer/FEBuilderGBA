@@ -73,18 +73,17 @@
                 <TextBlock AutomationProperties.AutomationId="SongInstrument_Info_Label"
                            Name="InfoLabel" Text="Info" Foreground="Blue" TextDecorations="Underline"
                            Cursor="Hand" VerticalAlignment="Center" />
-                <!-- #1057 (PR1): InstExport (recursive read-only voicegroup export)
-                     is wired via SongInstrumentSetCore. InstImport stays deferred to
-                     PR 2 with the honest tooltip on its ENABLED Border wrapper. -->
+                <!-- #1057: InstExport (recursive read-only voicegroup export) +
+                     InstImport (recursive ROM-mutating voicegroup import, PR2) are
+                     both wired via SongInstrumentSetCore. -->
                 <Button AutomationProperties.AutomationId="SongInstrument_InstExport_Button"
                         Name="InstExportButton" Content="Export Instrument" Width="160"
                         ToolTip.Tip="Export the whole instrument set (voicegroup) to a TSV index plus per-voice side files (recursive)."
                         Click="InstExport_Click" />
-                <Border ToolTip.Tip="Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.">
-                  <Button AutomationProperties.AutomationId="SongInstrument_InstImport_Button"
-                          Name="InstImportButton" Content="Import Instrument" Width="160"
-                          IsEnabled="False" />
-                </Border>
+                <Button AutomationProperties.AutomationId="SongInstrument_InstImport_Button"
+                        Name="InstImportButton" Content="Import Instrument" Width="160"
+                        ToolTip.Tip="Import a whole instrument set (voicegroup) from a TSV index plus its per-voice side files (recursive), appended to free space and repointed."
+                        Click="InstImport_Click" />
               </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="Header Byte:" VerticalAlignment="Center" Width="100" />

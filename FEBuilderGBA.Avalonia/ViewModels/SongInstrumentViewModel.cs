@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Core; // SongInstrumentSetCore (the import seam lives in FEBuilderGBA.Core)
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -1018,6 +1019,87 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var ambient = ROM.GetAmbientUndoData();
             if (ambient == null) return U.NOT_FOUND;
             return allocator(buffer, ambient);
+        }
+
+        // -----------------------------------------------------------------
+        // InstImport (#1057 PR2) — recursive ROM-mutating instrument-set import.
+        // The View opens the index file via FileDialogHelper and the UndoService
+        // scope; ImportLoadedVoicegroup parses + appends the whole graph via the
+        // Core seam SongInstrumentSetCore.ImportAll (single transaction,
+        // validate-before-mutate, byte-identical fault restore), then repoints
+        // the song reference(s) that currently point at the loaded base to the
+        // freshly-imported voicegroup base.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Import a whole instrument set (voicegroup) from <paramref name="indexName"/>
+        /// (its index + side files read through the supplied delegates) and repoint the
+        /// loaded base's song reference(s) to the imported voicegroup. ALL ROM writes
+        /// (the recursive append of the imported set + the repoint) run under the
+        /// ambient undo scope opened by the caller (the View's UndoService); on ANY
+        /// failure the Core restores the ROM byte-identical and this returns false with
+        /// no further mutation. On success <paramref name="newBase"/> is the imported
+        /// voicegroup base OFFSET and BaseAddr / song-context re-anchor onto it.
+        /// </summary>
+        /// <param name="indexName">The relative index filename (as the delegates read it).</param>
+        /// <param name="readLines">Reads a relative index file to its lines, null when missing.</param>
+        /// <param name="readFile">Reads a relative side file to its bytes, null when missing.</param>
+        /// <param name="newBase">The imported voicegroup base OFFSET on success.</param>
+        /// <param name="error">Failure reason on a false return.</param>
+        public bool ImportLoadedVoicegroup(
+            string indexName,
+            Func<string, string[]> readLines,
+            Func<string, byte[]> readFile,
+            out uint newBase,
+            out string error)
+        {
+            newBase = 0;
+            error = null;
+
+            ROM rom = CoreState.ROM;
+            if (rom?.RomInfo == null)
+            {
+                error = R._("ROM is not loaded.");
+                return false;
+            }
+
+            // The voicegroup base the editor is editing (offset form).
+            uint oldBase = U.toOffset(BaseAddr);
+            if (oldBase == 0 || !U.isSafetyOffset(oldBase, rom))
+            {
+                error = R._("No instrument set (voicegroup) is loaded to import into.");
+                return false;
+            }
+
+            // Route the Core appender through the real freespace allocator so the
+            // imported blobs land in free space (NOT the naive ROM-end appender),
+            // under the SAME ambient undo scope the View opened.
+            Func<byte[], uint> appender = buf => AppendBinaryDataHeadless(rom, buf);
+
+            uint importedBase = SongInstrumentSetCore.ImportAll(
+                rom, indexName, readLines, readFile, appender, out error);
+            if (importedBase == U.NOT_FOUND)
+            {
+                // error already set; Core has restored the ROM byte-identical.
+                return false;
+            }
+
+            // Repoint EVERY song-header reference to the OLD base onto the imported
+            // base. A voicegroup is a *shared* instrument set referenced per-song via
+            // songHeader+4; the all-reference repoint (raw pointers + LDR literals)
+            // mirrors the Expand path so a shared voicegroup is never left with one
+            // song pointing at the old set. When the loaded base has NO song
+            // reference (a user-typed arbitrary address), RepointAllReferences finds
+            // 0 slots — that is NOT a fault here (unlike Expand, which orphans): the
+            // imported set still lives at importedBase, so we re-anchor onto it and
+            // let the caller report the new base.
+            var undo = ROM.GetAmbientUndoData();
+            DataExpansionCore.RepointAllReferences(rom, oldBase, importedBase, undo);
+
+            newBase = importedBase;
+            BaseAddr = importedBase;
+            SetSongContext(IsSongReferencedVoicegroup(rom, importedBase), importedBase);
+            return true;
         }
 
         public Dictionary<string, string> GetDataReport()
