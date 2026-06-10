@@ -24379,3 +24379,6 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Color reduction failed. See the log for details.
 减色失败。详情请查看日志。
+
+:Reducing colors...
+正在减色...

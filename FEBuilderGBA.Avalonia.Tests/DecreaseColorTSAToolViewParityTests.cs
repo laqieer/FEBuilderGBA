@@ -70,6 +70,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [InlineData("Color reduction complete:")]
         [InlineData("Please select a valid input and output file.")]
         [InlineData("Color reduction failed. See the log for details.")]
+        [InlineData("Reducing colors...")]
         public void CodeOnlyLiteral_HasJaAndZhTranslation(string literal)
         {
             string repo = RepoRoot();

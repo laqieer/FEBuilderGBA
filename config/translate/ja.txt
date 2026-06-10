@@ -10541,3 +10541,6 @@ A: TSAを利用しないBG224色(会話用)
 
 :Color reduction failed. See the log for details.
 減色に失敗しました。詳細はログを確認してください。
+
+:Reducing colors...
+減色中...

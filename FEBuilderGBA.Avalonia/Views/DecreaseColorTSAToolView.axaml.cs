@@ -93,7 +93,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
 
                 if (files.Count > 0)
-                    _vm.InputPath = files[0].Path.LocalPath;
+                {
+                    string? path = files[0].TryGetLocalPath();
+                    if (!string.IsNullOrEmpty(path))
+                        _vm.InputPath = path;
+                    else
+                        _vm.StatusMessage = R._("Please select a valid input and output file.");
+                }
             }
             catch (Exception ex)
             {
@@ -123,7 +129,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 });
 
                 if (file != null)
-                    _vm.OutputPath = file.Path.LocalPath;
+                {
+                    string? path = file.TryGetLocalPath();
+                    if (!string.IsNullOrEmpty(path))
+                        _vm.OutputPath = path;
+                    else
+                        _vm.StatusMessage = R._("Please select a valid input and output file.");
+                }
             }
             catch (Exception ex)
             {
@@ -132,16 +144,27 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void Reduce_Click(object? sender, RoutedEventArgs e)
+        async void Reduce_Click(object? sender, RoutedEventArgs e)
         {
+            // The reduce loads/scales/quantizes/saves an image, which can take a
+            // while for the larger presets (e.g. the 1024×688 FE7 world map), so
+            // run the Core work on a background thread to keep the UI responsive
+            // and update the bindable status on the UI thread.
+            ReduceButton.IsEnabled = false;
+            _vm.StatusMessage = R._("Reducing colors...");
             try
             {
-                _vm.Reduce();
+                int code = await Task.Run(() => _vm.RunReduce());
+                _vm.SetReduceStatus(code);
             }
             catch (Exception ex)
             {
                 Log.Error("DecreaseColorTSAToolView.Reduce failed: {0}", ex.Message);
                 _vm.StatusMessage = ex.Message;
+            }
+            finally
+            {
+                ReduceButton.IsEnabled = true;
             }
         }
 

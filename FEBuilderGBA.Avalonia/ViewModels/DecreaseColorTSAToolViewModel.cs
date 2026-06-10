@@ -107,22 +107,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Run the file→file color reduction via the Core engine and update
-        /// <see cref="StatusMessage"/>. Returns the Core error code
-        /// (0 = ok, -2 = bad input/output path, -1 = image/IO error).
+        /// Run the file→file color reduction via the Core engine (PURE — does not
+        /// touch any bindable property, so it is safe to call from a background
+        /// thread). Returns the Core error code (0 = ok, -2 = bad input/output
+        /// path, -1 = image/IO error). Callers should pass the code to
+        /// <see cref="SetReduceStatus"/> on the UI thread.
         /// </summary>
-        public int Reduce()
+        public int RunReduce()
         {
-            int code = DecreaseColorConvertCore.ReduceColorFile(
+            return DecreaseColorConvertCore.ReduceColorFile(
                 InputPath, OutputPath, Width, Height, Yohaku, PaletteNo,
                 Scalable, Reserve1st, IgnoreTSA);
+        }
 
+        /// <summary>Map a Core error code to a localized <see cref="StatusMessage"/>.</summary>
+        public void SetReduceStatus(int code)
+        {
             StatusMessage = code switch
             {
                 0 => R._("Color reduction complete:") + " " + OutputPath,
                 -2 => R._("Please select a valid input and output file."),
                 _ => R._("Color reduction failed. See the log for details."),
             };
+        }
+
+        /// <summary>
+        /// Synchronous convenience used by tests: run the reduce AND set the
+        /// status. Returns the Core error code.
+        /// </summary>
+        public int Reduce()
+        {
+            int code = RunReduce();
+            SetReduceStatus(code);
             return code;
         }
     }
