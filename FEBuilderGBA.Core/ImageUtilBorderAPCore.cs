@@ -18,7 +18,7 @@
 //       dialogs / IImage. This is ImportOAM/MakeBorderAP + BattleOAMToAPOAM +
 //       the AP-data builder ported to operate over byte[] only.
 //   (b) input errors as RETURNS — null/empty name sheet, wrong dims, the
-//       "images.Count >= 2 (too large for the 256x160 sheet)" overflow, and the
+//       "images.Count >= 2 (too large for the 256x40 seat)" overflow, and the
 //       origin clamp surface via the BorderAssembleResult.Error string, NOT WF
 //       dialogs.
 //   (c) ROM writes live in ImageWorldMapCore.ImportBorder (separate seam): it
