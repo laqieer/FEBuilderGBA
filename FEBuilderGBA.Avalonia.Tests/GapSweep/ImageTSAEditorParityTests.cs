@@ -522,43 +522,35 @@ public class ImageTSAEditorParityTests
     }
 
     /// <summary>
-    /// The KnownGap comment block must enumerate every deferred WF-only
-    /// surface with a non-empty `reason=`. Mirrors the acceptance-criterion
-    /// audit trail required by Copilot CLI.
-    ///
-    /// After #1005 the non-header TSAByteWrite is RESOLVED (the TSA Cell tab +
-    /// Write button now write non-header TSA). The sole remaining KnownGap is
-    /// HeaderTSACellWrite — header-TSA per-cell editing is deferred to a
-    /// follow-up. (PaletteToClipboard / MainImageExport wired #974;
-    /// BattleCanvasRender #808, ChipsetListRender #819, MainImageImport #901.)
+    /// After #1071 the editor has NO remaining per-feature KnownGap markers:
+    /// header-TSA per-cell editing is RESOLVED (the TSA Cell tab now decodes,
+    /// renders, and writes header-TSA via the shared 32-wide stride). The only
+    /// KnownGap line left is the explicit "NONE" sentinel. The previously
+    /// resolved surfaces (PaletteToClipboard / MainImageExport #974, the
+    /// non-header TSAByteWrite #1005, HeaderTSACellWrite #1071) must NOT have
+    /// lingering per-feature KnownGap markers.
     /// </summary>
     [Fact]
-    public void View_KnownGapBlock_HasNonEmptyReasons()
+    public void View_KnownGapBlock_HasNoRemainingPerFeatureGaps()
     {
         string axaml = ReadAxaml();
+        // No per-feature `KnownGap: <feature> reason=` markers remain — every
+        // deferred surface is resolved.
         var rx = new Regex(@"KnownGap:\s*(\S+(?:\s+\S+)*?)\s+reason=(.+?)\s*-->",
             RegexOptions.Compiled);
         var matches = rx.Matches(axaml);
-        Assert.True(matches.Count >= 1,
-            $"AXAML must contain the sole remaining KnownGap marker " +
-            $"(HeaderTSACellWrite); found {matches.Count}.");
-        // The remaining KnownGap cluster for this editor is exactly HeaderTSACellWrite.
-        bool hasHeaderTsaCellWrite = false;
-        foreach (Match m in matches)
-        {
-            Assert.False(string.IsNullOrWhiteSpace(m.Groups[1].Value),
-                $"KnownGap entry must name a feature: '{m.Value}'");
-            Assert.False(string.IsNullOrWhiteSpace(m.Groups[2].Value),
-                $"KnownGap entry must have a reason: '{m.Value}'");
-            if (m.Groups[1].Value.Contains("HeaderTSACellWrite")) hasHeaderTsaCellWrite = true;
-        }
-        Assert.True(hasHeaderTsaCellWrite, "The HeaderTSACellWrite KnownGap marker must remain.");
+        Assert.Empty(matches);
+
+        // The explicit "NONE" sentinel documents that header-TSA editing is
+        // resolved (#1071).
+        Assert.Contains("KnownGap: NONE", axaml);
+
         // The now-resolved surfaces must NOT have lingering KnownGap markers.
         Assert.DoesNotContain("KnownGap: PaletteToClipboard", axaml);
         Assert.DoesNotContain("KnownGap: MainImageExport", axaml);
-        // #1005: the non-header TSAByteWrite KnownGap is GONE (the Write button
-        // now writes non-header TSA + palette under one undo scope).
         Assert.DoesNotContain("KnownGap: TSAByteWrite", axaml);
+        // #1071: the HeaderTSACellWrite KnownGap is GONE.
+        Assert.DoesNotContain("KnownGap: HeaderTSACellWrite", axaml);
     }
 
     // -----------------------------------------------------------------
@@ -1237,8 +1229,9 @@ public class ImageTSAEditorParityTests
     }
 
     /// <summary>
-    /// The TSA Cell panel must gate IsEnabled on CanEditCells so it stays
-    /// disabled for header-TSA (whose bottom-to-top stride is deferred).
+    /// The TSA Cell panel must gate IsEnabled on CanEditCells so it enables
+    /// only when a valid cell grid decoded (non-header #1005 OR a valid header
+    /// decode #1071) and stays disabled for a corrupt/unreadable TSA.
     /// </summary>
     [Fact]
     public void View_TsaCellPanel_GatedOnCanEditCells()
@@ -1249,15 +1242,17 @@ public class ImageTSAEditorParityTests
     }
 
     /// <summary>
-    /// The header-TSA-only note must be present near the cell panel and
-    /// must use the exact plan wording (a translation key in ja/zh).
+    /// #1071: the "header-TSA editing tracked separately" note must be REMOVED —
+    /// header-TSA per-cell editing is now resolved, so the note no longer
+    /// applies. Its presence would be a stale-deferral marker.
     /// </summary>
     [Fact]
-    public void View_TsaCellPanel_HasHeaderTsaNote()
+    public void View_TsaCellPanel_NoLongerHasHeaderTsaDeferralNote()
     {
         string axaml = ReadAxaml();
-        Assert.Contains(
+        Assert.DoesNotContain(
             "Per-cell editing supports non-header TSA only", axaml);
+        Assert.DoesNotContain("header-TSA editing tracked separately", axaml);
     }
 
     /// <summary>
@@ -1322,7 +1317,7 @@ public class ImageTSAEditorParityTests
     // -----------------------------------------------------------------
 
     [Fact]
-    public void ViewModel_HeaderTsa_HasNoCells_CanEditCellsFalse()
+    public void ViewModel_HeaderTsa_CorruptPointer_CanEditCellsFalse()
     {
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
@@ -1330,7 +1325,9 @@ public class ImageTSAEditorParityTests
         {
             CoreState.ROM = rom;
             var vm = new ImageTSAEditorViewModel();
-            // Header-TSA: per-cell editing is out of scope (#1005).
+            // Header-TSA with tsaPointer=0 -> p32(0) resolves to an unreadable
+            // address, DecodeHeaderTsaCells returns null -> no editable cells
+            // (a corrupt header stays non-editable, #1071).
             vm.Init(32u, 20u, 0u, isHeaderTSA: true, isLZ77TSA: false,
                     tsaPointer: 0u, palettePointer: U.NOT_FOUND,
                     paletteAddress: 0u, paletteCount: 1);
@@ -1339,6 +1336,111 @@ public class ImageTSAEditorParityTests
             Assert.False(vm.CanEditCells);
         }
         finally { CoreState.ROM = prevRom; }
+    }
+
+    // -----------------------------------------------------------------
+    // #1071: ViewModel header-TSA per-cell editing — a valid header decode
+    // ENABLES the cell panel (only x<=mhx, y<=mhy), corrupt header stays off.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_HeaderTsa_ValidHeader_EnablesCellsAndConstrainsRegion()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Plant a 2-tile LZ77 image + a RAW header-TSA (mhx=3, mhy=2) + slots.
+            uint imgSlot = 0x100000u, tsaSlot = 0x100010u;
+            uint imgData = 0x200000u, tsaData = 0x210000u;
+            byte[] tiles = new byte[2 * 32];
+            byte[] comp = LZ77.compress(tiles);
+            Array.Copy(comp, 0, rom.Data, (int)imgData, comp.Length);
+            rom.write_p32(imgSlot, imgData);
+
+            int mhx = 3, mhy = 2;
+            byte[] tsa = BuildHeaderTsa(mhx, mhy);
+            Array.Copy(tsa, 0, rom.Data, (int)tsaData, tsa.Length);
+            rom.write_p32(tsaSlot, tsaData);
+
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, imgSlot, isHeaderTSA: true, isLZ77TSA: false,
+                    tsaPointer: tsaSlot, palettePointer: U.NOT_FOUND,
+                    paletteAddress: 0u, paletteCount: 1);
+
+            // A valid header decode ENABLES the cell panel.
+            Assert.True(vm.HasCells);
+            Assert.True(vm.CanEditCells);
+            Assert.True(vm.IsHeaderCells);
+
+            // The editable region is the header region: x in [0,mhx], y in [0,mhy].
+            Assert.Equal(mhx, vm.HeaderMaxX);
+            Assert.Equal(mhy, vm.HeaderMaxY);
+            Assert.True(vm.IsCellEditable(0, 0));
+            Assert.True(vm.IsCellEditable(mhx, mhy)); // corner inside the region
+            // Cells OUTSIDE the header region are NOT editable (display-only).
+            Assert.False(vm.IsCellEditable(mhx + 1, 0));
+            Assert.False(vm.IsCellEditable(0, mhy + 1));
+            Assert.False(vm.IsCellEditable(31, 19)); // far canvas corner
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void ViewModel_HeaderTsa_SetCell_OutsideHeaderRegion_NoOp()
+    {
+        ROM rom = MakeMinimalFe8uRom();
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            uint imgSlot = 0x100000u, tsaSlot = 0x100010u;
+            uint imgData = 0x200000u, tsaData = 0x210000u;
+            byte[] tiles = new byte[2 * 32];
+            byte[] comp = LZ77.compress(tiles);
+            Array.Copy(comp, 0, rom.Data, (int)imgData, comp.Length);
+            rom.write_p32(imgSlot, imgData);
+
+            int mhx = 3, mhy = 2;
+            byte[] tsa = BuildHeaderTsa(mhx, mhy);
+            Array.Copy(tsa, 0, rom.Data, (int)tsaData, tsa.Length);
+            rom.write_p32(tsaSlot, tsaData);
+
+            var vm = new ImageTSAEditorViewModel();
+            vm.Init(32u, 20u, imgSlot, isHeaderTSA: true, isLZ77TSA: false,
+                    tsaPointer: tsaSlot, palettePointer: U.NOT_FOUND,
+                    paletteAddress: 0u, paletteCount: 1);
+
+            // An in-region edit lands.
+            ushort before = vm.GetCell(1, 1);
+            vm.SetCell(1, 1, tileId: 1, hflip: true, vflip: false, bank: 5);
+            Assert.NotEqual(before, vm.GetCell(1, 1));
+
+            // An out-of-header edit is a no-op: GetCell at an out-of-region cell
+            // stays 0 and SetCell cannot change it.
+            vm.SetCell(mhx + 5, 0, tileId: 1, hflip: true, vflip: true, bank: 7);
+            Assert.Equal(0, vm.GetCell(mhx + 5, 0));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // Build an ASYMMETRIC header-TSA stream for the VM tests.
+    static byte[] BuildHeaderTsa(int mhx, int mhy)
+    {
+        int cells = (mhx + 1) * (mhy + 1);
+        byte[] tsa = new byte[2 + cells * 2];
+        tsa[0] = (byte)mhx;
+        tsa[1] = (byte)mhy;
+        for (int k = 0; k < cells; k++)
+        {
+            ushort v = (ushort)(0x100 + k * 7 + 1);
+            tsa[2 + k * 2] = (byte)(v & 0xFF);
+            tsa[2 + k * 2 + 1] = (byte)(v >> 8);
+        }
+        return tsa;
     }
 
     [Fact]
@@ -1389,7 +1491,7 @@ public class ImageTSAEditorParityTests
     }
 
     [Fact]
-    public void ViewModel_WriteTsa_HeaderTsa_ReturnsErrorNotEmpty()
+    public void ViewModel_WriteTsa_CorruptHeaderTsa_ReturnsErrorNotEmpty()
     {
         ROM rom = MakeMinimalFe8uRom();
         var prevRom = CoreState.ROM;
@@ -1397,10 +1499,11 @@ public class ImageTSAEditorParityTests
         {
             CoreState.ROM = rom;
             var vm = new ImageTSAEditorViewModel();
+            // Header-TSA with tsaPointer=0 -> corrupt -> no editable cells ->
+            // WriteTsa refuses with a non-empty error (CanEditCells false).
             vm.Init(32u, 20u, 0u, isHeaderTSA: true, isLZ77TSA: false,
                     tsaPointer: 0u, palettePointer: U.NOT_FOUND,
                     paletteAddress: 0u, paletteCount: 1);
-            // No editable cells -> WriteTsa refuses with a non-empty error.
             Assert.False(string.IsNullOrEmpty(vm.WriteTsa()));
         }
         finally { CoreState.ROM = prevRom; }

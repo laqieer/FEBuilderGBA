@@ -14,7 +14,9 @@
 // buttons are fully wired (#901/#974) and gated on IsContextLoaded; the Clipboard
 // button is wired and always enabled (read-only — copies the grid to the system
 // clipboard, no ROM context needed). None are IsEnabled=False stubs. Header-TSA
-// per-cell editing is deferred to #1071.
+// per-cell editing is RESOLVED (#1071): the cell panel enables for a valid header
+// decode, the Cell X/Y maxima are constrained to the header region, and Write
+// branches to _vm.WriteTsa -> ImageTSAEditorCore.WriteHeaderTsaCells.
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Input.Platform;
@@ -136,9 +138,18 @@ namespace FEBuilderGBA.Avalonia.Views
 
         /// <summary>
         /// Set the TSA Cell editor's X/Y/Tile ID NumericUpDown ranges from the
-        /// decoded cell grid and seed the fields from cell (0,0) (#1005). No-op
-        /// of the seed when there are no editable cells (header-TSA / corrupt
-        /// TSA), in which case the panel is already disabled via CanEditCells.
+        /// decoded cell grid and seed the fields from cell (0,0) (#1005/#1071).
+        /// No-op of the seed when there are no editable cells (corrupt TSA / a
+        /// corrupt header), in which case the panel is already disabled via
+        /// CanEditCells.
+        ///
+        /// For HEADER-TSA the X/Y maxima are constrained to the header region
+        /// (<see cref="ImageTSAEditorViewModel.HeaderMaxX"/> /
+        /// <see cref="ImageTSAEditorViewModel.HeaderMaxY"/>) so cells OUTSIDE the
+        /// header region of the min-clamped canvas are non-selectable — they
+        /// are visibly unreachable, not silently-ignored edits (#1071). For
+        /// non-header TSA HeaderMaxX/Y are CellCols-1 / CellRows-1, so the whole
+        /// row-major grid stays editable exactly as in #1005.
         /// </summary>
         void ConfigureTsaCellEditor()
         {
@@ -148,11 +159,11 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 TsaCellXBox.Minimum = 0;
-                TsaCellXBox.Maximum = Math.Max(0, _vm.CellCols - 1);
+                TsaCellXBox.Maximum = Math.Max(0, _vm.HeaderMaxX);
                 TsaCellXBox.Value = 0;
 
                 TsaCellYBox.Minimum = 0;
-                TsaCellYBox.Maximum = Math.Max(0, _vm.CellRows - 1);
+                TsaCellYBox.Maximum = Math.Max(0, _vm.HeaderMaxY);
                 TsaCellYBox.Value = 0;
 
                 TsaCellTileIdBox.Minimum = 0;
@@ -196,10 +207,15 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// "Apply to Cell" button (#1005). Bit-packs the editor fields into the
-        /// selected cell via <see cref="ImageTSAEditorViewModel.SetCell"/> then
-        /// re-renders the BattlePreview so the canvas reflects the in-memory
+        /// "Apply to Cell" button (#1005/#1071). Bit-packs the editor fields into
+        /// the selected cell via <see cref="ImageTSAEditorViewModel.SetCell"/>
+        /// then re-renders the BattlePreview so the canvas reflects the in-memory
         /// edit immediately (the ROM is written only on the Write button).
+        ///
+        /// For HEADER-TSA an explicit
+        /// <see cref="ImageTSAEditorViewModel.IsCellEditable"/> guard rejects an
+        /// out-of-header cell (defense in depth — the X/Y maxima already prevent
+        /// selecting one), so an out-of-header cell can never be edited (#1071).
         /// </summary>
         void TsaCellApply_Click(object? sender, RoutedEventArgs e)
         {
@@ -207,6 +223,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
             int x = (int)(TsaCellXBox.Value ?? 0m);
             int y = (int)(TsaCellYBox.Value ?? 0m);
+            // Out-of-header cells are display-only; SetCell already no-ops them,
+            // but bail early so the preview is not needlessly re-rendered.
+            if (!_vm.IsCellEditable(x, y)) return;
+
             int tileId = (int)(TsaCellTileIdBox.Value ?? 0m);
             bool hflip = TsaCellHFlipCheck.IsChecked == true;
             bool vflip = TsaCellVFlipCheck.IsChecked == true;
@@ -401,11 +421,13 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Main Write button (top toolbar). In WinForms this writes TSA +
         /// palette in one shot via ImageFormRef.WriteImageData. We now write
-        /// BOTH under ONE undo scope (#1005): the edited NON-header TSA cells
-        /// (when CanEditCells) followed by the active palette. A failed TSA
-        /// write rolls the whole transaction back so neither half persists.
-        /// Header-TSA leaves CanEditCells false, so only the palette is written
-        /// (the prior behavior). Disabled until Init().
+        /// BOTH under ONE undo scope (#1005/#1071): the edited TSA cells (when
+        /// CanEditCells — non-header row-major #1005 OR header 32-wide stride
+        /// #1071, routed inside _vm.WriteTsa) followed by the active palette. A
+        /// failed TSA write rolls the whole transaction back so neither half
+        /// persists. When no editable cell grid decoded (e.g. a corrupt header),
+        /// CanEditCells is false and only the palette is written. Disabled until
+        /// Init().
         /// </summary>
         void Write_Click(object? sender, RoutedEventArgs e)
         {
@@ -414,8 +436,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _undoService.Begin("Write TSA");
             try
             {
-                // 1. TSA cells (non-header only). On a non-empty error string,
-                //    roll back the whole scope before the palette half runs.
+                // 1. TSA cells (non-header #1005 OR header #1071 — _vm.WriteTsa
+                //    routes by IsHeaderCells). On a non-empty error string, roll
+                //    back the whole scope before the palette half runs.
                 if (_vm.CanEditCells)
                 {
                     string err = _vm.WriteTsa();

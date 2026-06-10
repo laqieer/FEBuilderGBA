@@ -451,9 +451,11 @@ namespace FEBuilderGBA
         // vFlip = entry & 0x800; palIndex = (entry >> 12) & 0xF), stored
         // little-endian.
         //
-        // Header-TSA editing is OUT OF SCOPE (bottom-to-top 32-wide stride +
-        // margin complexity, tracked separately): these methods refuse / are
-        // never called for isHeaderTSA.
+        // Header-TSA per-cell editing now lives in the #1071 block lower in this
+        // file (DecodeHeaderTsaCells / RenderHeaderMainImageFromCells /
+        // WriteHeaderTsaCells) — the NON-header methods here refuse / are never
+        // called for isHeaderTSA, and the header path uses the shared 32-wide
+        // bottom-to-top stride in ImageUtilCore.DecodeHeaderTSAToCells.
         // =================================================================
 
         const int TSA_CELL_BYTES = 2; // one GBA screen entry = u16
@@ -675,6 +677,248 @@ namespace FEBuilderGBA
                     RestoreSnapshot(rom, snap);
                     return R._("TSA raw write size mismatch.");
                 }
+                if (!U.isSafetyOffset(tsaDataAddr, rom)
+                    || (ulong)tsaDataAddr + (ulong)bytes.Length > (ulong)rom.Data.Length)
+                {
+                    RestoreSnapshot(rom, snap);
+                    return R._("TSA data range is outside ROM bounds.");
+                }
+                rom.write_range(tsaDataAddr, bytes);
+                return "";
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                return R._("TSA write failed: {0}", ex.Message);
+            }
+        }
+
+        // =================================================================
+        // Per-cell HEADER-TSA editing (#1071) — follow-up to the non-header
+        // #1005 path above.
+        //
+        // A header-TSA carries a 2-byte {masterHeaderX, masterHeaderY} header,
+        // then u16 cells filled bottom-to-top in a 32-WIDE stride (not the
+        // clean row-major non-header grid). The decode/serialize geometry lives
+        // in ImageUtilCore.DecodeHeaderTSAToCells / SerializeHeaderTSA (ONE
+        // shared stride), so this Core seam only owns the ROM read/write +
+        // byte-identical fault restore. The editor only exposes cells inside
+        // the header region (x <= mhx && y <= mhy); the min-clamped canvas
+        // outside that region is display-only.
+        // =================================================================
+
+        /// <summary>
+        /// READ-ONLY: decode the current HEADER-TSA into the 32-wide
+        /// bottom-to-top-stride <c>tile[]</c> array (sized to the
+        /// <paramref name="width8"/>*<paramref name="height8"/> canvas) plus the
+        /// decoded header dimensions. Mirrors the header branch of
+        /// <see cref="TryRenderMainImage"/>:
+        ///
+        ///   * LZ77 path: guard the full 4-byte header before getCompressedSize,
+        ///     then decompress.
+        ///   * RAW path: slice a bounded window (<see cref="HEADER_TSA_MAX_BYTES"/>)
+        ///     from <paramref name="tsaAddr"/> (DecodeHeaderTSAToCells caps reads
+        ///     at the header geometry, so the window only needs to cover the
+        ///     largest valid 32x32 header).
+        ///
+        /// Returns <c>null</c> (never throws) on any null/out-of-bounds/corrupt
+        /// input OR when the header is NOT a genuine in-range decode
+        /// (<see cref="ImageUtilCore.HeaderTSACells.IsValidHeader"/> false) — so
+        /// the ViewModel only enables per-cell editing for a valid header, never
+        /// from the linear/blank fallback cells. <paramref name="masterHeaderX"/>
+        /// / <paramref name="masterHeaderY"/> are set to the decoded header dims
+        /// on success, 0 otherwise.
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="width8">Canvas width in 8-pixel tiles.</param>
+        /// <param name="height8">Canvas height in 8-pixel tiles.</param>
+        /// <param name="isLZ77TSA">True if the TSA stream is LZ77-compressed.</param>
+        /// <param name="tsaAddr">Resolved ROM offset of the TSA stream.</param>
+        /// <param name="masterHeaderX">Out: decoded header X (0 when null).</param>
+        /// <param name="masterHeaderY">Out: decoded header Y (0 when null).</param>
+        public static ushort[] DecodeHeaderTsaCells(ROM rom, uint width8, uint height8,
+            bool isLZ77TSA, uint tsaAddr, out int masterHeaderX, out int masterHeaderY)
+        {
+            masterHeaderX = 0;
+            masterHeaderY = 0;
+
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (width8 == 0 || height8 == 0) return null;
+            if (!U.isSafetyOffset(tsaAddr, rom)) return null;
+
+            byte[] tsaData;
+            if (isLZ77TSA)
+            {
+                if (!IsLZ77HeaderSafe(rom, tsaAddr)) return null;
+                uint tsaCompressed = LZ77.getCompressedSize(rom.Data, tsaAddr);
+                if (tsaCompressed == 0) return null;
+                if ((ulong)tsaAddr + tsaCompressed > (ulong)rom.Data.Length) return null;
+                tsaData = LZ77.decompress(rom.Data, tsaAddr);
+                if (tsaData == null || tsaData.Length == 0) return null;
+            }
+            else
+            {
+                // RAW: bounded window from tsaAddr (DecodeHeaderTSAToCells caps
+                // reads at the header geometry).
+                long tail = (long)rom.Data.Length - tsaAddr;
+                if (tail <= 0) return null;
+                int sliceLen = (int)Math.Min((long)HEADER_TSA_MAX_BYTES, tail);
+                tsaData = new byte[sliceLen];
+                Array.Copy(rom.Data, tsaAddr, tsaData, 0, sliceLen);
+            }
+
+            ImageUtilCore.HeaderTSACells decoded = ImageUtilCore.DecodeHeaderTSAToCells(
+                tsaData, (int)width8, (int)height8, 0);
+            if (!decoded.IsValidHeader || decoded.Tile == null) return null;
+
+            int expected = 2 + (decoded.MasterHeaderX + 1) * (decoded.MasterHeaderY + 1) * 2;
+
+            // Truncation guard (#1071, Copilot re-review): DecodeHeaderTSAToCells
+            // returns a valid tile array even after a PARTIAL read (its inner loop
+            // hits `goto done` when the stream runs out). A write would then
+            // serialize the FULL `expected` footprint — overwriting beyond the
+            // original raw payload (raw in-place path) or silently "repairing" a
+            // corrupt/truncated stream. Refuse to expose editable cells unless the
+            // source stream actually CONTAINED the whole header footprint, so a
+            // truncated/corrupt header-TSA stays non-editable.
+            if (tsaData.Length < expected) return null;
+
+            // Editability check (#1071, Copilot review): a header is only safely
+            // editable when its full stride round-trips on the canvas-sized tile
+            // array. An in-range-but-edge header (e.g. mhx == 32 on a 32-wide
+            // canvas) makes SerializeHeaderTSA degenerate / overflow the stride,
+            // so the in-memory preview render would return null and
+            // WriteHeaderTsaCells would refuse. Probe the serializer up front and
+            // refuse to expose editable cells when it cannot reproduce the header
+            // byte footprint — the ViewModel then keeps the cell panel disabled
+            // rather than enabling an un-writable header.
+            byte[] probe = ImageUtilCore.SerializeHeaderTSA(
+                decoded.Tile, decoded.MasterHeaderX, decoded.MasterHeaderY, 0);
+            if (probe == null || probe.Length != expected) return null;
+
+            masterHeaderX = decoded.MasterHeaderX;
+            masterHeaderY = decoded.MasterHeaderY;
+            return decoded.Tile;
+        }
+
+        /// <summary>
+        /// READ-ONLY: render the HEADER-TSA main image from an in-memory 32-wide
+        /// bottom-to-top-stride <paramref name="editedTile"/> array. Serializes
+        /// the tile array back to a header-TSA byte stream
+        /// (<see cref="ImageUtilCore.SerializeHeaderTSA"/>) then feeds
+        /// <see cref="ImageUtilCore.DecodeHeaderTSA"/> — the SAME render path the
+        /// read-only ROM branch uses — so the preview reflects unsaved edits.
+        /// Returns <c>null</c> (never throws) on any null/out-of-bounds/corrupt
+        /// input or a degenerate serialize.
+        /// </summary>
+        public static IImage RenderHeaderMainImageFromCells(ROM rom, uint width8, uint height8,
+            uint imageAddr, ushort[] editedTile, int masterHeaderX, int masterHeaderY,
+            uint paletteAddr)
+        {
+            if (rom == null || rom.RomInfo == null || rom.Data == null) return null;
+            if (CoreState.ImageService == null) return null;
+            if (width8 == 0 || height8 == 0) return null;
+            if (editedTile == null) return null;
+
+            if (!TryLoadTSATileAndPalette(rom, imageAddr, paletteAddr,
+                                          out byte[] tileData, out byte[] palette,
+                                          isCompressedPalette: false))
+            {
+                return null;
+            }
+
+            byte[] tsaBytes = ImageUtilCore.SerializeHeaderTSA(
+                editedTile, masterHeaderX, masterHeaderY, 0);
+            // A degenerate serialize (length 2) cannot render a valid header.
+            int expected = 2 + (masterHeaderX + 1) * (masterHeaderY + 1) * 2;
+            if (tsaBytes == null || tsaBytes.Length != expected) return null;
+
+            return ImageUtilCore.DecodeHeaderTSA(
+                tileData, tsaBytes, palette, (int)width8, (int)height8, true, 0, 0);
+        }
+
+        /// <summary>
+        /// ROM-MUTATING, HEADER-TSA ONLY: serialize the 32-wide
+        /// bottom-to-top-stride <paramref name="editedTile"/> array
+        /// (<see cref="ImageUtilCore.SerializeHeaderTSA"/>, preserving the
+        /// original <paramref name="masterHeaderX"/>/<paramref name="masterHeaderY"/>)
+        /// and write it back to the TSA stream, preserving the read-path stream
+        /// format:
+        ///
+        ///   * <paramref name="isLZ77TSA"/> true  → LZ77-compress + append to
+        ///     free space + repoint the POINTER SLOT
+        ///     (<paramref name="tsaPointerSlot"/>) via
+        ///     <see cref="ImageImportCore.WriteCompressedToROM"/>.
+        ///   * raw → the serialized length equals the EXISTING header byte length
+        ///     (same <c>{mhx, mhy}</c>), so a SAME-SIZE in-place
+        ///     <c>rom.write_range</c> at <paramref name="tsaDataAddr"/> after
+        ///     bounds checks (no growth). No repoint on the raw path.
+        ///
+        /// A degenerate serialize (the serializer's <c>byte[2]</c> guard output,
+        /// or any length != <c>2 + (mhx+1)*(mhy+1)*2</c>) is treated as an error:
+        /// it NEVER LZ77-compresses/repoints or raw-writes a degenerate payload
+        /// (Copilot review on #1071). Runs inside the caller's ambient undo scope;
+        /// a defensive byte-identical snapshot (#885/#923) is restored on ANY
+        /// fault — including a free-space resize-append. Never throws; returns ""
+        /// on success or a localized error.
+        /// </summary>
+        /// <param name="rom">Loaded ROM.</param>
+        /// <param name="editedTile">The 32-wide bottom-to-top-stride tile array.</param>
+        /// <param name="masterHeaderX">The ORIGINAL header X (preserved verbatim).</param>
+        /// <param name="masterHeaderY">The ORIGINAL header Y (preserved verbatim).</param>
+        /// <param name="isLZ77TSA">True if the TSA stream is LZ77-compressed.</param>
+        /// <param name="tsaPointerSlot">Pointer-table slot that holds the TSA
+        ///   data pointer (used by the LZ77 repoint path).</param>
+        /// <param name="tsaDataAddr">Resolved ROM offset of the TSA stream
+        ///   (used by the raw in-place path).</param>
+        public static string WriteHeaderTsaCells(ROM rom, ushort[] editedTile,
+            int masterHeaderX, int masterHeaderY, bool isLZ77TSA,
+            uint tsaPointerSlot, uint tsaDataAddr)
+        {
+            if (rom == null || rom.Data == null) return R._("ROM is not loaded.");
+            if (editedTile == null) return R._("No TSA cell data.");
+            if (masterHeaderX < 0 || masterHeaderY < 0
+                || masterHeaderX > 32 || masterHeaderY > 32)
+            {
+                return R._("Header-TSA dimensions {0}x{1} are invalid.",
+                    masterHeaderX, masterHeaderY);
+            }
+
+            // Serialize via the EXACT inverse of DecodeHeaderTSAToCells,
+            // preserving the original {mhx, mhy}.
+            byte[] bytes = ImageUtilCore.SerializeHeaderTSA(
+                editedTile, masterHeaderX, masterHeaderY, 0);
+
+            // Reject any degenerate serialize: the serializer returns byte[2] on
+            // a guard, so an output whose length != the expected header footprint
+            // must NOT be written.
+            int expected = 2 + (masterHeaderX + 1) * (masterHeaderY + 1) * 2;
+            if (bytes == null || bytes.Length != expected)
+            {
+                return R._("Header-TSA serialization produced a degenerate output; refusing to write.");
+            }
+
+            // Defensive snapshot: the ambient undo scope captures the writes for
+            // UNDO; this snapshot guarantees a FAILED write mutates ZERO bytes
+            // (length-aware restore handles a free-space resize-append).
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                if (isLZ77TSA)
+                {
+                    // LZ77: compress + append to free space + repoint the SLOT.
+                    uint writeAddr = ImageImportCore.WriteCompressedToROM(rom, bytes, tsaPointerSlot);
+                    if (writeAddr == U.NOT_FOUND)
+                    {
+                        RestoreSnapshot(rom, snap);
+                        return R._("Failed to write TSA data. Check ROM free space.");
+                    }
+                    return "";
+                }
+
+                // RAW: SAME-SIZE in-place overwrite at the resolved data addr. A
+                // header-TSA's serialized length is fixed by {mhx, mhy}, so it
+                // EQUALS the existing header byte footprint — no growth.
                 if (!U.isSafetyOffset(tsaDataAddr, rom)
                     || (ulong)tsaDataAddr + (ulong)bytes.Length > (ulong)rom.Data.Length)
                 {

@@ -32,8 +32,9 @@
 
   <!-- BattleCanvasRender RESOLVED (#808): the TSA-composited main image is now rendered cross-platform via ImageTSAEditorCore.TryRenderMainImage into BattlePreview, with a read-only Export PNG button. Note: export is intentionally NOT byte-identical to the WF canvas for TSA tile indices >= 0x100 because the Core decoder uses the full 10-bit index (& 0x3FF) like ImageUtil.ByteToImage16Tile, whereas the WF TSA canvas masks tile numbers to 8 bits (& 0xff). The 10-bit value is the on-ROM truth, so this is acceptable for a read-only export. -->
   <!-- ChipsetListRender RESOLVED (#819): the chip-list thumbnail (WF MakeCHIPLIST / PATHCHIPLIST_Paint) is now rendered cross-platform via ImageTSAEditorCore.RenderChipList into ChipListPreview — the main-image tiles in WF's 4-column (orig / Hflip / Vflip / HVflip) single-palette-bank-0 strip, read-only. Follow-up to #808/#810 (shared TSA tile/palette loader) and #807 (the 8-col/2-bank battle-screen sibling). -->
-  <!-- RESOLVED (#1005): TSAByteWrite (NON-header TSA) — the TSA Cell tab adds a per-cell X/Y editor (Tile ID + H/V flip + palette bank) and the Write button now writes BOTH the edited TSA and the palette under ONE undo scope. Raw TSA is overwritten in place (same-size); LZ77 TSA is recompressed, appended to free space, and the pointer slot repointed (ImageTSAEditorCore.WriteTsaCells). Header-TSA editing is DEFERRED to a follow-up (bottom-to-top 32-wide stride + margin complexity), so the cell-edit panel stays disabled (CanEditCells gate) when IsHeaderTSA. -->
-  <!-- KnownGap: HeaderTSACellWrite reason=header-TSA uses a {w,h}-header bottom-to-top 32-wide stride with a right-margin, unlike the clean row-major non-header grid this editor now writes; porting that decode/encode geometry is tracked as a #1005 follow-up. The cell-edit panel is disabled (CanEditCells) for header-TSA. -->
+  <!-- RESOLVED (#1005): TSAByteWrite (NON-header TSA) — the TSA Cell tab adds a per-cell X/Y editor (Tile ID + H/V flip + palette bank) and the Write button now writes BOTH the edited TSA and the palette under ONE undo scope. Raw TSA is overwritten in place (same-size); LZ77 TSA is recompressed, appended to free space, and the pointer slot repointed (ImageTSAEditorCore.WriteTsaCells). -->
+  <!-- RESOLVED (#1071): HeaderTSACellWrite — header-TSA per-cell editing now uses the shared 32-wide bottom-to-top stride (ImageUtilCore.DecodeHeaderTSAToCells / SerializeHeaderTSA, the EXACT inverse). The cell-edit panel is ENABLED for a valid header decode; the Cell X/Y maxima are constrained in code-behind to the header region (HeaderMaxX / HeaderMaxY) so outside-header canvas cells are non-selectable. Write branches to ImageTSAEditorCore.WriteHeaderTsaCells preserving the original {masterHeaderX, masterHeaderY} (raw same-size in-place / LZ77 compress+repoint, byte-identical fault restore). -->
+  <!-- KnownGap: NONE — header-TSA editing is RESOLVED (#1071). -->
   <!-- RESOLVED (#974): PaletteToClipboard — PaletteClipboard_Click now packs the 16 palette entries to GBA 5-5-5 big-endian hex (mirroring WF PaletteFormRef.PALETTE_TO_CLIPBOARD_BUTTON_Click) and copies to the system clipboard via the Avalonia IClipboard.SetTextAsync async API. See ImageTSAEditorViewModel.BuildPaletteClipboardHex + PaletteClipboard_Click. -->
   <!-- RESOLVED (#901): MainImageImport — image1_Import is now wired (tilesheet-only). The WF TSA editor builds its main-image ImageFormRef with tsa_pointer=0 and only the ZIMAGE control, so Import encodes a SAME-SIZE PNG to plain 4bpp tiles (ImageToByte16Tile via ImageImportCore.EncodeDirectTiles4bpp), LZ77-compresses, and repoints ONLY the ZImg pointer — TSA + palette are untouched. See TSAImageImportCore.ImportTSAImage + MainImageImport_Click. -->
   <!-- RESOLVED (#974): MainImageExport — MainImageExport_Click now renders the raw 4bpp tilesheet (LZ77-decompressed ZImg, 8-tile-wide strip) via ImageTSAEditorCore.RenderRawTilesheet and saves it to PNG via GbaImageControl.ExportPng. DISTINCT from the read-only TSA-composited Export PNG (#808, ImageTSAEditor_Battle_ExportPng_Button). See ImageTSAEditorViewModel.RenderRawTilesheet + MainImageExport_Click. -->
@@ -449,15 +450,14 @@
           </StackPanel>
         </TabItem>
 
-        <!-- TSA Cell tab (#1005): per-cell editor for NON-header TSA. The whole
-             panel is gated on CanEditCells (HasCells && !IsHeaderTSA) so it stays
-             disabled for header-TSA, whose bottom-to-top stride is deferred. -->
+        <!-- TSA Cell tab (#1005 non-header / #1071 header): per-cell editor for
+             BOTH non-header AND header TSA. The whole panel is gated on
+             CanEditCells (a valid cell grid decoded). For header-TSA the Cell
+             X / Cell Y maxima are constrained in code-behind to the header
+             region (HeaderMaxX / HeaderMaxY) so cells outside the header region
+             are non-selectable / non-editable (not silently ignored). -->
         <TabItem AutomationProperties.AutomationId="ImageTSAEditor_TsaCell_Tab" Header="TSA Cell">
           <StackPanel Margin="6" Spacing="6" IsEnabled="{Binding CanEditCells}">
-
-            <!-- Header-TSA note: per-cell editing is non-header only (#1005). -->
-            <TextBlock Text="Per-cell editing supports non-header TSA only — header-TSA editing tracked separately."
-                       TextWrapping="Wrap" Foreground="DarkOrange" />
 
             <!-- Cell X / Cell Y selectors -->
             <StackPanel Orientation="Horizontal" Spacing="6">
