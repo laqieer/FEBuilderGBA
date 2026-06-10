@@ -10544,3 +10544,11 @@ A: TSAを利用しないBG224色(会話用)
 
 :Reducing colors...
 減色中...
+:Export the whole instrument set (voicegroup) to a TSV index plus per-voice side files (recursive).
+楽器セット(ボイスグループ)全体を、TSVインデックスとボイスごとのサイドファイルに書き出します(再帰的)。
+:No instrument set (voicegroup) is loaded to export.
+書き出す楽器セット(ボイスグループ)が読み込まれていません。
+:Instrument set exported to {0}
+楽器セットを {0} に書き出しました。
+:Instrument set export failed: {0}
+楽器セットの書き出しに失敗しました: {0}

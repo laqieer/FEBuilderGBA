@@ -215,6 +215,57 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
+        /// Public ROM-aware overload of <see cref="GetDirectSoundWaveDataLength(byte[],uint)"/>:
+        /// the on-ROM sample body byte count for the sample at OFFSET
+        /// <paramref name="waveOffset"/>. Used by the instrument-set export
+        /// (<c>SongInstrumentSetCore</c>) to size the <c>.DirectSound.bin</c>
+        /// side file. Bounds-guarded; <c>0</c> on guard failure. Never throws.
+        /// </summary>
+        public static uint GetDirectSoundWaveDataLength(ROM rom, uint waveOffset)
+        {
+            if (rom == null) return 0;
+            return GetDirectSoundWaveDataLength(rom.Data, waveOffset);
+        }
+
+        /// <summary>
+        /// Port of WinForms <c>SongUtil.IsDirectSoundData(byte[],uint)</c>: is the
+        /// sample at OFFSET <paramref name="addr"/> a plausible (non-broken) GBA
+        /// DirectSound sample? Rejects a too-short body (<c>len &lt;= 4</c>), an
+        /// absurdly large one (<c>len &gt;= 4 MiB</c>), and any header/body that
+        /// runs past the ROM end. Mirrors the WF guard the instrument-set export
+        /// uses to SKIP a broken DirectSound row rather than emit a bogus side
+        /// file. Bounds-guarded; <c>false</c> on guard failure. Never throws.
+        /// </summary>
+        public static bool IsDirectSoundData(byte[] romData, uint addr)
+        {
+            if (romData == null) return false;
+            if ((long)addr + 12 + 4 > romData.Length) return false;
+
+            uint len = GetDirectSoundWaveDataLength(romData, addr);
+            if (len >= 1024 * 1024 * 4)
+            {//4MB使う音源とかマジですか? (4 MiB sample? no.)
+                return false;
+            }
+            if (len <= 4)
+            {//短すぎる (too short)
+                return false;
+            }
+            if ((long)addr + 12 + 4 + len > romData.Length)
+            {
+                return false;
+            }
+            //どうやら正しいデータのようだ. (looks like valid data)
+            return true;
+        }
+
+        /// <summary>ROM-aware overload of <see cref="IsDirectSoundData(byte[],uint)"/>.</summary>
+        public static bool IsDirectSoundData(ROM rom, uint addr)
+        {
+            if (rom == null) return false;
+            return IsDirectSoundData(rom.Data, addr);
+        }
+
+        /// <summary>
         /// Decode the GBA DirectSound sample referenced by the GBA pointer
         /// <paramref name="wavePtr"/> into RIFF/WAVE bytes. Picks
         /// <see cref="ByteToWavForDPCM"/> vs <see cref="ByteToWav"/> by the

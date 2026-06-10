@@ -374,6 +374,55 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
+    /// #1092 Copilot bot inline finding: the wave Export/Import gates
+    /// (`IsLoadedDirectSound` / `IsLoadedDirectSoundFixedFreq`) must stay
+    /// correct AFTER a type change + Write — `Write()` refreshes the pinned
+    /// `LoadedHeaderByte` to the just-persisted on-ROM byte. This proves:
+    ///   * a voice loaded as 0x10 then written as 0x08 -> N08 gate TRUE, N00 FALSE;
+    ///   * a voice loaded as 0x08 then written as 0x10 -> BOTH gates FALSE
+    ///     (0x10/0x18 stay out of scope even after a write).
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_RefreshesLoadedHeaderByte_ForWaveGates()
+    {
+        var rom = MakeMinimalRom(out uint addr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Seed the ROM entry as 0x10 (DirectSound Reverse) and load it.
+            rom.Data[addr + 0] = 0x10;
+            rom.Data[addr + 4] = 0x00; rom.Data[addr + 5] = 0x04;
+            rom.Data[addr + 6] = 0x20; rom.Data[addr + 7] = 0x08; // safe P4
+            var vm = new SongInstrumentViewModel();
+            vm.LoadEntry(addr);
+            Assert.Equal((byte)0x10, vm.LoadedHeaderByte);
+            Assert.False(vm.IsLoadedDirectSound);
+            Assert.False(vm.IsLoadedDirectSoundFixedFreq); // 0x10 is out of scope
+
+            // User changes the type to 0x08 and writes.
+            vm.HeaderByte = 0x08;
+            vm.Category = SongInstrumentViewModel.ClassifyType(0x08);
+            vm.Write();
+            // The gate now reflects the WRITTEN on-ROM byte (0x08): N08 enabled.
+            Assert.Equal((byte)0x08, vm.LoadedHeaderByte);
+            Assert.True(vm.IsLoadedDirectSoundFixedFreq);
+            Assert.False(vm.IsLoadedDirectSound);
+
+            // User changes the type to 0x10 (out of scope) and writes again.
+            vm.HeaderByte = 0x10;
+            vm.Category = SongInstrumentViewModel.ClassifyType(0x10);
+            vm.Write();
+            // BOTH wave gates are now FALSE — 0x10 stays disabled post-write.
+            Assert.Equal((byte)0x10, vm.LoadedHeaderByte);
+            Assert.False(vm.IsLoadedDirectSound);
+            Assert.False(vm.IsLoadedDirectSoundFixedFreq);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
     /// SquareWave family tabs (N01/N02/N09/N0A): WF exposes B0..B11 raw
     /// (including B4=squarepattern). All 12 bytes must round-trip.
     /// </summary>
@@ -769,21 +818,17 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1057 (N00 slice): the wave/instrument Export/Import buttons for the
-    /// OTHER wave categories (N08 trio, N10, N18, and the instrument-set
-    /// InstExport/InstImport) stay disabled — only N00 (DirectSound) is wired in
-    /// this slice (tightening #4). Each remaining button must keep
-    /// IsEnabled="False" and carry NO Click handler. (The N00 Export/Import
-    /// buttons are now ENABLED — see <see cref="View_N00_WaveButtons_Enabled_WithClick"/>.)
+    /// #1057 (PR1): the wave/instrument Export/Import buttons for the STILL-
+    /// DEFERRED categories — the REVERSE DirectSound tabs N10 (0x10) / N18 (0x18)
+    /// and the instrument-set InstImport — stay disabled. N00 (0x00) + N08 (0x08)
+    /// DirectSound and InstExport ARE wired now (see the positive tests). Each
+    /// remaining button must keep IsEnabled="False" and carry NO Click handler.
     /// </summary>
     [Theory]
-    [InlineData("SongInstrument_N08_Export_Button")]
-    [InlineData("SongInstrument_N08_Import_Button")]
     [InlineData("SongInstrument_N10_Export_Button")]
     [InlineData("SongInstrument_N10_Import_Button")]
     [InlineData("SongInstrument_N18_Export_Button")]
     [InlineData("SongInstrument_N18_Import_Button")]
-    [InlineData("SongInstrument_InstExport_Button")]
     [InlineData("SongInstrument_InstImport_Button")]
     public void View_WaveButtons_StayDisabled_NoClick(string automationId)
     {
@@ -800,14 +845,18 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1057 (N00 slice): the N00 DirectSound Export/Import buttons are now
-    /// ENABLED and carry their Click handlers (the wave I/O Core port —
-    /// SongDirectSoundWavCore — landed). They must NOT carry IsEnabled="False"
-    /// and MUST wire the export/import click handlers.
+    /// #1057 (PR1): the N00 + N08 DirectSound Export/Import buttons AND the
+    /// instrument-set InstExport button are now ENABLED and carry their Click
+    /// handlers (the wave I/O Core port SongDirectSoundWavCore + the recursive
+    /// export SongInstrumentSetCore landed). They must NOT carry IsEnabled="False"
+    /// and MUST wire the click handlers.
     /// </summary>
     [Theory]
     [InlineData("SongInstrument_N00_Export_Button", "N00_Export_Click")]
     [InlineData("SongInstrument_N00_Import_Button", "N00_Import_Click")]
+    [InlineData("SongInstrument_N08_Export_Button", "N08_Export_Click")]
+    [InlineData("SongInstrument_N08_Import_Button", "N08_Import_Click")]
+    [InlineData("SongInstrument_InstExport_Button", "InstExport_Click")]
     public void View_N00_WaveButtons_Enabled_WithClick(string automationId, string clickHandler)
     {
         string axaml = ReadAxaml();

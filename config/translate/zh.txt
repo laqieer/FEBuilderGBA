@@ -24382,3 +24382,11 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Reducing colors...
 正在减色...
+:Export the whole instrument set (voicegroup) to a TSV index plus per-voice side files (recursive).
+将整个乐器组(音色组)导出为 TSV 索引文件加每个音色的附属文件(递归)。
+:No instrument set (voicegroup) is loaded to export.
+没有已加载的乐器组(音色组)可供导出。
+:Instrument set exported to {0}
+乐器组已导出到 {0}
+:Instrument set export failed: {0}
+乐器组导出失败:{0}

@@ -54,6 +54,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         InstrumentCategory _category;
         string _typeName = "";
 
+        // The header byte as ACTUALLY LOADED from ROM at LoadEntry time (#1057
+        // Copilot plan review pt 1). Unlike HeaderByte/Category — which
+        // TypeCombo_SelectionChanged / UnionTab_SelectionChanged mutate in-memory
+        // when the user switches tabs before Write — this stays pinned to the
+        // on-ROM byte at CurrentAddr. The wave Export/Import gates use it so a
+        // loaded 0x10/0x18 entry switched to the N08 tab cannot be repointed as if
+        // it were a 0x08 voice.
+        byte _loadedHeaderByte;
+
         // Raw per-byte access — every byte the WF designer exposes is
         // user-editable (#387 plan review v2 concern #2). LoadEntry/Write
         // route through these raw fields so we never drop bytes the user
@@ -77,6 +86,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public byte HeaderByte { get => _headerByte; set => SetField(ref _headerByte, value); }
         public InstrumentCategory Category { get => _category; set => SetField(ref _category, value); }
         public string TypeName { get => _typeName; set => SetField(ref _typeName, value); }
+
+        /// <summary>
+        /// The header byte loaded from ROM at <see cref="LoadEntry"/> time (#1057).
+        /// The wave Export/Import handlers gate on this — NOT on the mutable
+        /// <see cref="HeaderByte"/>/<see cref="Category"/> — so an in-memory tab
+        /// switch cannot trick the gate into repointing the wrong original type.
+        /// Setting it also raises the dependent wave-IO gate flags.
+        /// </summary>
+        public byte LoadedHeaderByte
+        {
+            get => _loadedHeaderByte;
+            set
+            {
+                if (SetField(ref _loadedHeaderByte, value))
+                {
+                    OnPropertyChanged(nameof(IsLoadedDirectSound));
+                    OnPropertyChanged(nameof(IsLoadedDirectSoundFixedFreq));
+                }
+            }
+        }
+
+        /// <summary>True when the LOADED entry's ROM header byte is 0x00 (plain
+        /// DirectSound). Gates the N00 wave Export/Import (#1057 Copilot pt 1).</summary>
+        public bool IsLoadedDirectSound => _loadedHeaderByte == 0x00;
+
+        /// <summary>True when the LOADED entry's ROM header byte is 0x08
+        /// (DirectSound Fixed Freq). Gates the N08 wave Export/Import (#1057 Copilot
+        /// pt 1). Scope is N08-only: 0x10 / 0x18 stay disabled.</summary>
+        public bool IsLoadedDirectSoundFixedFreq => _loadedHeaderByte == 0x08;
 
         // Raw per-byte access (B1..B11) — see field declarations above.
         // Each property setter routes through SetField so PropertyChanged
@@ -419,6 +457,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CurrentAddr = addr;
 
             HeaderByte = (byte)rom.u8(addr);
+            // Pin the loaded-from-ROM header byte so the wave Export/Import gates
+            // survive an in-memory tab switch (#1057 Copilot plan review pt 1).
+            LoadedHeaderByte = HeaderByte;
             Category = ClassifyType(HeaderByte);
             TypeName = GetInstrumentTypeName(HeaderByte);
 
@@ -564,6 +605,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u8(addr + 11, B11);
                     break;
             }
+
+            // Write just persisted HeaderByte to ROM at CurrentAddr, so the
+            // on-ROM byte == HeaderByte now. Refresh the pinned LoadedHeaderByte
+            // to match so the wave Export/Import gates stay correct after a type
+            // change + Write — they keep gating on the ACTUAL on-ROM byte, not a
+            // stale load-time value (#1092 Copilot bot inline finding). This
+            // re-enables N00/N08 for a freshly-written DirectSound voice and
+            // correctly disables it for a voice written as 0x10/0x18.
+            LoadedHeaderByte = HeaderByte;
         }
 
         /// <summary>
