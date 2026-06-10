@@ -128,9 +128,10 @@ namespace FEBuilderGBA.Avalonia.Views
         //    SkiaFontRasterizer (#796) — the ImportFont handler rasterizes
         //    missing glyphs through the IFontRasterizer seam, no longer
         //    WinForms-only.
-        //  - The full WipeJP* flow still needs WF HowDoYouLikePatchForm popup
-        //    orchestration; Avalonia SimpleFire skips the OverrideJpFont
-        //    branch and notes this in the user-facing message (KnownGap).
+        //  - The full WipeJP* flow (#1029) is now cross-platform via
+        //    ToolTranslateROMCore.SimpleFireTranslate (OverrideJpFont); the WF
+        //    HowDoYouLikePatchForm ChapterNameText popup is replaced by an
+        //    injected precondition delegate evaluated on the UI thread below.
 
         async void SimpleFire_Click(object? sender, RoutedEventArgs e)
         {
@@ -151,6 +152,34 @@ namespace FEBuilderGBA.Avalonia.Views
                 ToolTranslateROMViewModel.FromLanguageItemsRaw[
                     Math.Clamp(_vm.FromLanguageIndex, 0, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length - 1)]);
 
+            // Capture the Override-JP-Font flag ONCE so the UI-thread precondition
+            // check, the worker-thread options, and the completion message all read
+            // the SAME value even if the checkbox changes mid-run. (A re-read race
+            // could otherwise let the worker wipe with OverrideJpFont=true while the
+            // precondition stayed at its not-checked default true — Copilot review #1101.)
+            bool overrideJpFont = _vm.SimpleOverrideJpFont;
+
+            // Resolve the ChapterNameText precondition on the UI thread (BEFORE
+            // the background Task.Run) — Avalonia modal dialogs must not be shown
+            // from a worker thread. Mirrors WF
+            // HowDoYouLikePatchForm.CheckAndShowPopupDialog(ChapterNameText): the
+            // JP chapter-name wipe only proceeds when the ChapterNameToText patch
+            // is installed; if it isn't, surface the recommendation — and, when the
+            // user clicks Apply, install the patch — then re-check.
+            bool chapterNameTextOk = true;
+            if (overrideJpFont)
+            {
+                chapterNameTextOk = PatchDetection.SearchChapterNameToTextPatch(rom);
+                if (!chapterNameTextOk && rom.RomInfo.version == 8)
+                {
+                    await ShowChapterNameTextRecommendation(rom);
+                    // Re-check: ShowChapterNameTextRecommendation installs the patch
+                    // when the user clicks Apply. The wipe proceeds only if it's now
+                    // present.
+                    chapterNameTextOk = PatchDetection.SearchChapterNameToTextPatch(rom);
+                }
+            }
+
             _vm.UndoService.Begin("Translate ROM");
             try
             {
@@ -168,7 +197,10 @@ namespace FEBuilderGBA.Avalonia.Views
                         TranslateDataFilename = _vm.TranslateDataPath,
                         FromLanguage = fromLang,
                         ToLanguage = toLang,
-                        OverrideJpFont = _vm.SimpleOverrideJpFont,
+                        OverrideJpFont = overrideJpFont,
+                        // Precondition was resolved on the UI thread; pass the
+                        // captured value (no dialog on the worker thread).
+                        ChapterNameTextPrecondition = () => chapterNameTextOk,
                     };
                     var recycle = new RecycleAddress();
                     total = ToolTranslateROMCore.SimpleFireTranslate(rom, opts, recycle,
@@ -177,11 +209,10 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 _vm.UndoService.Commit();
                 string msg = $"Translation complete. {total} text entries written.";
-                if (_vm.SimpleOverrideJpFont)
+                if (overrideJpFont)
                 {
-                    msg += "\n\nNote: Override JP Font is checked, but the WipeJP* flow needs " +
-                        "WinForms HowDoYouLikePatchForm popups and stays WinForms-only (#536 " +
-                        "KnownGap). Use the WinForms tool for full JP-font wiping.";
+                    msg += "\n\n" + R._("Override JP Font: the Japanese font tables were wiped " +
+                        "(class-reel font, chapter titles, and item/text fonts) to free space.");
                 }
                 await ShowInfo(msg);
             }
@@ -439,6 +470,89 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         Task ShowError(string message) => ShowInfo(message);
+
+        /// <summary>
+        /// Surface the ChapterNameToText patch recommendation (the Avalonia
+        /// counterpart of WF <c>HowDoYouLikePatchForm.CheckAndShowPopupDialog(ChapterNameText)</c>).
+        /// When the user clicks Apply, install the ChapterNameToText patch (the WF
+        /// dialog's Enable button calls <c>PatchForm.ApplyPatch</c>), so the
+        /// caller's re-check can then let the chapter-title wipe proceed. Clicking
+        /// Skip leaves the patch absent, and the wipe skips the chapter-title part.
+        /// </summary>
+        async Task ShowChapterNameTextRecommendation(ROM rom)
+        {
+            try
+            {
+                var view = new HowDoYouLikePatchView();
+                view.SetPatchInfo(R._(
+                    "To display chapter titles as text (required before wiping the Japanese " +
+                    "chapter-title images), the ChapterNameToText patch must be installed. " +
+                    "Apply it now?"));
+                await view.ShowDialog(this);
+                if (!view.UserApplied) return; // Skip — leave the patch absent.
+
+                // Apply the ChapterNameToText patch (mirrors WF Enable button ->
+                // PatchForm.ApplyPatch). On success the caller's re-check of
+                // SearchChapterNameToTextPatch passes and the wipe proceeds.
+                string result = InstallChapterNameToTextPatch(rom);
+                if (!PatchDetection.SearchChapterNameToTextPatch(rom))
+                {
+                    await ShowInfo(R._("Could not install the ChapterNameToText patch.") +
+                        "\n" + result);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolTranslateROMView.ShowChapterNameTextRecommendation: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Find and apply the "Convert Chapter Titles to Text" patch for the
+        /// current ROM version (the WF ChapterNameToText patch). Returns a status
+        /// message. Mirrors <see cref="PatchManagerViewModel.InstallPatch"/>'s
+        /// enumerate -&gt; ApplyPatch path. The mutation is recorded in the active
+        /// translate undo scope.
+        /// </summary>
+        string InstallChapterNameToTextPatch(ROM rom)
+        {
+            try
+            {
+                string version = rom.RomInfo.VersionToFilename;
+                string patchDir = PatchManagerViewModel.ResolvePatchDirectory(version);
+                string lang = PatchMetadataCore.GetLanguageSuffix();
+                var infos = PatchMetadataCore.EnumeratePatches(patchDir, rom, lang);
+
+                // Match the WF ChapterNameToText installer patch by name.
+                var target = infos.FirstOrDefault(p =>
+                    p.Name.IndexOf("Convert Chapter Titles to Text",
+                        StringComparison.OrdinalIgnoreCase) >= 0);
+                if (target == null || string.IsNullOrEmpty(target.PatchFilePath))
+                    return "ChapterNameToText patch not found in " + patchDir;
+
+                // The patch install is a distinct user action (the Apply button),
+                // so it gets its OWN undo scope — separate from the translate undo
+                // begun later in SimpleFire_Click.
+                _vm.UndoService.Begin("Install ChapterNameToText");
+                try
+                {
+                    var res = PatchMetadataCore.ApplyPatch(rom, target.PatchFilePath,
+                        _vm.UndoService.GetActiveUndoData());
+                    _vm.UndoService.Commit();
+                    return res.Message ?? string.Empty;
+                }
+                catch
+                {
+                    _vm.UndoService.Rollback();
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolTranslateROMView.InstallChapterNameToTextPatch: {0}", ex.Message);
+                return ex.Message;
+            }
+        }
 
         public void NavigateTo(uint address) { /* tool dialog - nothing to navigate to */ }
         public void SelectFirstItem() { /* tool dialog - no list to seed */ }
