@@ -93,6 +93,10 @@ namespace FEBuilderGBA.Core
             Action<string, IEnumerable<string>> writeLines)
         {
             if (rom == null || writeFile == null || writeLines == null) return;
+            // baseName is part of every emitted filename; a null/empty name would
+            // throw on the `baseName + ".instrument"` concatenation below, breaking
+            // the "never throws" contract (Copilot bot inline finding). Guard it.
+            if (string.IsNullOrEmpty(baseName)) return;
             // The top-level index file's own name = baseName + ".instrument".
             ExportAllLow(rom, vocaBaseAddress, baseName, baseName + ".instrument",
                          writeFile, writeLines, isNest: false);

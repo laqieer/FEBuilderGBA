@@ -576,6 +576,16 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Null delegates: no throw.
                 SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg", null, null);
+
+                // Null / empty baseName: no throw, nothing emitted (the
+                // baseName + ".instrument" concat would otherwise NRE).
+                var sink2 = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, null, sink2.WriteFile, sink2.WriteLines);
+                Assert.Empty(sink2.Indexes);
+                Assert.Empty(sink2.Files);
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "", sink2.WriteFile, sink2.WriteLines);
+                Assert.Empty(sink2.Indexes);
+                Assert.Empty(sink2.Files);
             }
             finally { CoreState.ROM = savedRom; }
         }
