@@ -112,13 +112,25 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void BorderImportButton_RemainsDisabled()
+        public void WorldMapImageViewModel_CanImportBorder_PropertyExists()
         {
-            // The Border Import button must stay disabled (read-only cross-platform viewer).
-            // The button is identified by its AutomationId; if the tab isn't realized
-            // yet in headless mode the visual tree may not contain it — skip gracefully
-            // if the button cannot be found (the static IsEnabled=False in AXAML is the
-            // authoritative contract; this test merely confirms it at runtime).
+            // #1064 PR2: the Border Import button is now gated by CanImportBorder
+            // (FE8 + a county-border palette pointer + a selected record). Verify
+            // the VM exposes it as a settable property defaulting to false (no ROM /
+            // no selection -> the button stays disabled).
+            var vm = new WorldMapImageViewModel();
+            Assert.False(vm.CanImportBorder);
+            vm.CanImportBorder = true;
+            Assert.True(vm.CanImportBorder);
+            _output.WriteLine("WorldMapImageViewModel.CanImportBorder property works — PASS");
+        }
+
+        [AvaloniaFact]
+        public void BorderImportButton_IsGatedByCanImportBorder()
+        {
+            // #1064 PR2 (closes #1064 + #1000): the Border Import button is wired —
+            // its IsEnabled tracks the CanImportBorder gate. With no ROM loaded the
+            // gate is false (button disabled); flipping the VM gate enables it.
             var view = new WorldMapImageView();
             view.Measure(new Size(1100, 720));
             view.Arrange(new Rect(0, 0, 1100, 720));
@@ -132,7 +144,6 @@ namespace FEBuilderGBA.Avalonia.Tests
                 view.Arrange(new Rect(0, 0, 1100, 720));
             }
 
-            // Find the import button by AutomationId in the realized visual tree.
             var importBtn = view.GetVisualDescendants()
                 .OfType<Button>()
                 .FirstOrDefault(b => global::Avalonia.Automation.AutomationProperties
@@ -144,9 +155,11 @@ namespace FEBuilderGBA.Avalonia.Tests
                 return;
             }
 
+            // No ROM loaded -> CanImportBorder is false -> the button is disabled
+            // (the binding gates it; it is no longer a hard IsEnabled=False stub).
             Assert.False(importBtn.IsEnabled,
-                "Border Import button must remain disabled (read-only cross-platform viewer)");
-            _output.WriteLine("Border Import button remains disabled — PASS");
+                "Border Import button should be disabled when CanImportBorder is false (no ROM/selection)");
+            _output.WriteLine("Border Import button is gated by CanImportBorder — PASS");
         }
     }
 }

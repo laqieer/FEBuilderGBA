@@ -1208,6 +1208,113 @@ namespace FEBuilderGBA
             return result;
         }
 
+        // ==================================================================
+        // County Border IMPORT — OAM/AP assembly (#1064 PR2, closes #1000).
+        //
+        // The inverse of TryRenderBorder. Concern (c) — ROM writes — of the
+        // three-concern split (see ImageUtilBorderAPCore for (a) pure assembly +
+        // (b) input-error returns). This seam:
+        //   1. FE8-only gate (version==8 AND worldmap_county_border_palette_pointer
+        //      != 0) — reject non-FE8 with ZERO mutation (mirrors ImportEvent's
+        //      explicit version gate the Copilot PR #1098 review required).
+        //   2. Validate the border-record pointer slot (P0 @ +0, P4 @ +4) is in
+        //      range.
+        //   3. AssembleBorderAP (pure) — rejects null/empty _NAME, wrong dims, the
+        //      images.Count>=2 overflow, and clamps the origin (WF parity).
+        //   4. Defensive (byte[])rom.Data.Clone() snapshot; LZ77-write the seat
+        //      image -> record P0, then raw-write the AP -> record P4, under the
+        //      caller's ambient undo. Length-aware byte-identical restore on ANY
+        //      fault (incl. a partial fault after the image write) (#885/#923).
+        // ==================================================================
+
+        /// <summary>
+        /// Import a World Map county BORDER graphic (OAM/AP assembly, #1064 PR2 /
+        /// closes #1000). Assembles the two already-decoded INDEXED sheets (the
+        /// chosen border sheet + its <c>_NAME</c> companion, each 248×160) into one
+        /// seat + AP-data block via <see cref="ImageUtilBorderAPCore.AssembleBorderAP"/>,
+        /// then LZ77-writes the seat image to the border record's <c>P0</c> (image
+        /// pointer @ <paramref name="borderRecordAddr"/>+0) and raw-writes the AP
+        /// data to the record's <c>P4</c> (AP pointer @ +4), repointing both under
+        /// the caller's ambient undo scope.
+        ///
+        /// <para><b>FE8-only.</b> Rejects non-FE8 ROMs (FE6/FE7 have no county
+        /// border — <c>worldmap_county_border_palette_pointer</c> is 0x0) with NO
+        /// mutation, mirroring <see cref="ImportEvent"/>'s explicit version gate.</para>
+        ///
+        /// <para><b>Atomic.</b> validate-all-before-mutate; ONE caller ambient undo
+        /// scope; defensive byte-identical (length-aware) fault restore — any fault
+        /// (incl. a partial-write fault after the image write but during the AP
+        /// write/repoint) restores the ROM byte- AND length-identical. Never throws.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (writes only the selected border record's P0/P4).</param>
+        /// <param name="sheetIndexed">Main border sheet, indexed (1 byte/pixel), 248×160.</param>
+        /// <param name="nameIndexed">Companion <c>_NAME</c> sheet, indexed, 248×160.
+        /// A null/empty value (the View's "_NAME missing" case) is rejected.</param>
+        /// <param name="palette16">16-color GBA palette (32 bytes), shared by both sheets.</param>
+        /// <param name="originX">Origin X (clamped to ≤60, WF parity).</param>
+        /// <param name="originY">Origin Y (clamped to ≤50, WF parity).</param>
+        /// <param name="borderRecordAddr">ROM offset of the selected 12-byte border
+        /// record (P0 image pointer @ +0, P4 AP pointer @ +4).</param>
+        /// <param name="error">Empty on success; a user-facing message on failure.</param>
+        /// <returns>true on success; false (with <paramref name="error"/> set and
+        /// ZERO ROM mutation) on any validation or write failure.</returns>
+        public static bool ImportBorder(ROM rom,
+            byte[] sheetIndexed, byte[] nameIndexed, byte[] palette16,
+            uint originX, uint originY, uint borderRecordAddr, out string error)
+        {
+            error = "";
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+            { error = "ROM not loaded."; return false; }
+
+            // 1. FE8-only gate (BEFORE any work). FE6/FE7 have no county border.
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8 ||
+                rom.RomInfo.worldmap_county_border_palette_pointer == 0)
+            { error = R.Error("The world map border image import is only supported for FE8."); return false; }
+
+            // 2. Validate the border-record pointer slots are in range (P0 @ +0,
+            //    P4 @ +4; the 12-byte record's last P4 byte is at +7).
+            if (borderRecordAddr == 0 || (long)borderRecordAddr + 8 > rom.Data.Length)
+            { error = R.Error("The world map border record address is invalid."); return false; }
+
+            // Defensive snapshot for the byte-identical restore. The assembly does
+            // NOT mutate the ROM, so it lives INSIDE the try (the "never throws"
+            // contract holds even if a primitive throws on unexpected input — the
+            // restore is then a no-op). The caller's ambient undo scope records the
+            // writes for UNDO; this snapshot guarantees a FAILED import (incl. a
+            // partial-write fault) mutates ZERO bytes.
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                // 3. (a) pure assembly + (b) input-error returns — no mutation yet.
+                var asm = ImageUtilBorderAPCore.AssembleBorderAP(
+                    sheetIndexed, nameIndexed, palette16, originX, originY);
+                if (!asm.Success) { error = asm.Error; return false; }
+
+                // 4. ROM writes under the caller's ambient undo. A fault at ANY
+                //    step restores the ROM byte-identically.
+                //    P0 (image pointer) is at borderRecordAddr+0; P4 (AP pointer)
+                //    at +4 — exactly the slots WriteCompressedToROM / WriteRawToROM
+                //    repoint (matching WF WriteImageData(P0) + WriteBinaryData(P4)).
+                uint imgAddr = ImageImportCore.WriteCompressedToROM(
+                    rom, asm.ImageBytes, borderRecordAddr + 0);
+                if (imgAddr == U.NOT_FOUND)
+                { RestoreSnapshot(rom, snap); error = R._("Failed to write image. Check ROM free space."); return false; }
+
+                uint apAddr = ImageImportCore.WriteRawToROM(
+                    rom, asm.ApBytes, borderRecordAddr + 4);
+                if (apAddr == U.NOT_FOUND)
+                { RestoreSnapshot(rom, snap); error = R._("Failed to write AP data. Check ROM free space."); return false; }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                error = "World map border import failed: " + ex.Message;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Compose the AP layers over a background: draw <paramref name="layer0"/>
         /// then <paramref name="layer1"/> on top of <paramref name="background"/>,
