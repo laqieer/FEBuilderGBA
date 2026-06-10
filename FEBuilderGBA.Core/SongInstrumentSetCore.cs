@@ -40,6 +40,37 @@ namespace FEBuilderGBA.Core
         const int MaxVoices = 128;      // WF read-loop cap (SongInstrumentForm.cs L65)
 
         /// <summary>
+        /// Explicit-ROM range check: is <c>[addr, addr+length)</c> fully inside
+        /// <paramref name="rom"/>? Used instead of <c>U.isSafetyLength</c> because
+        /// the latter reads the AMBIENT <c>CoreState.ROM</c> length — the export
+        /// must validate against the PASSED ROM only (Copilot review pt 3). Mirrors
+        /// the same `addr+length` overflow-safe long-math guard.
+        /// </summary>
+        static bool SafeLen(ROM rom, uint addr, uint length)
+        {
+            if (rom == null) return false;
+            long end = (long)addr + length;
+            return addr >= 0x00000100 && addr < 0x02000000
+                && end <= rom.Data.Length && length < 0x00200000;
+        }
+
+        /// <summary>
+        /// Strip the LAST file extension from a name (Core has no
+        /// <c>System.IO.Path</c> dependency by policy). Mirrors WF
+        /// <c>Path.GetFileNameWithoutExtension</c> applied to a bare filename, so a
+        /// nested index <c>vg0x00.Drum.instrument</c> yields the recurse basename
+        /// <c>vg0x00.Drum</c> (Copilot review pt 1 — child side files become
+        /// <c>vg0x00.Drum0xNN.Wave.bin</c>, never colliding with another group's
+        /// <c>vg0x00.Wave.bin</c>).
+        /// </summary>
+        static string StripLastExtension(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return name;
+            int dot = name.LastIndexOf('.');
+            return dot > 0 ? name.Substring(0, dot) : name;
+        }
+
+        /// <summary>
         /// Export the voicegroup (instrument set) at <paramref name="vocaBaseAddress"/>
         /// (a GBA pointer or offset) to a TSV index plus per-voice side files.
         /// </summary>
@@ -116,7 +147,7 @@ namespace FEBuilderGBA.Core
             bool isNest)
         {
             // The 12-byte voice entry must be fully in range before any indexed read.
-            if (!U.isSafetyLength(addr, BlockSize)) return "";
+            if (!SafeLen(rom, addr, BlockSize)) return "";
 
             StringBuilder sb = new StringBuilder();
             sb.Append(U.ToHexString(rom.u8(addr + 0))); sb.Append("\t");
@@ -136,7 +167,8 @@ namespace FEBuilderGBA.Core
                     return "";
                 }
                 uint sampleLength = SongDirectSoundWavCore.GetDirectSoundWaveDataLength(rom, songdataAddr);
-                if (!U.isSafetyLength(songdataAddr + 12 + 4, sampleLength))
+                // Full-range guard against the PASSED rom (not the ambient ROM).
+                if (!SafeLen(rom, songdataAddr + 12 + 4, sampleLength))
                 {
                     return "";
                 }
@@ -156,6 +188,12 @@ namespace FEBuilderGBA.Core
             {//波形データ (Wave Memory — fixed 16 bytes)
                 uint songdataAddr = rom.p32(addr + 4);
                 if (!U.isSafetyOffset(songdataAddr, rom))
+                {
+                    return "";
+                }
+                // Require the FULL 16 bytes in range so getBinaryData can't truncate
+                // at EOF into a short .Wave.bin (Copilot review pt 2).
+                if (!SafeLen(rom, songdataAddr, 16))
                 {
                     return "";
                 }
@@ -188,6 +226,14 @@ namespace FEBuilderGBA.Core
                     return "";
                 }
                 if (!U.isSafetyOffset(sampleLocation, rom))
+                {
+                    return "";
+                }
+                // Require the FULL 128 bytes of the keymap in range so getBinaryData
+                // can't truncate at EOF into a short .Multi.keys.bin (Copilot review
+                // pt 2). Checked BEFORE recursing so a short keymap skips the row
+                // entirely (no nested index written for an unwritable keymap).
+                if (!SafeLen(rom, sampleLocation, 128))
                 {
                     return "";
                 }
@@ -265,9 +311,15 @@ namespace FEBuilderGBA.Core
                 return "@BROKENDATA";
             }
 
-            // Top level: recurse and reference the nested index file by name.
+            // Top level: recurse and reference the nested index file by name. The
+            // nested voicegroup's side files use the nested-index basename (the WF
+            // `Path.GetFileNameWithoutExtension(filename)` step) — e.g. children of
+            // `vg0x00.Drum.instrument` are `vg0x00.Drum0xNN.Wave.bin`, NOT
+            // `vg0x00.Wave.bin` — so two top-level groups whose child voice index is
+            // 0 never collide (Copilot review pt 1).
             string nestedFilename = baseName + U.To0xHexString(index) + suffix;
-            ExportAllLow(rom, subVoices, baseName, nestedFilename,
+            string nestedBaseName = StripLastExtension(nestedFilename);
+            ExportAllLow(rom, subVoices, nestedBaseName, nestedFilename,
                          writeFile, writeLines, isNest: true);
             return nestedFilename;
         }
@@ -285,7 +337,7 @@ namespace FEBuilderGBA.Core
             for (int i = 0; i < MaxVoices; i++)
             {
                 uint addr = vocaBase + (uint)(i * BlockSize);
-                if (!U.isSafetyLength(addr, BlockSize)) break;
+                if (!SafeLen(rom, addr, BlockSize)) break;
                 if (!IsValidVoice(rom, addr)) break;
                 count++;
             }

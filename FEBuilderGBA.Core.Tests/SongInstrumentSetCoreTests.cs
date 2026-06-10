@@ -261,10 +261,13 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Single(childRows);
                 Assert.Equal("03", Cols(childRows[0])[0]);
 
-                // The child's Wave Memory side file was written (named with the
-                // child's own index 0x00 + the SAME baseName prefix).
-                Assert.True(sink.Files.ContainsKey("vg0x00.Wave.bin"));
-                Assert.Equal(16, sink.Files["vg0x00.Wave.bin"].Length);
+                // The child's Wave Memory side file was written with the NESTED
+                // basename prefix (vg0x00.Drum), NOT the top-level vg, so two
+                // top-level groups whose child voice index is 0 never collide
+                // (Copilot review pt 1).
+                Assert.True(sink.Files.ContainsKey("vg0x00.Drum0x00.Wave.bin"));
+                Assert.Equal(16, sink.Files["vg0x00.Drum0x00.Wave.bin"].Length);
+                Assert.False(sink.Files.ContainsKey("vg0x00.Wave.bin"));
             }
             finally { CoreState.ROM = savedRom; }
         }
@@ -414,9 +417,12 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(sink.Files.ContainsKey("vg0x00.Multi.keys.bin"));
                 Assert.Equal(128, sink.Files["vg0x00.Multi.keys.bin"].Length);
 
-                // .Multi.instrument index + the sub-voicegroup's Wave Memory file.
+                // .Multi.instrument index + the sub-voicegroup's Wave Memory file
+                // (named with the NESTED basename vg0x00.Multi — Copilot pt 1). The
+                // 128-byte keymap belongs to the TOP-level 0x40 voice so it keeps
+                // the top-level vg prefix (vg0x00.Multi.keys.bin, asserted above).
                 Assert.True(sink.Indexes.ContainsKey("vg0x00.Multi.instrument"));
-                Assert.True(sink.Files.ContainsKey("vg0x00.Wave.bin"));
+                Assert.True(sink.Files.ContainsKey("vg0x00.Multi0x00.Wave.bin"));
 
                 // Top-level row: 4 header + Multi.instrument token + keys token,
                 // and NO trailing +8..+11 columns (0x40 omits them).
@@ -570,6 +576,156 @@ namespace FEBuilderGBA.Core.Tests
 
                 // Null delegates: no throw.
                 SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg", null, null);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // 9. (Copilot review pt 1) Two top-level nested groups whose CHILD voice
+        //    index is 0 must NOT collide: child side files use the nested-index
+        //    basename (vg0x00.Drum / vg0x01.Drum), not the shared top-level vg.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Export_TwoNestedDrums_ChildIndex0_NoCollision()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // Two distinct child voicegroups, each with a single 0x03 Wave
+                // Memory voice at child index 0.
+                uint childA = 0x2000, childB = 0x2100;
+                uint waveA = 0xA000, waveB = 0xB000;
+                for (int i = 0; i < 16; i++) { rom.write_u8((uint)(waveA + i), (byte)i); rom.write_u8((uint)(waveB + i), (byte)(0x40 + i)); }
+                WriteVoice(rom, childA, 0x03, 0, 0, 0, U.toPointer(waveA), 0, 0, 0, 0, 0);
+                WriteVoice(rom, childB, 0x03, 0, 0, 0, U.toPointer(waveB), 0, 0, 0, 0, 0);
+
+                // Top-level voices 0 and 1: both drums, pointing at childA / childB.
+                WriteVoice(rom, VOCA_BASE + 0x00, 0x80, 0, 0, 0, U.toPointer(childA), 0, 0, 0, 0, 0);
+                WriteVoice(rom, VOCA_BASE + 0x0C, 0x80, 0, 0, 0, U.toPointer(childB), 0, 0, 0, 0, 0);
+
+                var sink = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    sink.WriteFile, sink.WriteLines);
+
+                // Distinct nested indexes + distinct child side files — no collision.
+                Assert.True(sink.Indexes.ContainsKey("vg0x00.Drum.instrument"));
+                Assert.True(sink.Indexes.ContainsKey("vg0x01.Drum.instrument"));
+                Assert.True(sink.Files.ContainsKey("vg0x00.Drum0x00.Wave.bin"));
+                Assert.True(sink.Files.ContainsKey("vg0x01.Drum0x00.Wave.bin"));
+                // The two child Wave files hold DIFFERENT bytes (proves no overwrite).
+                Assert.NotEqual(sink.Files["vg0x00.Drum0x00.Wave.bin"],
+                                sink.Files["vg0x01.Drum0x00.Wave.bin"]);
+                // The bare top-level name was NEVER used for a nested child.
+                Assert.False(sink.Files.ContainsKey("vg0x00.Wave.bin"));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // 10. (Copilot review pt 2) A safe pointer with FEWER than the fixed bytes
+        //     remaining (Wave 16 / keymap 128) must SKIP the row — never write a
+        //     truncated side file.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Export_WaveMemory_ShortAtEof_SkipsRow()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // Wave Memory P4 at ROM_LEN - 8 (only 8 bytes remain, < 16).
+                uint shortOff = ROM_LEN - 8;
+                WriteVoice(rom, VOCA_BASE + 0x00, 0x03, 0, 0, 0, U.toPointer(shortOff), 0, 0, 0, 0, 0);
+                // A valid square wave at index 1 so the scan continues past index 0.
+                WriteVoice(rom, VOCA_BASE + 0x0C, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+                var sink = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    sink.WriteFile, sink.WriteLines);
+
+                // No (short) .Wave.bin; the row is dropped; the square wave survives.
+                Assert.False(sink.Files.ContainsKey("vg0x00.Wave.bin"));
+                var rows = sink.Indexes["vg.instrument"];
+                Assert.Single(rows);
+                Assert.Equal("01", Cols(rows[0])[0]);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void Export_MultiKeymap_ShortAtEof_SkipsRow()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                // Sub-voicegroup with a valid Wave voice.
+                uint subBase = 0x2000, subWave = 0xC000;
+                for (int i = 0; i < 16; i++) rom.write_u8((uint)(subWave + i), (byte)i);
+                WriteVoice(rom, subBase, 0x03, 0, 0, 0, U.toPointer(subWave), 0, 0, 0, 0, 0);
+
+                // Keymap P8 at ROM_LEN - 64 (only 64 bytes remain, < 128).
+                uint shortKeymap = ROM_LEN - 64;
+                WriteVoice(rom, VOCA_BASE + 0x00, 0x40, 0, 0, 0,
+                    U.toPointer(subBase), U.toPointer(shortKeymap), 0, 0, 0, 0);
+                WriteVoice(rom, VOCA_BASE + 0x0C, 0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+                var sink = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    sink.WriteFile, sink.WriteLines);
+
+                // Row skipped: no keymap, no nested Multi index written.
+                Assert.False(sink.Files.ContainsKey("vg0x00.Multi.keys.bin"));
+                Assert.False(sink.Indexes.ContainsKey("vg0x00.Multi.instrument"));
+                var rows = sink.Indexes["vg.instrument"];
+                Assert.Single(rows);
+                Assert.Equal("01", Cols(rows[0])[0]);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // 11. (Copilot review pt 3) ExportAll validates against the PASSED rom, not
+        //     the ambient CoreState.ROM. With CoreState.ROM unset (or a DIFFERENT,
+        //     smaller ROM), the export still works against the explicit rom.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Export_DoesNotDependOnCoreStateRom()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                uint sampleOff = 0x8000;
+                WriteDirectSoundSample(rom, sampleOff, 12000, 64);
+                WriteVoice(rom, VOCA_BASE, 0x08, 0x11, 0x22, 0x33,
+                    U.toPointer(sampleOff), 0, 0, 0, 0, 0);
+
+                // CoreState.ROM points at a DIFFERENT, tiny ROM (would mis-validate
+                // or throw if the export read the ambient length).
+                var other = new ROM();
+                other.LoadLow("other.gba", new byte[0x1000], "BE8E01");
+                CoreState.ROM = other;
+
+                var sink = new Sink();
+                // Pass the REAL rom explicitly; CoreState.ROM is the tiny one.
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    sink.WriteFile, sink.WriteLines);
+
+                // The export validated against `rom` (256 KiB), not `other` (4 KiB):
+                // the DirectSound row + side file are present.
+                Assert.True(sink.Files.ContainsKey("vg0x00.DirectSound.bin"));
+                Assert.Equal(12 + 4 + 64, sink.Files["vg0x00.DirectSound.bin"].Length);
+                var rows = sink.Indexes["vg.instrument"];
+                Assert.Single(rows);
+                Assert.Equal("08", Cols(rows[0])[0]);
             }
             finally { CoreState.ROM = savedRom; }
         }
