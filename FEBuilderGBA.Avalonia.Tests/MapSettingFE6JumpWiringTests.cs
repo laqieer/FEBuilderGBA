@@ -43,17 +43,28 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void MapSettingFE6View_DeferredPlaceholders_Remain_Disabled()
+        public void MapSettingFE6View_ExpandListButton_IsEnabled_Wired()
         {
+            // #1085 — the List Expand button is now wired (FIRST-fill +
+            // all-reference repoint via MapSettingCore.ExpandMapSettingTable).
             var view = new MapSettingFE6View();
 
-            var expand = view.FindControl<Button>("ExpandListPlaceholder");
-            var mapStyle = view.FindControl<Button>("MapStyleChangePlaceholder");
-
+            var expand = view.FindControl<Button>("ExpandListButton");
             Assert.NotNull(expand);
-            Assert.NotNull(mapStyle);
+            Assert.True(expand!.IsEnabled, "ExpandListButton must be enabled (wired in #1085).");
+            // The old placeholder name must be gone.
+            Assert.Null(view.FindControl<Button>("ExpandListPlaceholder"));
+        }
 
-            Assert.False(expand!.IsEnabled, "ExpandListPlaceholder must stay disabled (deferred).");
+        [AvaloniaFact]
+        public void MapSettingFE6View_DeferredPlaceholders_Remain_Disabled()
+        {
+            // The Map-Style change popup remains a documented deferral (needs
+            // MapStyleEditorAppendPopup) — only it stays disabled now.
+            var view = new MapSettingFE6View();
+
+            var mapStyle = view.FindControl<Button>("MapStyleChangePlaceholder");
+            Assert.NotNull(mapStyle);
             Assert.False(mapStyle!.IsEnabled, "MapStyleChangePlaceholder must stay disabled (deferred).");
         }
 
@@ -83,18 +94,24 @@ namespace FEBuilderGBA.Avalonia.Tests
             => Path.Combine(FindProjectRoot(), "FEBuilderGBA.Avalonia", "Views");
 
         [Fact]
-        public void CodeBehind_Wires_Three_Click_Handlers()
+        public void CodeBehind_Wires_Click_Handlers()
         {
             string src = File.ReadAllText(Path.Combine(ViewsDir(), "MapSettingFE6View.axaml.cs"));
             Assert.Contains("RefetchButton.Click += OnRefetchClick", src);
+            Assert.Contains("ExpandListButton.Click += OnExpandListClick", src);
             Assert.Contains("JumpMapEditorButton.Click += OnJumpMapEditorClick", src);
             Assert.Contains("JumpExitPointButton.Click += OnJumpExitPointClick", src);
             // Handlers themselves exist.
             Assert.Contains("void OnRefetchClick(", src);
+            Assert.Contains("void OnExpandListClick(", src);
             Assert.Contains("void OnJumpMapEditorClick(", src);
             Assert.Contains("void OnJumpExitPointClick(", src);
             // Refetch must RESELECT the kept address, not row 0.
             Assert.Contains("EntryList.SelectAddress(keep)", src);
+            // #1085 — the expand handler must route through the Core
+            // orchestrator under one undo scope.
+            Assert.Contains("MapSettingCore.ExpandMapSettingTable", src);
+            Assert.Contains("_undoService.Begin(\"Expand Map Settings\")", src);
         }
 
         [Fact]
@@ -102,12 +119,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             string xaml = File.ReadAllText(Path.Combine(ViewsDir(), "MapSettingFE6View.axaml"));
 
-            // The three wired buttons are renamed (no longer *Placeholder) and
-            // do not carry IsEnabled="False".
+            // The four wired buttons are renamed (no longer *Placeholder) and
+            // do not carry IsEnabled="False". ExpandList joined them in #1085.
             Assert.Contains("Name=\"RefetchButton\"", xaml);
+            Assert.Contains("Name=\"ExpandListButton\"", xaml);
             Assert.Contains("Name=\"JumpMapEditorButton\"", xaml);
             Assert.Contains("Name=\"JumpExitPointButton\"", xaml);
             Assert.DoesNotContain("Name=\"RefetchPlaceholder\"", xaml);
+            Assert.DoesNotContain("Name=\"ExpandListPlaceholder\"", xaml);
             Assert.DoesNotContain("Name=\"JumpMapEditorPlaceholder\"", xaml);
             Assert.DoesNotContain("Name=\"JumpExitPointPlaceholder\"", xaml);
 
@@ -121,10 +140,10 @@ namespace FEBuilderGBA.Avalonia.Tests
             foreach (System.Text.RegularExpressions.Match m in buttonTags)
             {
                 string el = m.Value;
-                // Deferred placeholders MUST keep IsEnabled="False".
-                if (el.Contains("Name=\"ExpandListPlaceholder\"")) { sawExpand = true; Assert.Contains("IsEnabled=\"False\"", el); }
+                // Deferred placeholder MUST keep IsEnabled="False".
                 if (el.Contains("Name=\"MapStyleChangePlaceholder\"")) { sawMapStyle = true; Assert.Contains("IsEnabled=\"False\"", el); }
                 // Wired buttons MUST NOT carry IsEnabled="False".
+                if (el.Contains("Name=\"ExpandListButton\"")) { sawExpand = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }
                 if (el.Contains("Name=\"RefetchButton\"")) { sawRefetch = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }
                 if (el.Contains("Name=\"JumpMapEditorButton\"")) { sawJumpMap = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }
                 if (el.Contains("Name=\"JumpExitPointButton\"")) { sawJumpExit = true; Assert.DoesNotContain("IsEnabled=\"False\"", el); }

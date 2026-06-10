@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -21,6 +22,7 @@ namespace FEBuilderGBA.Avalonia.Views
             EntryList.SelectedAddressChanged += OnSelected;
             WriteButton.Click += OnWriteClick;
             RefetchButton.Click += OnRefetchClick;
+            ExpandListButton.Click += OnExpandListClick;
             JumpMapEditorButton.Click += OnJumpMapEditorClick;
             JumpExitPointButton.Click += OnJumpExitPointClick;
             Opened += (_, _) => LoadList();
@@ -32,6 +34,79 @@ namespace FEBuilderGBA.Avalonia.Views
             uint keep = _vm.CurrentAddr;
             LoadList();
             if (keep != 0) EntryList.SelectAddress(keep);
+        }
+
+        // リストの拡張 — expand the map-setting (chapter) table by a prompted
+        // count, using FIRST-fill + complete reference repointing (#1085). The
+        // whole expand runs under one UndoService scope with a byte-identical
+        // fault restore inside MapSettingCore.ExpandMapSettingTable. On a
+        // cancel / malformed / zero / same count this is a no-op.
+        async void OnExpandListClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (CoreState.ROM == null)
+                {
+                    CoreState.Services?.ShowInfo(R._("Load a ROM first."));
+                    return;
+                }
+
+                uint current = (uint)_vm.LoadList().Count;
+                if (current == 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("Cannot expand: the map setting list is empty."));
+                    return;
+                }
+
+                // Default = current + 1; max = 255 (WF list-expand convention).
+                uint defaultCount = current + 1;
+                if (defaultCount > 255) defaultCount = 255;
+                uint? chosen = await NumberInputDialog.Show(
+                    this,
+                    R._("Enter the new map setting entry count (current: {0}, max: 255).", current),
+                    R._("List Expansion"),
+                    defaultCount,
+                    current,
+                    255);
+                if (chosen == null) return; // user cancelled
+
+                uint newCount = chosen.Value;
+                if (newCount <= current)
+                {
+                    CoreState.Services?.ShowInfo(R._("No change: new count must be greater than the current count."));
+                    return;
+                }
+                uint addCount = newCount - current;
+
+                _undoService.Begin("Expand Map Settings");
+                try
+                {
+                    var result = MapSettingCore.ExpandMapSettingTable(
+                        CoreState.ROM, addCount, _undoService.GetActiveUndoData(), out string err);
+                    if (!result.Success)
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(string.IsNullOrEmpty(err)
+                            ? R._("Map setting list expansion failed.") : err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                    LoadList();
+                    CoreState.Services?.ShowInfo(
+                        R._("Expanded map setting list to {0} entries.", newCount));
+                }
+                catch (Exception inner)
+                {
+                    _undoService.Rollback();
+                    Log.Error("MapSettingFE6View.OnExpandListClick inner failed: {0}", inner.ToString());
+                    CoreState.Services?.ShowError(R._("Map setting list expansion failed: {0}", inner.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("MapSettingFE6View.OnExpandListClick failed: {0}", ex.ToString());
+            }
         }
 
         // マップエディタへJump — Avalonia ADDRESS-keyed bridge. WF J_ID_MAPEDITOR

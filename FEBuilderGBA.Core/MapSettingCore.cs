@@ -307,6 +307,183 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// Upper sanity bound on the number of references
+        /// <see cref="ExpandMapSettingTable"/> expects to repoint to the
+        /// map-setting base. The base is referenced from a small fixed set of
+        /// engine sites (the canonical pointer slot + a handful of LDR loads);
+        /// a hit count above this is almost certainly a false-positive flood
+        /// from a coincidental raw u32 == base, so the audit guard rejects the
+        /// expand WITHOUT mutating (issue #1085 plan-review finding #4). The
+        /// bound is generous (real ROMs repoint well under 10) so a legitimately
+        /// heavily-referenced ROM still passes.
+        /// </summary>
+        public const int MaxPlausibleRepointSlots = 64;
+
+        /// <summary>
+        /// Expand the map-setting (chapter) table by <paramref name="addCount"/>
+        /// rows using FIRST-fill (so the new rows are valid and ENUMERATE — a
+        /// zero-filled row is invalid and <see cref="MakeMapIDList(ROM)"/> stops
+        /// at the first invalid row) and complete reference repointing (raw
+        /// 32-bit + ARM-Thumb LDR literal-pool, whole-ROM) so no engine site is
+        /// left pointing into the wiped old region. Mirrors WinForms
+        /// <c>InputFormRef.ExpandsArea(ExpandsFillOption.FIRST, ...)</c> +
+        /// <c>MoveToFreeSapceForm.SearchPointer</c> for this engine table
+        /// (issue #1085). This is the orchestrator the Avalonia Map Settings
+        /// (FE6) editor's "リストの拡張" (Expand List) button calls.
+        ///
+        /// <para><b>Atomic:</b> the whole operation (move + FIRST-fill + all-ref
+        /// repoint + old-region wipe) runs under the caller's ambient undo
+        /// scope, AND a defensive <c>rom.Data.Clone()</c> snapshot is kept. On
+        /// ANY fault — a failed <see cref="DataExpansionCore.ExpandTableTo(ROM, uint, uint, uint, uint, DataExpansionCore.ExpandOptions)"/>,
+        /// a failed audit guard, or an exception — the ROM is restored
+        /// byte-identical (bytes AND length) and an error string is set with
+        /// ZERO net change (#885/#923 pattern).</para>
+        ///
+        /// <para><b>Audit guard (#1085 finding #4):</b> the orchestrator
+        /// pre-scans the references BEFORE mutation; the post-expand result must
+        /// (a) repoint a non-zero number of slots (a zero count means the
+        /// canonical pointer was somehow not even found — abort), (b) include
+        /// the canonical <c>map_setting_pointer</c> slot, and (c) not exceed
+        /// <see cref="MaxPlausibleRepointSlots"/> (a flood ⇒ likely
+        /// false-positive — abort). A failed guard restores the snapshot and
+        /// returns an error.</para>
+        /// </summary>
+        /// <param name="rom">ROM to modify.</param>
+        /// <param name="addCount">Number of rows to add (must be &gt;= 1).</param>
+        /// <param name="undo">The active undo transaction (the caller's open
+        /// <c>ROM.BeginUndoScope</c> / <c>UndoService.Begin</c>). Every write
+        /// records into it so a caller-side Rollback fully reverts the ROM.</param>
+        /// <param name="error">Set to a human-readable message on failure;
+        /// empty on success.</param>
+        /// <returns>The <see cref="DataExpansionCore.ExpandResult"/> from the
+        /// underlying expand (with <c>Success == false</c> + <paramref name="error"/>
+        /// set on any guard/atomicity failure).</returns>
+        public static DataExpansionCore.ExpandResult ExpandMapSettingTable(ROM rom, uint addCount, Undo.UndoData undo, out string error)
+        {
+            error = "";
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+            {
+                error = R._("ROM not loaded.");
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
+            if (addCount == 0)
+            {
+                error = R._("Add count must be at least 1.");
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
+
+            uint pointerAddr = rom.RomInfo.map_setting_pointer;
+            uint entrySize = rom.RomInfo.map_setting_datasize;
+            if (pointerAddr == 0 || entrySize == 0)
+            {
+                error = R._("Map setting table is not available for this ROM.");
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
+
+            // currentCount = the editor's enumerated visible row count.
+            uint currentCount = (uint)MakeMapIDList(rom).Count;
+            if (currentCount == 0)
+            {
+                // FIRST-fill needs a source row 0 to copy; with no enumerated
+                // rows there is nothing to seed the new rows from.
+                error = R._("Cannot expand: the map setting list is empty (no row 0 to copy).");
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
+
+            // Overflow-safe target count.
+            if (addCount > uint.MaxValue - currentCount)
+            {
+                error = R._("Add count overflows the table size.");
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
+            uint newCount = currentCount + addCount;
+
+            uint oldBase = rom.p32(pointerAddr);
+
+            // Defensive snapshot for the byte-identical (length-aware) restore
+            // on ANY fault — guarantees a FAILED expand mutates ZERO bytes even
+            // beyond what the ambient undo scope tracks.
+            byte[] snap = (byte[])rom.Data.Clone();
+
+            try
+            {
+                var result = DataExpansionCore.ExpandTableTo(
+                    rom, pointerAddr, entrySize, currentCount, newCount,
+                    new DataExpansionCore.ExpandOptions
+                    {
+                        Fill = DataExpansionCore.ExpandFill.First,
+                        Repoint = DataExpansionCore.ExpandRepoint.RawAndLdrAll,
+                        FullZeroTerminatorRow = false,
+                    });
+
+                if (!result.Success)
+                {
+                    RestoreSnapshot(rom, snap);
+                    error = result.Error ?? R._("Map setting table expansion failed.");
+                    return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+                }
+
+                // --- Audit guard (#1085 finding #4) ---------------------------
+                var slots = result.RepointedSlots ?? System.Array.Empty<uint>();
+
+                // (a) zero repointed slots ⇒ the canonical pointer was not even
+                // found — something is wrong; abort with ZERO net change.
+                if (slots.Count == 0)
+                {
+                    RestoreSnapshot(rom, snap);
+                    error = R._("Map setting expand aborted: no references were repointed (expected at least the canonical pointer slot).");
+                    return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+                }
+
+                // (b) the canonical map_setting_pointer slot MUST be among them.
+                bool canonicalCovered = false;
+                foreach (uint s in slots)
+                {
+                    if (s == pointerAddr) { canonicalCovered = true; break; }
+                }
+                if (!canonicalCovered)
+                {
+                    RestoreSnapshot(rom, snap);
+                    error = R._("Map setting expand aborted: the canonical pointer slot (0x{0:X}) was not among the repointed references.", pointerAddr);
+                    return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+                }
+
+                // (c) implausibly large ⇒ likely a false-positive flood from a
+                // coincidental raw u32 == base — abort rather than corrupt.
+                if (slots.Count > MaxPlausibleRepointSlots)
+                {
+                    RestoreSnapshot(rom, snap);
+                    error = R._("Map setting expand aborted: {0} references would be repointed, exceeding the plausible maximum ({1}) — likely a false-positive match.", slots.Count, MaxPlausibleRepointSlots);
+                    return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+                }
+
+                Log.Notify(string.Format(
+                    "MapSetting list expand: base 0x{0:X} -> 0x{1:X}, {2} -> {3} rows, {4} reference(s) repointed.",
+                    U.toOffset(oldBase), result.NewBaseAddress, currentCount, newCount, slots.Count));
+                return result;
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                error = R._("Map setting table expansion failed: {0}", ex.Message);
+                return new DataExpansionCore.ExpandResult { Success = false, Error = error };
+            }
+        }
+
+        /// <summary>
+        /// Length-aware byte-identical restore: a free-space resize-append can
+        /// GROW rom.Data, so down-resize back to the snapshot length BEFORE the
+        /// in-place copy (a naive Array.Copy would leave the grown tail alive).
+        /// Mirrors <c>WaitIconImportCore.RestoreSnapshot</c> (#885/#923).
+        /// </summary>
+        static void RestoreSnapshot(ROM rom, byte[] snap)
+        {
+            if (rom.Data.Length != snap.Length)
+                rom.write_resize_data((uint)snap.Length);
+            Array.Copy(snap, rom.Data, snap.Length);
+        }
+
+        /// <summary>
         /// Get a human-readable name for a map at the given address.
         /// </summary>
         static string GetMapName(ROM rom, uint addr)
