@@ -180,6 +180,31 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ImportS_UpperHexTokens_Resolve()
+        {
+            var rom = MakeRom();
+            // 0xF and 0xFF (= NOTE_END) must resolve — WF's `< 0xf`/`< 0xff` loops
+            // dropped them, causing valid `.s` to fail (Copilot PR review). Here a
+            // header byte uses 0xFF directly.
+            var lines = new[]
+            {
+                ".global song_grp",
+                "song_grp_1:",
+                ".byte EOT",
+                "song_grp:",
+                ".byte 0xFF, 0xF, 0, 0",      // expect 0xFF, 0x0F
+                ".word voicegroup000",
+                ".word song_grp_1",
+                ".end",
+            };
+            uint header = Run(rom, lines, INSTRUMENT, out string error);
+            Assert.NotEqual(U.NOT_FOUND, header);
+            Assert.Null(error);
+            Assert.Equal(0xFFu, rom.u8(header + 0));
+            Assert.Equal(0x0Fu, rom.u8(header + 1));
+        }
+
+        [Fact]
         public void ImportS_EquExpression_Evaluates()
         {
             var rom = MakeRom();
@@ -289,24 +314,23 @@ namespace FEBuilderGBA.Core.Tests
         // -----------------------------------------------------------------
 
         [Fact]
-        public void ImportS_OutOfRangeGlobalId_FailsBeforeMutation_ByteIdentical()
+        public void ImportS_NonLabelEquWord_FailsBeforeMutation_ByteIdentical()
         {
             var rom = MakeRom();
             byte[] before = (byte[])rom.Data.Clone();
-            // Encode an out-of-range global id directly: .equ a label-like value whose
-            // top byte is a global id far beyond the single global. (globalID 5 << 24).
+            // A .word whose token is a non-label .equ (not a label name, not a
+            // sentinel) is an ABSOLUTE value -> rejected before mutation (Copilot PR
+            // review: WF would blindly rewrite it as a pointer). 83886080 == 0x05000000.
             var lines = new[]
             {
-                // 83886080 == 0x05000000 (globalID 5, offset 0). Use DECIMAL so the
-                // .equ hex lookups don't mangle the value during Expr substitution.
-                ".equ badref, 83886080",      // globalID 5, offset 0 -> no global[5]
+                ".equ badref, 83886080",
                 ".global song_grp",
                 "song_grp_1:",
                 ".byte EOT",
                 "song_grp:",
                 ".byte 1, 0, 0, 0",
                 ".word voicegroup000",
-                ".word badref",               // out-of-range encoded id
+                ".word badref",               // absolute .equ value, NOT a label
                 ".end",
             };
             uint header = Run(rom, lines, INSTRUMENT, out string error);
@@ -318,16 +342,52 @@ namespace FEBuilderGBA.Core.Tests
             Assert.True(before.SequenceEqual(rom.Data), "ROM must be byte-identical after a pre-mutation failure.");
         }
 
+        [Theory]
+        // 0x01000000 == 16777216: WF would decode top byte 1 -> global[1] and rewrite
+        // it as a pointer; with origin tracking it is rejected as absolute.
+        [InlineData("16777216")]
+        // 0x0000FFFF == 65535: WF would decode global[0] + 0xFFFF and rewrite; rejected.
+        [InlineData("65535")]
+        // An arithmetic label expression (`song_grp_1+4`) is NOT a bare label name, so
+        // it is (correctly) absolute too — WF parity is eager-Expr only on bare labels.
+        [InlineData("song_grp_1+4")]
+        public void ImportS_AbsoluteOrArithmeticWord_FailsBeforeMutation_ByteIdentical(string wordToken)
+        {
+            var rom = MakeRom();
+            byte[] before = (byte[])rom.Data.Clone();
+            var lines = new[]
+            {
+                ".global song_grp",
+                "song_grp_1:",
+                ".byte EOT",
+                "song_grp:",
+                ".byte 1, 0, 0, 0",
+                ".word voicegroup000",
+                ".word " + wordToken,         // absolute / numeric / arithmetic -> reject
+                ".end",
+            };
+            uint header = Run(rom, lines, INSTRUMENT, out string error);
+
+            Assert.Equal(U.NOT_FOUND, header);
+            Assert.NotNull(error);
+            Assert.Equal(before.Length, rom.Data.Length);
+            Assert.True(before.SequenceEqual(rom.Data), "ROM must be byte-identical after a pre-mutation failure.");
+        }
+
         [Fact]
         public void ImportS_MissingSongGlobal_FailsByteIdentical()
         {
             var rom = MakeRom();
             byte[] before = (byte[])rom.Data.Clone();
-            // .global names a table that is never defined as a label.
+            // .global names song_grp but the matching `song_grp*` label is never defined
+            // (no labels at all), so globalName is set yet FindGlobal(global, globalName)
+            // fails -> the missing-song-table-global path (NOT the "defined twice"
+            // error, which is a different branch) (Copilot PR review). A label-less .s
+            // is the only way to set globalName with an empty global list, since every
+            // global label MUST start with globalName.
             var lines = new[]
             {
-                ".global missing_table",
-                ".global song_grp",           // a 2nd .global is itself an error (defined twice)
+                ".global song_grp",
             };
             uint header = Run(rom, lines, INSTRUMENT, out string error);
             Assert.Equal(U.NOT_FOUND, header);

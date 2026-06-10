@@ -110,14 +110,31 @@ namespace FEBuilderGBA.Core
             return "";
         }
 
+        /// <summary>One deferred <c>.word</c> pointer-slot fixup. WF stores ONLY the
+        /// computed u32, which makes a literal numeric <c>.word</c> (e.g.
+        /// <c>.word 0x01000000</c>) indistinguishable from a label-relative
+        /// <c>(globalID&lt;&lt;24)+offset</c> encoding — so WF blindly rewrites it as a
+        /// pointer and corrupts the ROM (Copilot PR review). Core preserves the
+        /// per-<c>.word</c> ORIGIN so the validate phase can reject an absolute /
+        /// numeric word BEFORE mutating: only a word that resolved through a real
+        /// LABEL name (the <c>equ[name]</c> set by a label definition) or the
+        /// <c>voicegroup000</c>/<c>MusicVoices</c> SENTINEL is a legal pointer slot.</summary>
+        sealed class WordRef
+        {
+            public uint SlotInBlob;     // pointer-slot offset within this global's blob
+            public bool IsSentinel;     // resolved from voicegroup000 / MusicVoices
+            public bool IsLabel;        // resolved from a registered label name
+        }
+
         /// <summary>One assembled "global" data blob (WF SongInnerDataSt): its
-        /// label name, the byte list, the list of pointer-slot offsets recorded by
-        /// <c>.word</c>, and the ROM offset allocated during the mutation phase.</summary>
+        /// label name, the byte list, the per-<c>.word</c> pointer-slot fixups
+        /// (with origin metadata), and the ROM offset allocated during the mutation
+        /// phase.</summary>
         sealed class SongGlobal
         {
             public int GlobalID;            // == index in the global list
             public string Name;
-            public List<uint> UseLabelRegist = new List<uint>(); // .word slot offsets
+            public List<WordRef> WordRefs = new List<WordRef>(); // .word fixups + origin
             public List<byte> List = new List<byte>();
             public uint RomAllocOffset;     // filled in the mutation phase
         }
@@ -259,29 +276,29 @@ namespace FEBuilderGBA.Core
                     }
                 }
 
-                // (b) Resolve every label-relative .word pointer. The placeholder
-                // u32 in the appended blob encodes (globalID<<24)+offset, OR the
-                // -1 sentinel for the song-header instrument pointer. write_p32
-                // takes the TARGET OFFSET and applies U.toPointer internally.
+                // (b) Resolve every label-relative .word pointer using the recorded
+                // per-.word ORIGIN (not a re-decode of the bytes — Copilot PR review).
+                // A SENTINEL word -> the user-selected instrument set; a LABEL word's
+                // encoded (globalID<<24)+offset -> global[id].base + offset. Both the
+                // id range and the offset range were already validated in phase 1.
+                // write_p32 takes the TARGET OFFSET and applies U.toPointer internally.
                 for (int i = 0; i < global.Count; i++)
                 {
                     SongGlobal g = global[i];
-                    for (int n = 0; n < g.UseLabelRegist.Count; n++)
+                    foreach (WordRef wr in g.WordRefs)
                     {
-                        uint rewriteOffset = g.UseLabelRegist[n];
-                        uint rewriteAddr = g.RomAllocOffset + rewriteOffset;
+                        uint rewriteAddr = g.RomAllocOffset + wr.SlotInBlob;
 
-                        uint rewriteInfo = rom.u32(rewriteAddr);
-
-                        if (rewriteInfo == VOICEGROUP_SENTINEL)
+                        if (wr.IsSentinel)
                         {//voicegroup000 / MusicVoices — the user-selected instrument set.
                             rom.write_p32(rewriteAddr, instrumentOffset);
                             continue;
                         }
 
+                        // LABEL word (validated): decode (globalID<<24)+offset.
+                        uint rewriteInfo = rom.u32(rewriteAddr);
                         int globalID = (int)((rewriteInfo >> 24) & 0xFF);
                         uint offset = (rewriteInfo & 0xFFFFFF);
-                        // Bounds-checked in phase 1; re-guard defensively.
                         if (globalID < 0 || globalID >= global.Count)
                         {
                             RestoreFault(rom, snapshot, ambient, undoStart);
@@ -351,6 +368,9 @@ namespace FEBuilderGBA.Core
 
             List<SongGlobal> global = new List<SongGlobal>();
             SongGlobal current = null;
+            // Every label name registered into `equ` (so a .word can tell a real
+            // label pointer from a numeric/absolute expression — Copilot PR review).
+            var labelNames = new HashSet<string>(StringComparer.Ordinal);
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -435,6 +455,7 @@ namespace FEBuilderGBA.Core
 
                     // Relative coordinate: (globalID<<24) + listCount.
                     equ[name] = (current.GlobalID << 24) + current.List.Count;
+                    labelNames.Add(name);          // mark as a real label name
                     equSorted = SortedEQU(equ);
                     continue;
                 }
@@ -482,7 +503,25 @@ namespace FEBuilderGBA.Core
                             return null;
                         }
                         uint v = (uint)vi;
-                        current.UseLabelRegist.Add((uint)current.List.Count);
+
+                        // ORIGIN (Copilot PR review): a legal .word pointer is exactly
+                        // a registered LABEL name or the voicegroup000/MusicVoices
+                        // SENTINEL. A numeric / absolute / arithmetic expression
+                        // (e.g. `.word 0x01000000`, `.word 65535`) is REJECTED in the
+                        // validate phase — WF would blindly rewrite it as a pointer and
+                        // corrupt the ROM. The raw token (whitespace-trimmed) carries
+                        // the origin; an arithmetic word like `lbl+4` is NOT a bare
+                        // label name, so it is (correctly) treated as absolute too.
+                        string wtok = token[n];
+                        bool isSentinel = wtok == "voicegroup000" || wtok == "MusicVoices";
+                        bool isLabel = labelNames.Contains(wtok);
+
+                        current.WordRefs.Add(new WordRef
+                        {
+                            SlotInBlob = (uint)current.List.Count,
+                            IsSentinel = isSentinel,
+                            IsLabel = isLabel,
+                        });
                         U.append_u32(current.List, v);
                     }
                     continue;
@@ -504,10 +543,13 @@ namespace FEBuilderGBA.Core
         }
 
         /// <summary>
-        /// VALIDATE-ALL-BEFORE-MUTATE: every <c>.word</c> slot's encoded label id
-        /// (decoded from the in-memory blob) must be the known sentinel OR an
-        /// in-range global id. Rejects an out-of-range id with file:line and ZERO
-        /// ROM mutation (Copilot plan finding).
+        /// VALIDATE-ALL-BEFORE-MUTATE: every <c>.word</c> must have resolved through
+        /// a real LABEL name or the <c>voicegroup000</c>/<c>MusicVoices</c> SENTINEL,
+        /// and a label word's encoded global id must be in range AND its offset must
+        /// land inside that global's blob. A numeric / absolute / arithmetic
+        /// <c>.word</c> (no label origin) is REJECTED here with file:line and ZERO ROM
+        /// mutation — WF would blindly rewrite it as a pointer and corrupt the ROM
+        /// (Copilot PR review). The sentinel resolves to the selected instrument set.
         /// </summary>
         static bool ValidateLabelReferences(List<SongGlobal> global, string filename, out string error)
         {
@@ -515,24 +557,50 @@ namespace FEBuilderGBA.Core
             for (int i = 0; i < global.Count; i++)
             {
                 SongGlobal g = global[i];
-                foreach (uint slot in g.UseLabelRegist)
+                foreach (WordRef wr in g.WordRefs)
                 {
-                    // Decode the placeholder u32 from this global's own byte list.
+                    // The slot itself must be inside this global's byte list.
+                    uint slot = wr.SlotInBlob;
                     if (slot + 4 > g.List.Count)
                     {
                         error = R._("A .word reference is out of range in global {0}.", g.Name);
                         return false;
                     }
+
+                    // The sentinel resolves to the selected instrument set (validated
+                    // separately as a real ROM offset by ImportS).
+                    if (wr.IsSentinel)
+                        continue;
+
+                    // ORIGIN GATE (Copilot PR review): a .word that did NOT resolve
+                    // from a label name is an absolute / numeric expression — reject
+                    // it (e.g. `.word 0x01000000`, `.word 65535`, `.word lbl+4`).
+                    if (!wr.IsLabel)
+                    {
+                        uint absval = (uint)(g.List[(int)slot]
+                            | (g.List[(int)slot + 1] << 8)
+                            | (g.List[(int)slot + 2] << 16)
+                            | (g.List[(int)slot + 3] << 24));
+                        error = R._("A .word value (0x{2:X}) in {3}:{4} is not a label or instrument reference. Only labels and voicegroup000/MusicVoices may appear in a .word.", 0, 0, absval, filename, g.Name);
+                        return false;
+                    }
+
+                    // A label word encodes (globalID<<24)+offset. Bounds-check the id
+                    // AND require the offset to land inside the target global's blob.
                     uint info = (uint)(g.List[(int)slot]
                         | (g.List[(int)slot + 1] << 8)
                         | (g.List[(int)slot + 2] << 16)
                         | (g.List[(int)slot + 3] << 24));
-                    if (info == VOICEGROUP_SENTINEL)
-                        continue; // resolves to the selected instrument set.
                     int globalID = (int)((info >> 24) & 0xFF);
+                    uint offset = info & 0xFFFFFF;
                     if (globalID < 0 || globalID >= global.Count)
                     {
                         error = R._("A .word reference points to an undefined label (global id {0}) in {1}:{2}.", globalID, filename, g.Name);
+                        return false;
+                    }
+                    if (offset > (uint)global[globalID].List.Count)
+                    {
+                        error = R._("A .word label offset (0x{0:X}) is outside its target in {1}:{2}.", offset, filename, g.Name);
                         return false;
                     }
                 }
@@ -586,10 +654,14 @@ namespace FEBuilderGBA.Core
                 equ["v" + i.ToString("000")] = (int)i;
             for (uint i = 0; i < MEMACC.Length; i++)
                 equ[MEMACC[i]] = (int)i;
-            // hex lookups.
-            for (uint i = 0; i < 0xf; i++)
+            // hex lookups. NOTE: WF stops at `< 0xf` / `< 0xff`, which leaves the
+            // common `0xF` and `0xFF` (= NOTE_END) tokens UN-substituted — Expr then
+            // rejects them as non-numeric and a valid `.s` fails to import (Copilot PR
+            // review). Use `<= 0xF` / `<= 0xFF` so the full single- and double-digit
+            // hex range resolves (a strict superset of WF — no valid token regresses).
+            for (uint i = 0; i <= 0xf; i++)
                 equ["0x" + i.ToString("X")] = (int)i;
-            for (uint i = 0; i < 0xff; i++)
+            for (uint i = 0; i <= 0xff; i++)
                 equ[U.To0xHexString(i)] = (int)i;
 
             return equ;
