@@ -625,12 +625,12 @@ namespace FEBuilderGBA.Core
                         return null;
                 }
 
-                // Terminator: three u32 0s (WF "終端データ"). Self-ref targets are
-                // validated against the blob INCLUDING this terminator (so a child
-                // record may legitimately point one record past the last voice).
-                U.append_u32(bin, 0);
-                U.append_u32(bin, 0);
-                U.append_u32(bin, 0);
+                // Terminator: a TerminatorSize-byte (12) all-zero record (WF "終端データ"
+                // = three u32 0s). Self-ref targets are validated against the blob
+                // INCLUDING this terminator (so a child record may legitimately point
+                // one record past the last voice).
+                for (int t = 0; t < TerminatorSize; t++)
+                    U.append_u8(bin, 0);
 
                 byte[] blob = bin.ToArray();
 
@@ -725,6 +725,27 @@ namespace FEBuilderGBA.Core
                     if (string.IsNullOrEmpty(error))
                         error = R._("Instrument sample data ({1}) is missing on row {0}.", index + 1, sp[4]);
                     return false;
+                }
+                // STRUCTURAL validation for DirectSound (Copilot review): the blob's
+                // own header must be a plausible (non-broken) DirectSound sample whose
+                // declared body length matches the blob — otherwise an absurd +12 length
+                // would produce an on-ROM sample that reads past its allocated region.
+                // IsDirectSoundData rejects len<=4 / len>=4MiB / header+body past blob
+                // end; additionally require the blob to be EXACTLY header(16) + body so a
+                // padded/truncated blob is refused (ExportAll emits exactly 12+4+body).
+                if (!isWaveMemory)
+                {
+                    if (!SongDirectSoundWavCore.IsDirectSoundData(wav, 0))
+                    {
+                        error = R._("The DirectSound sample file ({1}) on row {0} is not a valid sample.", index + 1, sp[4]);
+                        return false;
+                    }
+                    uint body = SongDirectSoundWavCore.GetDirectSoundWaveDataLength(wav, 0);
+                    if ((long)wav.Length != 12 + 4 + body)
+                    {
+                        error = R._("The DirectSound sample file ({1}) on row {0} has a length that does not match its header.", index + 1, sp[4]);
+                        return false;
+                    }
                 }
                 fixups.Add(new Fixup { Kind = FixupKind.SideData, SlotInBlob = bin.Count, Data = wav });
                 U.append_u32(bin, 0); // placeholder pointer slot (written in phase b)
@@ -849,13 +870,25 @@ namespace FEBuilderGBA.Core
             return true;
         }
 
+        /// <summary>
+        /// Hard upper bound on any side blob. A valid exported DirectSound
+        /// <c>.DirectSound.bin</c> is a 16-byte header + a body that ExportAll's
+        /// <c>SafeLen</c> caps below 0x00200000, so the FULL blob can reach
+        /// 0x00200000 + 16 (Copilot review — a 16-byte header must not be rejected on
+        /// re-import). Wave Memory (16) and the keymap (128) are bounded by their exact
+        /// checks well under this.
+        /// </summary>
+        const int MaxSideBlobLen = 0x00200000 + 16;
+
         /// <summary>Read a side file, rejecting an empty / oversized / wrong-length blob
         /// (validate-before-mutate — Copilot review). <paramref name="exactLen"/> &gt; 0
         /// requires that EXACT length (Wave Memory 16, keymap 128 — the fixed-size blobs
         /// ExportAll always emits); <paramref name="minLen"/> &gt; 0 requires at least
-        /// that many bytes (DirectSound needs its 16-byte header). Returns <c>null</c>
-        /// (with <paramref name="error"/> set when the cause is a bad length) when the
-        /// file is missing or insane.</summary>
+        /// that many bytes (DirectSound needs its 16-byte header). The exact/min checks
+        /// run BEFORE the absolute <see cref="MaxSideBlobLen"/> cap so a header-sized
+        /// variable blob is never spuriously rejected. Returns <c>null</c> (with
+        /// <paramref name="error"/> set when the cause is a bad length) when the file is
+        /// missing or insane.</summary>
         static byte[] ReadSideFile(string name, Func<string, byte[]> readFile, int exactLen, int minLen, out string error)
         {
             error = null;
@@ -867,11 +900,6 @@ namespace FEBuilderGBA.Core
                 error = R._("The instrument data file is empty: {0}", name);
                 return null;
             }
-            if (data.Length >= 0x00200000)
-            {
-                error = R._("The instrument data file is too large: {0}", name);
-                return null;
-            }
             if (exactLen > 0 && data.Length != exactLen)
             {
                 error = R._("The instrument data file {0} must be exactly {1} bytes (got {2}).", name, exactLen, data.Length);
@@ -880,6 +908,13 @@ namespace FEBuilderGBA.Core
             if (minLen > 0 && data.Length < minLen)
             {
                 error = R._("The instrument data file {0} is too short (need at least {1} bytes, got {2}).", name, minLen, data.Length);
+                return null;
+            }
+            // Absolute cap LAST so a legitimate header-sized DirectSound blob (up to
+            // 0x00200000 + 16) is never rejected by a too-tight cap (Copilot review).
+            if (data.Length > MaxSideBlobLen)
+            {
+                error = R._("The instrument data file is too large: {0}", name);
                 return null;
             }
             return data;

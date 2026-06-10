@@ -776,11 +776,17 @@ namespace FEBuilderGBA.Avalonia.Views
             string baseFull = Path.GetFullPath(dir);
             string candidate = Path.GetFullPath(Path.Combine(baseFull, name));
             // The resolved path must stay inside the chosen directory (block "..").
+            // Use case-INSENSITIVE comparison only on Windows (a case-insensitive
+            // filesystem); on Linux/macOS use Ordinal so a case-difference can't be
+            // exploited to slip a ".." escape past the prefix check (Copilot review).
+            var cmp = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
             string prefix = baseFull.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
                 ? baseFull
                 : baseFull + Path.DirectorySeparatorChar;
-            if (!candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(candidate, baseFull, StringComparison.OrdinalIgnoreCase))
+            if (!candidate.StartsWith(prefix, cmp)
+                && !string.Equals(candidate, baseFull, cmp))
                 return null;
             return candidate;
         }

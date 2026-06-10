@@ -1238,6 +1238,53 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // -----------------------------------------------------------------
+        // I-3g. (Copilot review) A DirectSound .bin whose declared body length does NOT
+        //       match the blob (corrupt header) is REJECTED with NO mutation — a bogus
+        //       +12 length would otherwise produce an on-ROM sample reading past its
+        //       allocated region.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_DirectSoundHeaderLengthMismatch_NoMutation()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                uint s0 = 0x8000;
+                WriteDirectSoundSample(rom, s0, 12000, 64);
+                WriteVoice(rom, VOCA_BASE, 0x08, 0, 0, 0, U.toPointer(s0), 0, 0, 0, 0, 0);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                // Corrupt the .DirectSound.bin header's +12 length to claim a huge body
+                // (the blob stays the same physical size, so length != 16 + declared body).
+                byte[] bin = export.Files["vg0x00.DirectSound.bin"];
+                // +12 little-endian = 0x00010000 (65536) while the blob is only ~80 bytes.
+                bin[12] = 0x00; bin[13] = 0x00; bin[14] = 0x01; bin[15] = 0x00;
+                export.Files["vg0x00.DirectSound.bin"] = bin;
+
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = new Undo().NewUndoData("import");
+                using (ROM.BeginUndoScope(undo))
+                {
+                    uint result = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
         // I-4. Undo rollback: after a SUCCESSFUL import, running the undo restores the
         //      ROM length and every pointer slot byte-identically.
         // -----------------------------------------------------------------
