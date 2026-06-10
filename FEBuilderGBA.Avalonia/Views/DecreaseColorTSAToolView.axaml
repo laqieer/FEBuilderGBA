@@ -1,21 +1,121 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.DecreaseColorTSAToolView"
-        Title="Color Reduction Tool" Width="1000" Height="439"
-        SizeToContent="WidthAndHeight">
-  <Grid ColumnDefinitions="250,*">
-    <controls:AddressListControl AutomationProperties.AutomationId="DecreaseColorTSATool_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
+        Title="Color Reduction Tool" Width="560" Height="520"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height">
+  <!-- File→file PNG color-reduction utility (WF DecreaseColorTSAToolForm).
+       NO ROM mutation, NO Undo, NO address list. Drives the merged Core
+       engine DecreaseColorConvertCore (GetMethodPreset + ReduceColorFile).
+       Combo items (Method / Size / Reserve) are populated in code-behind via
+       R._() because ViewTranslationHelper does not translate ComboBoxItem
+       content. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="10">
 
-    <ScrollViewer Grid.Column="1" Margin="4">
-      <StackPanel Spacing="8" Margin="8">
-        <TextBlock Text="Color Reduction Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Color Reduction Tool" FontSize="18" FontWeight="Bold" />
+      <TextBlock Text="Reduce an image to GBA palettes (16 colors x N banks) for import."
+                 TextWrapping="Wrap" />
 
-        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto">
-          <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
-          <TextBlock AutomationProperties.AutomationId="DecreaseColorTSATool_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </ScrollViewer>
-  </Grid>
+      <!-- Input file -->
+      <TextBlock Text="Input file:" FontWeight="SemiBold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox AutomationProperties.AutomationId="DecreaseColorTSATool_InputFile_Input"
+                 Grid.Column="0" Name="InputBox"
+                 Text="{Binding InputPath}"
+                 Watermark="Select a PNG, BMP or JPG file" />
+        <Button AutomationProperties.AutomationId="DecreaseColorTSATool_InputBrowse_Button"
+                Grid.Column="1" Content="Browse..." Margin="6,0,0,0"
+                Click="InputBrowse_Click" />
+      </Grid>
+
+      <!-- Output file -->
+      <TextBlock Text="Output file:" FontWeight="SemiBold" Margin="0,6,0,0" />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBox AutomationProperties.AutomationId="DecreaseColorTSATool_OutputFile_Input"
+                 Grid.Column="0" Name="OutputBox"
+                 Text="{Binding OutputPath}"
+                 Watermark="Select where to save the reduced PNG" />
+        <Button AutomationProperties.AutomationId="DecreaseColorTSATool_OutputBrowse_Button"
+                Grid.Column="1" Content="Browse..." Margin="6,0,0,0"
+                Click="OutputBrowse_Click" />
+      </Grid>
+
+      <!-- Method preset -->
+      <Grid ColumnDefinitions="160,*" Margin="0,6,0,0">
+        <TextBlock Grid.Column="0" Text="Method:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="DecreaseColorTSATool_Method_Combo"
+                  Grid.Column="1" Name="MethodCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding Method}" />
+      </Grid>
+
+      <!-- Parameters -->
+      <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Width:" VerticalAlignment="Center" Margin="0,2" />
+        <NumericUpDown AutomationProperties.AutomationId="DecreaseColorTSATool_Width_Input"
+                       Grid.Row="0" Grid.Column="1" Name="WidthBox"
+                       Value="{Binding Width}" FormatString="0"
+                       Minimum="8" Maximum="2048" Increment="8" Margin="0,2" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Height:" VerticalAlignment="Center" Margin="0,2" />
+        <NumericUpDown AutomationProperties.AutomationId="DecreaseColorTSATool_Height_Input"
+                       Grid.Row="1" Grid.Column="1" Name="HeightBox"
+                       Value="{Binding Height}" FormatString="0"
+                       Minimum="8" Maximum="2048" Increment="8" Margin="0,2" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Margin (Yohaku):" VerticalAlignment="Center" Margin="0,2" />
+        <NumericUpDown AutomationProperties.AutomationId="DecreaseColorTSATool_Yohaku_Input"
+                       Grid.Row="2" Grid.Column="1" Name="YohakuBox"
+                       Value="{Binding Yohaku}" FormatString="0"
+                       Minimum="0" Maximum="256" Increment="8" Margin="0,2" />
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Palette banks:" VerticalAlignment="Center" Margin="0,2" />
+        <NumericUpDown AutomationProperties.AutomationId="DecreaseColorTSATool_PaletteNo_Input"
+                       Grid.Row="3" Grid.Column="1" Name="PaletteNoBox"
+                       Value="{Binding PaletteNo}" FormatString="0"
+                       Minimum="1" Maximum="16" Increment="1" Margin="0,2" />
+      </Grid>
+
+      <!-- Size method -->
+      <Grid ColumnDefinitions="160,*">
+        <TextBlock Grid.Column="0" Text="Size method:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="DecreaseColorTSATool_SizeMethod_Combo"
+                  Grid.Column="1" Name="SizeMethodCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding SizeMethodIndex}" />
+      </Grid>
+
+      <!-- Reserve 1st color -->
+      <Grid ColumnDefinitions="160,*">
+        <TextBlock Grid.Column="0" Text="Reserve 1st color:" VerticalAlignment="Center" />
+        <ComboBox AutomationProperties.AutomationId="DecreaseColorTSATool_Reserve_Combo"
+                  Grid.Column="1" Name="ReserveCombo"
+                  HorizontalAlignment="Stretch"
+                  SelectedIndex="{Binding ReserveIndex}" />
+      </Grid>
+
+      <!-- IgnoreTSA — visible only when PaletteNo >= 4 (WF parity) -->
+      <CheckBox AutomationProperties.AutomationId="DecreaseColorTSATool_IgnoreTSA_Check"
+                Name="IgnoreTSACheck"
+                Content="Ignore TSA (single flat palette)"
+                IsChecked="{Binding IgnoreTSA}"
+                IsVisible="{Binding ShowIgnoreTSA}" />
+
+      <!-- Reduce -->
+      <Button AutomationProperties.AutomationId="DecreaseColorTSATool_Reduce_Button"
+              Name="ReduceButton" Content="Reduce Colors"
+              HorizontalAlignment="Left" Margin="0,8,0,0"
+              Click="Reduce_Click" />
+
+      <!-- Status -->
+      <Border BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+              Padding="8" Margin="0,8,0,0">
+        <TextBlock AutomationProperties.AutomationId="DecreaseColorTSATool_Status_Label"
+                   Name="StatusText" Text="{Binding StatusMessage}"
+                   TextWrapping="Wrap" MinHeight="20" />
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
 </Window>
