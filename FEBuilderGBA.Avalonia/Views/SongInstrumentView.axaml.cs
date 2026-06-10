@@ -484,17 +484,52 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         // -----------------------------------------------------------------
-        // N00 DirectSound wave Export/Import (#1057). Only the DirectSound
-        // (N00) category is wired in this slice — N03 (Wave Memory) and the
-        // other wave-pointer tabs (N08/N10/N18) stay disabled. The Core port
-        // (SongDirectSoundWavCore) owns the GBA-sample <-> WAV conversion and
-        // the RAW append + P4 repoint with a byte-identical fault restore.
+        // DirectSound wave Export/Import (#1057). The N00 (type 0x00) and N08
+        // (type 0x08 "DirectSound Fixed Freq") DirectSound voices share the EXACT
+        // same sample format (header type byte at +0, sample pointer P4 at +4), so
+        // both reuse SongDirectSoundWavCore.ExportWave / ImportWave verbatim. N03
+        // (Wave Memory) and the reverse DirectSound tabs N10 (0x10) / N18 (0x18)
+        // stay DISABLED in this slice — only 0x00 and 0x08 are unlocked.
+        //
+        // The gates use the VM's LoadedHeaderByte (the on-ROM byte captured at
+        // LoadEntry), NOT the mutable HeaderByte/Category, so a loaded 0x10/0x18
+        // entry switched to the N08 tab in-memory cannot be repointed as if it
+        // were a 0x08 voice (#1057 Copilot plan review pt 1). The shared
+        // ExportWaveTo / ImportWaveInto helpers take the active tab's P4 box name
+        // so N00 updates N00_P4_Box and N08 updates N08_P4_Box.
         // -----------------------------------------------------------------
 
         async void N00_Export_Click(object? sender, RoutedEventArgs e)
         {
+            // Gate on the LOADED ROM byte (0x00), not the mutable category.
+            await ExportWaveGated(_vm.IsLoadedDirectSound);
+        }
+
+        async void N00_Import_Click(object? sender, RoutedEventArgs e)
+        {
+            await ImportWaveGated(_vm.IsLoadedDirectSound, "N00_P4_Box");
+        }
+
+        async void N08_Export_Click(object? sender, RoutedEventArgs e)
+        {
+            // N08-only: gate on the LOADED ROM byte 0x08. 0x10 / 0x18 stay disabled
+            // and are NOT unlocked here (#1057 scope).
+            await ExportWaveGated(_vm.IsLoadedDirectSoundFixedFreq);
+        }
+
+        async void N08_Import_Click(object? sender, RoutedEventArgs e)
+        {
+            // N08-only: import slot is THIS entry's own P4 (CurrentAddr + 4) and the
+            // success update targets N08_P4_Box (not N00_P4_Box).
+            await ImportWaveGated(_vm.IsLoadedDirectSoundFixedFreq, "N08_P4_Box");
+        }
+
+        // Shared DirectSound wave EXPORT used by N00 + N08. Reads the pointer value
+        // _vm.WavePtr (= rom.u32(CurrentAddr+4)) and decodes it via the Core seam.
+        async System.Threading.Tasks.Task ExportWaveGated(bool gate)
+        {
             if (!_vm.IsLoaded) return;
-            if (!_vm.IsDirectSound)
+            if (!gate)
             {
                 CoreState.Services.ShowError(
                     R._("This instrument is not a DirectSound voice; there is no wave sample to export."));
@@ -521,15 +556,18 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SongInstrumentView.N00_Export_Click failed: {0}", ex.Message);
+                Log.Error("SongInstrumentView.ExportWaveGated failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Wave export failed: {0}", ex.Message));
             }
         }
 
-        async void N00_Import_Click(object? sender, RoutedEventArgs e)
+        // Shared DirectSound wave IMPORT used by N00 + N08. Imports a WAV as a new
+        // GBA sample (append + P4 repoint), under the view's undo scope, then
+        // updates the active tab's P4 box (p4BoxName).
+        async System.Threading.Tasks.Task ImportWaveGated(bool gate, string p4BoxName)
         {
             if (!_vm.IsLoaded) return;
-            if (!_vm.IsDirectSound)
+            if (!gate)
             {
                 CoreState.Services.ShowError(
                     R._("This instrument is not a DirectSound voice; a wave sample cannot be imported here."));
@@ -546,7 +584,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Begin("Import DirectSound Wave");
                 try
                 {
-                    // P4 wave-pointer slot = voice entry +4 (passed as OFFSET;
+                    // P4 wave-pointer slot = THIS voice entry +4 (passed as OFFSET;
                     // ImportWave converts it to a GBA pointer via write_p32).
                     uint newPtr = SongDirectSoundWavCore.ImportWave(
                         CoreState.ROM, _vm.CurrentAddr + 4, bytes, out string err);
@@ -558,7 +596,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     }
 
                     _vm.WavePtr = newPtr;
-                    SetNumericByName("N00_P4_Box", _vm.WavePtr);
+                    SetNumericByName(p4BoxName, _vm.WavePtr);
                     _undoService.Commit();
                     _vm.MarkClean();
                     CoreState.Services.ShowInfo(R._("Wave imported. The sample pointer is now 0x{0:X08}.", newPtr));
@@ -566,7 +604,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 catch (Exception ex)
                 {
                     _undoService.Rollback();
-                    Log.Error("SongInstrumentView.N00_Import_Click failed: {0}", ex.Message);
+                    Log.Error("SongInstrumentView.ImportWaveGated failed: {0}", ex.Message);
                     CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
                 }
             }
@@ -576,8 +614,58 @@ namespace FEBuilderGBA.Avalonia.Views
                 // (permissions, missing/locked file) BEFORE _undoService.Begin, so
                 // no undo scope is open here and no Rollback is needed. Surface a
                 // user-facing error instead of failing silently (Copilot review).
-                Log.Error("SongInstrumentView.N00_Import_Click: {0}", ex.Message);
+                Log.Error("SongInstrumentView.ImportWaveGated: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Wave import failed: {0}", ex.Message));
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // InstExport (#1057) — recursive READ-ONLY voicegroup export. Writes a TSV
+        // index of the loaded voicegroup plus per-voice side files via the Core
+        // seam SongInstrumentSetCore.ExportAll. Read-only — NO UndoService. The
+        // Core emits RELATIVE filename tokens; the delegates resolve them against
+        // the chosen index file's directory (#1057 Copilot plan review pt 3).
+        // The recursive InstImport stays deferred to PR 2.
+        // -----------------------------------------------------------------
+        async void InstExport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            if (CoreState.ROM == null) return;
+
+            // The voicegroup base the editor is currently editing.
+            uint vocaBase = _vm.BaseAddr;
+            if (vocaBase == 0)
+            {
+                CoreState.Services.ShowError(
+                    R._("No instrument set (voicegroup) is loaded to export."));
+                return;
+            }
+
+            try
+            {
+                string? path = await FileDialogHelper.SaveFile(
+                    this, R._("Export Instrument"), R._("Instrument Set"), "*.instrument",
+                    $"voicegroup_0x{vocaBase:X06}.instrument");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string dir = Path.GetDirectoryName(path) ?? ".";
+                string baseName = Path.GetFileNameWithoutExtension(path);
+
+                SongInstrumentSetCore.ExportAll(
+                    CoreState.ROM, vocaBase, baseName,
+                    // writeFile / writeLines resolve the relative Core token against
+                    // the chosen index directory so all side + nested files land
+                    // next to the .instrument index (never the process CWD, never an
+                    // absolute path inside the TSV).
+                    (name, bytes) => File.WriteAllBytes(Path.Combine(dir, name), bytes),
+                    (name, lines) => File.WriteAllLines(Path.Combine(dir, name), lines));
+
+                CoreState.Services.ShowInfo(R._("Instrument set exported to {0}", path));
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongInstrumentView.InstExport_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Instrument set export failed: {0}", ex.Message));
             }
         }
 

@@ -86,8 +86,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("SongDirectSoundWavCore.ExportWave", cs);
             Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
 
-            // Gate on the DirectSound category specifically (NOT IsWaveMemory).
-            Assert.Contains("_vm.IsDirectSound", cs);
+            // Gate on the LOADED ROM byte 0x00 (NOT the mutable category) so a
+            // tab switch can't trick the gate (#1057 Copilot plan review pt 1).
+            Assert.Contains("_vm.IsLoadedDirectSound", cs);
 
             // Import runs under the view's undo scope (Begin/Commit/Rollback).
             Assert.Contains("_undoService.Begin(\"Import DirectSound Wave\")", cs);
@@ -102,18 +103,19 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // -----------------------------------------------------------------
-        // NEGATIVE: in THIS slice only N00 (DirectSound) is wired. N03 (Wave
-        // Memory) and the other wave-pointer tabs (N08/N10/N18) stay disabled —
-        // no Click handlers and no enabling. Guards against accidental scope
-        // creep into the other wave categories (tightening #4).
+        // NEGATIVE: N00 (0x00) and N08 (0x08) DirectSound are wired (#1057 PR1).
+        // N03 (Wave Memory) and the REVERSE DirectSound tabs N10 (0x10) / N18
+        // (0x18) stay disabled — no Click handlers and no enabling. Guards against
+        // accidental scope creep into the other wave categories.
         // -----------------------------------------------------------------
         [Fact]
         public void Axaml_Other_Wave_Tabs_Have_No_Export_Import_Click_Handlers()
         {
             string axaml = ReadView(".axaml");
 
-            // None of the other wave tabs got Export/Import click handlers wired.
-            foreach (string tab in new[] { "N03", "N08", "N10", "N18" })
+            // The still-disabled wave tabs (N03/N10/N18) got NO Export/Import
+            // click handlers. N00 + N08 ARE wired now (see N08 positive test).
+            foreach (string tab in new[] { "N03", "N10", "N18" })
             {
                 Assert.DoesNotContain($"Click=\"{tab}_Export_Click\"", axaml);
                 Assert.DoesNotContain($"Click=\"{tab}_Import_Click\"", axaml);
@@ -124,11 +126,97 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void CodeBehind_Has_No_Other_Wave_Tab_Handlers()
         {
             string cs = ReadView(".axaml.cs");
-            foreach (string tab in new[] { "N03", "N08", "N10", "N18" })
+            // N03/N10/N18 have no per-tab handlers; N00 + N08 DO (shared via the
+            // ExportWaveGated / ImportWaveGated helpers).
+            foreach (string tab in new[] { "N03", "N10", "N18" })
             {
                 Assert.DoesNotContain($"void {tab}_Export_Click", cs);
                 Assert.DoesNotContain($"void {tab}_Import_Click", cs);
             }
+        }
+
+        // -----------------------------------------------------------------
+        // POSITIVE (#1057 PR1): the N08 DirectSound Fixed Freq Export/Import
+        // buttons are ENABLED with Click handlers, and the code-behind gates them
+        // on the LOADED ROM byte 0x08 (NOT the mutable category) and updates the
+        // N08 P4 box on import — proving the N08-only scope + own-slot wiring.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Axaml_N08_Export_And_Import_Buttons_Enabled_With_Clicks()
+        {
+            string axaml = ReadView(".axaml");
+
+            Assert.Contains("SongInstrument_N08_Export_Button", axaml);
+            Assert.Contains("SongInstrument_N08_Import_Button", axaml);
+            Assert.Contains("Click=\"N08_Export_Click\"", axaml);
+            Assert.Contains("Click=\"N08_Import_Click\"", axaml);
+
+            AssertButtonEnabled(axaml, "SongInstrument_N08_Export_Button");
+            AssertButtonEnabled(axaml, "SongInstrument_N08_Import_Button");
+            AssertButtonTooltipNotDeferred(axaml, "SongInstrument_N08_Export_Button");
+            AssertButtonTooltipNotDeferred(axaml, "SongInstrument_N08_Import_Button");
+        }
+
+        [Fact]
+        public void CodeBehind_N08_GatesOnLoadedByte08_And_UpdatesN08P4Box()
+        {
+            string cs = ReadView(".axaml.cs");
+
+            // Handlers exist.
+            Assert.Contains("N08_Export_Click", cs);
+            Assert.Contains("N08_Import_Click", cs);
+
+            // Gate on the LOADED ROM byte (type 0x08), NOT the mutable category —
+            // a loaded 0x10/0x18 entry switched to the N08 tab in-memory must be
+            // rejected (#1057 Copilot plan review pt 1).
+            Assert.Contains("IsLoadedDirectSoundFixedFreq", cs);
+
+            // Import updates the N08 P4 box (its OWN slot), not N00_P4_Box.
+            Assert.Contains("N08_P4_Box", cs);
+
+            // Shared route through the Core seam + own P4 slot (CurrentAddr + 4).
+            Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
+            Assert.Contains("_vm.CurrentAddr + 4", cs);
+        }
+
+        // -----------------------------------------------------------------
+        // POSITIVE (#1057 PR1): InstExport is enabled + wired to the recursive
+        // read-only Core export seam; InstImport stays deferred (disabled).
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Axaml_InstExport_Enabled_InstImport_Disabled()
+        {
+            string axaml = ReadView(".axaml");
+
+            AssertButtonEnabled(axaml, "SongInstrument_InstExport_Button");
+            Assert.Contains("Click=\"InstExport_Click\"", axaml);
+
+            // InstImport stays disabled (deferred to PR 2).
+            int impIdx = axaml.IndexOf("SongInstrument_InstImport_Button", StringComparison.Ordinal);
+            Assert.True(impIdx >= 0);
+            int start = axaml.LastIndexOf('<', impIdx);
+            int end = axaml.IndexOf('>', impIdx);
+            string impEl = axaml.Substring(start, end - start + 1);
+            Assert.Contains("IsEnabled=\"False\"", impEl);
+            Assert.DoesNotContain("Click=", impEl);
+        }
+
+        [Fact]
+        public void CodeBehind_InstExport_RoutesThroughCoreSeam_ReadOnly()
+        {
+            string cs = ReadView(".axaml.cs");
+            Assert.Contains("InstExport_Click", cs);
+            // Routes through the Core recursive export seam.
+            Assert.Contains("SongInstrumentSetCore.ExportAll", cs);
+            // Read-only: NO undo scope is opened in the InstExport handler.
+            int handlerIdx = cs.IndexOf("void InstExport_Click", StringComparison.Ordinal);
+            Assert.True(handlerIdx >= 0);
+            // Scope the no-undo assertion to this handler body (up to the next
+            // method declaration).
+            int next = cs.IndexOf("\n        async void ", handlerIdx + 10, StringComparison.Ordinal);
+            if (next < 0) next = cs.IndexOf("\n        void ", handlerIdx + 10, StringComparison.Ordinal);
+            string body = next > handlerIdx ? cs.Substring(handlerIdx, next - handlerIdx) : cs.Substring(handlerIdx);
+            Assert.DoesNotContain("_undoService.Begin", body);
         }
 
         // Assert the Button element carrying the given AutomationId does NOT have

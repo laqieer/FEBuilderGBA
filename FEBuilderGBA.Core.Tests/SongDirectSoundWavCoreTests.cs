@@ -419,6 +419,50 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        // -----------------------------------------------------------------
+        // 7. IsDirectSoundData (#1057 PR1 — used by the instrument-set export to
+        //    skip a broken DirectSound row): rejects too-short / too-large / EOF.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void IsDirectSoundData_ValidVsBroken()
+        {
+            byte[] data = new byte[ROM_LEN];
+
+            // Valid uncompressed sample with a 64-byte body.
+            WriteSample(data, SAMPLE_OFFSET, 12000, MakePcm(64));
+            Assert.True(SongDirectSoundWavCore.IsDirectSoundData(data, SAMPLE_OFFSET));
+            Assert.Equal(64u, SongDirectSoundWavCore.GetDirectSoundWaveDataLength(data, SAMPLE_OFFSET));
+
+            // Broken: len <= 4 -> rejected.
+            U.write_u32(data, SAMPLE_OFFSET + 12, 2);
+            Assert.False(SongDirectSoundWavCore.IsDirectSoundData(data, SAMPLE_OFFSET));
+
+            // Broken: absurdly large len -> rejected (no body present either).
+            U.write_u32(data, SAMPLE_OFFSET + 12, 1024u * 1024u * 8u);
+            Assert.False(SongDirectSoundWavCore.IsDirectSoundData(data, SAMPLE_OFFSET));
+
+            // Null / EOF guards never throw.
+            Assert.False(SongDirectSoundWavCore.IsDirectSoundData((byte[])null, 0));
+            Assert.False(SongDirectSoundWavCore.IsDirectSoundData(data, ROM_LEN - 4));
+        }
+
+        [Fact]
+        public void GetDirectSoundWaveDataLength_RomOverload_MatchesByteArray()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                WriteSample(rom.Data, SAMPLE_OFFSET, 8000, MakePcm(80));
+                Assert.Equal(80u, SongDirectSoundWavCore.GetDirectSoundWaveDataLength(rom, SAMPLE_OFFSET));
+                Assert.True(SongDirectSoundWavCore.IsDirectSoundData(rom, SAMPLE_OFFSET));
+                Assert.Equal(0u, SongDirectSoundWavCore.GetDirectSoundWaveDataLength((ROM)null, SAMPLE_OFFSET));
+                Assert.False(SongDirectSoundWavCore.IsDirectSoundData((ROM)null, SAMPLE_OFFSET));
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
         // ----- helpers --------------------------------------------------------
 
         // Build a minimal canonical 44-byte WAV header + N data bytes. The data
