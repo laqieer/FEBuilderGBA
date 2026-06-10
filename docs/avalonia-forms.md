@@ -287,7 +287,7 @@ Editors for portraits, sprites, battle animations, tilesets, and other graphics.
 | 165 | ImageMapActionAnimationView | ImageMapActionAnimationViewModel | Map action animation editor |
 | 166 | ImageFormRefViewerView | ImageFormRefViewerViewModel | Image form reference viewer |
 | 167 | InterpolatedPictureBoxViewerView | InterpolatedPictureBoxViewerViewModel | Interpolated image viewer |
-| 168 | DecreaseColorTSAToolView | DecreaseColorTSAToolViewModel | Color reduction with TSA tool |
+| 168 | DecreaseColorTSAToolView | DecreaseColorTSAToolViewModel | Color reduction with TSA tool (functional file→file reducer: Method presets + Reduce, #998) |
 | 169 | SystemIconViewerView | SystemIconViewerViewModel | System icon viewer |
 | 170 | SystemHoverColorViewerView | SystemHoverColorViewerViewModel | System hover color table viewer |
 | 171 | BattleBGViewerView | BattleBGViewerViewModel | Battle background viewer |

@@ -24280,3 +24280,102 @@ TSA类型:
 
 :Note: Volume / Pan / Tempo bulk changes are not yet ported (voice reassignment only).
 注意:音量 / 声相 / 速度的批量修改尚未移植(仅支持音色重新分配)。
+
+:Color Reduction Tool
+减色工具
+
+:Reduce an image to GBA palettes (16 colors x N banks) for import.
+将图像减色为 GBA 调色板(16 色 × N 个色板)以便导入。
+
+:Input file:
+输入文件:
+
+:Output file:
+输出文件:
+
+:Method:
+方式:
+
+:Margin (Yohaku):
+边距(留白):
+
+:Palette banks:
+调色板数量:
+
+:Size method:
+尺寸方式:
+
+:Reserve 1st color:
+保留首色:
+
+:Ignore TSA (single flat palette)
+忽略 TSA(单一调色板)
+
+:Reduce Colors
+减色
+
+:Select a PNG, BMP or JPG file
+选择 PNG、BMP 或 JPG 文件
+
+:Select where to save the reduced PNG
+选择减色后 PNG 的保存位置
+
+:0: Manual (no preset)
+0: 手动(无预设)
+
+:1: BG & CG
+1: 背景与 CG
+
+:2: Battle BG
+2: 战斗背景
+
+:3: World Map (large)
+3: 世界地图(大)
+
+:4: World Map (event)
+4: 世界地图(事件用)
+
+:5: 256-color no-TSA
+5: 不使用 TSA 的 256 色
+
+:6: Status screen BG (FE8)
+6: 状态画面背景(FE8)
+
+:7: Single-image map chips
+7: 单图地图块
+
+:8: Single-image map chips (10 colors)
+8: 单图地图块 10 色
+
+:9: BG 256-color no-TSA (cutscene)
+9: 不使用 TSA 的背景 256 色(过场)
+
+:A: BG 224-color no-TSA (talk)
+A: 不使用 TSA 的背景 224 色(对话用)
+
+:Resize (crop/pad)
+调整大小(裁剪/填充)
+
+:Scale
+缩放
+
+:Yes
+是
+
+:Images
+图像
+
+:Please select a file to open.
+请选择要打开的文件名
+
+:Please select a file name to save.
+请选择要保存的文件名
+
+:Color reduction complete:
+减色完成:
+
+:Please select a valid input and output file.
+请选择有效的输入文件和输出文件。
+
+:Color reduction failed. See the log for details.
+减色失败。详情请查看日志。
