@@ -656,6 +656,14 @@ namespace FEBuilderGBA
             error = "";
             if (rom == null || rom.RomInfo == null || rom.Data == null)
             { error = "ROM not loaded."; return false; }
+            // Explicit FE8-only gate BEFORE any work (matches the World Map Image
+            // editor's FE8-only scope + the CanImportEvent UI gate). FE7's
+            // worldmap_event_* pointers are ALSO nonzero/resolvable, so the pointer
+            // guard below would not reject FE7 — without this version check a
+            // programmatic FE7 caller could mutate the ROM (Copilot PR #1098
+            // review). FE6 has the pointers as 0x0 (also rejected here).
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8)
+            { error = R.Error("The world map event image import is only supported for FE8."); return false; }
             if (rgba == null)
             { error = "Invalid image data."; return false; }
             if (srcWidth != EVENT_SRC_WIDTH || srcHeight != EVENT_SRC_HEIGHT)

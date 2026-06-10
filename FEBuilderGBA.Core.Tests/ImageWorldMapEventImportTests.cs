@@ -268,6 +268,38 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(string.IsNullOrEmpty(err));
         }
 
+        [Fact]
+        public void ImportEvent_NonFE8Rom_MutatesZeroBytes()
+        {
+            // FE7's worldmap_event_* pointers are ALSO nonzero/resolvable, so the
+            // pointer guard would NOT reject FE7 — the explicit FE8 version gate
+            // must (Copilot PR #1098 review). An FE7U (version 7) ROM is rejected
+            // with no mutation BEFORE any write.
+            var savedRom = CoreState.ROM;
+            var savedSvc = CoreState.ImageService;
+            try
+            {
+                var rom = new ROM();
+                byte[] data = new byte[0x1000000]; // 16 MB (min for FE7U detection)
+                rom.LoadLow("synth_fe7.gba", data, "AE7E01"); // FE7U -> version 7
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+
+                // Plant resolvable event pointer slots so ONLY the version gate can reject.
+                SetPtr(rom, rom.RomInfo.worldmap_event_image_pointer, 0x100000);
+                SetPtr(rom, rom.RomInfo.worldmap_event_tsa_pointer, 0x200000);
+                SetPtr(rom, rom.RomInfo.worldmap_event_palette_pointer, 0x300000);
+                byte[] before = (byte[])rom.Data.Clone();
+
+                bool ok = ImageWorldMapCore.ImportEvent(rom, MakeTwoRegionRgba(SRC_W, SRC_H), SRC_W, SRC_H, out string err);
+
+                Assert.False(ok);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = savedRom; CoreState.ImageService = savedSvc; }
+        }
+
         // ================================================================
         // Atomic fault restore — no free space at the FIRST write (32MB 0x01).
         // ROM byte- AND length-identical after.
