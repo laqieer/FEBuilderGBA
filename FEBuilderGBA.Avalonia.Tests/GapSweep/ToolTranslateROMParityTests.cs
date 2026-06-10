@@ -586,6 +586,52 @@ public class ToolTranslateROMParityTests
         return rom;
     }
 
+    // -----------------------------------------------------------------
+    // #1029 — Override JP Font / WipeJP* wiring (source-text parity).
+    // The handler logic isn't unit-testable headlessly (modal dialogs +
+    // file I/O), so assert the wiring on the production source.
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void SimpleFire_NoLongerSurfacesWipeJPKnownGapMessage()
+    {
+        // The old "Use the WinForms tool for full JP-font wiping" KnownGap
+        // message must be gone now that the WipeJP* flow is cross-platform.
+        string src = File.ReadAllText(ViewCsPath());
+        Assert.DoesNotContain("Use the WinForms tool", src);
+        Assert.DoesNotContain("WipeJP* flow needs", src);
+    }
+
+    [Fact]
+    public void SimpleFire_PassesOverrideJpFontAndPrecondition_ToCore()
+    {
+        string src = File.ReadAllText(ViewCsPath());
+        // The Override flag is captured ONCE and forwarded to Core options.
+        Assert.Contains("bool overrideJpFont = _vm.SimpleOverrideJpFont", src);
+        Assert.Contains("OverrideJpFont = overrideJpFont", src);
+        // The ChapterNameText precondition is injected.
+        Assert.Contains("ChapterNameTextPrecondition", src);
+        Assert.Contains("SearchChapterNameToTextPatch", src);
+    }
+
+    [Fact]
+    public void ChapterNameTextRecommendation_InstallsPatch_OnApply()
+    {
+        string src = File.ReadAllText(ViewCsPath());
+        // Apply (UserApplied) must actually install the patch (WF parity);
+        // Skip leaves it absent.
+        Assert.Contains("if (!view.UserApplied) return", src);
+        Assert.Contains("InstallChapterNameToTextPatch", src);
+        Assert.Contains("PatchMetadataCore.ApplyPatch", src);
+    }
+
+    static string ViewCsPath()
+    {
+        string repoRoot = FindRepoRoot();
+        return Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views",
+            "ToolTranslateROMView.axaml.cs");
+    }
+
     static string AxamlPath()
     {
         string repoRoot = FindRepoRoot();

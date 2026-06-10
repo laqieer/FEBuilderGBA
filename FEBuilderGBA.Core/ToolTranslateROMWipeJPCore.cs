@@ -167,12 +167,18 @@ namespace FEBuilderGBA
             Address.AddAddress(list, itemFontStart, itemFontEnd - itemFontStart,
                 U.NOT_FOUND, "ItemFont Wipe", Address.DataTypeEnum.BIN);
 
-            // Clear the item-font hash-pointer table (896 bytes) — WITH undo.
-            Rom.write_fill(0x57994C, 896, 0, UndoData);
-            ClearedRanges.Add((U.toOffset(0x57994C), U.toOffset(0x57994C) + 896));
-            // Clear the text-font hash-pointer table (896 bytes) — WITH undo.
-            Rom.write_fill(0x593F74, 896, 0, UndoData);
-            ClearedRanges.Add((U.toOffset(0x593F74), U.toOffset(0x593F74) + 896));
+            // Clear the two font hash-pointer tables (896 bytes each) — WITH undo.
+            // Resolve the table heads from RomInfo (via FontCore.GetFontPointer)
+            // rather than hard-coding the FE8J offsets, so the version-specific
+            // addresses stay centralized. For FE8J these are font_item_address
+            // (0x57994C) and font_serif_address (0x593F74). (Copilot review #1101.)
+            uint itemTable = U.toOffset(FontCore.GetFontPointer(true, Rom));
+            uint textTable = U.toOffset(FontCore.GetFontPointer(false, Rom));
+            const uint TableBytes = 896;
+            Rom.write_fill(itemTable, TableBytes, 0, UndoData);
+            ClearedRanges.Add((itemTable, itemTable + TableBytes));
+            Rom.write_fill(textTable, TableBytes, 0, UndoData);
+            ClearedRanges.Add((textTable, textTable + TableBytes));
         }
 
         void SearchCustomFonts(bool isItemFont, uint ignoreEnd, List<Address> list)
@@ -397,8 +403,10 @@ namespace FEBuilderGBA
             if (!Rom.RomInfo.is_multibyte) return;
 
             // The OP-class-reel font code must match the FE8J signature; otherwise
-            // the table layout is unknown and wiping it is unsafe.
-            if (!U.isSafetyOffset(0xB7890, Rom)) return;
+            // the table layout is unknown and wiping it is unsafe. isSafetyOffset
+            // only checks addr < Data.Length, not addr+2, so guard the 16-bit read
+            // explicitly to keep this truly no-throw. (Copilot review #1101.)
+            if (!U.isSafetyOffset(0xB7890, Rom) || 0xB7890 + 2 > (uint)Rom.Data.Length) return;
             if (Rom.u16(0xB7890) != 0x4B00) return;
 
             // Keep the first entry; wipe everything else.

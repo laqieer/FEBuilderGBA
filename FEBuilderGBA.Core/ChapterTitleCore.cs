@@ -54,8 +54,11 @@ namespace FEBuilderGBA
             for (uint i = 0; i < ScanCap; i++)
             {
                 uint row = tableBase + i * EntrySize;
-                // Need the +0 pointer slot in-bounds before reading it.
-                if (row + 4 > (uint)rom.Data.Length) break;
+                // Require the FULL 12-byte entry in-bounds before treating the row
+                // as valid — callers (WipeJPChapterNameHelper) read/write at
+                // row+0/+4/+8, so a truncated last row must be excluded. Mirrors
+                // the WF InputFormRef block-walk safety. (Copilot review #1101.)
+                if (row + EntrySize > (uint)rom.Data.Length) break; // EOF / overflow-safe
                 if (!U.isPointer(rom.u32(row))) break; // contiguous-run terminator
 
                 result.Add(new AddrResult(row, U.ToHexString(i)));

@@ -308,7 +308,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
         }
 
-        static string ResolvePatchDirectory(string version)
+        /// <summary>
+        /// Resolve the config/patch2/{version} directory (exe dir, cwd, then repo
+        /// root in development). Public so other views (e.g. the ROM Translation
+        /// Tool's ChapterNameToText install) can reuse the single resolution path.
+        /// </summary>
+        public static string ResolvePatchDirectory(string version)
         {
             string exeDir = AppDomain.CurrentDomain.BaseDirectory;
 
