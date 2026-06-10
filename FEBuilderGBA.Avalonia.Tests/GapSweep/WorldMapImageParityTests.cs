@@ -221,19 +221,19 @@ public class WorldMapImageParityTests
 
     /// <summary>
     /// Deferred affordances must be disabled and reference KnownGap in the
-    /// tooltip. After #1000 only THREE remain deferred: the Main full-image
-    /// EXPORT round-trip, the Event image IMPORT, and the Border image IMPORT
-    /// (OAM assembly). The four single-LZ77-stream strip imports (Mini / Point1 /
-    /// Point2 / Road) are now wired (#1000, see
-    /// <see cref="View_StripImportButtons_AreWired"/>). No follow-up issues per
-    /// task scope discipline.
+    /// tooltip. After #1064 PR1 only ONE remains deferred: the Border image
+    /// IMPORT (OAM assembly, PR 2). The Event image IMPORT and the legacy Main
+    /// full-image EXPORT are now wired (#1064 PR1, see
+    /// <see cref="View_EventImportAndLegacyMainExport_AreWired"/>). The four
+    /// single-LZ77-stream strip imports (Mini / Point1 / Point2 / Road) were
+    /// wired in #1000 (<see cref="View_StripImportButtons_AreWired"/>). No
+    /// follow-up issues per task scope discipline.
     ///
-    /// NOTE the Main tab keeps a DISTINCT pair of buttons: the full image
-    /// IMPORT/EXPORT round-trip (<c>WorldMapImage_Main_Import_Button</c> /
-    /// <c>WorldMapImage_Main_Export_Button</c>) is STILL deferred and asserted
-    /// here, while the NEW read-only <c>WorldMapImage_Main_ExportPng_Button</c>
-    /// (#846 NV5b) is a working CanExport-gated export asserted by
-    /// <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
+    /// NOTE the Main tab keeps a DISTINCT pair of EXPORT buttons: the legacy full
+    /// image EXPORT (<c>WorldMapImage_Main_Export_Button</c>) is now wired (#1064
+    /// PR1) to the SAME read-only export path as the read-only
+    /// <c>WorldMapImage_Main_ExportPng_Button</c> (#846 NV5b) — both
+    /// CanExportMain-gated.
     ///
     /// NOTE (#843 NV5a / #846 NV5b / #849 NV5c): the read-only EXPORT PNG buttons
     /// (Main / Event / Mini / Point1 / Point2 / Road, and the Border Export PNG)
@@ -242,19 +242,19 @@ public class WorldMapImageParityTests
     /// (#849 NV5c) and is asserted by
     /// <see cref="View_ReuseExportButton_IsBindingGatedReadOnlyExport"/>.
     /// Only <c>WorldMapImage_Border_Import_Button</c> stays deferred (OAM assembly
-    /// is a separate follow-up).
+    /// is PR 2 of #1064).
     /// </summary>
     [Theory]
     // WorldMapImage_Main_Import_Button   — wired (#875, see View_ImportDarkButtons_AreWired)
     // WorldMapImage_Main_DarkImport_Button — wired (#875)
     // WorldMapImage_Main_DarkExport_Button — wired (#875)
+    // WorldMapImage_Main_Export_Button   — wired (#1064 PR1, see View_EventImportAndLegacyMainExport_AreWired)
+    // WorldMapImage_Event_Import_Button  — wired (#1064 PR1, see View_EventImportAndLegacyMainExport_AreWired)
     // WorldMapImage_Main_DecreaseColor_Button — wired (#1013, see View_DecreaseColorButtons_AreWired)
     // WorldMapImage_Main_OpenSource_Button / SelectSource_Button — wired (#1013, see View_SourceFileButtons_AreWired)
     // WorldMapImage_Event_DecreaseColor_Button — wired (#1013)
     // WorldMapImage_Mini_Import_Button / Point1Import / Point2Import / RoadImport — wired
     //   (#1000, see View_StripImportButtons_AreWired)
-    [InlineData("WorldMapImage_Main_Export_Button")]
-    [InlineData("WorldMapImage_Event_Import_Button")]
     [InlineData("WorldMapImage_Border_Import_Button")]
     public void View_DeferredButton_IsDisabledAndReferencesKnownGap(string automationId)
     {
@@ -445,6 +445,62 @@ public class WorldMapImageParityTests
         Assert.True(driverBody.Length > 0, "DoStripImport driver not found in code-behind");
         Assert.Contains("ImageWorldMapCore.ImportIconStrip", driverBody);
         Assert.Contains("RefreshPreviews()", driverBody);
+    }
+
+    /// <summary>
+    /// #1064 PR1: the Event two-stream image IMPORT and the legacy Main full-image
+    /// EXPORT are now wired (previously KnownGap-disabled). Asserts:
+    ///   * Event Import gated by CanImportEvent + Click=EventImport_Click, not a
+    ///     KnownGap stub; the code-behind DoEventImport routes through the VM
+    ///     ImportEvent driver under one undo scope + RefreshPreviews.
+    ///   * Legacy Main Export gated by CanExportMain + Click=MainExport_Click
+    ///     (same read-only export path as Export PNG), not a KnownGap stub.
+    ///   * The VM ImportEvent driver routes through ImageWorldMapCore.ImportEvent.
+    /// </summary>
+    [Fact]
+    public void View_EventImportAndLegacyMainExport_AreWired()
+    {
+        string axaml = ReadAxaml();
+
+        // --- Event Import button ---
+        string eventBtn = ElementFor(axaml, "WorldMapImage_Event_Import_Button");
+        Assert.Contains("IsEnabled=\"{Binding CanImportEvent}\"", eventBtn);
+        Assert.Contains("Click=\"EventImport_Click\"", eventBtn);
+        Assert.DoesNotContain("IsEnabled=\"False\"", eventBtn);
+        Assert.DoesNotContain("KnownGap", eventBtn);
+
+        // --- Legacy Main Export button (wired to the read-only export path) ---
+        string mainExportBtn = ElementFor(axaml, "WorldMapImage_Main_Export_Button");
+        Assert.Contains("IsEnabled=\"{Binding CanExportMain}\"", mainExportBtn);
+        Assert.Contains("Click=\"MainExport_Click\"", mainExportBtn);
+        Assert.DoesNotContain("IsEnabled=\"False\"", mainExportBtn);
+        Assert.DoesNotContain("KnownGap", mainExportBtn);
+
+        // --- Code-behind: DoEventImport routes through the VM driver + refresh. ---
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("EventImport_Click", source);
+        string driverBody = MethodBody(source, "Task DoEventImport(");
+        Assert.True(driverBody.Length > 0, "DoEventImport driver not found in code-behind");
+        Assert.Contains("_vm.ImportEvent(", driverBody);
+        Assert.Contains("_undoService.Begin(\"Import World Map Event Image\")", driverBody);
+        Assert.Contains("RefreshPreviews()", driverBody);
+
+        // --- VM: ImportEvent driver routes through the Core seam. ---
+        string vm = File.ReadAllText(ViewModelPath());
+        Assert.Contains("ImageWorldMapCore.ImportEvent", vm);
+        Assert.Contains("CanImportEvent", vm);
+    }
+
+    /// <summary>Extract the full AXAML element containing the given AutomationId.</summary>
+    static string ElementFor(string axaml, string automationId)
+    {
+        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
+        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
+        int elementStart = axaml.LastIndexOf('<', idx);
+        Assert.True(elementStart >= 0);
+        int elementEnd = FindElementEnd(axaml, elementStart);
+        Assert.True(elementEnd > elementStart);
+        return axaml.Substring(elementStart, elementEnd - elementStart + 1);
     }
 
     /// <summary>

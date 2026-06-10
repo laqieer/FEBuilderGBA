@@ -24398,3 +24398,7 @@ A: 不使用 TSA 的背景 224 色(对话用)
 乐器组已导出到 {0}
 :Instrument set export failed: {0}
 乐器组导出失败:{0}
+:Export the main field-map preview to PNG.
+将主战场地图预览导出为PNG。
+:Import a 240x160 event image (auto-reduced to World Map (event) / 4 palettes).
+导入240x160事件图像（自动减色为世界地图(事件用)/4个调色板）。

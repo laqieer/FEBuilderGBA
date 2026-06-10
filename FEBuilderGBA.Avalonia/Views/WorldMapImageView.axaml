@@ -84,10 +84,13 @@
                     Name="MainImportButton" Content="Import Image"
                     IsEnabled="{Binding CanImportMain}"
                     Click="MainImport_Click" />
+            <!-- #1064 PR1: legacy "Export Image" — wired to the same read-only full
+                 main field-map export path as Export PNG (CanExportMain gate). -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Main_Export_Button"
                     Content="Export Image"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    IsEnabled="{Binding CanExportMain}"
+                    Click="MainExport_Click"
+                    ToolTip.Tip="Export the main field-map preview to PNG." />
             <!-- #846: read-only Export PNG of the live main field-map preview
                  (mirrors the Event/Mini tabs' read-only export). Enabled only
                  after a successful FE8 render. -->
@@ -165,10 +168,14 @@
                              Minimum="0" Maximum="4294967295" />
             </StackPanel>
 
+            <!-- #1064 PR1: Event two-stream import (ZIMAGE + ZHEADERTSA + 64-color
+                 4-bank palette). Enabled on FE8 with all three event pointers set
+                 (CanImportEvent gate); the Core ImportEvent re-validates. -->
             <Button AutomationProperties.AutomationId="WorldMapImage_Event_Import_Button"
                     Content="Import Image"
-                    IsEnabled="False"
-                    ToolTip.Tip="KnownGap: pending Core extraction." />
+                    IsEnabled="{Binding CanImportEvent}"
+                    Click="EventImport_Click"
+                    ToolTip.Tip="Import a 240x160 event image (auto-reduced to World Map (event) / 4 palettes)." />
             <!-- #843: read-only Export PNG of the live event preview (mirrors WF
                  ImageFormRef OnExportButton — decode + save). Enabled only after
                  a successful render. -->

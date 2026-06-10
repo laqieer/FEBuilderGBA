@@ -654,6 +654,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>True when the Road strip Import button should be enabled.</summary>
         public bool CanImportRoad { get => _canImportRoad; set => SetField(ref _canImportRoad, value); }
 
+        // ---- #1064 PR1: event two-stream import gate ----
+        bool _canImportEvent;
+
+        /// <summary>True when the Event image Import button should be enabled
+        /// (FE8 + all three nonzero, resolvable event pointer slots —
+        /// image / TSA / palette).</summary>
+        public bool CanImportEvent { get => _canImportEvent; set => SetField(ref _canImportEvent, value); }
+
         bool _canExportDark;
         /// <summary>True after a successful TryRenderDarkFieldMap — gates the Dark Export button.</summary>
         public bool CanExportDark { get => _canExportDark; set => SetField(ref _canExportDark, value); }
@@ -685,6 +693,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanImportRoad = isFE8 && CanImportStrip(rom,
                 rom?.RomInfo?.worldmap_road_tile_pointer ?? 0,
                 rom?.RomInfo?.worldmap_icon_palette_pointer ?? 0);
+
+            // #1064 PR1: the event import needs all THREE event pointer slots
+            // (image / TSA / palette) to be nonzero + resolvable. FE6 has them as
+            // 0x0. The Core ImportEvent re-checks these guards before any write.
+            CanImportEvent = isFE8
+                && CanImportEventStreams(rom);
+        }
+
+        /// <summary>The event import is reachable when all three
+        /// <c>worldmap_event_*_pointer</c> slots are nonzero, in-range, and resolve
+        /// to in-ROM offsets. Mirrors <see cref="CanImportStrip"/> but for the
+        /// three-stream event layout (Core <see cref="ImageWorldMapCore.ImportEvent"/>
+        /// re-validates these before any write).</summary>
+        static bool CanImportEventStreams(ROM rom)
+        {
+            if (rom?.RomInfo == null || rom.Data == null) return false;
+            return SlotResolves(rom, rom.RomInfo.worldmap_event_image_pointer)
+                && SlotResolves(rom, rom.RomInfo.worldmap_event_tsa_pointer)
+                && SlotResolves(rom, rom.RomInfo.worldmap_event_palette_pointer);
+        }
+
+        /// <summary>A pointer slot resolves when it is nonzero, its +4 read is
+        /// in-range, and the encoded value is a safe ROM pointer.</summary>
+        static bool SlotResolves(ROM rom, uint slot)
+        {
+            if (slot == 0 || (ulong)slot + 4 > (ulong)rom.Data.Length) return false;
+            uint encoded = rom.u32(slot);
+            if (!U.isPointer(encoded)) return false;
+            return U.isSafetyOffset(U.toOffset(encoded), rom);
         }
 
         /// <summary>
@@ -793,6 +830,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null) return "ROM not loaded.";
             var result = ImageWorldMapCore.ImportMainFieldMap(rom, indexedPixels, gbaPalette128);
             return result.Success ? null : result.Error;
+        }
+
+        /// <summary>
+        /// #1064 PR1 — import the World Map EVENT image (two-stream TSA) from a
+        /// 240×160 RGBA source. Delegates to
+        /// <see cref="ImageWorldMapCore.ImportEvent"/> which reduces to a 256×160
+        /// banked canvas (method-4 "World Map (event)"), encodes the multi-bank TSA,
+        /// and writes ZIMAGE (LZ77) + ZHEADERTSA (LZ77) + raw 128-byte palette under
+        /// the caller's ambient undo scope. Returns null on success, or an error
+        /// string on failure (ROM byte-identical on any failure).
+        /// </summary>
+        public string ImportEvent(byte[] rgba, int srcWidth, int srcHeight)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null) return "ROM not loaded.";
+            bool ok = ImageWorldMapCore.ImportEvent(rom, rgba, srcWidth, srcHeight, out string error);
+            return ok ? null : error;
         }
 
         /// <summary>

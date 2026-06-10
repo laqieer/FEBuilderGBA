@@ -956,6 +956,90 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // ===================================================================
+        // #1064 PR1: Event two-stream image import.
+        //
+        // The event graphic is TWO LZ77 streams (ZIMAGE deduplicated tiles +
+        // ZHEADERTSA header-TSA) + a fixed RAW 64-color / 4-bank palette. Unlike
+        // the strip imports (which remap onto a fixed 16-color palette first), the
+        // event import auto-reduces the RAW source RGBA to 4 banks via
+        // DecreaseColorConvertCore (method-4 "World Map (event)"), so the View
+        // passes the loaded RGBA straight to the Core driver (mirrors DoMainImport
+        // reading img.GetPixelData()). The source MUST be the 240x160 visible map;
+        // the Core reduce adds the 16px right margin to reach the 256x160 canvas.
+        // ===================================================================
+
+        async void EventImport_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string? path = await FileDialogHelper.OpenImageFile(this);
+                if (path == null) return;
+                await DoEventImport(path);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"WorldMapImageView.EventImport_Click failed: {ex}");
+            }
+        }
+
+        /// <summary>Injectable event-import driver (testable without UI). Loads the
+        /// RGBA, then ImageWorldMapCore.ImportEvent (via the VM) auto-reduces +
+        /// writes the two LZ77 streams + raw palette under one undo scope. The Core
+        /// validates 240x160 + ≤4 banks + one-bank-per-tile + unique-tile ≤1024 and
+        /// rejects with NO mutation.</summary>
+        public async System.Threading.Tasks.Task DoEventImport(string imagePath)
+        {
+            IImage? img = CoreState.ImageService?.LoadImage(imagePath);
+            if (img == null)
+            {
+                CoreState.Services?.ShowError(R._("Failed to load image from: {0}", imagePath));
+                return;
+            }
+            try
+            {
+                int w = img.Width;
+                int h = img.Height;
+                byte[] rgba = img.GetPixelData();
+                if (rgba == null || rgba.Length < (long)w * h * 4)
+                {
+                    CoreState.Services?.ShowError(R._("Image pixel data is missing or too short."));
+                    return;
+                }
+
+                _undoService.Begin("Import World Map Event Image");
+                try
+                {
+                    // The Core validates dims (240x160) + reduce-to-256x160 + banks
+                    // + unique-tiles and returns a clear message on any rejection
+                    // with ZERO ROM mutation.
+                    string? err = _vm.ImportEvent(rgba, w, h);
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services?.ShowError(err);
+                        return;
+                    }
+                    _undoService.Commit();
+                    _vm.MarkClean();
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error($"WorldMapImageView.DoEventImport write failed: {ex}");
+                    CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
+                    return;
+                }
+            }
+            finally
+            {
+                img.Dispose();
+            }
+
+            // Re-render the event preview from the freshly-written streams.
+            RefreshPreviews();
+        }
+
         /// <summary>
         /// Export the dark field map preview as PNG. The cached dark render
         /// (<see cref="_darkFieldMapImage"/>) is saved via a save-file dialog.
