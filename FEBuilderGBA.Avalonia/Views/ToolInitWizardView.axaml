@@ -144,8 +144,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadVBAM_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadVBAM_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step1Or2_Label" />
@@ -153,8 +153,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadMGBA_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadMGBA_Click" />
           <Button Content="Previous"
                   AutomationProperties.AutomationId="ToolInitWizard_Step1Prev_Button"
@@ -201,8 +201,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadEA_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadEA_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step2Or2_Label" />
@@ -256,8 +256,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadSappy_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadSappy_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step3Or2_Label" />
@@ -265,8 +265,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadVGMusicStudio_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadVGMusicStudio_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step3Or3_Label" />
@@ -331,8 +331,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadASM_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadASM_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step4Or2_Label" />
@@ -408,8 +408,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadMusicTool_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadMusicTool_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step5Or2_Label" />
@@ -463,8 +463,8 @@
                   AutomationProperties.AutomationId="ToolInitWizard_DownloadGit_Button"
                   HorizontalAlignment="Stretch"
                   Height="36"
-                  IsEnabled="False"
-                  ToolTip.Tip="{Binding DownloadDisabledTooltip}"
+                  IsEnabled="{Binding DownloadEnabledOnThisPlatform}"
+                  ToolTip.Tip="{Binding NonWindowsDownloadTooltip}"
                   Click="OnDownloadGit_Click" />
           <TextBlock Text="or," Margin="0,16,0,4"
                      AutomationProperties.AutomationId="ToolInitWizard_Step6Or2_Label" />

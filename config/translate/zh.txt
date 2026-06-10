@@ -22029,8 +22029,58 @@ git
 :Configure Git (version control).\r\nGit is used to keep config/patch2 patch data up to date.\r\nInstalling it makes pulling the latest patches easy.
 请配置 Git（版本控制系统）。\r\nGit 用于更新 config/patch2 补丁数据。\r\n安装后可便捷拉取最新补丁。
 
-:Download requires WinForms host. Use Browse instead.
-该下载功能仅 WinForms 版本支持，请使用浏览按钮替代。
+:Windows-only download — use Browse to set the path manually.
+自动下载仅支持 Windows，请使用浏览按钮手动设置路径。
+:Download
+下载
+:Downloading
+正在下载
+:Downloaded: {0}
+下载完成: {0}
+:Downloaded {0} tool(s).
+已下载 {0} 个工具。
+:Download failed. Use Browse to set the path manually.
+下载失败，请使用浏览按钮手动设置路径。
+:This will download an executable from:
+{0}
+
+The downloaded program will be placed under the app folder.
+
+Continue?
+将从以下位置下载可执行文件:
+{0}
+
+下载的程序将放置在 app 文件夹下。
+
+是否继续？
+:This will download executables for {0} from:
+将从以下位置下载 {0} 的可执行文件:
+:The downloaded programs will be placed under the app folder.
+
+Continue?
+下载的程序将放置在 app 文件夹下。
+
+是否继续？
+:Download and install Git
+下载并安装 Git
+:This will download the official Git for Windows installer from:
+{0}
+
+It will RUN the installer, which may request administrator (UAC) elevation.
+
+Continue?
+将从以下位置下载官方 Git for Windows 安装程序:
+{0}
+
+将运行该安装程序，可能会请求管理员(UAC)权限提升。
+
+是否继续？
+:Git installed: {0}
+已安装 Git: {0}
+:Git download/install failed. Use Browse to set the path manually.
+Git 下载/安装失败，请使用浏览按钮手动设置路径。
+:Git was installed but failed validation. Use Browse to set the path manually.
+Git 已安装但验证失败，请使用浏览按钮手动设置路径。
 
 :Setup is complete. The wizard saved your tool paths and preferences.\r\n\r\nYou can change these at any time from Menu -> Options.\r\n\r\nPress Finish to close this wizard.
 设置已完成。向导已保存您的工具路径与偏好设置。\r\n\r\n您可以随时通过 菜单 -> 选项 进行修改。\r\n\r\n按完成按钮关闭该向导。

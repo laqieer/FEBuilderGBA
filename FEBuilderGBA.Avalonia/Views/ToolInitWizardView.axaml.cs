@@ -6,8 +6,10 @@
 //     PendingColorTheme. Final write deferred to ApplyAll.
 //   - 9 Browse buttons -> Avalonia file picker, updates _vm.Pending*Path.
 //   - 12 Step{N}Prev/Step{N}Next click handlers -> _vm.GoToPage / StageStep{N}.
-//   - 8 disabled download/install buttons -> set SettingStatus only
-//     (IsEnabled="False" in AXAML; handler is registered defensively).
+//   - 8 download/install buttons (#1031) -> confirmation dialog naming the
+//     source URL + elevation note -> DownloadInstallCore under a progress
+//     dialog -> Browse-mode validation (File.Exists / GitUtil.ProbeGit) ->
+//     stage the resolved path. Windows-only (disabled-with-tooltip elsewhere).
 //   - 5 skip buttons (Step2-Step6) -> set Pending Step{N}Mode = DO_NOT_SELECT.
 //     Step6 skip ALSO routes through StageStep6() so the IsCompletedThroughStep6
 //     gate flips true (otherwise a valid Skip-Git completion would no-op
@@ -20,9 +22,11 @@
 //   Assert.DoesNotContain(".write_u", source)
 // against this file.
 using System;
+using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -187,18 +191,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PendingEmulatorPath = picked;
         }
 
-        void OnDownloadVBAM_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadVBAM_Click(object? sender, RoutedEventArgs e)
         {
-            // KnownGap: actual download is WinForms-coupled. The button is
-            // disabled in AXAML; this handler is registered defensively.
-            _vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.DownloadVBAM;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            string? exe = await DownloadSingleAsync(DownloadInstallCore.ResourceId.VbaM);
+            if (exe != null)
+                _vm.StageDownloadedEmulator(exe);
         }
 
-        void OnDownloadMGBA_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadMGBA_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.DownloadMGBA;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            string? exe = await DownloadSingleAsync(DownloadInstallCore.ResourceId.MGba);
+            if (exe != null)
+                _vm.StageDownloadedEmulator(exe);
         }
 
         // ===================================================================
@@ -224,10 +228,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PendingEAPath = picked;
         }
 
-        void OnDownloadEA_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadEA_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep2Mode = ToolInitWizardViewModel.Step2Mode_Enum.DownloadEA;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            // Bundled: Event Assembler (Core.exe) + lyn.exe, all-or-none.
+            // EA is hosted on Dropbox and is therefore best-effort — on the
+            // (likely) Dropbox failure the user is told to use Browse.
+            string[] resolved = await DownloadBundleAsync(
+                "Event Assembler",
+                new[] { DownloadInstallCore.ResourceId.EA, DownloadInstallCore.ResourceId.Lyn });
+            if (resolved != null)
+            {
+                // resolved[0] = Core.exe (the EA path persisted); lyn is a
+                // sibling tool placed alongside, not a config key.
+                _vm.StageDownloadedEA(resolved[0]);
+            }
         }
 
         void OnSkipStep2_Click(object? sender, RoutedEventArgs e)
@@ -259,16 +273,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PendingSappyPath = picked;
         }
 
-        void OnDownloadSappy_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadSappy_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.DownloadSappy;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            // Sappy is hosted on Dropbox — best-effort; Browse fallback on fail.
+            string? exe = await DownloadSingleAsync(DownloadInstallCore.ResourceId.Sappy);
+            if (exe != null)
+                _vm.StageDownloadedSappy(exe);
         }
 
-        void OnDownloadVGMusicStudio_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadVGMusicStudio_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep3Mode = ToolInitWizardViewModel.Step3Mode_Enum.DownloadGbaMusicStudio;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            // VG Music Studio (DirectPlayS) is GitHub-hosted and robust. WF also
+            // side-downloads Sappy here, but that is Dropbox-brittle, so it is
+            // best-effort only and does NOT fail the VGMS install.
+            string? exe = await DownloadSingleAsync(DownloadInstallCore.ResourceId.GbaMusicStudio);
+            if (exe != null)
+                _vm.StageDownloadedSappy(exe);
         }
 
         void OnSkipStep3_Click(object? sender, RoutedEventArgs e)
@@ -307,10 +327,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PendingASMPath = picked;
         }
 
-        void OnDownloadASM_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadASM_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep4Mode = ToolInitWizardViewModel.Step4Mode_Enum.DownloadBoth;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            // Bundled: no$gba (debugger) + arm-none-eabi-as (assembler), all-or-none.
+            string[] resolved = await DownloadBundleAsync(
+                "no$gba + arm-none-eabi-as",
+                new[] { DownloadInstallCore.ResourceId.NoGba, DownloadInstallCore.ResourceId.ArmAs });
+            if (resolved != null)
+                _vm.StageDownloadedDebuggerAndASM(resolved[0], resolved[1]);
         }
 
         void OnSkipStep4_Click(object? sender, RoutedEventArgs e)
@@ -356,10 +380,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PendingMidfix4agbPath = picked;
         }
 
-        void OnDownloadMusicTool_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadMusicTool_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep5Mode = ToolInitWizardViewModel.Step5Mode_Enum.DownloadBoth;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            // Bundled: gba_mus_riper + sox + midfix4agb, all-or-none.
+            string[] resolved = await DownloadBundleAsync(
+                "gba_mus_riper + sox + midfix4agb",
+                new[]
+                {
+                    DownloadInstallCore.ResourceId.GbaMusRiper,
+                    DownloadInstallCore.ResourceId.Sox,
+                    DownloadInstallCore.ResourceId.Midfix4agb,
+                });
+            if (resolved != null)
+                _vm.StageDownloadedMusicTools(resolved[0], resolved[1], resolved[2]);
         }
 
         void OnSkipStep5_Click(object? sender, RoutedEventArgs e)
@@ -394,10 +427,65 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.PendingGitPath = ToolInitWizardViewModel.ProbeGitOrFindFallback(picked);
         }
 
-        void OnDownloadGit_Click(object? sender, RoutedEventArgs e)
+        async void OnDownloadGit_Click(object? sender, RoutedEventArgs e)
         {
-            _vm.PendingStep6Mode = ToolInitWizardViewModel.Step6Mode_Enum.DownloadGit;
-            _vm.SettingStatus = _vm.DownloadDisabledTooltip;
+            if (!GuardWindowsOnly())
+                return;
+
+            // Resolve the actual installer URL BEFORE the confirmation so the
+            // dialog can name the real source. If it can't be resolved, name the
+            // releases API source instead (the Core helper also re-checks).
+            string installerUrl = await Task.Run(() => GitInstaller.GetLatestInstallerUrl());
+            string source = string.IsNullOrEmpty(installerUrl)
+                ? DownloadInstallCore.GitSourceLabel
+                : installerUrl;
+
+            bool ok = await ConfirmDownloadAsync(
+                FEBuilderGBA.R._("Download and install Git"),
+                FEBuilderGBA.R._(
+                    "This will download the official Git for Windows installer from:\n{0}\n\nIt will RUN the installer, which may request administrator (UAC) elevation.\n\nContinue?",
+                    source));
+            if (!ok)
+                return;
+
+            string? gitPath = null;
+            string error = "";
+            try
+            {
+                await ProgressDialogService.RunWithProgress(this,
+                    FEBuilderGBA.R._("Download and install Git"),
+                    async (progress, _) =>
+                    {
+                        gitPath = await DownloadInstallCore.DownloadGitAsync(
+                            msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }));
+                        if (gitPath == null)
+                            error = DownloadInstallCore.LastGitError;
+                    });
+            }
+            catch (Exception ex)
+            {
+                gitPath = null;
+                error = ex.Message;
+            }
+
+            if (gitPath == null)
+            {
+                ShowDownloadError(string.IsNullOrEmpty(error)
+                    ? FEBuilderGBA.R._("Git download/install failed. Use Browse to set the path manually.")
+                    : error);
+                return;
+            }
+
+            // Browse-mode validation: Step 6 uses GitUtil.ProbeGit (NOT File.Exists).
+            if (!GitUtil.ProbeGit(gitPath))
+            {
+                ShowDownloadError(FEBuilderGBA.R._(
+                    "Git was installed but failed validation. Use Browse to set the path manually."));
+                return;
+            }
+
+            _vm.StageDownloadedGit(gitPath);
+            _vm.SettingStatus = FEBuilderGBA.R._("Git installed: {0}", gitPath);
         }
 
         void OnSkipStep6_Click(object? sender, RoutedEventArgs e)
@@ -425,6 +513,170 @@ namespace FEBuilderGBA.Avalonia.Views
             // by other paths.
             _vm.ApplyAll();
             this.Close();
+        }
+
+        // ===================================================================
+        // Download helpers (#1031).
+        // ===================================================================
+
+        /// <summary>
+        /// Defensive Windows-only guard. The buttons are already disabled on
+        /// non-Windows via DownloadEnabledOnThisPlatform, but a click handler
+        /// could still be raised (e.g. by a test or an accessibility tool), so
+        /// re-check here and route the user to Browse.
+        /// </summary>
+        bool GuardWindowsOnly()
+        {
+            if (_vm.IsWindowsPlatform)
+                return true;
+            ShowDownloadError(_vm.NonWindowsDownloadTooltip);
+            return false;
+        }
+
+        /// <summary>
+        /// Show a Yes/No confirmation before any download/run/place. Returns
+        /// true if the user confirmed.
+        /// </summary>
+        async Task<bool> ConfirmDownloadAsync(string title, string message)
+        {
+            var result = await MessageBoxWindow.Show(this, message, title, MessageBoxMode.YesNo);
+            return result == MessageBoxResult.Yes;
+        }
+
+        void ShowDownloadError(string message)
+        {
+            _vm.SettingStatus = message;
+            CoreState.Services?.ShowError(message);
+        }
+
+        static string BaseDir => CoreState.BaseDirectory ?? AppContext.BaseDirectory;
+
+        /// <summary>
+        /// Build the consent message for one resource, naming the source URL and
+        /// noting the executable download.
+        /// </summary>
+        static string SingleConsentMessage(DownloadInstallCore.DownloadSpec spec)
+        {
+            return FEBuilderGBA.R._(
+                "This will download an executable from:\n{0}\n\nThe downloaded program will be placed under the app folder.\n\nContinue?",
+                spec.Url);
+        }
+
+        /// <summary>
+        /// Confirm + download a SINGLE resource under a progress dialog, then
+        /// validate the resolved exe with the same Browse-mode File.Exists check.
+        /// Returns the resolved exe path on success, or null (error already
+        /// surfaced) on cancel/failure.
+        /// </summary>
+        async Task<string?> DownloadSingleAsync(DownloadInstallCore.ResourceId id)
+        {
+            if (!GuardWindowsOnly())
+                return null;
+
+            var spec = DownloadInstallCore.GetSpec(id);
+            bool ok = await ConfirmDownloadAsync(
+                FEBuilderGBA.R._("Download"), SingleConsentMessage(spec));
+            if (!ok)
+                return null;
+
+            string? resolved = null;
+            string error = "";
+            try
+            {
+                await ProgressDialogService.RunWithProgress(this,
+                    FEBuilderGBA.R._("Downloading"),
+                    (progress, _) => Task.Run(() =>
+                    {
+                        resolved = DownloadInstallCore.Download(id, BaseDir,
+                            msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
+                            out error);
+                    }));
+            }
+            catch (Exception ex)
+            {
+                resolved = null;
+                error = ex.Message;
+            }
+
+            if (resolved == null || !System.IO.File.Exists(resolved))
+            {
+                ShowDownloadError(string.IsNullOrEmpty(error)
+                    ? FEBuilderGBA.R._("Download failed. Use Browse to set the path manually.")
+                    : error);
+                return null;
+            }
+
+            _vm.SettingStatus = FEBuilderGBA.R._("Downloaded: {0}", resolved);
+            return resolved;
+        }
+
+        /// <summary>
+        /// Confirm + download a BUNDLE of resources all-or-none under a single
+        /// progress dialog. Each sub-resource downloads + validates (File.Exists)
+        /// to its own staging/target; if ANY fails, NOTHING is staged (the
+        /// caller does not touch config). Returns the resolved exe paths (one per
+        /// id, in order) on full success, or null on cancel/any-failure.
+        /// </summary>
+        async Task<string[]?> DownloadBundleAsync(
+            string bundleLabel, DownloadInstallCore.ResourceId[] ids)
+        {
+            if (!GuardWindowsOnly())
+                return null;
+
+            // Consent names every source URL in the bundle.
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine(FEBuilderGBA.R._(
+                "This will download executables for {0} from:", bundleLabel));
+            foreach (var id in ids)
+                sb.AppendLine("  " + DownloadInstallCore.GetSpec(id).Url);
+            sb.AppendLine();
+            sb.AppendLine(FEBuilderGBA.R._(
+                "The downloaded programs will be placed under the app folder.\n\nContinue?"));
+
+            bool ok = await ConfirmDownloadAsync(
+                FEBuilderGBA.R._("Download"), sb.ToString());
+            if (!ok)
+                return null;
+
+            string[]? results = null;
+            string error = "";
+            try
+            {
+                await ProgressDialogService.RunWithProgress(this,
+                    FEBuilderGBA.R._("Downloading"),
+                    (progress, _) => Task.Run(() =>
+                    {
+                        var resolved = new string[ids.Length];
+                        for (int i = 0; i < ids.Length; i++)
+                        {
+                            string r = DownloadInstallCore.Download(ids[i], BaseDir,
+                                msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
+                                out error);
+                            // All-or-none: a failed sub-resource aborts the
+                            // bundle. Validate via File.Exists (Browse-mode).
+                            if (r == null || !System.IO.File.Exists(r))
+                                return; // results stays null
+                            resolved[i] = r;
+                        }
+                        results = resolved;
+                    }));
+            }
+            catch (Exception ex)
+            {
+                results = null;
+                error = ex.Message;
+            }
+
+            if (results == null)
+            {
+                ShowDownloadError(string.IsNullOrEmpty(error)
+                    ? FEBuilderGBA.R._("Download failed. Use Browse to set the path manually.")
+                    : error);
+                return null;
+            }
+
+            _vm.SettingStatus = FEBuilderGBA.R._("Downloaded {0} tool(s).", results.Length);
+            return results;
         }
 
         // ===================================================================

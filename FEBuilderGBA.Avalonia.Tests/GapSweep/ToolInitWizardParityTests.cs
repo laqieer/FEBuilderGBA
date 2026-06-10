@@ -206,11 +206,13 @@ public class ToolInitWizardParityTests
     [InlineData("ToolInitWizard_DownloadASM_Button")]
     [InlineData("ToolInitWizard_DownloadMusicTool_Button")]
     [InlineData("ToolInitWizard_DownloadGit_Button")]
-    public void View_AllDownloadInstallButtons_AreDisabled(string automationId)
+    public void View_AllDownloadInstallButtons_ArePlatformGated(string automationId)
     {
-        // Per Copilot CLI plan-review v1 #1: download/install stubs MUST be
-        // visually disabled (IsEnabled="False") with a KnownGap tooltip, NOT
-        // wired as active stubs. This guards the rule from regression.
+        // #1031: the 8 Download buttons are now WIRED, but auto-download is
+        // Windows-only (the binaries + Git installer are Windows). Each button's
+        // IsEnabled is bound to DownloadEnabledOnThisPlatform and carries the
+        // NonWindowsDownloadTooltip (steering non-Windows users to Browse). This
+        // replaces the previous always-disabled / DownloadDisabledTooltip stub.
         string axaml = ReadAxaml();
         int idIdx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
         Assert.True(idIdx >= 0, $"AutomationId {automationId} missing from AXAML");
@@ -220,8 +222,88 @@ public class ToolInitWizardParityTests
 
         int buttonEnd = FindElementEnd(axaml, buttonStart);
         string buttonText = axaml.Substring(buttonStart, buttonEnd - buttonStart);
-        Assert.Contains("IsEnabled=\"False\"", buttonText);
-        Assert.Contains("DownloadDisabledTooltip", buttonText);
+        Assert.Contains("IsEnabled=\"{Binding DownloadEnabledOnThisPlatform}\"", buttonText);
+        Assert.Contains("NonWindowsDownloadTooltip", buttonText);
+        // The dead always-disabled stub markers must be gone.
+        Assert.DoesNotContain("IsEnabled=\"False\"", buttonText);
+        Assert.DoesNotContain("DownloadDisabledTooltip", buttonText);
+    }
+
+    [Fact]
+    public void ViewModel_PlatformGate_TogglesWithProvider()
+    {
+        // #1031: DownloadEnabledOnThisPlatform reads through the injectable
+        // WindowsPlatformProvider so the gated behaviour is testable on any CI
+        // host. Flip it both ways and assert + reset in finally.
+        var original = ToolInitWizardViewModel.WindowsPlatformProvider;
+        try
+        {
+            ToolInitWizardViewModel.WindowsPlatformProvider = () => true;
+            var vmWin = new ToolInitWizardViewModel();
+            Assert.True(vmWin.IsWindowsPlatform);
+            Assert.True(vmWin.DownloadEnabledOnThisPlatform);
+
+            ToolInitWizardViewModel.WindowsPlatformProvider = () => false;
+            var vmNon = new ToolInitWizardViewModel();
+            Assert.False(vmNon.IsWindowsPlatform);
+            Assert.False(vmNon.DownloadEnabledOnThisPlatform);
+        }
+        finally
+        {
+            ToolInitWizardViewModel.WindowsPlatformProvider = original;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_NonWindowsDownloadTooltip_IsLocalizable()
+    {
+        var vm = new ToolInitWizardViewModel();
+        Assert.False(string.IsNullOrEmpty(vm.NonWindowsDownloadTooltip));
+    }
+
+    [Theory]
+    [InlineData(ToolInitWizardViewModel.Step1Mode_Enum.Path)]
+    public void ViewModel_StageDownloadedEmulator_ForcesPathMode(
+        ToolInitWizardViewModel.Step1Mode_Enum _)
+    {
+        // #1031: a successful emulator download stages the path AND forces the
+        // step mode back to Path so the existing ApplyAll() Path-write persists.
+        var vm = new ToolInitWizardViewModel();
+        vm.Initialize();
+        vm.PendingStep1Mode = ToolInitWizardViewModel.Step1Mode_Enum.DownloadMGBA;
+        vm.StageDownloadedEmulator("emu.exe");
+        Assert.Equal("emu.exe", vm.PendingEmulatorPath);
+        Assert.Equal(ToolInitWizardViewModel.Step1Mode_Enum.Path, vm.PendingStep1Mode);
+    }
+
+    [Fact]
+    public void ViewModel_StageDownloadedTools_ForcePathMode_AllSlots()
+    {
+        var vm = new ToolInitWizardViewModel();
+        vm.Initialize();
+
+        vm.StageDownloadedEA("ea.exe");
+        Assert.Equal("ea.exe", vm.PendingEAPath);
+        Assert.Equal(ToolInitWizardViewModel.Step2Mode_Enum.Path, vm.PendingStep2Mode);
+
+        vm.StageDownloadedSappy("sappy.exe");
+        Assert.Equal("sappy.exe", vm.PendingSappyPath);
+        Assert.Equal(ToolInitWizardViewModel.Step3Mode_Enum.Path, vm.PendingStep3Mode);
+
+        vm.StageDownloadedDebuggerAndASM("nogba.exe", "as.exe");
+        Assert.Equal("nogba.exe", vm.PendingDebuggerPath);
+        Assert.Equal("as.exe", vm.PendingASMPath);
+        Assert.Equal(ToolInitWizardViewModel.Step4Mode_Enum.Path, vm.PendingStep4Mode);
+
+        vm.StageDownloadedMusicTools("riper.exe", "sox.exe", "mid.exe");
+        Assert.Equal("riper.exe", vm.PendingGbaMusRiperPath);
+        Assert.Equal("sox.exe", vm.PendingSoxPath);
+        Assert.Equal("mid.exe", vm.PendingMidfix4agbPath);
+        Assert.Equal(ToolInitWizardViewModel.Step5Mode_Enum.Path, vm.PendingStep5Mode);
+
+        vm.StageDownloadedGit("git.exe");
+        Assert.Equal("git.exe", vm.PendingGitPath);
+        Assert.Equal(ToolInitWizardViewModel.Step6Mode_Enum.Path, vm.PendingStep6Mode);
     }
 
     [Fact]
@@ -636,10 +718,18 @@ public class ToolInitWizardParityTests
     }
 
     [Fact]
-    public void ViewModel_DownloadDisabledTooltip_IsLocalizable()
+    public void View_DownloadButtons_AreWired_NotStubbed()
     {
-        var vm = new ToolInitWizardViewModel();
-        Assert.False(string.IsNullOrEmpty(vm.DownloadDisabledTooltip));
+        // #1031: the disabled-stub handlers (which only set SettingStatus =
+        // DownloadDisabledTooltip) are replaced with real async download
+        // handlers that route through DownloadInstallCore. Verify the wiring
+        // markers are present and the old stub literal is gone.
+        string source = File.ReadAllText(ViewCodeBehindPath());
+        Assert.Contains("DownloadInstallCore", source);
+        Assert.Contains("DownloadSingleAsync", source);
+        Assert.Contains("DownloadBundleAsync", source);
+        Assert.Contains("ConfirmDownloadAsync", source);
+        Assert.DoesNotContain("DownloadDisabledTooltip", source);
     }
 
     // ===================================================================
@@ -1033,7 +1123,7 @@ public class ToolInitWizardParityTests
     [InlineData("All settings complete.")]
     [InlineData("Please wait...")]
     [InlineData("Browse")]
-    [InlineData("Download requires WinForms host. Use Browse instead.")]
+    [InlineData("Windows-only download — use Browse to set the path manually.")]
     public void Localisation_NewLiterals_AreTranslated_InJaAndZh(string literal)
     {
         string repoRoot = FindRepoRoot();

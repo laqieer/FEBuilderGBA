@@ -8188,8 +8188,58 @@ Sappyを指定してください。\r\nSappyを設定すると、♪ボタンで
 :Configure Git (version control).\r\nGit is used to keep config/patch2 patch data up to date.\r\nInstalling it makes pulling the latest patches easy.
 Git（バージョン管理システム）を設定してください。\r\nGitはパッチデータ（config/patch2）の更新に使用されます。\r\nインストールすると、最新のパッチデータを簡単に取得できます。
 
-:Download requires WinForms host. Use Browse instead.
-ダウンロードはWinForms版のみ対応です。代わりに参照ボタンを使ってください。
+:Windows-only download — use Browse to set the path manually.
+自動ダウンロードはWindowsのみ対応です。参照ボタンでパスを手動設定してください。
+:Download
+ダウンロード
+:Downloading
+ダウンロード中
+:Downloaded: {0}
+ダウンロード完了: {0}
+:Downloaded {0} tool(s).
+{0}個のツールをダウンロードしました。
+:Download failed. Use Browse to set the path manually.
+ダウンロードに失敗しました。参照ボタンでパスを手動設定してください。
+:This will download an executable from:
+{0}
+
+The downloaded program will be placed under the app folder.
+
+Continue?
+次の場所から実行ファイルをダウンロードします:
+{0}
+
+ダウンロードしたプログラムはappフォルダに配置されます。
+
+続行しますか？
+:This will download executables for {0} from:
+次の場所から{0}の実行ファイルをダウンロードします:
+:The downloaded programs will be placed under the app folder.
+
+Continue?
+ダウンロードしたプログラムはappフォルダに配置されます。
+
+続行しますか？
+:Download and install Git
+Gitのダウンロードとインストール
+:This will download the official Git for Windows installer from:
+{0}
+
+It will RUN the installer, which may request administrator (UAC) elevation.
+
+Continue?
+次の場所から公式のGit for Windowsインストーラーをダウンロードします:
+{0}
+
+インストーラーを実行します。管理者権限(UAC)の昇格を求められる場合があります。
+
+続行しますか？
+:Git installed: {0}
+Gitをインストールしました: {0}
+:Git download/install failed. Use Browse to set the path manually.
+Gitのダウンロード/インストールに失敗しました。参照ボタンでパスを手動設定してください。
+:Git was installed but failed validation. Use Browse to set the path manually.
+Gitはインストールされましたが検証に失敗しました。参照ボタンでパスを手動設定してください。
 
 :Setup is complete. The wizard saved your tool paths and preferences.\r\n\r\nYou can change these at any time from Menu -> Options.\r\n\r\nPress Finish to close this wizard.
 設定が完了しました。ウィザードがツールパスと環境設定を保存しました。\r\n\r\nこれらは、メニュー -> 設定 から、いつでも変更できます。\r\n\r\n完了ボタンを押して、このウィザードを閉じてください。
