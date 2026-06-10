@@ -669,6 +669,128 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
+        // -----------------------------------------------------------------
+        // InstImport (#1057 PR2) — recursive ROM-MUTATING voicegroup import. The
+        // inverse of InstExport: open a TSV index file, resolve its directory, then
+        // read its side + nested files relative to that directory and append the
+        // whole imported set to free space (single transaction, validate-before-
+        // mutate, byte-identical fault restore — all in the Core seam
+        // SongInstrumentSetCore.ImportAll), repointing the loaded voicegroup's song
+        // reference(s) to the new base. Mirrors the N00/InstExport handlers'
+        // try/catch + pre-Begin file-dialog-exception structure.
+        // -----------------------------------------------------------------
+        async void InstImport_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded) return;
+            if (CoreState.ROM == null) return;
+
+            // The voicegroup base the editor is currently editing.
+            uint vocaBase = _vm.BaseAddr;
+            if (vocaBase == 0)
+            {
+                CoreState.Services.ShowError(
+                    R._("No instrument set (voicegroup) is loaded to import into."));
+                return;
+            }
+
+            try
+            {
+                string? path = await FileDialogHelper.OpenFile(
+                    this, R._("Import Instrument"), "*.instrument");
+                if (string.IsNullOrEmpty(path)) return;
+
+                string dir = Path.GetDirectoryName(path) ?? ".";
+                string indexName = Path.GetFileName(path);
+
+                // The Core emits/consumes RELATIVE filename tokens; resolve each
+                // against the chosen index directory (never the process CWD, never
+                // an absolute path inside the TSV). ResolveInside REJECTS an absolute
+                // path or a ".."-escaping token (Copilot review — path traversal): a
+                // rejected/missing token returns null so the Core reports it cleanly
+                // during the validate phase (NO read outside the chosen directory).
+                Func<string, string[]> readLines = name =>
+                {
+                    string? p = ResolveInside(dir, name);
+                    return p != null && File.Exists(p) ? File.ReadAllLines(p) : null;
+                };
+                Func<string, byte[]> readFile = name =>
+                {
+                    string? p = ResolveInside(dir, name);
+                    return p != null && File.Exists(p) ? File.ReadAllBytes(p) : null;
+                };
+
+                _undoService.Begin("Import Instrument Set");
+                try
+                {
+                    if (!_vm.ImportLoadedVoicegroup(indexName, readLines, readFile,
+                            out uint newBase, out string err))
+                    {
+                        _undoService.Rollback();
+                        CoreState.Services.ShowError(
+                            err ?? R._("Instrument set import failed."));
+                        return;
+                    }
+
+                    _undoService.Commit();
+                    _vm.MarkClean();
+
+                    // Re-list from the new base so all imported rows show. The
+                    // read-config bar's First Address still holds the OLD base, and
+                    // LoadList prefers that explicit value, so sync it first.
+                    if (TopBar != null)
+                        TopBar.ReadStartAddress = newBase;
+                    LoadList();
+                    UpdateExpandButtonState();
+
+                    CoreState.Services.ShowInfo(R._(
+                        "Instrument set imported at 0x{0:X08}.", newBase));
+                }
+                catch (Exception ex)
+                {
+                    _undoService.Rollback();
+                    Log.Error("SongInstrumentView.InstImport_Click failed: {0}", ex.Message);
+                    CoreState.Services.ShowError(R._("Instrument set import failed: {0}", ex.Message));
+                }
+            }
+            catch (Exception ex)
+            {
+                // Pre-Begin scope: the file dialog can throw BEFORE _undoService.Begin,
+                // so no undo scope is open here and no Rollback is needed.
+                Log.Error("SongInstrumentView.InstImport_Click: {0}", ex.Message);
+                CoreState.Services?.ShowError(R._("Instrument set import failed: {0}", ex.Message));
+            }
+        }
+
+        // Resolve a relative side/nested-index token against the chosen import
+        // directory, REJECTING (returns null) an absolute path or a ".."-escaping
+        // token so a hand-edited / malicious TSV can never read a file outside the
+        // selected directory (Copilot review — path traversal). The Core only ever
+        // emits bare relative filenames, so a legitimate import is unaffected.
+        // internal for the path-traversal unit test (InternalsVisibleTo).
+        internal static string? ResolveInside(string dir, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            // Reject an absolute / rooted token outright (e.g. "C:\x", "/x", "\\server\x").
+            if (Path.IsPathRooted(name)) return null;
+
+            string baseFull = Path.GetFullPath(dir);
+            string candidate = Path.GetFullPath(Path.Combine(baseFull, name));
+            // The resolved path must stay inside the chosen directory (block "..").
+            // Use case-INSENSITIVE comparison only on Windows (a case-insensitive
+            // filesystem); on Linux/macOS use Ordinal so a case-difference can't be
+            // exploited to slip a ".." escape past the prefix check (Copilot review).
+            var cmp = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string prefix = baseFull.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? baseFull
+                : baseFull + Path.DirectorySeparatorChar;
+            if (!candidate.StartsWith(prefix, cmp)
+                && !string.Equals(candidate, baseFull, cmp))
+                return null;
+            return candidate;
+        }
+
         static string GetActiveTabPrefix(byte headerByte)
         {
             switch (headerByte)
