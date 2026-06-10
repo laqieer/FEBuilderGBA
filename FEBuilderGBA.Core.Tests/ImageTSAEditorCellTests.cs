@@ -528,6 +528,35 @@ namespace FEBuilderGBA.Core.Tests
             });
         }
 
+        [Fact]
+        public void DecodeHeaderTsaCells_TruncatedLz77Stream_ReturnsNull()
+        {
+            WithImageService(() =>
+            {
+                var rom = MakeRom();
+                // A header that claims mhx=3, mhy=2 (footprint = 2 + 4*3*2 = 26
+                // bytes) but whose decompressed stream is TRUNCATED to only the
+                // header + a couple of cells. DecodeHeaderTSAToCells would still
+                // return a (partially-filled) valid tile, but the editor must
+                // REFUSE so a later write can't synthesize bytes the source
+                // never had (Copilot re-review on #1100).
+                int mhx = 3, mhy = 2;
+                int fullLen = 2 + (mhx + 1) * (mhy + 1) * 2; // 26
+                byte[] full = MakeHeaderTsa(mhx, mhy);
+                Assert.Equal(fullLen, full.Length);
+
+                // Decompress-able stream that is SHORTER than the full footprint.
+                byte[] truncated = new byte[fullLen - 8]; // header + 5 cells only
+                Array.Copy(full, truncated, truncated.Length);
+                PlantBytes(rom, TSA_LZ_OFFSET, LZ77.compress(truncated));
+
+                ushort[] tile = ImageTSAEditorCore.DecodeHeaderTsaCells(
+                    rom, 32, 20, true, TSA_LZ_OFFSET, out int dmhx, out int dmhy);
+
+                Assert.Null(tile);
+            });
+        }
+
         // -----------------------------------------------------------------
         // WriteHeaderTsaCells — RAW in-place (same-size, no growth, edit lands).
         // -----------------------------------------------------------------

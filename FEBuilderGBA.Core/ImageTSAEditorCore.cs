@@ -771,6 +771,18 @@ namespace FEBuilderGBA
                 tsaData, (int)width8, (int)height8, 0);
             if (!decoded.IsValidHeader || decoded.Tile == null) return null;
 
+            int expected = 2 + (decoded.MasterHeaderX + 1) * (decoded.MasterHeaderY + 1) * 2;
+
+            // Truncation guard (#1071, Copilot re-review): DecodeHeaderTSAToCells
+            // returns a valid tile array even after a PARTIAL read (its inner loop
+            // hits `goto done` when the stream runs out). A write would then
+            // serialize the FULL `expected` footprint — overwriting beyond the
+            // original raw payload (raw in-place path) or silently "repairing" a
+            // corrupt/truncated stream. Refuse to expose editable cells unless the
+            // source stream actually CONTAINED the whole header footprint, so a
+            // truncated/corrupt header-TSA stays non-editable.
+            if (tsaData.Length < expected) return null;
+
             // Editability check (#1071, Copilot review): a header is only safely
             // editable when its full stride round-trips on the canvas-sized tile
             // array. An in-range-but-edge header (e.g. mhx == 32 on a 32-wide
@@ -782,7 +794,6 @@ namespace FEBuilderGBA
             // rather than enabling an un-writable header.
             byte[] probe = ImageUtilCore.SerializeHeaderTSA(
                 decoded.Tile, decoded.MasterHeaderX, decoded.MasterHeaderY, 0);
-            int expected = 2 + (decoded.MasterHeaderX + 1) * (decoded.MasterHeaderY + 1) * 2;
             if (probe == null || probe.Length != expected) return null;
 
             masterHeaderX = decoded.MasterHeaderX;
