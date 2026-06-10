@@ -52,6 +52,15 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Method = 1;
             _vm.ApplyPreset(1);
 
+            // Explicitly seed each combo's SelectedIndex AFTER items are added.
+            // A TwoWay {Binding SelectedIndex} can stay at -1 (no selection) when
+            // the bound value never changes from its default while the items are
+            // still empty at binding-attach time — pushing it here guarantees the
+            // combos display the VM's current values.
+            MethodCombo.SelectedIndex = _vm.Method;
+            SizeMethodCombo.SelectedIndex = _vm.SizeMethodIndex;
+            ReserveCombo.SelectedIndex = _vm.ReserveIndex;
+
             MethodCombo.SelectionChanged += MethodCombo_SelectionChanged;
         }
 
