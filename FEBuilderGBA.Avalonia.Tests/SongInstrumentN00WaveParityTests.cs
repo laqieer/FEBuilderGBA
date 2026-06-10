@@ -257,12 +257,16 @@ namespace FEBuilderGBA.Avalonia.Tests
         // relative token but REJECTS an absolute path or a ".."-escaping token so a
         // hand-edited TSV can't read a file outside the chosen import directory.
         // -----------------------------------------------------------------
+        // NOTE: forward-slash "/" is a path separator on EVERY OS, so "../escape.bin"
+        // escapes (and is rejected) everywhere. Backslash "\" is a separator ONLY on
+        // Windows — on Linux/macOS "..\escape.bin" is a single literal filename that
+        // stays inside the directory, so it is correctly NOT rejected there. The
+        // backslash case is covered by the Windows-only test below.
         [Theory]
         [InlineData("voicegroup0x00.Wave.bin", true)]   // bare relative -> accepted
         [InlineData("sub/child.bin", true)]             // relative subdir -> accepted
-        [InlineData("../escape.bin", false)]            // parent escape -> rejected
-        [InlineData("..\\escape.bin", false)]           // parent escape (backslash) -> rejected
-        [InlineData("sub/../../escape.bin", false)]     // escapes via .. -> rejected
+        [InlineData("../escape.bin", false)]            // parent escape -> rejected (all OS)
+        [InlineData("sub/../../escape.bin", false)]     // escapes via .. -> rejected (all OS)
         public void ResolveInside_AcceptsRelative_RejectsEscape(string token, bool shouldResolve)
         {
             string dir = Path.Combine(Path.GetTempPath(), "fe_inst_test");
@@ -277,6 +281,16 @@ namespace FEBuilderGBA.Avalonia.Tests
             {
                 Assert.Null(resolved);
             }
+        }
+
+        [Fact]
+        public void ResolveInside_RejectsBackslashEscape_Windows()
+        {
+            // Backslash is a path separator only on Windows; skip elsewhere (the token
+            // is a valid in-directory filename on Linux/macOS).
+            if (!OperatingSystem.IsWindows()) return;
+            string dir = Path.Combine(Path.GetTempPath(), "fe_inst_test");
+            Assert.Null(FEBuilderGBA.Avalonia.Views.SongInstrumentView.ResolveInside(dir, "..\\escape.bin"));
         }
 
         [Fact]
