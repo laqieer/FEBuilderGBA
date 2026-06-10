@@ -579,6 +579,302 @@ namespace FEBuilderGBA
             Array.Copy(snap, rom.Data, snap.Length);
         }
 
+        // ==================================================================
+        // Event image import — TWO-STREAM TSA (#1064 PR1).
+        //
+        // The world-map EVENT graphic is the inverse of TryRenderEvent: it has
+        // TWO LZ77 streams (ZIMAGE deduplicated tiles + ZHEADERTSA header-TSA,
+        // CAUTION 1) plus a fixed RAW 64-color / 4-bank palette (128 bytes,
+        // CAUTION 2 — NEVER compressed; TryRenderEvent reads it raw).
+        //
+        // WF reference: WMEvent = ImageFormRef(this,"WMEvent",32*8,20*8,
+        // palette_count=4, event_image_ptr, event_tsa_ptr, event_palette_ptr);
+        // import = ImageFormRef.WriteImageData. We COMPOSE the existing primitives:
+        //   DecreaseColorConvertCore.Convert(maxPalette:4,yohaku:16,reserve1st:true)
+        //     → banked IndexData (256x160 = 240x160 + 16px yohaku) + 4-bank palette
+        //   split IndexData → localIndex(&0x0F) + per-tile bank(/16)
+        //   EncodeTSAMultiPalette → dedup tiles + raw TSA (palette in bits 12-15)
+        //   EncodeHeaderTSA(rawTsa,256,160,margin:2) → header-TSA (first 2 bytes 0x1D,0x13)
+        //   WriteCompressedToROM ZIMAGE + WriteCompressedToROM ZHEADERTSA + raw 128B palette.
+        //
+        // Validate-all-before-mutate; ONE caller ambient undo scope; defensive
+        // byte-identical (length-aware) fault restore (#885/#923) — a FAILED
+        // import mutates ZERO bytes (incl. a partial-write fault after ZIMAGE).
+        // ==================================================================
+
+        // The visible event map is 240x160 (30x20 tiles); the reducer's 16px
+        // (2-tile) right margin (yohaku) extends it to the 256x160 / 32x20-tile
+        // event canvas WMEvent draws. The source MUST be the 240x160 visible map.
+        const int EVENT_SRC_WIDTH  = 240;
+        const int EVENT_SRC_HEIGHT = 160;
+        const int EVENT_CANVAS_WIDTH  = EVENT_TILES_X * 8; // 256
+        const int EVENT_CANVAS_HEIGHT = EVENT_TILES_Y * 8; // 160
+        // TSA tile-index field is bits 0-9 (1024 max unique tiles).
+        const int EVENT_MAX_UNIQUE_TILES = 1024;
+        // Event palette banks: 4 (CAUTION 2). The reducer caps at maxPalette=4.
+        const int EVENT_MAX_BANKS = 4;
+
+        /// <summary>
+        /// Import a World Map EVENT image (two-stream TSA, #1064 PR1). Composes
+        /// <see cref="DecreaseColorConvertCore.Convert"/> (the method-4
+        /// "World Map (event)" preset: <c>maxPalette:4, yohaku:16, reserve1st:true,
+        /// ignoreTSA:false</c>) → <see cref="ImageImportCore.EncodeTSAMultiPalette"/>
+        /// → <see cref="ImageImportCore.EncodeHeaderTSA"/> and writes the three
+        /// canonical event streams: ZIMAGE (LZ77 tiles) to
+        /// <c>worldmap_event_image_pointer</c>, ZHEADERTSA (LZ77 header-TSA —
+        /// COMPRESSED, matching <see cref="TryRenderEvent"/>) to
+        /// <c>worldmap_event_tsa_pointer</c>, and the RAW 64-color / 128-byte
+        /// palette to <c>worldmap_event_palette_pointer</c>.
+        ///
+        /// <para><b>Auto-reduce default with post-reduction validation.</b> The
+        /// source MUST be the 240×160 visible event map (the reducer adds the
+        /// 16-px / 2-tile right margin to reach the 256×160 / 32×20-tile canvas).
+        /// Rejects (return false, ZERO mutation) when: the source is not 240×160,
+        /// the reduce does not land on exactly 256×160, &gt;4 banks, any 8×8 tile
+        /// mixes banks (<see cref="ValidateEventBankedIndices"/>), or the unique
+        /// tile count exceeds 1024.</para>
+        ///
+        /// <para><b>Pointer guard.</b> All three <c>worldmap_event_*_pointer</c>
+        /// slots must be nonzero and resolve to in-ROM offsets (FE6 has them as
+        /// 0x0; a truncated/corrupt slot fails the resolve) — rejected with no
+        /// mutation BEFORE any write, mirroring <see cref="ImportIconStrip"/>.</para>
+        ///
+        /// <para><b>Atomic.</b> validate-all-before-mutate; ONE caller ambient undo
+        /// scope; defensive byte-identical (length-aware) fault restore — any
+        /// fault (incl. a partial-write fault after the ZIMAGE write) restores the
+        /// ROM byte- AND length-identical. Never throws.</para>
+        /// </summary>
+        /// <param name="rom">Loaded ROM (writes only the 3 event pointers).</param>
+        /// <param name="rgba">Source pixels, 4 bytes/pixel (R,G,B,A), 240×160.</param>
+        /// <param name="srcWidth">Source width (must be 240).</param>
+        /// <param name="srcHeight">Source height (must be 160).</param>
+        /// <param name="error">Empty on success; a user-facing message on failure.</param>
+        /// <returns>true on success; false (with <paramref name="error"/> set and
+        /// ZERO ROM mutation) on any validation or write failure.</returns>
+        public static bool ImportEvent(ROM rom, byte[] rgba, int srcWidth, int srcHeight, out string error)
+        {
+            error = "";
+            if (rom == null || rom.RomInfo == null || rom.Data == null)
+            { error = "ROM not loaded."; return false; }
+            // Explicit FE8-only gate BEFORE any work (matches the World Map Image
+            // editor's FE8-only scope + the CanImportEvent UI gate). FE7's
+            // worldmap_event_* pointers are ALSO nonzero/resolvable, so the pointer
+            // guard below would not reject FE7 — without this version check a
+            // programmatic FE7 caller could mutate the ROM (Copilot PR #1098
+            // review). FE6 has the pointers as 0x0 (also rejected here).
+            if (rom.RomInfo.version != MAIN_FIELD_VERSION_FE8)
+            { error = R.Error("The world map event image import is only supported for FE8."); return false; }
+            if (rgba == null)
+            { error = "Invalid image data."; return false; }
+            if (srcWidth != EVENT_SRC_WIDTH || srcHeight != EVENT_SRC_HEIGHT)
+            {
+                error = R.Error(
+                    "The world map event image must be {0}x{1}.\r\n\r\nSelected image: {2}x{3}.",
+                    EVENT_SRC_WIDTH, EVENT_SRC_HEIGHT, srcWidth, srcHeight);
+                return false;
+            }
+            if ((long)rgba.Length < (long)srcWidth * srcHeight * 4)
+            { error = "Image pixel data is missing or too short."; return false; }
+
+            // --- Pointer guard (no reliance on the UI gate). All three event
+            // pointer slots must be nonzero and resolve to in-ROM offsets. FE6 has
+            // them as 0x0; a truncated/corrupt slot fails the resolve. Rejected
+            // BEFORE any write (WriteCompressedToROM/WriteRawToROM repoint a slot
+            // without validating it). ---
+            if (!TryResolveDataOffset(rom, rom.RomInfo.worldmap_event_image_pointer, out _) ||
+                !TryResolveDataOffset(rom, rom.RomInfo.worldmap_event_tsa_pointer, out _) ||
+                !TryResolveDataOffset(rom, rom.RomInfo.worldmap_event_palette_pointer, out _))
+            {
+                error = R.Error("The world map event image pointers are not set for this ROM.");
+                return false;
+            }
+
+            // Defensive snapshot for the byte-identical restore. The reduce/encode
+            // do NOT mutate the ROM, so they live INSIDE the try (the "never throws"
+            // contract holds even if a primitive throws on unexpected input — the
+            // restore is then a no-op). The caller's ambient undo scope records the
+            // writes for UNDO; this snapshot guarantees a FAILED import (incl. a
+            // partial-write fault) mutates ZERO bytes.
+            byte[] snap = (byte[])rom.Data.Clone();
+            try
+            {
+                // 1. Reduce to the banked 256x160 event canvas + 4-bank palette.
+                DecreaseColorConvertCore.DecreaseColorConvertResult r =
+                    DecreaseColorConvertCore.Convert(rgba, srcWidth, srcHeight,
+                        maxPalette: EVENT_MAX_BANKS, yohaku: 16, reserve1st: true, ignoreTSA: false);
+                if (r == null || r.IndexData == null || r.GbaPalette == null)
+                { error = "Color reduction failed."; return false; }
+
+                // 2. Post-reduction validation (NO mutation yet).
+                if (r.Width != EVENT_CANVAS_WIDTH || r.Height != EVENT_CANVAS_HEIGHT)
+                {
+                    error = R.Error(
+                        "Color reduction produced {0}x{1}, expected {2}x{3}.",
+                        r.Width, r.Height, EVENT_CANVAS_WIDTH, EVENT_CANVAS_HEIGHT);
+                    return false;
+                }
+                if (r.PaletteBankCount > EVENT_MAX_BANKS)
+                {
+                    error = R.Error(
+                        "The world map event image needs {0} palette banks, but only {1} are available. Simplify the source image so it fits in {1} 16-color palettes and re-import.",
+                        r.PaletteBankCount, EVENT_MAX_BANKS);
+                    return false;
+                }
+                string bankErr = ValidateEventBankedIndices(r.IndexData, r.Width, r.Height);
+                if (!string.IsNullOrEmpty(bankErr)) { error = bankErr; return false; }
+
+                // 3. Split the banked indices into local 4bpp pixels + per-tile bank.
+                if (!SplitEventBankedIndices(r.IndexData, r.Width, r.Height,
+                        out byte[] localPixels, out int[] tileBanks))
+                {
+                    error = R.Error("Could not encode the reduced world map event image. Simplify the source image and re-import.");
+                    return false;
+                }
+
+                // 4. Encode the multi-bank TSA (palette bits 12-15 per tile) and
+                //    wrap it into the header-TSA format (first 2 bytes 0x1D,0x13).
+                ImageImportCore.TSAEncodeResult tsa = ImageImportCore.EncodeTSAMultiPalette(
+                    localPixels, EVENT_CANVAS_WIDTH, EVENT_CANVAS_HEIGHT, tileBanks);
+                if (tsa == null || tsa.TileData == null || tsa.TSAData == null)
+                { error = "Failed to encode TSA data."; return false; }
+                if (tsa.UniqueTileCount > EVENT_MAX_UNIQUE_TILES)
+                {
+                    error = R.Error(
+                        "Too many unique tiles ({0}); the world map event supports at most {1}.",
+                        tsa.UniqueTileCount, EVENT_MAX_UNIQUE_TILES);
+                    return false;
+                }
+                byte[] headerTsa = ImageImportCore.EncodeHeaderTSA(
+                    tsa.TSAData, EVENT_CANVAS_WIDTH, EVENT_CANVAS_HEIGHT, 2);
+                if (headerTsa == null || headerTsa.Length <= 2)
+                { error = "Failed to encode header-TSA."; return false; }
+
+                // The RAW 64-color / 128-byte palette (CAUTION 2 — NOT compressed).
+                byte[] palette128 = new byte[EVENT_PALETTE_BYTES]; // 128
+                Array.Copy(r.GbaPalette, 0, palette128, 0, EVENT_PALETTE_BYTES);
+
+                // 5. Write all three streams under the caller's ambient undo scope.
+                //    A fault at ANY step restores the ROM byte-identically.
+                uint imgAddr = ImageImportCore.WriteCompressedToROM(
+                    rom, tsa.TileData, rom.RomInfo.worldmap_event_image_pointer);
+                if (imgAddr == U.NOT_FOUND)
+                { RestoreSnapshot(rom, snap); error = "Failed to write image. Check ROM free space."; return false; }
+
+                uint tsaAddr = ImageImportCore.WriteCompressedToROM(
+                    rom, headerTsa, rom.RomInfo.worldmap_event_tsa_pointer);
+                if (tsaAddr == U.NOT_FOUND)
+                { RestoreSnapshot(rom, snap); error = "Failed to write TSA. Check ROM free space."; return false; }
+
+                uint palAddr = ImageImportCore.WriteRawToROM(
+                    rom, palette128, rom.RomInfo.worldmap_event_palette_pointer);
+                if (palAddr == U.NOT_FOUND)
+                { RestoreSnapshot(rom, snap); error = "Failed to write palette. Check ROM free space."; return false; }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                RestoreSnapshot(rom, snap);
+                error = "World map event import failed: " + ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Validate that every 8×8 tile of a banked index buffer (1 byte/pixel,
+        /// value = <c>bank*16 + localIndex</c>) uses a SINGLE palette bank and that
+        /// the bank is ≤3 (the event has 4 banks max). The bank of a tile is the
+        /// first non-zero pixel's <c>value / 16</c>; an all-index-0 tile is bank 0.
+        /// Returns "" on success, or a user-facing message naming the violating
+        /// tile/pixel. PURE — the caller MUST NOT write on a non-empty return.
+        /// (Public so it is reachable for direct unit-test coverage of crafted
+        /// banked data — Copilot plan-review finding #2.)
+        /// </summary>
+        public static string ValidateEventBankedIndices(byte[] indexedPixels, int width, int height)
+        {
+            if (indexedPixels == null || width <= 0 || height <= 0) return "Invalid image data.";
+            if (width % 8 != 0 || height % 8 != 0) return "Image dimensions must be multiples of 8.";
+            if (indexedPixels.Length < (long)width * height) return "Pixel buffer is too short.";
+
+            for (int y = 0; y < height; y += 8)
+            {
+                for (int x = 0; x < width; x += 8)
+                {
+                    int tileBank = -1; // negative = unset (all index-0 so far)
+                    for (int y8 = 0; y8 < 8; y8++)
+                    {
+                        for (int x8 = 0; x8 < 8; x8++)
+                        {
+                            int v = indexedPixels[(y + y8) * width + (x + x8)];
+                            int bank = v / 16;
+                            int local = v & 0x0F;
+                            if (bank > EVENT_MAX_BANKS - 1)
+                            {
+                                return R.Error(
+                                    "The world map event image needs more than {0} palette banks: the tile at X:{1} Y:{2} requires bank {3} (only banks 0..{4} are available). Simplify the source image so it fits in {0} 16-color palettes and re-import.",
+                                    EVENT_MAX_BANKS, x, y, bank, EVENT_MAX_BANKS - 1);
+                            }
+                            // An all-zero pixel (bank 0, local 0) is transparent and
+                            // does not pin the tile's bank — it is valid in any bank.
+                            if (bank == 0 && local == 0) continue;
+                            if (tileBank < 0) { tileBank = bank; }
+                            else if (bank != tileBank)
+                            {
+                                return R.Error(
+                                    "The world map event image cannot be encoded: every 8x8 tile must use a single 16-color palette bank. The tile starting at X:{0} Y:{1} mixes banks — the pixel at X:{2} Y:{3} needs bank {4} while the rest of the tile uses bank {5}. Simplify the source image so each tile uses one palette and re-import.",
+                                    x, y, x + x8, y + y8, bank, tileBank);
+                            }
+                        }
+                    }
+                }
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// Split a validated banked index buffer (value = <c>bank*16 + localIndex</c>)
+        /// into local 4bpp pixels (<c>value &amp; 0x0F</c>) and a per-8×8-tile bank
+        /// array (<c>value / 16</c> of the tile's first non-zero pixel; 0 for an
+        /// all-index-0 tile). Returns false on a structurally invalid buffer.
+        /// </summary>
+        static bool SplitEventBankedIndices(byte[] indexedPixels, int width, int height,
+            out byte[] localPixels, out int[] tileBanks)
+        {
+            localPixels = null;
+            tileBanks = null;
+            if (indexedPixels == null || width % 8 != 0 || height % 8 != 0) return false;
+            if (indexedPixels.Length < (long)width * height) return false;
+
+            int tilesX = width / 8;
+            int tilesY = height / 8;
+            localPixels = new byte[width * height];
+            tileBanks = new int[tilesX * tilesY];
+
+            for (int ty = 0; ty < tilesY; ty++)
+            {
+                for (int tx = 0; tx < tilesX; tx++)
+                {
+                    int bank = 0; // default for an all-index-0 tile
+                    bool bankSet = false;
+                    for (int y8 = 0; y8 < 8; y8++)
+                    {
+                        for (int x8 = 0; x8 < 8; x8++)
+                        {
+                            int pos = (ty * 8 + y8) * width + (tx * 8 + x8);
+                            int v = indexedPixels[pos];
+                            localPixels[pos] = (byte)(v & 0x0F);
+                            int b = v / 16;
+                            int local = v & 0x0F;
+                            // Pin the tile bank to the first non-transparent pixel.
+                            if (!bankSet && !(b == 0 && local == 0)) { bank = b; bankSet = true; }
+                        }
+                    }
+                    tileBanks[ty * tilesX + tx] = bank;
+                }
+            }
+            return true;
+        }
+
         /// <summary>
         /// Render the FE8 World Map DARK FIELD MAP preview — exactly like
         /// <see cref="TryRenderMainFieldMap"/> but using
