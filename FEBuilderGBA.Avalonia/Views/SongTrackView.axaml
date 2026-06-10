@@ -86,7 +86,7 @@
               <Button AutomationProperties.AutomationId="SongTrack_Import_Button"
                       Name="ImportButton" Content="Import Music File"
                       Width="140" Click="ImportMidi_Click"
-                      ToolTip.Tip="Imports a MIDI (.mid) or a raw RIFF WAV (.wav, builds a one-track song that plays the sample). Instrument (.s/.instrument) import is pending PR2." />
+                      ToolTip.Tip="Imports by file extension: a MIDI (.mid), a raw RIFF WAV (.wav, builds a one-track song that plays the sample), an instrument set (.instrument), or a SondFont source (.s, pick an instrument set then assemble)." />
               <Button AutomationProperties.AutomationId="SongTrack_Export_Button"
                       Name="ExportButton" Content="Export Music File"
                       Width="140" Click="ExportMidi_Click" />

@@ -21464,8 +21464,12 @@ OBJ+BG 从左到右
 :Import Music File
 从文件导入音乐
 
-:Imports a MIDI (.mid) or a raw RIFF WAV (.wav, builds a one-track song that plays the sample). Instrument (.s/.instrument) import is pending PR2.
-导入 MIDI（.mid）或原始 RIFF WAV（.wav，构建一个播放该采样的单轨歌曲）。乐器（.s/.instrument）导入将在 PR2 中支持。
+:Imports by file extension: a MIDI (.mid), a raw RIFF WAV (.wav, builds a one-track song that plays the sample), an instrument set (.instrument), or a SondFont source (.s, pick an instrument set then assemble).
+按文件扩展名导入: MIDI（.mid）、原始 RIFF WAV（.wav，构建一个播放该采样的单轨歌曲）、乐器集（.instrument）或 SondFont 源文件（.s，先选择乐器集再汇编）。
+:Instrument Set Files
+乐器集文件
+:SondFont Source Files
+SondFont 源文件
 :Music Files
 音乐文件
 
