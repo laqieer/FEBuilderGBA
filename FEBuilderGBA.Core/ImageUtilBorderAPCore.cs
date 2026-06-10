@@ -526,15 +526,16 @@ namespace FEBuilderGBA
             AppendU16(newOam, 0);
             AppendU16(newOam, 0);
 
-            // frame_0.
+            // frame_0. (int loop indices — apOam is byte[]; the split counts are
+            // small OAM byte totals well within int range.)
             uint addrFrame0 = (uint)newOam.Count;
             AppendU16(newOam, apOamSplit[0] / 6); // oam entry count
-            for (uint i = 0; i < apOamSplit[0]; i++) newOam.Add(apOam[i]);
+            for (int i = 0; i < (int)apOamSplit[0]; i++) newOam.Add(apOam[i]);
 
             // frame_1.
             uint addrFrame1 = (uint)newOam.Count;
             AppendU16(newOam, (apOamSplit[1] - apOamSplit[0]) / 6);
-            for (uint i = apOamSplit[0]; i < apOamSplit[1]; i++) newOam.Add(apOam[i]);
+            for (int i = (int)apOamSplit[0]; i < (int)apOamSplit[1]; i++) newOam.Add(apOam[i]);
 
             // anim_0.
             uint addrAnim0 = (uint)newOam.Count;

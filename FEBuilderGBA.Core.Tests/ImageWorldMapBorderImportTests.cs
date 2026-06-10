@@ -395,7 +395,7 @@ namespace FEBuilderGBA.Core.Tests
         // ================================================================
 
         [Fact]
-        public void ImportBorder_RecordAddrOutOfRange_MutatesZeroBytes()
+        public void ImportBorder_RecordAddrPastEOF_MutatesZeroBytes()
         {
             WithRom((rom) =>
             {
@@ -406,6 +406,31 @@ namespace FEBuilderGBA.Core.Tests
                 byte[] name  = MakeSheetWithTiles(index: 2, tilesToFill: 1, startTile: 40);
                 // A record address past EOF.
                 uint badAddr = (uint)rom.Data.Length - 2;
+                bool ok = ImageWorldMapCore.ImportBorder(
+                    rom, sheet, name, MakeBorderPalette(), 0, 0, badAddr, out string err);
+
+                Assert.False(ok);
+                Assert.False(string.IsNullOrEmpty(err));
+                Assert.Equal(before, rom.Data);
+            });
+        }
+
+        [Theory]
+        [InlineData(0u)]      // null record address
+        [InlineData(0x100u)]  // inside the ROM header danger zone (< 0x200)
+        [InlineData(0x1FFu)]  // just below the 0x200 safety boundary
+        public void ImportBorder_RecordAddrInDangerZone_MutatesZeroBytes(uint badAddr)
+        {
+            // The P0/P4 repoint writes into the record, so a header/danger-zone
+            // record address must be rejected by the safety-offset rule BEFORE any
+            // write (a 0x100 address would otherwise corrupt the ROM header).
+            WithRom((rom) =>
+            {
+                PlantBorderPalette(rom);
+                byte[] before = (byte[])rom.Data.Clone();
+
+                byte[] sheet = MakeSheetWithTiles(index: 1, tilesToFill: 2, startTile: 0);
+                byte[] name  = MakeSheetWithTiles(index: 2, tilesToFill: 1, startTile: 40);
                 bool ok = ImageWorldMapCore.ImportBorder(
                     rom, sheet, name, MakeBorderPalette(), 0, 0, badAddr, out string err);
 

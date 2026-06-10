@@ -346,12 +346,21 @@ namespace FEBuilderGBA.Avalonia.Views
                     return System.Threading.Tasks.Task.CompletedTask;
                 }
                 _undoService.Commit();
-                _vm.MarkClean();
                 // Reload the record so P0/P4 reflect the freshly-written pointers,
-                // then re-render the border AP preview from the new streams.
-                _vm.LoadBorderEntry(_vm.BorderCurrentAddr);
-                Border_P0Box.Value = _vm.BorderP0;
-                Border_P4Box.Value = _vm.BorderP4;
+                // then re-render the border AP preview from the new streams. Wrap
+                // the reload in an IsLoading scope so LoadBorderEntry's SetField
+                // writes don't flip IsDirty back true after the committed import
+                // (Copilot PR #1099 review); MarkClean AFTER the reload.
+                bool prevLoading = _vm.IsLoading;
+                try
+                {
+                    _vm.IsLoading = true;
+                    _vm.LoadBorderEntry(_vm.BorderCurrentAddr);
+                    Border_P0Box.Value = _vm.BorderP0;
+                    Border_P4Box.Value = _vm.BorderP4;
+                }
+                finally { _vm.IsLoading = prevLoading; }
+                _vm.MarkClean();
                 RenderBorderPreview();
             }
             catch (Exception ex)

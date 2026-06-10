@@ -1272,8 +1272,13 @@ namespace FEBuilderGBA
             { error = R.Error("The world map border image import is only supported for FE8."); return false; }
 
             // 2. Validate the border-record pointer slots are in range (P0 @ +0,
-            //    P4 @ +4; the 12-byte record's last P4 byte is at +7).
-            if (borderRecordAddr == 0 || (long)borderRecordAddr + 8 > rom.Data.Length)
+            //    P4 @ +4; the 12-byte record's last P4 byte is at +7). Enforce the
+            //    project safety-offset rule (>= 0x200) so a bad caller cannot pass a
+            //    ROM-header address (e.g. 0x100) and corrupt the header via the
+            //    P0/P4 repoint (Copilot PR #1099 review).
+            if (borderRecordAddr == 0 ||
+                !U.isSafetyOffset(borderRecordAddr, rom) ||
+                (long)borderRecordAddr + 8 > rom.Data.Length)
             { error = R.Error("The world map border record address is invalid."); return false; }
 
             // Defensive snapshot for the byte-identical restore. The assembly does
