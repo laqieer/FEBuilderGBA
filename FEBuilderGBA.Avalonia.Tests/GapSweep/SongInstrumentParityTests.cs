@@ -374,6 +374,55 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
+    /// #1092 Copilot bot inline finding: the wave Export/Import gates
+    /// (`IsLoadedDirectSound` / `IsLoadedDirectSoundFixedFreq`) must stay
+    /// correct AFTER a type change + Write — `Write()` refreshes the pinned
+    /// `LoadedHeaderByte` to the just-persisted on-ROM byte. This proves:
+    ///   * a voice loaded as 0x10 then written as 0x08 -> N08 gate TRUE, N00 FALSE;
+    ///   * a voice loaded as 0x08 then written as 0x10 -> BOTH gates FALSE
+    ///     (0x10/0x18 stay out of scope even after a write).
+    /// </summary>
+    [Fact]
+    public void ViewModel_Write_RefreshesLoadedHeaderByte_ForWaveGates()
+    {
+        var rom = MakeMinimalRom(out uint addr);
+        var prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+
+            // Seed the ROM entry as 0x10 (DirectSound Reverse) and load it.
+            rom.Data[addr + 0] = 0x10;
+            rom.Data[addr + 4] = 0x00; rom.Data[addr + 5] = 0x04;
+            rom.Data[addr + 6] = 0x20; rom.Data[addr + 7] = 0x08; // safe P4
+            var vm = new SongInstrumentViewModel();
+            vm.LoadEntry(addr);
+            Assert.Equal((byte)0x10, vm.LoadedHeaderByte);
+            Assert.False(vm.IsLoadedDirectSound);
+            Assert.False(vm.IsLoadedDirectSoundFixedFreq); // 0x10 is out of scope
+
+            // User changes the type to 0x08 and writes.
+            vm.HeaderByte = 0x08;
+            vm.Category = SongInstrumentViewModel.ClassifyType(0x08);
+            vm.Write();
+            // The gate now reflects the WRITTEN on-ROM byte (0x08): N08 enabled.
+            Assert.Equal((byte)0x08, vm.LoadedHeaderByte);
+            Assert.True(vm.IsLoadedDirectSoundFixedFreq);
+            Assert.False(vm.IsLoadedDirectSound);
+
+            // User changes the type to 0x10 (out of scope) and writes again.
+            vm.HeaderByte = 0x10;
+            vm.Category = SongInstrumentViewModel.ClassifyType(0x10);
+            vm.Write();
+            // BOTH wave gates are now FALSE — 0x10 stays disabled post-write.
+            Assert.Equal((byte)0x10, vm.LoadedHeaderByte);
+            Assert.False(vm.IsLoadedDirectSound);
+            Assert.False(vm.IsLoadedDirectSoundFixedFreq);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    /// <summary>
     /// SquareWave family tabs (N01/N02/N09/N0A): WF exposes B0..B11 raw
     /// (including B4=squarepattern). All 12 bytes must round-trip.
     /// </summary>

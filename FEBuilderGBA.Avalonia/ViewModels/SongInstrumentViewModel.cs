@@ -605,6 +605,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rom.write_u8(addr + 11, B11);
                     break;
             }
+
+            // Write just persisted HeaderByte to ROM at CurrentAddr, so the
+            // on-ROM byte == HeaderByte now. Refresh the pinned LoadedHeaderByte
+            // to match so the wave Export/Import gates stay correct after a type
+            // change + Write — they keep gating on the ACTUAL on-ROM byte, not a
+            // stale load-time value (#1092 Copilot bot inline finding). This
+            // re-enables N00/N08 for a freshly-written DirectSound voice and
+            // correctly disables it for a voice written as 0x10/0x18.
+            LoadedHeaderByte = HeaderByte;
         }
 
         /// <summary>
