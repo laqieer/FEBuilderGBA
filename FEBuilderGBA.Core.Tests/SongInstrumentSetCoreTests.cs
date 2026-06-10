@@ -1085,6 +1085,154 @@ namespace FEBuilderGBA.Core.Tests
                 // shrunk back, all bytes match).
                 Assert.Equal(before.Length, rom.Data.Length);
                 Assert.Equal(before, rom.Data);
+                // The ambient undo records added by the partial appends must ALSO be
+                // truncated (Copilot review), so a later caller Rollback can't replay
+                // a stale record into the now-shrunk ROM.
+                Assert.Empty(undo.list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-3e. (Copilot review) After a mid-append FAULT, the caller's UndoService
+        //       Rollback/RunUndo MUST NOT throw: the snapshot restore shrinks the ROM
+        //       back, so any stale ambient undo record pointing into the grown region
+        //       would be replayed PAST the restored length (IndexOutOfRangeException).
+        //       The Core truncates those records, so the subsequent RunUndo is a
+        //       clean no-op and the ROM stays byte-identical.
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_FaultThenCallerRollback_DoesNotThrow_RomByteIdentical()
+        {
+            var savedRom = CoreState.ROM;
+            var savedUndo = CoreState.Undo;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                BuildRichVoicegroup(rom);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                byte[] before = (byte[])rom.Data.Clone();
+
+                int call = 0;
+                Func<byte[], uint> faultyAppender = buf =>
+                {
+                    call++;
+                    if (call >= 4) return U.NOT_FOUND;
+                    uint off = U.Padding4((uint)rom.Data.Length);
+                    rom.write_resize_data(off + (uint)buf.Length);
+                    rom.write_range(off, buf);
+                    return off;
+                };
+
+                var undo = CoreState.Undo.NewUndoData("import");
+                using (ROM.BeginUndoScope(undo))
+                {
+                    uint result = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        faultyAppender, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                }
+
+                // Mirror the View's failure path: push + run the undo. With the Core's
+                // record-truncation this is a clean no-op (no IndexOutOfRangeException).
+                if (undo.list.Count > 0)
+                {
+                    CoreState.Undo.Push(undo);
+                    CoreState.Undo.RunUndo();
+                }
+
+                Assert.Equal(before.Length, rom.Data.Length);
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = savedRom; CoreState.Undo = savedUndo; }
+        }
+
+        // -----------------------------------------------------------------
+        // I-3f. (Copilot review) A wrong-length fixed-size side file is REJECTED with
+        //       NO mutation: a 15-byte .Wave.bin (Wave Memory must be 16) and a
+        //       64-byte .Multi.keys.bin (keymap must be 128).
+        // -----------------------------------------------------------------
+        [Fact]
+        public void Import_WrongLengthWaveMemoryFile_NoMutation()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                uint w1 = 0x9000;
+                for (int i = 0; i < 16; i++) rom.write_u8((uint)(w1 + i), (byte)i);
+                WriteVoice(rom, VOCA_BASE, 0x03, 0, 0, 0, U.toPointer(w1), 0, 0, 0, 0, 0);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                // Corrupt the .Wave.bin to 15 bytes.
+                export.Files["vg0x00.Wave.bin"] = new byte[15];
+
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = new Undo().NewUndoData("import");
+                using (ROM.BeginUndoScope(undo))
+                {
+                    uint result = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+            }
+            finally { CoreState.ROM = savedRom; }
+        }
+
+        [Fact]
+        public void Import_WrongLengthKeymapFile_NoMutation()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeRom();
+                CoreState.ROM = rom;
+
+                uint subBase = 0x2100, sw = 0xB000;
+                for (int i = 0; i < 16; i++) rom.write_u8((uint)(sw + i), (byte)i);
+                WriteVoice(rom, subBase, 0x03, 0, 0, 0, U.toPointer(sw), 0, 0, 0, 0, 0);
+                uint keymap = 0x3000;
+                for (int i = 0; i < 128; i++) rom.write_u8((uint)(keymap + i), (byte)(i & 0xFF));
+                WriteVoice(rom, VOCA_BASE, 0x40, 0, 0, 0,
+                    U.toPointer(subBase), U.toPointer(keymap), 0, 0, 0, 0);
+
+                var export = new Sink();
+                SongInstrumentSetCore.ExportAll(rom, VOCA_BASE, "vg",
+                    export.WriteFile, export.WriteLines);
+
+                // Corrupt the keymap to 64 bytes.
+                export.Files["vg0x00.Multi.keys.bin"] = new byte[64];
+
+                byte[] before = (byte[])rom.Data.Clone();
+                var undo = new Undo().NewUndoData("import");
+                using (ROM.BeginUndoScope(undo))
+                {
+                    uint result = SongInstrumentSetCore.ImportAll(
+                        rom, "vg.instrument",
+                        ReadLinesFrom(export), ReadFileFrom(export),
+                        null, out string err);
+                    Assert.Equal(U.NOT_FOUND, result);
+                    Assert.False(string.IsNullOrEmpty(err));
+                }
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
             }
             finally { CoreState.ROM = savedRom; }
         }

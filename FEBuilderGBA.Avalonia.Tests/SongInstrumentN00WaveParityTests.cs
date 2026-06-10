@@ -252,6 +252,42 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("_undoService.Rollback", body);
         }
 
+        // -----------------------------------------------------------------
+        // PR2 path-traversal guard (Copilot review): ResolveInside accepts a bare
+        // relative token but REJECTS an absolute path or a ".."-escaping token so a
+        // hand-edited TSV can't read a file outside the chosen import directory.
+        // -----------------------------------------------------------------
+        [Theory]
+        [InlineData("voicegroup0x00.Wave.bin", true)]   // bare relative -> accepted
+        [InlineData("sub/child.bin", true)]             // relative subdir -> accepted
+        [InlineData("../escape.bin", false)]            // parent escape -> rejected
+        [InlineData("..\\escape.bin", false)]           // parent escape (backslash) -> rejected
+        [InlineData("sub/../../escape.bin", false)]     // escapes via .. -> rejected
+        public void ResolveInside_AcceptsRelative_RejectsEscape(string token, bool shouldResolve)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "fe_inst_test");
+            string? resolved = FEBuilderGBA.Avalonia.Views.SongInstrumentView.ResolveInside(dir, token);
+            if (shouldResolve)
+            {
+                Assert.NotNull(resolved);
+                // The resolved path stays inside the chosen directory.
+                Assert.StartsWith(Path.GetFullPath(dir), resolved!, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                Assert.Null(resolved);
+            }
+        }
+
+        [Fact]
+        public void ResolveInside_RejectsAbsolutePath()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "fe_inst_test");
+            // An absolute/rooted token is rejected regardless of OS form.
+            string abs = OperatingSystem.IsWindows() ? @"C:\Windows\system.ini" : "/etc/passwd";
+            Assert.Null(FEBuilderGBA.Avalonia.Views.SongInstrumentView.ResolveInside(dir, abs));
+        }
+
         [Fact]
         public void ViewModel_ImportLoadedVoicegroup_RoutesThroughCoreImportSeam()
         {

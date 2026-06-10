@@ -704,17 +704,19 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 // The Core emits/consumes RELATIVE filename tokens; resolve each
                 // against the chosen index directory (never the process CWD, never
-                // an absolute path inside the TSV). A missing file -> null so the
-                // Core reports it cleanly during the validate phase.
+                // an absolute path inside the TSV). ResolveInside REJECTS an absolute
+                // path or a ".."-escaping token (Copilot review — path traversal): a
+                // rejected/missing token returns null so the Core reports it cleanly
+                // during the validate phase (NO read outside the chosen directory).
                 Func<string, string[]> readLines = name =>
                 {
-                    string p = Path.Combine(dir, name);
-                    return File.Exists(p) ? File.ReadAllLines(p) : null;
+                    string? p = ResolveInside(dir, name);
+                    return p != null && File.Exists(p) ? File.ReadAllLines(p) : null;
                 };
                 Func<string, byte[]> readFile = name =>
                 {
-                    string p = Path.Combine(dir, name);
-                    return File.Exists(p) ? File.ReadAllBytes(p) : null;
+                    string? p = ResolveInside(dir, name);
+                    return p != null && File.Exists(p) ? File.ReadAllBytes(p) : null;
                 };
 
                 _undoService.Begin("Import Instrument Set");
@@ -757,6 +759,30 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("SongInstrumentView.InstImport_Click: {0}", ex.Message);
                 CoreState.Services?.ShowError(R._("Instrument set import failed: {0}", ex.Message));
             }
+        }
+
+        // Resolve a relative side/nested-index token against the chosen import
+        // directory, REJECTING (returns null) an absolute path or a ".."-escaping
+        // token so a hand-edited / malicious TSV can never read a file outside the
+        // selected directory (Copilot review — path traversal). The Core only ever
+        // emits bare relative filenames, so a legitimate import is unaffected.
+        // internal for the path-traversal unit test (InternalsVisibleTo).
+        internal static string? ResolveInside(string dir, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            // Reject an absolute / rooted token outright (e.g. "C:\x", "/x", "\\server\x").
+            if (Path.IsPathRooted(name)) return null;
+
+            string baseFull = Path.GetFullPath(dir);
+            string candidate = Path.GetFullPath(Path.Combine(baseFull, name));
+            // The resolved path must stay inside the chosen directory (block "..").
+            string prefix = baseFull.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? baseFull
+                : baseFull + Path.DirectorySeparatorChar;
+            if (!candidate.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(candidate, baseFull, StringComparison.OrdinalIgnoreCase))
+                return null;
+            return candidate;
         }
 
         static string GetActiveTabPrefix(byte headerByte)

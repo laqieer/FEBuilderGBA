@@ -528,6 +528,16 @@ namespace FEBuilderGBA.Core
             // UndoService.Begin). The snapshot guarantees a FAILED import mutates
             // ZERO bytes even though some appends/fixups may have already run.
             byte[] snapshot = (byte[])rom.Data.Clone();
+            // Capture the ambient undo scope + its current record count so a FAULTED
+            // import can truncate back ANY records the appends/fixups added (Copilot
+            // review): the snapshot restore shrinks rom.Data back to the pre-import
+            // length, but the ambient undo list would still hold UndoPostion records
+            // pointing into the now-out-of-range GROWN region. If the caller (the
+            // View's UndoService) then Rollbacks/RunUndos, replaying those stale
+            // records writes PAST the restored length -> IndexOutOfRangeException. A
+            // failed import must leave the ambient scope byte-AND-record identical.
+            var ambient = ROM.GetAmbientUndoData();
+            int undoStart = ambient?.list.Count ?? 0;
             try
             {
                 Func<byte[], uint> appender = appendBinaryData ?? (buf => AppendToRomEnd(rom, buf));
@@ -538,7 +548,7 @@ namespace FEBuilderGBA.Core
                 // known, so the SELF / nested-base fixups resolve to real offsets.
                 if (!AllocateGraph(root, appender, out error))
                 {
-                    RestoreSnapshot(rom, snapshot);
+                    RestoreFault(rom, snapshot, ambient, undoStart);
                     if (string.IsNullOrEmpty(error))
                         error = R._("Failed to allocate ROM space for the instrument set.");
                     return U.NOT_FOUND;
@@ -553,10 +563,25 @@ namespace FEBuilderGBA.Core
             }
             catch (Exception ex)
             {
-                RestoreSnapshot(rom, snapshot);
+                RestoreFault(rom, snapshot, ambient, undoStart);
                 error = R._("Instrument set import failed: {0}", ex.Message);
                 return U.NOT_FOUND;
             }
+        }
+
+        /// <summary>
+        /// Byte-AND-record identical fault restore: restore the ROM bytes/length from
+        /// <paramref name="snapshot"/> AND truncate any ambient undo records added
+        /// since <paramref name="undoStart"/>, so a subsequent caller Rollback/RunUndo
+        /// cannot replay a stale record into the (now shrunk) ROM region (Copilot
+        /// review). After this, a failed import is a complete no-op for both the ROM
+        /// and the ambient undo scope.
+        /// </summary>
+        static void RestoreFault(ROM rom, byte[] snapshot, Undo.UndoData ambient, int undoStart)
+        {
+            RestoreSnapshot(rom, snapshot);
+            if (ambient != null && ambient.list.Count > undoStart)
+                ambient.list.RemoveRange(undoStart, ambient.list.Count - undoStart);
         }
 
         // ---- PHASE 1 helpers (read-only, in-memory) -------------------------
@@ -686,7 +711,15 @@ namespace FEBuilderGBA.Core
                     error = R._("Instrument row {0} is malformed: at least {1} columns are required.", index + 1, 9);
                     return false;
                 }
-                byte[] wav = ReadSideFile(sp[4], readFile, out error);
+                // Length policy (Copilot review): Wave Memory (0x03/0x0B) is a FIXED
+                // 16-byte blob — ExportAll always emits exactly 16, so REJECT any
+                // other length (a non-16-byte .Wave.bin would write invalid data).
+                // DirectSound (0x00/0x08/0x10/0x18) is variable but must at least hold
+                // its 16-byte header (+0 flag, +4 freq, +12 len) — reject a shorter blob.
+                bool isWaveMemory = (type == 0x03 || type == 0x0B);
+                int exactLen = isWaveMemory ? 16 : 0;   // 0 = no exact requirement
+                int minLen = isWaveMemory ? 16 : 16;    // both need >= 16
+                byte[] wav = ReadSideFile(sp[4], readFile, exactLen, minLen, out error);
                 if (wav == null)
                 {
                     if (string.IsNullOrEmpty(error))
@@ -727,7 +760,9 @@ namespace FEBuilderGBA.Core
                     error = R._("Multisample row {0} is missing the keymap column.", index + 1);
                     return false;
                 }
-                byte[] multi = ReadSideFile(sp[5], readFile, out error);
+                // The keymap is a FIXED 128-byte blob — ExportAll always emits exactly
+                // 128, so REJECT any other length (Copilot review).
+                byte[] multi = ReadSideFile(sp[5], readFile, exactLen: 128, minLen: 128, out error);
                 if (multi == null)
                 {
                     if (string.IsNullOrEmpty(error))
@@ -814,10 +849,14 @@ namespace FEBuilderGBA.Core
             return true;
         }
 
-        /// <summary>Read a side file, rejecting an empty / oversized blob (sanity —
-        /// validate-before-mutate). Returns <c>null</c> (with <paramref name="error"/>
-        /// set when the cause is a bad length) when the file is missing or insane.</summary>
-        static byte[] ReadSideFile(string name, Func<string, byte[]> readFile, out string error)
+        /// <summary>Read a side file, rejecting an empty / oversized / wrong-length blob
+        /// (validate-before-mutate — Copilot review). <paramref name="exactLen"/> &gt; 0
+        /// requires that EXACT length (Wave Memory 16, keymap 128 — the fixed-size blobs
+        /// ExportAll always emits); <paramref name="minLen"/> &gt; 0 requires at least
+        /// that many bytes (DirectSound needs its 16-byte header). Returns <c>null</c>
+        /// (with <paramref name="error"/> set when the cause is a bad length) when the
+        /// file is missing or insane.</summary>
+        static byte[] ReadSideFile(string name, Func<string, byte[]> readFile, int exactLen, int minLen, out string error)
         {
             error = null;
             if (string.IsNullOrEmpty(name)) return null;
@@ -831,6 +870,16 @@ namespace FEBuilderGBA.Core
             if (data.Length >= 0x00200000)
             {
                 error = R._("The instrument data file is too large: {0}", name);
+                return null;
+            }
+            if (exactLen > 0 && data.Length != exactLen)
+            {
+                error = R._("The instrument data file {0} must be exactly {1} bytes (got {2}).", name, exactLen, data.Length);
+                return null;
+            }
+            if (minLen > 0 && data.Length < minLen)
+            {
+                error = R._("The instrument data file {0} is too short (need at least {1} bytes, got {2}).", name, minLen, data.Length);
                 return null;
             }
             return data;
