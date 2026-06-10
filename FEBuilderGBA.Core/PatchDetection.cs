@@ -397,6 +397,30 @@ namespace FEBuilderGBA
             return SearchPatchBool(rom, OPClassReelSortPatchTable);
         }
 
+        // ---- ChapterNameToText patch detector (#1029) ----
+        // Cross-platform port of WinForms PatchUtil.SearchChapterNameToTextPatch.
+        // Used as the headless default precondition for the JP chapter-name wipe
+        // (ToolTranslateROMCore.WipeJPTitle): the wipe rewrites chapter-title
+        // pointers to text only when this patch is installed, mirroring WF
+        // HowDoYouLikePatchForm.CheckAndShowPopupDialog(ChapterNameText) which
+        // returns true only when the patch is present / freshly installed.
+
+        static readonly PatchTableSt[] ChapterNameToTextPatchTable = new PatchTableSt[] {
+            new PatchTableSt{ name="ChapterNameToText", ver = "FE8J", addr = 0x8B894, data = new byte[]{0x00, 0x4B, 0x18, 0x47}},
+            new PatchTableSt{ name="ChapterNameToText", ver = "FE8U", addr = 0x89624, data = new byte[]{0x00, 0x4B, 0x18, 0x47}},
+        };
+
+        /// <summary>
+        /// True when the "ChapterNameToText" patch (FE8J or FE8U) is installed in
+        /// <paramref name="rom"/>. Cross-platform port of WinForms
+        /// <c>PatchUtil.SearchChapterNameToTextPatch</c>. Returns false on null
+        /// ROM and on any non-FE8 version (signature table only contains FE8J/U).
+        /// </summary>
+        public static bool SearchChapterNameToTextPatch(ROM rom)
+        {
+            return SearchPatchBool(rom, ChapterNameToTextPatchTable);
+        }
+
         // ---- Class skill extends (SkillSystem) ----
         // The CSkillSys "class skill extends" patch detector now lives in
         // FEBuilderGBA.Core/SkillSystemPatchScanner.cs as

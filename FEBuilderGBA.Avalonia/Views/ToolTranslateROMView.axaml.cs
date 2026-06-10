@@ -128,9 +128,10 @@ namespace FEBuilderGBA.Avalonia.Views
         //    SkiaFontRasterizer (#796) — the ImportFont handler rasterizes
         //    missing glyphs through the IFontRasterizer seam, no longer
         //    WinForms-only.
-        //  - The full WipeJP* flow still needs WF HowDoYouLikePatchForm popup
-        //    orchestration; Avalonia SimpleFire skips the OverrideJpFont
-        //    branch and notes this in the user-facing message (KnownGap).
+        //  - The full WipeJP* flow (#1029) is now cross-platform via
+        //    ToolTranslateROMCore.SimpleFireTranslate (OverrideJpFont); the WF
+        //    HowDoYouLikePatchForm ChapterNameText popup is replaced by an
+        //    injected precondition delegate evaluated on the UI thread below.
 
         async void SimpleFire_Click(object? sender, RoutedEventArgs e)
         {
@@ -151,6 +152,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 ToolTranslateROMViewModel.FromLanguageItemsRaw[
                     Math.Clamp(_vm.FromLanguageIndex, 0, ToolTranslateROMViewModel.FromLanguageItemsRaw.Length - 1)]);
 
+            // Resolve the ChapterNameText precondition on the UI thread (BEFORE
+            // the background Task.Run) — Avalonia modal dialogs must not be shown
+            // from a worker thread. Mirrors WF
+            // HowDoYouLikePatchForm.CheckAndShowPopupDialog(ChapterNameText): the
+            // JP chapter-name wipe only proceeds when the ChapterNameToText patch
+            // is installed; if it isn't, surface the recommendation and re-check.
+            bool chapterNameTextOk = true;
+            if (_vm.SimpleOverrideJpFont)
+            {
+                chapterNameTextOk = PatchDetection.SearchChapterNameToTextPatch(rom);
+                if (!chapterNameTextOk && rom.RomInfo.version == 8)
+                {
+                    await ShowChapterNameTextRecommendation();
+                    // Re-check: the user may have installed the patch via the
+                    // patch manager. The wipe proceeds only if it's now present.
+                    chapterNameTextOk = PatchDetection.SearchChapterNameToTextPatch(rom);
+                }
+            }
+
             _vm.UndoService.Begin("Translate ROM");
             try
             {
@@ -169,6 +189,9 @@ namespace FEBuilderGBA.Avalonia.Views
                         FromLanguage = fromLang,
                         ToLanguage = toLang,
                         OverrideJpFont = _vm.SimpleOverrideJpFont,
+                        // Precondition was resolved on the UI thread; pass the
+                        // captured value (no dialog on the worker thread).
+                        ChapterNameTextPrecondition = () => chapterNameTextOk,
                     };
                     var recycle = new RecycleAddress();
                     total = ToolTranslateROMCore.SimpleFireTranslate(rom, opts, recycle,
@@ -179,9 +202,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 string msg = $"Translation complete. {total} text entries written.";
                 if (_vm.SimpleOverrideJpFont)
                 {
-                    msg += "\n\nNote: Override JP Font is checked, but the WipeJP* flow needs " +
-                        "WinForms HowDoYouLikePatchForm popups and stays WinForms-only (#536 " +
-                        "KnownGap). Use the WinForms tool for full JP-font wiping.";
+                    msg += "\n\nOverride JP Font: the Japanese font tables were wiped " +
+                        "(class-reel font, chapter titles, and item/text fonts) to free space.";
                 }
                 await ShowInfo(msg);
             }
@@ -439,6 +461,30 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         Task ShowError(string message) => ShowInfo(message);
+
+        /// <summary>
+        /// Surface the ChapterNameToText patch recommendation (the Avalonia
+        /// counterpart of WF <c>HowDoYouLikePatchForm.CheckAndShowPopupDialog(ChapterNameText)</c>).
+        /// The dialog is informational — the JP chapter-name wipe only proceeds
+        /// when the patch is actually installed (re-checked by the caller), so
+        /// declining here simply skips the chapter-title portion of the wipe.
+        /// </summary>
+        async Task ShowChapterNameTextRecommendation()
+        {
+            try
+            {
+                var view = new HowDoYouLikePatchView();
+                view.SetPatchInfo(
+                    "To display chapter titles as text (required before wiping the Japanese " +
+                    "chapter-title images), install the ChapterNameToText patch via the Patch " +
+                    "manager, then run the translation again.");
+                await view.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("ToolTranslateROMView.ShowChapterNameTextRecommendation: {0}", ex.Message);
+            }
+        }
 
         public void NavigateTo(uint address) { /* tool dialog - nothing to navigate to */ }
         public void SelectFirstItem() { /* tool dialog - no list to seed */ }

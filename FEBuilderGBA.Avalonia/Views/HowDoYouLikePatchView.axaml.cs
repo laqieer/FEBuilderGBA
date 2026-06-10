@@ -19,6 +19,18 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.Initialize();
         }
 
+        /// <summary>
+        /// Set the recommendation/explanation text shown in the dialog body
+        /// (the bound <see cref="HowDoYouLikePatchViewModel.PatchInfo"/>).
+        /// </summary>
+        public void SetPatchInfo(string info)
+        {
+            _vm.PatchInfo = info ?? string.Empty;
+        }
+
+        /// <summary>True when the user clicked Apply (vs. Skip).</summary>
+        public bool UserApplied => _vm.UserApplied;
+
         void Apply_Click(object? sender, RoutedEventArgs e)
         {
             _vm.UserApplied = true;

@@ -23,15 +23,15 @@
 //  - ImportTextsFromFile - reads `[XXXX]\ntext\n\n` and writes back via
 //    Huffman/UnHuffman/CString depending on the entry kind.
 //
+//  - WipeJPFont / WipeJPTitle / WipeJPClassReelFont orchestration (#1029) — now
+//    fully cross-platform via ToolTranslateROMWipeJPCore.cs + ChapterTitleCore +
+//    OPClassFontListCore; the HowDoYouLikePatchForm ChapterNameText popup is
+//    replaced by an injected precondition delegate (Core stays UI-free). Consumed
+//    by SimpleFireTranslate when opts.OverrideJpFont is set.
+//
 // What's intentionally NOT here (KnownGap, documented in PR Known Limitations):
 //  - Bitmap font auto-generation (`ImageUtil.AutoGenerateFont` is
 //    System.Drawing-bound; lives in WinForms).
-//  - WipeJPFont / WipeJPTitle / WipeJPClassReelFont orchestration (depend on
-//    WF `HowDoYouLikePatchForm` dialog popups + WF `FontForm` static methods
-//    that haven't been migrated yet). The Core PriorityCode + FontCore helpers
-//    *are* now in Core (see PriorityCode.cs / FontCore.cs), so a follow-up PR
-//    can wire WipeJP via delegate hooks once `HowDoYouLikePatchForm` is
-//    abstracted.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -964,11 +964,25 @@ namespace FEBuilderGBA
             public string FromLanguage { get; set; } = string.Empty;
             public string ToLanguage { get; set; } = string.Empty;
             public bool OverrideJpFont { get; set; }
+
+            /// <summary>
+            /// Gate for the JP chapter-name wipe (<see cref="WipeJPTitle"/>),
+            /// mirroring WF <c>HowDoYouLikePatchForm.CheckAndShowPopupDialog(ChapterNameText)</c>:
+            /// return true to wipe the chapter-title images, false to skip. When
+            /// null (the default), the wipe falls back to a headless
+            /// <see cref="PatchDetection.SearchChapterNameToTextPatch"/> check —
+            /// it skips when the ChapterNameToText patch is absent. The Avalonia
+            /// host injects a delegate that surfaces the patch recommendation.
+            /// Only consulted when <see cref="OverrideJpFont"/> is set.
+            /// </summary>
+            public Func<bool> ChapterNameTextPrecondition { get; set; }
         }
 
         /// <summary>
         /// Orchestrates the full WF SimpleFireButton_Click flow against the
         /// Core helpers:
+        ///   0. (When opts.OverrideJpFont) WipeJPClassReelFont -> WipeJPTitle ->
+        ///      WipeJPFont — the WF wipe order, BEFORE the translate import.
         ///   1. ApplyTranslatePatch (main menu width + status-screen skill)
         ///   2. If TranslateDataFilename is supplied, ImportTextsFromFile from
         ///      that file
@@ -977,9 +991,9 @@ namespace FEBuilderGBA
         ///      file back into the ROM (auto-translates static texts)
         ///   4. ImportFont from TO ROM (font-copy path; auto-gen stays
         ///      WinForms-only)
-        ///   5. BlackOut + Push undo are caller's responsibility
-        /// Skips OverrideJpFont (WipeJP*) which depend on WF popups - see
-        /// #536 Known Limitations.
+        ///   5. BlackOut — clears any leftover recycle ranges with 0x00 (WF
+        ///      parity: trans.BlackOut(undodata)). Push undo is the caller's
+        ///      responsibility.
         /// Returns the number of text entries imported in the auto-translate
         /// pass; 0 on failure.
         /// </summary>
@@ -989,6 +1003,18 @@ namespace FEBuilderGBA
             if (rom?.RomInfo == null || opts == null) return 0;
             if (opts.FromLanguage == opts.ToLanguage) return 0;
             if (recycle == null) return 0;
+
+            // Step 0: JP-font wipe (Override JP Font). WF order is
+            // WipeJPClassReelFont -> WipeJPTitle -> WipeJPFont, BEFORE the import.
+            if (opts.OverrideJpFont)
+            {
+                progressCallback?.Invoke("WipeJP ClassReel Font...");
+                WipeJPClassReelFont(rom, recycle, undo);
+                progressCallback?.Invoke("WipeJP Title...");
+                WipeJPTitle(rom, recycle, undo, opts.ChapterNameTextPrecondition);
+                progressCallback?.Invoke("WipeJP Font...");
+                WipeJPFont(rom, recycle, undo);
+            }
 
             // Step 1: Apply translate patch.
             ApplyTranslatePatch(rom, opts.ToLanguage, undo);
@@ -1040,7 +1066,82 @@ namespace FEBuilderGBA
                     recycle, undo, progressCallback);
             }
 
+            // Step 5: BlackOut — clear any leftover recycle ranges with 0x00 so
+            // the freed JP-font / text regions don't leave stale bytes behind
+            // (WF parity: trans.BlackOut(undodata) at the end of
+            // SimpleFireButton_Click). Threads undo so it rolls back.
+            recycle.BlackOut(undo);
+
             return total;
+        }
+
+        // ============================================================
+        // WipeJP* orchestration (#1029) — Form-free ports of WF
+        // ToolTranslateROM.WipeJPFont / WipeJPTitle / WipeJPClassReelFont.
+        // Each mirrors the WF body: helper -> recycle.AddRecycle -> RecycleOptimize
+        // (WipeJPFont additionally re-appends the preserved glyphs from the
+        // OPTIMIZED recycle pool via WriteBackFont, so order matters).
+        // ============================================================
+
+        /// <summary>
+        /// Wipe the FE8J Japanese font hash tables, preserving the always-keep
+        /// glyphs. Builds the recycle list, optimizes it, then re-appends the
+        /// preserved glyphs from the optimized pool. Form-free port of WF
+        /// <c>ToolTranslateROM.WipeJPFont</c>. No-op on non-FE8J ROMs.
+        /// </summary>
+        public static void WipeJPFont(ROM rom, RecycleAddress recycle, Undo.UndoData undo)
+        {
+            if (rom?.RomInfo == null || recycle == null) return;
+
+            var list = new List<Address>();
+            var jpfont = new WipeJPFontHelper(rom, undo);
+            jpfont.AddJPFonts(list);
+
+            recycle.AddRecycle(list);
+            recycle.RecycleOptimize();
+
+            // WriteBackFont allocates preserved glyphs from the OPTIMIZED pool,
+            // so this MUST run after RecycleOptimize.
+            jpfont.WriteBackFont(recycle);
+        }
+
+        /// <summary>
+        /// Wipe the JP chapter-name images (repoint to the last entry, zero the
+        /// number/title pointers). Form-free port of WF
+        /// <c>ToolTranslateROM.WipeJPTitle</c>. The
+        /// <paramref name="chapterNameTextPrecondition"/> gates the wipe (WF
+        /// HowDoYouLikePatchForm(ChapterNameText) parity); null = headless patch
+        /// check. No-op on non-FE8 ROMs / when the precondition is false.
+        /// </summary>
+        public static void WipeJPTitle(ROM rom, RecycleAddress recycle, Undo.UndoData undo,
+            Func<bool> chapterNameTextPrecondition = null)
+        {
+            if (rom?.RomInfo == null || recycle == null) return;
+
+            var list = new List<Address>();
+            var jpChapter = new WipeJPChapterNameHelper(rom, undo);
+            jpChapter.Wipe(list, chapterNameTextPrecondition);
+
+            recycle.AddRecycle(list);
+            recycle.RecycleOptimize();
+        }
+
+        /// <summary>
+        /// Wipe the OP-class JP-name font slots (repoint all-but-first to the
+        /// first). Form-free port of WF
+        /// <c>ToolTranslateROM.WipeJPClassReelFont</c>. No-op unless the ROM is
+        /// FE8J with the OP-class-reel font code signature present.
+        /// </summary>
+        public static void WipeJPClassReelFont(ROM rom, RecycleAddress recycle, Undo.UndoData undo)
+        {
+            if (rom?.RomInfo == null || recycle == null) return;
+
+            var list = new List<Address>();
+            var jpClassReel = new WipeJPClassReelFontHelper(rom, undo);
+            jpClassReel.Wipe(list);
+
+            recycle.AddRecycle(list);
+            recycle.RecycleOptimize();
         }
 
         // ============================================================
