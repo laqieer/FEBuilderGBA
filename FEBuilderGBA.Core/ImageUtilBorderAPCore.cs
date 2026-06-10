@@ -108,10 +108,11 @@ namespace FEBuilderGBA
         /// the seat tile sheet image + the AP-data block. No ROM mutation.
         ///
         /// <para><b>Two frames into ONE seat.</b> WF accumulates both sheets into
-        /// the SAME 256×40 seat (frame 0 = the border outline/fill, frame 1 = the
-        /// name text), tracking the OAM-byte split between them. If the combined
-        /// tiles overflow the single seat (WF: <c>GetImages().Count >= 2</c>) the
-        /// import is rejected ("too large for the 256×160 sheet").</para>
+        /// the SAME 256×40 (32×5-tile) seat (frame 0 = the border outline/fill,
+        /// frame 1 = the name text), tracking the OAM-byte split between them. If
+        /// the combined unique tiles overflow that single seat (WF:
+        /// <c>GetImages().Count >= 2</c>) the import is rejected ("too large for the
+        /// 256×40 seat").</para>
         ///
         /// <para><b>Origin clamp.</b> WF clamps <c>x≥60→60</c>, <c>y≥50→50</c>
         /// (BORDER_ImportButton_Click). The clamped origin is reported in the
@@ -147,12 +148,12 @@ namespace FEBuilderGBA
 
             // frame 0 (border outline/fill) -> accumulate, record split.
             if (!PackSheetIntoSeat(sheetIndexed, seat, battleOam))
-                return Fail("The world map border image is too large to fit in the 256x160 sheet.");
+                return Fail("The world map border image is too large to fit in the 256x40 seat.");
             battleOamSplit.Add((uint)battleOam.Count);
 
             // frame 1 (name text) -> accumulate into the SAME seat, record split.
             if (!PackSheetIntoSeat(nameIndexed, seat, battleOam))
-                return Fail("The world map border image is too large to fit in the 256x160 sheet.");
+                return Fail("The world map border image is too large to fit in the 256x40 seat.");
             battleOamSplit.Add((uint)battleOam.Count);
 
             // ---- Step 2: 12-byte battle OAM -> 6-byte AP OAM (WF BattleOAMToAPOAM). ----

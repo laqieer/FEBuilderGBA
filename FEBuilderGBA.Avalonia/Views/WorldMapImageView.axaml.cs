@@ -280,10 +280,15 @@ namespace FEBuilderGBA.Avalonia.Views
         /// seat + AP block and writes the selected record's P0/P4 under one undo
         /// scope with a byte-identical fault restore.
         /// </summary>
-        public async System.Threading.Tasks.Task DoBorderImport(string sheetPath)
+        // NOTE: this driver does no I/O await of its own (the file dialog is
+        // awaited by BorderImport_Click; the load/remap + VM import are
+        // synchronous), so it returns a completed Task rather than being `async`
+        // (avoids CS1998 — Copilot bot review on PR #1099). It stays Task-returning
+        // so BorderImport_Click can `await` it and headless tests can drive it.
+        public System.Threading.Tasks.Task DoBorderImport(string sheetPath)
         {
             ROM rom = CoreState.ROM;
-            if (rom == null) return;
+            if (rom == null) return System.Threading.Tasks.Task.CompletedTask;
 
             // 1. Resolve the {name}_NAME{ext} companion in the same folder.
             string namePath = MakeBorderNameImageFileName(sheetPath);
@@ -291,7 +296,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CoreState.Services?.ShowError(R._(
                     "The companion name image is missing.\r\nExpected: {0}", namePath));
-                return;
+                return System.Threading.Tasks.Task.CompletedTask;
             }
 
             // 2. Read the EXISTING 16-color border palette (guarded; pointer-to-
@@ -301,7 +306,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     rom, rom.RomInfo.worldmap_county_border_palette_pointer, out byte[] palette16))
             {
                 CoreState.Services?.ShowError(R._("The world map border palette is invalid."));
-                return;
+                return System.Threading.Tasks.Task.CompletedTask;
             }
 
             // 3. Remap BOTH sheets onto the existing palette (strict 248x160,
@@ -312,7 +317,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (sheet == null || !sheet.Success)
             {
                 CoreState.Services?.ShowError(sheet?.Error ?? R._("Failed to load the border image."));
-                return;
+                return System.Threading.Tasks.Task.CompletedTask;
             }
             var name = ImageImportService.LoadAndRemapFromFile(
                 namePath, ImageUtilBorderAPCore.SRC_WIDTH, ImageUtilBorderAPCore.SRC_HEIGHT,
@@ -320,7 +325,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (name == null || !name.Success)
             {
                 CoreState.Services?.ShowError(name?.Error ?? R._("Failed to load the border name image."));
-                return;
+                return System.Threading.Tasks.Task.CompletedTask;
             }
 
             // 4. Assemble + write under one undo scope. The origin comes from the
@@ -338,7 +343,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     CoreState.Services?.ShowError(err);
-                    return;
+                    return System.Threading.Tasks.Task.CompletedTask;
                 }
                 _undoService.Commit();
                 _vm.MarkClean();
@@ -355,6 +360,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error($"WorldMapImageView.DoBorderImport write failed: {ex}");
                 CoreState.Services?.ShowError(R._("Import failed: {0}", ex.Message));
             }
+            return System.Threading.Tasks.Task.CompletedTask;
         }
 
         /// <summary>
