@@ -339,20 +339,32 @@ namespace FEBuilderGBA
         /// byte-identical (bytes AND length) and an error string is set with
         /// ZERO net change (#885/#923 pattern).</para>
         ///
-        /// <para><b>Audit guard (#1085 finding #4):</b> the orchestrator
-        /// pre-scans the references BEFORE mutation; the post-expand result must
-        /// (a) repoint a non-zero number of slots (a zero count means the
-        /// canonical pointer was somehow not even found — abort), (b) include
-        /// the canonical <c>map_setting_pointer</c> slot, and (c) not exceed
-        /// <see cref="MaxPlausibleRepointSlots"/> (a flood ⇒ likely
-        /// false-positive — abort). A failed guard restores the snapshot and
-        /// returns an error.</para>
+        /// <para><b>Audit guard (#1085 finding #4):</b> the move + all-reference
+        /// repoint runs first, then the guard inspects the recorded
+        /// <see cref="DataExpansionCore.ExpandResult.RepointedSlots"/>; the
+        /// result must (a) repoint a non-zero number of slots (a zero count
+        /// means the canonical pointer was somehow not even found — abort),
+        /// (b) include the canonical <c>map_setting_pointer</c> slot, and (c) not
+        /// exceed <see cref="MaxPlausibleRepointSlots"/> (a flood ⇒ likely
+        /// false-positive — abort). Because the byte-identical snapshot is taken
+        /// BEFORE any mutation, a failed guard restores the snapshot for ZERO
+        /// net change — so the validation is post-expand but the outcome is
+        /// equivalent to a pre-mutation veto (no partial commit ever escapes).</para>
         /// </summary>
         /// <param name="rom">ROM to modify.</param>
         /// <param name="addCount">Number of rows to add (must be &gt;= 1).</param>
-        /// <param name="undo">The active undo transaction (the caller's open
-        /// <c>ROM.BeginUndoScope</c> / <c>UndoService.Begin</c>). Every write
-        /// records into it so a caller-side Rollback fully reverts the ROM.</param>
+        /// <param name="undo">The caller's active undo transaction (the same
+        /// <see cref="Undo.UndoData"/> passed to the surrounding
+        /// <c>ROM.BeginUndoScope</c> / <c>UndoService.Begin</c>). The actual ROM
+        /// writes record into the AMBIENT scope, not this object directly; this
+        /// parameter is used by the orchestrator to keep that ambient scope
+        /// consistent with the snapshot restore — on ANY fault (a failed expand,
+        /// a failed audit guard, or an exception) it CLEARS
+        /// <c>undo.list</c> after restoring the byte-identical snapshot, so a
+        /// subsequent caller-side <c>UndoService.Rollback()</c> cannot replay
+        /// the now-out-of-date ranges against the already-restored ROM. May be
+        /// <c>null</c> (e.g. in tests that drive the ambient scope directly), in
+        /// which case the consistency cleanup is skipped.</param>
         /// <param name="error">Set to a human-readable message on failure;
         /// empty on success.</param>
         /// <returns>The <see cref="DataExpansionCore.ExpandResult"/> from the
@@ -418,7 +430,7 @@ namespace FEBuilderGBA
 
                 if (!result.Success)
                 {
-                    RestoreSnapshot(rom, snap);
+                    RestoreSnapshot(rom, snap, undo);
                     error = result.Error ?? R._("Map setting table expansion failed.");
                     return new DataExpansionCore.ExpandResult { Success = false, Error = error };
                 }
@@ -430,7 +442,7 @@ namespace FEBuilderGBA
                 // found — something is wrong; abort with ZERO net change.
                 if (slots.Count == 0)
                 {
-                    RestoreSnapshot(rom, snap);
+                    RestoreSnapshot(rom, snap, undo);
                     error = R._("Map setting expand aborted: no references were repointed (expected at least the canonical pointer slot).");
                     return new DataExpansionCore.ExpandResult { Success = false, Error = error };
                 }
@@ -443,7 +455,7 @@ namespace FEBuilderGBA
                 }
                 if (!canonicalCovered)
                 {
-                    RestoreSnapshot(rom, snap);
+                    RestoreSnapshot(rom, snap, undo);
                     error = R._("Map setting expand aborted: the canonical pointer slot (0x{0:X}) was not among the repointed references.", pointerAddr);
                     return new DataExpansionCore.ExpandResult { Success = false, Error = error };
                 }
@@ -452,7 +464,7 @@ namespace FEBuilderGBA
                 // coincidental raw u32 == base — abort rather than corrupt.
                 if (slots.Count > MaxPlausibleRepointSlots)
                 {
-                    RestoreSnapshot(rom, snap);
+                    RestoreSnapshot(rom, snap, undo);
                     error = R._("Map setting expand aborted: {0} references would be repointed, exceeding the plausible maximum ({1}) — likely a false-positive match.", slots.Count, MaxPlausibleRepointSlots);
                     return new DataExpansionCore.ExpandResult { Success = false, Error = error };
                 }
@@ -464,7 +476,7 @@ namespace FEBuilderGBA
             }
             catch (Exception ex)
             {
-                RestoreSnapshot(rom, snap);
+                RestoreSnapshot(rom, snap, undo);
                 error = R._("Map setting table expansion failed: {0}", ex.Message);
                 return new DataExpansionCore.ExpandResult { Success = false, Error = error };
             }
@@ -475,12 +487,24 @@ namespace FEBuilderGBA
         /// GROW rom.Data, so down-resize back to the snapshot length BEFORE the
         /// in-place copy (a naive Array.Copy would leave the grown tail alive).
         /// Mirrors <c>WaitIconImportCore.RestoreSnapshot</c> (#885/#923).
+        ///
+        /// <para>After restoring the bytes, CLEARS the caller's
+        /// <paramref name="undo"/> position list (when non-null) so a subsequent
+        /// caller-side <c>UndoService.Rollback()</c> cannot replay the now
+        /// out-of-date ranges the ambient scope recorded during the
+        /// partially-applied expand against the already-restored ROM (Copilot
+        /// review on PR #1096 inline #3). The ROM is already byte-identical here,
+        /// so those recorded ranges are stale; replaying them would corrupt it.</para>
         /// </summary>
-        static void RestoreSnapshot(ROM rom, byte[] snap)
+        static void RestoreSnapshot(ROM rom, byte[] snap, Undo.UndoData undo)
         {
             if (rom.Data.Length != snap.Length)
                 rom.write_resize_data((uint)snap.Length);
             Array.Copy(snap, rom.Data, snap.Length);
+            // Discard the stale recorded ranges — the ROM is back to the
+            // pre-expand bytes, so a later Rollback of these ranges would
+            // re-apply old data over the restored ROM.
+            undo?.list?.Clear();
         }
 
         /// <summary>

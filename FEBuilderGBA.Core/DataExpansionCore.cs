@@ -89,7 +89,10 @@ namespace FEBuilderGBA
             /// <summary>ROM offset of the new table base.</summary>
             public uint NewBaseAddress { get; set; }
 
-            /// <summary>Entry count after expansion (old count + 1).</summary>
+            /// <summary>Entry count after expansion. For <see cref="ExpandTable"/>
+            /// this is <c>currentCount + 1</c>; for
+            /// <see cref="ExpandTableTo(ROM, uint, uint, uint, uint, ExpandOptions)"/>
+            /// (and its shim) it is the requested target <c>newCount</c>.</summary>
             public uint NewCount { get; set; }
 
             /// <summary>

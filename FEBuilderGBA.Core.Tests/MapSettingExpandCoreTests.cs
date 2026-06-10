@@ -337,6 +337,45 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(before, rom.Data);
         }
 
+        [Fact]
+        public void ExpandMapSettingTable_FaultRestore_ClearsUndoList_SoLaterRollbackIsNoOp()
+        {
+            // Copilot PR #1096 review #3: on a fault the orchestrator restores
+            // the snapshot AND clears the passed undo.list, so a subsequent
+            // caller-side Rollback can't replay the stale (already-restored)
+            // ranges over the byte-identical ROM. Plant an implausible flood so
+            // the audit guard fails AFTER ExpandTableTo already recorded ranges
+            // into the ambient scope.
+            ROM rom = MakeFe6Rom(out uint entrySize);
+            uint current = 3;
+            PlantValidRows(rom, entrySize, current);
+            PlantFreeRegion(rom, FreeRegion, FreeRegionSize);
+            int flood = MapSettingCore.MaxPlausibleRepointSlots + 5;
+            uint slot = 0x6000u;
+            for (int i = 0; i < flood; i++, slot += 4)
+                WriteU32(rom, slot, U.toPointer(MapBase));
+
+            byte[] before = (byte[])rom.Data.Clone();
+
+            var undo = new Undo();
+            CoreState.Undo = undo;
+            var ud = undo.NewUndoData("expand-fault-clear");
+            using (ROM.BeginUndoScope(ud))
+            {
+                var result = MapSettingCore.ExpandMapSettingTable(rom, 1, ud, out string err);
+                Assert.False(result.Success);
+                // The ambient scope recorded some ranges before the guard failed,
+                // but RestoreSnapshot cleared them.
+                Assert.Empty(ud.list);
+            }
+            // Pushing + replaying the (now empty) undo data is a no-op — the ROM
+            // stays byte-identical to before (and is NOT corrupted by stale
+            // range replay).
+            undo.Push(ud);
+            undo.RunUndo();
+            Assert.Equal(before, rom.Data);
+        }
+
         // ════════════════════════════════════════════════════════════════
         // Helpers
         // ════════════════════════════════════════════════════════════════
