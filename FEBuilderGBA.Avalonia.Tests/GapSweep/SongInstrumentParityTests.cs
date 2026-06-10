@@ -818,47 +818,25 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1057: the wave/instrument Export/Import buttons for the STILL-DEFERRED
-    /// categories — the REVERSE DirectSound tabs N10 (0x10) / N18 (0x18) — stay
-    /// disabled. N00 (0x00) + N08 (0x08) DirectSound, InstExport AND InstImport
-    /// (the recursive ROM-mutating set import, PR2) ARE wired now (see the
-    /// positive tests). Each remaining button must keep IsEnabled="False" and
-    /// carry NO Click handler.
-    /// </summary>
-    [Theory]
-    [InlineData("SongInstrument_N10_Export_Button")]
-    [InlineData("SongInstrument_N10_Import_Button")]
-    [InlineData("SongInstrument_N18_Export_Button")]
-    [InlineData("SongInstrument_N18_Import_Button")]
-    public void View_WaveButtons_StayDisabled_NoClick(string automationId)
-    {
-        string axaml = ReadAxaml();
-        int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
-        Assert.True(idx >= 0, $"AutomationId {automationId} not found in AXAML");
-
-        int elementStart = axaml.LastIndexOf('<', idx);
-        int elementEnd = FindElementEnd(axaml, elementStart);
-        string element = axaml.Substring(elementStart, elementEnd - elementStart + 1);
-
-        Assert.Contains("IsEnabled=\"False\"", element);
-        Assert.DoesNotContain("Click=", element);
-    }
-
-    /// <summary>
-    /// #1057: the N00 + N08 DirectSound Export/Import buttons AND the
-    /// instrument-set InstExport (PR1) + InstImport (PR2) buttons are ENABLED and
-    /// carry their Click handlers (the wave I/O Core port SongDirectSoundWavCore +
-    /// the recursive export/import SongInstrumentSetCore landed). They must NOT
-    /// carry IsEnabled="False" and MUST wire the click handlers.
+    /// #1057 + #1001 PR1: ALL four DirectSound Export/Import button pairs
+    /// (N00 0x00, N08 0x08, N10 0x10, N18 0x18) AND the instrument-set InstExport
+    /// (PR1) + InstImport (PR2) buttons are ENABLED and carry their Click handlers
+    /// (the wave I/O Core port SongDirectSoundWavCore + the recursive
+    /// export/import SongInstrumentSetCore landed). They must NOT carry
+    /// IsEnabled="False" and MUST wire the click handlers.
     /// </summary>
     [Theory]
     [InlineData("SongInstrument_N00_Export_Button", "N00_Export_Click")]
     [InlineData("SongInstrument_N00_Import_Button", "N00_Import_Click")]
     [InlineData("SongInstrument_N08_Export_Button", "N08_Export_Click")]
     [InlineData("SongInstrument_N08_Import_Button", "N08_Import_Click")]
+    [InlineData("SongInstrument_N10_Export_Button", "N10_Export_Click")]
+    [InlineData("SongInstrument_N10_Import_Button", "N10_Import_Click")]
+    [InlineData("SongInstrument_N18_Export_Button", "N18_Export_Click")]
+    [InlineData("SongInstrument_N18_Import_Button", "N18_Import_Click")]
     [InlineData("SongInstrument_InstExport_Button", "InstExport_Click")]
     [InlineData("SongInstrument_InstImport_Button", "InstImport_Click")]
-    public void View_N00_WaveButtons_Enabled_WithClick(string automationId, string clickHandler)
+    public void View_DirectSoundWaveButtons_Enabled_WithClick(string automationId, string clickHandler)
     {
         string axaml = ReadAxaml();
         int idx = axaml.IndexOf($"AutomationId=\"{automationId}\"", StringComparison.Ordinal);
@@ -873,20 +851,23 @@ public class SongInstrumentParityTests
     }
 
     /// <summary>
-    /// #1014: the AXAML must no longer carry the misleading "Pending Core
-    /// extraction" wording on the Sappy / wave buttons, and MUST carry the two
-    /// new honest tooltip strings (Sappy Windows-only + wave deferred-to-#1057).
+    /// #1014 + #1001 PR1: the AXAML must no longer carry the misleading "Pending
+    /// Core extraction" wording NOR the deferred wave-export tooltip (all four
+    /// DirectSound tabs are now wired), and MUST keep the honest Sappy
+    /// Windows-only tooltip.
     /// </summary>
     [Fact]
     public void View_HonestDeferralTooltips_Present_PendingWordingGone()
     {
         string axaml = ReadAxaml();
         Assert.DoesNotContain("Pending Core extraction", axaml);
-        Assert.Contains(
-            "Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.",
+        // All four DirectSound wave tabs are wired now -> the deferred wave-export
+        // tooltip is gone entirely.
+        Assert.DoesNotContain(
+            "Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.",
             axaml);
         Assert.Contains(
-            "Wave/instrument export/import is a planned cross-platform enhancement (needs the SongUtil DirectSound port) — tracked by #1057.",
+            "Sappy emulator playback is Windows-only (user32 P/Invoke); use the WinForms version of FEBuilderGBA.",
             axaml);
     }
 

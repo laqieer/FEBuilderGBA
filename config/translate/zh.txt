@@ -21464,8 +21464,10 @@ OBJ+BG 从左到右
 :Import Music File
 从文件导入音乐
 
-:Imports MIDI files (preview only). Full Import dispatch (MIDI / Wave / Instrument) pending Core extraction.
-导入 MIDI 文件（仅预览）。完整的导入分发（MIDI / Wave / Instrument）正在等待 Core 提取。
+:Imports a MIDI (.mid) or a raw RIFF WAV (.wav, builds a one-track song that plays the sample). Instrument (.s/.instrument) import is pending PR2.
+导入 MIDI（.mid）或原始 RIFF WAV（.wav，构建一个播放该采样的单轨歌曲）。乐器（.s/.instrument）导入将在 PR2 中支持。
+:Music Files
+音乐文件
 
 :Export Music File
 将音乐导出到文件

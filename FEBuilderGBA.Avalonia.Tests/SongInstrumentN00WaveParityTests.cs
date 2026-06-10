@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// #1057 (N00 slice) parity tests for the Song Instrument editor's DirectSound
-// wave Export/Import wiring.
+// #1057 (N00/N08) + #1001 PR1 (N10/N18) parity tests for the Song Instrument
+// editor's DirectSound wave Export/Import wiring.
 //
-// The View's N00_Export_Click / N00_Import_Click open an OS file dialog we
+// The View's Nxx_Export_Click / Nxx_Import_Click open an OS file dialog we
 // cannot drive headless, so this is a source-text parity test (same pattern as
 // the other *ParityTests in this project): it asserts
-//   * the axaml ENABLES the N00 Export + Import buttons (Click handlers wired,
-//     the old #1057-deferred tooltip dropped)
-//   * the code-behind gates on IsDirectSound and routes through the Core seam
-//     (SongDirectSoundWavCore.ExportWave / .ImportWave) under the undo scope
-//   * NEGATIVE: N03 (Wave Memory) + N08/N10/N18 wave buttons stay disabled in
-//     this slice (only DirectSound is wired now).
+//   * the axaml ENABLES the N00/N08/N10/N18 Export + Import buttons (Click
+//     handlers wired, the old #1057-deferred tooltip dropped)
+//   * the code-behind gates each on its own LOADED ROM byte
+//     (0x00/0x08/0x10/0x18) and routes through the Core seam
+//     (SongDirectSoundWavCore.ExportWave / .ImportWave) under the undo scope,
+//     updating each tab's OWN P4 box
+//   * NEGATIVE: N03 (Wave Memory) stays disabled (only the 4 DirectSound tabs
+//     are wired).
 using System;
 using System.IO;
 using Xunit;
@@ -113,36 +115,30 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         // -----------------------------------------------------------------
-        // NEGATIVE: N00 (0x00) and N08 (0x08) DirectSound are wired (#1057 PR1).
-        // N03 (Wave Memory) and the REVERSE DirectSound tabs N10 (0x10) / N18
-        // (0x18) stay disabled — no Click handlers and no enabling. Guards against
-        // accidental scope creep into the other wave categories.
+        // NEGATIVE: the 4 DirectSound tabs N00 (0x00) / N08 (0x08) / N10 (0x10) /
+        // N18 (0x18) are ALL wired (#1057 + #1001 PR1). N03 (Wave Memory) is NOT
+        // DirectSound and stays disabled — no Click handlers and no enabling.
+        // Guards against accidental scope creep into the non-DirectSound wave tab.
         // -----------------------------------------------------------------
         [Fact]
-        public void Axaml_Other_Wave_Tabs_Have_No_Export_Import_Click_Handlers()
+        public void Axaml_NonDirectSound_Wave_Tab_Has_No_Export_Import_Click_Handlers()
         {
             string axaml = ReadView(".axaml");
 
-            // The still-disabled wave tabs (N03/N10/N18) got NO Export/Import
-            // click handlers. N00 + N08 ARE wired now (see N08 positive test).
-            foreach (string tab in new[] { "N03", "N10", "N18" })
-            {
-                Assert.DoesNotContain($"Click=\"{tab}_Export_Click\"", axaml);
-                Assert.DoesNotContain($"Click=\"{tab}_Import_Click\"", axaml);
-            }
+            // N03 (Wave Memory) got NO Export/Import click handlers — only the 4
+            // DirectSound tabs are wired.
+            Assert.DoesNotContain("Click=\"N03_Export_Click\"", axaml);
+            Assert.DoesNotContain("Click=\"N03_Import_Click\"", axaml);
         }
 
         [Fact]
-        public void CodeBehind_Has_No_Other_Wave_Tab_Handlers()
+        public void CodeBehind_Has_No_NonDirectSound_Wave_Tab_Handlers()
         {
             string cs = ReadView(".axaml.cs");
-            // N03/N10/N18 have no per-tab handlers; N00 + N08 DO (shared via the
-            // ExportWaveGated / ImportWaveGated helpers).
-            foreach (string tab in new[] { "N03", "N10", "N18" })
-            {
-                Assert.DoesNotContain($"void {tab}_Export_Click", cs);
-                Assert.DoesNotContain($"void {tab}_Import_Click", cs);
-            }
+            // N03 has no per-tab handlers; the 4 DirectSound tabs DO (shared via
+            // the ExportWaveGated / ImportWaveGated helpers).
+            Assert.DoesNotContain("void N03_Export_Click", cs);
+            Assert.DoesNotContain("void N03_Import_Click", cs);
         }
 
         // -----------------------------------------------------------------
@@ -187,6 +183,70 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Shared route through the Core seam + own P4 slot (CurrentAddr + 4).
             Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
             Assert.Contains("_vm.CurrentAddr + 4", cs);
+        }
+
+        // -----------------------------------------------------------------
+        // POSITIVE (#1001 PR1): the N10 (DirectSound Reverse, 0x10) and N18
+        // (DirectSound Fixed Freq Reverse, 0x18) Export/Import buttons are ENABLED
+        // with Click handlers; the code-behind gates each on its OWN loaded ROM
+        // byte and updates its OWN P4 box. Same DirectSound sample layout as
+        // N00/N08, so they reuse SongDirectSoundWavCore verbatim.
+        // -----------------------------------------------------------------
+        [Theory]
+        [InlineData("N10")]
+        [InlineData("N18")]
+        public void Axaml_Reverse_Export_And_Import_Buttons_Enabled_With_Clicks(string tab)
+        {
+            string axaml = ReadView(".axaml");
+
+            Assert.Contains($"SongInstrument_{tab}_Export_Button", axaml);
+            Assert.Contains($"SongInstrument_{tab}_Import_Button", axaml);
+            Assert.Contains($"Click=\"{tab}_Export_Click\"", axaml);
+            Assert.Contains($"Click=\"{tab}_Import_Click\"", axaml);
+
+            AssertButtonEnabled(axaml, $"SongInstrument_{tab}_Export_Button");
+            AssertButtonEnabled(axaml, $"SongInstrument_{tab}_Import_Button");
+            AssertButtonTooltipNotDeferred(axaml, $"SongInstrument_{tab}_Export_Button");
+            AssertButtonTooltipNotDeferred(axaml, $"SongInstrument_{tab}_Import_Button");
+        }
+
+        [Fact]
+        public void CodeBehind_N10_N18_GateOnLoadedReverseBytes_And_UpdateOwnP4Box()
+        {
+            string cs = ReadView(".axaml.cs");
+
+            // Handlers exist for both reverse tabs.
+            Assert.Contains("N10_Export_Click", cs);
+            Assert.Contains("N10_Import_Click", cs);
+            Assert.Contains("N18_Export_Click", cs);
+            Assert.Contains("N18_Import_Click", cs);
+
+            // Each gates on its OWN loaded ROM byte (0x10 / 0x18), NOT the mutable
+            // category, so a tab switch can't trick the gate (#1057 Copilot pt 1).
+            Assert.Contains("IsLoadedDirectSoundReverse", cs);
+            Assert.Contains("IsLoadedDirectSoundFixedFreqReverse", cs);
+
+            // Each import updates its OWN tab's P4 box (the success-display slot).
+            Assert.Contains("N10_P4_Box", cs);
+            Assert.Contains("N18_P4_Box", cs);
+
+            // Reuse the shared Core seam + own P4 slot (CurrentAddr + 4).
+            Assert.Contains("SongDirectSoundWavCore.ImportWave", cs);
+            Assert.Contains("_vm.CurrentAddr + 4", cs);
+        }
+
+        [Fact]
+        public void ViewModel_HasLoadedReverseGateFlags_RaisedFromLoadedHeaderByte()
+        {
+            string vm = ReadViewModel();
+            // The two new loaded-byte gate flags exist (0x10 / 0x18).
+            Assert.Contains("IsLoadedDirectSoundReverse", vm);
+            Assert.Contains("IsLoadedDirectSoundFixedFreqReverse", vm);
+            Assert.Contains("_loadedHeaderByte == 0x10", vm);
+            Assert.Contains("_loadedHeaderByte == 0x18", vm);
+            // They are raised when LoadedHeaderByte changes (PropertyChanged).
+            Assert.Contains("OnPropertyChanged(nameof(IsLoadedDirectSoundReverse))", vm);
+            Assert.Contains("OnPropertyChanged(nameof(IsLoadedDirectSoundFixedFreqReverse))", vm);
         }
 
         // -----------------------------------------------------------------
