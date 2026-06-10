@@ -618,6 +618,64 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ReduceColorFile_NoReserveMultiPalette_Index0RenderedOpaque()
+        {
+            // The FE6 no-reserve world-map presets (method 3/4): paletteNo=16, reserve1st=false,
+            // ignoreTSA=false. Convert16Color(first=0) puts the single color in bank slot 0, so
+            // index 0 is a REAL color and must save OPAQUE (regression for the index-0 alpha bug).
+            byte[] srcRgba = Solid(8, 8, 0, 255, 0, 255); // opaque green
+            var fake = new FakeReduceImageService(srcRgba, 8, 8);
+            var prev = CoreState.ImageService;
+            CoreState.ImageService = fake;
+            string input = Path.Combine(Path.GetTempPath(), "dc_in_" + Guid.NewGuid() + ".png");
+            string output = Path.Combine(Path.GetTempPath(), "dc_out_" + Guid.NewGuid() + ".png");
+            File.WriteAllBytes(input, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+            try
+            {
+                int rc = DecreaseColorConvertCore.ReduceColorFile(input, output, 0, 0, 0, paletteNo: 16, isScalable: true, reserve1st: false, ignoreTSA: false);
+                Assert.Equal(0, rc);
+                byte[] px = fake.LastSaved.GetPixelData();
+                // Pixel (0,0) is bank-slot-0 green; must be the real opaque color, NOT transparent.
+                Assert.Equal(0, px[0]);
+                Assert.Equal(248, px[1]);
+                Assert.Equal(0, px[2]);
+                Assert.Equal(255, px[3]);
+            }
+            finally
+            {
+                CoreState.ImageService = prev;
+                File.Delete(input);
+                if (File.Exists(output)) File.Delete(output);
+            }
+        }
+
+        [Fact]
+        public void ReduceColorFile_SaveThrows_ReturnsMinus1_DeletesPartialOutput()
+        {
+            // A service whose Save() throws an IOException after partially writing the file.
+            byte[] srcRgba = Solid(8, 8, 255, 0, 0, 255);
+            var fake = new FakeReduceImageService(srcRgba, 8, 8) { ThrowOnSave = true };
+            var prev = CoreState.ImageService;
+            CoreState.ImageService = fake;
+            string input = Path.Combine(Path.GetTempPath(), "dc_in_" + Guid.NewGuid() + ".png");
+            string output = Path.Combine(Path.GetTempPath(), "dc_out_" + Guid.NewGuid() + ".png");
+            File.WriteAllBytes(input, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+            try
+            {
+                int rc = DecreaseColorConvertCore.ReduceColorFile(input, output, 0, 0, 0, 1, true, true, false);
+                Assert.Equal(-1, rc);
+                // The partially-written output must have been cleaned up.
+                Assert.False(File.Exists(output), "partial output should be deleted on save failure");
+            }
+            finally
+            {
+                CoreState.ImageService = prev;
+                File.Delete(input);
+                if (File.Exists(output)) File.Delete(output);
+            }
+        }
+
+        [Fact]
         public void ReduceColorFile_NoImageService_ReturnsMinus1()
         {
             var prev = CoreState.ImageService;
@@ -671,6 +729,8 @@ namespace FEBuilderGBA.Core.Tests
         private readonly int _w, _h;
         public FakeReduceImage LastSaved { get; private set; }
         public string LastSavedPath { get; private set; }
+        /// <summary>When true, Save writes a partial file then throws an IOException.</summary>
+        public bool ThrowOnSave { get; set; }
 
         public FakeReduceImageService(byte[] srcRgba, int w, int h)
         {
@@ -707,8 +767,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             LastSaved = new FakeReduceImage(img.Width, img.Height, img.GetPixelData(), false);
             LastSavedPath = path;
-            // Also write a real file so the test can verify the no-partial-output contract.
+            // Write a real file so the test can verify the (no-)partial-output contract.
             try { File.WriteAllBytes(path, new byte[] { 1, 2, 3, 4 }); } catch { }
+            if (ThrowOnSave)
+            {
+                // Simulate a mid-save IO failure AFTER a partial write.
+                throw new IOException("simulated save failure");
+            }
         }
     }
 

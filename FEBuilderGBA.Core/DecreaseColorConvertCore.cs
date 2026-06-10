@@ -880,9 +880,11 @@ namespace FEBuilderGBA
         /// banks total, and the importer (<c>ImageUtil.ImageToPalette</c>) re-derives
         /// the banks from pixel colors. The faithful <i>banked</i> structure lives in
         /// the in-memory <see cref="Convert"/> result (<c>IndexData</c>/<c>GbaPalette</c>).
-        /// Index-0 alpha policy is honored explicitly here: when the result reserves
-        /// slot 0 (transparent), index 0 stays transparent; otherwise index 0 is a real
-        /// opaque color and is rendered as such (so <c>reserve1st=false</c> round-trips).
+        /// The saved RGBA is fully <b>opaque</b>, exactly as WF's <c>Format8bppIndexed</c>
+        /// save (its <c>ColorPalette.Entries</c> have no alpha): each pixel renders as its
+        /// palette color, with bank slot 0 = (0,0,0) black when <c>reserve1st=true</c> and a
+        /// real image color when <c>reserve1st=false</c> (so the FE6 no-reserve world-map
+        /// presets round-trip correctly).
         /// </summary>
         /// <returns>0 = ok; -2 = bad arguments / missing input; -1 = image/IO/save error.</returns>
         public static int ReduceColorFile(string inPath, string outPath, int width, int height, int yohaku, int paletteNo, bool isScalable, bool reserve1st, bool ignoreTSA)
@@ -936,9 +938,15 @@ namespace FEBuilderGBA
 
                 DecreaseColorConvertResult result = Convert(rgba, rw, rh, paletteNo, yohaku, reserve1st, ignoreTSA);
 
-                // Expand the banked indexed result to RGBA, honoring the index-0 alpha policy.
-                bool reservesTransparentSlot0 = ComputeReservesTransparentSlot0(paletteNo, reserve1st, ignoreTSA);
-                byte[] outRgba = ExpandToRgba(result, reservesTransparentSlot0);
+                // Expand the banked indexed result to RGBA for saving. WF saves a
+                // Format8bppIndexed bitmap whose ColorPalette.Entries are all opaque
+                // Color.FromArgb(r,g,b) — so the saved image is fully OPAQUE, with index 0
+                // of each bank rendering as its palette color (black (0,0,0) when reserve1st
+                // is true, a real image color when false). We mirror that exactly: every
+                // pixel becomes its opaque palette color. This is faithful for both reserve
+                // modes (incl. the FE6 no-reserve world-map presets) and re-importable, since
+                // ImageUtil.ImageToPalette re-derives banks from the ≤16-colors-per-tile pixels.
+                byte[] outRgba = ExpandToRgba(result);
 
                 using IImage outImg = CoreState.ImageService.CreateImage(result.Width, result.Height);
                 outImg.SetPixelData(outRgba);
@@ -963,27 +971,14 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Whether the reduce reserves an always-transparent palette slot 0.
-        /// Multi-palette banks always reserve slot 0 as transparent (WF writes index 0
-        /// for alpha-0 pixels). The flat (ignoreTSA / maxPalette==1) path reserves a
-        /// transparent slot only when it uses transparency (maxPalette &lt; 16).
+        /// Expand a banked indexed result to a fully-opaque RGBA buffer, exactly as the
+        /// WF <c>Format8bppIndexed</c> save would render it: every pixel maps to its GBA
+        /// palette color with alpha 255 (WF's <c>ColorPalette.Entries</c> are opaque
+        /// <c>Color.FromArgb(r,g,b)</c>). No special index-0 alpha handling — when
+        /// <c>reserve1st=true</c>, slot 0 is (0,0,0) black; when false, slot 0 is a real
+        /// image color; both render opaque, matching WF for every reserve mode.
         /// </summary>
-        private static bool ComputeReservesTransparentSlot0(int maxPalette, bool reserve1st, bool ignoreTSA)
-        {
-            if (maxPalette < 1) maxPalette = 1;
-            if (maxPalette > 16) maxPalette = 16;
-            bool flat = (maxPalette == 1) || ignoreTSA;
-            if (!flat)
-            {
-                // Multi-palette: alpha-0 pixels become index 0; slot 0 is transparent.
-                return true;
-            }
-            // Flat path: isUseTransparent = maxPalette < 16.
-            return maxPalette < 16;
-        }
-
-        /// <summary>Expand a banked indexed result to RGBA, applying the index-0 alpha policy.</summary>
-        private static byte[] ExpandToRgba(DecreaseColorConvertResult result, bool transparentSlot0)
+        private static byte[] ExpandToRgba(DecreaseColorConvertResult result)
         {
             int n = result.Width * result.Height;
             byte[] outRgba = new byte[n * 4];
@@ -992,29 +987,15 @@ namespace FEBuilderGBA
             for (int i = 0; i < n; i++)
             {
                 int idx = result.IndexData[i];
-                // For multi-palette, index 0 of any bank (idx % 16 == 0) is the reserved/background slot.
-                bool isReservedSlot = transparentSlot0 && (idx % 16 == 0);
-                if (isReservedSlot)
-                {
-                    // transparent
-                    outRgba[i * 4 + 3] = 0;
-                    continue;
-                }
-                if (idx < colorCount)
+                if (idx >= 0 && idx < colorCount)
                 {
                     ushort gba = (ushort)(pal[idx * 2] | (pal[idx * 2 + 1] << 8));
-                    byte r = (byte)((gba & 0x1F) << 3);
-                    byte g = (byte)(((gba >> 5) & 0x1F) << 3);
-                    byte b = (byte)(((gba >> 10) & 0x1F) << 3);
-                    outRgba[i * 4 + 0] = r;
-                    outRgba[i * 4 + 1] = g;
-                    outRgba[i * 4 + 2] = b;
-                    outRgba[i * 4 + 3] = 255;
+                    outRgba[i * 4 + 0] = (byte)((gba & 0x1F) << 3);
+                    outRgba[i * 4 + 1] = (byte)(((gba >> 5) & 0x1F) << 3);
+                    outRgba[i * 4 + 2] = (byte)(((gba >> 10) & 0x1F) << 3);
                 }
-                else
-                {
-                    outRgba[i * 4 + 3] = 255;
-                }
+                // colors are opaque (WF indexed-palette entries have no alpha).
+                outRgba[i * 4 + 3] = 255;
             }
             return outRgba;
         }
