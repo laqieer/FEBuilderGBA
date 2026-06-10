@@ -387,15 +387,20 @@ namespace FEBuilderGBA.Avalonia.Views
 
             try
             {
-                var musicType = new FilePickerFileType(R._("Music Files")) { Patterns = new[] { "*.mid", "*.midi", "*.wav" } };
+                // #1001 PR2: the dispatcher now also reaches .s (SondFont
+                // assembler) and .instrument (instrument-set index), so list them
+                // in the combined "Music Files" filter plus dedicated entries.
+                var musicType = new FilePickerFileType(R._("Music Files")) { Patterns = new[] { "*.mid", "*.midi", "*.wav", "*.s", "*.instrument" } };
                 var midiType = new FilePickerFileType(R._("MIDI Files")) { Patterns = new[] { "*.mid", "*.midi" } };
                 var wavType = new FilePickerFileType(R._("Wave Files")) { Patterns = new[] { "*.wav" } };
+                var instType = new FilePickerFileType(R._("Instrument Set Files")) { Patterns = new[] { "*.instrument" } };
+                var sType = new FilePickerFileType(R._("SondFont Source Files")) { Patterns = new[] { "*.s" } };
                 var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
                 var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = R._("Import Music File"),
                     AllowMultiple = false,
-                    FileTypeFilter = new[] { musicType, midiType, wavType, allType },
+                    FileTypeFilter = new[] { musicType, midiType, wavType, instType, sType, allType },
                 });
 
                 if (files.Count == 0) return;
@@ -409,13 +414,20 @@ namespace FEBuilderGBA.Avalonia.Views
                     await ImportWaveAsSong(path);
                     return;
                 }
-                if (ext == ".s" || ext == ".instrument")
+                if (ext == ".instrument")
                 {
-                    // PR2 scope: .instrument reuse + the .s/SelectInstrument
-                    // assembler. Not wired here.
-                    CoreState.Services.ShowInfo(R._(
-                        "Instrument import (.s / .instrument) is coming in a follow-up (#1001 PR2). " +
-                        "This release supports MIDI (.mid) and raw RIFF WAV (.wav) import."));
+                    // #1001 PR2: instrument-set (.instrument index) import — reuse
+                    // the merged SongInstrumentSetCore.ImportAll seam + repoint the
+                    // song header's voicegroup pointer (+4) at the imported set.
+                    await ImportInstrumentSet(path);
+                    return;
+                }
+                if (ext == ".s")
+                {
+                    // #1001 PR2: .s / SondFont assembler import. The user first
+                    // picks the instrument set (pick-and-return), then the source
+                    // is assembled + the song-table entry/header repointed.
+                    await ImportSondFontSource(path);
                     return;
                 }
                 // Default: MIDI import (.mid/.midi or any other extension).
@@ -563,6 +575,242 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error("SongTrackView.ImportWaveAsSong failed: {0}", ex.Message);
                 CoreState.Services.ShowError(R._("Wave import failed: {0}", ex.Message));
             }
+        }
+
+        // -----------------------------------------------------------------
+        // #1001 PR2: .instrument instrument-set import. Reuse the merged
+        // SongInstrumentSetCore.ImportAll seam (recursive, single transaction,
+        // validate-before-mutate, byte-identical fault restore) and repoint the
+        // selected song header's voicegroup pointer (+4) at the imported set —
+        // mirrors WF SongUtil.ImportInstrument. The song-table slot/header are
+        // validated BEFORE the import appends anything (Copilot plan finding 3).
+        // -----------------------------------------------------------------
+        async System.Threading.Tasks.Task ImportInstrumentSet(string path)
+        {
+            // WF parity: SongID 0 is write-protected (silence song).
+            if (_vm.SelectedSongIndex == 0)
+            {
+                CoreState.Services.ShowError(R._("Song ID 0 is write-protected (silence song)."));
+                return;
+            }
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Validate the song-table slot + dereferenced header (+4 voicegroup
+            // pointer slot) BEFORE the import appends a single byte — a null/invalid
+            // header must abort with ZERO mutation (Copilot plan finding 3).
+            uint slot = _vm.GetSelectedSongTableEntryAddr();
+            if (slot == U.NOT_FOUND || !U.isSafetyOffset(slot, rom))
+            {
+                CoreState.Services.ShowError(R._(
+                    "Cannot resolve the song-table entry for the selected song."));
+                return;
+            }
+            uint songHeaderOffset = rom.p32(slot);
+            if (!U.isSafetyOffset(songHeaderOffset, rom)
+                || !U.isSafetyOffset(songHeaderOffset + 4, rom))
+            {
+                CoreState.Services.ShowError(R._("The song table has no song header."));
+                return;
+            }
+
+            bool confirm = CoreState.Services.ShowQuestion(R._(
+                "Import this instrument set and point the selected song at it? This " +
+                "appends the voicegroup to ROM free space and repoints the song " +
+                "header's instrument pointer. The operation is a single undo step."));
+            if (!confirm) return;
+
+            string dir = Path.GetDirectoryName(path) ?? ".";
+            string indexName = Path.GetFileName(path);
+            // The Core consumes RELATIVE filename tokens; resolve each against the
+            // chosen index directory via the path-traversal-safe resolver (rejects
+            // absolute / ".."-escaping tokens — mirrors SongInstrumentView).
+            Func<string, string[]?> readLines = name =>
+            {
+                string? p = ResolveInside(dir, name);
+                return p != null && File.Exists(p) ? File.ReadAllLines(p) : null;
+            };
+            Func<string, byte[]?> readFile = name =>
+            {
+                string? p = ResolveInside(dir, name);
+                return p != null && File.Exists(p) ? File.ReadAllBytes(p) : null;
+            };
+
+            _undoService.Begin("Import Instrument Set");
+            try
+            {
+                // Route the Core appender through the real freespace allocator under
+                // the ambient undo scope just opened.
+                Func<byte[], uint> appender = buf => AppendBinaryDataHeadless(rom, buf);
+                uint importedBase = SongInstrumentSetCore.ImportAll(
+                    rom, indexName, readLines!, readFile!, appender, out string err);
+                if (importedBase == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(err ?? R._("Instrument set import failed."));
+                    return;
+                }
+
+                // Repoint the selected song header's voicegroup pointer (+4) at the
+                // imported set. write_p32 takes the slot OFFSET + target OFFSET.
+                rom.write_p32(songHeaderOffset + 4, importedBase);
+
+                _undoService.Commit();
+                _vm.MarkClean();
+                if (_vm.SelectedSongIndex >= 0)
+                    _vm.RecordSourceFile((uint)_vm.SelectedSongIndex, path);
+                // Reload so the InstrumentAddr field reflects the new voicegroup.
+                _vm.LoadEntry(songHeaderOffset);
+                UpdateUI();
+                CoreState.Services.ShowInfo(R._(
+                    "Instrument set imported at 0x{0:X08}.", importedBase));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongTrackView.ImportInstrumentSet failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Instrument set import failed: {0}", ex.Message));
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // #1001 PR2: .s / SondFont assembler import. The user FIRST picks the
+        // instrument set via the SongTrackImportSelectInstrument browser as a
+        // pick-and-return (#1002 — the picker now feeds the import pipeline); the
+        // picked address (normalized to an OFFSET + validated — Copilot plan
+        // finding 1) becomes selectedInstrumentAddr. Then SongTrackSImportCore
+        // assembles the .s and repoints the song-table entry/header in one
+        // validate-before-mutate transaction with a byte-identical fault restore.
+        // -----------------------------------------------------------------
+        async System.Threading.Tasks.Task ImportSondFontSource(string path)
+        {
+            // WF parity: SongID 0 is write-protected (silence song).
+            if (_vm.SelectedSongIndex == 0)
+            {
+                CoreState.Services.ShowError(R._("Song ID 0 is write-protected (silence song)."));
+                return;
+            }
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Validate the song-table slot + dereferenced header BEFORE picking /
+            // mutating (so we never open the picker for an unimportable song).
+            uint slot = _vm.GetSelectedSongTableEntryAddr();
+            if (slot == U.NOT_FOUND || !U.isSafetyOffset(slot, rom))
+            {
+                CoreState.Services.ShowError(R._(
+                    "Cannot resolve the song-table entry for the selected song."));
+                return;
+            }
+            uint songHeaderOffset = rom.p32(slot);
+            if (!U.isSafetyOffset(songHeaderOffset, rom)
+                || !U.isSafetyOffset(songHeaderOffset + 4, rom))
+            {
+                CoreState.Services.ShowError(R._("The song table has no song header."));
+                return;
+            }
+
+            // Seed the picker with the song's CURRENT voicegroup (WF f.Init(P4)) so
+            // the "Current" row is meaningful (Copilot plan finding 2). p32 returns
+            // an offset; 0/invalid simply lands on the first discovered set.
+            uint currentVoicegroup = rom.p32(songHeaderOffset + 4);
+
+            PickResult? pick;
+            try
+            {
+                pick = await WindowManager.Instance.PickFromEditor<SongTrackImportSelectInstrumentView>(
+                    currentVoicegroup, this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackView.ImportSondFontSource pick failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._(".s import failed: {0}", ex.Message));
+                return;
+            }
+            if (pick == null) return; // user cancelled the picker.
+
+            // Normalize the picked address to an OFFSET and validate it (the
+            // instrument list mixes the offset "Current" seed with toPointer'd
+            // discovered rows — Copilot plan finding 1).
+            uint instrumentOffset = U.toOffset(pick.Address);
+            if (!U.isSafetyOffset(instrumentOffset, rom))
+            {
+                CoreState.Services.ShowError(R._("The selected instrument set address is invalid."));
+                return;
+            }
+
+            bool confirm = CoreState.Services.ShowQuestion(R._(
+                "Assemble this .s source into the selected song using the chosen " +
+                "instrument set? This appends the assembled song data to ROM free " +
+                "space and repoints the song-table entry. The operation is a single undo step."));
+            if (!confirm) return;
+
+            _undoService.Begin("Import .s");
+            try
+            {
+                uint headerBase = SongTrackSImportCore.ImportS(
+                    rom, path, slot, instrumentOffset,
+                    File.ReadAllLines, buf => AppendBinaryDataHeadless(rom, buf),
+                    out string err);
+                if (headerBase == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(err ?? R._(".s import failed."));
+                    return;
+                }
+
+                _undoService.Commit();
+                _vm.MarkClean();
+                if (_vm.SelectedSongIndex >= 0)
+                    _vm.RecordSourceFile((uint)_vm.SelectedSongIndex, path);
+                // Reload from the freshly-built song header.
+                _vm.LoadEntry(headerBase);
+                UpdateUI();
+                CoreState.Services.ShowInfo(R._(
+                    ".s assembled into the song at 0x{0:X08}.", headerBase));
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongTrackView.ImportSondFontSource failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._(".s import failed: {0}", ex.Message));
+            }
+        }
+
+        // Headless equivalent of InputFormRef.AppendBinaryData: routes through the
+        // registered CoreState.AppendBinaryData delegate under the active ambient
+        // undo scope (mirrors SongInstrumentViewModel.AppendBinaryDataHeadless).
+        static uint AppendBinaryDataHeadless(ROM rom, byte[] buffer)
+        {
+            var allocator = CoreState.AppendBinaryData;
+            if (allocator == null) return U.NOT_FOUND;
+            var ambient = ROM.GetAmbientUndoData();
+            if (ambient == null) return U.NOT_FOUND;
+            return allocator(buffer, ambient);
+        }
+
+        // Resolve a relative side/nested-index token against the chosen import
+        // directory, REJECTING (returns null) an absolute path or a ".."-escaping
+        // token so a hand-edited TSV can never read outside the selected directory
+        // (mirrors SongInstrumentView.ResolveInside — path traversal).
+        internal static string? ResolveInside(string dir, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            if (Path.IsPathRooted(name)) return null;
+            string baseFull = Path.GetFullPath(dir);
+            string candidate = Path.GetFullPath(Path.Combine(baseFull, name));
+            var cmp = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            string prefix = baseFull.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                ? baseFull
+                : baseFull + Path.DirectorySeparatorChar;
+            if (!candidate.StartsWith(prefix, cmp)
+                && !string.Equals(candidate, baseFull, cmp))
+                return null;
+            return candidate;
         }
 
         // -----------------------------------------------------------------
