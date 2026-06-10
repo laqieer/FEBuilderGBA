@@ -192,9 +192,15 @@ namespace FEBuilderGBA
             /// <summary>The decoded 32-wide bottom-to-top-stride tile array
             /// (null when the input was empty / unusable).</summary>
             public readonly ushort[] Tile;
-            /// <summary>Decoded <c>masterHeaderX = tsaData[0]</c> (0 when invalid).</summary>
+            /// <summary>Decoded <c>masterHeaderX = tsaData[0]</c>. 0 only for the
+            /// too-short fallback; for an oversized-header fallback this carries
+            /// the raw (out-of-range) header byte, so callers must check
+            /// <see cref="IsValidHeader"/> before trusting it.</summary>
             public readonly int MasterHeaderX;
-            /// <summary>Decoded <c>masterHeaderY = tsaData[1]</c> (0 when invalid).</summary>
+            /// <summary>Decoded <c>masterHeaderY = tsaData[1]</c>. 0 only for the
+            /// too-short fallback; for an oversized-header fallback this carries
+            /// the raw (out-of-range) header byte, so callers must check
+            /// <see cref="IsValidHeader"/> before trusting it.</summary>
             public readonly int MasterHeaderY;
             /// <summary>True only for a genuine in-range header decode; false for
             /// every corrupt/fallback case <see cref="DecodeHeaderTSA"/> would

@@ -133,19 +133,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Highest editable X for HEADER-TSA = <c>masterHeaderX</c> (the header
-        /// region within the min-clamped canvas). For non-header TSA the whole
-        /// row-major grid is editable, so this is <c>CellCols-1</c>. 0 when no
-        /// cells are loaded.
+        /// region within the min-clamped canvas), CLAMPED to the in-grid maximum
+        /// <c>CellCols-1</c> so the View can never expose an out-of-grid X
+        /// (Copilot review on #1071). For non-header TSA the whole row-major grid
+        /// is editable, so this is <c>CellCols-1</c>. 0 when no cells are loaded.
         /// </summary>
         public int HeaderMaxX => _cells == null ? 0
-            : (_isHeaderCells ? _masterHeaderX : Math.Max(0, CellCols - 1));
+            : (_isHeaderCells
+                ? Math.Min(_masterHeaderX, Math.Max(0, CellCols - 1))
+                : Math.Max(0, CellCols - 1));
 
         /// <summary>
-        /// Highest editable Y for HEADER-TSA = <c>masterHeaderY</c>. For
+        /// Highest editable Y for HEADER-TSA = <c>masterHeaderY</c>, CLAMPED to
+        /// the in-grid maximum <c>CellRows-1</c> (Copilot review on #1071). For
         /// non-header TSA this is <c>CellRows-1</c>. 0 when no cells are loaded.
         /// </summary>
         public int HeaderMaxY => _cells == null ? 0
-            : (_isHeaderCells ? _masterHeaderY : Math.Max(0, CellRows - 1));
+            : (_isHeaderCells
+                ? Math.Min(_masterHeaderY, Math.Max(0, CellRows - 1))
+                : Math.Max(0, CellRows - 1));
 
         /// <summary>
         /// Highest editable tile id = <c>min(0x3FF, tilesheetTileCount-1)</c>.
@@ -241,6 +247,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         void PopulateCells()
         {
+            PopulateCellsCore();
+
+            // Raise PropertyChanged for every computed cell property (#1071,
+            // Copilot review): PopulateCells mutates backing fields directly, so
+            // the View's `IsEnabled="{Binding CanEditCells}"` (and the other cell
+            // bindings) would latch the constructor-time false and never update
+            // when a valid context is injected via Init. Always notify (success
+            // OR the reset/no-cells path) so the bound panel enables once a valid
+            // grid decodes and re-disables if it later clears.
+            RaiseCellPropertiesChanged();
+        }
+
+        /// <summary>
+        /// The field-mutating body of <see cref="PopulateCells"/>: reset the cell
+        /// state, then decode (header or non-header) and set the backing fields.
+        /// Returns on the first guard so PopulateCells can fire ONE notification
+        /// on every exit path.
+        /// </summary>
+        void PopulateCellsCore()
+        {
             _cells = null;
             _maxTileId = 0;
             _isHeaderCells = false;
@@ -261,7 +287,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 // #1071: header-TSA decode-to-cells (32-wide bottom-to-top
                 // stride). DecodeHeaderTsaCells returns null for a corrupt /
-                // unreadable header, so the panel only enables for a valid one.
+                // unreadable / un-editable header, so the panel only enables for
+                // a valid, round-trippable one.
                 cells = ImageTSAEditorCore.DecodeHeaderTsaCells(
                     rom, _width8, _height8, _isLZ77TSA, tsaAddr,
                     out int mhx, out int mhy);
@@ -283,6 +310,25 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // 10-bit hardware max so the panel stays usable.
             _maxTileId = tileCount > 0 ? Math.Min(0x3FF, tileCount - 1) : 0x3FF;
             _cells = cells;
+        }
+
+        /// <summary>
+        /// Fire <c>PropertyChanged</c> for every computed cell property so the
+        /// View's bindings refresh after <see cref="PopulateCells"/> mutates the
+        /// backing fields (Copilot review on #1071). Called at the end of
+        /// PopulateCells (success path) and from the leading reset so a transition
+        /// from "had cells" to "no cells" also re-disables the bound panel.
+        /// </summary>
+        void RaiseCellPropertiesChanged()
+        {
+            OnPropertyChanged(nameof(HasCells));
+            OnPropertyChanged(nameof(IsHeaderCells));
+            OnPropertyChanged(nameof(CellCols));
+            OnPropertyChanged(nameof(CellRows));
+            OnPropertyChanged(nameof(HeaderMaxX));
+            OnPropertyChanged(nameof(HeaderMaxY));
+            OnPropertyChanged(nameof(MaxTileId));
+            OnPropertyChanged(nameof(CanEditCells));
         }
 
         /// <summary>

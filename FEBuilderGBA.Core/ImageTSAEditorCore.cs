@@ -771,6 +771,20 @@ namespace FEBuilderGBA
                 tsaData, (int)width8, (int)height8, 0);
             if (!decoded.IsValidHeader || decoded.Tile == null) return null;
 
+            // Editability check (#1071, Copilot review): a header is only safely
+            // editable when its full stride round-trips on the canvas-sized tile
+            // array. An in-range-but-edge header (e.g. mhx == 32 on a 32-wide
+            // canvas) makes SerializeHeaderTSA degenerate / overflow the stride,
+            // so the in-memory preview render would return null and
+            // WriteHeaderTsaCells would refuse. Probe the serializer up front and
+            // refuse to expose editable cells when it cannot reproduce the header
+            // byte footprint — the ViewModel then keeps the cell panel disabled
+            // rather than enabling an un-writable header.
+            byte[] probe = ImageUtilCore.SerializeHeaderTSA(
+                decoded.Tile, decoded.MasterHeaderX, decoded.MasterHeaderY, 0);
+            int expected = 2 + (decoded.MasterHeaderX + 1) * (decoded.MasterHeaderY + 1) * 2;
+            if (probe == null || probe.Length != expected) return null;
+
             masterHeaderX = decoded.MasterHeaderX;
             masterHeaderY = decoded.MasterHeaderY;
             return decoded.Tile;
