@@ -109,5 +109,37 @@ namespace FEBuilderGBA
             }
             return p.Info;
         }
+
+        // #1027 — ITextIDCache cache enumeration. Mirrors AppendList exactly:
+        // user ids + system ids + FE8 reserved patch-text-slot ranges (0xE00..0xEFF
+        // JP / 0xE00..0xFFF non-JP). Each id passes the WF AppendTextID guard
+        // (id != 0 && id < 0x7FFF). Returns COPIED ids in a fresh set.
+        public IEnumerable<uint> EnumerateUsedTextIds(ROM rom)
+        {
+            var ids = new HashSet<uint>();
+            foreach (var pair in this.EtcTextID)
+            {
+                AddGuarded(ids, pair.Key);
+            }
+            foreach (var pair in this.TextID)
+            {
+                AddGuarded(ids, pair.Key);
+            }
+            if (rom != null && rom.RomInfo != null && rom.RomInfo.version == 8)
+            {
+                uint last = rom.RomInfo.is_multibyte ? 0xEFFu : 0xFFFu;
+                for (uint textid = 0xE00; textid <= last; textid++)
+                {
+                    AddGuarded(ids, textid);
+                }
+            }
+            return ids;
+        }
+
+        static void AddGuarded(HashSet<uint> ids, uint id)
+        {
+            if (id == 0 || id >= 0x7FFF) return;
+            ids.Add(id);
+        }
     }
 }

@@ -624,18 +624,27 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Issue #404: scan all text IDs for unreferenced "free area" slots
-        /// (mirror WF `SearcFreeArea_Click`, approximate scope per VM docstring).
-        /// Replaces the `TextList` items with the free-area results; user can
-        /// then select any to inspect it.
+        /// #1027 (was #404): DEFINITIVE free-area scan (mirror WF
+        /// `SearcFreeArea_Click`). Replaces the `TextList` items with the
+        /// unreferenced-text results; user can then select any to inspect it.
+        /// When the event-scan prerequisites are missing the scan is not
+        /// definitive — we show a status instead of a misleading partial list.
         /// </summary>
         void OnSearchFreeAreaClick(object? sender, RoutedEventArgs e)
         {
             try
             {
-                var results = _vm.FindApproximatelyUnreferencedTexts();
-                TextList.SetItems(results);
-                FreeAreaStatusLabel.Text = R._("Free area: {0} results", results.Count);
+                var scan = _vm.FindUnreferencedTexts();
+                if (!scan.IsDefinitive)
+                {
+                    // Prerequisites missing (foreign ROM / EventScript / comment
+                    // cache unwired): producing a list here would be full of
+                    // false positives. Show the status, leave the list untouched.
+                    FreeAreaStatusLabel.Text = R._("Free area: cannot scan (text-reference data not ready)");
+                    return;
+                }
+                TextList.SetItems(scan.Results);
+                FreeAreaStatusLabel.Text = R._("Free area: {0} results", scan.Results.Count);
             }
             catch (Exception ex)
             {
