@@ -680,6 +680,60 @@ namespace FEBuilderGBA
             }
             return U.NOT_FOUND;
         }
+        // Masked Grep — mirrors WinForms U.GrepPatternMatch. `isSkip[n] == true`
+        // means "wildcard at position n" (the byte is ignored when matching).
+        // Used by skill-system byte-signature detection and the FE8 special-pattern
+        // event scan (see ExportFilterCore / SkillSystemTextScanner). Pure.
+        public static uint GrepPatternMatch(byte[] data, byte[] need, bool[] isSkip, uint start = 0x100, uint end = 0, uint blocksize = 1)
+        {
+            if (data == null || need == null || need.Length <= 0) return U.NOT_FOUND;
+            if (isSkip == null || isSkip.Length < need.Length) return U.NOT_FOUND;
+            // Clamp `end` to the buffer length BEFORE deriving the last-start
+            // index (like GrepPointer): a caller-supplied `end > data.Length`
+            // would otherwise let the inner data[i + n] read past the end
+            // (Copilot review finding 3 — OOB). end==0 / NOT_FOUND => whole buffer.
+            if (end == 0 || end == U.NOT_FOUND || end > (uint)data.Length) end = (uint)data.Length;
+            if (start > end) return U.NOT_FOUND;
+            if (end < (uint)need.Length) return U.NOT_FOUND;
+            // Last index `i` where the full need (i .. i+need.Length-1) still fits
+            // inside [0, end). The loop reads data[i + n] for n in [0, need.Length),
+            // so i must be <= end - need.Length.
+            uint length = end - (uint)need.Length;
+
+            byte needfirst = need[0];
+            bool isSkipfirst = isSkip[0];
+            for (uint i = start; i <= length; i += blocksize)
+            {
+                if (data[i] != needfirst)
+                {
+                    if (isSkipfirst == false) continue;
+                }
+                uint match = (uint)need.Length;
+                uint n = 1;
+                for (; n < match; n++)
+                {
+                    if (data[i + n] != need[n])
+                    {
+                        if (isSkip[n] == false) break;
+                    }
+                }
+                if (n >= match) return i;
+            }
+            return U.NOT_FOUND;
+        }
+
+        // Build a wildcard mask where every byte equal to `code` OR `code2` is a
+        // wildcard. Mirrors WinForms U.MakeMask2. Pure.
+        public static bool[] MakeMask2(byte[] bin, byte code, byte code2)
+        {
+            bool[] mask = new bool[bin.Length];
+            for (int i = 0; i < bin.Length; i++)
+            {
+                if (bin[i] == code || bin[i] == code2) mask[i] = true;
+            }
+            return mask;
+        }
+
         public static uint GrepPointer(byte[] data, uint needaddr, uint start = 0x100, uint end = 0)
         {
             if (needaddr == 0 || needaddr == U.NOT_FOUND) return U.NOT_FOUND;

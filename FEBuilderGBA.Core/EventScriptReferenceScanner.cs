@@ -435,5 +435,261 @@ namespace FEBuilderGBA
                 addr += (uint)step;
             }
         }
+
+        // ============================================================
+        // #1028 Slice B — EventCond export-filter text-id collector.
+        //
+        // Faithful port of WinForms EventCondForm.MakeVarsIDEventScan: scans
+        // EVERY command's args for the FOUR text-arg types
+        // (TEXT / CONVERSATION_TEXT / SYSTEM_TEXT / ONELINE_TEXT), recurses
+        // through POINTER_EVENT (cycle-guarded), and EXPANDS the three
+        // pointer-table arg types:
+        //   - POINTER_MENUEXTENDS    -> MenuDefinition -> MenuCommand {4,6}
+        //   - POINTER_UNITSSHORTTEXT -> UnitsShortText {0} (size 2, count<0x46)
+        //   - POINTER_TALKGROUP      -> EventTalkGroupFE7 {0} (size 4, count<=0xD)
+        // After the linear walk, on FE8 it runs the special-pattern scan
+        // (MakeTextIDEventScanFE8SPEvent). All reads guarded; collects into
+        // the shared `ids` set (only 1 <= id < 0x7FFF, mirroring AppendTextID).
+        // ============================================================
+
+        /// <summary>
+        /// Collect every text id referenced by the event-condition scripts of
+        /// every map (filter category 10). Returns true if the scanner ran
+        /// (prerequisites satisfied), false if it bailed (foreign ROM / no
+        /// EventScript / no comment cache) — callers treat a false return as
+        /// "version-absent category -> empty set", never as an error.
+        /// </summary>
+        public static bool CollectEventCondTextIds(ROM rom, HashSet<uint> ids)
+        {
+            if (rom?.Data == null || ids == null) return false;
+
+            var es = CoreState.EventScript;
+            if (es == null) return false;
+            if (CoreState.ROM == null || !ReferenceEquals(CoreState.ROM, rom)) return false;
+            if (CoreState.CommentCache == null) return false;
+
+            var entries = EnumerateEventEntries(rom);
+            var tracelist = new List<uint>();
+            foreach (var entry in entries)
+            {
+                ScanScriptForTextIds(rom, es, entry.addr, tracelist, ids);
+            }
+            return true;
+        }
+
+        // Mirror of WinForms EventCondForm.MakeVarsIDEventScan (text-id path).
+        internal static void ScanScriptForTextIds(
+            ROM rom, EventScript es, uint eventAddr,
+            List<uint> tracelist, HashSet<uint> ids)
+        {
+            // Defensive null guards: the BattleTalk/Haiku/EventCond export-filter
+            // paths can reach here with a null EventScript (CoreState.EventScript
+            // not yet wired) — DisAseemble would NRE. Honour the "never throws"
+            // contract by no-op'ing when the scanner inputs aren't ready
+            // (Copilot review finding 2).
+            if (rom?.Data == null || es == null || ids == null) return;
+            if (tracelist == null) return;
+
+            uint addr = U.toOffset(eventAddr);
+            if (!U.isSafetyOffset(addr, rom)) return;
+
+            uint lastBranchAddr = 0;
+            int unknownCount = 0;
+
+            for (int guard = 0; guard < MaxSteps; guard++)
+            {
+                uint romLen = (uint)rom.Data.Length;
+                if (U.toOffset(addr) + 4 > romLen) break;
+
+                EventScript.OneCode code = es.DisAseemble(rom.Data, addr);
+                if (code?.Script == null) break;
+
+                if (EventScript.IsExitCode(code, addr, lastBranchAddr)) break;
+
+                if (code.Script.Has == EventScript.ScriptHas.UNKNOWN)
+                {
+                    unknownCount++;
+                    if (unknownCount > UnknownCutoff) break;
+                }
+                else
+                {
+                    unknownCount = 0;
+                    if (code.Script.Has == EventScript.ScriptHas.IF_CONDITIONAL)
+                        lastBranchAddr = addr;
+                    else if (code.Script.Has == EventScript.ScriptHas.LABEL_CONDITIONAL)
+                        lastBranchAddr = 0;
+
+                    if (code.Script.Args != null)
+                    {
+                        for (int a = 0; a < code.Script.Args.Length; a++)
+                        {
+                            EventScript.Arg arg = code.Script.Args[a];
+                            switch (arg.Type)
+                            {
+                                case EventScript.ArgType.TEXT:
+                                case EventScript.ArgType.CONVERSATION_TEXT:
+                                case EventScript.ArgType.SYSTEM_TEXT:
+                                case EventScript.ArgType.ONELINE_TEXT:
+                                    AddTextId(ids, EventScript.GetArgValue(code, arg));
+                                    break;
+                                case EventScript.ArgType.POINTER_MENUEXTENDS:
+                                    ExpandMenuExtends(rom, EventScript.GetArgValue(code, arg), ids);
+                                    break;
+                                case EventScript.ArgType.POINTER_UNITSSHORTTEXT:
+                                    ExpandUnitsShortText(rom, EventScript.GetArgValue(code, arg), ids);
+                                    break;
+                                case EventScript.ArgType.POINTER_TALKGROUP:
+                                    ExpandTalkGroup(rom, EventScript.GetArgValue(code, arg), ids);
+                                    break;
+                                case EventScript.ArgType.POINTER_EVENT:
+                                    uint v = U.toOffset(EventScript.GetArgValue(code, arg));
+                                    if (U.isSafetyOffset(v, rom) && tracelist.IndexOf(v) < 0)
+                                    {
+                                        tracelist.Add(v);
+                                        ScanScriptForTextIds(rom, es, v, tracelist, ids);
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                int step = code.Script.Size;
+                if (step <= 0) break;
+                addr += (uint)step;
+            }
+
+            if (rom.RomInfo != null && rom.RomInfo.version == 8)
+            {
+                ScanFE8SpecialPattern(rom, U.toOffset(eventAddr), addr, ids);
+            }
+        }
+
+        // WF UseValsID.AppendTextID guard: keep 1 <= id < 0x7FFF.
+        static void AddTextId(HashSet<uint> ids, uint id)
+        {
+            if (id == 0 || id >= 0x7FFF) return;
+            ids.Add(id);
+        }
+
+        // POINTER_MENUEXTENDS -> MenuExtendSplitMenuForm.MakeVarsIDArray ->
+        // MenuDefinitionForm.MakeVarsIDArray(list, v, isDirectAddress:true).
+        // MenuDefinition: ReInit(v) (direct base), entry size 36, count predicate
+        // isPointer(u32(addr+8)); per entry MenuCommand.MakeVarsIDArray(8+p).
+        static void ExpandMenuExtends(ROM rom, uint v, HashSet<uint> ids)
+        {
+            uint baseAddr = U.toOffset(v);
+            if (baseAddr == 0 || !U.isSafetyOffset(baseAddr, rom)) return;
+
+            const uint MENU_SIZE = 36;
+            uint p = baseAddr;
+            for (int i = 0; i < 0x100; i++, p += MENU_SIZE)
+            {
+                if (!U.isSafetyOffset(p + 8 + 3, rom)) break;
+                if (!U.isPointer(rom.u32(p + 8))) break; // count predicate
+                uint paddr = rom.p32(8 + p);
+                if (!U.isSafetyOffset(paddr, rom)) continue;
+                // MenuCommand.MakeVarsIDArray(list, 8 + p) — ReInitPointer(8+p)
+                // dereferences (8+p) to a base, then scans {4,6}.
+                ExpandMenuCommand(rom, 8 + p, ids);
+            }
+        }
+
+        // MenuCommandForm: ReInitPointer(pointer) -> base = p32(pointer); entry
+        // size 36, count predicate isPointer(u32(addr+0xc)); text ids {4,6} (u16).
+        static void ExpandMenuCommand(ROM rom, uint pointer, HashSet<uint> ids)
+        {
+            if (!U.isSafetyOffset(pointer + 3, rom)) return;
+            uint baseAddr = rom.p32(pointer);
+            if (!U.isSafetyOffset(baseAddr, rom)) return;
+
+            const uint MENU_SIZE = 36;
+            uint p = baseAddr;
+            for (int i = 0; i < 0x100; i++, p += MENU_SIZE)
+            {
+                if (!U.isSafetyOffset(p + 0xc + 3, rom)) break;
+                if (!U.isPointer(rom.u32(p + 0xc))) break; // count predicate
+                if (U.isSafetyOffset(p + 4 + 1, rom)) AddTextId(ids, rom.u16(p + 4));
+                if (U.isSafetyOffset(p + 6 + 1, rom)) AddTextId(ids, rom.u16(p + 6));
+            }
+        }
+
+        // UnitsShortTextForm: ReInit(v) direct base, entry size 2, count i<0x46,
+        // text id at offset 0 (u16).
+        static void ExpandUnitsShortText(ROM rom, uint v, HashSet<uint> ids)
+        {
+            uint baseAddr = U.toOffset(v);
+            if (baseAddr == 0 || !U.isSafetyOffset(baseAddr, rom)) return;
+            const uint DATAMAX = 0x45 + 1;
+            uint p = baseAddr;
+            for (uint i = 0; i < DATAMAX; i++, p += 2)
+            {
+                if (!U.isSafetyOffset(p + 1, rom)) break;
+                AddTextId(ids, rom.u16(p));
+            }
+        }
+
+        // EventTalkGroupFE7Form: ReInit(v) direct base, entry size 4, count i<=0xD,
+        // text id at offset 0 (u16).
+        static void ExpandTalkGroup(ROM rom, uint v, HashSet<uint> ids)
+        {
+            uint baseAddr = U.toOffset(v);
+            if (baseAddr == 0 || !U.isSafetyOffset(baseAddr, rom)) return;
+            uint p = baseAddr;
+            for (uint i = 0; i <= 0xD; i++, p += 4)
+            {
+                if (!U.isSafetyOffset(p + 1, rom)) break;
+                AddTextId(ids, rom.u16(p));
+            }
+        }
+
+        // FE8 special-pattern scan (WF MakeTextIDEventScanFE8SPEvent): for each of
+        // the 5 hand-rolled binary patterns (0xFF = text-id wildcard, 0xEE =
+        // don't-care wildcard), grep the [event_addr, end_addr) window; at every
+        // match read the u16 at each 0xFF position — if ALL are valid text ids
+        // (1..0x7FFE) add them, else discard the whole match.
+        static readonly byte[][] FE8SpecialPatterns = new byte[][]
+        {
+            new byte[]{ 0x20,0x12,0x2E,0x00,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x40,0x05,0x03,0x00,0xFF,0xFF,0x00,0x00,0x40,0x05,0x04,0x00,0xFF,0xFF,0x00,0x00,0x40,0x0A,0x00,0x00,0xEE,0xEE,0xEE,0xEE },
+            new byte[]{ 0x40,0x05,0x07,0x00,0x01,0x00,0x00,0x00,0x40,0x0C,0x01,0x00,0x0C,0x00,0x07,0x00,0x40,0x05,0x07,0x00,0x02,0x00,0x00,0x00,0x40,0x0C,0x02,0x00,0x0C,0x00,0x07,0x00,0x20,0x08,0x00,0x00,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x09,0x03,0x00,0x20,0x08,0x01,0x00,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x09,0x03,0x00,0x20,0x08,0x02,0x00,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x08,0x03,0x00,0x20,0x1A,0x00,0x00,0x20,0x1B,0xEE,0xEE},
+            new byte[]{ 0x40,0x05,0x04,0x00,0xEE,0xEE,0x00,0x00,0x40,0x05,0x0D,0x00,0x00,0x00,0x00,0x00,0x40,0x05,0x01,0x00,0xFF,0xFF,0x00,0x00,0x21,0x07,0x00,0x00,0x40,0x05,0x01,0x00,0xFF,0xFF,0x00,0x00,0x21,0x07,0x00,0x00,0x40,0x05,0x01,0x00,0xFF,0xFF,0x00,0x00,0x21,0x07,0x00,0x00,0x40,0x05,0x01,0x00,0xFF,0xFF,0x00,0x00,0x21,0x07,0x00,0x00,0x40,0x05,0x01,0x00,0xFF,0xFF,0x00,0x00,0x21,0x07,0x00,0x00,0x40,0x05,0x01,0x00,0xFF,0xFF,0x00,0x00,0x21,0x07,0x00,0x00,0x40,0x0A,0x00,0x00,0xEE,0xEE,0xEE,0xEE },
+            new byte[]{ 0x22,0x33,0xEE,0x00,0x40,0x0C,0xEE,0xEE,0x0C,0x00,0x00,0x00,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x09,0xEE,0xEE,0x20,0x08,0xEE,0xEE,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x08,0xEE,0xEE,0x20,0x1B,0xEE,0xEE,0x20,0x1D,0x00,0x00,0x22,0x1B,0x00,0x00},
+            new byte[]{ 0x20,0x19,0x00,0x00,0x40,0x05,0x01,0x00,0x02,0x00,0x00,0x00,0x41,0x0C,0xEE,0xEE,0x0C,0x00,0x01,0x00,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x09,0xEE,0xEE,0x20,0x08,0xEE,0xEE,0x40,0x05,0x02,0x00,0xFF,0xFF,0x00,0x00,0x20,0x08,0xEE,0xEE,0x20,0x1A,0x00,0x00,0x20,0x1B,0xEE,0xEE},
+        };
+
+        static void ScanFE8SpecialPattern(ROM rom, uint eventAddr, uint endAddr, HashSet<uint> ids)
+        {
+            if (!U.isSafetyOffset(eventAddr, rom)) return;
+            uint romLen = (uint)rom.Data.Length;
+            if (endAddr > romLen) endAddr = romLen;
+
+            foreach (byte[] bin in FE8SpecialPatterns)
+            {
+                bool[] mask = U.MakeMask2(bin, 0xFF, 0xEE);
+                uint addr = eventAddr;
+                while (true)
+                {
+                    addr = U.GrepPatternMatch(rom.Data, bin, mask, addr, endAddr, 4);
+                    if (addr == U.NOT_FOUND) break;
+
+                    var temp = new List<uint>();
+                    bool ok = true;
+                    for (uint i = 0; i < bin.Length; i += 2)
+                    {
+                        if (bin[i] != 0xFF) continue;
+                        if (!U.isSafetyOffset(addr + i + 1, rom)) { ok = false; break; }
+                        uint textid = rom.u16(addr + i);
+                        if (textid == 0 || textid >= 0x7FFF) { ok = false; break; }
+                        temp.Add(textid);
+                    }
+                    if (ok && temp.Count > 0)
+                    {
+                        foreach (uint t in temp) ids.Add(t);
+                    }
+                    addr += (uint)bin.Length;
+                    if (addr >= endAddr) break;
+                }
+            }
+        }
     }
 }

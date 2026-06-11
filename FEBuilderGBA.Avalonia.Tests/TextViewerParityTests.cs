@@ -172,12 +172,16 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void View_Hosts_ExportFilter_Combo_DisabledByDefault()
+        public void View_Hosts_ExportFilter_Combo_Enabled()
         {
+            // #1028 Slice B enabled the Export Filter combo: it filters the TSV
+            // export to a single WF MakeVarsIDArray category (faithful WF parity).
             var view = new TextViewerView();
             var combo = FindByAutomationId<ComboBox>(view, "TextViewer_ExportFilter_Combo");
             Assert.NotNull(combo);
-            Assert.False(combo!.IsEnabled);
+            Assert.True(combo!.IsEnabled);
+            // Default selection is "All" (index 0 = no filter).
+            Assert.Equal(0, combo.SelectedIndex);
         }
 
         [AvaloniaFact]
@@ -204,6 +208,34 @@ namespace FEBuilderGBA.Avalonia.Tests
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ExportLimitPrefix_Label"));
             Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ExportLimit_Input"));
+        }
+
+        [AvaloniaFact]
+        public void ExportLimit_Label_SyncsWithExportFilterSelection()
+        {
+            // #1028 Slice B / Copilot finding 4: the Export Limit textbox must
+            // track the selected Export Filter category, not always show "All".
+            var view = new TextViewerView();
+            var combo = FindByAutomationId<ComboBox>(view, "TextViewer_ExportFilter_Combo");
+            var limit = FindByAutomationId<TextBox>(view, "TextViewer_ExportLimit_Input");
+            Assert.NotNull(combo);
+            Assert.NotNull(limit);
+
+            // Default (index 0) = All.
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[0]), limit!.Text);
+
+            // Select "Unit" (index 1) — the limit label must update.
+            combo!.SelectedIndex = 1;
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[1]), limit.Text);
+            Assert.NotEqual(R._(ExportFilterCore.FilterLabelKeys[0]), limit.Text);
+
+            // Select "Chapter Text" (index 10).
+            combo.SelectedIndex = 10;
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[10]), limit.Text);
+
+            // Back to All.
+            combo.SelectedIndex = 0;
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[0]), limit.Text);
         }
 
         // ---- Translate tab ----

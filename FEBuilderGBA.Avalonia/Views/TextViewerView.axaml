@@ -131,14 +131,14 @@
               <Button AutomationProperties.AutomationId="TextViewer_Import_Button" Name="ImportButton" Content="Import Texts (TSV)" Click="OnImportClick" />
             </StackPanel>
 
-            <!-- Export Filter stub (DISABLED — depends on ToolTranslateROM Core extraction) -->
+            <!-- Export Filter (#1028 Slice B) — filters the TSV export to a single
+                 WF MakeVarsIDArray category (faithful WF parity). Index 0 = All. -->
             <StackPanel Orientation="Horizontal" Spacing="6">
               <TextBlock AutomationProperties.AutomationId="TextViewer_ExportFilterPrefix_Label"
                          Text="Export Filter:" VerticalAlignment="Center" Width="140" />
               <ComboBox AutomationProperties.AutomationId="TextViewer_ExportFilter_Combo"
-                        Name="ExportFilterCombo" IsEnabled="False" Width="240"
-                        PlaceholderText="(out-of-scope)"
-                        ToolTip.Tip="Out-of-scope: requires ToolTranslateROM Core extraction" />
+                        Name="ExportFilterCombo" Width="240" SelectedIndex="0"
+                        ToolTip.Tip="Filter the TSV export to a single text category (WF parity)." />
             </StackPanel>
 
             <!-- Include AI Hints (#1028 Slice C): when checked, the TSV export

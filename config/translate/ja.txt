@@ -10647,3 +10647,6 @@ A: TSAを利用しないBG224色(会話用)
 :Apply failed: {0}
 適用に失敗しました: {0}
 
+:Filter the TSV export to a single text category (WF parity).
+TSVエクスポートを単一のテキストカテゴリにフィルタリングします（WF互換）。
+
