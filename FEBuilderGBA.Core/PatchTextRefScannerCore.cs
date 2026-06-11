@@ -317,14 +317,20 @@ namespace FEBuilderGBA
         }
 
         // ---- CheckIF tri-state (port of PatchForm.CheckIF, literal-addr subset) -
-        // Returns "E" (prerequisite missing/dangerous), "I" (installed), or "".
+        // Faithful port of WinForms PatchForm.CheckIF (literal-address subset).
+        // Returns "E" (prerequisite missing / dangerous / conflict), "I" (installed),
+        // or "" (undetermined). Mirrors WF exactly: per IF-family key, compute
+        // `notFound` (the ROM byte-pattern at the address does NOT match the need),
+        // then dispatch:
+        //   IF / PATCHED_IFNOT (isnot=false): notFound -> "E" (required pattern absent).
+        //   IFNOT / CONFLICT_IF (isnot=true): match    -> "E" (conflict present).
+        //   PATCHED_IF (isnot=true):          match    -> "I" (installed).
+        // A required (!isnot) condition whose address is unsafe/out-of-range, or whose
+        // value has < 2 space-separated tokens, also yields "E" (WF returns "E"). The
+        // $GREP/$XGREP/$FGREP/$FREEAREA macro forms are carved out: an UNresolvable
+        // required (!isnot) condition is "E"; an isnot condition is skipped.
         static string CheckIF(ROM rom, List<PatchMetadataCore.PatchParam> prms, string lang)
         {
-            // WF default when there are no IF lines: returns "" (not "I"). But a
-            // patch with NO IF line and TYPE=STRUCT/IMAGE is still scanned (handled
-            // by IsMakePatchStructDataListTarget). For ADDR with no IF we'd return ""
-            // (not installed) → skip; this matches WF where an ADDR patch without a
-            // PATCHED_IF can't be confirmed installed.
             foreach (var prm in prms)
             {
                 string[] sp = prm.KeyParts;
@@ -347,10 +353,11 @@ namespace FEBuilderGBA
                     continue;
                 }
 
-                // Carve-out: grep-based conditions → can't faithfully resolve; treat
-                // as "E" ONLY when the condition is a hard prerequisite (!isnot),
-                // mirroring WF which returns "E" on an unresolvable required address.
-                if (addrstring.IndexOf('$') == 0 && !(addrstring.Length > 1 && IsNum(addrstring[1])))
+                // Carve-out: a $GREP/$XGREP/$FGREP/$FREEAREA macro address can't be
+                // resolved here. WF treats an unresolvable REQUIRED (!isnot) address
+                // as "E"; an isnot condition with an unresolvable address is skipped.
+                if (addrstring.Length > 0 && addrstring[0] == '$'
+                    && !(addrstring.Length > 1 && IsNum(addrstring[1])))
                 {
                     if (!isnot) return "E";
                     continue;
@@ -359,45 +366,54 @@ namespace FEBuilderGBA
                 uint address;
                 if (!TryResolveAddress(rom, addrstring, out address) || !U.isSafetyOffset(address, rom))
                 {
+                    // WF: unsafe address on a required IF -> "E"; isnot -> continue.
                     if (!isnot) return "E";
                     continue;
                 }
 
+                // WF requires >= 2 space-separated value tokens; otherwise "E".
                 string[] args = value.Split(' ');
-                if (args.Length < 1) continue;
-
-                // Compare the ROM bytes at `address` against the expected byte list.
-                byte[] expected = PatchMetadataCore.ParseByteArray(value);
-                if (expected.Length == 0) continue;
-                if (address + (uint)expected.Length > (uint)rom.Data.Length)
+                if (args.Length <= 1)
                 {
-                    // Out of range — for a required IF this means not satisfied.
-                    if (!isnot) return "";
+                    if (!isnot) return "E";
                     continue;
                 }
-                byte[] actual = rom.getBinaryData(address, expected.Length);
-                bool match = U.memcmp(expected, actual) == 0;
 
-                if (!isnot)
+                // notFound = the ROM bytes at `address` do NOT match `need` (WF logic).
+                bool notFound = false;
+                if (address + (uint)args.Length > (uint)rom.Data.Length)
                 {
-                    // IF / PATCHED_IFNOT: required to MATCH to be "installed".
-                    if (!match) return "";
+                    notFound = true; // out of range can never match the need bytes
                 }
                 else
                 {
-                    // IFNOT / PATCHED_IF / CONFLICT_IF: required to MATCH to be installed
-                    // (PATCHED_IF asserts the post-install bytes are present).
-                    if (key == "PATCHED_IF")
+                    for (int i = 0; i < args.Length; i++)
                     {
-                        if (match) return "I";
-                        return "";
+                        uint data = rom.u8(address + (uint)i);
+                        uint need = U.atoi0x(args[i]);
+                        if (data != need) { notFound = true; break; }
                     }
-                    // IFNOT/CONFLICT_IF: a match here means the conflict is present.
-                    if (match) return "E";
+                }
+
+                if (!isnot)
+                {
+                    // IF / PATCHED_IFNOT: a non-match (notFound) is a prerequisite
+                    // failure -> "E". A match continues.
+                    if (notFound) return "E";
+                }
+                else
+                {
+                    // IFNOT / PATCHED_IF / CONFLICT_IF: a MATCH (notFound==false) is
+                    // decisive.
+                    if (!notFound)
+                    {
+                        if (key == "PATCHED_IF") return "I"; // installed
+                        return "E";                          // IFNOT/CONFLICT_IF conflict
+                    }
                 }
             }
 
-            // No decisive PATCHED_IF — leave undetermined ("").
+            // No decisive IF condition fired.
             return "";
         }
 

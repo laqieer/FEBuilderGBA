@@ -290,16 +290,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var refs = TextReferenceFinder.Find(rom, textId, tables);
 
                 // #1027 — full TEXTID-filtered union (EventCond/menu/worldmap/
-                // patch/asmmap refs now included). If the id is in the union but
-                // the descriptor Find produced no row, surface a generic row so
-                // the cross-reference count is definitive (matches WF UpdateRef,
-                // which lists every TargetType==TEXTID UseValsID).
-                if (textId != 0)
+                // patch/asmmap refs now included). If the descriptor Find produced
+                // NO row, fall back to the full union and surface a generic row when
+                // the id is referenced there (matches WF UpdateRef, which lists every
+                // TargetType==TEXTID UseValsID). Build the union ONLY when refs is
+                // empty — it does a full ROM-wide scan (EventCond + patch dir +
+                // asmmap files), so running it on every text selection would lag the
+                // UI (Copilot review). The common selected-text case already has a
+                // descriptor row and skips this entirely.
+                if (textId != 0 && refs.Count == 0)
                 {
                     try
                     {
                         var used = MakeVarsIDArrayCore.BuildAllUsedRefs(rom);
-                        if (used.TextIds.Contains(textId) && refs.Count == 0)
+                        if (used.TextIds.Contains(textId))
                         {
                             refs.Add(R._("Referenced (event/menu/patch/symbol)"));
                         }
