@@ -57,7 +57,7 @@ namespace FEBuilderGBA
             string patchDir = ResolvePatchDirectory(version);
             string lang = CoreState.Language ?? "en";
 
-            List<PatchSt> patchs = ScanPatchs(patchDir, lang);
+            List<PatchSt> patchs = ScanPatchs(rom, patchDir, lang);
             foreach (PatchSt patch in patchs)
             {
                 if (isCanonicalSkip(patch))
@@ -152,7 +152,7 @@ namespace FEBuilderGBA
         }
 
         // ---- ScanPatchs (~:107) -------------------------------------------------
-        static List<PatchSt> ScanPatchs(string path, string lang)
+        static List<PatchSt> ScanPatchs(ROM rom, string path, string lang)
         {
             var patchs = new List<PatchSt>();
             if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return patchs;
@@ -169,7 +169,7 @@ namespace FEBuilderGBA
 
             foreach (string fullfilename in files)
             {
-                PatchSt patch = LoadPatch(fullfilename, lang);
+                PatchSt patch = LoadPatch(rom, fullfilename, lang);
                 if (patch == null) continue;
                 patchs.Add(patch);
             }
@@ -177,7 +177,7 @@ namespace FEBuilderGBA
         }
 
         // ---- LoadPatch (~:247) --------------------------------------------------
-        static PatchSt LoadPatch(string fullfilename, string lang)
+        static PatchSt LoadPatch(ROM rom, string fullfilename, string lang)
         {
             string[] lines;
             try
@@ -196,7 +196,12 @@ namespace FEBuilderGBA
             for (int i = 0; i < lines.Length; i++)
             {
                 string line = lines[i];
-                if (U.IsComment(line) || U.OtherLangLine(line))
+                // Use the rom-aware OtherLangLine overload (U.cs:851) so the
+                // {J}/{U} language-line filter reads the EXPLICIT rom passed to
+                // ScanHardCodes — NOT the ambient CoreState.ROM (which may be a
+                // different instance in headless tests). Honors this file's
+                // "no CoreState ROM reads" header guarantee.
+                if (U.IsComment(line) || U.OtherLangLine(line, rom))
                 {
                     continue;
                 }

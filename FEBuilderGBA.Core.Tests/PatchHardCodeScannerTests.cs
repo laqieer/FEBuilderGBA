@@ -38,6 +38,20 @@ namespace FEBuilderGBA.Core.Tests
             return rom;
         }
 
+        // Build a synthetic FE8J ROM (multibyte == true) — used to prove the
+        // scanner's {J}/{U} language-line filter reads the PASSED rom, not the
+        // ambient CoreState.ROM. VersionToFilename == "FE8J".
+        static ROM MakeFe8jRom(uint idAddr = 0x1000, byte idValue = 5)
+        {
+            var data = new byte[0x1000000];
+            data[idAddr] = idValue;
+            var rom = new ROM();
+            bool ok = rom.LoadLow("hardcode-fe8j.gba", data, "BE8J01");
+            Assert.True(ok);
+            Assert.True(rom.RomInfo.is_multibyte);
+            return rom;
+        }
+
         // Create a temp config/patch2/FE8U dir, return (tempRoot, versionDir).
         static (string root, string verDir) MakeTempPatchDir()
         {
@@ -432,6 +446,160 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.DoesNotContain(true, unit);
             }
             finally { TryDelete(root); }
+        }
+
+        // ---- language-line filter uses the PASSED rom, NOT CoreState.ROM --
+
+        // Regression for the Copilot review on PR #1105: LoadPatch's {J}/{U}
+        // language-line filter must use U.OtherLangLine(line, rom) with the rom
+        // PASSED to ScanHardCodes — not the global U.OtherLangLine(line) overload
+        // that reads CoreState.ROM. Here CoreState.ROM is a multibyte FE8J ROM but
+        // the scanner is handed a non-multibyte FE8U ROM; the filter outcome must
+        // follow the FE8U ROM.
+        [Fact]
+        public void LangLineFilter_UsesPassedRom_NotCoreStateRom_TwoTaggedAddresses()
+        {
+            // FE8U (non-multibyte) keeps {U} lines and skips {J} lines.
+            // FE8J (multibyte) would do the OPPOSITE. We seed two ADDRESS lines:
+            //   ADDRESS=0x2000 {J}  -> id 0xAA (skipped on FE8U)
+            //   ADDRESS=0x3000 {U}  -> id 0xBB (kept    on FE8U)
+            // and assert 0xBB is flagged (FE8U path), 0xAA is NOT.
+            var fe8u = new ROM();
+            var data = new byte[0x1000000];
+            data[0x2000] = 0xAA; // the {J} id
+            data[0x3000] = 0xBB; // the {U} id
+            fe8u.LoadLow("hc-lang-fe8u.gba", data, "BE8E01");
+            Assert.False(fe8u.RomInfo.is_multibyte);
+
+            var fe8jCoreState = MakeFe8jRom(); // multibyte; deliberately the WRONG rom
+
+            var (root, verDir) = MakeTempPatchDir();
+            string savedBase = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "en";
+                CoreState.ROM = fe8jCoreState; // ambient ROM = multibyte FE8J
+
+                // Note the real TAB before {J}/{U} — OtherLangLine matches "\t{J}".
+                WritePatch(verDir, "LangTwo",
+                    "TYPE=ADDR",
+                    "ADDRESS_TYPE=UNIT",
+                    "ADDRESS=0x2000\t{J}",
+                    "ADDRESS=0x3000\t{U}");
+
+                var unit = new bool[256];
+                var cls = new bool[256];
+                var item = new bool[256];
+                PatchHardCodeScanner.ScanHardCodes(fe8u, unit, cls, item);
+
+                Assert.True(unit[0xBB]);  // {U} line survived -> FE8U path
+                Assert.False(unit[0xAA]); // {J} line was skipped on FE8U
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                CoreState.Language = savedLang;
+                CoreState.ROM = savedRom;
+                TryDelete(root);
+            }
+        }
+
+        // Single {J}-tagged ADDRESS: on the PASSED FE8U rom the only ADDRESS line
+        // is skipped -> no ADDRESS -> id 0 -> no flag. If the scanner had used the
+        // multibyte CoreState.ROM (FE8J) it would have KEPT the line and flagged
+        // the id — so a non-flag here proves the passed rom drove the filter.
+        [Fact]
+        public void LangLineFilter_UsesPassedRom_SingleJTaggedAddressSkippedOnFE8U()
+        {
+            var fe8u = new ROM();
+            var data = new byte[0x1000000];
+            data[0x2000] = 0x4C; // would be flagged if the {J} line were kept
+            fe8u.LoadLow("hc-lang2-fe8u.gba", data, "BE8E01");
+
+            var fe8jCoreState = MakeFe8jRom(); // multibyte; the WRONG rom
+
+            var (root, verDir) = MakeTempPatchDir();
+            string savedBase = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "en";
+                CoreState.ROM = fe8jCoreState;
+
+                WritePatch(verDir, "LangOne",
+                    "TYPE=ADDR",
+                    "ADDRESS_TYPE=UNIT",
+                    "ADDRESS=0x2000\t{J}");
+
+                var unit = new bool[256];
+                var cls = new bool[256];
+                var item = new bool[256];
+                PatchHardCodeScanner.ScanHardCodes(fe8u, unit, cls, item);
+
+                Assert.False(unit[0x4C]); // {J} skipped on the passed FE8U rom
+                Assert.DoesNotContain(true, unit);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                CoreState.Language = savedLang;
+                CoreState.ROM = savedRom;
+                TryDelete(root);
+            }
+        }
+
+        // Mirror image: on a PASSED multibyte FE8J rom the {J} line is KEPT (while
+        // CoreState.ROM is a non-multibyte FE8U that would skip it). Proves the
+        // filter follows the passed rom in BOTH directions. The temp patch dir is
+        // FE8J here because the FE8J rom resolves config/patch2/FE8J.
+        [Fact]
+        public void LangLineFilter_PassedFE8J_KeepsJLine_WhileCoreStateFE8U()
+        {
+            var fe8j = MakeFe8jRom(0x2000, 0x5D); // multibyte; the PASSED rom
+
+            var fe8uCoreState = new ROM();
+            fe8uCoreState.LoadLow("hc-lang3-fe8u.gba", new byte[0x1000000], "BE8E01");
+
+            string root = Path.Combine(Path.GetTempPath(),
+                "fe_hc_j_" + Guid.NewGuid().ToString("N"));
+            string verDir = Path.Combine(root, "config", "patch2", "FE8J");
+            Directory.CreateDirectory(verDir);
+
+            string savedBase = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            var savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "en";
+                CoreState.ROM = fe8uCoreState; // ambient = non-multibyte FE8U
+
+                File.WriteAllLines(Path.Combine(verDir, "PATCH_LangJ.txt"), new[]
+                {
+                    "TYPE=ADDR",
+                    "ADDRESS_TYPE=UNIT",
+                    "ADDRESS=0x2000\t{J}",
+                });
+
+                var unit = new bool[256];
+                var cls = new bool[256];
+                var item = new bool[256];
+                PatchHardCodeScanner.ScanHardCodes(fe8j, unit, cls, item);
+
+                Assert.True(unit[0x5D]); // {J} kept on the passed multibyte FE8J rom
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                CoreState.Language = savedLang;
+                CoreState.ROM = savedRom;
+                TryDelete(root);
+            }
         }
 
         // ---- null/guard safety --------------------------------------------
