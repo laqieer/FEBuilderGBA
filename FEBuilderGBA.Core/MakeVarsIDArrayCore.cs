@@ -156,9 +156,10 @@ namespace FEBuilderGBA
             ExportFilterCollect(rom, text, /*SupportTalk*/5, /*BattleTalk*/7,
                 /*Haiku*/8, /*ED*/9, /*SoundRoom*/4);
 
-            // WorldMapBGM (SONG)
+            // WorldMapBGM (SONG) — WF WorldMapBGMForm.Init stops when
+            // (song1==1 && song2==0) OR (song1==0 && song2==0).
             CollectFixedTerminated(rom, song, info.worldmap_bgm_pointer, 4, 0x100,
-                new uint[] { 0, 2 }, /*no terminator: WF Init has none for song scan*/ null);
+                new uint[] { 0, 2 }, StopWorldMapBgm);
 
             // Skills
             foreach (uint id in SkillSystemTextScanner.CollectSkillTextIds(rom)) AddTextId(text, id);
@@ -221,6 +222,17 @@ namespace FEBuilderGBA
         {
             if (entry + 2 > (uint)rom.Data.Length) return true;
             return rom.u16(entry) == 0;
+        }
+
+        // WorldMapBGMForm.Init: stop when (song1==1 && song2==0) OR (song1==0 && song2==0).
+        static bool StopWorldMapBgm(ROM rom, uint entry, uint i)
+        {
+            if (entry + 4 > (uint)rom.Data.Length) return true;
+            uint s1 = rom.u16(entry + 0);
+            uint s2 = rom.u16(entry + 2);
+            if (s1 == 1 && s2 == 0) return true;
+            if (s1 == 0 && s2 == 0) return true;
+            return false;
         }
 
         // Collect text ids from a simple fixed pointer-field table (no terminator).
