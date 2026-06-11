@@ -975,6 +975,19 @@ namespace FEBuilderGBA.Avalonia.Views
                             await Task.Delay(100); // Let the panel content realize
                         }
 
+                        // Optionally INVOKE a button (by AutomationId) so a gated
+                        // editor page (e.g. the Init Wizard's Step1 reached via its
+                        // Start button) is shown in the PNG. Unlike --screenshot-tab=
+                        // (a direct SelectedItem set that gate-aware wizards revert),
+                        // this raises the button's real Click handler. Opt-in via
+                        // --screenshot-invoke-button=<AutomationId>; editors without a
+                        // matching button are captured unchanged.
+                        if (!string.IsNullOrEmpty(App.ScreenshotInvokeButtonAutomationId)
+                            && InvokeButtonByAutomationId(window, App.ScreenshotInvokeButtonAutomationId!))
+                        {
+                            await Task.Delay(150); // Let the navigation handler run + content realize
+                        }
+
                         // Capture screenshot via RenderTargetBitmap
                         var pixelSize = new PixelSize(
                             Math.Max((int)window.Width, 100),
@@ -1058,6 +1071,37 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     ctrl.IsVisible = true;
                     return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Invoke (raise <see cref="global::Avalonia.Controls.Button.Command"/> /
+        /// the routed Click) the first descendant <see cref="global::Avalonia.Controls.Button"/>
+        /// whose <c>AutomationProperties.AutomationId</c> equals
+        /// <paramref name="automationId"/>, by walking the logical tree. Returns
+        /// true when a matching button was found + invoked. Used by the opt-in
+        /// <c>--screenshot-invoke-button=</c> screenshot mode to drive a gated
+        /// editor's real navigation handler (e.g. the Init Wizard Start button)
+        /// rather than poking its view-state directly.
+        /// </summary>
+        static bool InvokeButtonByAutomationId(Control root, string automationId)
+        {
+            foreach (var descendant in root.GetLogicalDescendants())
+            {
+                if (descendant is global::Avalonia.Controls.Button btn
+                    && AutomationProperties.GetAutomationId(btn) == automationId)
+                {
+                    // Use the UIA invoke pattern so both Command- and
+                    // Click-handler-backed buttons fire identically.
+                    var peer = global::Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(btn);
+                    if (peer?.GetProvider<global::Avalonia.Automation.Provider.IInvokeProvider>() is { } invoke)
+                    {
+                        invoke.Invoke();
+                        return true;
+                    }
+                    return false;
                 }
             }
             return false;

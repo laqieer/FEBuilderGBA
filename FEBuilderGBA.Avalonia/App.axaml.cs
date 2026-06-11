@@ -75,6 +75,19 @@ namespace FEBuilderGBA.Avalonia
         /// </summary>
         public static string? ScreenshotShowPanelAutomationId { get; set; }
 
+        /// <summary>
+        /// Optional AutomationId of a <see cref="global::Avalonia.Controls.Button"/>
+        /// the <c>--screenshot-all</c> runner should INVOKE (raise Click) on each
+        /// captured editor before rendering. Unlike <c>--screenshot-tab=</c> (which
+        /// sets <c>TabControl.SelectedItem</c> directly and is therefore reverted by
+        /// gate-aware wizards like <c>ToolInitWizardView</c>), invoking the button
+        /// drives the editor's real navigation handler, so a gated wizard page (e.g.
+        /// the Init Wizard's Step1 download buttons) is reached the same way a user
+        /// reaches it. Null = no button invoked. Editors without a matching button
+        /// are captured unchanged. Opt-in via <c>--screenshot-invoke-button=&lt;AutomationId&gt;</c>.
+        /// </summary>
+        public static string? ScreenshotInvokeButtonAutomationId { get; set; }
+
         /// <summary>Gap-sweep mode (Phase 1 density, Phase 2 labels, …) or null if no gap-sweep flag was passed.</summary>
         public static string? GapSweepMode { get; set; }
 
@@ -1108,6 +1121,10 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i].StartsWith("--screenshot-show-panel="))
                 {
                     ScreenshotShowPanelAutomationId = args[i].Substring("--screenshot-show-panel=".Length);
+                }
+                else if (args[i].StartsWith("--screenshot-invoke-button="))
+                {
+                    ScreenshotInvokeButtonAutomationId = args[i].Substring("--screenshot-invoke-button=".Length);
                 }
                 else if (args[i] == "--lastrom")
                 {

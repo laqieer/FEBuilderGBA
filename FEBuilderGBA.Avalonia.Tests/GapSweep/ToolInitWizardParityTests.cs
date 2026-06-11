@@ -1142,6 +1142,36 @@ public class ToolInitWizardParityTests
     }
 
     // ===================================================================
+    // Screenshot harness: the gated Step1 download page is only reachable
+    // via the Start button (a direct tab select is reverted by the
+    // SelectionChanged gate). #1031 adds an opt-in --screenshot-invoke-button=
+    // mode so the GUI-proof PNG can show the now-ENABLED download buttons.
+    // ===================================================================
+
+    [Fact]
+    public void ScreenshotHarness_ExposesInvokeButtonOption()
+    {
+        // App.axaml.cs must declare the property AND parse the CLI flag.
+        string app = File.ReadAllText(Path.Combine(FindRepoRoot(),
+            "FEBuilderGBA.Avalonia", "App.axaml.cs"));
+        Assert.Contains("ScreenshotInvokeButtonAutomationId", app);
+        Assert.Contains("--screenshot-invoke-button=", app);
+    }
+
+    [Fact]
+    public void ScreenshotHarness_InvokesButtonBeforeCapture()
+    {
+        // MainWindow.RunScreenshotAll must drive the button (via the UIA
+        // invoke pattern) BEFORE rendering, so a gate-aware wizard's real
+        // navigation handler runs (unlike --screenshot-tab=).
+        string mw = File.ReadAllText(Path.Combine(FindRepoRoot(),
+            "FEBuilderGBA.Avalonia", "Views", "MainWindow.axaml.cs"));
+        Assert.Contains("InvokeButtonByAutomationId", mw);
+        Assert.Contains("ScreenshotInvokeButtonAutomationId", mw);
+        Assert.Contains("IInvokeProvider", mw);
+    }
+
+    // ===================================================================
     // Helpers.
     // ===================================================================
 
