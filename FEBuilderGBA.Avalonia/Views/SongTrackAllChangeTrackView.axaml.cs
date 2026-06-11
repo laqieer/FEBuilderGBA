@@ -83,13 +83,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 // voices (To resets to the new From for each remapped voice).
                 _vm.LoadEntry(_vm.SongAddr);
                 UpdateUI();
-                CoreState.Services.ShowInfo("Track changes applied.");
+                CoreState.Services.ShowInfo(R._("Track changes applied."));
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.Error("SongTrackAllChangeTrackView.Apply_Click failed: {0}", ex.Message);
-                CoreState.Services.ShowError(string.Format("Apply failed: {0}", ex.Message));
+                CoreState.Services.ShowError(R._("Apply failed: {0}", ex.Message));
             }
         }
 

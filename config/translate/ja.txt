@@ -10635,3 +10635,12 @@ A: TSAを利用しないBG224色(会話用)
 :Also nudge note velocities by Volume delta
 音量の増減でノートのベロシティも調整する
 
+:No track changes to apply.
+適用するトラックの変更がありません。
+
+:Track changes applied.
+トラックの変更を適用しました。
+
+:Apply failed: {0}
+適用に失敗しました: {0}
+

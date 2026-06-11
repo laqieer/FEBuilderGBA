@@ -24473,3 +24473,12 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Also nudge note velocities by Volume delta
 同时按音量增量调整音符力度
 
+:No track changes to apply.
+没有需要应用的音轨更改。
+
+:Track changes applied.
+音轨更改已应用。
+
+:Apply failed: {0}
+应用失败: {0}
+

@@ -25,10 +25,13 @@
 // SongVoiceChangeCore.ApplyVoiceChanges / WaitIconImportCore.Import).
 //
 // Atomicity: VALIDATE-ALL-BEFORE-MUTATE — every write site is collected and
-// range-validated first; only then are the bytes written. A defensive
-// length-aware byte-identical snapshot restore (#885/#923) guarantees a FAILED
-// apply mutates ZERO bytes, so a bulk all-tracks caller (running every track
-// under ONE scope) rolls back EVERY touched track as one action on any fault.
+// range-validated first; only then are the bytes written. The defensive fault
+// snapshot captures ONLY the original bytes at the write sites (a small
+// (addr, oldByte) list — NOT a full-ROM clone, #1106), so a FAILED apply
+// mutates ZERO net bytes with O(write-set) cost. A bulk all-tracks caller
+// (running every track under ONE ambient scope) still rolls back EVERY touched
+// track as one action: each track's writes are recorded in the shared scope, so
+// the caller's UndoService.Rollback reverts them all together.
 using System;
 using System.Collections.Generic;
 
@@ -85,21 +88,39 @@ namespace FEBuilderGBA
             if (err != "") return err;
             if (writes.Count == 0) return ""; // nothing to do (true no-op)
 
-            // Defensive snapshot: the caller's ambient scope captures the writes
-            // for UNDO; this snapshot guarantees a FAILED apply mutates ZERO bytes
-            // (length-aware byte-identical restore, #885/#923).
-            byte[] snap = (byte[])rom.Data.Clone();
+            // WRITE-SET-ONLY fault snapshot (#1106): capture ONLY the original
+            // bytes at the addresses we are about to write — NOT the whole ROM.
+            // Every write is a single byte (write_u8) with NO resize, so a tiny
+            // (addr, oldByte) list is a complete defensive snapshot. The caller's
+            // ambient ROM.BeginUndoScope still records each write for UNDO; this
+            // list only guarantees a mid-write throw mutates ZERO net bytes. On
+            // fault we restore via DIRECT rom.Data[addr] = oldByte so we do NOT
+            // add extra ambient-undo records (which would survive as orphan undo
+            // positions). The bulk all-tracks path keeps full atomicity because
+            // each track's partial writes are recorded in the ONE shared scope,
+            // so the caller's UndoService.Rollback reverts every track together.
+            var restore = new (uint addr, byte oldByte)[writes.Count];
+            int written = 0;
             try
             {
-                foreach (var w in writes)
-                    rom.write_u8(w.addr, w.val); // PLAIN overload -> caller's ambient undo scope.
+                for (int i = 0; i < writes.Count; i++)
+                {
+                    restore[i] = (writes[i].addr, rom.Data[writes[i].addr]);
+                    rom.write_u8(writes[i].addr, writes[i].val); // PLAIN overload -> caller's ambient undo scope.
+                    written++;
+                }
                 return "";
             }
             catch (Exception ex)
             {
-                if (rom.Data.Length != snap.Length)
-                    rom.write_resize_data((uint)snap.Length);
-                Array.Copy(snap, rom.Data, snap.Length);
+                // Roll back ONLY the bytes we actually wrote, in reverse order,
+                // writing directly to rom.Data so no new undo records are added.
+                for (int i = written - 1; i >= 0; i--)
+                {
+                    uint addr = restore[i].addr;
+                    if (addr < rom.Data.Length)
+                        rom.Data[addr] = restore[i].oldByte;
+                }
                 return R._("Apply track change failed: {0}", ex.Message);
             }
         }

@@ -411,7 +411,7 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ------------------------------------------------------------------
-        // Ambient-undo rollback restores bytes byte-identical
+        // Ambient-undo rollback restores bytes byte-identical (no full-ROM clone)
         // ------------------------------------------------------------------
 
         [Fact]
@@ -425,6 +425,9 @@ namespace FEBuilderGBA.Core.Tests
 
             // Apply voice + vol + pan + tempo under the caller's single ambient scope
             // (mirrors UndoService.Begin/Commit -> ROM.BeginUndoScope + Undo.Push).
+            // ApplyTrackChange no longer clones the whole ROM (#1106) — atomicity
+            // comes from the caller's scope here, and from a write-set-only restore
+            // on a mid-write fault.
             var ud = CoreState.Undo.NewUndoData("test");
             using (ROM.BeginUndoScope(ud))
             {
@@ -432,12 +435,87 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal("", err);
             }
             Assert.NotEqual(before, rom.Data); // mutated
-            Assert.True(ud.list.Count > 0);
+
+            // The ambient scope recorded EXACTLY one undo position per written byte
+            // (voice 1 + vol 1 + pan 1 + tempo 1 = 4) — proof the apply does NOT
+            // snapshot the whole ROM into the scope.
+            Assert.Equal(4, ud.list.Count);
+            foreach (var pos in ud.list)
+                Assert.Equal(1, pos.data.Length); // each undo record is a single byte, not a ROM-sized blob
 
             // Commit then undo -> byte-identical restore.
             CoreState.Undo.Push(ud);
             CoreState.Undo.RunUndo();
             Assert.Equal(before, rom.Data);
+        }
+
+        [Fact]
+        public void ApplyTrackChange_LargeRom_NoFullRomSnapshotCost()
+        {
+            // A 16 MB ROM with a tiny write-set: the apply must stay correct and
+            // record only the 1 written byte's undo position (NOT a 16 MB blob) —
+            // the regression guard for the #1106 full-ROM-clone removal.
+            byte[] data = new byte[0x1000000]; // 16 MB
+            data[SongAddr + 0] = 1;
+            WriteGbaPtr(data, SongAddr + 4, 0x800);
+            WriteGbaPtr(data, SongAddr + 8, Track0Data);
+            data[Track0Data + 0] = 0xBE; data[Track0Data + 1] = 50; data[Track0Data + 2] = 0xB1;
+            var rom = NewRom(data);
+            CoreState.Undo = new Undo();
+
+            var track = SongMidiCore.ParseSingleTrackFromDataOffset(rom, Track0Data);
+            var ud = CoreState.Undo.NewUndoData("test");
+            using (ROM.BeginUndoScope(ud))
+            {
+                Assert.Equal("", SongTrackChangeCore.ApplyTrackChange(rom, track, null, +10, 0, 0, false));
+            }
+            Assert.Equal(60, rom.Data[Track0Data + 1]); // 50 + 10
+            Assert.Single(ud.list);                     // exactly 1 undo record
+            Assert.Equal(1, ud.list[0].data.Length);    // a single byte, not 16 MB
+        }
+
+        [Fact]
+        public void ApplyTrackChange_BulkPath_FaultRollsBackEveryTouchedTrack()
+        {
+            // Bulk caller semantics: apply across ALL tracks under ONE scope. If a
+            // later track's apply fails (here: track1 has an out-of-range target
+            // voice rejected by validate-all-before-mutate), the bulk caller stops
+            // and the caller's UndoService.Rollback reverts the EARLIER tracks'
+            // already-written bytes — byte-identical restore for the whole action.
+            byte[] data = new byte[0x1000];
+            data[SongAddr] = 2;
+            WriteGbaPtr(data, SongAddr + 4, 0x800);
+            WriteGbaPtr(data, SongAddr + 8, 0x400);
+            WriteGbaPtr(data, SongAddr + 12, 0x440);
+            // Track0 @0x400: BD 05, B1 (voice 5 -> remappable)
+            data[0x400] = 0xBD; data[0x401] = 5; data[0x402] = 0xB1;
+            // Track1 @0x440: BD 05, B1 (same voice; the bad target hits here too)
+            data[0x440] = 0xBD; data[0x441] = 5; data[0x442] = 0xB1;
+            var rom = NewRom(data);
+            CoreState.Undo = new Undo();
+            byte[] before = (byte[])rom.Data.Clone();
+
+            var tracks = SongMidiCore.ParseTracks(rom, SongAddr, 2);
+            // First track gets a VALID remap (5 -> 9); the "bulk fault" is simulated
+            // by then applying an INVALID remap (5 -> 200) which CollectWrites
+            // rejects with zero mutation. We run both under ONE scope and roll back.
+            var ud = CoreState.Undo.NewUndoData("bulk");
+            string firstErr, secondErr;
+            using (ROM.BeginUndoScope(ud))
+            {
+                firstErr = SongTrackChangeCore.ApplyTrackChange(rom, tracks[0], Voices((5, 9)), 0, 0, 0, false);
+                Assert.Equal("", firstErr);
+                Assert.Equal(9, rom.Data[0x401]); // track0 already mutated
+
+                secondErr = SongTrackChangeCore.ApplyTrackChange(rom, tracks[1], Voices((5, 200)), 0, 0, 0, false);
+                Assert.NotEqual("", secondErr); // track1 rejected, ZERO mutation
+                Assert.Equal(5, rom.Data[0x441]); // track1 untouched
+            }
+
+            // The caller rolls back the whole action -> track0's write is reverted.
+            CoreState.Undo.Push(ud);
+            CoreState.Undo.RunUndo();
+            Assert.Equal(before, rom.Data); // byte-identical across BOTH tracks
         }
 
         // ------------------------------------------------------------------
