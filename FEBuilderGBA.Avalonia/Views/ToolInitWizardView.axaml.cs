@@ -22,6 +22,7 @@
 //   Assert.DoesNotContain(".write_u", source)
 // against this file.
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -456,10 +457,11 @@ namespace FEBuilderGBA.Avalonia.Views
                     FEBuilderGBA.R._("Download and install Git"),
                     async (progress, _) =>
                     {
-                        gitPath = await DownloadInstallCore.DownloadGitAsync(
+                        var gitResult = await DownloadInstallCore.DownloadGitAsync(
                             msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }));
+                        gitPath = gitResult.Path;
                         if (gitPath == null)
-                            error = DownloadInstallCore.LastGitError;
+                            error = gitResult.Error;
                     });
             }
             catch (Exception ex)
@@ -646,19 +648,39 @@ namespace FEBuilderGBA.Avalonia.Views
                     FEBuilderGBA.R._("Downloading"),
                     (progress, _) => Task.Run(() =>
                     {
-                        var resolved = new string[ids.Length];
-                        for (int i = 0; i < ids.Length; i++)
+                        // True all-or-none (Copilot #1102 finding 2): STAGE every
+                        // member to its own temp dir first; place NOTHING into the
+                        // app folder until ALL members staged + validated. A later
+                        // member's failure therefore leaves NO partial install.
+                        var staged = new List<DownloadInstallCore.StagedDownload>();
+                        try
                         {
-                            string r = DownloadInstallCore.Download(ids[i], BaseDir,
-                                msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
-                                out error);
-                            // All-or-none: a failed sub-resource aborts the
-                            // bundle. Validate via File.Exists (Browse-mode).
-                            if (r == null || !System.IO.File.Exists(r))
-                                return; // results stays null
-                            resolved[i] = r;
+                            foreach (var id in ids)
+                            {
+                                var s = DownloadInstallCore.Stage(id, BaseDir,
+                                    msg => progress.Report(new ProgressInfo { Message = msg, PercentComplete = -1 }),
+                                    out error);
+                                if (s == null)
+                                    return; // results stays null; finally disposes staged
+                                staged.Add(s);
+                            }
+
+                            // All staged OK — commit each into its final tool dir.
+                            var resolved = new string[staged.Count];
+                            for (int i = 0; i < staged.Count; i++)
+                            {
+                                string r = DownloadInstallCore.Commit(staged[i], ref error);
+                                if (r == null || !System.IO.File.Exists(r))
+                                    return; // results stays null
+                                resolved[i] = r;
+                            }
+                            results = resolved;
                         }
-                        results = resolved;
+                        finally
+                        {
+                            foreach (var s in staged)
+                                s.Dispose();
+                        }
                     }));
             }
             catch (Exception ex)

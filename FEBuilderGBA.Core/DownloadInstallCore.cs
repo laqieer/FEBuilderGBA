@@ -176,6 +176,57 @@ namespace FEBuilderGBA
         public static string Download(ResourceId id, string baseDir, Action<string> progress,
             out string error, DownloadStep downloadStep = null)
         {
+            StagedDownload staged = Stage(id, baseDir, progress, out error, downloadStep);
+            if (staged == null)
+                return null;
+            try
+            {
+                return Commit(staged, ref error);
+            }
+            finally
+            {
+                staged.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// One resource downloaded + extracted + located + validated in a per-call
+        /// TEMP staging dir, but NOT yet placed into its final tool dir. Created by
+        /// <see cref="Stage"/>; the validated exe is <see cref="StagedExe"/>. A
+        /// caller commits it via <see cref="Commit"/> (which copies it into
+        /// <see cref="FinalDir"/>) and MUST <see cref="Dispose"/> it to remove the
+        /// staging dir. Two-phase so a BUNDLE can stage EVERY member first and only
+        /// place them once all staged successfully (true all-or-none — Copilot
+        /// #1102 finding 2; a later member's failure leaves NOTHING placed).
+        /// </summary>
+        public sealed class StagedDownload : IDisposable
+        {
+            internal DownloadSpec Spec { get; init; }
+            internal string StagingDir { get; init; }
+            /// <summary>The validated exe inside the staging dir.</summary>
+            public string StagedExe { get; init; }
+            /// <summary>Final tool dir this will be placed into on Commit.</summary>
+            public string FinalDir { get; init; }
+            /// <summary>For archives, the extracted tree copied wholesale; null for single-file.</summary>
+            internal string CopyWholeDir { get; init; }
+            internal string PlaceFilename { get; init; }
+            public void Dispose()
+            {
+                try { if (Directory.Exists(StagingDir)) Directory.Delete(StagingDir, recursive: true); }
+                catch { /* best-effort cleanup */ }
+            }
+        }
+
+        /// <summary>
+        /// Phase 1: download + (extract) + locate + validate <paramref name="id"/>'s
+        /// exe into a fresh staging dir, WITHOUT touching the final tool dir.
+        /// Returns a <see cref="StagedDownload"/> on success (caller commits then
+        /// disposes), or <c>null</c> + non-empty <paramref name="error"/> on
+        /// failure (staging dir already cleaned up). NO final dir is mutated here.
+        /// </summary>
+        public static StagedDownload Stage(ResourceId id, string baseDir, Action<string> progress,
+            out string error, DownloadStep downloadStep = null)
+        {
             error = "";
             DownloadSpec spec;
             if (!s_specs.TryGetValue(id, out spec))
@@ -189,7 +240,7 @@ namespace FEBuilderGBA
             string finalDir = Path.Combine(baseDir, "app", spec.AppSubDir);
             string stagingDir = Path.Combine(Path.GetTempPath(),
                 "febgba_dl_" + Guid.NewGuid().ToString("N"));
-
+            bool ok = false;
             try
             {
                 Directory.CreateDirectory(stagingDir);
@@ -215,8 +266,12 @@ namespace FEBuilderGBA
                             spec.Url, spec.MatchGlob);
                         return null;
                     }
-                    string placed = PlaceFile(stagedExe, finalDir, spec.MatchGlob, ref error);
-                    return placed;
+                    ok = true;
+                    return new StagedDownload
+                    {
+                        Spec = spec, StagingDir = stagingDir, StagedExe = stagedExe,
+                        FinalDir = finalDir, CopyWholeDir = null, PlaceFilename = spec.MatchGlob,
+                    };
                 }
 
                 // ---- Archive path ----
@@ -252,9 +307,13 @@ namespace FEBuilderGBA
                     return null; // error already set by GrepFile
                 }
 
-                string finalExe = PlaceFile(locatedExe, finalDir, Path.GetFileName(locatedExe), ref error,
-                    copyWholeDir: extractDir);
-                return finalExe;
+                ok = true;
+                return new StagedDownload
+                {
+                    Spec = spec, StagingDir = stagingDir, StagedExe = locatedExe,
+                    FinalDir = finalDir, CopyWholeDir = extractDir,
+                    PlaceFilename = Path.GetFileName(locatedExe),
+                };
             }
             catch (Exception e)
             {
@@ -264,18 +323,55 @@ namespace FEBuilderGBA
             }
             finally
             {
-                try { if (Directory.Exists(stagingDir)) Directory.Delete(stagingDir, recursive: true); }
-                catch { /* best-effort cleanup */ }
+                // On failure, remove the staging dir now (the caller never sees a
+                // StagedDownload to dispose). On success the caller owns disposal.
+                if (!ok)
+                {
+                    try { if (Directory.Exists(stagingDir)) Directory.Delete(stagingDir, recursive: true); }
+                    catch { /* best-effort cleanup */ }
+                }
             }
+        }
+
+        /// <summary>
+        /// Phase 2: place an already-staged + validated download into its final
+        /// tool dir via the crash-safe swap in <see cref="PlaceFile"/>. Returns the
+        /// resolved final exe path, or <c>null</c> + non-empty <paramref name="error"/>.
+        /// Does NOT dispose the staging dir (the caller owns that).
+        /// </summary>
+        public static string Commit(StagedDownload staged, ref string error)
+        {
+            if (staged == null)
+            {
+                error = R.Error("Nothing to install.");
+                return null;
+            }
+            return PlaceFile(staged.StagedExe, staged.FinalDir, staged.PlaceFilename,
+                ref error, copyWholeDir: staged.CopyWholeDir);
+        }
+
+        /// <summary>
+        /// Result of <see cref="DownloadGitAsync"/>: the resolved git executable
+        /// path on success (with <see cref="Error"/> = ""), or <c>null</c>
+        /// <see cref="Path"/> + a NON-EMPTY <see cref="Error"/> on any failure.
+        /// Returned by value so the outcome travels with the awaited Task and is
+        /// NOT subject to thread-hopping after an <c>await</c> (Copilot #1102
+        /// finding 3 — replaces the previous <c>[ThreadStatic]</c> error slot).
+        /// </summary>
+        public readonly struct GitInstallResult
+        {
+            public string Path { get; }
+            public string Error { get; }
+            public bool Success => Path != null;
+            public GitInstallResult(string path, string error) { Path = path; Error = error ?? ""; }
         }
 
         /// <summary>
         /// Git auto-download/install. Resolves the latest installer URL, downloads
         /// it to a temp file, runs it silently (UAC-elevating on Windows), then
-        /// discovers the installed git executable. Returns the git path on
-        /// success (<paramref name="error"/> = ""), or <c>null</c> with a
-        /// NON-EMPTY <paramref name="error"/> on any failure. The temp installer
-        /// is always deleted. NO config is written here.
+        /// discovers the installed git executable. Returns a <see cref="GitInstallResult"/>
+        /// — git path + "" error on success, or null path + a NON-EMPTY error on any
+        /// failure. The temp installer is always deleted. NO config is written here.
         ///
         /// All three external steps are injectable so tests exercise the
         /// plumbing without a real GitHub call or installer launch:
@@ -284,7 +380,7 @@ namespace FEBuilderGBA
         ///   <paramref name="runInstaller"/>     defaults to GitInstaller.RunInstallerSilentlyAsync,
         ///   <paramref name="findGit"/>          defaults to GitUtil.FindGitExecutable.
         /// </summary>
-        public static async Task<string> DownloadGitAsync(Action<string> progress,
+        public static async Task<GitInstallResult> DownloadGitAsync(Action<string> progress,
             Func<string> getInstallerUrl = null,
             DownloadStep downloadStep = null,
             Func<string, Task<bool>> runInstaller = null,
@@ -329,8 +425,7 @@ namespace FEBuilderGBA
                     return GitFail(R.Error(
                         "Git was installed but its executable could not be found.\r\nPlease set the path manually via Browse."));
                 }
-                s_lastGitError = "";
-                return gitPath;
+                return new GitInstallResult(gitPath, "");
             }
             catch (Exception e)
             {
@@ -343,17 +438,7 @@ namespace FEBuilderGBA
             }
         }
 
-        // DownloadGitAsync returns a string (gitPath|null); the error is surfaced
-        // via LastGitError so the async signature stays Task<string> (an
-        // out-param can't follow await). Set/cleared inside DownloadGitAsync only.
-        [ThreadStatic] static string s_lastGitError;
-        public static string LastGitError => s_lastGitError ?? "";
-
-        static string GitFail(string error)
-        {
-            s_lastGitError = error;
-            return null;
-        }
+        static GitInstallResult GitFail(string error) => new GitInstallResult(null, error);
 
         // ------------------------------------------------------------------
         // Internal helpers.
@@ -381,56 +466,97 @@ namespace FEBuilderGBA
         /// archive path the WHOLE extracted tree is copied (so DLLs / runtime
         /// assets next to the exe travel with it), and the returned path points
         /// at the exe inside the final dir. Single-file copies just the exe.
-        /// Wipes the final dir first (matches WF U.mkdir which deletes+recreates).
+        ///
+        /// Crash-safe swap (Copilot #1102 finding 1): the new install is first
+        /// built in a SIBLING staging dir (<c>{finalDir}.new-{guid}</c>). Only
+        /// after that copy fully succeeds is the prior <paramref name="finalDir"/>
+        /// renamed aside, the staging dir renamed INTO place, and the old one
+        /// deleted. If anything before the swap throws, the prior working install
+        /// is left byte-identical; if the rename-in fails, the prior install is
+        /// restored. The final directory is therefore NEVER left empty/partial.
         /// </summary>
         static string PlaceFile(string stagedExe, string finalDir, string finalFilename,
             ref string error, string copyWholeDir = null)
         {
+            string newDir = finalDir + ".new-" + Guid.NewGuid().ToString("N");
+            string backupDir = finalDir + ".old-" + Guid.NewGuid().ToString("N");
             try
             {
-                // U.mkdir deletes the existing dir and recreates it. We only get
-                // here AFTER validation succeeded, so replacing the prior install
-                // is intentional and safe (the new install is already validated).
-                if (!U.mkdir(finalDir))
-                {
-                    error = R.Error("Could not prepare the install directory.\r\nPATH:{0}", finalDir);
-                    return null;
-                }
+                // 1) Build the complete new install in a sibling dir. Nothing
+                //    touches finalDir yet, so a failure here leaves the prior
+                //    install intact.
+                Directory.CreateDirectory(newDir);
 
+                string relExe; // exe path relative to the new dir root
                 if (copyWholeDir != null)
                 {
-                    CopyDirectory(copyWholeDir, finalDir);
-                    // The exe lives at the same relative path inside finalDir.
-                    string rel = Path.GetRelativePath(copyWholeDir, stagedExe);
-                    string placedExe = Path.Combine(finalDir, rel);
-                    if (!File.Exists(placedExe))
+                    CopyDirectory(copyWholeDir, newDir);
+                    relExe = Path.GetRelativePath(copyWholeDir, stagedExe);
+                    string stagedPlaced = Path.Combine(newDir, relExe);
+                    if (!File.Exists(stagedPlaced))
                     {
-                        // Fallback: re-locate by filename within the final dir.
-                        string[] hits = U.Directory_GetFiles_Safe(finalDir,
+                        // Fallback: re-locate by filename within the new dir.
+                        string[] hits = U.Directory_GetFiles_Safe(newDir,
                             Path.GetFileName(stagedExe), SearchOption.AllDirectories);
                         if (hits.Length <= 0)
                         {
                             error = R.Error("The install directory is missing the expected file.\r\nPATH:{0}\r\nfile:{1}",
                                 finalDir, Path.GetFileName(stagedExe));
+                            TryDeleteDir(newDir);
                             return null;
                         }
-                        placedExe = hits[0];
+                        relExe = Path.GetRelativePath(newDir, hits[0]);
                     }
-                    return placedExe;
+                }
+                else
+                {
+                    string destDir = Path.GetDirectoryName(finalFilename);
+                    if (!string.IsNullOrEmpty(destDir))
+                        Directory.CreateDirectory(Path.Combine(newDir, destDir));
+                    File.Copy(stagedExe, Path.Combine(newDir, finalFilename), overwrite: true);
+                    relExe = finalFilename;
                 }
 
-                string dest = Path.Combine(finalDir, finalFilename);
-                string destDir = Path.GetDirectoryName(dest);
-                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                    Directory.CreateDirectory(destDir);
-                File.Copy(stagedExe, dest, overwrite: true);
-                return dest;
+                // 2) Atomically swap newDir into finalDir, preserving the prior
+                //    install until the swap is committed.
+                bool hadPrior = Directory.Exists(finalDir);
+                if (hadPrior)
+                    Directory.Move(finalDir, backupDir);
+                try
+                {
+                    Directory.Move(newDir, finalDir);
+                }
+                catch
+                {
+                    // Swap-in failed: restore the prior install byte-identical.
+                    if (hadPrior && Directory.Exists(backupDir))
+                        Directory.Move(backupDir, finalDir);
+                    throw;
+                }
+                if (hadPrior)
+                    TryDeleteDir(backupDir);
+
+                string placedExe = Path.Combine(finalDir, relExe);
+                if (!File.Exists(placedExe))
+                {
+                    error = R.Error("The install directory is missing the expected file.\r\nPATH:{0}\r\nfile:{1}",
+                        finalDir, Path.GetFileName(stagedExe));
+                    return null;
+                }
+                return placedExe;
             }
             catch (Exception e)
             {
                 error = R.Error("Could not place the downloaded file.\r\nPATH:{0}\r\n{1}", finalDir, e.Message);
+                TryDeleteDir(newDir);
                 return null;
             }
+        }
+
+        static void TryDeleteDir(string dir)
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+            catch { /* best-effort cleanup */ }
         }
 
         static void CopyDirectory(string sourceDir, string destDir)

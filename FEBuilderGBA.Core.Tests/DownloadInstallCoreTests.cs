@@ -240,6 +240,119 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(DownloadInstallCore.GetSpec(DownloadInstallCore.ResourceId.MGba).IsSingleFile);
         }
 
+        // ---- Two-phase Stage/Commit (bundle all-or-none) ------------------
+
+        [Fact]
+        public void Stage_DoesNotTouchFinalDir_UntilCommit()
+        {
+            // Stage downloads + validates into temp ONLY; the final app dir
+            // must NOT exist until Commit is called.
+            var staged = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.MGba, _baseDir, null,
+                out string error, FakeZipWriter("mGBA.exe", new byte[] { 1, 2, 3 }));
+
+            Assert.NotNull(staged);
+            Assert.Equal("", error);
+            Assert.True(File.Exists(staged.StagedExe));
+            Assert.False(Directory.Exists(Path.Combine(_baseDir, "app", "mVBA")));
+
+            string placed = DownloadInstallCore.Commit(staged, ref error);
+            staged.Dispose();
+
+            Assert.NotNull(placed);
+            Assert.True(File.Exists(placed));
+            Assert.False(Directory.Exists(staged.StagingDir)); // disposed
+        }
+
+        [Fact]
+        public void Stage_Failure_ReturnsNull_AndCleansUp()
+        {
+            var staged = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.MGba, _baseDir, null,
+                out string error, FailingDownload("boom"));
+
+            Assert.Null(staged);
+            Assert.False(string.IsNullOrEmpty(error));
+            Assert.False(Directory.Exists(Path.Combine(_baseDir, "app", "mVBA")));
+        }
+
+        [Fact]
+        public void Bundle_StageAll_ThenCommitAll_IsAtomic_OnLaterFailure()
+        {
+            // Simulate the Avalonia bundle's stage-all-then-commit-all flow:
+            // member 1 stages fine, member 2 FAILS. Because nothing is committed
+            // until both staged, member 1 must leave NO partial install.
+            string finalDir1 = Path.Combine(_baseDir, "app", "no$gba");
+
+            var s1 = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.NoGba, _baseDir, null,
+                out string e1, FakeZipWriter("NO$GBA.EXE", new byte[] { 9 }));
+            Assert.NotNull(s1);
+
+            var s2 = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                out string e2, FailingDownload("net down"));
+            Assert.Null(s2); // second member failed
+
+            // Bundle aborts WITHOUT committing s1 -> dispose only.
+            s1.Dispose();
+
+            Assert.False(Directory.Exists(finalDir1),
+                "Bundle must not place member 1 when a later member fails.");
+        }
+
+        // ---- Crash-safe PlaceFile preserves prior install -----------------
+
+        [Fact]
+        public void Commit_PlaceFailure_RestoresPriorInstall()
+        {
+            // Seed a prior working install.
+            string finalDir = Path.Combine(_baseDir, "app", "asm");
+            Directory.CreateDirectory(finalDir);
+            string priorExe = Path.Combine(finalDir, "arm-none-eabi-as.exe");
+            File.WriteAllBytes(priorExe, new byte[] { 0xCA, 0xFE });
+
+            // Stage a new single-file download successfully.
+            var staged = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                out string error, FakeExeWriter(new byte[] { 0x11 }));
+            Assert.NotNull(staged);
+
+            // Force the swap-in to fail by holding the prior dir open (a locked
+            // file makes Directory.Move(finalDir, backup) throw on Windows). We
+            // emulate the "swap fails" branch by deleting the staged source so
+            // PlaceFile's copy throws BEFORE the swap, leaving the prior intact.
+            File.Delete(staged.StagedExe);
+
+            string placed = DownloadInstallCore.Commit(staged, ref error);
+            staged.Dispose();
+
+            Assert.Null(placed);
+            Assert.False(string.IsNullOrEmpty(error));
+            // Prior install must be byte-identical (never clobbered/emptied).
+            Assert.True(File.Exists(priorExe));
+            Assert.Equal(new byte[] { 0xCA, 0xFE }, File.ReadAllBytes(priorExe));
+        }
+
+        [Fact]
+        public void Commit_Success_ReplacesPriorInstall()
+        {
+            string finalDir = Path.Combine(_baseDir, "app", "asm");
+            Directory.CreateDirectory(finalDir);
+            File.WriteAllBytes(Path.Combine(finalDir, "arm-none-eabi-as.exe"), new byte[] { 0x00 });
+
+            var staged = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                out string error, FakeExeWriter(new byte[] { 0x42 }));
+            Assert.NotNull(staged);
+
+            string placed = DownloadInstallCore.Commit(staged, ref error);
+            staged.Dispose();
+
+            Assert.NotNull(placed);
+            Assert.Equal(new byte[] { 0x42 }, File.ReadAllBytes(placed));
+        }
+
         // ---- Git plumbing (all steps injected) ----------------------------
 
         [Fact]
@@ -248,7 +361,7 @@ namespace FEBuilderGBA.Core.Tests
             int getUrlCalls = 0, downloadCalls = 0, runCalls = 0, findCalls = 0;
             string installerSeen = null;
 
-            string git = await DownloadInstallCore.DownloadGitAsync(
+            var git = await DownloadInstallCore.DownloadGitAsync(
                 progress: null,
                 getInstallerUrl: () => { getUrlCalls++; return "https://example/git-64-bit.exe"; },
                 downloadStep: (string url, string dest, out string error, string referer) =>
@@ -263,8 +376,9 @@ namespace FEBuilderGBA.Core.Tests
                 runInstaller: _ => { runCalls++; return Task.FromResult(true); },
                 findGit: () => { findCalls++; return "C:/git/bin/git.exe"; });
 
-            Assert.Equal("C:/git/bin/git.exe", git);
-            Assert.Equal("", DownloadInstallCore.LastGitError);
+            Assert.True(git.Success);
+            Assert.Equal("C:/git/bin/git.exe", git.Path);
+            Assert.Equal("", git.Error);
             Assert.Equal(1, getUrlCalls);
             Assert.Equal(1, downloadCalls);
             Assert.Equal(1, runCalls);
@@ -276,7 +390,7 @@ namespace FEBuilderGBA.Core.Tests
         public async Task DownloadGit_NoInstallerUrl_FailsWithoutDownloading()
         {
             bool downloaded = false;
-            string git = await DownloadInstallCore.DownloadGitAsync(
+            var git = await DownloadInstallCore.DownloadGitAsync(
                 progress: null,
                 getInstallerUrl: () => null,
                 downloadStep: (string url, string dest, out string error, string referer) =>
@@ -286,16 +400,17 @@ namespace FEBuilderGBA.Core.Tests
                 runInstaller: _ => Task.FromResult(true),
                 findGit: () => "git.exe");
 
-            Assert.Null(git);
+            Assert.Null(git.Path);
+            Assert.False(git.Success);
             Assert.False(downloaded);
-            Assert.False(string.IsNullOrEmpty(DownloadInstallCore.LastGitError));
+            Assert.False(string.IsNullOrEmpty(git.Error));
         }
 
         [Fact]
         public async Task DownloadGit_DownloadFails_DoesNotRunInstaller()
         {
             bool ran = false;
-            string git = await DownloadInstallCore.DownloadGitAsync(
+            var git = await DownloadInstallCore.DownloadGitAsync(
                 progress: null,
                 getInstallerUrl: () => "https://example/git.exe",
                 downloadStep: (string url, string dest, out string error, string referer) =>
@@ -305,16 +420,16 @@ namespace FEBuilderGBA.Core.Tests
                 runInstaller: _ => { ran = true; return Task.FromResult(true); },
                 findGit: () => "git.exe");
 
-            Assert.Null(git);
+            Assert.Null(git.Path);
             Assert.False(ran);
-            Assert.False(string.IsNullOrEmpty(DownloadInstallCore.LastGitError));
+            Assert.False(string.IsNullOrEmpty(git.Error));
         }
 
         [Fact]
         public async Task DownloadGit_InstallerFails_DoesNotResolveGit()
         {
             bool found = false;
-            string git = await DownloadInstallCore.DownloadGitAsync(
+            var git = await DownloadInstallCore.DownloadGitAsync(
                 progress: null,
                 getInstallerUrl: () => "https://example/git.exe",
                 downloadStep: (string url, string dest, out string error, string referer) =>
@@ -327,15 +442,15 @@ namespace FEBuilderGBA.Core.Tests
                 runInstaller: _ => Task.FromResult(false),
                 findGit: () => { found = true; return "git.exe"; });
 
-            Assert.Null(git);
+            Assert.Null(git.Path);
             Assert.False(found);
-            Assert.False(string.IsNullOrEmpty(DownloadInstallCore.LastGitError));
+            Assert.False(string.IsNullOrEmpty(git.Error));
         }
 
         [Fact]
         public async Task DownloadGit_InstallSucceedsButGitNotFound_Fails()
         {
-            string git = await DownloadInstallCore.DownloadGitAsync(
+            var git = await DownloadInstallCore.DownloadGitAsync(
                 progress: null,
                 getInstallerUrl: () => "https://example/git.exe",
                 downloadStep: (string url, string dest, out string error, string referer) =>
@@ -348,8 +463,8 @@ namespace FEBuilderGBA.Core.Tests
                 runInstaller: _ => Task.FromResult(true),
                 findGit: () => "");
 
-            Assert.Null(git);
-            Assert.False(string.IsNullOrEmpty(DownloadInstallCore.LastGitError));
+            Assert.Null(git.Path);
+            Assert.False(string.IsNullOrEmpty(git.Error));
         }
 
         // ---- U.HttpDownloadFile failure contract (no live network) --------
