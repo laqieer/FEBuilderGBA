@@ -250,14 +250,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set => SetField(ref _settingStatus, value ?? "");
         }
 
+        // -------------------------------------------------------------------
+        // Platform gating (#1031). The 8 Download buttons fetch Windows tool
+        // binaries (and, for Git, run a Git-for-Windows installer under UAC),
+        // so they are only enabled on Windows. On any other OS the buttons are
+        // disabled with a tooltip steering the user to Browse / manual install.
+        //
+        // The OS check goes through an injectable provider so the gated
+        // behaviour can be asserted deterministically on Windows CI (a test
+        // can flip the provider to simulate a non-Windows host). Defaults to
+        // OperatingSystem.IsWindows.
+        // -------------------------------------------------------------------
+
         /// <summary>
-        /// Localised tooltip shown on the 8 disabled download/install buttons.
-        /// Explains why the button is disabled and points the user at the
-        /// Browse (Path-mode) alternative. KnownGap rationale documented at
-        /// the file header.
+        /// Test seam: returns true on a Windows host. Defaults to
+        /// <see cref="System.OperatingSystem.IsWindows"/>. Tests may override
+        /// to simulate a non-Windows platform (reset in a finally).
         /// </summary>
-        public string DownloadDisabledTooltip { get; } =
-            R._("Download requires WinForms host. Use Browse instead.");
+        public static System.Func<bool> WindowsPlatformProvider { get; set; }
+            = System.OperatingSystem.IsWindows;
+
+        /// <summary>True when the current host is Windows (via the provider seam).</summary>
+        public bool IsWindowsPlatform => WindowsPlatformProvider();
+
+        /// <summary>
+        /// Bound to each Download button's IsEnabled. Auto-download/install is
+        /// Windows-only (the binaries + the Git installer are Windows).
+        /// </summary>
+        public bool DownloadEnabledOnThisPlatform => IsWindowsPlatform;
+
+        /// <summary>
+        /// Localised tooltip shown on the Download buttons when they are
+        /// disabled on a non-Windows host. Points the user at the Browse
+        /// (Path-mode) alternative / manual install.
+        /// </summary>
+        public string NonWindowsDownloadTooltip { get; } =
+            R._("Windows-only download — use Browse to set the path manually.");
 
         // -------------------------------------------------------------------
         // Initialise pending state from Program.Config (read-only).
@@ -406,8 +434,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Invoked from the End button after the wizard runs through all 6
         /// pages. Per the WF semantic, modes set to DO_NOT_SELECT skip the
         /// write for the corresponding key (so a previously-set value is
-        /// preserved). KnownGap: actual download/extract/install steps are
-        /// skipped here (see file-header comment for rationale).
+        /// preserved).
+        ///
+        /// Auto-download (#1031): a successful Download button click stages the
+        /// resolved exe into the relevant Pending*Path AND forces the step mode
+        /// back to <c>Path</c> (via <see cref="StageResolvedDownloadPath"/>), so
+        /// the normal Path-mode write below persists the downloaded tool — no
+        /// special Download-mode branch is needed here.
         /// </summary>
         public void ApplyAll()
         {
@@ -596,6 +629,58 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 return candidate;
             string found = GitUtil.FindGitExecutable();
             return string.IsNullOrEmpty(found) ? (candidate ?? "") : found;
+        }
+
+        // -------------------------------------------------------------------
+        // Download staging helpers (#1031). Called by the view's OnDownload*
+        // handlers AFTER a successful download + Browse-mode validation. They
+        // set the relevant Pending*Path and force the step mode back to Path so
+        // the existing ApplyAll() Path-mode write persists the downloaded tool.
+        // -------------------------------------------------------------------
+
+        /// <summary>Stage a downloaded emulator (VBA-M / mGBA).</summary>
+        public void StageDownloadedEmulator(string exePath)
+        {
+            PendingEmulatorPath = exePath;
+            PendingStep1Mode = Step1Mode_Enum.Path;
+        }
+
+        /// <summary>Stage a downloaded Event Assembler.</summary>
+        public void StageDownloadedEA(string exePath)
+        {
+            PendingEAPath = exePath;
+            PendingStep2Mode = Step2Mode_Enum.Path;
+        }
+
+        /// <summary>Stage a downloaded Sappy / VG Music Studio.</summary>
+        public void StageDownloadedSappy(string exePath)
+        {
+            PendingSappyPath = exePath;
+            PendingStep3Mode = Step3Mode_Enum.Path;
+        }
+
+        /// <summary>Stage downloaded debugger (no$gba) + assembler (arm-as).</summary>
+        public void StageDownloadedDebuggerAndASM(string debuggerPath, string asmPath)
+        {
+            PendingDebuggerPath = debuggerPath;
+            PendingASMPath = asmPath;
+            PendingStep4Mode = Step4Mode_Enum.Path;
+        }
+
+        /// <summary>Stage downloaded music tools (gba_mus_riper + sox + midfix4agb).</summary>
+        public void StageDownloadedMusicTools(string gbaMusRiperPath, string soxPath, string midfix4agbPath)
+        {
+            PendingGbaMusRiperPath = gbaMusRiperPath;
+            PendingSoxPath = soxPath;
+            PendingMidfix4agbPath = midfix4agbPath;
+            PendingStep5Mode = Step5Mode_Enum.Path;
+        }
+
+        /// <summary>Stage a downloaded+installed Git (validated via ProbeGit).</summary>
+        public void StageDownloadedGit(string gitPath)
+        {
+            PendingGitPath = gitPath;
+            PendingStep6Mode = Step6Mode_Enum.Path;
         }
     }
 }

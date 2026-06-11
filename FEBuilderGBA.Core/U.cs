@@ -1859,6 +1859,59 @@ namespace FEBuilderGBA
             }
         }
 
+        /// <summary>
+        /// Low-level binary HTTP download to a local file. Streams the response
+        /// body straight to <paramref name="destPath"/> via the shared
+        /// <see cref="s_httpClient"/> (which follows redirects). This helper is
+        /// intentionally "dumb": URL -> file only. It performs NO archive
+        /// extraction, exe selection, or cleanup — those belong to the caller
+        /// (see <c>DownloadInstallCore</c>). It is GUI-free, so it does NOT
+        /// depend on the WinForms <c>U.HttpDownload</c> /
+        /// <c>InputFormRef.AutoPleaseWait</c> progress coupling.
+        ///
+        /// Returns <c>true</c> on success (file written, <paramref name="error"/>
+        /// = ""). On ANY failure returns <c>false</c> with a non-empty
+        /// <paramref name="error"/> and removes the partial destination file so
+        /// no half-written download is left behind.
+        /// </summary>
+        public static bool HttpDownloadFile(string url, string destPath, out string error, string referer = "")
+        {
+            error = "";
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                if (!string.IsNullOrEmpty(referer))
+                    request.Headers.Referrer = new Uri(referer);
+
+                using var response = s_httpClient.Send(request, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
+
+                string dir = Path.GetDirectoryName(destPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                using (var src = response.Content.ReadAsStream())
+                using (var dst = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    src.CopyTo(dst);
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                // Contract: failure ALWAYS yields a non-empty error. Some
+                // exceptions carry an empty Message, so fall back to the type
+                // name + URL rather than surfacing a blank error to callers.
+                error = string.IsNullOrEmpty(e.Message)
+                    ? e.GetType().Name + " while downloading " + url
+                    : e.Message;
+                try { if (File.Exists(destPath)) File.Delete(destPath); } catch { /* best-effort cleanup */ }
+                return false;
+            }
+        }
+
         public static void append_u32(List<byte> data, uint a)
         {
             data.Add((byte)((a & 0xFF)));
