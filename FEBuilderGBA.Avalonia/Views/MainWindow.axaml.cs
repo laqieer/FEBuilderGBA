@@ -664,6 +664,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
             CoreState.ROM = rom;
 
+            // #1035: wire the patch-scan hardcode cache per ROM load, replacing
+            // the no-op HeadlessAsmMapCache wired as the pre-ROM default in
+            // App.axaml.cs. Created fresh each load so a previous ROM's hardcode
+            // flags never leak; lazy — it only scans config/patch2 on the first
+            // IsHardCode* read from the Unit/Class/Item editor warning hyperlink.
+            CoreState.AsmMapFileAsmCache = new CoreAsmMapCache(rom);
+
             // Wire headless caches so Core code doesn't NullRef
             CoreState.CommentCache ??= new HeadlessEtcCache();
             CoreState.LintCache ??= new HeadlessEtcCache();

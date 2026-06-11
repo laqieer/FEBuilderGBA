@@ -183,6 +183,11 @@ namespace FEBuilderGBA.CLI
             {
                 Log.Error("Failed to init EventScripts: {0}", ex.Message);
             }
+
+            // #1035: wire the patch-scan hardcode cache (replacing the no-op
+            // HeadlessAsmMapCache). Lazy — it only scans config/patch2 on the
+            // first IsHardCode* read, so this is cheap to set up here.
+            CoreState.AsmMapFileAsmCache = new CoreAsmMapCache(CoreState.ROM);
         }
     }
 }
