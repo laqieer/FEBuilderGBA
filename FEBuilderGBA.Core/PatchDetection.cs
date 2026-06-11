@@ -421,6 +421,49 @@ namespace FEBuilderGBA
             return SearchPatchBool(rom, ChapterNameToTextPatchTable);
         }
 
+        // ---- AntiHuffman (un-Huffman) patch detector (#1028 Slice D) ----
+        //
+        // Cross-platform port of WinForms PatchUtil.SearchAntiHuffmanPatch_Low
+        // (PatchUtil.cs:333-345). Detects whether the un-Huffman text patch is
+        // installed so the Text Editor's WriteText flow can decide between the
+        // Huffman-encode fallback and the "install AntiHuffman" prompt — exactly
+        // like WF TextForm.WriteText / NeedAntiHuffman.
+        //
+        // The same six signatures previously lived ONLY in Avalonia
+        // PatchDetectionService.DetectAntiHuffman; that method now delegates here
+        // so there is a single source of truth (no third copy in PatchMetadataCore,
+        // which is about config patch metadata). Covers both FE8U signatures at
+        // 0x2BA4 — the normal one and AntiHuffman_snake1.
+
+        static readonly PatchTableSt[] AntiHuffmanTable = new PatchTableSt[] {
+            new PatchTableSt{ name="AntiHuffman",        ver = "FE6",  addr = 0x384c,  data = new byte[]{0x03, 0xB5, 0x02, 0xB0}},
+            new PatchTableSt{ name="AntiHuffman",        ver = "FE7J", addr = 0x13324, data = new byte[]{0x02, 0x49, 0x28, 0x1C}},
+            new PatchTableSt{ name="AntiHuffman",        ver = "FE8J", addr = 0x2af4,  data = new byte[]{0x00, 0xB5, 0xC2, 0x0F}},
+            new PatchTableSt{ name="AntiHuffman",        ver = "FE7U", addr = 0x12C6C, data = new byte[]{0x02, 0x49, 0x28, 0x1C}},
+            new PatchTableSt{ name="AntiHuffman",        ver = "FE8U", addr = 0x2BA4,  data = new byte[]{0x00, 0xB5, 0xC2, 0x0F}},
+            new PatchTableSt{ name="AntiHuffman_snake1", ver = "FE8U", addr = 0x2ba4,  data = new byte[]{0x78, 0x47, 0xC0, 0x46}},
+        };
+
+        /// <summary>
+        /// True when the "AntiHuffman" (un-Huffman) text patch is installed in
+        /// <paramref name="rom"/>. Cross-platform port of WinForms
+        /// <c>PatchUtil.SearchAntiHuffmanPatch</c>. Returns false on null ROM and
+        /// on any version whose signature does not match. Covers both FE8U
+        /// signatures at 0x2BA4 (normal + AntiHuffman_snake1).
+        /// </summary>
+        public static bool SearchAntiHuffmanPatch(ROM rom)
+        {
+            return SearchPatchBool(rom, AntiHuffmanTable);
+        }
+
+        /// <summary>
+        /// Ambient-ROM overload. Reads <see cref="CoreState.ROM"/>.
+        /// </summary>
+        public static bool SearchAntiHuffmanPatch()
+        {
+            return SearchAntiHuffmanPatch(CoreState.ROM);
+        }
+
         // ---- Class skill extends (SkillSystem) ----
         // The CSkillSys "class skill extends" patch detector now lives in
         // FEBuilderGBA.Core/SkillSystemPatchScanner.cs as

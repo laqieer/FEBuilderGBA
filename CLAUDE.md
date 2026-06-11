@@ -496,6 +496,8 @@ Specialized utilities for different graphic types:
   RESOLVED track-data offset (not a pointer slot) with EOF-guarded B2/B3 `p32` + note GTP reads. Wires the
   Avalonia stub `SongTrackChangeTrackView` and completes `SongTrackAllChangeTrackView`'s Vol/Pan/Tempo (one
   ambient scope across ALL tracks; `HasPendingChanges` true for nudge-only edits). SongExchange + Import-Select-Instrument are separate slices.
+- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor "Include AI Hints" export (#1028 Slice C): faithful WF `UnitForm.GetTranslateInfoByFaceID` (unit-table-by-face-at-+6 only, no class fallback, uncached, impossible `(f2&0x80)==0x20` WF quirk kept verbatim, `R._(" 主人公")`… descriptors) + `AppendAIHintMessage` (both escape forms, dedup, mob fallback); Avalonia `ExportAllTexts(path,includeAIHints)` appends into the TSV Text column CR/LF-flattened (no column corruption).
+- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): single source for the 6 un-Huffman sigs (both FE8U @0x2BA4 incl. snake1); `PatchDetectionService.DetectAntiHuffman` delegates. `TextViewerViewModel.WriteText` = WF flow (encode-fail→missing→injectable `AntiHuffmanPromptCallback` shows `TextBadCharPopupView`→re-check→ABORT via `EncodeAbortedException` no-mutation, else UnHuffman); View owns the modal, ja/zh/ko gated.
 
 ### Caching System
 

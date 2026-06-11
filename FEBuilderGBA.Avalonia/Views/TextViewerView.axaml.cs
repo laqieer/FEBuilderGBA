@@ -356,7 +356,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = file?.TryGetLocalPath();
                 if (path == null) return;
 
-                int count = _vm.ExportAllTexts(path);
+                // #1028 Slice C: thread the "Include AI Hints" checkbox state
+                // into the export so per-entry face translate-info lines are
+                // appended when requested.
+                bool includeAIHints = IncludeAIHintsCheck.IsChecked == true;
+                int count = _vm.ExportAllTexts(path, includeAIHints);
                 await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
@@ -391,10 +395,66 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnWriteTextClick(object? sender, RoutedEventArgs e)
+        // #1028 Slice D — injectable interaction seams so the bad-char routing can
+        // be unit-tested without a real Window (Copilot PR #1107 findings 1 & 2).
+        // Defaults call the real Avalonia modal dialogs; tests substitute fakes.
+
+        /// <summary>
+        /// Shows the bad-character popup modally and AWAITS the chosen action
+        /// ("GiveUp" / "AntiHuffman" / "EncodingTable" / null on close). Injectable.
+        /// </summary>
+        internal Func<string, Task<string?>> ShowBadCharPopupAsync;
+
+        /// <summary>
+        /// Opens the Patch Manager MODALLY and AWAITS it, so the user can install
+        /// the AntiHuffman patch before the caller re-checks. Injectable.
+        /// </summary>
+        internal Func<Task> OpenPatchManagerModalAsync;
+
+        Task<string?> ShowBadCharPopupDefaultAsync(string error)
+        {
+            string dialogText = R.Error("文字:{0}はシステムに登録されていません。", error);
+            var popup = new TextBadCharPopupView(dialogText);
+            return popup.ShowDialog<string?>(this);
+        }
+
+        Task OpenPatchManagerModalDefaultAsync()
+        {
+            // Open the Patch Manager as a MODAL dialog and AWAIT it — WriteText's
+            // subsequent re-check only sees a freshly-installed patch if we block
+            // here until the user closes the Patch Manager (Copilot finding 1).
+            return WindowManager.Instance.OpenModal<PatchManagerView>(this);
+        }
+
+        async void OnWriteTextClick(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
             string editedText = EditTextBox.Text ?? "";
+
+            // #1028 Slice D: WF TextForm.WriteText flow. Pre-flight the Huffman
+            // encode (no mutation). On a bad-character failure, if the AntiHuffman
+            // patch is missing, run the WF NeedAntiHuffman interaction (popup for
+            // ja/zh/ko, Patch Manager for other langs) AWAITING the modal so a
+            // freshly-installed patch is visible to the re-check. Then VM.WriteText
+            // re-checks the patch and either UnHuffman-encodes (patch now present)
+            // or aborts with no mutation. The async dialogs are orchestrated HERE
+            // (the VM stays synchronous + UI-free).
+            ROM rom = CoreState.ROM;
+            string? encodeError = (rom != null) ? _vm.PeekEncodeError(editedText) : null;
+            if (encodeError != null && rom != null
+                && !PatchDetection.SearchAntiHuffmanPatch(rom))
+            {
+                await ResolveAntiHuffmanInteractionAsync(encodeError);
+            }
+
+            // The async prompt (if any) has already run — including AWAITING any
+            // modal Patch Manager so an install is committed before this point.
+            // Give WriteText a synchronous re-check callback that simply reports the
+            // CURRENT patch state — never re-prompts on the UI thread from inside
+            // the sync VM.
+            _vm.AntiHuffmanPromptCallback = _ => CoreState.ROM != null
+                && PatchDetection.SearchAntiHuffmanPatch(CoreState.ROM);
+
             _undoService.Begin("Edit Text");
             try
             {
@@ -407,11 +467,77 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadList(); // refresh list preview
             }
+            catch (TextViewerViewModel.EncodeAbortedException ex)
+            {
+                // WF-faithful abort: no ROM mutation, no undo commit.
+                _undoService.Rollback();
+                WriteStatusLabel.Text = ex.Message;
+            }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 WriteStatusLabel.Text = $"Write failed: {ex.Message}";
                 Log.Error("WriteText failed: {0}", ex.Message);
+            }
+            finally
+            {
+                _vm.AntiHuffmanPromptCallback = null;
+            }
+        }
+
+        /// <summary>
+        /// Language gate for the bad-character popup, mirroring WF
+        /// <c>TextForm.NeedAntiHuffman</c> which opens <c>TextBadCharPopupForm</c>
+        /// only for ja/zh/ko (other languages route to the AntiHuffman patch
+        /// recommendation instead — here, the Patch Manager).
+        /// </summary>
+        internal static bool IsBadCharPopupLanguage()
+        {
+            string lang = CoreState.Language ?? "";
+            return lang == "ja" || lang == "zh" || lang == "ko";
+        }
+
+        /// <summary>
+        /// Run the WF <c>NeedAntiHuffman</c> bad-character interaction (#1028 Slice D),
+        /// AWAITING every modal so the subsequent <c>PatchDetection.SearchAntiHuffmanPatch</c>
+        /// re-check (in <see cref="OnWriteTextClick"/>) sees a freshly-installed patch.
+        /// Routing (Copilot PR #1107 findings 1 &amp; 2):
+        /// <list type="bullet">
+        ///   <item><b>ja/zh/ko</b>: show <c>TextBadCharPopupView</c>; on the
+        ///   <c>"AntiHuffman"</c> choice, open the Patch Manager MODALLY and AWAIT it
+        ///   (so install→re-check→proceed works); <c>GiveUp</c>/<c>EncodingTable</c>/
+        ///   close are no-ops (WriteText then re-checks and aborts if unresolved —
+        ///   the Encoding-Table char-code editor is not yet ported to Avalonia).</item>
+        ///   <item><b>other languages</b>: route directly to the Patch Manager
+        ///   (MODAL + AWAIT) so the user gets actionable guidance to install
+        ///   AntiHuffman instead of a silent abort with no UI.</item>
+        /// </list>
+        /// Both injectable seams default to the real Avalonia dialogs; tests
+        /// substitute fakes to assert the routing without a real Window.
+        /// </summary>
+        internal async Task ResolveAntiHuffmanInteractionAsync(string error)
+        {
+            var showPopup = ShowBadCharPopupAsync ?? ShowBadCharPopupDefaultAsync;
+            var openPatchManager = OpenPatchManagerModalAsync ?? OpenPatchManagerModalDefaultAsync;
+
+            if (IsBadCharPopupLanguage())
+            {
+                string? action = await showPopup(error);
+                if (action == "AntiHuffman")
+                {
+                    // Open the Patch Manager MODALLY + AWAIT so the install is
+                    // committed before WriteText re-checks (Copilot finding 1).
+                    await openPatchManager();
+                }
+                // GiveUp / EncodingTable / null (closed): no navigation.
+            }
+            else
+            {
+                // Non-ja/zh/ko: WF routes English to the patch recommendation flow.
+                // Open the Patch Manager (modal + await) so the user has actionable
+                // guidance to install AntiHuffman, instead of a silent abort with no
+                // UI (Copilot finding 2).
+                await openPatchManager();
             }
         }
 

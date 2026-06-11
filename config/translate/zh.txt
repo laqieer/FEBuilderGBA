@@ -21839,6 +21839,9 @@ ED 关系
 :Include AI Hints
 添加 AI 登场人物提示
 
+:Append unit translate-info hints (name/role/flags) for every face the text loads.
+为文本加载的每个头像追加单位翻译信息提示（姓名/角色/标志）。
+
 :Export Limit:
 导出限制：
 
