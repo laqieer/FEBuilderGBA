@@ -10617,3 +10617,30 @@ A: TSAを利用しないBG224色(会話用)
 :Import a county border image (assembles OAM/AP). Requires a companion _NAME image in the same folder.
 国境画像をインポートします(OAM/APを組み立てます)。同じフォルダに_NAMEのコンパニオン画像が必要です。
 
+:Reassign every instrument voice used across all tracks of this song, and/or nudge the song-wide Volume, Pan, and Tempo. Set the targets/deltas, then Apply.
+この曲の全トラックで使用されている楽器ボイスを再割り当てし、曲全体の音量・パン・テンポを微調整します。対象や増減値を設定してから「適用」してください。
+
+:Reassign the instrument voices used by this track, and/or nudge its Volume and Pan. Set the targets/deltas, then Apply.
+このトラックで使用されている楽器ボイスを再割り当てし、音量とパンを微調整します。対象や増減値を設定してから「適用」してください。
+
+:Volume delta:
+音量の増減:
+
+:Pan delta:
+パンの増減:
+
+:Tempo delta:
+テンポの増減:
+
+:Also nudge note velocities by Volume delta
+音量の増減でノートのベロシティも調整する
+
+:No track changes to apply.
+適用するトラックの変更がありません。
+
+:Track changes applied.
+トラックの変更を適用しました。
+
+:Apply failed: {0}
+適用に失敗しました: {0}
+

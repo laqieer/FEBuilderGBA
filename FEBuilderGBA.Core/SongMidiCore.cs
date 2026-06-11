@@ -267,6 +267,56 @@ namespace FEBuilderGBA
             trackaddr = U.toOffset(trackaddr);
             track.basepointer = trackpointer;
 
+            ParseTrackLoop(rom, trackaddr, limitter, track);
+            return track;
+        }
+
+        /// <summary>
+        /// Parse a single track whose DATA begins at <paramref name="trackDataOffset"/>
+        /// (a resolved ROM offset, e.g. WinForms <c>SongUtil.Track.basepointer</c> /
+        /// Avalonia <c>TrackInfo.DataOffset</c>) — NOT a 4-byte pointer-slot address.
+        /// <para>
+        /// This is the counterpart to the private <see cref="ParseTrackOne"/>, which
+        /// takes the address of the pointer SLOT and dereferences it. Callers that
+        /// already hold the resolved track-data offset (the single-track Track Change
+        /// editor) MUST use this method — feeding the data offset to a pointer-slot
+        /// parser would misread the first 4 bytes as a pointer.
+        /// </para>
+        /// <para>
+        /// HARDENED (#1002): the shared parse loop bounds-guards every multi-byte read
+        /// (the 0xB2/0xB3 <c>p32(addr+1)</c> loop address, the 0xB9 <c>addr+3</c> read,
+        /// and the note <c>addr+3</c> GTP read) and treats a truncated/malformed stream
+        /// as a parse stop — it returns the codes parsed so far (possibly empty),
+        /// never reads out of bounds, and never throws.
+        /// </para>
+        /// </summary>
+        /// <param name="rom">The loaded ROM.</param>
+        /// <param name="trackDataOffset">Resolved ROM offset where the track data begins.</param>
+        /// <returns>The parsed track (empty / partial on a guard failure or corrupt stream).</returns>
+        public static Track ParseSingleTrackFromDataOffset(ROM rom, uint trackDataOffset)
+        {
+            var track = new Track();
+            if (rom == null || rom.Data == null) return track;
+
+            uint trackaddr = U.toOffset(trackDataOffset);
+            uint limitter = (uint)rom.Data.Length;
+            if (!U.isSafetyOffset(trackaddr, rom)) return track;
+            track.basepointer = trackaddr;
+
+            ParseTrackLoop(rom, trackaddr, limitter, track);
+            return track;
+        }
+
+        /// <summary>
+        /// Shared track-stream decode loop used by both <see cref="ParseTrackOne"/>
+        /// (pointer-slot entry) and <see cref="ParseSingleTrackFromDataOffset"/>
+        /// (data-offset entry). EOF-hardened (#1002): every multi-byte read is
+        /// bounds-checked against <paramref name="limitter"/> BEFORE the read, so a
+        /// truncated/corrupt stream stops parsing cleanly instead of reading OOB or
+        /// throwing.
+        /// </summary>
+        static void ParseTrackLoop(ROM rom, uint trackaddr, uint limitter, Track track)
+        {
             uint lastCommand = 0;
             uint waitCount = 0;
 
@@ -283,6 +333,10 @@ namespace FEBuilderGBA
                 }
                 else if (b == 0xB2 || b == 0xB3)
                 {
+                    // HARDEN (#1002): p32(addr+1) reads addr+1..addr+4 — guard the
+                    // FULL 4-byte span so a loop code at the very end of a truncated
+                    // stream does not read past EOF / throw.
+                    if (addr + 4 >= limitter) break;
                     uint loopaddr = rom.p32(addr + 1);
                     track.codes.Add(new Code(addr, waitCount, b, loopaddr));
                     addr += 5;
@@ -332,16 +386,28 @@ namespace FEBuilderGBA
                         uint velocity = rom.u8(addr + 2);
                         if (velocity <= 127)
                         {
-                            uint gtp = rom.u8(addr + 3);
-                            if (CheckGTPRange(gtp))
-                            {
-                                track.codes.Add(new Code(addr, waitCount, b, key, velocity, gtp));
-                                addr += 4;
-                            }
-                            else
+                            // HARDEN (#1002): the GTP read at addr+3 was previously
+                            // unguarded — a note at the very end of a truncated stream
+                            // could read past EOF / throw. Treat a missing GTP byte as
+                            // "no GTP" (the same shape WF produces for velocity-only).
+                            if (addr + 3 >= limitter)
                             {
                                 track.codes.Add(new Code(addr, waitCount, b, key, velocity));
                                 addr += 3;
+                            }
+                            else
+                            {
+                                uint gtp = rom.u8(addr + 3);
+                                if (CheckGTPRange(gtp))
+                                {
+                                    track.codes.Add(new Code(addr, waitCount, b, key, velocity, gtp));
+                                    addr += 4;
+                                }
+                                else
+                                {
+                                    track.codes.Add(new Code(addr, waitCount, b, key, velocity));
+                                    addr += 3;
+                                }
                             }
                         }
                         else
@@ -388,7 +454,6 @@ namespace FEBuilderGBA
                     lastCommand = 0;
                 }
             }
-            return track;
         }
 
         static void InsertLoopLabels(List<Track> tracks)

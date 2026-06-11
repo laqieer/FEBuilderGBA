@@ -24455,3 +24455,30 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Import a county border image (assembles OAM/AP). Requires a companion _NAME image in the same folder.
 导入国境图像(组装OAM/AP)。需要同一文件夹中有_NAME配套图像。
 
+:Reassign every instrument voice used across all tracks of this song, and/or nudge the song-wide Volume, Pan, and Tempo. Set the targets/deltas, then Apply.
+重新分配此乐曲所有音轨中使用的乐器音色，并/或微调整乐曲整体的音量、声相和速度。设置目标/增量后点击「应用」。
+
+:Reassign the instrument voices used by this track, and/or nudge its Volume and Pan. Set the targets/deltas, then Apply.
+重新分配此音轨使用的乐器音色，并/或微调其音量和声相。设置目标/增量后点击「应用」。
+
+:Volume delta:
+音量增量:
+
+:Pan delta:
+声相增量:
+
+:Tempo delta:
+速度增量:
+
+:Also nudge note velocities by Volume delta
+同时按音量增量调整音符力度
+
+:No track changes to apply.
+没有需要应用的音轨更改。
+
+:Track changes applied.
+音轨更改已应用。
+
+:Apply failed: {0}
+应用失败: {0}
+
