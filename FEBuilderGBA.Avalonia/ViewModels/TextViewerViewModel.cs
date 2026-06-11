@@ -264,7 +264,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (rom?.RomInfo == null || rom.Data == null) return new List<string>();
 
                 var tables = TextRefTableRegistry.BuildForRom(rom);
-                return TextReferenceFinder.Find(rom, textId, tables);
+                var refs = TextReferenceFinder.Find(rom, textId, tables);
+
+                // #1028 Slice A review fix: mirror WinForms TextForm.UpdateRef,
+                // which appends the user/system text-id reference comment from
+                // Program.UseTextIDCache.MakeUseTextID(id) as an extra ref row.
+                // Without this the just-added reference never shows in the list
+                // (TextReferenceFinder only scans ROM tables). Query the typed
+                // CoreState.UseTextIDCache and, when it returns a non-empty
+                // comment, add a styled row consistent with the ROM-table rows.
+                string comment = CoreState.UseTextIDCache?.GetName(textId) ?? "";
+                if (comment.Length > 0)
+                {
+                    refs.Add(R._("Reference: {0}", comment));
+                }
+                return refs;
             }
             catch (Exception ex)
             {

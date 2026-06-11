@@ -124,7 +124,7 @@ namespace FEBuilderGBA
         public static EventScript AIScript { get; set; }
         public static FETextEncode FETextEncoder { get; set; }
         public static TextEscape TextEscape { get; set; }
-        public static object UseTextIDCache { get; set; }
+        public static ITextIDCache UseTextIDCache { get; set; }
         public static EtcCacheFLag FlagCache { get; set; }
         public static object ResourceCache { get; set; }
         public static ExportFunction ExportFunction { get; set; }

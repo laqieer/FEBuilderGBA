@@ -314,13 +314,26 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReferencesTab_List"));
         }
 
+        // #1028 Slice A: the Add Reference button is now ENABLED and wired to the
+        // OnAddReferenceClick handler (opens TextRefAddDialog; persists via the
+        // ITextIDCache Core seam). Previously a disabled out-of-scope stub.
         [AvaloniaFact]
-        public void View_Hosts_AddReference_Button_DisabledByDefault()
+        public void View_Hosts_AddReference_Button_EnabledAndWired()
         {
             var view = new TextViewerView();
             var btn = FindByAutomationId<Button>(view, "TextViewer_AddReference_Button");
             Assert.NotNull(btn);
-            Assert.False(btn!.IsEnabled);
+            Assert.True(btn!.IsEnabled);
+
+            // The Click handler must be wired. Avalonia's Button raises Click as a
+            // routed event; assert a handler subscription exists via the click
+            // command being absent but the routed Click handler attached. We can't
+            // read XAML-attached handlers via public API, so assert the handler
+            // method exists on the view type (compile-time + reflection guard).
+            var handler = typeof(TextViewerView).GetMethod(
+                "OnAddReferenceClick",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.NotNull(handler);
         }
 
         [AvaloniaFact]
@@ -328,6 +341,48 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             var view = new TextViewerView();
             Assert.NotNull(FindByAutomationIdAny(view, "TextViewer_ReferencesTabStatus_Label"));
+        }
+
+        // ---- #1028 Slice A: TextRefAddDialog Init + GetComment WF blank convention ----
+
+        [Fact]
+        public void TextRefAddDialogVm_Init_SeedsIdAndComment_AndLocks()
+        {
+            var vm = new TextRefAddDialogViewModel();
+            vm.Init(0x42, "existing");
+            Assert.Equal(0x42, vm.RefId);
+            Assert.Equal("existing", vm.Comment);
+            Assert.True(vm.IsTextIdLocked);
+        }
+
+        [Fact]
+        public void TextRefAddDialogVm_GetComment_NewBlankEntry_StoresSingleSpace()
+        {
+            // WF parity (TextRefAddDialogForm.GetComment): a blank comment on a NEW
+            // entry (no original) is kept as a single space so the ref is retained.
+            var vm = new TextRefAddDialogViewModel();
+            vm.Init(0x1, "");      // new entry, no existing comment
+            vm.Comment = "";       // user leaves it blank
+            Assert.Equal(" ", vm.GetComment());
+        }
+
+        [Fact]
+        public void TextRefAddDialogVm_GetComment_ClearExistingEntry_ReturnsEmpty()
+        {
+            // Clearing an EXISTING entry returns "" so Update removes it (WF parity).
+            var vm = new TextRefAddDialogViewModel();
+            vm.Init(0x1, "was here"); // existing comment
+            vm.Comment = "";          // user clears it
+            Assert.Equal("", vm.GetComment());
+        }
+
+        [Fact]
+        public void TextRefAddDialogVm_GetComment_NonEmpty_PassesThrough()
+        {
+            var vm = new TextRefAddDialogViewModel();
+            vm.Init(0x1, "old");
+            vm.Comment = "new comment";
+            Assert.Equal("new comment", vm.GetComment());
         }
 
         // ---- Tab count ----
@@ -357,16 +412,21 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ============================================================
 
         [Fact]
-        public void View_HasNavigationTargetManifest_With_Zero_Entries()
+        public void View_HasNavigationTargetManifest_With_AddReference_Entry()
         {
-            // TextViewerViewModel implements INavigationTargetSource (per WU2),
-            // and returns an empty manifest because zero outgoing
-            // WindowManager.Navigate<T> callsites are wired in this PR.
+            // #1028 Slice A: the manifest now has exactly ONE entry — the
+            // References-tab "Add Reference" modal-dialog jump (OnAddReference ->
+            // TextRefAddDialogView). The other 5 WF jumps remain blocked on Core
+            // extractions (see the manifest file's per-jump rationale).
             var vm = new TextViewerViewModel();
             Assert.IsAssignableFrom<INavigationTargetSource>(vm);
             var targets = ((INavigationTargetSource)vm).GetNavigationTargets();
             Assert.NotNull(targets);
-            Assert.Empty(targets);
+            var entry = Assert.Single(targets);
+            Assert.Equal("OnAddReference", entry.CommandName);
+            Assert.Equal(typeof(TextRefAddDialogView), entry.TargetViewType);
+            Assert.Null(entry.TargetAddress);
+            Assert.Null(entry.IssueRef);
         }
 
         // ============================================================

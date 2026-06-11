@@ -5,7 +5,7 @@ using System.Text;
 
 namespace FEBuilderGBA
 {
-    class EtcCacheTextID
+    class EtcCacheTextID : ITextIDCache
     {
         Dictionary<uint, string> EtcTextID;
         Dictionary<uint, string> TextID;

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Navigation manifest for TextViewerViewModel (#404 / #374 Phase 4).
+// Navigation manifest for TextViewerViewModel (#404 / #374 Phase 4; #1028 Slice A).
 //
 // Per strict AIScript precedent (#410 / PR #571 Copilot CLI review #2), manifest
-// rows correspond ONLY to working `WindowManager.Navigate<>` callsites that the
-// PR ACTUALLY wires in the View code-behind. WF `TextForm` has 6 outgoing
-// jumps, but every one of them depends on a Core extraction not yet completed
-// in this PR:
+// rows correspond ONLY to working navigation callsites that the PR ACTUALLY wires
+// in the View code-behind. WF `TextForm` has 6 outgoing jumps; #1028 Slice A wires
+// the FIRST of them (the References-tab "Add Reference" modal dialog). The other 5
+// remain blocked on Core extractions not yet completed:
 //
 //   * `TextScriptCategorySelectForm` — opened from the rich-text bracket
 //     dispatch context menu (`SelectEscapeText` in WF TextForm). Depends on
@@ -26,26 +26,20 @@
 //     gap tracked separately. The popup view itself exists in Avalonia
 //     (`TextBadCharPopupView`) but the trigger logic doesn't.
 //
-//   * `TextRefAddDialogForm` — opened from `AddRefButton_Click` in the
-//     WF RefPage. Depends on `UseTextIDCache.Update` Core extraction not
-//     yet completed (the field is `object` in `CoreState`). The Avalonia
-//     References tab in this PR shows a disabled "Add Reference" button
-//     with a tooltip explaining the Core gap.
+// #1028 Slice A closes the `TextRefAddDialog` jump: `OnAddReferenceClick` opens
+// `TextRefAddDialogView` modally (pre-filled with the selected text id + its
+// existing reference comment) and persists the result via the `ITextIDCache`
+// Core seam (Update + Save). This is a modal-dialog jump (opened via
+// `ShowDialog`, not `WindowManager.Navigate`), so it follows the
+// EventUnitViewModel `JumpToNewAlloc`/`JumpToItemDrop` precedent: a manifest
+// entry with `TargetAddress: null` (the text id is resolved at click time).
 //
-// Until those Core extractions land, declaring manifest entries for any of
-// these jumps would create FALSE PARITY in the gap-sweep scanner: the
-// scanner reports "wired" when no actual click handler exists in the view.
-// Per the strict AIScript precedent, the truthful state is an EMPTY manifest.
-// The 6 WF outgoing jumps remain "MissingAvManifest" rows in the jumps-sweep
-// — this is the accurate signal until the relevant Core extractions land.
-//
-// `INavigationTargetSource` is implemented (not absent) so the gap-sweep
-// scanner's reflection-based discovery records "zero wired entries" rather
-// than "interface not implemented at all". Both states are semantically
-// identical for the scanner but the explicit declaration is documentation.
-using System;
+// Until the remaining Core extractions land, declaring manifest entries for
+// those 5 jumps would create FALSE PARITY in the gap-sweep scanner. Per the
+// strict AIScript precedent, only the truthfully-wired jump is declared here.
 using System.Collections.Generic;
 using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.Views;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
@@ -53,11 +47,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     {
         public IReadOnlyList<NavigationTarget> GetNavigationTargets()
         {
-            // Empty manifest: zero outgoing WindowManager.Navigate<T> callsites
-            // wired in TextViewerView.axaml.cs as of this PR. See the file-level
-            // comment for the per-jump scope rationale (Core extractions
-            // blocking each of the 6 WF outgoing jumps).
-            return Array.Empty<NavigationTarget>();
+            return new[]
+            {
+                // References-tab "Add Reference" (#1028 Slice A). Opened modally
+                // via TextViewerView.OnAddReferenceClick -> ShowDialog. The text id
+                // is the currently-selected text, resolved at click time, so
+                // TargetAddress is the null "no static target" sentinel (same as
+                // the EventUnit New-Alloc / Item-Drop modal-dialog entries).
+                new NavigationTarget(
+                    CommandName: "OnAddReference",
+                    TargetViewType: typeof(TextRefAddDialogView),
+                    TargetAddress: null),
+            };
         }
     }
 }
