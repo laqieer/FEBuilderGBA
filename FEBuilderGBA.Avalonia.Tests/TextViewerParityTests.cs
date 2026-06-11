@@ -172,12 +172,16 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void View_Hosts_ExportFilter_Combo_DisabledByDefault()
+        public void View_Hosts_ExportFilter_Combo_Enabled()
         {
+            // #1028 Slice B enabled the Export Filter combo: it filters the TSV
+            // export to a single WF MakeVarsIDArray category (faithful WF parity).
             var view = new TextViewerView();
             var combo = FindByAutomationId<ComboBox>(view, "TextViewer_ExportFilter_Combo");
             Assert.NotNull(combo);
-            Assert.False(combo!.IsEnabled);
+            Assert.True(combo!.IsEnabled);
+            // Default selection is "All" (index 0 = no filter).
+            Assert.Equal(0, combo.SelectedIndex);
         }
 
         [AvaloniaFact]

@@ -41,16 +41,33 @@ namespace FEBuilderGBA.Avalonia.Views
             // Lazy-load the Conversation Viewer tab: defer the parse + portrait
             // decode work until the user actually activates that tab.
             EditorTabs.SelectionChanged += OnEditorTabChanged;
+            // Populate the Export Filter combo in the ctor (deterministic — no
+            // dependency on the Opened event) so SelectedIndex="0" resolves.
+            PopulateExportFilterCombo();
             Opened += (_, _) =>
             {
                 LoadList();
                 PopulateAddressBar();
                 // Export Limit descriptor — describes the export filter that
                 // will be applied. WF `TextForm.textBox1` shows the same kind
-                // of read-only stub label. Both depend on `ToolTranslateROM`
-                // Core extraction (same blocker as `ExportFilterCombo`).
-                ExportLimitBox.Text = R._("All (out-of-scope)");
+                // of read-only stub label.
+                ExportLimitBox.Text = R._("All");
             };
+        }
+
+        /// <summary>
+        /// Populate the Export Filter combo with the 11 WF categories in WF order
+        /// (#1028 Slice B). Index 0 = All (no filter); 1..10 map 1:1 to the WF
+        /// <c>ToolTranslateROM.InitExportFilter</c> filter values.
+        /// </summary>
+        void PopulateExportFilterCombo()
+        {
+            if (ExportFilterCombo.ItemCount > 0) return; // already populated
+            foreach (string key in ExportFilterCore.FilterLabelKeys)
+            {
+                ExportFilterCombo.Items.Add(new ComboBoxItem { Content = R._(key) });
+            }
+            ExportFilterCombo.SelectedIndex = 0;
         }
 
         /// <summary>
@@ -360,7 +377,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 // into the export so per-entry face translate-info lines are
                 // appended when requested.
                 bool includeAIHints = IncludeAIHintsCheck.IsChecked == true;
-                int count = _vm.ExportAllTexts(path, includeAIHints);
+                // #1028 Slice B: thread the Export Filter category. SelectedIndex
+                // maps 1:1 to the WF filter value (0 = All).
+                int filterIndex = ExportFilterCombo.SelectedIndex;
+                int count = _vm.ExportAllTexts(path, includeAIHints, filterIndex);
                 await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)

@@ -696,23 +696,45 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public int ExportAllTexts(string path)
         {
-            return ExportAllTexts(path, includeAIHints: false);
+            return ExportAllTexts(path, includeAIHints: false, filterIndex: 0);
         }
 
         /// <summary>
-        /// Export all ROM texts to a TSV file. When <paramref name="includeAIHints"/>
+        /// Back-compat 2-arg overload (no export filter = All).
+        /// </summary>
+        public int ExportAllTexts(string path, bool includeAIHints)
+        {
+            return ExportAllTexts(path, includeAIHints, filterIndex: 0);
+        }
+
+        /// <summary>
+        /// Export ROM texts to a TSV file. When <paramref name="includeAIHints"/>
         /// is true, the AI-translation hint block (WF
         /// <c>ToolTranslateROM.AppendAIHintMessage</c>) for each entry is appended
         /// to that row's Text column — escaped like the rest of the column (CR/LF
         /// flattened to <c>\n</c>) so TSV columns are NOT corrupted. The hints are
         /// the unit translate-info lines for every face the text loads (#1028 Slice C).
+        ///
+        /// <paramref name="filterIndex"/> applies the WF Export Filter category
+        /// (#1028 Slice B): 0 / invalid = All (no filter); 1..10 keep only the
+        /// text ids that <see cref="ExportFilterCore.BuildFilteredTextIds"/>
+        /// collects for that category, mirroring WF
+        /// <c>ToolTranslateROM.InitExportFilter</c> + the per-form MakeVarsIDArray
+        /// methods exactly.
         /// </summary>
-        public int ExportAllTexts(string path, bool includeAIHints)
+        public int ExportAllTexts(string path, bool includeAIHints, int filterIndex)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null || rom.Data == null) return 0;
 
             var entries = TranslateCore.DumpTexts(rom);
+
+            // #1028 Slice B: apply the Export Filter category. null => All.
+            HashSet<uint> keep = ExportFilterCore.BuildFilteredTextIds(rom, filterIndex);
+            if (keep != null)
+            {
+                entries = entries.FindAll(e => keep.Contains(e.textId));
+            }
 
             if (includeAIHints)
             {

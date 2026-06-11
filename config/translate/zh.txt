@@ -24485,3 +24485,6 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Apply failed: {0}
 应用失败: {0}
 
+:Filter the TSV export to a single text category (WF parity).
+将 TSV 导出筛选为单一文本类别（WF 兼容）。
+
