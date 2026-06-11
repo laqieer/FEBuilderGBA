@@ -302,7 +302,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     try
                     {
-                        var used = MakeVarsIDArrayCore.BuildAllUsedRefs(rom);
+                        // GetCachedUsedRefs caches the union per ROM instance (WF's
+                        // cached GetVarsIDArray), so repeated selections of texts that
+                        // are referenced only via EventCond/asmmap/patch don't re-run
+                        // the full ROM-wide scan each time.
+                        var used = MakeVarsIDArrayCore.GetCachedUsedRefs(rom);
                         if (used.TextIds.Contains(textId))
                         {
                             refs.Add(R._("Referenced (event/menu/patch/symbol)"));

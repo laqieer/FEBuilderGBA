@@ -45,10 +45,62 @@ namespace FEBuilderGBA
             public HashSet<uint> SongIds { get; } = new HashSet<uint>();
         }
 
+        // Per-ROM-instance cache for the union (the WinForms equivalent is the
+        // cached AsmMapFileAsmCache.GetVarsIDArray). BuildAllUsedRefs does a full
+        // ROM-wide scan (EventCond + patch-dir walk + asmmap reads), so the
+        // Avalonia cross-reference path — invoked on every text selection — reuses
+        // a cached union via GetCachedUsedRefs instead of rescanning each time.
+        static ROM _cacheRom;
+        static UsedRefs _cacheRefs;
+
+        /// <summary>
+        /// Return the (cached) used-ref union for <paramref name="rom"/>. Builds it
+        /// once per ROM instance and reuses it on subsequent calls for the same
+        /// instance — mirrors the WinForms cached <c>GetVarsIDArray</c>. The cache
+        /// is ONLY populated when the event-scan prerequisites are met (active ROM +
+        /// EventScript + comment cache); otherwise it returns a freshly-built
+        /// (partial) union WITHOUT caching, so an early/headless call can't pin a
+        /// permanently-incomplete union (same cache-poisoning guard as
+        /// <c>BGReferenceFinder</c>). Strictly READ-ONLY.
+        /// </summary>
+        public static UsedRefs GetCachedUsedRefs(ROM rom)
+        {
+            if (rom?.RomInfo == null || rom.Data == null) return new UsedRefs();
+
+            bool prereqMet =
+                CoreState.EventScript != null
+                && CoreState.ROM != null
+                && ReferenceEquals(CoreState.ROM, rom)
+                && CoreState.CommentCache != null;
+
+            if (prereqMet && ReferenceEquals(_cacheRom, rom) && _cacheRefs != null)
+                return _cacheRefs;
+
+            var built = BuildAllUsedRefs(rom);
+            if (prereqMet)
+            {
+                _cacheRom = rom;
+                _cacheRefs = built;
+            }
+            return built;
+        }
+
+        /// <summary>
+        /// Drop the cached cross-reference union (call after a text write so the next
+        /// <see cref="GetCachedUsedRefs"/> rebuilds from the current ROM bytes). A ROM
+        /// reload already invalidates implicitly (new ROM instance = cache miss).
+        /// </summary>
+        public static void InvalidateCache()
+        {
+            _cacheRom = null;
+            _cacheRefs = null;
+        }
+
         /// <summary>
         /// Build every referenced TEXT id + SONG id for the loaded ROM, mirroring
         /// WinForms <c>U.MakeVarsIDArray</c>'s per-version dispatch. Strictly
-        /// READ-ONLY; never throws (each collector is guarded).
+        /// READ-ONLY; never throws (each collector is guarded). Prefer
+        /// <see cref="GetCachedUsedRefs"/> for hot paths (it caches per ROM instance).
         /// </summary>
         public static UsedRefs BuildAllUsedRefs(ROM rom)
         {
@@ -122,6 +174,10 @@ namespace FEBuilderGBA
         /// </summary>
         public static HashSet<uint> BuildFreeAreaUsedSet(ROM rom, ITextIDCache cache)
         {
+            // Free-area is an explicit on-click scan (not a hot path) and must
+            // reflect the CURRENT ROM bytes, so it builds FRESH (no cache) — a stale
+            // cache after a text edit could show wrong free slots. The hot
+            // cross-reference path uses GetCachedUsedRefs instead.
             var refs = BuildAllUsedRefs(rom);
             var used = new HashSet<uint>();
             used.Add(0); // WF: textmap[0] = true

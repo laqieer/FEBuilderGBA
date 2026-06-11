@@ -91,10 +91,18 @@ namespace FEBuilderGBA
                 return new FreeAreaResult { Status = ScanStatus.Definitive };
 
             var free = new List<uint>();
-            for (uint id = 0; id < 0x2000u; id++)
+            // WF InputFormRef.MakeList terminates at the first invalid text pointer
+            // (no fixed entry cap), so expanded/relocated text tables are fully
+            // walked. We bound the loop only by how many 4-byte slots physically fit
+            // between textBase and ROM end (a defensive upper bound — the real stop is
+            // the first-invalid-pointer break below), instead of a hard 0x2000 cap
+            // that would yield false negatives on ROMs with > 0x2000 text entries.
+            uint romLen = (uint)rom.Data.Length;
+            uint maxEntries = textBase < romLen ? (romLen - textBase) / 4u : 0u;
+            for (uint id = 0; id < maxEntries; id++)
             {
                 uint entryAddr = textBase + id * 4u;
-                if (entryAddr + 4 > (uint)rom.Data.Length) break;
+                if (entryAddr + 4 > romLen) break;
                 uint textPtr = rom.u32(entryAddr);
                 if (!IsValidTextPointer(textPtr)) break;
 

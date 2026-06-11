@@ -270,20 +270,25 @@ namespace FEBuilderGBA
             return list;
         }
 
-        // Port of InputFormRef.GetTypeLength (the {prefix} char → byte width).
-        // P=pointer(4), W=word(4), V=3, U=u16(2), T=text-u16(2), S=song-u16(2),
-        // H=u16(2), B=byte(1), F/G=flag... WF uses: P/W/D=4, T(text)=2, S(song)=2,
-        // and a leading length char. The shipped patches use:
-        //   T{n}:TEXT (2-byte text), S{n}:SONG (2-byte song), B{n}:TEXT/SONG (1-byte),
-        //   P{n}:EVENT (4-byte event pointer).
-        static uint GetTypeLength(char prefix)
+        // VERBATIM port of WinForms InputFormRef.GetTypeLength (InputFormRef.cs:5033):
+        //   B/b/l/h -> 1, W -> 2, D/P -> 4, everything else -> 0.
+        // Note: in MakeVarsIDArrayForStruct only `length == 1` takes the u8 path; any
+        // other length (0, 2, 4) falls into the u16 / EVENT-pointer branch. So a
+        // `T{n}`/`S{n}` prefix (not in the table -> 0) correctly reads a u16 text/song
+        // id, and `B{n}` (1) reads a u8 — matching WF byte-for-byte.
+        static uint GetTypeLength(char c)
         {
-            switch (prefix)
+            switch (c)
             {
-                case 'B': case 'b': return 1;
-                case 'W': case 'D': case 'P': case 'p': return 4;
-                default: return 2; // T/S/U/H/V… all 2-byte for the text/song/event path
+                case 'B': return 1;
+                case 'b': return 1;
+                case 'W': return 2;
+                case 'D': return 4;
+                case 'P': return 4;
+                case 'l': return 1;
+                case 'h': return 1;
             }
+            return 0;
         }
 
         // ---- shared address resolution (literal + $0x pointer only) -------
