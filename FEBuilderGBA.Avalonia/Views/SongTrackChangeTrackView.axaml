@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:FEBuilderGBA.Avalonia.Controls"
         x:Class="FEBuilderGBA.Avalonia.Views.SongTrackChangeTrackView"
-        Title="Track Change" Width="754" Height="560"
+        Title="Track Change" Width="754" Height="640"
         SizeToContent="WidthAndHeight">
   <Grid ColumnDefinitions="250,*">
     <controls:AddressListControl AutomationProperties.AutomationId="SongTrackChangeTrack_Entry_List" Grid.Column="0" Name="EntryList" Margin="4" />
@@ -15,6 +15,55 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SongTrackChangeTrack_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <TextBlock Text="Reassign the instrument voices used by this track, and/or nudge its Volume and Pan. Set the targets/deltas, then Apply."
+                   TextWrapping="Wrap" Opacity="0.8" />
+
+        <!-- Column captions for the voice-remap list. -->
+        <Grid ColumnDefinitions="80,120,*" Margin="0,4,0,0">
+          <TextBlock Grid.Column="0" Text="Voice" FontWeight="Bold" />
+          <TextBlock Grid.Column="1" Text="Target Voice" FontWeight="Bold" />
+          <TextBlock Grid.Column="2" Text="" FontWeight="Bold" />
+        </Grid>
+
+        <ListBox AutomationProperties.AutomationId="SongTrackChangeTrack_Voice_List"
+                 Name="VoiceList" ItemsSource="{Binding Rows}"
+                 MinHeight="180" MaxHeight="320">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid ColumnDefinitions="80,120,*">
+                <TextBlock Grid.Column="0" Text="{Binding From}" VerticalAlignment="Center" />
+                <NumericUpDown Grid.Column="1" Minimum="0" Maximum="127" Increment="1"
+                               Value="{Binding To, Mode=TwoWay}"
+                               FormatString="0" Margin="0,1" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Vol / Pan / Velocity nudge inputs (per-track VOL(0xBE)/PAN(0xBF)). -->
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Volume delta:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrackChangeTrack_Vol_Input"
+                         Grid.Row="0" Grid.Column="1" Name="VolInput"
+                         Minimum="-127" Maximum="127" Increment="1" FormatString="0"
+                         Value="{Binding DVol, Mode=TwoWay}" HorizontalAlignment="Left" MinWidth="120" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Pan delta:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrackChangeTrack_Pan_Input"
+                         Grid.Row="1" Grid.Column="1" Name="PanInput"
+                         Minimum="-127" Maximum="127" Increment="1" FormatString="0"
+                         Value="{Binding DPan, Mode=TwoWay}" HorizontalAlignment="Left" MinWidth="120" Margin="0,4,0,0" />
+
+          <CheckBox AutomationProperties.AutomationId="SongTrackChangeTrack_Velocity_Check"
+                    Grid.Row="2" Grid.Column="1" Name="VelocityCheck"
+                    Content="Also nudge note velocities by Volume delta"
+                    IsChecked="{Binding ChangeVelocity, Mode=TwoWay}" Margin="0,6,0,0" />
+        </Grid>
+
+        <Button AutomationProperties.AutomationId="SongTrackChangeTrack_Apply_Button"
+                Name="ApplyButton" Content="Apply" Click="Apply_Click"
+                HorizontalAlignment="Left" MinWidth="120" Margin="0,4,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

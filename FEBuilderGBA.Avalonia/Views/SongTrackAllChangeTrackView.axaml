@@ -16,7 +16,7 @@
           <TextBlock AutomationProperties.AutomationId="SongTrackAllChangeTrack_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
 
-        <TextBlock Text="Reassign every instrument voice used across all tracks of this song. Set a new target voice for each row, then Apply."
+        <TextBlock Text="Reassign every instrument voice used across all tracks of this song, and/or nudge the song-wide Volume, Pan, and Tempo. Set the targets/deltas, then Apply."
                    TextWrapping="Wrap" Opacity="0.8" />
 
         <!-- Column captions for the voice-remap list. -->
@@ -43,12 +43,37 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
+        <!-- Song-wide Vol / Pan / Tempo / Velocity nudge inputs (applied to every
+             track: VOL(0xBE) clamp 0..127, PAN(0xBF) clamp 0..127,
+             TEMPO(0xBB) clamp 0..255). -->
+        <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,8,0,0">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Volume delta:" VerticalAlignment="Center" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrackAllChangeTrack_Vol_Input"
+                         Grid.Row="0" Grid.Column="1" Name="VolInput"
+                         Minimum="-127" Maximum="127" Increment="1" FormatString="0"
+                         Value="{Binding DVol, Mode=TwoWay}" HorizontalAlignment="Left" MinWidth="120" />
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Pan delta:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrackAllChangeTrack_Pan_Input"
+                         Grid.Row="1" Grid.Column="1" Name="PanInput"
+                         Minimum="-127" Maximum="127" Increment="1" FormatString="0"
+                         Value="{Binding DPan, Mode=TwoWay}" HorizontalAlignment="Left" MinWidth="120" Margin="0,4,0,0" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Tempo delta:" VerticalAlignment="Center" Margin="0,4,0,0" />
+          <NumericUpDown AutomationProperties.AutomationId="SongTrackAllChangeTrack_Tempo_Input"
+                         Grid.Row="2" Grid.Column="1" Name="TempoInput"
+                         Minimum="-255" Maximum="255" Increment="1" FormatString="0"
+                         Value="{Binding DTempo, Mode=TwoWay}" HorizontalAlignment="Left" MinWidth="120" Margin="0,4,0,0" />
+
+          <CheckBox AutomationProperties.AutomationId="SongTrackAllChangeTrack_Velocity_Check"
+                    Grid.Row="3" Grid.Column="1" Name="VelocityCheck"
+                    Content="Also nudge note velocities by Volume delta"
+                    IsChecked="{Binding ChangeVelocity, Mode=TwoWay}" Margin="0,6,0,0" />
+        </Grid>
+
         <Button AutomationProperties.AutomationId="SongTrackAllChangeTrack_Apply_Button"
                 Name="ApplyButton" Content="Apply" Click="Apply_Click"
-                HorizontalAlignment="Left" MinWidth="120" Margin="0,4,0,0" />
-
-        <TextBlock Text="Note: Volume / Pan / Tempo bulk changes are not yet ported (voice reassignment only)."
-                   TextWrapping="Wrap" Opacity="0.6" FontStyle="Italic" />
+                HorizontalAlignment="Left" MinWidth="120" Margin="0,8,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

@@ -487,6 +487,15 @@ Specialized utilities for different graphic types:
   and forwards them through `ImageUnitPaletteViewModel.RenderClassSamplePreview(...,editedBlock)` ONLY when
   `PaletteTypeIndex == EditableBlockIndex` (=0, the block the spinners edit); bulk loads suppressed via
   `IsLoading`; null/non-32 falls back byte-identical to the saved palette. #1022.
+- `SongTrackChangeCore.ApplyTrackChange` (Core, ROM-MUTATING) + `SongMidiCore.ParseSingleTrackFromDataOffset`
+  (Core, READ-ONLY, hardened) — single-track Track Change writer (#1002 Slice 1; ports WF
+  `SongUtil.ChangeTrackAndWrite` + `ChangeCodeAddr2ByteCommand`): voice(0xBD) remap + VOL(0xBE)/PAN(0xBF)
+  clamp 0..127 + TEMPO(0xBB) clamp **0..255** + note-velocity (full Nxx@addr+2 / running@addr+1, gated on
+  `changeVelocity && dVol!=0`); isAbbreviation writes c.addr vs c.addr+1; validate-all-before-mutate, ambient
+  undo (no explicit Undo arg), byte-identical fault restore. `ParseSingleTrackFromDataOffset` parses from a
+  RESOLVED track-data offset (not a pointer slot) with EOF-guarded B2/B3 `p32` + note GTP reads. Wires the
+  Avalonia stub `SongTrackChangeTrackView` and completes `SongTrackAllChangeTrackView`'s Vol/Pan/Tempo (one
+  ambient scope across ALL tracks; `HasPendingChanges` true for nudge-only edits). SongExchange + Import-Select-Instrument are separate slices.
 
 ### Caching System
 

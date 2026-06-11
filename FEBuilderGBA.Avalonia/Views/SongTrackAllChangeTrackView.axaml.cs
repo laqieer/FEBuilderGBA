@@ -59,10 +59,11 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!_vm.IsLoaded) return;
 
             // No-op apply: don't open/commit an undo scope or claim "applied"
-            // when no row was edited (Copilot bot review #1088).
+            // when nothing was edited — no voice remap AND no Vol/Pan/Tempo/velocity
+            // delta (Copilot bot review #1088; Vol/Pan/Tempo-only fix #1002 Finding 5).
             if (!_vm.HasPendingChanges)
             {
-                CoreState.Services.ShowInfo(R._("No voice changes to apply."));
+                CoreState.Services.ShowInfo(R._("No track changes to apply."));
                 return;
             }
 
@@ -82,7 +83,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 // voices (To resets to the new From for each remapped voice).
                 _vm.LoadEntry(_vm.SongAddr);
                 UpdateUI();
-                CoreState.Services.ShowInfo("Voice changes applied.");
+                CoreState.Services.ShowInfo("Track changes applied.");
             }
             catch (Exception ex)
             {
