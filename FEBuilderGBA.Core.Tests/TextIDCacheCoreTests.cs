@@ -120,31 +120,36 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void Save_EmptyCache_DoesNotWriteFile()
+        public void Save_EmptyCache_NoExistingFile_WritesNothing()
         {
-            // WF parity: Save is a NO-OP when the cache is empty (count < 1) — it does
-            // not create OR delete the TSV. Mirrors EtcCacheTextID.Save's `Count >= 1`
-            // guard (it never reaches SaveConfigEtcTSV1's empty-dict delete branch).
+            // An empty cache with no prior TSV: Save creates nothing (and the
+            // delete branch is a harmless no-op since there is no file to remove).
             var cache = new TextIDCacheCore();
             cache.Save(RomBase);
-            Assert.False(File.Exists(TsvPath()), "Empty-cache Save must not write the TSV");
+            Assert.False(File.Exists(TsvPath()), "Empty-cache Save must not create a TSV");
         }
 
         [Fact]
-        public void Update_RemoveAfterSave_LeavesPriorFileUntouched()
+        public void Save_AfterClearingLastEntry_DeletesTsv()
         {
-            // Save a populated cache, then clear it in-memory and Save again. Because
-            // Save is a no-op when empty, the previously-written file is left as-is
-            // (WF parity — the file is only rewritten/deleted on a non-empty Save or
-            // a direct empty-dict SaveConfigEtcTSV1, neither of which Save triggers).
+            // #1028 Slice A review fix (PR #1104): the immediate-save path must
+            // persist REMOVAL. Update(id,"x") -> Save -> file exists; then
+            // Update(id,"") (empties the cache) -> Save -> file is DELETED, and a
+            // fresh cache over the same base reads "" for the id. This is an
+            // INTENTIONAL divergence from WinForms EtcCacheTextID.Save (no-op on
+            // empty) — without it the cleared comment reappears after reload.
             var cache = new TextIDCacheCore();
-            cache.Update(0x1, "a");
+            cache.Update(0x123, "x");
             cache.Save(RomBase);
-            Assert.True(File.Exists(TsvPath()));
+            Assert.True(File.Exists(TsvPath()), "Save should have written the user TSV");
 
-            cache.Update(0x1, ""); // now empty
-            cache.Save(RomBase);   // no-op
-            Assert.True(File.Exists(TsvPath()), "Save no-op must not delete the prior file");
+            cache.Update(0x123, ""); // clears the only entry -> cache now empty
+            cache.Save(RomBase);
+            Assert.False(File.Exists(TsvPath()), "Emptied-cache Save must DELETE the per-ROM TSV");
+
+            // A fresh cache over the same base must NOT resurrect the cleared comment.
+            var reloaded = new TextIDCacheCore();
+            Assert.Equal("", reloaded.GetName(0x123));
         }
     }
 }

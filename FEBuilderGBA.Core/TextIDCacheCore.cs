@@ -34,8 +34,11 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Persist the user reference comments to
-        /// <c>config/etc/&lt;romBaseFilename&gt;/textid_.txt</c>. No-op when the cache is
-        /// empty (matches WinForms — an emptied cache is NOT written/deleted here).
+        /// <c>config/etc/&lt;romBaseFilename&gt;/textid_.txt</c>. When the cache is empty,
+        /// the per-ROM TSV is DELETED so a cleared last entry persists across reload
+        /// (the <see cref="TextIDCacheCore"/> implementation diverges from WinForms
+        /// here — WinForms <c>EtcCacheTextID.Save</c> no-ops on an empty cache —
+        /// because the Avalonia References-tab flow saves immediately after Update).
         /// </summary>
         void Save(string romBaseFilename);
 
@@ -48,9 +51,11 @@ namespace FEBuilderGBA
 
     /// <summary>
     /// Cross-platform implementation of <see cref="ITextIDCache"/>. Ports the
-    /// dictionary-loading constructor + <c>Update</c> + <c>Save</c> verbatim from the
-    /// WinForms <c>EtcCacheTextID</c>. <see cref="GetName"/> uses a direct dictionary
-    /// lookup (no WinForms <c>UseValsID</c> / FE8 system-text-id special-casing).
+    /// dictionary-loading constructor + <c>Update</c> verbatim from the WinForms
+    /// <c>EtcCacheTextID</c>; <c>Save</c> additionally DELETES the per-ROM TSV when the
+    /// cache empties (an intentional divergence from WinForms — see <see cref="Save"/>).
+    /// <see cref="GetName"/> uses a direct dictionary lookup (no WinForms
+    /// <c>UseValsID</c> / FE8 system-text-id special-casing).
     /// </summary>
     public sealed class TextIDCacheCore : ITextIDCache
     {
@@ -83,6 +88,24 @@ namespace FEBuilderGBA
             if (this.EtcTextID.Count >= 1)
             {
                 U.SaveConfigEtcTSV1("textid_", this.EtcTextID, romBaseFilename);
+            }
+            else
+            {
+                // #1028 Slice A review fix — INTENTIONAL DIVERGENCE from WinForms
+                // EtcCacheTextID.Save (which no-ops on an empty cache, leaving a
+                // stale textid_.txt on disk). The Avalonia References-tab flow
+                // calls Save IMMEDIATELY after Update, so clearing the only user
+                // entry must persist the removal — otherwise the stale TSV is
+                // re-read on the next ROM load and the cleared comment reappears.
+                // Delete the SAME per-ROM file U.SaveConfigEtcTSV1 writes to
+                // (U.ConfigEtcFilename(type, romBaseFilename)). WinForms relies on
+                // its delayed ROM-save Save() path + the SaveConfigEtcTSV1 internal
+                // empty-dict delete; this seam persists removal on the spot.
+                string f = U.ConfigEtcFilename("textid_", romBaseFilename);
+                if (System.IO.File.Exists(f))
+                {
+                    System.IO.File.Delete(f);
+                }
             }
         }
 

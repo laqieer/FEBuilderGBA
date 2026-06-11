@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Xunit; // Explicit (the project also has a generated global `using Xunit;` via <Using Include="Xunit"/>, so this is redundant but explicit per review #1104).
 using FEBuilderGBA;
 
 namespace FEBuilderGBA.Tests.Unit
