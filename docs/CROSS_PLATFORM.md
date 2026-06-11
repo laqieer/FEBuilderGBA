@@ -186,14 +186,14 @@ msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderG
 
 ### Option A — Emulation via Gamenative / Winlator (experimental, unsupported)
 
-**Gamenative** (a Pluvia/Winlator fork) runs Windows x86/x64 binaries on Android via **Wine + Box86/Box64** (x86→ARM dynamic translation). This runs the **Windows *desktop* build** of FEBuilderGBA under emulation — a **user-side compatibility layer**, **not** a native Android app.
+**Gamenative** (a Winlator fork) runs Windows x86/x64 binaries on Android via **Wine + Box86/Box64** (x86/x64 → ARM dynamic translation). This runs the **Windows *desktop* build** of FEBuilderGBA under emulation — a **user-side compatibility layer**, **not** a native Android app.
 
 - **Which build to try:** as a best-effort suggestion, the **Avalonia desktop `win-x64`** self-contained build (`./scripts/publish-all.sh win-x64`) is more likely to behave under Wine than the classic WinForms build — modern cross-platform .NET generally fares better under Wine than WinForms. This is *not* a guarantee of compatibility or a support commitment.
 - **Known caveats — set expectations accordingly:**
   - Desktop mouse/keyboard UX on a touchscreen (the UI is not touch-designed).
   - Wine + .NET-under-Wine reliability is **unverified** for this app.
   - No native Android file picker / scoped-storage (SAF) integration.
-  - External-tool features will not work: GBA emulator test-play, devkitARM assembler, and EA/ColorzCore event compilation.
+  - External-tool integrations are not expected to work (and are unsupported in this path): GBA emulator test-play, devkitARM assembler, and EA/ColorzCore event compilation.
 
 ### Option B — Native Android app
 
