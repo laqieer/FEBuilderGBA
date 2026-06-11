@@ -47,6 +47,27 @@ namespace FEBuilderGBA
         /// comment if present, otherwise the shipped system name, otherwise "".
         /// </summary>
         string GetName(uint textid);
+
+        /// <summary>
+        /// #1027 — enumerate every text id the cache considers "used" for the
+        /// Text Editor free-area scan. Mirrors WinForms
+        /// <c>EtcCacheTextID.AppendList</c>: the user reference-comment ids
+        /// (<c>config/etc/&lt;rom&gt;/textid_.txt</c>), the shipped system
+        /// reference-name ids (<c>config/data/textid_*.txt</c>), and the FE8
+        /// reserved patch-text-slot ranges (<c>0xE00..0xEFF</c> for FE8J /
+        /// <c>0xE00..0xFFF</c> for FE8U).
+        ///
+        /// Returns COPIED ids (the implementation never exposes its backing
+        /// dictionaries). A DEFAULT body is supplied so external implementers
+        /// don't break — it returns an empty set; the in-repo implementations
+        /// (<see cref="TextIDCacheCore"/> + WinForms <c>EtcCacheTextID</c>)
+        /// override it with the full WF behaviour.
+        /// </summary>
+        /// <param name="rom">The loaded ROM (used for the FE8 reserved-range
+        /// version/multibyte branch). May be null — the reserved ranges are
+        /// then skipped.</param>
+        System.Collections.Generic.IEnumerable<uint> EnumerateUsedTextIds(ROM rom)
+            => System.Array.Empty<uint>();
     }
 
     /// <summary>
@@ -121,6 +142,41 @@ namespace FEBuilderGBA
                 return c;
             }
             return "";
+        }
+
+        // #1027 — faithful port of WinForms EtcCacheTextID.AppendList: every
+        // user reference-comment id + every shipped system reference-name id +
+        // the FE8 reserved patch-text-slot range. Each id is passed through the
+        // WF AppendTextID guard (id != 0 && id < 0x7FFF). Returns COPIED ids in
+        // a fresh HashSet — the backing dictionaries are never exposed.
+        public System.Collections.Generic.IEnumerable<uint> EnumerateUsedTextIds(ROM rom)
+        {
+            var ids = new HashSet<uint>();
+            foreach (var pair in this.EtcTextID)
+            {
+                AddGuarded(ids, pair.Key);
+            }
+            foreach (var pair in this.TextID)
+            {
+                AddGuarded(ids, pair.Key);
+            }
+            if (rom?.RomInfo != null && rom.RomInfo.version == 8)
+            {
+                // WF EtcCacheTextID.AppendList: FE8J reserves 0xE00..0xEFF;
+                // FE8U (non-multibyte) reserves 0xE00..0xFFF.
+                uint last = rom.RomInfo.is_multibyte ? 0xEFFu : 0xFFFu;
+                for (uint textid = 0xE00; textid <= last; textid++)
+                {
+                    AddGuarded(ids, textid);
+                }
+            }
+            return ids;
+        }
+
+        static void AddGuarded(HashSet<uint> ids, uint id)
+        {
+            if (id == 0 || id >= 0x7FFF) return;
+            ids.Add(id);
         }
     }
 }

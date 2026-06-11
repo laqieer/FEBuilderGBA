@@ -263,23 +263,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Find all ROM entries that reference the given text ID. Delegates to
-        /// <see cref="TextReferenceFinder.Find"/> with the per-version
-        /// descriptor list assembled by
-        /// <see cref="TextRefTableRegistry.BuildForRom"/>.
+        /// Find all ROM entries that reference the given text ID (#1027:
+        /// definitive). Combines the descriptive per-table rows from
+        /// <see cref="TextReferenceFinder.Find"/> (units, classes, items, map
+        /// settings, support talks, haiku, battle talks, sound room, ED, OP class
+        /// demo, status options, units menu, world-map points, dictionary,
+        /// final-chapter lines, senseki, map-terrain) with the FULL
+        /// TEXTID-filtered union from <see cref="MakeVarsIDArrayCore.BuildAllUsedRefs"/>
+        /// — which now also folds in EventCond scripts, menu-definition / status
+        /// R-menu chains, worldmap events, installed-patch refs and asmmap symbol
+        /// refs. When the id is referenced ONLY by one of those non-descriptor
+        /// sources, a generic "Referenced (event/menu/patch/symbol)" row is added
+        /// so the count is never falsely zero.
         ///
-        /// Coverage (mirrors WinForms <c>U.MakeVarsIDArray</c> for fixed-table
-        /// descriptors): units, classes, items, map settings, support talks,
-        /// event haiku, battle talks (both main and 2 for FE6/7), sound room,
-        /// ED screens (FE7 includes ed_3c Lyn-ending direct base), OP class
-        /// demo, status options, units menu, world-map points (FE8),
-        /// dictionary entries (FE8), final-chapter lines + senseki comments
-        /// (FE7), map-terrain names (US/EU builds).
-        ///
-        /// Out of scope (deferred — tracked separately):
-        /// recursive event-script scanning (EventCond), menu-definition
-        /// pointer chains, patch-defined text-ID parameters, status R-menu
-        /// linked lists, FE7 haiku tutorial event pointers.
+        /// Mirrors WinForms <c>TextForm.UpdateRef</c> (TargetType == TEXTID filter
+        /// + UseTextIDCache.MakeUseTextID comment row).
         /// </summary>
         public List<string> FindCrossReferences(uint textId)
         {
@@ -291,13 +289,38 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var tables = TextRefTableRegistry.BuildForRom(rom);
                 var refs = TextReferenceFinder.Find(rom, textId, tables);
 
+                // #1027 — full TEXTID-filtered union (EventCond/menu/worldmap/
+                // patch/asmmap refs now included). If the descriptor Find produced
+                // NO row, fall back to the full union and surface a generic row when
+                // the id is referenced there (matches WF UpdateRef, which lists every
+                // TargetType==TEXTID UseValsID). Build the union ONLY when refs is
+                // empty — it does a full ROM-wide scan (EventCond + patch dir +
+                // asmmap files), so running it on every text selection would lag the
+                // UI (Copilot review). The common selected-text case already has a
+                // descriptor row and skips this entirely.
+                if (textId != 0 && refs.Count == 0)
+                {
+                    try
+                    {
+                        // GetCachedUsedRefs caches the union per ROM instance (WF's
+                        // cached GetVarsIDArray), so repeated selections of texts that
+                        // are referenced only via EventCond/asmmap/patch don't re-run
+                        // the full ROM-wide scan each time.
+                        var used = MakeVarsIDArrayCore.GetCachedUsedRefs(rom);
+                        if (used.TextIds.Contains(textId))
+                        {
+                            refs.Add(R._("Referenced (event/menu/patch/symbol)"));
+                        }
+                    }
+                    catch (Exception ex2)
+                    {
+                        Log.Error("TextViewerViewModel.FindCrossReferences union: {0}", ex2.Message);
+                    }
+                }
+
                 // #1028 Slice A review fix: mirror WinForms TextForm.UpdateRef,
                 // which appends the user/system text-id reference comment from
                 // Program.UseTextIDCache.MakeUseTextID(id) as an extra ref row.
-                // Without this the just-added reference never shows in the list
-                // (TextReferenceFinder only scans ROM tables). Query the typed
-                // CoreState.UseTextIDCache and, when it returns a non-empty
-                // comment, add a styled row consistent with the ROM-table rows.
                 string comment = CoreState.UseTextIDCache?.GetName(textId) ?? "";
                 if (comment.Length > 0)
                 {
@@ -593,87 +616,59 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Issue #404 free-area scan: find text IDs whose decoded text is
-        /// non-empty AND whose ID is NOT referenced by any descriptor-defined
-        /// ROM table. Mirrors WinForms <c>TextForm.SearcFreeArea_Click</c> in
-        /// intent but is APPROXIMATE — the descriptor set (built by
-        /// <see cref="TextRefTableRegistry.BuildForRom"/>) excludes EventCond
-        /// scripts, patch-defined text parameters, menu-definition chains,
-        /// status R-menu linked lists, and FE7 haiku tutorial event pointers.
-        /// WF's implementation also uses <c>AsmMapFileAsmCache.GetVarsIDArray()</c>
-        /// and <c>UseTextIDCache.AppendList()</c>, neither of which is yet
-        /// ported to Avalonia (the Core <c>IAsmMapCache</c> has no
-        /// <c>GetVarsIDArray</c> method; <c>UseTextIDCache</c> is an
-        /// <c>object</c> placeholder in <c>CoreState</c>). Until those Core
-        /// extractions land, this method should be considered a USEFUL HEURISTIC
-        /// (catches obviously-orphaned text slots in vanilla ROMs) but NOT a
-        /// definitive list.
-        ///
-        /// One-pass algorithm (vs the obvious O(N×M) per-ID Find):
-        ///   1. Build the descriptor table set ONCE via TextRefTableRegistry.
-        ///   2. Call <see cref="TextReferenceFinder.CollectReferencedTextIds"/>
-        ///      to accumulate every referenced text ID into a HashSet&lt;uint&gt;
-        ///      using the SAME traversal as <see cref="TextReferenceFinder.Find"/>
-        ///      (PointerField vs DirectBase, safety floor, fitting-count clamp,
-        ///      terminator predicate).
-        ///   3. Iterate text IDs <c>1..loadedCount-1</c> (skip ID 0 = system
-        ///      write-protect); for each non-system-reserved, non-empty ID
-        ///      not in the referenced set, emit an <see cref="AddrResult"/>.
-        ///
-        /// Output invariants (asserted by `TextViewerParityTests`):
-        ///   - <c>tag &lt; loadedCount</c> for every result
-        ///   - <c>addr = textBase + tag * 4</c> (matches <see cref="LoadTextList"/>)
-        ///   so <see cref="Controls.AddressListControl.SelectAddress"/> dispatch
-        ///   works uniformly between the regular list and free-area results.
+        /// #1027 result of the definitive free-area scan: the unreferenced text
+        /// slots plus a flag indicating whether the scan was DEFINITIVE (the
+        /// event-scan prerequisites were met) or whether it could not run because
+        /// those prerequisites were missing (in which case the list is empty and
+        /// the View shows a status instead of a misleading partial list).
         /// </summary>
-        public List<AddrResult> FindApproximatelyUnreferencedTexts()
+        public sealed class FreeAreaScanResult
         {
-            var result = new List<AddrResult>();
+            public bool IsDefinitive { get; init; }
+            public List<AddrResult> Results { get; init; } = new List<AddrResult>();
+        }
+
+        /// <summary>
+        /// #1027 — DEFINITIVE free-area scan. Faithful port of WinForms
+        /// <c>TextForm.SearcFreeArea_Click</c>: builds the full "used text id"
+        /// union via <see cref="MakeVarsIDArrayCore.BuildFreeAreaUsedSet"/> (units,
+        /// classes, items, EventCond scripts, menu / status-rmenu chains, worldmap
+        /// events, support/battle/haiku/sound/ED tables, skills, installed-patch
+        /// refs, asmmap symbol refs, AND the user/system/FE8-reserved cache ids)
+        /// and returns the complement — text slots whose decoded text is non-empty
+        /// and NOT in the union.
+        ///
+        /// When the event-scan prerequisites are NOT met (the ROM is not the active
+        /// <see cref="CoreState.ROM"/>, or EventScript / CommentCache are unwired),
+        /// the union would be INCOMPLETE — turning referenced texts into
+        /// false-positive "free" results — so the scan reports
+        /// <see cref="FreeAreaScanResult.IsDefinitive"/> = false with an EMPTY list.
+        ///
+        /// Output invariants: <c>addr = textBase + id * 4</c> (matches
+        /// <see cref="LoadTextList"/>) so address dispatch is uniform.
+        /// </summary>
+        public FreeAreaScanResult FindUnreferencedTexts()
+        {
+            var results = new List<AddrResult>();
             try
             {
                 ROM rom = CoreState.ROM;
-                if (rom?.RomInfo == null || rom.Data == null) return result;
+                if (rom?.RomInfo == null || rom.Data == null)
+                    return new FreeAreaScanResult { IsDefinitive = false };
 
-                uint textBase = ResolveTextTableBase();
-                if (textBase == 0) return result;
+                var scan = TextFreeAreaCore.FindUnreferencedTextIds(rom, CoreState.UseTextIDCache);
+                if (scan.Status != TextFreeAreaCore.ScanStatus.Definitive)
+                    return new FreeAreaScanResult { IsDefinitive = false };
 
-                var tables = TextRefTableRegistry.BuildForRom(rom);
-                var referencedIds = TextReferenceFinder.CollectReferencedTextIds(rom, tables);
-
-                // Single-pass scan: walk the text pointer table, terminating
-                // at the same condition `LoadTextList` uses (first invalid
-                // text pointer). This avoids the previous double-decode
-                // (LoadTextList counted + we decoded again per ID).
-                //
-                // Start at id=0 to keep the termination behaviour IDENTICAL
-                // to `LoadTextList` (a partial-list ROM with valid ID 0 but
-                // invalid ID 1 should report zero free-area results, not
-                // wrongly start at ID 1 and emit anything). Then skip ID 0
-                // emit because that is the system write-protect slot
-                // (matching WF `TextForm.UseWriteProtectionID00`).
-                for (uint id = 0; id < 0x2000u; id++)
+                uint textBase = TextFreeAreaCore.ResolveTextTableBase(rom);
+                foreach (uint id in scan.FreeTextIds)
                 {
                     uint entryAddr = textBase + id * 4u;
-                    if (entryAddr + 4 > (uint)rom.Data.Length) break;
-                    uint textPtr = rom.u32(entryAddr);
-                    if (!IsValidTextPointer(textPtr)) break;
-
-                    if (id == 0) continue; // never emit ID 0 as "free"
-                    if (IsSystemReserve(rom, id)) continue;
-                    if (referencedIds.Contains(id)) continue;
-
-                    // Decode once per surviving ID. Skip IDs whose decoded
-                    // text is null/empty/whitespace — avoid false positives
-                    // from huge runs of "empty" slots pointing at the same
-                    // null string.
-                    string decoded;
-                    try { decoded = FETextDecode.Direct(id) ?? ""; }
-                    catch { continue; }
-                    if (string.IsNullOrWhiteSpace(decoded)) continue;
 
                     string preview;
                     try
                     {
+                        string decoded = FETextDecode.Direct(id) ?? "";
                         string ftt = ConvertEscapeToFEditor(EscapeRawControlChars(decoded));
                         ftt = StripControlChars(ftt) ?? "";
                         preview = ftt.Length > 40 ? ftt.Substring(0, 40) + "..." : ftt;
@@ -681,14 +676,26 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     catch { preview = ""; }
 
                     string name = U.ToHexString(id) + " (free) " + preview;
-                    result.Add(new AddrResult(entryAddr, name, id));
+                    results.Add(new AddrResult(entryAddr, name, id));
                 }
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerViewModel.FindApproximatelyUnreferencedTexts: {0}", ex.Message);
+                Log.Error("TextViewerViewModel.FindUnreferencedTexts: {0}", ex.Message);
+                return new FreeAreaScanResult { IsDefinitive = false };
             }
-            return result;
+            return new FreeAreaScanResult { IsDefinitive = true, Results = results };
+        }
+
+        /// <summary>
+        /// Back-compat shim for the pre-#1027 callers/tests. Returns the definitive
+        /// scan's results when prerequisites are met, otherwise an empty list. New
+        /// callers should use <see cref="FindUnreferencedTexts"/> so they can
+        /// surface the prerequisites-missing status.
+        /// </summary>
+        public List<AddrResult> FindApproximatelyUnreferencedTexts()
+        {
+            return FindUnreferencedTexts().Results;
         }
 
         /// <summary>
