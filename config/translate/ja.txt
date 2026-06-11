@@ -769,6 +769,12 @@ MIDIインポート
 :Select Instrument
 楽器選択
 
+:Select Instrument Set...
+楽器セット選択...
+
+:(use destination's current voicegroup)
+（インポート先の現在の音色セットを使用）
+
 :Import Wave
 波形インポート
 

@@ -14686,6 +14686,12 @@ MIDI导入
 :Select Instrument
 选择乐器
 
+:Select Instrument Set...
+选择乐器组...
+
+:(use destination's current voicegroup)
+（使用目标曲目的当前乐器组）
+
 :Import Wave
 导入波形
 

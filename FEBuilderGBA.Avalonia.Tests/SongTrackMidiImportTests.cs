@@ -71,6 +71,15 @@ namespace FEBuilderGBA.Avalonia.Tests
             songHeaderAddr = 0x100000;
             entrySlot = tableBase; // entry 0
 
+            // Mark the region below 0x400 as "used" (non-zero, non-0xFF) so the
+            // ImportMidiFile free-space search (FindFreeSpace from 0x100) cannot
+            // return an offset < 0x200 — an all-zero synthetic ROM otherwise hands
+            // back 0x100, which fails U.isSafetyOffset's >= 0x200 lower bound. Real
+            // ROMs never have a multi-KB zero run at 0x100, so this only restores
+            // realistic free-space layout for the synthetic image.
+            for (int i = 0; i < 0x400; i++)
+                rom.Data[i] = 0x55;
+
             // Song table entry 0 -> header0 pointer + dummy player type.
             WriteU32(rom.Data, (int)tableBase + 0, 0x08000000u | songHeaderAddr);
             WriteU32(rom.Data, (int)tableBase + 4, 0x00000000u);
@@ -533,6 +542,223 @@ namespace FEBuilderGBA.Avalonia.Tests
             bytes.AddRange(new byte[] { 0, 0, 0, 4 });   // track length
             bytes.AddRange(new byte[] { 0x00, 0xFF, 0x2F, 0x00 }); // delta + EoT
             File.WriteAllBytes(path, bytes.ToArray());
+        }
+
+        /// <summary>Write a Format-0, 1-track MIDI whose MTrk body contains a
+        /// real NoteOn/NoteOff pair on channel 0 so SongMidiCore.ConvertMidiToGBA
+        /// yields a NON-null song (it returns null when there are zero music
+        /// channels with notes). Used by the #1002 Slice 2 pointer tests so the
+        /// import actually succeeds and the header+4 assertion is reached.</summary>
+        static void WriteMidiWithNote(string path)
+        {
+            var track = new System.Collections.Generic.List<byte>
+            {
+                0x00, 0x90, 0x3C, 0x64,   // delta 0, NoteOn  ch0 key=60 vel=100
+                0x60, 0x80, 0x3C, 0x40,   // delta 96, NoteOff ch0 key=60 vel=64
+                0x00, 0xFF, 0x2F, 0x00,   // delta 0, End-of-Track
+            };
+
+            var bytes = new System.Collections.Generic.List<byte>();
+            // MThd: format 0, 1 track, 480 TPQN (same header as WriteMinimalMidi).
+            bytes.AddRange(System.Text.Encoding.ASCII.GetBytes("MThd"));
+            bytes.AddRange(new byte[] { 0, 0, 0, 6 });   // header length
+            bytes.AddRange(new byte[] { 0, 0 });          // format 0
+            bytes.AddRange(new byte[] { 0, 1 });          // 1 track
+            bytes.AddRange(new byte[] { 0x01, 0xE0 });    // 480 TPQN
+            // MTrk: the NoteOn/NoteOff body. Length is big-endian 4 bytes.
+            bytes.AddRange(System.Text.Encoding.ASCII.GetBytes("MTrk"));
+            int len = track.Count;
+            bytes.AddRange(new byte[]
+            {
+                (byte)((len >> 24) & 0xFF), (byte)((len >> 16) & 0xFF),
+                (byte)((len >> 8) & 0xFF), (byte)(len & 0xFF),
+            });
+            bytes.AddRange(track);
+            File.WriteAllBytes(path, bytes.ToArray());
+        }
+
+        // -----------------------------------------------------------------
+        // #1002 Slice 2: instrument-pointer correctness — end-to-end assertion
+        // that the MIDI writer stores the chosen GBA POINTER verbatim in header +4.
+        // -----------------------------------------------------------------
+
+        /// <summary>
+        /// Regression test for the #1002 Slice 2 pointer-vs-offset correctness
+        /// contract: after setting <c>vm.InstrumentAddr</c> to a chosen GBA
+        /// POINTER and calling <c>vm.ImportMidi</c>, the freshly-written song
+        /// header's +4 slot (read back from ROM) must equal that same POINTER
+        /// verbatim. This proves the View's "store as POINTER" step correctly feeds
+        /// <see cref="SongMidiCore.ImportMidiFile"/> (which writes verbatim) and
+        /// that the offset/pointer conversion is NOT applied a second time.
+        /// </summary>
+        [Fact]
+        public void ImportMidi_HonorsChosenInstrumentPointer()
+        {
+            var rom = MakeRomWithSongTable(out uint tableBase, out _, out _);
+            var prevRom = CoreState.ROM;
+            // A fresh Undo so ambient writes are captured.
+            var prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                CoreState.ROM = rom;
+
+                var vm = new SongTrackViewModel();
+                var list = vm.LoadFullList();
+                // Select song 1 (writable, non-silence).
+                Assert.True(list.Count >= 2);
+                vm.LoadEntry(list[1].addr);
+                vm.SelectedSongIndex = (int)list[1].tag;
+                Assert.True(vm.IsLoaded);
+
+                // Resolve the song-table ENTRY slot for the SELECTED song (song 1
+                // lives at tableBase+8, NOT entry 0) so the read-back below targets
+                // the slot the import actually repoints.
+                uint entrySlot = vm.GetSelectedSongTableEntryAddr();
+                Assert.NotEqual(U.NOT_FOUND, entrySlot);
+
+                // Choose a distinct instrument set address (as a POINTER).
+                // Pick an offset inside U.isSafetyOffset range (>= 0x200).
+                uint chosenOffset = 0x100400u;            // inside our 16MB synthetic ROM
+                uint chosenPointer = U.toPointer(chosenOffset); // 0x08100400
+
+                // Simulate what the View does after the instrument picker confirms:
+                vm.InstrumentAddr = chosenPointer;
+
+                // Write a MIDI WITH A NOTE so ConvertMidiToGBA yields a non-null
+                // song (a note-less MIDI returns "no valid music tracks", which
+                // would short-circuit the import and skip the assertion below).
+                string midiPath = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(), $"slice2_{Guid.NewGuid():N}.mid");
+                WriteMidiWithNote(midiPath);
+                try
+                {
+                    var undoSvc = new UndoService();
+                    undoSvc.Begin("Import MIDI");
+                    string? error = vm.ImportMidi(midiPath, out string summary);
+
+                    if (error != null)
+                    {
+                        undoSvc.Rollback();
+                        // A MIDI with a real note MUST import — anything else is a
+                        // hard failure (do NOT silently skip the header+4 assertion).
+                        Assert.True(false, "ImportMidi must succeed for a MIDI with a note: " + error);
+                        return;
+                    }
+
+                    undoSvc.Commit();
+
+                    // Read back the freshly-written song-table entry -> new header.
+                    uint newHeaderPtr = rom.u32(entrySlot);
+                    Assert.True(U.isPointer(newHeaderPtr),
+                        "Song-table entry must point to a valid GBA header.");
+                    uint newHeaderOffset = U.toOffset(newHeaderPtr);
+                    Assert.True(U.isSafetyOffset(newHeaderOffset, rom),
+                        "New header offset must be in ROM range.");
+
+                    // Header +4 must equal the chosen POINTER (verbatim write).
+                    uint storedInstrPtr = rom.u32(newHeaderOffset + 4);
+                    Assert.Equal(chosenPointer, storedInstrPtr);
+                }
+                finally
+                {
+                    try { System.IO.File.Delete(midiPath); } catch { /* best effort */ }
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.Undo = prevUndo;
+            }
+        }
+
+        /// <summary>
+        /// Same assertion via <see cref="SongTrackImportMidiViewModel"/> (the
+        /// standalone import window's VM): LoadList → LoadEntry a real song →
+        /// override InstrumentAddr with a chosen pointer → ParseMidiInfo →
+        /// ImportMidi → assert header+4 == chosen pointer end-to-end.
+        /// </summary>
+        [Fact]
+        public void ImportMidiVm_StandaloneHonorsChosenInstrument()
+        {
+            var rom = MakeRomWithSongTable(out uint tableBase, out _, out _);
+            var prevRom = CoreState.ROM;
+            var prevUndo = CoreState.Undo;
+            CoreState.Undo = new Undo();
+            try
+            {
+                CoreState.ROM = rom;
+
+                var vm = new SongTrackImportMidiViewModel();
+                var list = vm.LoadList();
+                Assert.True(list.Count >= 2);
+                // Select song 1 (writable, non-silence).
+                vm.LoadEntry(list[1].addr, list[1].tag);
+                Assert.True(vm.IsLoaded);
+                Assert.Equal(1, vm.SelectedSongId);
+
+                // Capture the song-table ENTRY slot for the selected song BEFORE
+                // the import — the VM's post-import LoadEntry re-resolves
+                // SongTableEntryAddr from the freshly-written header, so we must
+                // read the slot the import actually repointed, not the reloaded one.
+                uint entrySlot = vm.SongTableEntryAddr;
+                Assert.NotEqual(0u, entrySlot);
+
+                // Override with our chosen instrument pointer (GBA pointer slot).
+                uint chosenOffset = 0x100400u;
+                uint chosenPointer = U.toPointer(chosenOffset); // 0x08100400
+                vm.InstrumentAddr = chosenPointer;
+
+                // Parse a MIDI WITH A NOTE so HasMidiInfo is set AND the import
+                // yields a non-null song (a note-less MIDI returns "no valid music
+                // tracks", which would short-circuit the import).
+                string midiPath = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(), $"slice2vm_{Guid.NewGuid():N}.mid");
+                WriteMidiWithNote(midiPath);
+                try
+                {
+                    string? parseErr = vm.ParseMidiInfo(midiPath);
+                    Assert.Null(parseErr); // parse must succeed
+                    Assert.True(vm.HasMidiInfo);
+
+                    var undoSvc = new UndoService();
+                    undoSvc.Begin("Import MIDI");
+                    string? error = vm.ImportMidi(out string summary);
+
+                    if (error != null)
+                    {
+                        undoSvc.Rollback();
+                        // A MIDI with a real note MUST import — anything else is a
+                        // hard failure (do NOT silently skip the header+4 assertion).
+                        Assert.True(false, "ImportMidi must succeed for a MIDI with a note: " + error);
+                        return;
+                    }
+
+                    undoSvc.Commit();
+
+                    // Re-read the freshly-written song header from the captured
+                    // table entry slot (the slot the import repointed).
+                    uint newHeaderPtr = rom.u32(entrySlot);
+                    Assert.True(U.isPointer(newHeaderPtr),
+                        "Table entry must point to a valid GBA header.");
+                    uint newHeaderOffset = U.toOffset(newHeaderPtr);
+                    Assert.True(U.isSafetyOffset(newHeaderOffset, rom),
+                        "New header offset must be in ROM range.");
+
+                    // Header +4 must equal the chosen POINTER verbatim.
+                    uint storedInstrPtr = rom.u32(newHeaderOffset + 4);
+                    Assert.Equal(chosenPointer, storedInstrPtr);
+                }
+                finally
+                {
+                    try { System.IO.File.Delete(midiPath); } catch { /* best effort */ }
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prevRom;
+                CoreState.Undo = prevUndo;
+            }
         }
 
         static void WriteU32(byte[] data, int offset, uint value)

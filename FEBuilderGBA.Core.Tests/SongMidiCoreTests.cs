@@ -912,6 +912,46 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x0800100Cu, ptr);
         }
 
+        /// <summary>
+        /// Regression test for the #1002 Slice 2 pointer-vs-offset correctness
+        /// contract: <see cref="SongMidiCore.ConvertMidiToGBA"/> writes the
+        /// <c>instrumentAddr</c> parameter VERBATIM into the returned song binary
+        /// at bytes [4..7] (the song header +4 GBA pointer slot). This locks the
+        /// invariant that the MIDI path must supply a POINTER, not an offset.
+        /// </summary>
+        [Fact]
+        public void ConvertMidiToGBA_WritesInstrumentPointerVerbatimAtHeaderPlus4()
+        {
+            // Build a minimal MIDI with one note so ConvertMidiToGBA does NOT
+            // return null (requires at least one channel with notes).
+            byte[] trackData = new byte[]
+            {
+                0x00, 0x90, 60, 100,   // NoteOn C4 vel=100
+                0x60,                   // delta=96 ticks
+                0x80, 60, 0,           // NoteOff
+                0x00, 0xFF, 0x2F, 0x00 // End of track
+            };
+
+            byte[] midiBytes = BuildTestMidi(0, 1, 96, trackData);
+            var midi = SongMidiCore.ParseMidiBytes(midiBytes);
+            Assert.NotNull(midi);
+
+            // Use a recognisable GBA pointer value to prove the verbatim-write
+            // contract — this is a POINTER (0x08xxxxxx), not an offset.
+            uint instrumentPointer = 0x08123456u;
+            byte[] gba = SongMidiCore.ConvertMidiToGBA(midi, midiBytes, instrumentPointer);
+
+            Assert.NotNull(gba);
+            Assert.True(gba.Length >= 8, "GBA song binary must include the 8-byte header");
+
+            // Bytes [4..7] of the header must equal the supplied pointer verbatim.
+            uint storedPointer = (uint)(gba[4]
+                | (gba[5] << 8)
+                | (gba[6] << 16)
+                | (gba[7] << 24));
+            Assert.Equal(instrumentPointer, storedPointer);
+        }
+
         [Fact]
         public void ConvertMidiToGBA_TickScaling_CorrectlyScales()
         {

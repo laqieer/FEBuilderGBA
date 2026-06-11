@@ -4,16 +4,14 @@ using System.Text;
 namespace FEBuilderGBA.Avalonia.ViewModels
 {
     /// <summary>
-    /// View model for the standalone (non-modal) SongTrack instrument-set
-    /// (voicegroup) browser. Populates its list from the cross-platform
-    /// <see cref="InstrumentSetCore"/> — the same discovery routine WinForms
-    /// <c>SongTrackImportSelectInstrumentForm.PickupInstrument()</c> uses.
-    /// (#787)
-    ///
-    /// The WinForms MODAL pick-and-return flow (SongTrackForm → JumpFormLow →
-    /// GetInstrumentAddr → SongUtil.ImportS) is intentionally NOT mirrored here
-    /// — this Avalonia window is a read-only browser of the available
-    /// instrument sets, not a picker wired into a MIDI/.s import.
+    /// View model for the SongTrack instrument-set (voicegroup) browser and
+    /// pick-and-return picker. Populates its list from <see cref="InstrumentSetCore"/>
+    /// — the same discovery routine WinForms <c>PickupInstrument()</c> uses (#787).
+    /// The view (<c>SongTrackImportSelectInstrumentView</c>) implements
+    /// <c>IPickableEditor</c> and is now wired as a pick-and-return into BOTH
+    /// the <c>.s</c> import (<c>SongTrackSImportCore.ImportS</c>) and the MIDI
+    /// import (<c>SongMidiCore.ImportMidiFile</c>) via
+    /// <c>WindowManager.PickFromEditor</c> (#1002).
     /// </summary>
     public class SongTrackImportSelectInstrumentViewModel : ViewModelBase
     {
