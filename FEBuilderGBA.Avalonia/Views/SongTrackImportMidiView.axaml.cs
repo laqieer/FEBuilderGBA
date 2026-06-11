@@ -71,7 +71,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (InstrumentLabel != null)
                 InstrumentLabel.Text = _vm.InstrumentAddr != 0
                     ? string.Format("0x{0:X08}", _vm.InstrumentAddr)
-                    : "(use destination's current voicegroup)";
+                    : R._("(use destination's current voicegroup)");
         }
 
         /// <summary>Enable Import only when BOTH a destination song and a
