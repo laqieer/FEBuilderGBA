@@ -1901,7 +1901,12 @@ namespace FEBuilderGBA
             }
             catch (Exception e)
             {
-                error = e.Message;
+                // Contract: failure ALWAYS yields a non-empty error. Some
+                // exceptions carry an empty Message, so fall back to the type
+                // name + URL rather than surfacing a blank error to callers.
+                error = string.IsNullOrEmpty(e.Message)
+                    ? e.GetType().Name + " while downloading " + url
+                    : e.Message;
                 try { if (File.Exists(destPath)) File.Delete(destPath); } catch { /* best-effort cleanup */ }
                 return false;
             }

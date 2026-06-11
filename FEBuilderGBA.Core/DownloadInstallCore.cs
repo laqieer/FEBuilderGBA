@@ -386,7 +386,7 @@ namespace FEBuilderGBA
 
         /// <summary>
         /// Phase 2: place an already-staged + validated download into its final
-        /// tool dir via the crash-safe swap in <see cref="PlaceFile"/>. Returns the
+        /// tool dir via the exception-safe swap in <see cref="PlaceFile"/>. Returns the
         /// resolved final exe path, or <c>null</c> + non-empty <paramref name="error"/>.
         /// On success the prior install (if any) is auto-confirmed (backup deleted).
         /// Does NOT dispose the staging dir (the caller owns that). For
@@ -587,13 +587,17 @@ namespace FEBuilderGBA
         /// assets next to the exe travel with it), and the returned path points
         /// at the exe inside the final dir. Single-file copies just the exe.
         ///
-        /// Crash-safe swap (Copilot #1102 finding 1): the new install is first
+        /// Exception-safe swap (Copilot #1102 finding 1): the new install is first
         /// built in a SIBLING staging dir (<c>{finalDir}.new-{guid}</c>). Only
         /// after that copy fully succeeds is the prior <paramref name="finalDir"/>
-        /// renamed aside, the staging dir renamed INTO place, and the old one
-        /// deleted. If anything before the swap throws, the prior working install
-        /// is left byte-identical; if the rename-in fails, the prior install is
-        /// restored. The final directory is therefore NEVER left empty/partial.
+        /// renamed aside (the <c>.old-{guid}</c> backup), the staging dir renamed
+        /// INTO place, and — on Confirm — the backup deleted. If anything before
+        /// the swap throws, the prior working install is left byte-identical; if
+        /// the rename-in throws, the prior install is restored. Note this guards
+        /// against HANDLED failures only — it is NOT atomic against an abrupt
+        /// process/power loss BETWEEN the two directory renames, which can leave
+        /// <paramref name="finalDir"/> momentarily absent with the backup still on
+        /// disk (recoverable, but not point-in-time atomic).
         /// </summary>
         static string PlaceFile(string stagedExe, string finalDir, string finalFilename,
             ref string error, out CommitToken token, string copyWholeDir = null)
