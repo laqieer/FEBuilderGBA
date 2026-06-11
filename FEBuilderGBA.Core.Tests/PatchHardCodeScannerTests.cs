@@ -1,0 +1,547 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Core tests for PatchHardCodeScanner + CoreAsmMapCache (#1035).
+//
+// PatchHardCodeScanner ports the patch-scan part of WinForms
+// PatchForm.MakeHardCodeWarning: enumerate PATCH_*.txt, skip CANONICAL_SKIP,
+// skip when the CheckIF tri-state gate returns "E", then read the ADDRESS-param
+// 8-bit id and set the matching UNIT/CLASS/ITEM hardcode array slot.
+//
+// Tests seed temporary PATCH_*.txt files under a temp config/patch2/{ver}
+// directory (pointed at via CoreState.BaseDirectory) so the scanner exercises
+// the real enumeration + parse + gate + address-read path without depending on
+// the config/patch2 submodule being checked out.
+using System;
+using System.IO;
+using System.Reflection;
+using FEBuilderGBA;
+using Xunit;
+
+namespace FEBuilderGBA.Core.Tests
+{
+    [Collection("SharedState")]
+    public class PatchHardCodeScannerTests
+    {
+        // ---- helpers -------------------------------------------------------
+
+        // Build a synthetic FE8U ROM (version != 0, VersionToFilename == "FE8U").
+        // The byte at offset `idAddr` is set to `idValue` so an ADDRESS-param read
+        // there returns that id. start_offset for safe reads is >= 0x200.
+        static ROM MakeFe8uRom(uint idAddr = 0x1000, byte idValue = 5)
+        {
+            var data = new byte[0x1000000];
+            data[idAddr] = idValue;
+            var rom = new ROM();
+            bool ok = rom.LoadLow("hardcode-fe8u.gba", data, "BE8E01");
+            Assert.True(ok);
+            Assert.Equal(8, rom.RomInfo.version);
+            Assert.Equal("FE8U", rom.RomInfo.VersionToFilename);
+            return rom;
+        }
+
+        // Create a temp config/patch2/FE8U dir, return (tempRoot, versionDir).
+        static (string root, string verDir) MakeTempPatchDir()
+        {
+            string root = Path.Combine(Path.GetTempPath(),
+                "fe_hc_" + Guid.NewGuid().ToString("N"));
+            string verDir = Path.Combine(root, "config", "patch2", "FE8U");
+            Directory.CreateDirectory(verDir);
+            return (root, verDir);
+        }
+
+        static void WritePatch(string verDir, string fileNameNoExt, params string[] lines)
+        {
+            string path = Path.Combine(verDir, "PATCH_" + fileNameNoExt + ".txt");
+            File.WriteAllLines(path, lines);
+        }
+
+        // Run the scanner with CoreState.BaseDirectory pointed at `root` so the
+        // resolver finds {root}/config/patch2/FE8U first.
+        static (bool[] unit, bool[] cls, bool[] item) RunScan(ROM rom, string root)
+        {
+            string saved = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            try
+            {
+                CoreState.BaseDirectory = root;
+                CoreState.Language = "en";
+                var unit = new bool[256];
+                var cls = new bool[256];
+                var item = new bool[256];
+                PatchHardCodeScanner.ScanHardCodes(rom, unit, cls, item);
+                return (unit, cls, item);
+            }
+            finally
+            {
+                CoreState.BaseDirectory = saved;
+                CoreState.Language = savedLang;
+            }
+        }
+
+        // ---- seeded UNIT/CLASS/ITEM -> correct array bit -------------------
+
+        [Fact]
+        public void SeededUnitPatch_SetsUnitBit()
+        {
+            var rom = MakeFe8uRom(0x2000, 7);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "MyUnit",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, cls, item) = RunScan(rom, root);
+                Assert.True(unit[7]);
+                Assert.False(cls[7]);
+                Assert.False(item[7]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void SeededClassPatch_SetsClassBit()
+        {
+            var rom = MakeFe8uRom(0x2400, 0x0C);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "MyClass",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2400",
+                    "ADDRESS_TYPE=CLASS");
+                var (unit, cls, item) = RunScan(rom, root);
+                Assert.True(cls[0x0C]);
+                Assert.False(unit[0x0C]);
+                Assert.False(item[0x0C]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void SeededItemPatch_SetsItemBit()
+        {
+            var rom = MakeFe8uRom(0x2800, 0x21);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "MyItem",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2800",
+                    "ADDRESS_TYPE=ITEM");
+                var (unit, cls, item) = RunScan(rom, root);
+                Assert.True(item[0x21]);
+                Assert.False(unit[0x21]);
+                Assert.False(cls[0x21]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- no patch dir -> all false ------------------------------------
+
+        [Fact]
+        public void NoPatchDir_AllFalse()
+        {
+            var rom = MakeFe8uRom(0x2000, 7);
+            string root = Path.Combine(Path.GetTempPath(),
+                "fe_hc_missing_" + Guid.NewGuid().ToString("N"));
+            // intentionally do NOT create the dir
+            var (unit, cls, item) = RunScan(rom, root);
+            Assert.DoesNotContain(true, unit);
+            Assert.DoesNotContain(true, cls);
+            Assert.DoesNotContain(true, item);
+        }
+
+        // ---- GetAddr: id == 0 skipped -------------------------------------
+
+        [Fact]
+        public void IdZero_IsSkipped()
+        {
+            var rom = MakeFe8uRom(0x3000, 0); // byte is 0 at the address
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "ZeroUnit",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x3000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- GetAddr: unsafe / out-of-range ADDRESS guarded ---------------
+
+        [Fact]
+        public void UnsafeAddress_Guarded_NoFlag_NoThrow()
+        {
+            var rom = MakeFe8uRom(0x2000, 7);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                // 0x09000000 is past the 0x02000000 safety ceiling AND off the ROM.
+                WritePatch(verDir, "OOR",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x09000000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit); // guarded -> id 0 -> skipped
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- GetAddr: multi-token ADDRESS (first token used) --------------
+
+        [Fact]
+        public void MultiTokenAddress_UsesFirstToken()
+        {
+            // Eirika's Tale-style: ADDRESS=0x037B86 0x33270 -> first token only.
+            var rom = MakeFe8uRom(0x037B86, 0x01);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "EirikaTale",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x037B86 0x33270",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.True(unit[0x01]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- GetAddr: pointer-style 0x08...... ADDRESS --------------------
+
+        [Fact]
+        public void PointerStyleAddress_ResolvesToOffset()
+        {
+            // 0x08037000 -> offset 0x037000 (toOffset). Place the id there.
+            var rom = MakeFe8uRom(0x037000, 9);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "PtrStyle",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x08037000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.True(unit[9]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- CheckIF gate parity ------------------------------------------
+
+        [Fact]
+        public void NoCondition_Included()
+        {
+            var rom = MakeFe8uRom(0x2000, 7);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "NoCond",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.True(unit[7]); // no IF gate -> included
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void IF_PositiveMatch_Included()
+        {
+            // ROM byte at 0x4000 == 0xAB so the IF matches -> not "E" -> included.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x4000] = 0xAB;
+            rom.Data[0x4001] = 0xCD;
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "IfPos",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "IF:0x4000=0xAB 0xCD");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.True(unit[7]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void IF_PositiveMismatch_ExcludedWithE()
+        {
+            // ROM byte differs from the IF need -> positive IF not-found -> "E" -> skip.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x4000] = 0x00; // need is 0xAB -> mismatch
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "IfMiss",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "IF:0x4000=0xAB 0xCD");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit); // gated out by "E"
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void IFNOT_Inverted_MatchExcludes()
+        {
+            // IFNOT matches the ROM -> inverted -> "E" -> skip.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x4000] = 0xAB;
+            rom.Data[0x4001] = 0xCD;
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "IfNot",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "IFNOT:0x4000=0xAB 0xCD");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit); // IFNOT matched -> excluded
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void IFNOT_Inverted_MismatchIncludes()
+        {
+            // IFNOT does NOT match the ROM -> inverted not-found -> passes -> included.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x4000] = 0x11; // differs from need 0xAB
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "IfNotMiss",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "IFNOT:0x4000=0xAB 0xCD");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.True(unit[7]);
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void PATCHED_IF_MatchYieldsI_NotE_Included()
+        {
+            // PATCHED_IF is inverted (isnot=true). When it MATCHES (notFound==false)
+            // CheckIF returns "I" (installed) — NOT "E" — so the patch is included.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x5000] = 0xDE;
+            rom.Data[0x5001] = 0xAD;
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "PatchedIf",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "PATCHED_IF:0x5000=0xDE 0xAD");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.True(unit[7]); // "I" is not "E" -> included
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void PATCHED_IFNOT_PositiveMismatch_ExcludedWithE()
+        {
+            // PATCHED_IFNOT is treated as a POSITIVE condition (isnot=false). When
+            // the ROM does NOT match -> notFound==true -> "E" -> skipped.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x5000] = 0x00; // need 0xDE -> mismatch
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "PatchedIfNot",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "PATCHED_IFNOT:0x5000=0xDE 0xAD");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit);
+            }
+            finally { TryDelete(root); }
+        }
+
+        [Fact]
+        public void CONFLICT_IF_Inverted_MatchExcludes()
+        {
+            // CONFLICT_IF is inverted (isnot=true). When it MATCHES (notFound==false)
+            // and the key is not PATCHED_IF -> "E" -> excluded.
+            var rom = MakeFe8uRom(0x2000, 7);
+            rom.Data[0x6000] = 0xC0;
+            rom.Data[0x6001] = 0xDE;
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "ConflictIf",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "CONFLICT_IF:0x6000=0xC0 0xDE");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- CANONICAL_SKIP -----------------------------------------------
+
+        [Fact]
+        public void CanonicalSkip_Excludes()
+        {
+            var rom = MakeFe8uRom(0x2000, 7);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "Canon",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT",
+                    "CANONICAL_SKIP=true");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- patch without TYPE is not a patch ----------------------------
+
+        [Fact]
+        public void NoType_NotAPatch_Ignored()
+        {
+            var rom = MakeFe8uRom(0x2000, 7);
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "NoType",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- null/guard safety --------------------------------------------
+
+        [Fact]
+        public void NullRom_NoThrow()
+        {
+            var unit = new bool[256];
+            var cls = new bool[256];
+            var item = new bool[256];
+            PatchHardCodeScanner.ScanHardCodes(null, unit, cls, item);
+            Assert.DoesNotContain(true, unit);
+        }
+
+        [Fact]
+        public void Version0Rom_ReturnsEmpty()
+        {
+            // ROMFE0 ("NAZO") -> version 0 -> WF ScanPatchs returns empty.
+            var rom = new ROM();
+            rom.LoadLow("nazo.gba", new byte[0x1000000], "NAZO");
+            var (root, verDir) = MakeTempPatchDir();
+            try
+            {
+                WritePatch(verDir, "MyUnit",
+                    "TYPE=ADDR",
+                    "ADDRESS=0x2000",
+                    "ADDRESS_TYPE=UNIT");
+                var (unit, _, _) = RunScan(rom, root);
+                Assert.DoesNotContain(true, unit);
+            }
+            finally { TryDelete(root); }
+        }
+
+        // ---- REAL ROM (skip-if-missing, matches Core.Tests convention) ----
+
+        [Fact]
+        public void RealRom_FE8U_FlagsAtLeastOneUnit()
+        {
+            string romPath = FindRom("FE8U.gba");
+            if (romPath == null) return; // skip when ROM fixture absent
+
+            string patchDir = FindRepoPatch2("FE8U");
+            if (patchDir == null) return; // skip when config/patch2 submodule absent
+
+            string savedBase = CoreState.BaseDirectory;
+            string savedLang = CoreState.Language;
+            try
+            {
+                // point BaseDirectory at the repo root so the resolver finds the
+                // real config/patch2/FE8U.
+                CoreState.BaseDirectory = RepoRoot();
+                CoreState.Language = "en";
+
+                var rom = new ROM();
+                if (!rom.Load(romPath, out string _)) return;
+
+                var unit = new bool[256];
+                var cls = new bool[256];
+                var item = new bool[256];
+                PatchHardCodeScanner.ScanHardCodes(rom, unit, cls, item);
+
+                int unitCount = CountTrue(unit);
+                Assert.True(unitCount >= 1,
+                    "vanilla FE8U + config/patch2 must flag at least one hardcoded unit");
+            }
+            finally
+            {
+                CoreState.BaseDirectory = savedBase;
+                CoreState.Language = savedLang;
+            }
+        }
+
+        static int CountTrue(bool[] arr)
+        {
+            int n = 0;
+            foreach (bool b in arr) if (b) n++;
+            return n;
+        }
+
+        static void TryDelete(string dir)
+        {
+            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
+        }
+
+        static string RepoRoot()
+        {
+            string dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            for (int i = 0; i < 10 && dir != null; i++)
+            {
+                if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+                    return dir;
+                dir = Path.GetDirectoryName(dir);
+            }
+            return null;
+        }
+
+        static string FindRom(string romName)
+        {
+            string root = RepoRoot();
+            if (root == null) return null;
+            string path = Path.Combine(root, "roms", romName);
+            return File.Exists(path) ? path : null;
+        }
+
+        static string FindRepoPatch2(string version)
+        {
+            string root = RepoRoot();
+            if (root == null) return null;
+            string path = Path.Combine(root, "config", "patch2", version);
+            return Directory.Exists(path) ? path : null;
+        }
+    }
+}

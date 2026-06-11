@@ -349,6 +349,12 @@ namespace FEBuilderGBA.Avalonia.Views
         /// ClassFE6Form.CheckHardCodingWarning historically called
         /// <c>IsHardCodeUnit</c> with a class id, which is a latent bug — see
         /// PR #388 known limitations.
+        ///
+        /// #1035: the cache is now backed by the real patch-scan
+        /// <see cref="CoreAsmMapCache"/>, so FE6 ADDRESS_TYPE=CLASS patches can
+        /// genuinely light this warning. Calling <c>IsHardCodeClass</c> here (NOT
+        /// <c>IsHardCodeUnit</c>) is the INTENDED, correct behavior — the WF
+        /// ClassFE6Form bug is deliberately NOT replicated.
         /// </summary>
         void RefreshHardCodingWarning()
         {

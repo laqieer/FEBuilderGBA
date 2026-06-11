@@ -502,6 +502,7 @@ Multiple cache layers for performance:
    `Update`/`Save`/`GetName` ported verbatim from WF `EtcCacheTextID` (which now implements the
    same interface); `GetName` = direct user→system dict lookup (no WF `UseValsID`). `CoreState.UseTextIDCache`
    typed `ITextIDCache`; (re)created on every Avalonia ROM load (ROM/path/lang-sensitive), shared from WF Program.
+5. **PatchHardCodeScanner + CoreAsmMapCache** (Core, `IAsmMapCache`) — patch-scan hardcode detection (#1035): ports WF `MakeHardCodeWarning` + `CheckIFFast` tri-state gate (skip-only-on-`"E"`) + `GetAddrPatchAddressToValue8Fast`; `CoreAsmMapCache` = lazy (ClearCache invalidates only, scan-on-first-read) replacing the no-op `HeadlessAsmMapCache`, wired per-ROM-load in Avalonia MainWindow + CLI RomLoader, lighting up the Unit/Class/Item `[HardCoding]` hyperlink. NOT the full ASM/MAP symbol pipeline (#1026).
 
 Cache invalidation occurs on ROM modifications.
 
