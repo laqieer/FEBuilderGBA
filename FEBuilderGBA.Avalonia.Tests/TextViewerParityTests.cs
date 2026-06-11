@@ -187,12 +187,14 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void View_Hosts_IncludeAIHints_Check_DisabledByDefault()
+        public void View_Hosts_IncludeAIHints_Check_Enabled()
         {
+            // #1028 Slice C enabled the "Include AI Hints" checkbox: when checked,
+            // the TSV export appends per-entry unit translate-info hints.
             var view = new TextViewerView();
             var check = FindByAutomationId<CheckBox>(view, "TextViewer_IncludeAIHints_Check");
             Assert.NotNull(check);
-            Assert.False(check!.IsEnabled);
+            Assert.True(check!.IsEnabled);
         }
 
         [AvaloniaFact]
@@ -412,21 +414,26 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ============================================================
 
         [Fact]
-        public void View_HasNavigationTargetManifest_With_AddReference_Entry()
+        public void View_HasNavigationTargetManifest_With_AddReference_And_BadCharPopup()
         {
-            // #1028 Slice A: the manifest now has exactly ONE entry — the
-            // References-tab "Add Reference" modal-dialog jump (OnAddReference ->
-            // TextRefAddDialogView). The other 5 WF jumps remain blocked on Core
-            // extractions (see the manifest file's per-jump rationale).
+            // #1028 Slice A wired the References-tab "Add Reference" modal-dialog
+            // jump (OnAddReference -> TextRefAddDialogView). #1028 Slice D wires the
+            // bad-character popup jump (OnWriteText -> TextBadCharPopupView) since
+            // PatchDetection.SearchAntiHuffmanPatch now exists. The remaining 3 WF
+            // jumps stay blocked on Core extractions (see the manifest file).
             var vm = new TextViewerViewModel();
             Assert.IsAssignableFrom<INavigationTargetSource>(vm);
             var targets = ((INavigationTargetSource)vm).GetNavigationTargets();
             Assert.NotNull(targets);
-            var entry = Assert.Single(targets);
-            Assert.Equal("OnAddReference", entry.CommandName);
-            Assert.Equal(typeof(TextRefAddDialogView), entry.TargetViewType);
-            Assert.Null(entry.TargetAddress);
-            Assert.Null(entry.IssueRef);
+            Assert.Equal(2, targets.Count);
+
+            var addRef = targets.Single(t => t.CommandName == "OnAddReference");
+            Assert.Equal(typeof(TextRefAddDialogView), addRef.TargetViewType);
+            Assert.Null(addRef.TargetAddress);
+
+            var badChar = targets.Single(t => t.CommandName == "OnWriteText");
+            Assert.Equal(typeof(TextBadCharPopupView), badChar.TargetViewType);
+            Assert.Null(badChar.TargetAddress);
         }
 
         // ============================================================

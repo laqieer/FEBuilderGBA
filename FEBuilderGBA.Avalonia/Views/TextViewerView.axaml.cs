@@ -356,7 +356,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? path = file?.TryGetLocalPath();
                 if (path == null) return;
 
-                int count = _vm.ExportAllTexts(path);
+                // #1028 Slice C: thread the "Include AI Hints" checkbox state
+                // into the export so per-entry face translate-info lines are
+                // appended when requested.
+                bool includeAIHints = IncludeAIHintsCheck.IsChecked == true;
+                int count = _vm.ExportAllTexts(path, includeAIHints);
                 await MessageBoxWindow.Show(this, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
             }
             catch (Exception ex)
@@ -391,10 +395,32 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void OnWriteTextClick(object? sender, RoutedEventArgs e)
+        async void OnWriteTextClick(object? sender, RoutedEventArgs e)
         {
             if (!_vm.CanWrite) return;
             string editedText = EditTextBox.Text ?? "";
+
+            // #1028 Slice D: WF TextForm.WriteText flow. Pre-flight the Huffman
+            // encode (no mutation). On a bad-character failure, if the AntiHuffman
+            // patch is missing, show TextBadCharPopupView (WF NeedAntiHuffman) and
+            // let the user choose. Then VM.WriteText re-checks the patch and either
+            // UnHuffman-encodes (patch now present) or aborts with no mutation. The
+            // async dialog is orchestrated HERE (the VM stays synchronous + UI-free).
+            ROM rom = CoreState.ROM;
+            string? encodeError = (rom != null) ? _vm.PeekEncodeError(editedText) : null;
+            if (encodeError != null && rom != null
+                && !PatchDetection.SearchAntiHuffmanPatch(rom)
+                && IsBadCharPopupLanguage())
+            {
+                await ShowBadCharPopupAsync(encodeError);
+            }
+
+            // The async prompt (if any) has already run. Give WriteText a
+            // synchronous re-check callback that simply reports the CURRENT patch
+            // state — never re-prompts on the UI thread from inside the sync VM.
+            _vm.AntiHuffmanPromptCallback = _ => CoreState.ROM != null
+                && PatchDetection.SearchAntiHuffmanPatch(CoreState.ROM);
+
             _undoService.Begin("Edit Text");
             try
             {
@@ -407,12 +433,57 @@ namespace FEBuilderGBA.Avalonia.Views
                 UpdateUI();
                 LoadList(); // refresh list preview
             }
+            catch (TextViewerViewModel.EncodeAbortedException ex)
+            {
+                // WF-faithful abort: no ROM mutation, no undo commit.
+                _undoService.Rollback();
+                WriteStatusLabel.Text = ex.Message;
+            }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 WriteStatusLabel.Text = $"Write failed: {ex.Message}";
                 Log.Error("WriteText failed: {0}", ex.Message);
             }
+            finally
+            {
+                _vm.AntiHuffmanPromptCallback = null;
+            }
+        }
+
+        /// <summary>
+        /// Language gate for the bad-character popup, mirroring WF
+        /// <c>TextForm.NeedAntiHuffman</c> which opens <c>TextBadCharPopupForm</c>
+        /// only for ja/zh/ko (English routes to the patch recommendation dialog).
+        /// </summary>
+        static bool IsBadCharPopupLanguage()
+        {
+            string lang = CoreState.Language ?? "";
+            return lang == "ja" || lang == "zh" || lang == "ko";
+        }
+
+        /// <summary>
+        /// Show the WF-style bad-character popup (#1028 Slice D). The popup returns
+        /// the chosen action: GiveUp (do nothing — WriteText then aborts), AntiHuffman
+        /// (open the Patch Manager so the user can install the patch), or
+        /// EncodingTable (the encoding-table editor is not yet ported to Avalonia —
+        /// documented limitation; WriteText still re-checks and aborts if unresolved).
+        /// </summary>
+        async Task ShowBadCharPopupAsync(string error)
+        {
+            string dialogText = R.Error("文字:{0}はシステムに登録されていません。", error);
+            var popup = new TextBadCharPopupView(dialogText);
+            string? action = await popup.ShowDialog<string?>(this);
+            if (action == "AntiHuffman")
+            {
+                // Route to the Patch Manager so the user can install AntiHuffman.
+                WindowManager.Instance.Open<PatchManagerView>();
+            }
+            // GiveUp / EncodingTable / null (closed): no navigation. WriteText's
+            // synchronous re-check then decides whether to proceed or abort. The
+            // Encoding-Table char-code editor is not yet ported to Avalonia — this
+            // is a documented limitation (the popup option remains, but lands on
+            // the no-op path until that editor exists).
         }
 
         void OnSearchContentClick(object? sender, RoutedEventArgs e)

@@ -285,18 +285,14 @@ namespace FEBuilderGBA.Avalonia.Services
             return PatchDetection.SearchPatchBool(table);
         }
 
+        // #1028 Slice D: the six AntiHuffman signatures now live ONCE in Core
+        // PatchDetection.SearchAntiHuffmanPatch (single source of truth). This
+        // delegates to the ambient-ROM Core overload — identical behavior, no
+        // duplicated signature table. The Text Editor WriteText flow uses the
+        // ROM-explicit Core overload directly.
         static bool DetectAntiHuffman()
         {
-            var table = new PatchDetection.PatchTableSt[]
-            {
-                new PatchDetection.PatchTableSt { name = "AntiHuffman",        ver = "FE6",  addr = 0x384c,  data = new byte[] { 0x03, 0xB5, 0x02, 0xB0 } },
-                new PatchDetection.PatchTableSt { name = "AntiHuffman",        ver = "FE7J", addr = 0x13324, data = new byte[] { 0x02, 0x49, 0x28, 0x1C } },
-                new PatchDetection.PatchTableSt { name = "AntiHuffman",        ver = "FE8J", addr = 0x2af4,  data = new byte[] { 0x00, 0xB5, 0xC2, 0x0F } },
-                new PatchDetection.PatchTableSt { name = "AntiHuffman",        ver = "FE7U", addr = 0x12C6C, data = new byte[] { 0x02, 0x49, 0x28, 0x1C } },
-                new PatchDetection.PatchTableSt { name = "AntiHuffman",        ver = "FE8U", addr = 0x2BA4,  data = new byte[] { 0x00, 0xB5, 0xC2, 0x0F } },
-                new PatchDetection.PatchTableSt { name = "AntiHuffman_snake1", ver = "FE8U", addr = 0x2ba4,  data = new byte[] { 0x78, 0x47, 0xC0, 0x46 } },
-            };
-            return PatchDetection.SearchPatchBool(table);
+            return PatchDetection.SearchAntiHuffmanPatch();
         }
 
         static bool DetectClassTypeRework()

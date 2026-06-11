@@ -669,6 +669,84 @@ namespace FEBuilderGBA
         }
 
         // ============================================================
+        // AI-translation hint builder (#1028 Slice C)
+        // Faithful port of WF ToolTranslateROM.AppendAIHintMessage
+        // (ToolTranslateROM.cs:471).
+        // ============================================================
+
+        /// <summary>
+        /// Build the AI-translation hint block for a single text entry, faithfully
+        /// porting WF <c>ToolTranslateROM.AppendAIHintMessage</c>. Scans
+        /// <paramref name="src"/> for face-load escapes (FEditorAdv
+        /// <c>[LoadFace][0xXXX]</c> or engine <c>@0010@XXX]</c> depending on the
+        /// text-escape mode), de-duplicates the referenced face ids, resolves each
+        /// to its unit translate-info line via
+        /// <see cref="NameResolver.GetFaceTranslateInfo"/>, and returns those lines
+        /// joined with the WF leading blank lines. Returns <c>""</c> when the text
+        /// references no faces (matching WF). The output format mirrors WF exactly:
+        /// two leading CRLF blank lines, then one info line per unique face.
+        /// </summary>
+        public static string AppendAIHintMessage(ROM rom, string src)
+        {
+            if (rom?.RomInfo == null || string.IsNullOrEmpty(src)) return "";
+
+            // The regex picked here matches WF AppendAIHintMessage: FEditorAdv
+            // mode looks for the user-facing [LoadFace][0xXXX] token; otherwise
+            // the engine @0010@XXX] escape. Mode resolution mirrors WF
+            // OptionForm.text_escape (1 = FEditorAdv).
+            uint mode = (CoreState.Config != null)
+                ? U.atoi(CoreState.Config.at("func_text_escape", "1"))
+                : 1u;
+
+            System.Text.RegularExpressions.MatchCollection m;
+            if (mode == 1)
+            {
+                m = RegexCache.Matches(src, "\\[LoadFace\\]\\[0x([0-9A-F]...?)\\]");
+            }
+            else
+            {
+                m = RegexCache.Matches(src, "@0010@([0-9A-F]...)]");
+            }
+
+            if (m.Count <= 0)
+            {
+                // 顔画像のロードがない — no face load.
+                return "";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("");
+            sb.AppendLine("");
+            List<uint> dup = new List<uint>();
+            for (int i = 0; i < m.Count; i++)
+            {
+                uint faceID = U.atoh(m[i].Groups[1].ToString());
+                if (faceID < 0x100)
+                {
+                    // 必ず100以上である必要がある — must be >= 0x100.
+                    continue;
+                }
+                faceID = faceID - 0x100;
+                if (dup.IndexOf(faceID) >= 0)
+                {
+                    continue;
+                }
+                dup.Add(faceID);
+                string r = NameResolver.GetFaceTranslateInfo(rom, faceID);
+                if (r == "")
+                {
+                    continue;
+                }
+                sb.AppendLine(r);
+            }
+            if (dup.Count <= 0)
+            {
+                return "";
+            }
+            return sb.ToString();
+        }
+
+        // ============================================================
         // Text import driver - port from ToolTranslateROM.ImportAllText (#536)
         // ============================================================
 

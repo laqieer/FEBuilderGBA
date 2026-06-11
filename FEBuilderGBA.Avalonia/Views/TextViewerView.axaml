@@ -141,10 +141,12 @@
                         ToolTip.Tip="Out-of-scope: requires ToolTranslateROM Core extraction" />
             </StackPanel>
 
-            <!-- Include AI Hints stub (DISABLED) -->
+            <!-- Include AI Hints (#1028 Slice C): when checked, the TSV export
+                 appends per-entry unit translate-info lines for every face the
+                 text loads (WF ToolTranslateROM.AppendAIHintMessage). -->
             <CheckBox AutomationProperties.AutomationId="TextViewer_IncludeAIHints_Check"
-                      Name="IncludeAIHintsCheck" Content="Include AI Hints" IsEnabled="False"
-                      ToolTip.Tip="Out-of-scope: requires ToolTranslateROM Core extraction" />
+                      Name="IncludeAIHintsCheck" Content="Include AI Hints"
+                      ToolTip.Tip="Append unit translate-info hints (name/role/flags) for every face the text loads." />
 
             <!-- Export Limit descriptor (read-only descriptive TextBox) -->
             <StackPanel Orientation="Horizontal" Spacing="6">

@@ -24,6 +24,31 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public List<string> CrossReferences { get => _crossReferences; set => SetField(ref _crossReferences, value); }
 
         /// <summary>
+        /// Injectable prompt callback for the WF AntiHuffman flow (#1028 Slice D).
+        /// Invoked by <see cref="WriteText"/> when Huffman encoding fails AND the
+        /// AntiHuffman (un-Huffman) patch is NOT installed. The callback shows the
+        /// <c>TextBadCharPopupView</c> with the encode-error message and returns
+        /// <c>true</c> when the patch is installed after the prompt (the WF
+        /// re-check), <c>false</c> to abort. Kept as a callback so the VM stays
+        /// synchronous + UI-free — the View owns the modal dialog, exactly per the
+        /// Copilot-accepted plan amendment #3. When unset (e.g. headless tests),
+        /// WriteText treats the prompt as a "still missing" abort.
+        /// </summary>
+        public Func<string, bool>? AntiHuffmanPromptCallback { get; set; }
+
+        /// <summary>
+        /// Thrown by <see cref="WriteText"/> to signal a WF-faithful abort with NO
+        /// ROM mutation when the bad-character text could not be encoded and the
+        /// AntiHuffman patch remained uninstalled after the prompt (or the user
+        /// chose GiveUp). The View distinguishes this from a real failure so it can
+        /// roll back the undo scope without leaving any partial write.
+        /// </summary>
+        public sealed class EncodeAbortedException : InvalidOperationException
+        {
+            public EncodeAbortedException(string message) : base(message) { }
+        }
+
+        /// <summary>
         /// Check whether a text pointer value is valid: standard ROM pointer,
         /// UnHuffman-patched pointer, or RAM pointer (IW-RAM / EW-RAM).
         /// Mirrors WinForms TextForm logic.
@@ -334,6 +359,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Pre-flight (no-mutation) Huffman-encode check for the WF AntiHuffman
+        /// flow (#1028 Slice D). Returns the encode-error string (the offending
+        /// characters) when the text cannot be Huffman-encoded, or <c>null</c>
+        /// when it encodes cleanly. The View calls this before <see cref="WriteText"/>
+        /// so it can show the (async) <c>TextBadCharPopupView</c> off the UI thread,
+        /// then let WriteText do the WF-faithful re-check synchronously. Reads no
+        /// ROM state and writes nothing.
+        /// </summary>
+        public string? PeekEncodeError(string text)
+        {
+            if (CoreState.FETextEncoder == null) return null;
+            string escaped = ConvertFEditorToEscape(text);
+            string error = CoreState.FETextEncoder.Encode(escaped, out _);
+            return (error != null && error.Length > 0) ? error : null;
+        }
+
+        /// <summary>
         /// Write edited text back to ROM for the given text ID.
         /// Converts FEditor format to escape codes, Huffman-encodes, and writes to ROM.
         /// </summary>
@@ -348,13 +390,35 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // Convert FEditor display format back to internal escape codes
             string escaped = ConvertFEditorToEscape(text);
 
-            // Huffman-encode
+            // Huffman-encode. WF TextForm.WriteText flow (#1028 Slice D): on an
+            // encode failure, check the AntiHuffman patch; if it's missing, prompt
+            // (TextBadCharPopupView via the injected callback) and RE-CHECK; if it
+            // is still missing, ABORT with NO ROM mutation; only then UnHuffman-
+            // encode. The check/prompt/abort happens BEFORE any write below so a
+            // GiveUp / still-missing path leaves the ROM byte-identical.
             byte[] encoded;
             bool useUnHuffman = false;
             string error = CoreState.FETextEncoder.Encode(escaped, out encoded);
             if (error != null && error.Length > 0)
             {
-                // Huffman encoding failed — try UnHuffman fallback
+                bool useAntiHuffman = PatchDetection.SearchAntiHuffmanPatch(rom);
+                if (!useAntiHuffman)
+                {
+                    // Patch missing — prompt the user (View shows the popup),
+                    // then re-check. The callback returns true when the patch is
+                    // installed after the prompt (WF re-check); a null callback
+                    // (headless) or a false result is treated as "still missing".
+                    bool installedAfterPrompt =
+                        AntiHuffmanPromptCallback != null && AntiHuffmanPromptCallback(error);
+                    useAntiHuffman = installedAfterPrompt && PatchDetection.SearchAntiHuffmanPatch(rom);
+                    if (!useAntiHuffman)
+                    {
+                        // ABORT — no mutation, exactly like WF returning U.NOT_FOUND.
+                        throw new EncodeAbortedException(
+                            R._("文字:{0}はシステムに登録されていません。", error));
+                    }
+                }
+                // Patch present (or freshly installed) — UnHuffman-encode.
                 CoreState.FETextEncoder.UnHuffmanEncode(escaped, out encoded);
                 useUnHuffman = true;
             }
@@ -632,10 +696,43 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public int ExportAllTexts(string path)
         {
+            return ExportAllTexts(path, includeAIHints: false);
+        }
+
+        /// <summary>
+        /// Export all ROM texts to a TSV file. When <paramref name="includeAIHints"/>
+        /// is true, the AI-translation hint block (WF
+        /// <c>ToolTranslateROM.AppendAIHintMessage</c>) for each entry is appended
+        /// to that row's Text column — escaped like the rest of the column (CR/LF
+        /// flattened to <c>\n</c>) so TSV columns are NOT corrupted. The hints are
+        /// the unit translate-info lines for every face the text loads (#1028 Slice C).
+        /// </summary>
+        public int ExportAllTexts(string path, bool includeAIHints)
+        {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null || rom.Data == null) return 0;
 
             var entries = TranslateCore.DumpTexts(rom);
+
+            if (includeAIHints)
+            {
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    string text = entries[i].text ?? "";
+                    // WF AppendAIHintMessage operates on the escape-converted text
+                    // (FEditorAdv [LoadFace][0xXXX] / engine @0010@XXX]); convert
+                    // first so the face-load escapes are detectable.
+                    string converted = ToolTranslateROMCore.ConvertEscapeText(text);
+                    string hint = ToolTranslateROMCore.AppendAIHintMessage(rom, converted);
+                    if (!string.IsNullOrEmpty(hint))
+                    {
+                        // Append the hint block to the Text column. ExportToTSV
+                        // flattens CR/LF to \n on write, so columns stay intact.
+                        entries[i] = (entries[i].textId, text + hint);
+                    }
+                }
+            }
+
             TranslateCore.ExportToTSV(entries, path);
             return entries.Count;
         }

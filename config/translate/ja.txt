@@ -7995,6 +7995,9 @@ ED関係
 :Include AI Hints
 AI用に登場人物のヒントを追加
 
+:Append unit translate-info hints (name/role/flags) for every face the text loads.
+テキストが読み込む全ての顔画像について、ユニットの翻訳情報（名前・役割・フラグ）のヒントを追加します。
+
 :Export Limit:
 エクスポート制限:
 

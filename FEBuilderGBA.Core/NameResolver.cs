@@ -153,6 +153,143 @@ namespace FEBuilderGBA
             return _cache.GetOrAdd(("item", id), _ => ResolveItemName(id));
         }
 
+        /// <summary>
+        /// Build the AI-translation hint line for a unit face (portrait) id,
+        /// faithfully porting WinForms <c>UnitForm.GetTranslateInfoByFaceID</c>
+        /// (UnitForm.cs:338). The returned line is:
+        /// <c>Name(faceIdString) info[ descriptors...]</c> where descriptors are
+        /// appended from the unit's flag byte at <c>+41</c>. Used by the Text
+        /// Editor export "Include AI Hints" feature (#1028 Slice C).
+        ///
+        /// <para>Faithful WF parity notes:</para>
+        /// <list type="bullet">
+        ///   <item>Scans ONLY the unit table by face at <c>+6</c> — there is
+        ///   deliberately NO class-table fallback (unlike
+        ///   <see cref="GetPortraitName"/>).</item>
+        ///   <item>name = text id at <c>+0</c>, info = text id at <c>+2</c>
+        ///   (its CRLFs flattened to spaces), exactly as WF
+        ///   <c>TextForm.Direct</c> (decode → strip <c>@001F</c> →
+        ///   ConvertEscapeText).</item>
+        ///   <item>Descriptor strings are localized via <c>R._</c> using the
+        ///   SAME source strings as WF (<c>" 主人公"</c> etc.) — these are
+        ///   AI-translation hint text, not UI chrome, kept verbatim.</item>
+        ///   <item><c>faceId == 0xFFFF - 0x100</c> (the visitor self) returns
+        ///   <c>""</c>, exactly as WF.</item>
+        ///   <item>Unmatched faces return the mob-character fallback string.</item>
+        /// </list>
+        /// NOT cached in the <c>(kind,id)</c> cache — it reads multiple text ids
+        /// + flags whose lifetime isn't tracked by the name cache's invalidation.
+        /// </summary>
+        public static string GetFaceTranslateInfo(ROM rom, uint faceId)
+        {
+            if (rom?.RomInfo == null) return "";
+
+            // 訪問者自身を置くので不明 — visitor self, unknown. (WF UnitForm.cs:340)
+            if (faceId == 0xFFFF - 0x100)
+            {
+                return "";
+            }
+
+            string faceIdString = FormatFaceIdString(faceId);
+
+            try
+            {
+                uint unitBase = DerefPointer(rom, rom.RomInfo.unit_pointer);
+                uint unitSize = rom.RomInfo.unit_datasize;
+                uint unitCount = rom.RomInfo.unit_maxcount;
+                if (unitCount == 0) unitCount = 0x100;
+
+                if (unitBase != 0 && unitSize != 0)
+                {
+                    for (uint i = 0; i < unitCount; i++)
+                    {
+                        uint addr = unitBase + (i * unitSize);
+                        if (!U.isSafetyOffset(addr + 41, rom)) break;
+                        if (rom.u16(addr + 6) != faceId) continue;
+
+                        uint nameid = rom.u16(addr);
+                        string name = FaceDirect(nameid);
+
+                        uint infoid = rom.u16(addr + 2);
+                        string info = FaceDirect(infoid);
+                        info = info.Replace("\r\n", " ");
+
+                        uint f2 = rom.u8(addr + 41);
+
+                        if (i == 0)
+                        {
+                            info += R._(" 主人公");
+                        }
+                        // faithful WF quirk: this condition can never be true
+                        // ((f2 & 0x80) is 0x00 or 0x80, never 0x20) — preserved
+                        // byte-for-byte from WF UnitForm.cs:374 so the export
+                        // output matches WinForms exactly. Do NOT "correct" it.
+                        else if ((f2 & 0x80) == 0x20)
+                        {
+                            info += R._(" 主人公格");
+                        }
+
+                        if ((f2 & 0x80) == 0x80)
+                        {
+                            info += R._(" 敵将");
+                        }
+                        if ((f2 & 0x40) == 0x40)
+                        {
+                            info += R._(" 女性");
+                        }
+                        if ((f2 & 0x01) == 0x01)
+                        {
+                            info += R._(" 上級職");
+                        }
+
+                        return name + "(" + faceIdString + ")" + " " + info;
+                    }
+                }
+            }
+            catch { return ""; }
+
+            // モブキャラ — mob character fallback (WF UnitForm.cs:396).
+            return R._("モブキャラ") + "(" + faceIdString + ")" + " " +
+                   R._("未参照の人物。兵士か村人のモブキャラだと思われる。");
+        }
+
+        /// <summary>
+        /// Format the face id for display in the hint line, mirroring WF
+        /// <c>UnitForm.GetTranslateInfoByFaceID</c>: FEditorAdv mode →
+        /// <c>0x{face+0x100:X03}</c>, else <c>@{face+0x100:X04}</c>. The mode
+        /// resolution matches WF <c>OptionForm.text_escape</c> (1 = FEditorAdv).
+        /// </summary>
+        static string FormatFaceIdString(uint faceId)
+        {
+            uint mode = (CoreState.Config != null)
+                ? U.atoi(CoreState.Config.at("func_text_escape", "1"))
+                : 1u;
+            if (mode == 1)
+            {
+                return "0x" + (faceId + 0x100).ToString("X03");
+            }
+            return "@" + (faceId + 0x100).ToString("X04");
+        }
+
+        /// <summary>
+        /// Direct text decode mirroring WF <c>TextForm.Direct</c>: FETextDecode →
+        /// strip <c>@001F</c> padding → ConvertEscapeText. Used for the face hint
+        /// name/info so output matches WF byte-for-byte (unlike
+        /// <see cref="GetTextById"/> which strips all control codes).
+        /// </summary>
+        static string FaceDirect(uint textid)
+        {
+            if (textid == 0) return "";
+            try
+            {
+                string str = FETextDecode.Direct(textid) ?? "";
+                str = str.Replace("@001F", "");
+                str = ToolTranslateROMCore.ConvertEscapeText(str);
+                return str;
+            }
+            catch { return "???"; }
+        }
+
         /// <summary>Get a song/music name by index.</summary>
         public static string GetSongName(uint id)
         {
