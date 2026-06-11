@@ -252,6 +252,53 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
+        /// References tab → "Add Reference" (#1028 Slice A). Open the
+        /// <see cref="TextRefAddDialogView"/> pre-filled with the currently-selected
+        /// text id + its existing reference comment, then persist the result through
+        /// the <see cref="ITextIDCache"/> seam (Update + Save) and refresh the
+        /// cross-reference display. Mirrors WinForms <c>TextForm.ShowRefAddDialog</c>.
+        /// </summary>
+        async void OnAddReferenceClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!_vm.CanWrite) return;
+
+                var cache = CoreState.UseTextIDCache;
+                ROM rom = CoreState.ROM;
+                if (cache == null || rom == null)
+                {
+                    ReferencesTabStatusLabel.Text = R._("(No ROM loaded)");
+                    return;
+                }
+
+                uint textid = _vm.CurrentId;
+                string existing = cache.GetName(textid) ?? "";
+
+                var dlg = new TextRefAddDialogView();
+                dlg.Init(textid, existing);
+                var result = await dlg.ShowDialog<TextRefAddDialogViewModel?>(this);
+                if (result == null) return; // Cancelled.
+
+                // Persist via the cache seam. GetComment() applies the WF blank-entry
+                // convention: a blank comment on a NEW entry is stored as a single
+                // space (kept-but-blank); clearing an EXISTING entry removes it.
+                cache.Update(textid, result.GetComment());
+                cache.Save(rom.Filename);
+
+                // Refresh the cross-reference display for the current text. LoadText
+                // re-runs FindCrossReferences, which UpdateCrossReferences renders.
+                _vm.LoadText(textid);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.OnAddReferenceClick failed: {0}", ex.Message);
+                ReferencesTabStatusLabel.Text = R._("Error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Parse text for [...] control code sequences and render them in blue.
         /// Mirrors WinForms TextForm.KeywordHighLightFEditor() bracket scanning.
         /// </summary>

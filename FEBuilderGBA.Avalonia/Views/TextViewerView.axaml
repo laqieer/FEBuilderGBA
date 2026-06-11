@@ -192,7 +192,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <!-- Tab 5: References — list of cross-refs + (disabled) Add Reference (mirror WF RefPage) -->
+      <!-- Tab 5: References — list of cross-refs + Add Reference (mirror WF RefPage) -->
       <TabItem Header="References" Name="ReferencesTab" AutomationProperties.AutomationId="TextViewer_References_Tab">
         <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="4">
           <TextBlock Grid.Row="0" AutomationProperties.AutomationId="TextViewer_ReferencesPrefix_Label"
@@ -202,9 +202,9 @@
                      Name="ReferencesTabList" />
           </Border>
           <Button Grid.Row="2" AutomationProperties.AutomationId="TextViewer_AddReference_Button"
-                  Name="AddReferenceButton" Content="Add Reference" IsEnabled="False"
+                  Name="AddReferenceButton" Content="Add Reference" IsEnabled="True"
                   Margin="4,8,4,4"
-                  ToolTip.Tip="Out-of-scope: requires UseTextIDCache.Update Core extraction" />
+                  Click="OnAddReferenceClick" />
           <TextBlock Grid.Row="3" AutomationProperties.AutomationId="TextViewer_ReferencesTabStatus_Label"
                      Name="ReferencesTabStatusLabel" Margin="4,4,4,4" Foreground="Gray" />
         </Grid>

@@ -498,6 +498,10 @@ Multiple cache layers for performance:
    - Exposes `RepointEtcData(oldAddr, oldSize, newAddr)` so table-expansion
      helpers can relocate per-row comment/lint keys when a table moves
      (used by `DataExpansionCore.ExpandTableTo` for #501 action-anime list).
+4. **TextIDCacheCore** (Core, `ITextIDCache`) — text-id reference-comment cache (#1028 Slice A):
+   `Update`/`Save`/`GetName` ported verbatim from WF `EtcCacheTextID` (which now implements the
+   same interface); `GetName` = direct user→system dict lookup (no WF `UseValsID`). `CoreState.UseTextIDCache`
+   typed `ITextIDCache`; (re)created on every Avalonia ROM load (ROM/path/lang-sensitive), shared from WF Program.
 
 Cache invalidation occurs on ROM modifications.
 

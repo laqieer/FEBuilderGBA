@@ -695,6 +695,13 @@ namespace FEBuilderGBA.Avalonia.Views
             // Init text escape
             CoreState.TextEscape ??= new TextEscape();
 
+            // Text-ID reference cache (#1028 Slice A) — used by the Text Editor's
+            // References-tab "Add Reference" flow. The ctor reads the per-ROM user
+            // TSV (config/etc/<rom>/textid_.txt) + shipped system names, so it is
+            // ROM/path/language-sensitive and MUST be (re)created on EVERY ROM load
+            // (replace, not ??=) — never at app boot.
+            CoreState.UseTextIDCache = new TextIDCacheCore();
+
             // Init flag cache
             if (CoreState.FlagCache == null)
             {

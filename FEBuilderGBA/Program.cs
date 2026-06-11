@@ -748,6 +748,10 @@ namespace FEBuilderGBA
             FlagCache = new EtcCacheFLag();
             CoreState.FlagCache = FlagCache;
             UseTextIDCache = new EtcCacheTextID();
+            // Share the typed text-id cache with Core/shared code (#1028 Slice A).
+            // Program.UseTextIDCache stays declared as EtcCacheTextID (WF keeps its
+            // richer merge/lint helpers); CoreState sees it via the ITextIDCache seam.
+            CoreState.UseTextIDCache = UseTextIDCache;
             LintCache = new EtcCache("lint_");
             CommentCache = new EtcCache("comment_");
             WorkSupportCache = new EtcCache("worksupport_");
