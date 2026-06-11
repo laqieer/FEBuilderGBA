@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
@@ -434,6 +435,110 @@ namespace FEBuilderGBA.Avalonia.Tests
             var badChar = targets.Single(t => t.CommandName == "OnWriteText");
             Assert.Equal(typeof(TextBadCharPopupView), badChar.TargetViewType);
             Assert.Null(badChar.TargetAddress);
+        }
+
+        // ============================================================
+        // #1028 Slice D — bad-char AntiHuffman routing (Copilot PR #1107 findings 1 & 2)
+        //
+        // ResolveAntiHuffmanInteractionAsync exposes injectable seams
+        // (ShowBadCharPopupAsync / OpenPatchManagerModalAsync) so the routing is
+        // asserted without a real Window. The key invariants:
+        //   (1) ja/zh/ko + "AntiHuffman" popup choice AWAITS the modal Patch Manager
+        //       BEFORE returning (so WriteText's re-check sees a fresh install).
+        //   (2) non-ja/zh/ko routes straight to the Patch Manager (not a silent
+        //       no-op abort).
+        // ============================================================
+
+        [AvaloniaFact]
+        public async Task BadCharFlow_Ja_AntiHuffmanChoice_AwaitsModalPatchManager_BeforeReturn()
+        {
+            string savedLang = CoreState.Language;
+            try
+            {
+                CoreState.Language = "ja";
+                var view = new TextViewerView();
+
+                bool popupShown = false;
+                bool patchManagerOpened = false;
+                bool patchManagerCompletedBeforeReturn = false;
+
+                view.ShowBadCharPopupAsync = _ =>
+                {
+                    popupShown = true;
+                    return Task.FromResult<string?>("AntiHuffman");
+                };
+                view.OpenPatchManagerModalAsync = async () =>
+                {
+                    patchManagerOpened = true;
+                    // Simulate a modal that yields then completes; the awaiter must
+                    // block on this before ResolveAntiHuffmanInteractionAsync returns.
+                    await Task.Yield();
+                    patchManagerCompletedBeforeReturn = true;
+                };
+
+                await view.ResolveAntiHuffmanInteractionAsync("X");
+
+                Assert.True(popupShown, "ja/zh/ko must show the bad-char popup");
+                Assert.True(patchManagerOpened, "AntiHuffman choice must open the Patch Manager");
+                Assert.True(patchManagerCompletedBeforeReturn,
+                    "the modal Patch Manager must be AWAITED (completed) before returning, " +
+                    "so WriteText's subsequent re-check sees a freshly-installed patch");
+            }
+            finally
+            {
+                CoreState.Language = savedLang;
+            }
+        }
+
+        [AvaloniaFact]
+        public async Task BadCharFlow_Ja_GiveUpChoice_DoesNotOpenPatchManager()
+        {
+            string savedLang = CoreState.Language;
+            try
+            {
+                CoreState.Language = "ja";
+                var view = new TextViewerView();
+
+                bool patchManagerOpened = false;
+                view.ShowBadCharPopupAsync = _ => Task.FromResult<string?>("GiveUp");
+                view.OpenPatchManagerModalAsync = () => { patchManagerOpened = true; return Task.CompletedTask; };
+
+                await view.ResolveAntiHuffmanInteractionAsync("X");
+
+                Assert.False(patchManagerOpened,
+                    "GiveUp must NOT open the Patch Manager (WriteText then re-checks and aborts)");
+            }
+            finally
+            {
+                CoreState.Language = savedLang;
+            }
+        }
+
+        [AvaloniaFact]
+        public async Task BadCharFlow_NonCjkLanguage_RoutesToPatchManager_NotSilentAbort()
+        {
+            string savedLang = CoreState.Language;
+            try
+            {
+                CoreState.Language = "en";
+                var view = new TextViewerView();
+
+                bool popupShown = false;
+                bool patchManagerOpened = false;
+                view.ShowBadCharPopupAsync = _ => { popupShown = true; return Task.FromResult<string?>(null); };
+                view.OpenPatchManagerModalAsync = () => { patchManagerOpened = true; return Task.CompletedTask; };
+
+                await view.ResolveAntiHuffmanInteractionAsync("X");
+
+                Assert.False(popupShown, "non-ja/zh/ko must NOT show the ja/zh/ko bad-char popup");
+                Assert.True(patchManagerOpened,
+                    "non-ja/zh/ko must route to the Patch Manager for actionable guidance, " +
+                    "not silently abort with no UI (Copilot finding 2)");
+            }
+            finally
+            {
+                CoreState.Language = savedLang;
+            }
         }
 
         // ============================================================
