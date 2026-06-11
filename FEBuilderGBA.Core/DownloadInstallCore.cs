@@ -334,10 +334,63 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
+        /// A reversible commit (Copilot #1102 re-review): the prior install (if
+        /// any) was renamed aside to a backup dir, and the new install was swapped
+        /// into the final dir. The commit is NOT durable until <see cref="Confirm"/>
+        /// deletes the backup; <see cref="Rollback"/> restores the prior install
+        /// byte-identical (and removes the just-placed new install). Used by the
+        /// BUNDLE path so that if a LATER member's commit fails, EVERY earlier
+        /// member's commit is rolled back — true all-or-none at commit time too.
+        /// </summary>
+        public sealed class CommitToken
+        {
+            internal string FinalDir { get; init; }
+            internal string BackupDir { get; init; }   // null when there was no prior install
+            bool _settled;
+
+            /// <summary>Make the commit durable: delete the prior-install backup.</summary>
+            public void Confirm()
+            {
+                if (_settled) return;
+                _settled = true;
+                if (BackupDir != null)
+                    TryDeleteDir(BackupDir);
+            }
+
+            /// <summary>
+            /// Undo the commit: remove the new install and restore the prior one.
+            /// </summary>
+            public void Rollback()
+            {
+                if (_settled) return;
+                _settled = true;
+                TryDeleteDir(FinalDir);
+                if (BackupDir != null && Directory.Exists(BackupDir))
+                {
+                    try { Directory.Move(BackupDir, FinalDir); }
+                    catch { /* best-effort restore */ }
+                }
+            }
+        }
+
+        /// <summary>The outcome of a <see cref="Commit"/> / <see cref="CommitBundle"/> step.</summary>
+        public readonly struct CommitResult
+        {
+            public string Path { get; }
+            public string Error { get; }
+            internal CommitToken Token { get; }
+            public bool Success => Path != null;
+            internal CommitResult(string path, string error, CommitToken token)
+            { Path = path; Error = error ?? ""; Token = token; }
+        }
+
+        /// <summary>
         /// Phase 2: place an already-staged + validated download into its final
         /// tool dir via the crash-safe swap in <see cref="PlaceFile"/>. Returns the
         /// resolved final exe path, or <c>null</c> + non-empty <paramref name="error"/>.
-        /// Does NOT dispose the staging dir (the caller owns that).
+        /// On success the prior install (if any) is auto-confirmed (backup deleted).
+        /// Does NOT dispose the staging dir (the caller owns that). For
+        /// transactional multi-resource installs use <see cref="CommitBundle"/>.
         /// </summary>
         public static string Commit(StagedDownload staged, ref string error)
         {
@@ -346,8 +399,75 @@ namespace FEBuilderGBA
                 error = R.Error("Nothing to install.");
                 return null;
             }
-            return PlaceFile(staged.StagedExe, staged.FinalDir, staged.PlaceFilename,
-                ref error, copyWholeDir: staged.CopyWholeDir);
+            CommitToken token;
+            string placed = PlaceFile(staged.StagedExe, staged.FinalDir, staged.PlaceFilename,
+                ref error, out token, copyWholeDir: staged.CopyWholeDir);
+            // Single-resource commit is durable immediately.
+            token?.Confirm();
+            return placed;
+        }
+
+        /// <summary>
+        /// Transactional bundle commit (Copilot #1102 re-review): commit EVERY
+        /// staged member, and only if ALL succeed are the commits confirmed
+        /// (backups deleted). If ANY member's commit fails, EVERY already-committed
+        /// member is rolled back (its prior install restored byte-identical, its
+        /// new install removed), so the bundle leaves NO partial install. Returns
+        /// the resolved final exe paths (one per member, in order) on full success,
+        /// or <c>null</c> + non-empty <paramref name="error"/> on any failure.
+        /// </summary>
+        public static string[] CommitBundle(IReadOnlyList<StagedDownload> staged, ref string error)
+        {
+            if (staged == null || staged.Count == 0)
+            {
+                error = R.Error("Nothing to install.");
+                return null;
+            }
+
+            var tokens = new List<CommitToken>(staged.Count);
+            var paths = new string[staged.Count];
+            try
+            {
+                for (int i = 0; i < staged.Count; i++)
+                {
+                    if (staged[i] == null)
+                    {
+                        error = R.Error("Nothing to install.");
+                        RollbackAll(tokens);
+                        return null;
+                    }
+                    string placed = PlaceFile(staged[i].StagedExe, staged[i].FinalDir,
+                        staged[i].PlaceFilename, ref error, out CommitToken token,
+                        copyWholeDir: staged[i].CopyWholeDir);
+                    if (token != null)
+                        tokens.Add(token);
+                    if (placed == null)
+                    {
+                        // Later member failed -> undo every prior committed member.
+                        RollbackAll(tokens);
+                        return null;
+                    }
+                    paths[i] = placed;
+                }
+
+                // All committed OK -> make every commit durable.
+                foreach (var t in tokens)
+                    t.Confirm();
+                return paths;
+            }
+            catch (Exception e)
+            {
+                error = R.Error("Could not place the downloaded files.\r\n{0}", e.Message);
+                RollbackAll(tokens);
+                return null;
+            }
+        }
+
+        static void RollbackAll(List<CommitToken> tokens)
+        {
+            // Reverse order so the most-recent swap unwinds first.
+            for (int i = tokens.Count - 1; i >= 0; i--)
+                tokens[i].Rollback();
         }
 
         /// <summary>
@@ -476,8 +596,9 @@ namespace FEBuilderGBA
         /// restored. The final directory is therefore NEVER left empty/partial.
         /// </summary>
         static string PlaceFile(string stagedExe, string finalDir, string finalFilename,
-            ref string error, string copyWholeDir = null)
+            ref string error, out CommitToken token, string copyWholeDir = null)
         {
+            token = null;
             string newDir = finalDir + ".new-" + Guid.NewGuid().ToString("N");
             string backupDir = finalDir + ".old-" + Guid.NewGuid().ToString("N");
             try
@@ -518,7 +639,9 @@ namespace FEBuilderGBA
                 }
 
                 // 2) Atomically swap newDir into finalDir, preserving the prior
-                //    install until the swap is committed.
+                //    install in the backup dir. The backup is NOT deleted here —
+                //    ownership passes to the CommitToken so the caller (a bundle)
+                //    can Rollback a later sibling's failure. Confirm() deletes it.
                 bool hadPrior = Directory.Exists(finalDir);
                 if (hadPrior)
                     Directory.Move(finalDir, backupDir);
@@ -533,16 +656,20 @@ namespace FEBuilderGBA
                         Directory.Move(backupDir, finalDir);
                     throw;
                 }
-                if (hadPrior)
-                    TryDeleteDir(backupDir);
 
                 string placedExe = Path.Combine(finalDir, relExe);
                 if (!File.Exists(placedExe))
                 {
+                    // Roll the swap back so nothing partial is left behind.
+                    TryDeleteDir(finalDir);
+                    if (hadPrior && Directory.Exists(backupDir))
+                        try { Directory.Move(backupDir, finalDir); } catch { /* best-effort */ }
                     error = R.Error("The install directory is missing the expected file.\r\nPATH:{0}\r\nfile:{1}",
                         finalDir, Path.GetFileName(stagedExe));
                     return null;
                 }
+
+                token = new CommitToken { FinalDir = finalDir, BackupDir = hadPrior ? backupDir : null };
                 return placedExe;
             }
             catch (Exception e)

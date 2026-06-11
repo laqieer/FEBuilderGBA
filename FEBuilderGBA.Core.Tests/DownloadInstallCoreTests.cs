@@ -301,6 +301,72 @@ namespace FEBuilderGBA.Core.Tests
                 "Bundle must not place member 1 when a later member fails.");
         }
 
+        [Fact]
+        public void CommitBundle_LateCommitFailure_RollsBackEarlierMembers()
+        {
+            // Both members stage OK, but member 2's STAGED exe is deleted so its
+            // Commit (PlaceFile copy) FAILS. CommitBundle must then roll back
+            // member 1 — restoring its prior install and leaving NO new install.
+            string finalDir1 = Path.Combine(_baseDir, "app", "no$gba");
+            Directory.CreateDirectory(finalDir1);
+            string prior1 = Path.Combine(finalDir1, "NO$GBA.EXE");
+            File.WriteAllBytes(prior1, new byte[] { 0xAA });
+
+            var s1 = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.NoGba, _baseDir, null,
+                out string e1, FakeZipWriter("NO$GBA.EXE", new byte[] { 0xBB }));
+            Assert.NotNull(s1);
+
+            var s2 = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                out string e2, FakeExeWriter(new byte[] { 0xCC }));
+            Assert.NotNull(s2);
+
+            // Sabotage member 2 so its Commit fails after member 1 commits.
+            File.Delete(s2.StagedExe);
+            string finalDir2 = Path.Combine(_baseDir, "app", "asm");
+
+            string error = "";
+            string[] results = DownloadInstallCore.CommitBundle(new[] { s1, s2 }, ref error);
+            s1.Dispose();
+            s2.Dispose();
+
+            Assert.Null(results);
+            Assert.False(string.IsNullOrEmpty(error));
+            // Member 1 rolled back: prior install restored byte-identical.
+            Assert.True(File.Exists(prior1));
+            Assert.Equal(new byte[] { 0xAA }, File.ReadAllBytes(prior1));
+            // Member 2 never installed.
+            Assert.False(Directory.Exists(finalDir2));
+            // No leftover .new-/.old- staging siblings.
+            Assert.Empty(Directory.GetDirectories(Path.Combine(_baseDir, "app"), "*.new-*"));
+            Assert.Empty(Directory.GetDirectories(Path.Combine(_baseDir, "app"), "*.old-*"));
+        }
+
+        [Fact]
+        public void CommitBundle_AllSucceed_PlacesEveryMember_AndCleansBackups()
+        {
+            var s1 = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.NoGba, _baseDir, null,
+                out string e1, FakeZipWriter("NO$GBA.EXE", new byte[] { 1 }));
+            var s2 = DownloadInstallCore.Stage(
+                DownloadInstallCore.ResourceId.ArmAs, _baseDir, null,
+                out string e2, FakeExeWriter(new byte[] { 2 }));
+            Assert.NotNull(s1);
+            Assert.NotNull(s2);
+
+            string error = "";
+            string[] results = DownloadInstallCore.CommitBundle(new[] { s1, s2 }, ref error);
+            s1.Dispose();
+            s2.Dispose();
+
+            Assert.NotNull(results);
+            Assert.Equal(2, results.Length);
+            Assert.True(File.Exists(results[0]));
+            Assert.True(File.Exists(results[1]));
+            Assert.Empty(Directory.GetDirectories(Path.Combine(_baseDir, "app"), "*.old-*"));
+        }
+
         // ---- Crash-safe PlaceFile preserves prior install -----------------
 
         [Fact]

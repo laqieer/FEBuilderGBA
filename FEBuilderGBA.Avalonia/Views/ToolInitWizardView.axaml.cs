@@ -648,10 +648,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     FEBuilderGBA.R._("Downloading"),
                     (progress, _) => Task.Run(() =>
                     {
-                        // True all-or-none (Copilot #1102 finding 2): STAGE every
-                        // member to its own temp dir first; place NOTHING into the
-                        // app folder until ALL members staged + validated. A later
-                        // member's failure therefore leaves NO partial install.
+                        // True all-or-none (Copilot #1102): STAGE every member to
+                        // its own temp dir first (places NOTHING into the app
+                        // folder), then CommitBundle commits them transactionally —
+                        // if any member's commit fails, every already-committed
+                        // member is rolled back. A failure at ANY phase therefore
+                        // leaves NO partial install.
                         var staged = new List<DownloadInstallCore.StagedDownload>();
                         try
                         {
@@ -665,16 +667,8 @@ namespace FEBuilderGBA.Avalonia.Views
                                 staged.Add(s);
                             }
 
-                            // All staged OK — commit each into its final tool dir.
-                            var resolved = new string[staged.Count];
-                            for (int i = 0; i < staged.Count; i++)
-                            {
-                                string r = DownloadInstallCore.Commit(staged[i], ref error);
-                                if (r == null || !System.IO.File.Exists(r))
-                                    return; // results stays null
-                                resolved[i] = r;
-                            }
-                            results = resolved;
+                            // All staged OK — commit every member atomically.
+                            results = DownloadInstallCore.CommitBundle(staged, ref error);
                         }
                         finally
                         {
