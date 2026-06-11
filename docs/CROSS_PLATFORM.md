@@ -179,3 +179,22 @@ msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderG
 | Event Assembler | `Tools/Event Assembler/` | Wine or native port | Wine or native port |
 | 7-Zip | `7-zip32.dll` (bundled) | SharpCompress fallback | SharpCompress fallback |
 | Git | `PortableGit/` or system | System package | System or Homebrew |
+
+## Running on Android
+
+> **Status: experimental / unsupported / community-tested.** Nothing in this section is something this project builds, ships, or can support. It is documented for users who ask about it (see source [discussion #1062](https://github.com/laqieer/FEBuilderGBA/discussions/1062)).
+
+### Option A — Emulation via Gamenative / Winlator (experimental, unsupported)
+
+**Gamenative** (a Pluvia/Winlator fork) runs Windows x86/x64 binaries on Android via **Wine + Box86/Box64** (x86→ARM dynamic translation). This runs the **Windows *desktop* build** of FEBuilderGBA under emulation — a **user-side compatibility layer**, **not** a native Android app.
+
+- **Which build to try:** as a best-effort suggestion, the **Avalonia desktop `win-x64`** self-contained build (`./scripts/publish-all.sh win-x64`) is more likely to behave under Wine than the classic WinForms build — modern cross-platform .NET generally fares better under Wine than WinForms. This is *not* a guarantee of compatibility or a support commitment.
+- **Known caveats — set expectations accordingly:**
+  - Desktop mouse/keyboard UX on a touchscreen (the UI is not touch-designed).
+  - Wine + .NET-under-Wine reliability is **unverified** for this app.
+  - No native Android file picker / scoped-storage (SAF) integration.
+  - External-tool features will not work: GBA emulator test-play, devkitARM assembler, and EA/ColorzCore event compilation.
+
+### Option B — Native Android app
+
+Running the Windows binary under emulation gives you the *desktop* program on an Android device; it does **not** give you a touch-native app. An actual native Android build of the Avalonia GUI is a substantial, separate port tracked as the exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070) — there is no commitment to ship it yet.

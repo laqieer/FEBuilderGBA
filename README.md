@@ -205,6 +205,13 @@ dotnet run --project FEBuilderGBA.Avalonia -- --gap-sweep-density --dry-run --ou
 dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 ```
 
+### Running on Android (experimental)
+
+Two distinct paths exist, both covered in detail in [docs/CROSS_PLATFORM.md → Running on Android](docs/CROSS_PLATFORM.md#running-on-android):
+
+- **Emulation (Gamenative/Winlator)** — run the Windows *desktop* build under Wine + Box86/Box64. User-side, **experimental / unsupported / community-tested**; try the Avalonia `win-x64` build first.
+- **Native Android app** — a separate port of the Avalonia GUI, tracked as exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). Not shipped.
+
 ### Architecture Diagram
 
 ```
