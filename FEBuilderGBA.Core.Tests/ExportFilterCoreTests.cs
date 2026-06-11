@@ -517,5 +517,102 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.NotEmpty(union);
             });
         }
+
+        // =================================================================
+        // Copilot review finding 1 — WF range guard (id != 0 && id < 0x7FFF).
+        // Plant a synthetic FE8U unit table whose text-id columns contain the
+        // 0x0000 / 0x7FFF / 0xFFFF sentinels plus one valid id, and assert the
+        // filtered set keeps ONLY the valid id (the sentinels are excluded).
+        // =================================================================
+        [Fact]
+        public void FixedTable_SentinelAndOutOfRangeIds_AreExcluded()
+        {
+            var savedRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("filter-fe8u.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+
+                var info = rom.RomInfo;
+                uint entrySize = info.unit_datasize; // 52
+                Assert.True(entrySize >= 6);
+
+                // info.unit_pointer falls back to its first candidate (0x10108)
+                // on a blank ROM; point it at our planted table base.
+                uint pointerField = info.unit_pointer;
+                Assert.True(pointerField != 0 && pointerField + 3 < (uint)rom.Data.Length);
+                uint tableBase = 0x00800000u;
+                rom.write_p32(pointerField, U.toPointer(tableBase));
+
+                // Row 0: name=0x0000 (sentinel), info=0x7FFF (out-of-range).
+                rom.write_u16(tableBase + 0, 0x0000);
+                rom.write_u16(tableBase + 2, 0x7FFF);
+                // Row 1: name=0xFFFF (out-of-range), info=0x0123 (VALID).
+                rom.write_u16(tableBase + entrySize + 0, 0xFFFF);
+                rom.write_u16(tableBase + entrySize + 2, 0x0123);
+                // Row 2: name=0x0044 (VALID), info=0x0000 (sentinel).
+                rom.write_u16(tableBase + 2 * entrySize + 0, 0x0044);
+                rom.write_u16(tableBase + 2 * entrySize + 2, 0x0000);
+
+                var set = ExportFilterCore.BuildFilteredTextIds(rom, 1); // Unit
+                Assert.NotNull(set);
+                Assert.Contains(0x0123u, set);
+                Assert.Contains(0x0044u, set);
+                Assert.DoesNotContain(0x0000u, set);
+                Assert.DoesNotContain(0x7FFFu, set);
+                Assert.DoesNotContain(0xFFFFu, set);
+                AssertAllInRange(set);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+            }
+        }
+
+        // =================================================================
+        // Copilot review finding 2 — ScanScriptForTextIds is null-safe when the
+        // EventScript is unwired (the BattleTalk/Haiku/EventCond export-filter
+        // paths can reach it via CollectEventCondTextIds / direct calls).
+        // =================================================================
+        [Fact]
+        public void ScanScriptForTextIds_NullEventScript_NoThrow_NoOp()
+        {
+            var rom = new ROM();
+            rom.LoadLow("nulles-fe8u.gba", new byte[0x1000000], "BE8E01");
+            var ids = new HashSet<uint>();
+            // null EventScript must be a no-op, not an NRE.
+            EventScriptReferenceScanner.ScanScriptForTextIds(rom, null, 0x00800000u, new List<uint>(), ids);
+            Assert.Empty(ids);
+        }
+
+        [Fact]
+        public void BuildFilteredTextIds_EventCategoriesWithUnwiredEventScript_NoThrow()
+        {
+            // BattleTalk(7) / Haiku(8) / EventCond(10) reach the event-scan path;
+            // with CoreState.EventScript unwired they must return an empty set,
+            // never throw (finding 2).
+            var savedRom = CoreState.ROM;
+            var savedEs = CoreState.EventScript;
+            try
+            {
+                var rom = new ROM();
+                rom.LoadLow("evt-fe8u.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = rom;
+                CoreState.EventScript = null;
+
+                foreach (int f in new[] { 7, 8, 10 })
+                {
+                    var set = ExportFilterCore.BuildFilteredTextIds(rom, f);
+                    Assert.NotNull(set);
+                    AssertAllInRange(set);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = savedRom;
+                CoreState.EventScript = savedEs;
+            }
+        }
     }
 }

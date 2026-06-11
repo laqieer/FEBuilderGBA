@@ -482,6 +482,14 @@ namespace FEBuilderGBA
             ROM rom, EventScript es, uint eventAddr,
             List<uint> tracelist, HashSet<uint> ids)
         {
+            // Defensive null guards: the BattleTalk/Haiku/EventCond export-filter
+            // paths can reach here with a null EventScript (CoreState.EventScript
+            // not yet wired) — DisAseemble would NRE. Honour the "never throws"
+            // contract by no-op'ing when the scanner inputs aren't ready
+            // (Copilot review finding 2).
+            if (rom?.Data == null || es == null || ids == null) return;
+            if (tracelist == null) return;
+
             uint addr = U.toOffset(eventAddr);
             if (!U.isSafetyOffset(addr, rom)) return;
 

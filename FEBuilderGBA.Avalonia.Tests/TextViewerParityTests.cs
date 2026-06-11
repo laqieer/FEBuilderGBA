@@ -210,6 +210,34 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationId<TextBox>(view, "TextViewer_ExportLimit_Input"));
         }
 
+        [AvaloniaFact]
+        public void ExportLimit_Label_SyncsWithExportFilterSelection()
+        {
+            // #1028 Slice B / Copilot finding 4: the Export Limit textbox must
+            // track the selected Export Filter category, not always show "All".
+            var view = new TextViewerView();
+            var combo = FindByAutomationId<ComboBox>(view, "TextViewer_ExportFilter_Combo");
+            var limit = FindByAutomationId<TextBox>(view, "TextViewer_ExportLimit_Input");
+            Assert.NotNull(combo);
+            Assert.NotNull(limit);
+
+            // Default (index 0) = All.
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[0]), limit!.Text);
+
+            // Select "Unit" (index 1) — the limit label must update.
+            combo!.SelectedIndex = 1;
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[1]), limit.Text);
+            Assert.NotEqual(R._(ExportFilterCore.FilterLabelKeys[0]), limit.Text);
+
+            // Select "Chapter Text" (index 10).
+            combo.SelectedIndex = 10;
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[10]), limit.Text);
+
+            // Back to All.
+            combo.SelectedIndex = 0;
+            Assert.Equal(R._(ExportFilterCore.FilterLabelKeys[0]), limit.Text);
+        }
+
         // ---- Translate tab ----
 
         [AvaloniaFact]

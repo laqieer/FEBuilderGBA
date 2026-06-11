@@ -136,8 +136,13 @@ namespace FEBuilderGBA
         static void Collect(ROM rom, HashSet<uint> ids, TextRefTableDescriptor desc)
         {
             if (desc == null || desc.PointerField == 0 || desc.EntrySize == 0) return;
+            // TextReferenceFinder.CollectReferencedTextIds skips id 0 but NOT
+            // id >= 0x7FFF; WF UseValsID.AppendTextID/AppendSongID skip BOTH
+            // (id == 0 || id >= 0x7FFF). Re-apply the full WF range guard via
+            // AddTextId so sentinel/out-of-range ids can't leak into the
+            // filtered set on non-vanilla ROMs (Copilot review finding 1).
             foreach (uint id in TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc }))
-                ids.Add(id);
+                AddTextId(ids, id);
         }
 
         static void AddTextId(HashSet<uint> ids, uint id)
@@ -407,8 +412,9 @@ namespace FEBuilderGBA
                     return r.u32(entry) == 0;
                 },
             };
+            // Apply the WF range guard (id != 0 && id < 0x7FFF) — finding 1.
             foreach (uint id in TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc }))
-                ids.Add(id);
+                AddTextId(ids, id);
         }
 
         static void CollectSenseki(ROM rom, HashSet<uint> ids)
@@ -429,8 +435,9 @@ namespace FEBuilderGBA
                     return r.u16(entry) == 0;
                 },
             };
+            // Apply the WF range guard (id != 0 && id < 0x7FFF) — finding 1.
             foreach (uint id in TextReferenceFinder.CollectReferencedTextIds(rom, new[] { desc }))
-                ids.Add(id);
+                AddTextId(ids, id);
         }
     }
 }

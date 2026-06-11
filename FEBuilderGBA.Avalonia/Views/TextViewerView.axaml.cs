@@ -44,14 +44,19 @@ namespace FEBuilderGBA.Avalonia.Views
             // Populate the Export Filter combo in the ctor (deterministic — no
             // dependency on the Opened event) so SelectedIndex="0" resolves.
             PopulateExportFilterCombo();
+            // Keep the Export Limit label in sync with the selected filter
+            // (finding 4): wire SelectionChanged + seed the initial label.
+            ExportFilterCombo.SelectionChanged += OnExportFilterChanged;
+            UpdateExportLimitLabel();
             Opened += (_, _) =>
             {
                 LoadList();
                 PopulateAddressBar();
                 // Export Limit descriptor — describes the export filter that
                 // will be applied. WF `TextForm.textBox1` shows the same kind
-                // of read-only stub label.
-                ExportLimitBox.Text = R._("All");
+                // of read-only stub label. Re-sync in case the combo changed
+                // before the window opened.
+                UpdateExportLimitLabel();
             };
         }
 
@@ -68,6 +73,25 @@ namespace FEBuilderGBA.Avalonia.Views
                 ExportFilterCombo.Items.Add(new ComboBoxItem { Content = R._(key) });
             }
             ExportFilterCombo.SelectedIndex = 0;
+        }
+
+        void OnExportFilterChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            UpdateExportLimitLabel();
+        }
+
+        /// <summary>
+        /// Sync the read-only Export Limit textbox with the selected Export Filter
+        /// category so it never misleads (finding 4): a filtered export shows the
+        /// category name; index 0 / no selection shows "All".
+        /// </summary>
+        void UpdateExportLimitLabel()
+        {
+            int idx = ExportFilterCombo.SelectedIndex;
+            string key = (idx >= 0 && idx < ExportFilterCore.FilterLabelKeys.Length)
+                ? ExportFilterCore.FilterLabelKeys[idx]
+                : ExportFilterCore.FilterLabelKeys[0]; // "All"
+            ExportLimitBox.Text = R._(key);
         }
 
         /// <summary>

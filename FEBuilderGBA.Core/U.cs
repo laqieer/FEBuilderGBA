@@ -686,14 +686,19 @@ namespace FEBuilderGBA
         // event scan (see ExportFilterCore / SkillSystemTextScanner). Pure.
         public static uint GrepPatternMatch(byte[] data, byte[] need, bool[] isSkip, uint start = 0x100, uint end = 0, uint blocksize = 1)
         {
-            if (need == null || need.Length <= 0) return U.NOT_FOUND;
+            if (data == null || need == null || need.Length <= 0) return U.NOT_FOUND;
             if (isSkip == null || isSkip.Length < need.Length) return U.NOT_FOUND;
-            if (end == 0 || end == U.NOT_FOUND) end = (uint)data.Length;
+            // Clamp `end` to the buffer length BEFORE deriving the last-start
+            // index (like GrepPointer): a caller-supplied `end > data.Length`
+            // would otherwise let the inner data[i + n] read past the end
+            // (Copilot review finding 3 — OOB). end==0 / NOT_FOUND => whole buffer.
+            if (end == 0 || end == U.NOT_FOUND || end > (uint)data.Length) end = (uint)data.Length;
             if (start > end) return U.NOT_FOUND;
-            uint length = end;
-            if (length < need.Length) return U.NOT_FOUND;
-            length -= (uint)need.Length;
-            if (data.Length < length) length = (uint)data.Length;
+            if (end < (uint)need.Length) return U.NOT_FOUND;
+            // Last index `i` where the full need (i .. i+need.Length-1) still fits
+            // inside [0, end). The loop reads data[i + n] for n in [0, need.Length),
+            // so i must be <= end - need.Length.
+            uint length = end - (uint)need.Length;
 
             byte needfirst = need[0];
             bool isSkipfirst = isSkip[0];
