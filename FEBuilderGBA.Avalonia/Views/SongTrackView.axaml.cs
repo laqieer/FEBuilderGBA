@@ -432,6 +432,61 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 // Default: MIDI import (.mid/.midi or any other extension).
 
+                // #1002 Slice 2: pick the instrument set BEFORE importing so the user
+                // can choose which voicegroup the converted song uses — mirrors the .s
+                // pick-and-return path (ImportSondFontSource). The MIDI writer writes
+                // instrumentAddr VERBATIM into the new song header +4 (a GBA POINTER
+                // slot), so we must store a POINTER (unlike the .s path where ImportS
+                // applies toPointer internally and therefore receives an OFFSET).
+                ROM rom = CoreState.ROM;
+                if (rom == null) return;
+
+                // 1. Resolve + validate the song-table slot up front.
+                uint slot = _vm.GetSelectedSongTableEntryAddr();
+                if (slot == U.NOT_FOUND || !U.isSafetyOffset(slot, rom))
+                {
+                    CoreState.Services.ShowError(R._(
+                        "Cannot resolve the song-table entry for the selected song."));
+                    return;
+                }
+                // 2. Dereference + validate the header (+4 = instrument-pointer slot).
+                uint songHeaderOffset = rom.p32(slot);
+                if (!U.isSafetyOffset(songHeaderOffset, rom)
+                    || !U.isSafetyOffset(songHeaderOffset + 4, rom))
+                {
+                    CoreState.Services.ShowError(R._("The song table has no song header."));
+                    return;
+                }
+                // 3. Seed the picker with the current voicegroup (WF f.Init(P4) parity).
+                uint currentVoicegroup = rom.p32(songHeaderOffset + 4);
+
+                // 4. Open the instrument picker as a modal pick-and-return.
+                PickResult? pick;
+                try
+                {
+                    pick = await WindowManager.Instance.PickFromEditor<SongTrackImportSelectInstrumentView>(
+                        currentVoicegroup, this);
+                }
+                catch (Exception exPick)
+                {
+                    Log.Error("SongTrackView.ImportMidi_Click pick failed: {0}", exPick.Message);
+                    CoreState.Services.ShowError(R._("MIDI import failed: {0}", exPick.Message));
+                    return;
+                }
+                if (pick == null) return; // user cancelled the picker.
+
+                // 5. Normalize to offset and validate — the instrument list mixes an
+                //    OFFSET-valued "Current" seed with toPointer'd discovered rows.
+                uint instrumentOffset = U.toOffset(pick.Address);
+                if (!U.isSafetyOffset(instrumentOffset, rom))
+                {
+                    CoreState.Services.ShowError(R._("The selected instrument set address is invalid."));
+                    return;
+                }
+                // 6. Store as POINTER: SongMidiCore.AssembleGBASong writes this value
+                //    VERBATIM into the new song header +4 (a GBA pointer slot).
+                _vm.InstrumentAddr = U.toPointer(instrumentOffset);
+
                 // Parse and show MIDI metadata preview first so the user can
                 // confirm the file before it overwrites the song.
                 string preview = _vm.PreviewMidi(path);

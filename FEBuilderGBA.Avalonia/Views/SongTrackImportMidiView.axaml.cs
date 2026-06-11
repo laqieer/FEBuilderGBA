@@ -4,6 +4,7 @@ using global::Avalonia.Interactivity;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Core;
 
 namespace FEBuilderGBA.Avalonia.Views
 {
@@ -64,6 +65,13 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.CurrentAddr, _vm.SongTableEntryAddr);
             else
                 AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+
+            // #1002 Slice 2: show the current instrument set pointer (seeded from
+            // the destination header +4 on LoadEntry, or updated by the picker).
+            if (InstrumentLabel != null)
+                InstrumentLabel.Text = _vm.InstrumentAddr != 0
+                    ? string.Format("0x{0:X08}", _vm.InstrumentAddr)
+                    : "(use destination's current voicegroup)";
         }
 
         /// <summary>Enable Import only when BOTH a destination song and a
@@ -157,6 +165,58 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.Error($"SongTrackImportMidiView.ImportMidi_Click failed: {ex.Message}");
                 CoreState.Services.ShowError($"MIDI import failed: {ex.Message}");
             }
+        }
+
+        // #1002 Slice 2: instrument-set picker for the standalone MIDI import window.
+        // Opens the SongTrackImportSelectInstrumentView in pick mode, seeds it with
+        // the destination's current voicegroup, and stores the chosen address as a GBA
+        // POINTER — SongMidiCore.AssembleGBASong writes instrumentAddr VERBATIM into
+        // the new song header +4 (a GBA pointer slot), unlike the .s path where
+        // ImportS applies toPointer internally and receives an OFFSET.
+        async void SelectInstrument_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.IsLoaded)
+            {
+                CoreState.Services.ShowError(R._("Pick a destination song from the list first."));
+                return;
+            }
+
+            ROM rom = CoreState.ROM;
+            if (rom == null) return;
+
+            // Seed the picker with the destination's current voicegroup (already
+            // stored in InstrumentAddr as a raw GBA pointer from LoadEntry).
+            uint seed = _vm.InstrumentAddr;
+
+            PickResult? pick;
+            try
+            {
+                pick = await WindowManager.Instance.PickFromEditor<SongTrackImportSelectInstrumentView>(
+                    seed, this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongTrackImportMidiView.SelectInstrument_Click pick failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Instrument selection failed: {0}", ex.Message));
+                return;
+            }
+            if (pick == null) return; // user cancelled.
+
+            // Normalize to offset + validate — the instrument list mixes an
+            // OFFSET-valued "Current" seed with toPointer'd discovered rows.
+            uint instrumentOffset = U.toOffset(pick.Address);
+            if (!U.isSafetyOffset(instrumentOffset, rom))
+            {
+                CoreState.Services.ShowError(R._("The selected instrument set address is invalid."));
+                return;
+            }
+
+            // Store as POINTER: the MIDI writer writes it verbatim into header +4.
+            _vm.InstrumentAddr = U.toPointer(instrumentOffset);
+
+            // Reflect the new choice in the label immediately.
+            if (InstrumentLabel != null)
+                InstrumentLabel.Text = string.Format("0x{0:X08}", _vm.InstrumentAddr);
         }
 
         public void NavigateTo(uint address) => EntryList.SelectAddress(address);

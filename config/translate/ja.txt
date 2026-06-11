@@ -769,6 +769,9 @@ MIDIインポート
 :Select Instrument
 楽器選択
 
+:Select Instrument Set...
+楽器セット選択...
+
 :Import Wave
 波形インポート
 

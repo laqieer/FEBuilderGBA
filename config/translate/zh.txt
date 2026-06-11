@@ -14686,6 +14686,9 @@ MIDI导入
 :Select Instrument
 选择乐器
 
+:Select Instrument Set...
+选择乐器组...
+
 :Import Wave
 导入波形
 
