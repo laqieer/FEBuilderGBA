@@ -44,7 +44,7 @@ jobs:
       # host already probes, so all versions coexist. See issue #1119.
       shell: pwsh
       run: |
-        Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile "$env:RUNNER_TEMP/dotnet-install.ps1" -UseBasicParsing
+        Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile "$env:RUNNER_TEMP/dotnet-install.ps1"
         & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime dotnet         -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
         & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime windowsdesktop -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
 
