@@ -591,6 +591,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
+                // Log the full exception (with stack trace) for diagnosability,
+                // matching the other PointerTool VM handlers (SearchOtherRom /
+                // RunAutoSearch / EnsureTargetAsmMap). The user-facing
+                // SearchResults keeps the short ex.Message.
+                Log.Error($"PointerToolViewModel.LoadOtherRom: {ex}");
                 // Load failed: drop the target state AND clear any stale cross-ROM
                 // result so a prior successful match is not left visible (Copilot
                 // bot Fix 3). Also null the cached LDR map + asmmap.
