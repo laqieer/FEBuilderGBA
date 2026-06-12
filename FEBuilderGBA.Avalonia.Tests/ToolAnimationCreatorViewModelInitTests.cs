@@ -170,6 +170,8 @@ public class ToolAnimationCreatorViewModelInitTests
             Assert.Equal("hint-ROM", vm.AnimationName);
             Assert.Equal(baseAddr, vm.RomAddress);
             Assert.True(vm.CanWriteBackToRom);
+            // #1116: a non-magic ROM seed must NOT carry a magic stream address.
+            Assert.Equal(0u, vm.MagicFrameDataAddress);
 
             Assert.Equal(2, vm.Frames.Count);
             Assert.Equal(3u, vm.Frames[0].Wait);

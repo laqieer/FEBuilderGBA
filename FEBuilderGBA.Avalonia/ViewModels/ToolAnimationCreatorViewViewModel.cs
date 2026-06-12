@@ -125,6 +125,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 AnimationKind = kind;
                 AnimationId = id;
                 FileHint = filehint ?? string.Empty;
+                // #1116: clear the magic stream address so a prior magic seed can't
+                // leak into this file-seeded context.
+                MagicFrameDataAddress = 0;
                 RomAddress = 0; // file path — no ROM writeback
                 Frames.Clear();
                 SelectedFrame = null;
@@ -190,6 +193,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 AnimationKind = kind;
                 AnimationId = id;
                 FileHint = filehint ?? string.Empty;
+                // #1116: clear the magic stream address so a prior magic seed can't
+                // leak into this ROM-seeded context (incl. the fail-closed path).
+                MagicFrameDataAddress = 0;
                 SourceFilename = null;
                 Frames.Clear();
                 SelectedFrame = null;
