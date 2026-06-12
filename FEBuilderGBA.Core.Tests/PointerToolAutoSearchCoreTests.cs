@@ -350,6 +350,45 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.toPointer(0x800u), r.DirectAddr);
         }
 
+        // ---- 7c: Thumb-bit normalization covers ...01 AND ...03 (#1118) ------
+        //
+        // A Thumb function pointer is even_base|1: masking bit0 recovers the even
+        // base. ...01 decrements to a 4-aligned base; ...03 decrements to a
+        // HALFWORD-aligned (2-but-not-4) base. AutoSearch must mask ONLY bit0 for
+        // BOTH. The OLD `%4==1` check missed ...03 entirely (it left the address
+        // odd, treating a valid Thumb pointer as data). This test places the
+        // source data block at the EVEN BASE each odd input decrements to
+        // (oddAddr & ~1) and asserts it still resolves — for both ...01 and ...03.
+
+        [Theory]
+        [InlineData(0x08000401u)] // ...01 -> base 0x...400 — WF %4==1 handled this
+        [InlineData(0x08000403u)] // ...03 -> base 0x...402 — WF %4==1 MISSED this
+        public void AutoSearch_OddThumbAddress_NormalizesBit0_AndResolves(uint oddAddr)
+        {
+            // The even base bit0-masking recovers (...01->...400, ...03->...402).
+            uint baseOffset = (oddAddr & ~1u) - 0x08000000u; // 0x400 or 0x402
+            const uint targetOffset = 0x800;
+
+            var block = new byte[0x20];
+            for (int i = 0; i < block.Length; i++) block[i] = (byte)(0x80 + i);
+
+            var sourceData = new byte[0x2000];
+            var targetData = new byte[0x2000];
+            Array.Copy(block, 0, sourceData, (int)baseOffset, block.Length);
+            Array.Copy(block, 0, targetData, (int)targetOffset, block.Length);
+            // Reference to the target block so warningLevel 1 accepts it.
+            WritePtr(targetData, 0x100, U.toPointer(targetOffset));
+
+            var r = PointerToolAutoSearchCore.AutoSearch(
+                sourceData, targetData, oddAddr, 0x102u, null, null, warningLevel: 1);
+
+            // Both ...01 and ...03 mask bit0 to their even base and find the
+            // target at 0x800 — proving the bit0 mask is a strict superset of
+            // WF's %4==1 (which would have left ...03 odd and failed).
+            Assert.True(r.Found);
+            Assert.Equal(U.toPointer(targetOffset), r.DirectAddr);
+        }
+
         // ---- 8: Null / short guards ------------------------------------------
 
         [Fact]

@@ -104,6 +104,21 @@ public class PointerToolAutoSearchTests : IClassFixture<RomFixture>
         bool anyAddr = !string.IsNullOrEmpty(vm.OtherRomAddress)
                        || !string.IsNullOrEmpty(vm.OtherRomLdrAddress);
         Assert.True(anyAddr, "AutoSearch should populate a direct or LDR address field on a self-cross match.");
+
+        // Fix B: warning flags are set DETERMINISTICALLY from the result and
+        // MIRROR the address fields — when an address field is empty (cleared,
+        // e.g. a name hit clears the LDR fields), BOTH its warning flags are
+        // false (never a stale baseline-RunSearch value).
+        if (string.IsNullOrEmpty(vm.OtherRomAddress))
+        {
+            Assert.False(vm.HasZeroAtDirect, "HasZeroAtDirect must be false when OtherRomAddress is cleared.");
+            Assert.False(vm.HasVeryFarAtDirect, "HasVeryFarAtDirect must be false when OtherRomAddress is cleared.");
+        }
+        if (string.IsNullOrEmpty(vm.OtherRomLdrAddress))
+        {
+            Assert.False(vm.HasZeroAtLdr, "HasZeroAtLdr must be false when OtherRomLdrAddress is cleared.");
+            Assert.False(vm.HasVeryFarAtLdr, "HasVeryFarAtLdr must be false when OtherRomLdrAddress is cleared.");
+        }
     }
 
     /// <summary>

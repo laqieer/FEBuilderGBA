@@ -336,9 +336,13 @@ namespace FEBuilderGBA
                 if (sourceData.Length < 0x400 || targetData.Length < 0x400) return AutoSearchResult.NotFound;
                 if (address == 0 || address == U.NOT_FOUND) return AutoSearchResult.NotFound;
 
-                // Normalize: an odd address is ASM code (WF addr--). Always grep
-                // ASM as code-type so makeSkipDataByCode applies on pattern grep.
-                bool isCode = (address % 4) == 1;
+                // Normalize: a Thumb function pointer is odd (bit0=1) — it can end
+                // in ...01 (4-aligned base) OR ...03 (2-aligned-but-not-4 base).
+                // Mask bit0 to recover the even base, then grep ASM as code-type
+                // so makeSkipDataByCode applies on pattern grep. Strictly more
+                // correct than WF's `%4==1`, which missed the ...03 halfword-
+                // aligned case (treating a valid Thumb pointer as data).
+                bool isCode = (address & 1) == 1;
                 if (isCode) address -= 1;
                 uint pointer = U.toPointer(address);
 

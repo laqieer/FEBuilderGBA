@@ -671,6 +671,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 OtherRomLdrAddress    = result.LdrAddr    != U.NOT_FOUND ? $"0x{result.LdrAddr:X08}"    : "";
                 OtherRomLdrRefPointer = result.LdrRef     != U.NOT_FOUND ? $"0x{result.LdrRef:X08}"     : "";
 
+                // Set the four warning flags DETERMINISTICALLY from the accepted
+                // result so they never show stale baseline-RunSearch values
+                // (Copilot bot Fix B). They MIRROR the address fields: a cleared
+                // address has no warning; a found address is evaluated via the
+                // same EvaluateOtherRomWarning helper SearchOtherRom uses (it
+                // takes a ROM OFFSET in the other-ROM buffer, so convert the GBA
+                // pointer with U.toOffset). E.g. a "name" hit clears the LDR
+                // address fields, so HasZeroAtLdr / HasVeryFarAtLdr go false too.
+                if (result.DirectAddr != U.NOT_FOUND)
+                {
+                    HasZeroAtDirect = EvaluateOtherRomWarning(U.toOffset(result.DirectAddr), out bool directFar);
+                    HasVeryFarAtDirect = directFar;
+                }
+                else { HasZeroAtDirect = false; HasVeryFarAtDirect = false; }
+
+                if (result.LdrAddr != U.NOT_FOUND)
+                {
+                    HasZeroAtLdr = EvaluateOtherRomWarning(U.toOffset(result.LdrAddr), out bool ldrFar);
+                    HasVeryFarAtLdr = ldrFar;
+                }
+                else { HasZeroAtLdr = false; HasVeryFarAtLdr = false; }
+
                 string sym = (result.Hit == "name" && result.SymbolName.Length > 0)
                     ? $" ({result.SymbolName})"
                     : "";
