@@ -22,7 +22,7 @@ FEBuilderGBA is split into layers with very different platform coupling:
 |---------|-----|------------------|----------|
 | `FEBuilderGBA.Core` | `net9.0` | **Yes** | `FEBuilderGBA.Core/FEBuilderGBA.Core.csproj:3` targets plain `net9.0`; no WinForms / `System.Drawing`. ROM engine, undo, LZ77, Huffman/text codec, etc. are portable. Image/font coupling is behind the `IImageService` / `IFontRasterizer` abstraction seams. |
 | `FEBuilderGBA.SkiaSharp` | `net9.0` | **Yes (with a native-version pin — see §3)** | `FEBuilderGBA.SkiaSharp/FEBuilderGBA.SkiaSharp.csproj:13` |
-| `FEBuilderGBA.Avalonia` | `net9.0` (desktop) | **Source-portable, but desktop-targeted today** | `FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj:3-8`: `OutputType=WinExe`, plain `net9.0`, `Avalonia.Desktop`, Windows `app.manifest`. The C# compiles for `net9.0-android` (proven in §7), but the project is not multi-targeted, so it cannot be *packaged* into an APK as-is. |
+| `FEBuilderGBA.Avalonia` | `net9.0` (desktop) | **Source-portable, but desktop-targeted today** | `FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj:3-8`: `OutputType=WinExe`, plain `net9.0`, `Avalonia.Desktop`, Windows `app.manifest`. Because it is *not* multi-targeted, an Android head that references it builds it as `net9.0` and then **fails at Android RID packaging** (§7) — it cannot be *packaged* into an APK as-is. Making it `net9.0;net9.0-android` (or splitting a shared UI library) is the prerequisite follow-up (#1121). |
 | `FEBuilderGBA` (WinForms) | `net9.0-windows` | **No — must be excluded** | WinForms + P/Invoke + `System.Drawing`. Never reference it from an Android head. |
 
 **The Android head must reference only `FEBuilderGBA.Avalonia`** (which transitively
@@ -188,22 +188,30 @@ This section is deliberately precise about **what built vs what is authored-only
   `dotnet build` produced a managed `.dll` **and** packaged + signed `.apk`
   files (`*-Signed.apk`). This proves the workload + SDK + JDK toolchain is
   fully functional in this environment.
-- ✅ **The shared Avalonia UI compiles for `net9.0-android`** — the first build
-  pass of `FEBuilderGBA.Android.csproj` compiled the **entire**
-  `FEBuilderGBA.Avalonia` view tree against the Android TFM (the only compile
-  error was a single optional `.WithInterFont()` call in the skeleton's
-  `MainActivity`, since removed).
+- ✅ **The Android head's own code compiles against `FEBuilderGBA.Avalonia`** —
+  `dotnet build FEBuilderGBA.Android.csproj` restores cleanly and gets past the
+  C# compile of `MainActivity` (which references the shared `App` + views via
+  the `net9.0` reference assembly). MSBuild builds `FEBuilderGBA.Avalonia` as
+  `bin\Debug\net9.0\FEBuilderGBA.Avalonia.dll` (its own `net9.0` TFM — it is
+  **not** recompiled under the Android TFM), and the only skeleton compile error
+  was a single optional `.WithInterFont()` call (since removed). The build then
+  reaches the Android RID-packaging stage before failing (next bullet).
 - ❌ **The full FEBuilderGBA Android APK does NOT build** — once the build moves
   to per-RID packaging (`android-x64` / `android-arm64`), it fails with
-  `NETSDK1047` / `NETSDK1112` because the referenced **`FEBuilderGBA.Avalonia`
-  project targets plain `net9.0`** and therefore has no `net9.0-android` /
-  android-bionic runtime-pack target for the RID resolver to consume.
+  `NETSDK1047` (and, with an explicit RID, `NETSDK1112`) because the referenced
+  **`FEBuilderGBA.Avalonia` project targets plain `net9.0`** and therefore has no
+  `net9.0-android` / android-bionic runtime-pack target for the RID resolver to
+  consume. The error is purely RID/runtime-pack resolution on the desktop-TFM
+  ProjectReference — not a code error in the skeleton.
 
 ### Honest conclusion
 
-The Android toolchain works here, and the shared UI **source** is
-Android-compilable. The blocker is purely structural: **a desktop (`net9.0`)
-project cannot be packaged into an APK by reference.** Producing a runnable APK
+The Android toolchain works here (a minimal `net9.0-android` project builds and
+packages a signed APK), and the FEBuilderGBA Android head compiles against the
+shared Avalonia reference up to the packaging stage. The blocker is purely
+structural: **a desktop (`net9.0`) project cannot be packaged into an APK by
+reference** — it is built as `net9.0`, not under the Android TFM, so RID
+packaging has nothing to consume. Producing a runnable APK
 requires making `FEBuilderGBA.Avalonia` **multi-target** (`net9.0;net9.0-android`)
 or **splitting the shared UI into a class library** the Android head and the
 desktop head both reference. That is the recommended first implementation step
@@ -265,8 +273,10 @@ not promise Android from "Avalonia supports Android" alone.
    `NumericUpDown` spinner usages and the desktop menu bar), then the Skia parity smoke
    test (#5) and a CI/APK job (#6).
 
-Until Phase A lands, the `FEBuilderGBA.Android/` skeleton stands as an authored,
-compile-verified starting point — not a runnable app.
+Until Phase A lands, the `FEBuilderGBA.Android/` skeleton stands as an authored
+starting point whose own code compiles against the shared Avalonia reference
+(the build reaches Android RID packaging before failing on the desktop-TFM
+reference) — not a runnable app.
 
 ---
 

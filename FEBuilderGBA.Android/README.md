@@ -28,7 +28,10 @@ dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj
 
 - ✅ A minimal `net9.0-android` project builds + packages a signed APK with the
   workload installed (toolchain verified).
-- ✅ The shared `FEBuilderGBA.Avalonia` view tree **compiles** for `net9.0-android`.
+- ✅ This head's own code (`MainActivity`) **compiles** against the shared
+  `FEBuilderGBA.Avalonia` reference; MSBuild builds `FEBuilderGBA.Avalonia` as
+  its own `net9.0` TFM (it is **not** recompiled under the Android TFM) and the
+  build reaches the Android RID-packaging stage.
 - ❌ The **full APK** does NOT build yet: `FEBuilderGBA.Avalonia` targets plain
   `net9.0`, so per-RID (`android-arm64`/`android-x64`) packaging fails
   (`NETSDK1047` / `NETSDK1112`). The fix is to multi-target / split the shared
