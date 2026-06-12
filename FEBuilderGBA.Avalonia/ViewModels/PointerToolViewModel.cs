@@ -124,6 +124,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public void Initialize()
         {
+            // Mirror WF PointerToolForm ctor defaults (FEBuilderGBA/
+            // PointerToolForm.cs ctor) so the auto-tracking retry +
+            // accept-if-referenced behavior is ON by default (parity — #1118).
+            // Without these the int fields default to 0, which disabled the
+            // retry loop (DecodeAutoTrackLevel returns 0 for AutoTrackingLevel==0)
+            // and treated warnings as fatal (WarningLevel==0).
+            WarningLevel      = 1; // WF WarningLevelComboBox.SelectedIndex = 1 (accept if referenced)
+            TestMatchDataSize = 2; // WF TestMatchDataSizeComboBox.SelectedIndex = 2
+            DataType          = 1; // WF DataType.SelectedIndex = 1 (ASM)
+            GrepType          = 0; // WF GrepType.SelectedIndex = 0 (exact)
+            SlideSize         = 0; // WF SlideComboBox.SelectedIndex = 0
+            AutoTrackingLevel = 2; // WF AutomaticTrackingComboBox.SelectedIndex = 2 (auto-tracking ON)
             IsLoaded = true;
         }
 

@@ -335,4 +335,81 @@ public class PointerToolAutoSearchTests : IClassFixture<RomFixture>
             || vm.AutoSearchSummary.StartsWith("Not found after"),
             $"Unexpected summary: '{vm.AutoSearchSummary}'");
     }
+
+    /// <summary>
+    /// Initialize() must seed the WF PointerToolForm ctor defaults so the
+    /// auto-tracking retry (AutoTrackingLevel != 0) and accept-if-referenced
+    /// (WarningLevel == 1) behavior is ON out of the box (#1118 parity). The
+    /// int fields previously defaulted to 0, which disabled the retry loop and
+    /// treated warnings as fatal.
+    /// </summary>
+    [AvaloniaFact]
+    public void Initialize_SeedsWfDefaultComboIndices()
+    {
+        var vm = new PointerToolViewModel();
+        vm.Initialize();
+
+        Assert.Equal(1, vm.WarningLevel);       // accept if referenced
+        Assert.Equal(2, vm.AutoTrackingLevel);  // non-zero => retry enabled
+        Assert.Equal(2, vm.TestMatchDataSize);
+        Assert.Equal(1, vm.DataType);           // ASM
+        Assert.Equal(0, vm.GrepType);           // exact
+        Assert.Equal(0, vm.SlideSize);
+    }
+
+    /// <summary>
+    /// With the new WF defaults (no explicit WarningLevel override), a
+    /// self-cross-ROM AutoSearch still works: AutoTrackingLevel=2 enables the
+    /// retry loop and WarningLevel=1 accepts a referenced match. Guard-skips
+    /// without a ROM. Complements the existing test that overrides WarningLevel=2.
+    /// </summary>
+    [AvaloniaFact]
+    public void RunAutoSearch_DefaultWarningLevel_SelfCrossRom_Works()
+    {
+        if (!_fixture.IsAvailable || _fixture.RomPath == null)
+        {
+            _output.WriteLine("No ROM available; skipping default-warning-level AutoSearch test.");
+            return;
+        }
+
+        var rom = CoreState.ROM;
+        Assert.NotNull(rom);
+
+        uint targetOffset = 0;
+        for (uint i = 0x200; i + 3 < (uint)rom!.Data.Length; i += 4)
+        {
+            uint v = rom.u32(i);
+            if (v >= 0x08000000 && v < 0x0A000000)
+            {
+                uint off = v - 0x08000000;
+                if (off >= 0x200 && off + 0x20 < (uint)rom.Data.Length)
+                {
+                    targetOffset = off;
+                    break;
+                }
+            }
+        }
+        if (targetOffset == 0)
+        {
+            _output.WriteLine("No referenced address found; skipping.");
+            return;
+        }
+
+        var vm = new PointerToolViewModel();
+        vm.Initialize(); // WF defaults: WarningLevel=1, AutoTrackingLevel=2
+        // Deliberately do NOT override WarningLevel — rely on the new default.
+        vm.AddressInput = $"0x{targetOffset:X08}";
+
+        var ex = Record.Exception(() => vm.LoadOtherRom(_fixture.RomPath));
+        Assert.Null(ex);
+
+        // The default-warning-level path still produces a result line; on a
+        // self-cross referenced address it matches.
+        Assert.False(string.IsNullOrEmpty(vm.AutoSearchSummary));
+        _output.WriteLine($"Default-WarningLevel AutoSearchSummary: {vm.AutoSearchSummary}");
+        Assert.True(
+            vm.AutoSearchSummary.StartsWith("Matched via")
+            || vm.AutoSearchSummary.StartsWith("Not found after"),
+            $"Unexpected summary: '{vm.AutoSearchSummary}'");
+    }
 }
