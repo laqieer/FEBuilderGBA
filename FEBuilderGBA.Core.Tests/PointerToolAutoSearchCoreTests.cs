@@ -215,6 +215,45 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal((uint)(tgtBase + 8), outRef);
         }
 
+        // ---- 5b: cached-map LDR lookup == GrepPointerAllOnLDR (#1118) ---------
+        //
+        // The baseline SearchOtherRom now reads the cached _targetLdrMap instead
+        // of calling U.GrepPointerAllOnLDR per click. This proves the cached-map
+        // lookup yields the IDENTICAL slot offset GrepPointerAllOnLDR returns:
+        // for a buffer with an LDR loading `dataPtr`, the first MakeLDRMap entry
+        // whose ldr_data == toPointer(dataPtr) has ldr_data_address equal to
+        // GrepPointerAllOnLDR(buf, dataPtr)[0].
+
+        [Fact]
+        public void CachedLdrMap_SlotOffset_MatchesGrepPointerAllOnLDR()
+        {
+            // Buffer with a func at 0x200 whose LDR loads data pointer 0x08003000
+            // from the literal slot at 0x208.
+            uint dataPtr = 0x08003000u;
+            var buf = MakeLdrFuncBuffer(0x200, dataPtr, 0x1000);
+
+            // GrepPointerAllOnLDR returns the literal-pool SLOT offsets pointing
+            // to dataPtr.
+            var grepHits = U.GrepPointerAllOnLDR(buf, dataPtr);
+            Assert.NotEmpty(grepHits);
+
+            // Cached-map equivalent: first MakeLDRMap entry whose loaded word ==
+            // toPointer(dataPtr); its ldr_data_address is the slot offset.
+            var map = DisassemblerTrumb.MakeLDRMap(buf, 0x100, 0);
+            uint needPtr = U.toPointer(dataPtr);
+            DisassemblerTrumb.LDRPointer mapHit = null;
+            foreach (var p in map)
+            {
+                if (p != null && p.ldr_data == needPtr) { mapHit = p; break; }
+            }
+            Assert.NotNull(mapHit);
+
+            // The cached map's slot offset equals GrepPointerAllOnLDR's first hit.
+            Assert.Equal(grepHits[0], mapHit.ldr_data_address);
+            // Sanity: that slot is the crafted base+8.
+            Assert.Equal((uint)(0x200 + 8), mapHit.ldr_data_address);
+        }
+
         // ---- 6: Direct grep --------------------------------------------------
 
         [Fact]

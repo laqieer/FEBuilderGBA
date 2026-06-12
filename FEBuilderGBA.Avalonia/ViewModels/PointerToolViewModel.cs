@@ -263,10 +263,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         ///   4-byte-aligned pointer references. The first hit's offset is the
         ///   reference pointer (<see cref="OtherRomRefPointer"/>); the searched
         ///   data address is shown as <see cref="OtherRomAddress"/>.</item>
-        ///   <item><see cref="U.GrepPointerAllOnLDR(byte[],uint)"/> — LDR
-        ///   literal-pool SLOT offsets (NOT the LDR instruction address). The
-        ///   first hit's slot is <see cref="OtherRomLdrRefPointer"/>; the data
-        ///   address is <see cref="OtherRomLdrAddress"/>.</item>
+        ///   <item>The CACHED target LDR map (<c>_targetLdrMap</c>, built once per
+        ///   loaded target via <see cref="EnsureTargetLdrMap"/>) — the first entry
+        ///   whose <c>ldr_data == toPointer(needAddr)</c> gives the literal-pool
+        ///   SLOT offset (NOT the LDR instruction address) as
+        ///   <see cref="OtherRomLdrRefPointer"/>; the data address is
+        ///   <see cref="OtherRomLdrAddress"/>. This is the same slot offset
+        ///   <c>U.GrepPointerAllOnLDR</c> returns, without the per-call full-ROM
+        ///   LDR rescan (#1118 perf).</item>
         /// </list>
         ///
         /// <para>Warnings follow WF semantics (Copilot CLI review point 2): the
@@ -329,13 +333,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 }
 
                 // ----- LDR literal-pool references in the other ROM -----------
-                var ldr = U.GrepPointerAllOnLDR(_otherRomData, needAddr);
-                if (ldr.Count > 0)
+                // Use the CACHED target LDR map instead of re-scanning the whole
+                // target ROM via U.GrepPointerAllOnLDR on every call (#1118 perf —
+                // RunSearch runs on every Auto Search click / address change /
+                // NavigateTo). The cached map is built once per loaded target.
+                //
+                // Equivalence: U.GrepPointerAllOnLDR(buf, needAddr) ->
+                // DisassemblerTrumb.GrepLDRData, which does need=toPointer(needAddr)
+                // then returns each literal-pool SLOT OFFSET whose 32-bit word == need.
+                // MakeLDRMap records per LDR: ldr_data = the loaded 32-bit word,
+                // ldr_data_address = that slot offset. So entries with
+                // ldr_data == toPointer(needAddr), reporting ldr_data_address, are
+                // the SAME slot offsets GrepPointerAllOnLDR returns — the displayed
+                // OtherRomLdrRefPointer is identical for the same input.
+                EnsureTargetLdrMap();
+                uint needPtr = U.toPointer(needAddr);
+                DisassemblerTrumb.LDRPointer? ldrHit = null;
+                if (_targetLdrMap != null)
+                {
+                    foreach (var p in _targetLdrMap)
+                    {
+                        if (p != null && p.ldr_data == needPtr) { ldrHit = p; break; }
+                    }
+                }
+                if (ldrHit != null)
                 {
                     OtherRomLdrAddress = $"0x{needAddr:X08}";
-                    // ldr[0] is the literal-pool SLOT offset (where the matching
-                    // pointer word lives) — NOT the LDR instruction address.
-                    OtherRomLdrRefPointer = $"0x{ldr[0]:X08}";
+                    OtherRomLdrRefPointer = $"0x{ldrHit.ldr_data_address:X08}";
                     HasZeroAtLdr = EvaluateOtherRomWarning(needAddr, out bool ldrFar);
                     HasVeryFarAtLdr = ldrFar;
                 }
@@ -642,7 +666,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 _sourceLdrMap = PointerToolAutoSearchCore.BuildLdrMap(sourceRom?.Data);
                 _sourceLdrRom = sourceRom;
             }
-            // Target map: rebuild only when missing (invalidated on each LoadOtherRom).
+            EnsureTargetLdrMap();
+        }
+
+        /// <summary>
+        /// (Re)build the cached TARGET LDR literal-pool map from
+        /// <see cref="_otherRomData"/> when missing (#1118 perf). Invalidated
+        /// (nulled) on each LoadOtherRom so it tracks the current target. Cheap
+        /// when cached. Used by both the baseline <see cref="SearchOtherRom"/> LDR
+        /// lookup and the AutoSearch LDR-symmetry pass so neither re-scans the
+        /// whole target ROM per click. Never throws.
+        /// </summary>
+        void EnsureTargetLdrMap()
+        {
             if (_targetLdrMap == null)
             {
                 _targetLdrMap = PointerToolAutoSearchCore.BuildLdrMap(_otherRomData);
