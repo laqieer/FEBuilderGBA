@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="1.0">
+  <!--
+    FEBuilderGBA Android head manifest (exploration skeleton — epic #1070).
+
+    minSdkVersion 21 (Android 5.0) is the floor for modern .NET for Android.
+    INTERNET is declared because the desktop app fetches FE-Repo / patch /
+    update resources over HTTP; a real port would gate those behind Android
+    runtime-permission + network-policy checks.
+
+    NOT declared (deferred to follow-up sub-issues): broad storage permissions.
+    ROM open/save on modern Android should go through the Storage Access
+    Framework (system file picker -> content URI -> stream) rather than
+    READ/WRITE_EXTERNAL_STORAGE, which is restricted under scoped storage.
+  -->
+  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="35" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <application android:label="FEBuilderGBA"></application>
+</manifest>
