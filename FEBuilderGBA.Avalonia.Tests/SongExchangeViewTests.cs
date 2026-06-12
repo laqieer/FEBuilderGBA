@@ -47,6 +47,11 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Dest-0 guard + file picker.
             Assert.Contains("SongID 0x0", cs);
             Assert.Contains("OpenFilePickerAsync", cs);
+            // Review fix vPo — the OtherRom label is localized via R._ (no raw format string).
+            Assert.Contains("R._(\"Other ROM: {0} ({1} songs)\"", cs);
+            // Review fix vPv — the View surfaces the partial-corrupt structure warning.
+            Assert.Contains("LastConvertHadStructureWarning", cs);
+            Assert.Contains("some instrument data was corrupt", cs);
         }
 
         // ------------------------------------------------------------------
@@ -137,6 +142,123 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(before, rom.Data); // no mutation.
             }
             finally { CoreState.ROM = prev; }
+        }
+
+        // ------------------------------------------------------------------
+        // Review fix vPv — the VM exposes a structure-warning flag that the View
+        // reads to warn on a partial-corrupt source. Build synthetic donor + dest
+        // ROMs (with a planted song-table signature) so the VM parse + convert run
+        // hermetically. A donor voice with a truncated sample flags the warning.
+        // ------------------------------------------------------------------
+        [Fact]
+        public void ViewModel_PartialCorruptSource_SetsStructureWarningFlag()
+        {
+            var prev = CoreState.ROM;
+            try
+            {
+                // DEST ROM: a synthetic FE8U ROM (real RomInfo, so LoadCurrentSongs'
+                // sound_table_pointer=0x28BC path works) with a clean song table planted.
+                byte[] destData = BuildSongTableRom(forFe8uPointerSlot: true, corruptVoice: false);
+                var destRom = new ROM();
+                destRom.LoadLow("dest.gba", destData, "BE8E01"); // FE8U RomInfo.
+                CoreState.ROM = destRom;
+                if (CoreState.Undo == null) CoreState.Undo = new Undo();
+
+                // DONOR ROM bytes: located BY SCAN (signature planted), with a truncated
+                // DirectSound sample on song #1's voice (flags HadStructureWarning).
+                byte[] donorData = BuildSongTableRom(forFe8uPointerSlot: false, corruptVoice: true);
+
+                var vm = new SongExchangeViewModel();
+                vm.LoadCurrentSongs();
+                vm.LoadOtherRom(donorData, "donor.gba");
+
+                // Default before any convert.
+                Assert.False(vm.LastConvertHadStructureWarning);
+
+                // The synthetic tables are deterministic: both lists MUST parse to >= 2
+                // entries (song #0 dummy + song #1). Preconditions, not skips.
+                Assert.True(vm.MySongList.Count > 1, "dest synthetic song table must parse >= 2 entries");
+                Assert.True(vm.OtherSongList.Count > 1, "donor synthetic song table must parse >= 2 entries");
+
+                Undo.UndoData undo = CoreState.Undo.NewUndoData("t");
+                string err;
+                using (ROM.BeginUndoScope(undo))
+                    err = vm.Convert(1, 1, undo);
+
+                Assert.Equal("", err);
+                Assert.True(vm.LastConvertHadStructureWarning,
+                    "a partial-corrupt source must set LastConvertHadStructureWarning");
+            }
+            finally { CoreState.ROM = prev; }
+        }
+
+        // Build a ROM whose song table is locatable either via the FE8U
+        // sound_table_pointer (0x28BC, for the loaded DEST) OR by SCANNING the
+        // planted 30-byte sound-engine signature (for the DONOR). Song #0 = dummy
+        // (tc=0), song #1 = a 1-track DirectSound song.
+        static byte[] BuildSongTableRom(bool forFe8uPointerSlot, bool corruptVoice)
+        {
+            byte[] d = new byte[0x1000000]; // 16 MiB so the FE8U RomInfo loads cleanly.
+            uint tableOff = 0x300000;       // table start, well clear of headers/samples.
+
+            if (forFe8uPointerSlot)
+            {
+                // DEST path: LoadCurrentSongs reads the pointer at FE8U's 0x28BC.
+                Gba(d, 0x28BC, tableOff);
+            }
+            else
+            {
+                // DONOR path: plant the sound-engine signature so the byte-scan
+                // resolves the table-pointer slot at found + 30 + 10.
+                byte[] sig = new byte[] {
+                    0x00, 0xB5, 0x00, 0x04, 0x07, 0x4A, 0x08, 0x49,
+                    0x40, 0x0B, 0x40, 0x18, 0x83, 0x88, 0x59, 0x00,
+                    0xC9, 0x18, 0x89, 0x00, 0x89, 0x18, 0x0A, 0x68,
+                    0x01, 0x68, 0x10, 0x1C, 0x00, 0xF0
+                };
+                uint sigAt = 0x500;
+                Array.Copy(sig, 0, d, (int)sigAt, sig.Length);
+                uint slotOff = sigAt + (uint)sig.Length + 10;
+                Gba(d, slotOff, tableOff);
+            }
+
+            uint dummyHdr = 0x301000, songHdr = 0x302000, voices = 0x303000, track0 = 0x304000, sample = 0x305000;
+
+            // Song table: entry0 -> dummy header (tc=0); entry1 -> song header.
+            Gba(d, tableOff + 0, dummyHdr);
+            Gba(d, tableOff + 8, songHdr);
+            d[dummyHdr] = 0; // dummy tc=0.
+
+            // song #1 header: tc=1, voices ptr, track0 ptr.
+            d[songHdr] = 1;
+            d[songHdr + 2] = 0x0A;
+            d[songHdr + 3] = 0x80;
+            Gba(d, songHdr + 4, voices);
+            Gba(d, songHdr + 8, track0);
+
+            // voice 0 = DirectSound.
+            d[voices] = 0x00;
+            uint sampleAt = corruptVoice ? (uint)(d.Length - 8) : sample;
+            Gba(d, voices + 4, sampleAt);
+            if (!corruptVoice)
+            {
+                d[sample + 0] = 0x7A; d[sample + 1] = 0x6B; d[sample + 2] = 0x5C; d[sample + 3] = 0x4D;
+                d[sample + 0x0C] = 4; // body length at +12
+                d[sample + 0x10] = 0xDE; d[sample + 0x11] = 0xAD; d[sample + 0x12] = 0xBE; d[sample + 0x13] = 0xEF;
+            }
+
+            // track0: BD 00, B1.
+            d[track0] = 0xBD; d[track0 + 1] = 0x00; d[track0 + 2] = 0xB1;
+            return d;
+        }
+
+        static void Gba(byte[] d, uint at, uint off)
+        {
+            uint p = off + 0x08000000;
+            d[at + 0] = (byte)(p & 0xFF);
+            d[at + 1] = (byte)((p >> 8) & 0xFF);
+            d[at + 2] = (byte)((p >> 16) & 0xFF);
+            d[at + 3] = (byte)((p >> 24) & 0xFF);
         }
 
         // ------------------------------------------------------------------

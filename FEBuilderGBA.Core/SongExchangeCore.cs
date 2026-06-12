@@ -94,6 +94,53 @@ namespace FEBuilderGBA
             return 0;
         }
 
+        // The 30-byte ARM Thumb signature of the sound-engine entry routine that
+        // precedes the song-table pointer slot. Byte-identical to WF
+        // SongUtil.FindSongTablePointer's `search` array.
+        static readonly byte[] SongTableSearchSignature = new byte[] {
+            0x00, 0xB5, 0x00, 0x04, 0x07, 0x4A, 0x08, 0x49,
+            0x40, 0x0B, 0x40, 0x18, 0x83, 0x88, 0x59, 0x00,
+            0xC9, 0x18, 0x89, 0x00, 0x89, 0x18, 0x0A, 0x68,
+            0x01, 0x68, 0x10, 0x1C, 0x00, 0xF0
+        };
+
+        /// <summary>
+        /// Locate the song-table START OFFSET in arbitrary ROM bytes by
+        /// PATTERN-SCANNING the donor's own sound-engine signature — version
+        /// INDEPENDENT. Faithful port of WinForms <c>SongUtil.FindSongTablePointer(byte[])</c>:
+        /// Grep the 30-byte signature, the song-table pointer slot lives at
+        /// <c>found + signatureLen + 10</c>; that slot holds the GBA pointer to the
+        /// table. WF returns the SLOT offset (its caller dereferences); this Core
+        /// overload dereferences and returns the TABLE-START offset so it can be
+        /// fed straight to <see cref="SongTableToSongList"/> (consistent with the
+        /// <see cref="FindSongTablePointer(byte[],uint)"/> overload). Used for the
+        /// DONOR ROM, whose <c>sound_table_pointer</c> address may differ from the
+        /// loaded ROM's (mismatched versions). Returns 0 when not found / invalid.
+        /// </summary>
+        public static uint FindSongTablePointerByScan(byte[] romData)
+        {
+            if (romData == null) return 0;
+
+            uint foundPoint = U.Grep(romData, SongTableSearchSignature);
+            if (foundPoint == U.NOT_FOUND)
+            {
+                return 0; // signature not found
+            }
+
+            uint songpointer = foundPoint + (uint)SongTableSearchSignature.Length + 10;
+            songpointer = U.toOffset(songpointer);
+            if ((long)songpointer + 3 >= romData.Length) return 0;
+
+            uint songlist = U.u32(romData, songpointer);
+            if (!U.isPointer(songlist))
+            {
+                return 0;
+            }
+            // Dereference: return the table START offset (WF returns the slot
+            // offset and dereferences in SongTableToSongList; we dereference here).
+            return U.toOffset(songlist);
+        }
+
         /// <summary>
         /// Read song table entries from ROM data.
         /// Each entry is 8 bytes: 4-byte pointer to song header + 4-byte metadata.
@@ -188,28 +235,59 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            // ---- Build the instrument map from the source voices. ----
-            // WinForms surfaced a "force?" dialog when ErrorMessage != ""; Core
-            // does NOT abort — it proceeds and flags HadStructureWarning so the
-            // host can warn (matches "import only the tracks we recognized").
-            InstrumentMap instrument_map = new InstrumentMap(srcData, srcSong.Voices);
-            if (instrument_map.ErrorMessage != "")
+            // The whole Rip + buffer-assembly path runs BEFORE any destRom.write_*,
+            // so a corrupt-source fault (e.g. a truncated track that runs off EOF and
+            // an OOB byte read escapes the per-field guards) can THROW during parsing.
+            // Catch it here and return a clean failure ConvertResult: the throw happens
+            // before the first write, so destRom stays byte-identical and the CLI path
+            // (which has no try/catch of its own) never crashes. Preserves the
+            // no-mutation-on-fault contract.
+            try
             {
-                result.HadStructureWarning = true;
-            }
+                // ---- Build the instrument map from the source voices. ----
+                // WinForms surfaced a "force?" dialog when ErrorMessage != ""; Core
+                // does NOT abort — it proceeds and flags HadStructureWarning so the
+                // host can warn (matches "import only the tracks we recognized").
+                InstrumentMap instrument_map = new InstrumentMap(srcData, srcSong.Voices);
+                if (instrument_map.ErrorMessage != "")
+                {
+                    result.HadStructureWarning = true;
+                }
 
-            // ---- Rip every track (NO mutation). ----
-            var trackdata = new List<List<byte>>();
-            string ripError = "";
-            bool success = Rip(srcData, srcSong, instrument_map, trackdata, ref ripError);
-            if (!success)
+                // ---- Rip every track (NO mutation). ----
+                var trackdata = new List<List<byte>>();
+                string ripError = "";
+                bool success = Rip(srcData, srcSong, instrument_map, trackdata, ref ripError);
+                if (!success)
+                {
+                    result.ErrorMessage = R._("This song's data is corrupt and could not be Ripped.") + ripError;
+                    return result;
+                }
+
+                // The InstrumentMap may have accumulated bad-data warnings DURING the
+                // Rip (translate/_prepare run lazily as voices are referenced), so
+                // re-check after Rip too — not just at construction.
+                if (instrument_map.ErrorMessage != "")
+                {
+                    result.HadStructureWarning = true;
+                }
+
+                // ---- Burn into the destination ROM. ----
+                return Burn(destRom, destSong, instrument_map, trackdata, undo, result);
+            }
+            catch (IndexOutOfRangeException ex)
             {
-                result.ErrorMessage = R._("This song's data is corrupt and could not be Ripped.") + ripError;
+                // Corrupt source ran a byte read past a buffer end during Rip/assembly.
+                result.Success = false;
+                result.ErrorMessage = R._("This song's data is corrupt and could not be Ripped.") + "\r\n" + ex.Message;
                 return result;
             }
-
-            // ---- Burn into the destination ROM. ----
-            return Burn(destRom, destSong, instrument_map, trackdata, undo, result);
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.ErrorMessage = R._("This song's data is corrupt and could not be Ripped.") + "\r\n" + ex.Message;
+                return result;
+            }
         }
 
         // -----------------------------------------------------------------
@@ -227,6 +305,15 @@ namespace FEBuilderGBA
                 use_size += (uint)trackdata[track].Count; //楽譜 (track data)
             }
             use_size = U.Padding4(use_size); //楽譜と楽器の間は 4バイトアライメントが必要. (4-byte align between tracks and instruments)
+            // FAITHFUL to WF SongExchangeForm.Burn: size the instrument region by the
+            // DICTIONARY key count (Instrument_mapping.Count), NOT InstrumentMap.Count()
+            // (= Instrument_codes.Count/12). They legitimately DIVERGE: _prepare's drum
+            // (0x80) branch + appendDrumIfNoDrum add dict keys mapped to id 0 WITHOUT
+            // appending a 12-byte Instrument_codes row, so dictCount can exceed rowCount.
+            // The layout reserves 12*dictCount bytes; rowCount rows are written and the
+            // remaining (dictCount-rowCount) rows stay zero-filled — harmless because the
+            // fixup loop & samples are anchored at instrument_start+12*dictCount (below),
+            // matching WF's byte output EXACTLY. Do NOT switch to Count().
             use_size += (uint)(instrument_map.Instrument_mapping.Count * 12); //楽器 (instruments)
             use_size += (uint)instrument_map.Sample_data.Count;      //楽器データ (sample data)
 
@@ -273,12 +360,22 @@ namespace FEBuilderGBA
             U.write_u32(data, 4, U.toPointer(write_pointer + offset));
 
             uint instrument_start = offset; //楽器開始 (instrument start)
+            // FAITHFUL to WF: sample data begins after 12*DICTIONARY-key-count bytes
+            // (Instrument_mapping.Count), NOT 12*Count(). See the use_size note above —
+            // the over-reserved zero rows for drum/dummy keys keep this anchor matching
+            // WF's byte output. Do NOT switch to Count().
             uint instrumentdata_start = instrument_start + (12 * (uint)instrument_map.Instrument_mapping.Count); //楽器データ開始 (sample data start)
 
             U.write_range(data, instrument_start, instrument_map.Instrument_codes.ToArray());
             U.write_range(data, instrumentdata_start, instrument_map.Sample_data.ToArray());
 
             //楽器 (instruments) — sample recycle + pointer fixups.
+            // FAITHFUL to WF: the fixup loop iterates the DICTIONARY-key count
+            // (Instrument_mapping.Count), NOT Count(). The trailing over-reserved rows
+            // (drum/dummy keys with no Instrument_codes row) read back as zero-filled
+            // 12-byte rows whose instrumentCode byte is 0x00 (= DirectSound); their +4
+            // "sample offset" is 0, so they harmlessly fix up to the start of the sample
+            // region (or recycle a zero-length match) — exactly as WF does. Do NOT switch to Count().
             uint resyclesize = 0;
             for (int i = 0; i < instrument_map.Instrument_mapping.Count; i++)
             {
@@ -572,6 +669,19 @@ namespace FEBuilderGBA
                 }
                 baseindex += 12 * index;
 
+                // OOB guard: a corrupt/out-of-range voice index or sub-table offset can
+                // point past the source ROM. U.subrange clamps to a SHORT (< 12-byte)
+                // row, which would let _prepare index instrument_code[0]..[11] out of
+                // bounds and throw. Return a sentinel bad_inst() (0x04,0...) full 12-byte
+                // row instead, and flag the structure warning so the host can surface it.
+                if (this.Data == null || (long)baseindex + 12 > this.Data.Length)
+                {
+                    this.ErrorMessage += "\r\n" +
+                        R._("An instrument row is out of range. Ignoring it. addr:{0} > {1} ROM Size",
+                            U.To0xHexString(baseindex), U.To0xHexString(this.Data == null ? 0 : this.Data.Length));
+                    return bad_inst();
+                }
+
                 return U.subrange(this.Data, baseindex, baseindex + 12);
             }
 
@@ -625,7 +735,9 @@ namespace FEBuilderGBA
             {
                 Debug.Assert(IsDirectSound(instrument_code[0]));
                 uint sample_location = U.p32(instrument_code, 4);
-                if (sample_location > this.Data.Length)
+                // Guard the 16-byte sample HEADER is fully in bounds before reading the
+                // +4 (hz) and +12 (length) fields — a truncated header would OOB-read.
+                if ((long)sample_location + 16 > this.Data.Length)
                 {
                     this.ErrorMessage += "\r\n" +
                         R._("There was bad data inside a DirectSound. Ignoring it. sample_location:{0} > {1} ROM Size",
@@ -636,6 +748,19 @@ namespace FEBuilderGBA
                 }
                 uint sample_hz1024 = U.u32(this.Data, sample_location + 4) / 1024;
                 uint sample_length = SongDirectSoundWavCore.GetDirectSoundWaveDataLength(this.Data, sample_location);
+
+                // Guard the full sample BODY (16-byte header + sample_length) is in
+                // bounds before subrange copies it — a length that runs off EOF would
+                // otherwise be clamped to a short copy (silent corruption).
+                if ((long)sample_location + 16 + sample_length > this.Data.Length)
+                {
+                    this.ErrorMessage += "\r\n" +
+                        R._("There was bad data inside a DirectSound. Ignoring it. sample_location:{0} > {1} ROM Size",
+                        U.To0xHexString(sample_location + 16 + sample_length), U.To0xHexString(this.Data.Length));
+
+                    //ダメな楽器として認識する. (treat as bad instrument)
+                    return false;
+                }
 
                 if (is_deps)
                 {
@@ -668,7 +793,9 @@ namespace FEBuilderGBA
             {
                 Debug.Assert(IsWaveMemory(instrument_code[0]));
                 uint sample_location = U.p32(instrument_code, 4);
-                if (sample_location > this.Data.Length)
+                // Guard the full 16-byte wave sample is in bounds before treating it as
+                // 16 bytes — a truncated tail would otherwise be clamped to a short copy.
+                if ((long)sample_location + 16 > this.Data.Length)
                 {
                     this.ErrorMessage += "\r\n" +
                         R._("There was bad data inside a DirectSound. Ignoring it. sample_location:{0} > {1} ROM Size",

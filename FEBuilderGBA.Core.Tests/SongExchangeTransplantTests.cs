@@ -546,6 +546,172 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         // ===================================================================
+        // Review fix A — donor-version song-table pattern scan.
+        // FindSongTablePointerByScan locates the donor's table by scanning its OWN
+        // sound-engine signature, INDEPENDENT of any sound_table_pointer ADDRESS
+        // (so it works when donor version != dest version). Build a synthetic donor
+        // whose signature+pointer-slot live at offsets unrelated to FE8U's
+        // sound_table_pointer and assert the table-start offset is resolved.
+        // ===================================================================
+        [Fact]
+        public void FindSongTablePointerByScan_LocatesDonorTable_IndependentOfVersion()
+        {
+            byte[] donor = new byte[0x4000];
+
+            // The 30-byte sound-engine signature WF/Core scan for. (Must equal the
+            // SongTableSearchSignature; copied here so the test is self-contained.)
+            byte[] sig = new byte[] {
+                0x00, 0xB5, 0x00, 0x04, 0x07, 0x4A, 0x08, 0x49,
+                0x40, 0x0B, 0x40, 0x18, 0x83, 0x88, 0x59, 0x00,
+                0xC9, 0x18, 0x89, 0x00, 0x89, 0x18, 0x0A, 0x68,
+                0x01, 0x68, 0x10, 0x1C, 0x00, 0xF0
+            };
+
+            // Plant the signature at an arbitrary aligned offset (>= 0x100 since
+            // U.Grep starts at 0x100). The pointer slot lives at found + 30 + 10.
+            uint sigAt = 0x500;
+            Array.Copy(sig, 0, donor, (int)sigAt, sig.Length);
+
+            uint slotOff = sigAt + (uint)sig.Length + 10; // 0x500 + 30 + 10 = 0x528
+            uint tableOff = 0x1000;                        // the donor's song-table start
+            // The slot holds a GBA pointer to the table.
+            WriteGbaPtr(donor, slotOff, tableOff);
+
+            uint found = SongExchangeCore.FindSongTablePointerByScan(donor);
+            Assert.Equal(tableOff, found); // dereferenced table-start offset.
+
+            // Signature absent -> 0 (not found), no throw.
+            Assert.Equal(0u, SongExchangeCore.FindSongTablePointerByScan(new byte[0x4000]));
+            Assert.Equal(0u, SongExchangeCore.FindSongTablePointerByScan(null));
+        }
+
+        // ===================================================================
+        // Review fix PRRT vOx — corrupt source (truncated track, never hits 0xB1
+        // and runs off EOF) → Success=false, dest byte-identical, NO exception escapes.
+        // ===================================================================
+        [Fact]
+        public void Transplant_TruncatedTrack_NoExceptionNoMutation()
+        {
+            // Build a source whose single track has NO 0xB1 terminator and is placed
+            // at the very END of the source buffer so process_track runs off EOF.
+            byte[] data = new byte[ROM_SIZE];
+            data[SRC_HDR + 0] = 1;          // 1 track
+            data[SRC_HDR + 2] = 0x0A;
+            data[SRC_HDR + 3] = 0x80;
+            WriteGbaPtr(data, SRC_HDR + 4, SRC_VOICES);
+            // Track pointer -> the last 2 bytes of the buffer (no 0xB1; runs off EOF).
+            uint trackOff = ROM_SIZE - 2;
+            WriteGbaPtr(data, SRC_HDR + 8, trackOff);
+            data[trackOff + 0] = 0x00;      // a note-ish byte, NOT 0xB1
+            data[trackOff + 1] = 0x00;
+
+            var src = new SrcBuild
+            {
+                Data = data,
+                Song = new SongExchangeCore.SongSt
+                {
+                    Number = 1, Table = 0, Header = SRC_HDR, Voices = SRC_VOICES, TrackCount = 1
+                }
+            };
+
+            var (dest, slot) = BuildDest();
+            byte[] before = (byte[])dest.Data.Clone();
+
+            // Must NOT throw (the CLI path has no try/catch of its own).
+            var ex = Record.Exception(() =>
+            {
+                var r = Convert(dest, slot, src);
+                Assert.False(r.Success);
+                Assert.NotEqual("", r.ErrorMessage);
+            });
+            Assert.Null(ex);
+            Assert.Equal(before, dest.Data); // no mutation.
+        }
+
+        // ===================================================================
+        // Review fix PRRT vPV — get_instrument OOB: a BD voice index whose 12-byte
+        // row runs past the source EOF must NOT throw; the instrument is treated as
+        // bad and HadStructureWarning is flagged.
+        // ===================================================================
+        [Fact]
+        public void Transplant_VoiceIndexOutOfRange_NoThrowFlagsWarning()
+        {
+            // Voice table only has 1 row (index 0). The track references voice index
+            // 2000, whose row (SRC_VOICES + 12*2000 = 0x300 + 24000 = 0x6300) is well
+            // past the 0x4000 source EOF, so get_instrument must return bad_inst()
+            // and flag the structure warning instead of throwing/clamping.
+            byte[] voiceTable = new byte[12]; // only index 0 present
+            // A 0xBD voice id is a single byte (0..255); use a one-byte id whose ROW
+            // is still OOB. The percussion sub-table path lets us reach a huge index,
+            // but the simplest direct OOB is a big base offset. Instead, point the
+            // voice-map base near EOF via a DRUM whose +4 sub-table runs off the end.
+            // Direct route: a 0xBD with id 255 -> row at 0x300 + 12*255 = 0x33F4 (in
+            // bounds). To force OOB we instead corrupt the song's Voices base to sit
+            // 4 bytes before EOF so even index 0's 12-byte row overflows.
+            var track = new byte[] { 0xBD, 0x00, 0xB1 };
+            var src = BuildSource(new[] { track }, voiceTable);
+            // Move the instrument-map base to 4 bytes before EOF: get_instrument(0)
+            // then reads [EOF-4 .. EOF+8), which is OOB -> bad_inst() + warning.
+            src.Song.Voices = ROM_SIZE - 4;
+
+            var (dest, slot) = BuildDest();
+
+            SongExchangeCore.ConvertResult r = null;
+            var ex = Record.Exception(() => { r = Convert(dest, slot, src); });
+            Assert.Null(ex);                 // no IndexOutOfRangeException escapes.
+            Assert.NotNull(r);
+            Assert.True(r.Success);          // bad instrument handled, transplant proceeds.
+            Assert.True(r.HadStructureWarning, "OOB voice row must flag a structure warning.");
+        }
+
+        // ===================================================================
+        // Review fix PRRT vPc — DirectSound with a sample_location near EOF whose
+        // 16-byte header + body run off the end → treated as bad, no crash, warning.
+        // ===================================================================
+        [Fact]
+        public void Transplant_DirectSoundTruncatedSample_BadInstrumentNoCrash()
+        {
+            byte[] voiceTable = new byte[12];
+            voiceTable[0] = 0x00; // DirectSound
+            // sample pointer -> 8 bytes before EOF (header of 16 can't fit).
+            WriteGbaPtr(voiceTable, 4, ROM_SIZE - 8);
+
+            var track = new byte[] { 0xBD, 0x00, 0xB1 };
+            var src = BuildSource(new[] { track }, voiceTable);
+
+            var (dest, slot) = BuildDest();
+            SongExchangeCore.ConvertResult r = null;
+            var ex = Record.Exception(() => { r = Convert(dest, slot, src); });
+            Assert.Null(ex);
+            Assert.NotNull(r);
+            Assert.True(r.Success);
+            Assert.True(r.HadStructureWarning, "Truncated DirectSound sample must flag a structure warning.");
+        }
+
+        // ===================================================================
+        // Review fix PRRT vPj — WaveMemory with a sample_location near EOF whose
+        // 16-byte sample runs off the end → treated as bad, no crash, warning.
+        // ===================================================================
+        [Fact]
+        public void Transplant_WaveMemoryTruncatedSample_BadInstrumentNoCrash()
+        {
+            byte[] voiceTable = new byte[12];
+            voiceTable[0] = 0x03; // WaveMemory
+            WriteGbaPtr(voiceTable, 4, ROM_SIZE - 8); // 16 bytes can't fit.
+
+            var track = new byte[] { 0xBD, 0x00, 0xB1 };
+            var src = BuildSource(new[] { track }, voiceTable);
+
+            var (dest, slot) = BuildDest();
+            SongExchangeCore.ConvertResult r = null;
+            var ex = Record.Exception(() => { r = Convert(dest, slot, src); });
+            Assert.Null(ex);
+            Assert.NotNull(r);
+            Assert.True(r.Success);
+            Assert.True(r.HadStructureWarning, "Truncated WaveMemory sample must flag a structure warning.");
+        }
+
+        // ===================================================================
         // IsDirectSound / IsWaveMemory constant-check parity (observed via the
         // transplant): all 4 DirectSound codes (0x00/0x08/0x10/0x18) get a sample
         // extracted + repointed; both WaveMemory codes (0x03/0x0B) get a 16-byte
@@ -589,11 +755,15 @@ namespace FEBuilderGBA.Core.Tests
         // re-parse B's slot — track count + per-track decoded code geometry +
         // instrument-set entry count must match the source.
         // ===================================================================
-        [Fact]
+        [SkippableFact]
         public void Transplant_RealRom_RoundTripsTrackCountAndInstruments()
         {
+            // EXPLICIT skip (not a silent no-op): a missing prereq produces a VISIBLE
+            // SKIPPED outcome via xunit.SkippableFact's Skip.If, never a green pass with
+            // zero coverage. The deterministic byte-golden fixtures above are the primary
+            // automated coverage; this is the real-ROM confidence check on top.
             string romPath = FindTestRom();
-            if (romPath == null) return; // skip if no ROM available.
+            Skip.If(romPath == null, "No test ROM available in roms/.");
 
             var savedRom = CoreState.ROM;
             try
@@ -601,25 +771,25 @@ namespace FEBuilderGBA.Core.Tests
                 // ROM A = donor (raw bytes); ROM B = recipient (loaded, mutated).
                 byte[] aData = System.IO.File.ReadAllBytes(romPath);
                 var bRom = new ROM();
-                if (!bRom.Load(romPath, out string _)) return;
+                Skip.IfNot(bRom.Load(romPath, out string _), "Test ROM failed to load.");
                 CoreState.ROM = bRom;
                 if (CoreState.Undo == null) CoreState.Undo = new Undo();
 
                 uint soundTablePtr = bRom.RomInfo.sound_table_pointer;
-                if (soundTablePtr == 0) return;
+                Skip.If(soundTablePtr == 0, "ROM has no sound_table_pointer.");
                 uint aTable = SongExchangeCore.FindSongTablePointer(aData, soundTablePtr);
                 uint bTable = SongExchangeCore.FindSongTablePointer(bRom.Data, soundTablePtr);
-                if (aTable == 0 || bTable == 0) return;
+                Skip.If(aTable == 0 || bTable == 0, "Song table not found in test ROM.");
 
                 var aSongs = SongExchangeCore.SongTableToSongList(aData, aTable);
                 var bSongs = SongExchangeCore.SongTableToSongList(bRom.Data, bTable);
 
                 // Pick a real multi-track source song (TrackCount >= 2), non-zero slot.
                 var srcSong = aSongs.FirstOrDefault(s => s.TrackCount >= 2 && s.Voices != 0);
-                if (srcSong == null) return;
+                Skip.If(srcSong == null, "No multi-track source song found in test ROM.");
                 // Pick a destination slot that is non-zero and exists.
                 var destSlot = bSongs.FirstOrDefault(s => s.Number >= 1 && s.TrackCount >= 1);
-                if (destSlot == null) return;
+                Skip.If(destSlot == null, "No suitable destination slot found in test ROM.");
 
                 Undo.UndoData undo = CoreState.Undo.NewUndoData("rt");
                 SongExchangeCore.ConvertResult r;

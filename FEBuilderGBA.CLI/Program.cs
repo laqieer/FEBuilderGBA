@@ -961,8 +961,17 @@ namespace FEBuilderGBA.CLI
             byte[] destData = CoreState.ROM.Data;
 
             uint soundTablePtr = CoreState.ROM.RomInfo.sound_table_pointer;
-            uint srcTableAddr = SongExchangeCore.FindSongTablePointer(sourceData, soundTablePtr);
+            // DEST = the loaded ROM, so use its known sound_table_pointer.
             uint destTableAddr = SongExchangeCore.FindSongTablePointer(destData, soundTablePtr);
+            // DONOR may be a DIFFERENT version, so pattern-scan its OWN sound-engine
+            // signature (WF SongUtil.FindSongTablePointer(byte[])) instead of assuming
+            // the dest's sound_table_pointer address. Fall back to the dest's pointer
+            // address if the scan fails (donor==dest version).
+            uint srcTableAddr = SongExchangeCore.FindSongTablePointerByScan(sourceData);
+            if (srcTableAddr == 0)
+            {
+                srcTableAddr = SongExchangeCore.FindSongTablePointer(sourceData, soundTablePtr);
+            }
 
             if (srcTableAddr == 0 || destTableAddr == 0)
             {

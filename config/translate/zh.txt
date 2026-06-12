@@ -24512,3 +24512,9 @@ A: 不使用 TSA 的背景 224 色(对话用)
 
 :Convert (transplant ->)
 转换 (移植 ->)
+
+:Other ROM: {0} ({1} songs)
+另一个 ROM: {0} ({1} 首乐曲)
+
+:Transplant completed, but some instrument data was corrupt and only the recognized parts were imported.
+移植已完成，但部分乐器数据已损坏，仅导入了可识别的部分。

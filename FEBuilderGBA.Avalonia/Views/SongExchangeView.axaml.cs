@@ -89,7 +89,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 byte[] data = System.IO.File.ReadAllBytes(path);
                 _vm.LoadOtherRom(data, path);
-                OtherRomLabel.Text = string.Format("Other ROM: {0} ({1} songs)", path, _vm.OtherSongList.Count);
+                OtherRomLabel.Text = R._("Other ROM: {0} ({1} songs)", path, _vm.OtherSongList.Count);
             }
             catch (Exception ex)
             {
@@ -147,7 +147,16 @@ namespace FEBuilderGBA.Avalonia.Views
                 int keep = destIndex;
                 _vm.LoadCurrentSongs();
                 if (keep < MyList.ItemCount) MyList.SelectedIndex = keep;
-                CoreState.Services.ShowInfo(R._("Song import complete."));
+                // Surface a partial-corrupt source (WF showed a force/warn dialog):
+                // warn instead of claiming a clean success.
+                if (_vm.LastConvertHadStructureWarning)
+                {
+                    CoreState.Services.ShowInfo(R._("Transplant completed, but some instrument data was corrupt and only the recognized parts were imported."));
+                }
+                else
+                {
+                    CoreState.Services.ShowInfo(R._("Song import complete."));
+                }
             }
             catch (Exception ex)
             {

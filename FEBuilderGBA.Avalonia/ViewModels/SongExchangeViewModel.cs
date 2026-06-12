@@ -34,6 +34,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>True once an OTHER ROM has been loaded.</summary>
         public bool HasOtherRom => OtherRomData != null && OtherSongList.Count > 0;
 
+        /// <summary>
+        /// Set by the most recent successful <see cref="Convert"/> when the source
+        /// instrument structure was partially corrupt (ConvertResult.HadStructureWarning).
+        /// The View reads this to surface a warning instead of a plain success message
+        /// (WF showed a force/warn dialog). Reset at the start of each Convert.
+        /// </summary>
+        public bool LastConvertHadStructureWarning { get; private set; }
+
         // ----- reachability + screenshot harness (kept) -----
 
         public List<AddrResult> LoadList()
@@ -57,12 +65,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         // ----- song-list loading -----
 
+        // CURRENT (loaded) ROM: use its known sound_table_pointer.
         static uint FindSongTable(byte[] data)
         {
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null || data == null) return 0;
             uint soundTablePtr = rom.RomInfo.sound_table_pointer;
             return SongExchangeCore.FindSongTablePointer(data, soundTablePtr);
+        }
+
+        // DONOR ROM: may be a DIFFERENT version, so pattern-scan its OWN sound-engine
+        // signature first (version-independent), falling back to the loaded ROM's
+        // sound_table_pointer address when the scan fails (donor==dest version).
+        static uint FindDonorSongTable(byte[] data)
+        {
+            if (data == null) return 0;
+            uint table = SongExchangeCore.FindSongTablePointerByScan(data);
+            if (table != 0) return table;
+            return FindSongTable(data);
         }
 
         static string FormatRow(SongExchangeCore.SongSt s)
@@ -98,7 +118,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             OtherSongDisplay.Clear();
             if (data == null) return;
 
-            uint table = FindSongTable(data);
+            uint table = FindDonorSongTable(data);
             if (table == 0) return;
 
             OtherSongList = SongExchangeCore.SongTableToSongList(data, table);
@@ -114,6 +134,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public string Convert(int srcIndex, int destIndex, Undo.UndoData undo)
         {
+            LastConvertHadStructureWarning = false;
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return R._("ROM is not loaded.");
             if (OtherRomData == null || OtherSongList.Count == 0)
@@ -129,6 +150,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                                                       OtherRomData, OtherSongList[srcIndex], undo);
             if (!result.Success)
                 return result.ErrorMessage != "" ? result.ErrorMessage : R._("Song conversion failed.");
+            // Surface a partial-corrupt source so the View can warn instead of a plain success.
+            LastConvertHadStructureWarning = result.HadStructureWarning;
             return "";
         }
     }
