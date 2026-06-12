@@ -306,6 +306,71 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.toPointer(0x200u), tinyAddr);
         }
 
+        // ---- 6d: slide-loop uses PATTERN grep (#1118 Copilot review) ---------
+        //
+        // WF AutoSearch leaves GrepType=1 (pattern) when entering the skipSearch
+        // slide loop, so slid attempts are pointer/code-masked. This test proves
+        // the slide path needs pattern masking: a data block contains a GBA
+        // POINTER word that DIFFERS between source and target (a cross-version
+        // pointer). makeSkipDataByPointer masks that word as a wildcard, so a
+        // PATTERN grep matches while an EXACT grep does not. The read is at a
+        // non-zero slide (2, from SlideTable) to exercise the slide path.
+        //
+        // Byte layout of the 0x10-byte block (need read from source at +slide):
+        //   [0..3]  marker bytes (common to both buffers)
+        //   [4..7]  GBA POINTER word — 0x08001111 in source, 0x08002222 in target
+        //           (4-aligned within need, so makeSkipDataByPointer masks it)
+        //   [8..F]  common tail bytes
+        // EXACT grep of the source bytes mismatches at [4..7]; PATTERN grep masks
+        // [4..7] and matches the target block.
+
+        [Fact]
+        public void FindOtherROMData_PatternSlide_MatchesWhenExactSlideMisses()
+        {
+            var sourceData = new byte[0x2000];
+            var targetData = new byte[0x2000];
+
+            // Build the common parts of the 0x10-byte block.
+            byte[] BuildBlock(uint ptrWord)
+            {
+                var blk = new byte[0x10];
+                blk[0] = 0x5A; blk[1] = 0x5B; blk[2] = 0x5C; blk[3] = 0x5D; // marker
+                // [4..7] = a GBA pointer word (little-endian).
+                blk[4] = (byte)(ptrWord & 0xFF);
+                blk[5] = (byte)((ptrWord >> 8) & 0xFF);
+                blk[6] = (byte)((ptrWord >> 16) & 0xFF);
+                blk[7] = (byte)((ptrWord >> 24) & 0xFF);
+                for (int i = 8; i < 0x10; i++) blk[i] = (byte)(0xA0 + i); // common tail
+                return blk;
+            }
+
+            // Source block at offset 0x402; sourcePointer 0x400 + slide 2 -> 0x402.
+            var srcBlock = BuildBlock(0x08001111u);   // source pointer word
+            Array.Copy(srcBlock, 0, sourceData, 0x402, srcBlock.Length);
+
+            // Target block at offset 0x800: identical EXCEPT the pointer word.
+            var tgtBlock = BuildBlock(0x08002222u);   // DIFFERENT pointer word
+            Array.Copy(tgtBlock, 0, targetData, 0x800, tgtBlock.Length);
+
+            const uint sourcePointer = 0x08000400u;
+            const int slide = 2;            // a non-zero SlideTable value
+            const int testMatchSize = 0x10;
+
+            // EXACT grep at the slide MISSES (the pointer word differs).
+            bool rExact = PointerToolAutoSearchCore.FindOtherROMData(
+                sourceData, targetData, sourcePointer, slide, testMatchSize,
+                grepPattern: false, isCodeType: false, out uint _, out uint _);
+            Assert.False(rExact);
+
+            // PATTERN grep at the SAME slide MATCHES (the pointer word is masked).
+            bool rPattern = PointerToolAutoSearchCore.FindOtherROMData(
+                sourceData, targetData, sourcePointer, slide, testMatchSize,
+                grepPattern: true, isCodeType: false, out uint patAddr, out uint _);
+            Assert.True(rPattern);
+            // Un-slid reported address: target block 0x800 minus slide 2 = 0x7FE.
+            Assert.Equal(U.toPointer(0x7FEu), patAddr);
+        }
+
         // ---- 7: AutoSearch no-match ------------------------------------------
 
         [Fact]

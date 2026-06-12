@@ -391,8 +391,14 @@ namespace FEBuilderGBA
                     for (int skipSearch = 1; skipSearch < maxSkipSearch; skipSearch++)
                     {
                         int slide = SlideTable[Math.Min(skipSearch, SlideTable.Length - 1)];
+                        // WF leaves GrepType=1 (pattern) when entering the skipSearch
+                        // slide loop (it never resets it after the slide-0 pattern
+                        // attempt above), so slid attempts are pattern-masked. Use
+                        // grepPattern:true to match — exact+slide alone misses
+                        // matches that need both the slide offset AND pointer/code
+                        // masking.
                         var hitSlid = TryOnce(sourceData, targetData, sourceLdr, targetLdr, pointer, address,
-                            slide: slide, testMatchSize: testMatchSize, grepPattern: false, isCodeType: isCode, warningLevel: warningLevel);
+                            slide: slide, testMatchSize: testMatchSize, grepPattern: true, isCodeType: isCode, warningLevel: warningLevel);
                         if (hitSlid != null) return hitSlid;
                     }
                 }
