@@ -2507,6 +2507,12 @@ Linked 名前:
 :Load Other ROM
 別ROM読込
 
+:Auto Search
+自動探索
+
+:Cross-ROM auto-tracking: name search, LDR-map symmetry, and match-window retry against the loaded target ROM.
+ROM間自動追跡：読み込んだ対象ROMに対して、名前検索、LDRマップ対称性、一致ウィンドウ再試行を行います。
+
 :LDR Match\r\nAddress
 LDR一致\r\nアドレス
 

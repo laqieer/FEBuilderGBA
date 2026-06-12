@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.Batch_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.Batch_Click: {ex}");
             }
         }
 
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.WhatIs_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.WhatIs_Click: {ex}");
             }
         }
 
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("PointerToolView.Write_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.Write_Click: {ex}");
                 CoreState.Services?.ShowError(
                     $"Write failed: {ex.Message}");
                 // Do not rethrow — the UI thread should keep running.
@@ -151,7 +151,28 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.LoadOtherRom_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.LoadOtherRom_Click: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// Auto Search button (#1113) — runs the full cross-ROM AutoSearch
+        /// (ASM-map name search + source/target LDR-literal-pool symmetry +
+        /// auto-tracking retry) against the loaded target ROM, populating the
+        /// OtherROM* fields and the AutoSearchSummary label. Wrapped in
+        /// try/catch + Log.Error like the other handlers so the UI thread never
+        /// crashes.
+        /// </summary>
+        void AutoSearch_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.AddressInput = AddressTextBox.Text ?? "";
+                _vm.RunAutoSearch();
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"PointerToolView.AutoSearch_Click: {ex}");
             }
         }
 
@@ -178,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.AddressDoubleClick: {0}", ex.Message);
+                Log.Error($"PointerToolView.AddressDoubleClick: {ex}");
             }
         }
 

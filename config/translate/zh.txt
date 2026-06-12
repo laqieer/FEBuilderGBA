@@ -17396,6 +17396,12 @@ LZ77压缩工具
 :Load Other ROM
 加载其他ROM
 
+:Auto Search
+自动搜索
+
+:Cross-ROM auto-tracking: name search, LDR-map symmetry, and match-window retry against the loaded target ROM.
+跨ROM自动追踪：针对已加载的目标ROM进行名称搜索、LDR映射对称性匹配和匹配窗口重试。
+
 :LDR Match\r\nAddress
 LDR匹配\r\n地址
 
