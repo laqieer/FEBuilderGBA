@@ -53,7 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.Batch_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.Batch_Click: {ex}");
             }
         }
 
@@ -79,7 +79,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.WhatIs_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.WhatIs_Click: {ex}");
             }
         }
 
@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 _undoService.Rollback();
-                Log.Error("PointerToolView.Write_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.Write_Click: {ex}");
                 CoreState.Services?.ShowError(
                     $"Write failed: {ex.Message}");
                 // Do not rethrow — the UI thread should keep running.
@@ -151,7 +151,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.LoadOtherRom_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.LoadOtherRom_Click: {ex}");
             }
         }
 
@@ -172,7 +172,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.AutoSearch_Click: {0}", ex.Message);
+                Log.Error($"PointerToolView.AutoSearch_Click: {ex}");
             }
         }
 
@@ -199,7 +199,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("PointerToolView.AddressDoubleClick: {0}", ex.Message);
+                Log.Error($"PointerToolView.AddressDoubleClick: {ex}");
             }
         }
 

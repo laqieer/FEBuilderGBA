@@ -480,8 +480,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Load an "other ROM" file for cross-ROM pointer comparison. Mirrors
-        /// WF <c>PointerToolForm.LoadTargetROM</c>: reads the file bytes, builds
-        /// and caches the target ROM's ASM/MAP symbol table (when the ROM
+        /// WF <c>PointerToolForm.LoadTargetROM</c>: reads the file bytes ONCE,
+        /// builds and caches the target ROM's ASM/MAP symbol table from those
+        /// same bytes (only when <see cref="UseAsmMap"/> is enabled and the ROM
         /// version-detects), sets <see cref="OtherRomName"/>, and then — if a
         /// valid current address is present — runs the full cross-ROM
         /// <see cref="RunAutoSearch"/> (#1113: auto-tracking retry +
@@ -505,22 +506,33 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 OtherRomName = Path.GetFileNameWithoutExtension(filename);
 
                 // Build + cache the target ROM's ASM/MAP symbol table for the
-                // name-search heuristic. Tolerate version-detect failure: a ROM
-                // that does not version-detect simply disables name search
-                // (mirrors WF LoadTargetROM, which only builds OtherROMASMMap on
-                // a successful ROM.Load). Never throws on a bad file.
+                // name-search heuristic — ONLY when ASM-map search is enabled
+                // (mirrors WF, which gates name search on UseASMMAPCheckBox). When
+                // UseAsmMap is off, skip the asmmap parse entirely.
+                //
+                // Reuse the bytes already read above instead of re-reading the
+                // file: ROM.Load(filename) would call File.ReadAllBytes a SECOND
+                // time. Detect the version from the in-memory bytes (the same
+                // header read ROM.Load does) and build via ROM.LoadLow. Tolerate
+                // version-detect failure: a ROM that does not version-detect
+                // simply disables name search (mirrors WF LoadTargetROM, which
+                // only builds OtherROMASMMap on a successful load). Never throws.
                 _otherRomAsmMap = null;
-                try
+                if (UseAsmMap)
                 {
-                    var targetRom = new ROM();
-                    if (targetRom.Load(filename, out string _))
+                    try
                     {
-                        _otherRomAsmMap = new AsmMapSymbolFile(targetRom);
+                        var targetRom = new ROM();
+                        string version = U.getASCIIString(_otherRomData, U.toOffset(0x080000AC), 6);
+                        if (targetRom.LoadLow(filename, _otherRomData, version))
+                        {
+                            _otherRomAsmMap = new AsmMapSymbolFile(targetRom);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"PointerToolViewModel.LoadOtherRom asmmap build: {ex}");
+                    catch (Exception ex)
+                    {
+                        Log.Error($"PointerToolViewModel.LoadOtherRom asmmap build: {ex}");
+                    }
                 }
 
                 // Auto-run AutoSearch when a usable address is already entered;
@@ -570,17 +582,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             if (_otherRomData == null || _otherRomData.Length == 0)
             {
+                // Clear any stale cross-ROM result so a previous successful match
+                // never lingers after the target ROM is gone (Copilot bot Fix 3).
+                ClearOtherRomFields();
                 AutoSearchSummary = "Load a target ROM first.";
                 return;
             }
             if (!TryParseAddress(out uint rawInput))
             {
+                ClearOtherRomFields();
                 AutoSearchSummary = "Invalid address.";
                 return;
             }
             var rom = CoreState.ROM;
             if (rom == null || rom.Data == null)
             {
+                ClearOtherRomFields();
                 AutoSearchSummary = "No ROM loaded.";
                 return;
             }
@@ -591,12 +608,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // calls SearchCurrentROM/Search before the retry loop).
                 RunSearch();
 
-                // Build the source ASM/MAP symbol table from the live ROM. Name
-                // search needs both source + target maps (target was cached in
-                // LoadOtherRom / seeded in SeedDemoCrossRom).
+                // Build the source ASM/MAP symbol table — ONLY when ASM-map search
+                // is enabled (WF gates name search on UseASMMAPCheckBox.Checked,
+                // Copilot bot Fix 5). When UseAsmMap is off, pass null for BOTH
+                // maps so the Core helper no-ops the name heuristic and only runs
+                // the LDR-symmetry + retry passes.
                 IAsmMapFile? sourceAsmMap = null;
-                try { sourceAsmMap = new AsmMapSymbolFile(rom); }
-                catch (Exception ex) { Log.Error($"PointerToolViewModel.RunAutoSearch source asmmap: {ex}"); }
+                if (UseAsmMap)
+                {
+                    try { sourceAsmMap = new AsmMapSymbolFile(rom); }
+                    catch (Exception ex) { Log.Error($"PointerToolViewModel.RunAutoSearch source asmmap: {ex}"); }
+                }
 
                 AutoSearchResult result = PointerToolAutoSearchCore.AutoSearch(
                     rom.Data,
@@ -604,27 +626,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     rawInput,
                     DecodeAutoTrackLevel(),
                     sourceAsmMap,
-                    _otherRomAsmMap,
+                    UseAsmMap ? _otherRomAsmMap : null,
                     WarningLevel);
 
                 if (!result.Found)
                 {
+                    // No accepted match: clear the cross-ROM fields so a prior
+                    // RunSearch's baseline grep doesn't linger as a "result"
+                    // (Copilot bot Fix 4).
+                    ClearOtherRomFields();
                     AutoSearchSummary = "Not found after auto-tracking retry.";
                     return;
                 }
 
-                // Populate the visible fields from the accepted match. NAME and
-                // direct hits set the direct fields; ldr hits set the LDR fields.
-                if (result.DirectAddr != U.NOT_FOUND)
-                {
-                    OtherRomAddress = $"0x{result.DirectAddr:X08}";
-                    OtherRomRefPointer = result.DirectRef != U.NOT_FOUND ? $"0x{result.DirectRef:X08}" : "";
-                }
-                if (result.LdrAddr != U.NOT_FOUND)
-                {
-                    OtherRomLdrAddress = $"0x{result.LdrAddr:X08}";
-                    OtherRomLdrRefPointer = result.LdrRef != U.NOT_FOUND ? $"0x{result.LdrRef:X08}" : "";
-                }
+                // Populate ALL FOUR fields DETERMINISTICALLY: set to the hex
+                // string when the address resolved, ELSE clear to "" (Copilot bot
+                // Fix 4). A name hit has LdrAddr==NOT_FOUND, so this clears the
+                // LDR fields rather than showing the baseline RunSearch LDR grep.
+                OtherRomAddress       = result.DirectAddr != U.NOT_FOUND ? $"0x{result.DirectAddr:X08}" : "";
+                OtherRomRefPointer    = result.DirectRef  != U.NOT_FOUND ? $"0x{result.DirectRef:X08}"  : "";
+                OtherRomLdrAddress    = result.LdrAddr    != U.NOT_FOUND ? $"0x{result.LdrAddr:X08}"    : "";
+                OtherRomLdrRefPointer = result.LdrRef     != U.NOT_FOUND ? $"0x{result.LdrRef:X08}"     : "";
 
                 string sym = (result.Hit == "name" && result.SymbolName.Length > 0)
                     ? $" ({result.SymbolName})"
