@@ -18,19 +18,12 @@
 //   - STRUCT: include unless CheckIF == "E"
 //   - ADDR : include only when CheckIF == "I" (installed) — NOT "E"/not-installed
 //
-// DOCUMENTED RESIDUAL CARVE-OUTS (why this is "Ref #1027" not "Closes" for the patch
-// source): WinForms PatchForm.convertBinAddressString / CheckIF resolve four ADDRESS
-// macro forms that are NOT ported here because they need the full WinForms grep /
-// freespace subsystem:
-//   - $GREP / $XGREP   (byte-signature search for ADDRESS / POINTER / DATACOUNT)
-//   - $FGREP           (file-content search)
-//   - $FREEAREA        (install-time relocation target — never a data-scan address)
-//   - GREP-based install IF detection (PatchMetadataCore.CheckPatchInstalled returns
-//     Unknown for $GREP/$FGREP conditions)
-// A patch whose ADDRESS / POINTER / DATACOUNT is grep-resolved, or whose install state
-// is only detectable via a grep IF, is SKIPPED (its text ids are not added). Patches
-// using literal / $0x-pointer addresses + literal DATACOUNT are fully covered. The
-// SkillSystems STRUCT text table is covered separately + faithfully by
+// GREP/XGREP/FGREP/P32/TEXTID macro resolution is handled by
+// PatchMacroAddressResolverCore (faithful port of PatchForm.convertBinAddressString).
+// Remaining carve-outs (return U.NOT_FOUND, never throw):
+//   $FREEAREA               — write-time allocator, meaningless read-only
+//   $EndWeaponDebuffTable3/4/5 — weapon-debuff-only PatchUtil/Form-bound macros
+// The SkillSystems STRUCT text table is covered separately + faithfully by
 // SkillSystemTextScanner (free-area union calls both).
 
 using System;
@@ -104,11 +97,14 @@ namespace FEBuilderGBA
             string type = GetParam(prms, "TYPE", "");
             if (type != "ADDR" && type != "STRUCT") return; // WF dispatches only these
 
+            // Base directory of the patch file (for $FGREP file-content lookups)
+            string basedir = Path.GetDirectoryName(patchFile) ?? "";
+
             // CheckIF tri-state (port of CheckIFFast):
             //   "E" -> prerequisite missing / dangerous addr -> skip ALL types
             //   "I" -> installed
             //   "" -> not installed
-            string checkIF = CheckIF(rom, prms, lang);
+            string checkIF = CheckIF(rom, prms, lang, basedir);
 
             // WF IsMakePatchStructDataListTarget(type, checkIF, isInstallOnly:true, isStructOnly:false):
             //   STRUCT: include unless "E".
@@ -116,25 +112,25 @@ namespace FEBuilderGBA
             if (type == "STRUCT")
             {
                 if (checkIF == "E") return;
-                ScanStruct(rom, prms, eventScanReady, tracelist, ids, songIds);
+                ScanStruct(rom, prms, basedir, eventScanReady, tracelist, ids, songIds);
             }
             else // ADDR
             {
                 if (checkIF != "I") return;
-                ScanAddr(rom, prms, ids, songIds);
+                ScanAddr(rom, prms, basedir, ids, songIds);
             }
         }
 
         // ---- ADDR (PatchForm.MakeVarsIDArrayForAddr) ----------------------
         static void ScanAddr(ROM rom, List<PatchMetadataCore.PatchParam> prms,
-            HashSet<uint> ids, HashSet<uint> songIds)
+            string basedir, HashSet<uint> ids, HashSet<uint> songIds)
         {
             string addressType = GetParam(prms, "ADDRESS_TYPE", "");
             if (addressType != "TEXT" && addressType != "SONG") return;
 
             string addrStr = GetParam(prms, "ADDRESS", "");
-            uint addr;
-            if (!TryResolveAddress(rom, addrStr, out addr)) return;
+            uint addr = ResolveAddress(rom, addrStr, basedir);
+            if (addr == U.NOT_FOUND) return;
             if (!U.isSafetyOffset(addr, rom)) return;
 
             if (addressType == "TEXT")
@@ -151,15 +147,16 @@ namespace FEBuilderGBA
 
         // ---- STRUCT (PatchForm.MakeVarsIDArrayForStruct) ------------------
         static void ScanStruct(ROM rom, List<PatchMetadataCore.PatchParam> prms,
-            bool eventScanReady, List<uint> tracelist, HashSet<uint> ids, HashSet<uint> songIds)
+            string basedir, bool eventScanReady, List<uint> tracelist,
+            HashSet<uint> ids, HashSet<uint> songIds)
         {
             // Resolve struct base — POINTER (deref) takes priority over ADDRESS.
             uint structAddr;
             string pointerStr = GetParam(prms, "POINTER", "");
             if (pointerStr != "")
             {
-                uint structPointer;
-                if (!TryResolveAddress(rom, pointerStr, out structPointer)) return;
+                uint structPointer = ResolveAddress(rom, pointerStr, basedir);
+                if (structPointer == U.NOT_FOUND) return;
                 if (!U.isSafetyOffset(structPointer, rom)) return;
                 if (structPointer + 4 > (uint)rom.Data.Length) return;
                 structAddr = rom.p32(structPointer);
@@ -169,7 +166,8 @@ namespace FEBuilderGBA
             {
                 string addressStr = GetParam(prms, "ADDRESS", "");
                 if (addressStr == "") return;
-                if (!TryResolveAddress(rom, addressStr, out structAddr)) return;
+                structAddr = ResolveAddress(rom, addressStr, basedir);
+                if (structAddr == U.NOT_FOUND) return;
                 if (!U.isSafetyOffset(structAddr, rom)) return;
             }
 
@@ -180,9 +178,17 @@ namespace FEBuilderGBA
             uint datacount;
             if (datacountStr.Length > 0 && datacountStr[0] == '$')
             {
-                // CARVE-OUT: $GREP-resolved DATACOUNT — would need the WinForms grep
-                // subsystem. Skip (documented residual gap).
-                return;
+                // $GREP-resolved DATACOUNT — resolve via PatchMacroAddressResolverCore,
+                // passing structAddr as startOffset (faithful port of WF convertBinAddressString
+                // call in MakeVarsIDArrayForStruct: start_offset = struct_address).
+                uint resolved = PatchMacroAddressResolverCore.Resolve(rom, datacountStr, basedir, structAddr);
+                if (resolved == U.NOT_FOUND) return;
+                // WF: if resolved >= struct_address, treat as end address and compute count
+                if (resolved >= structAddr)
+                    datacount = (uint)Math.Ceiling((resolved - structAddr) / (double)datasize);
+                else
+                    return;
+                if (datacount >= 0xFFFF) return; // WF Debug.Assert guard
             }
             else
             {
@@ -291,38 +297,18 @@ namespace FEBuilderGBA
             return 0;
         }
 
-        // ---- shared address resolution (literal + $0x pointer only) -------
-        // Returns false for $GREP / $XGREP / $FGREP / $FREEAREA (carved out).
-        static bool TryResolveAddress(ROM rom, string addrstring, out uint addr)
+        // ---- shared address resolution via PatchMacroAddressResolverCore -------
+        // Delegates to PatchMacroAddressResolverCore.Resolve for all macro forms
+        // ($GREP, $XGREP, $FGREP, $P32, $TEXTID, etc.) as well as plain literals
+        // and $0x pointer-deref. Returns U.NOT_FOUND on any failure.
+        static uint ResolveAddress(ROM rom, string addrstring, string basedir, uint startOffset = 0x100)
         {
-            addr = 0;
-            if (string.IsNullOrEmpty(addrstring)) return false;
-
-            if (addrstring[0] != '$')
-            {
-                addr = U.toOffset(U.atoi0x(addrstring));
-                return true;
-            }
-
-            string value = addrstring.Substring(1);
-            if (value.Length == 0) return false;
-
-            if (IsNum(value[0]))
-            {
-                // $0x123 -> [0x123] pointer deref
-                uint pa = U.toOffset(U.atoi0x(value));
-                if (!U.isSafetyOffset(pa, rom)) return false;
-                if (pa + 4 > (uint)rom.Data.Length) return false;
-                addr = rom.p32(pa);
-                return true;
-            }
-
-            // $FREEAREA / $GREP / $XGREP / $FGREP — carved out.
-            return false;
+            return PatchMacroAddressResolverCore.Resolve(rom, addrstring, basedir, startOffset);
         }
 
-        // ---- CheckIF tri-state (port of PatchForm.CheckIF, literal-addr subset) -
-        // Faithful port of WinForms PatchForm.CheckIF (literal-address subset).
+        // ---- CheckIF tri-state (port of PatchForm.CheckIF) ----------------
+        // Faithful port of WinForms PatchForm.CheckIF, now with full macro-address
+        // resolution via PatchMacroAddressResolverCore (previously literal/$0x only).
         // Returns "E" (prerequisite missing / dangerous / conflict), "I" (installed),
         // or "" (undetermined). Mirrors WF exactly: per IF-family key, compute
         // `notFound` (the ROM byte-pattern at the address does NOT match the need),
@@ -330,11 +316,11 @@ namespace FEBuilderGBA
         //   IF / PATCHED_IFNOT (isnot=false): notFound -> "E" (required pattern absent).
         //   IFNOT / CONFLICT_IF (isnot=true): match    -> "E" (conflict present).
         //   PATCHED_IF (isnot=true):          match    -> "I" (installed).
-        // A required (!isnot) condition whose address is unsafe/out-of-range, or whose
-        // value has < 2 space-separated tokens, also yields "E" (WF returns "E"). The
-        // $GREP/$XGREP/$FGREP/$FREEAREA macro forms are carved out: an UNresolvable
-        // required (!isnot) condition is "E"; an isnot condition is skipped.
-        static string CheckIF(ROM rom, List<PatchMetadataCore.PatchParam> prms, string lang)
+        // A required (!isnot) condition whose address can't be resolved or is unsafe,
+        // or whose value has < 2 space-separated tokens, yields "E".
+        // $FREEAREA / $EndWeaponDebuffTable3/4/5 (PatchMacroAddressResolverCore carve-outs)
+        // return U.NOT_FOUND; required condition -> "E", isnot condition -> skipped.
+        static string CheckIF(ROM rom, List<PatchMetadataCore.PatchParam> prms, string lang, string basedir)
         {
             foreach (var prm in prms)
             {
@@ -358,20 +344,10 @@ namespace FEBuilderGBA
                     continue;
                 }
 
-                // Carve-out: a $GREP/$XGREP/$FGREP/$FREEAREA macro address can't be
-                // resolved here. WF treats an unresolvable REQUIRED (!isnot) address
-                // as "E"; an isnot condition with an unresolvable address is skipped.
-                if (addrstring.Length > 0 && addrstring[0] == '$'
-                    && !(addrstring.Length > 1 && IsNum(addrstring[1])))
+                uint address = ResolveAddress(rom, addrstring, basedir);
+                if (address == U.NOT_FOUND || !U.isSafetyOffset(address, rom))
                 {
-                    if (!isnot) return "E";
-                    continue;
-                }
-
-                uint address;
-                if (!TryResolveAddress(rom, addrstring, out address) || !U.isSafetyOffset(address, rom))
-                {
-                    // WF: unsafe address on a required IF -> "E"; isnot -> continue.
+                    // WF: unsafe/unresolvable address on a required IF -> "E"; isnot -> skip.
                     if (!isnot) return "E";
                     continue;
                 }
