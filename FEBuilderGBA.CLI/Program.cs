@@ -949,11 +949,16 @@ namespace FEBuilderGBA.CLI
 
             RomLoader.InitEnvironment();
             string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+            // Load the DESTINATION ROM into CoreState.ROM — that is the ROM we
+            // mutate, and the undo snapshots (Undo.UndoPostion) read CoreState.ROM.
             if (!RomLoader.LoadRom(destPath, forceVersion))
                 return 1;
 
+            // Read the SOURCE ROM bytes (the donor); the dest table offsets are
+            // resolved against CoreState.ROM.Data so the slot we repoint matches
+            // the ROM we Save below.
             byte[] sourceData = File.ReadAllBytes(sourcePath);
-            byte[] destData = File.ReadAllBytes(destPath);
+            byte[] destData = CoreState.ROM.Data;
 
             uint soundTablePtr = CoreState.ROM.RomInfo.sound_table_pointer;
             uint srcTableAddr = SongExchangeCore.FindSongTablePointer(sourceData, soundTablePtr);
@@ -978,16 +983,35 @@ namespace FEBuilderGBA.CLI
                 Console.Error.WriteLine($"Error: Destination song ID 0x{toSongId:X} out of range (max 0x{destSongs.Count - 1:X}).");
                 return 1;
             }
-
-            bool ok = SongExchangeCore.ConvertSong(sourceData, srcSongs[(int)fromSongId],
-                                                     destData, destSongs[(int)toSongId]);
-            if (!ok)
+            if (toSongId == 0)
             {
-                Console.Error.WriteLine("Error: Song conversion failed.");
+                Console.Error.WriteLine("Error: Cannot write to SongID 0x0.");
                 return 1;
             }
 
-            File.WriteAllBytes(destPath, destData);
+            // Real cross-ROM transplant: build the InstrumentMap, Rip every track,
+            // and Burn into the destination ROM under a single undo scope.
+            if (CoreState.Undo == null) CoreState.Undo = new Undo();
+            Undo.UndoData undo = CoreState.Undo.NewUndoData("SongExchange");
+            SongExchangeCore.ConvertResult conv;
+            using (ROM.BeginUndoScope(undo))
+            {
+                conv = SongExchangeCore.ConvertSong(CoreState.ROM, destSongs[(int)toSongId],
+                                                    sourceData, srcSongs[(int)fromSongId], undo);
+            }
+
+            if (!conv.Success)
+            {
+                Console.Error.WriteLine($"Error: Song conversion failed. {conv.ErrorMessage}");
+                return 1;
+            }
+            if (conv.HadStructureWarning)
+            {
+                Console.WriteLine("Warning: the source song's instrument data was partially corrupt; only recognized tracks were transplanted.");
+            }
+
+            CoreState.Undo.Push(undo);
+            CoreState.ROM.Save(destPath, true);
             Console.WriteLine($"Song exchange complete: song 0x{fromSongId:X} from {sourcePath} -> song 0x{toSongId:X} in {destPath}");
             return 0;
         }

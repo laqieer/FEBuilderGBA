@@ -24494,3 +24494,21 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Filter the TSV export to a single text category (WF parity).
 将 TSV 导出筛选为单一文本类别（WF 兼容）。
 
+
+:Transplant a song from another ROM into the current ROM. Open a donor ROM, select a song from each side, then Convert.
+将另一个 ROM 中的乐曲移植到当前 ROM。打开来源 ROM，从两侧各选择一首乐曲，然后点击“转换”。
+
+:Open Other ROM...
+打开另一个 ROM...
+
+:Other ROM: (none loaded)
+另一个 ROM: (未加载)
+
+:Current ROM Songs (destination)
+当前 ROM 的乐曲 (目标)
+
+:Other ROM Songs (source)
+另一个 ROM 的乐曲 (来源)
+
+:Convert (transplant ->)
+转换 (移植 ->)

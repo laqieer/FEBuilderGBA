@@ -95,34 +95,12 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void ConvertSong_NullArgs_ReturnsFalse()
+        public void ConvertSong_NullArgs_ReturnsFailure()
         {
-            Assert.False(SongExchangeCore.ConvertSong(null, null, null, null));
-        }
-
-        [Fact]
-        public void ConvertSong_CopiesHeaderData()
-        {
-            byte[] src = new byte[1024];
-            byte[] dest = new byte[1024];
-
-            var srcSong = new SongExchangeCore.SongSt
-            {
-                Number = 0, Table = 0x80, Header = 0x100, TrackCount = 1
-            };
-            var destSong = new SongExchangeCore.SongSt
-            {
-                Number = 0, Table = 0x80, Header = 0x200, TrackCount = 1
-            };
-
-            // Write source header data
-            src[0x100] = 1; // track count
-            src[0x104] = 0xAA; // voice pointer byte
-
-            bool result = SongExchangeCore.ConvertSong(src, srcSong, dest, destSong);
-            Assert.True(result);
-            Assert.Equal(1, dest[0x200]); // track count copied
-            Assert.Equal(0xAA, dest[0x204]); // voice pointer copied
+            // New ROM-based API: null args produce a failure ConvertResult, no throw.
+            var result = SongExchangeCore.ConvertSong(null, null, null, null, null);
+            Assert.False(result.Success);
+            Assert.NotEqual("", result.ErrorMessage);
         }
     }
 }

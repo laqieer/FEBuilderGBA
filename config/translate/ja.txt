@@ -10656,3 +10656,21 @@ A: TSAを利用しないBG224色(会話用)
 :Filter the TSV export to a single text category (WF parity).
 TSVエクスポートを単一のテキストカテゴリにフィルタリングします（WF互換）。
 
+
+:Transplant a song from another ROM into the current ROM. Open a donor ROM, select a song from each side, then Convert.
+別のROMから現在のROMへ曲を移植します。提供元のROMを開き、両側から曲を選択して「変換」してください。
+
+:Open Other ROM...
+別のROMを開く...
+
+:Other ROM: (none loaded)
+別のROM: (未読み込み)
+
+:Current ROM Songs (destination)
+現在のROMの曲 (移植先)
+
+:Other ROM Songs (source)
+別のROMの曲 (移植元)
+
+:Convert (transplant ->)
+変換 (移植 ->)
