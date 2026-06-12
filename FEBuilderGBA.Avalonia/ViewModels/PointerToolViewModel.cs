@@ -748,7 +748,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 IAsmMapFile? sourceAsmMap = null;
                 if (UseAsmMap)
                 {
-                    try { sourceAsmMap = new AsmMapSymbolFile(rom); }
+                    // Prefer the cached per-ROM symbol table (same source LookupAddressType
+                    // uses) so repeated Auto Search clicks don't re-read/parse asmmap_*.txt
+                    // from disk each time (#1118 perf). Fall back to constructing a fresh
+                    // AsmMapSymbolFile only when the cache is unavailable (e.g. headless).
+                    try
+                    {
+                        sourceAsmMap = CoreState.AsmMapFileAsmCache?.GetAsmMapFile()
+                                       ?? new AsmMapSymbolFile(rom);
+                    }
                     catch (Exception ex) { Log.Error($"PointerToolViewModel.RunAutoSearch source asmmap: {ex}"); }
                 }
 
