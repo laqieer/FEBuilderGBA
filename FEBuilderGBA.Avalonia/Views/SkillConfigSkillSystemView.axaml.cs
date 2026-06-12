@@ -310,12 +310,13 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)
         {
-            // Navigate-only open; full Init/struct-jump context is the
-            // symmetric #500/#374 follow-up. Mirrors the merged
-            // ImageMagicFEditorView.JumpEditor_Click (#894) pattern.
             try
             {
-                WindowManager.Instance.Open<ToolAnimationCreatorView>();
+                // #996: skill-animation Creator seeding is not yet supported (no populated/
+                // verifiable skill-animation editor context with available ROMs). Show an
+                // honest message instead of opening a blank/garbage Creator. Tracked as a
+                // #996 follow-up.
+                CoreState.Services?.ShowInfo(R._("Animation Creator seeding is not yet supported for Skill animations."));
             }
             catch (Exception ex)
             {

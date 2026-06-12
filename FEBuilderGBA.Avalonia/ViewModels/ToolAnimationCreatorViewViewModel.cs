@@ -62,6 +62,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _fileHint = string.Empty;
         string? _sourceFilename;
         uint _romAddress;
+        uint _magicFrameDataAddress;
         AnimationTypeEnum _animationKind = AnimationTypeEnum.MapActionAnimation;
         uint _animationId;
         EditableMapActionFrame? _selectedFrame;
@@ -73,6 +74,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string FileHint { get => _fileHint; set => SetField(ref _fileHint, value ?? string.Empty); }
         public string? SourceFilename { get => _sourceFilename; set => SetField(ref _sourceFilename, value); }
         public uint RomAddress { get => _romAddress; set => SetField(ref _romAddress, value); }
+        /// <summary>
+        /// Magic frame-data stream address (#996). DISPLAY/PREVIEW ONLY — magic
+        /// seeds are read-only, so this is kept separate from
+        /// <see cref="RomAddress"/> (which gates write-back). For magic seeds
+        /// <see cref="RomAddress"/> stays 0 so pressing Create can NEVER overwrite
+        /// the 0x86 magic stream with 12-byte MapAction rows.
+        /// </summary>
+        public uint MagicFrameDataAddress { get => _magicFrameDataAddress; set => SetField(ref _magicFrameDataAddress, value); }
         public AnimationTypeEnum AnimationKind { get => _animationKind; set => SetField(ref _animationKind, value); }
         public uint AnimationId { get => _animationId; set => SetField(ref _animationId, value); }
 
@@ -85,9 +94,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>
         /// True when the VM was Init'd from a ROM and Write_Click can commit
         /// the edited frames back to that ROM range. False for from-file inits
-        /// (those write a .txt instead).
+        /// (those write a .txt instead) AND for magic seeds (#996) — write-back
+        /// is MapAction-only because the 12-byte MapAction row format would
+        /// corrupt the 0x86 magic frame stream.
         /// </summary>
-        public bool CanWriteBackToRom => _romAddress != 0 && CoreState.ROM != null;
+        public bool CanWriteBackToRom =>
+            _animationKind == AnimationTypeEnum.MapActionAnimation
+            && _romAddress != 0 && CoreState.ROM != null;
 
         public ObservableCollection<EditableMapActionFrame> Frames { get; } = new();
 
@@ -112,9 +125,28 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 AnimationKind = kind;
                 AnimationId = id;
                 FileHint = filehint ?? string.Empty;
+                // #1116: clear the magic stream address so a prior magic seed can't
+                // leak into this file-seeded context.
+                MagicFrameDataAddress = 0;
                 RomAddress = 0; // file path — no ROM writeback
                 Frames.Clear();
                 SelectedFrame = null;
+
+                // #996 fail-closed: the .txt parser only understands the 12-byte
+                // MapAction frame format. Reject any other kind WITHOUT parsing so
+                // we never load garbage rows. The VM stays loaded-but-empty.
+                // SourceFilename is cleared (NOT set to filename) so Create_Click
+                // reports "No source loaded." and Save is a no-op for rejected
+                // kinds — otherwise a user could overwrite the source file with an
+                // empty/invalid MapAction script (Copilot review on #1116).
+                if (kind != AnimationTypeEnum.MapActionAnimation)
+                {
+                    SourceFilename = null;
+                    AnimationName = filehint ?? string.Empty;
+                    FrameCount = Frames.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    IsLoaded = true;
+                    return;
+                }
 
                 List<MapActionFrame>? parsed = null;
                 string? name = null;
@@ -161,7 +193,80 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 AnimationKind = kind;
                 AnimationId = id;
                 FileHint = filehint ?? string.Empty;
-                RomAddress = romAddress;
+                // #1116: clear the magic stream address so a prior magic seed can't
+                // leak into this ROM-seeded context (incl. the fail-closed path).
+                MagicFrameDataAddress = 0;
+                SourceFilename = null;
+                Frames.Clear();
+                SelectedFrame = null;
+
+                if (kind == AnimationTypeEnum.MapActionAnimation)
+                {
+                    RomAddress = romAddress;
+
+                    var rom = CoreState.ROM;
+                    if (rom != null)
+                    {
+                        var fromRom = ToolAnimationCreatorCore.ReadFromRom(rom, romAddress);
+                        foreach (var f in fromRom)
+                            Frames.Add(new EditableMapActionFrame(f));
+                    }
+                }
+                else
+                {
+                    // #996 fail-closed: ReadFromRom only understands the 12-byte
+                    // MapAction frame format. For any other kind do NOT call it
+                    // (it would read garbage). Leave RomAddress = 0 (no write-back)
+                    // and Frames empty. Callers that want a populated magic seed
+                    // use InitFromMagicRom instead.
+                    RomAddress = 0;
+                }
+
+                AnimationName = filehint ?? string.Empty;
+                FrameCount = Frames.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                IsLoaded = true;
+                // CanWriteBackToRom depends on RomAddress + CoreState.ROM + kind,
+                // all of which we just set — fire the property-changed
+                // notification so the view's binding picks it up.
+                OnPropertyChanged(nameof(CanWriteBackToRom));
+            }
+            finally { IsLoading = false; MarkClean(); }
+        }
+
+        /// <summary>
+        /// Seed the Creator from a MAGIC animation frame-data stream (#996) — the
+        /// FEditor (28-byte stride) or CSA Creator (32-byte stride) 0x86 frame
+        /// format. Used by the Magic editors' "Editor"/"Jump to Animation Creator"
+        /// buttons so the Creator opens POPULATED rather than blank.
+        ///
+        /// <para><b>READ-ONLY display/preview.</b> Magic frames are NOT writable
+        /// through this view's 12-byte MapAction writer, so <see cref="RomAddress"/>
+        /// is forced to 0 (pressing Create is a no-op for write-back) and the magic
+        /// stream address is stored in <see cref="MagicFrameDataAddress"/> for
+        /// display/preview only.</para>
+        /// </summary>
+        /// <param name="kind">MagicAnime_FEEDitor or MagicAnime_CSACreator.</param>
+        /// <param name="id">1-based magic-animation entry id (for the title hint).</param>
+        /// <param name="filehint">Human-readable hint shown in the window title.</param>
+        /// <param name="frameDataAddr">GBA pointer (or raw offset) to the magic
+        /// 0x86 frame-data stream.</param>
+        /// <param name="isCsa"><c>true</c> for CSA Creator (32-byte frame, +28 TSA);
+        /// <c>false</c> for FEditor (28-byte frame).</param>
+        public void InitFromMagicRom(AnimationTypeEnum kind, uint id, string filehint, uint frameDataAddr, bool isCsa)
+        {
+            IsLoading = true;
+            try
+            {
+                AnimationKind = kind;
+                AnimationId = id;
+                FileHint = filehint ?? string.Empty;
+
+                // CRITICAL write-back guard (#996): magic seeds are READ-ONLY.
+                // RomAddress stays 0 so Create can NEVER overwrite the 0x86 magic
+                // stream with 12-byte MapAction rows. The frame-data address is
+                // kept separately for display/preview only.
+                RomAddress = 0;
+                MagicFrameDataAddress = frameDataAddr;
                 SourceFilename = null;
                 Frames.Clear();
                 SelectedFrame = null;
@@ -169,20 +274,41 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var rom = CoreState.ROM;
                 if (rom != null)
                 {
-                    var fromRom = ToolAnimationCreatorCore.ReadFromRom(rom, romAddress);
-                    foreach (var f in fromRom)
-                        Frames.Add(new EditableMapActionFrame(f));
+                    _ = MagicEffectExportCore.ExportMagicScriptLines(
+                        rom, frameDataAddr, basename: "", enableComment: false,
+                        out _, out _, out var frames, isCsa: isCsa);
+                    foreach (MagicFrameMeta f in frames)
+                    {
+                        Frames.Add(new EditableMapActionFrame(new MapActionFrame(
+                            Wait: f.Wait,
+                            ImagePointer: f.ObjImageOffset,
+                            PalettePointer: f.ObjPaletteOffset,
+                            Sound: 0,
+                            ImageName: null)));
+                    }
                 }
 
                 AnimationName = filehint ?? string.Empty;
                 FrameCount = Frames.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 IsLoaded = true;
-                // CanWriteBackToRom depends on RomAddress + CoreState.ROM,
-                // both of which we just set — fire the property-changed
-                // notification so the view's binding picks it up.
                 OnPropertyChanged(nameof(CanWriteBackToRom));
             }
             finally { IsLoading = false; MarkClean(); }
+        }
+
+        /// <summary>
+        /// #996/#1116: count the magic 0x86 frames at <paramref name="frameDataAddr"/>
+        /// WITHOUT opening/seeding a window, so the jump handlers can refuse to open a
+        /// blank Creator on an empty/terminator stream. Returns 0 when ROM is null.
+        /// </summary>
+        public static int CountMagicFrames(uint frameDataAddr, bool isCsa)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return 0;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, frameDataAddr, basename: "", enableComment: false,
+                out _, out _, out var frames, isCsa: isCsa);
+            return frames.Count;
         }
 
         /// <summary>

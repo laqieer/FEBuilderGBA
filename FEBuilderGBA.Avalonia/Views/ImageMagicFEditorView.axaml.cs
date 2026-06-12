@@ -771,18 +771,48 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpEditor_Click(object? sender, RoutedEventArgs e)
         {
-            // Real cross-editor jump - opens ToolAnimationCreator. The
-            // Avalonia ToolAnimationCreatorView exists but its Init()
-            // flow for MagicAnime_FEEDitor isn't wired yet (#500). The
-            // open call still surfaces the editor so users discover it.
+            // #996: seed the Animation Creator from the SELECTED magic entry's
+            // 0x86 frame-data stream (FEditor 28-byte frame format) instead of
+            // opening it blank.
             try
             {
-                WindowManager.Instance.Open<ToolAnimationCreatorView>();
+                var rom = CoreState.ROM;
+                if (rom == null) return;
+                if (!_vm.MagicSystemDetected)
+                {
+                    CoreState.Services?.ShowInfo(R._("Magic system not detected."));
+                    return;
+                }
+                int idx = EntryList.SelectedOriginalIndex;
+                if (idx < 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("No magic-animation entry selected."));
+                    return;
+                }
+                uint id = (uint)(idx + 1);
+                uint frameDataAddr = _vm.P0;
+                uint off = U.toOffset(frameDataAddr);
+                if (!U.isSafetyOffset(off, rom))
+                {
+                    CoreState.Services?.ShowInfo(R._("Frame-data pointer 0x{0:X} is outside the ROM.", frameDataAddr));
+                    return;
+                }
+                // Probe FIRST — do NOT open a blank Creator on an empty/terminator
+                // stream (#1116). Only open once frames are confirmed present.
+                int frameCount = ToolAnimationCreatorViewViewModel.CountMagicFrames(frameDataAddr, isCsa: false);
+                if (frameCount <= 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("No magic frames found at 0x{0:X}.", frameDataAddr));
+                    return;
+                }
+                string hint = R._("Magic Animation (FEditor) #{0:X2}", id);
+                var view = WindowManager.Instance.Open<ToolAnimationCreatorView>();
+                view.InitFromMagicRom(AnimationTypeEnum.MagicAnime_FEEDitor, id, hint, frameDataAddr, isCsa: false);
             }
-            catch (Exception ex)
-            {
-                Log.Error("ImageMagicFEditorView.JumpEditor: {0}", ex.Message);
-            }
+            // Core Log.Error is params string[] (string.Join, NO composite
+            // formatting) — a literal "{0}" would be logged verbatim, so use a
+            // single interpolated string with the full exception (#969 precedent).
+            catch (Exception ex) { Log.Error($"ImageMagicFEditorView.JumpEditor: {ex}"); }
         }
 
         void LinkInternet_Click(object? sender, PointerPressedEventArgs e)

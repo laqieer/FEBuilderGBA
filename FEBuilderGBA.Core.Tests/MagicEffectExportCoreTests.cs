@@ -1593,5 +1593,118 @@ namespace FEBuilderGBA.Core.Tests
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
         }
 
+        // ---------------------------------------------------------------
+        // #996 — Animation-Creator magic seed (per-frame Wait + image/pal offsets)
+        // ---------------------------------------------------------------
+        // The Animation Creator jump (ToolAnimationCreatorViewViewModel.InitFromMagicRom)
+        // maps each MagicFrameMeta to a MapAction-style row using f.Wait,
+        // f.ObjImageOffset (→ ImagePointer) and f.ObjPaletteOffset (→ PalettePointer).
+        // These tests pin the exact field values ExportMagicScriptLines produces for
+        // BOTH the FEditor (28-byte stride) and CSA (32-byte stride) frame formats.
+
+        [Fact]
+        public void ExportMagicScriptLines_FEditor_PerFrameWaitAndObjOffsets()
+        {
+            // Two FEditor frames (28-byte stride) + terminator. Distinct Wait +
+            // distinct OBJ image/palette pointers per frame so the seed mapping is
+            // unambiguous.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0x300u;
+
+            // Frame 0: wait=3, OBJ img 0x08001234 → off 0x1234, OBJ pal 0x080056AB → off 0x56AB.
+            rom.Data[baseOff + 0] = 0x03; rom.Data[baseOff + 1] = 0x00; // wait u16
+            rom.Data[baseOff + 3] = 0x86;
+            WriteU32Le(rom.Data, baseOff + 4,  0x08001234u); // OBJ img
+            WriteU32Le(rom.Data, baseOff + 8,  0u);
+            WriteU32Le(rom.Data, baseOff + 12, 0u);
+            WriteU32Le(rom.Data, baseOff + 16, 0x08002000u); // BG img
+            WriteU32Le(rom.Data, baseOff + 20, 0x080056ABu); // OBJ pal
+            WriteU32Le(rom.Data, baseOff + 24, 0x08006000u); // BG pal
+
+            // Frame 1: wait=7, OBJ img 0x08009ABC → off 0x9ABC, OBJ pal 0x0800DEF0 → off 0xDEF0.
+            uint off1 = baseOff + 28;
+            rom.Data[off1 + 0] = 0x07; rom.Data[off1 + 1] = 0x00; // wait u16
+            rom.Data[off1 + 3] = 0x86;
+            WriteU32Le(rom.Data, off1 + 4,  0x08009ABCu); // OBJ img (distinct)
+            WriteU32Le(rom.Data, off1 + 8,  0u);
+            WriteU32Le(rom.Data, off1 + 12, 0u);
+            WriteU32Le(rom.Data, off1 + 16, 0x08003000u); // BG img
+            WriteU32Le(rom.Data, off1 + 20, 0x0800DEF0u); // OBJ pal (distinct)
+            WriteU32Le(rom.Data, off1 + 24, 0x08006000u); // BG pal
+
+            // Terminator after the 2nd 28-byte frame.
+            rom.Data[off1 + 28 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: false);
+
+            Assert.Equal(2, frames.Count);
+            // Frame 0.
+            Assert.Equal(3u, frames[0].Wait);
+            Assert.Equal(0x1234u, frames[0].ObjImageOffset);
+            Assert.Equal(0x56ABu, frames[0].ObjPaletteOffset);
+            // Frame 1.
+            Assert.Equal(7u, frames[1].Wait);
+            Assert.Equal(0x9ABCu, frames[1].ObjImageOffset);
+            Assert.Equal(0xDEF0u, frames[1].ObjPaletteOffset);
+        }
+
+        [Fact]
+        public void ExportMagicScriptLines_Csa_PerFrameWaitAndObjOffsets_32ByteStride()
+        {
+            // Two CSA frames (32-byte stride, +28 TSA) + terminator. The terminator
+            // is placed at offset+64 (after two 32-byte frames) — would be missed if
+            // a 28-byte stride were used.
+            var rom = MakeMinimalRom();
+            uint baseOff = 0x400u;
+
+            // Frame 0: wait=5, OBJ img 0x08001100 → off 0x1100, OBJ pal 0x08002200 → off 0x2200.
+            rom.Data[baseOff + 0] = 0x05; rom.Data[baseOff + 1] = 0x00; // wait u16
+            rom.Data[baseOff + 3] = 0x86;
+            WriteU32Le(rom.Data, baseOff + 4,  0x08001100u); // OBJ img
+            WriteU32Le(rom.Data, baseOff + 8,  0u);
+            WriteU32Le(rom.Data, baseOff + 12, 0u);
+            WriteU32Le(rom.Data, baseOff + 16, 0x08003300u); // BG img
+            WriteU32Le(rom.Data, baseOff + 20, 0x08002200u); // OBJ pal
+            WriteU32Le(rom.Data, baseOff + 24, 0x08004400u); // BG pal
+            WriteU32Le(rom.Data, baseOff + 28, 0x08005500u); // TSA (+28, CSA only)
+
+            // Frame 1: wait=9, OBJ img 0x08006600 → off 0x6600, OBJ pal 0x08007700 → off 0x7700.
+            uint off1 = baseOff + 32;
+            rom.Data[off1 + 0] = 0x09; rom.Data[off1 + 1] = 0x00; // wait u16
+            rom.Data[off1 + 3] = 0x86;
+            WriteU32Le(rom.Data, off1 + 4,  0x08006600u); // OBJ img (distinct)
+            WriteU32Le(rom.Data, off1 + 8,  0u);
+            WriteU32Le(rom.Data, off1 + 12, 0u);
+            WriteU32Le(rom.Data, off1 + 16, 0x08008800u); // BG img
+            WriteU32Le(rom.Data, off1 + 20, 0x08007700u); // OBJ pal (distinct)
+            WriteU32Le(rom.Data, off1 + 24, 0x08004400u); // BG pal
+            WriteU32Le(rom.Data, off1 + 28, 0x08009900u); // TSA (+28)
+
+            // Terminator after the 2nd 32-byte frame.
+            rom.Data[off1 + 32 + 3] = 0x80;
+
+            List<int> objSlots, bgSlots;
+            List<MagicFrameMeta> frames;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, baseOff, "t_", false,
+                out objSlots, out bgSlots, out frames,
+                isCsa: true);
+
+            Assert.Equal(2, frames.Count);
+            // Frame 0.
+            Assert.Equal(5u, frames[0].Wait);
+            Assert.Equal(0x1100u, frames[0].ObjImageOffset);
+            Assert.Equal(0x2200u, frames[0].ObjPaletteOffset);
+            // Frame 1 (proves the 32-byte stride found the 2nd frame, not garbage).
+            Assert.Equal(9u, frames[1].Wait);
+            Assert.Equal(0x6600u, frames[1].ObjImageOffset);
+            Assert.Equal(0x7700u, frames[1].ObjPaletteOffset);
+        }
+
     }
 }
