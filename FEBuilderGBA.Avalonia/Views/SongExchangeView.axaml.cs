@@ -1,6 +1,7 @@
 using System;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Platform.Storage;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -9,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class SongExchangeView : TranslatedWindow, IEditorView
     {
         readonly SongExchangeViewModel _vm = new();
+        readonly UndoService _undoService = new();
 
         public string ViewTitle => "Song Exchange Tool";
         public bool IsLoaded => _vm.IsLoaded;
@@ -16,8 +18,14 @@ namespace FEBuilderGBA.Avalonia.Views
         public SongExchangeView()
         {
             InitializeComponent();
+            // The two song ListBoxes + Convert/Open buttons bind to the VM.
+            DataContext = _vm;
             EntryList.SelectedAddressChanged += OnSelected;
-            Opened += (_, _) => LoadList();
+            Opened += (_, _) =>
+            {
+                LoadList();
+                LoadCurrentSongs();
+            };
         }
 
         void LoadList()
@@ -30,6 +38,18 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.Error("SongExchangeView.LoadList failed: {0}", ex.Message);
+            }
+        }
+
+        void LoadCurrentSongs()
+        {
+            try
+            {
+                _vm.LoadCurrentSongs();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongExchangeView.LoadCurrentSongs failed: {0}", ex.Message);
             }
         }
 
@@ -49,6 +69,101 @@ namespace FEBuilderGBA.Avalonia.Views
         void UpdateUI()
         {
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
+        }
+
+        async void OpenOtherRom_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var gbaType = new FilePickerFileType(R._("GBA ROMs")) { Patterns = new[] { "*.gba", "*.bin" } };
+                var allType = new FilePickerFileType(R._("All Files")) { Patterns = new[] { "*" } };
+                var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = R._("Select a ROM to import a song from"),
+                    AllowMultiple = false,
+                    FileTypeFilter = new[] { gbaType, allType },
+                });
+                if (files.Count == 0) return;
+                string? path = files[0].TryGetLocalPath();
+                if (string.IsNullOrEmpty(path)) return;
+
+                byte[] data = System.IO.File.ReadAllBytes(path);
+                _vm.LoadOtherRom(data, path);
+                OtherRomLabel.Text = R._("Other ROM: {0} ({1} songs)", path, _vm.OtherSongList.Count);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("SongExchangeView.OpenOtherRom_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Failed to open ROM: {0}", ex.Message));
+            }
+        }
+
+        void Convert_Click(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.HasOtherRom)
+            {
+                CoreState.Services.ShowError(R._("The other ROM has not been loaded."));
+                return;
+            }
+
+            int srcIndex = OtherList.SelectedIndex;
+            int destIndex = MyList.SelectedIndex;
+            if (srcIndex < 0)
+            {
+                CoreState.Services.ShowError(R._("No song selected to export."));
+                return;
+            }
+            if (destIndex < 0)
+            {
+                CoreState.Services.ShowError(R._("No song selected to import."));
+                return;
+            }
+            if (destIndex == 0)
+            {
+                CoreState.Services.ShowError(R._("Cannot write to SongID 0x0."));
+                return;
+            }
+
+            if (!CoreState.Services.ShowYesNo(
+                R._("Transplant this song (#{0}) from the other ROM into the current ROM (#{1})?", srcIndex, destIndex)))
+            {
+                return;
+            }
+
+            _undoService.Begin("Song Exchange");
+            try
+            {
+                string error = _vm.Convert(srcIndex, destIndex, _undoService.GetActiveUndoData());
+                if (!string.IsNullOrEmpty(error))
+                {
+                    _undoService.Rollback();
+                    CoreState.Services.ShowError(error);
+                    return;
+                }
+
+                _undoService.Commit();
+                // Re-derive the current song list so the destination row reflects
+                // the freshly-written header / voices / track pointer.
+                int keep = destIndex;
+                _vm.LoadCurrentSongs();
+                if (keep < MyList.ItemCount) MyList.SelectedIndex = keep;
+                // Surface a partial-corrupt source (WF showed a force/warn dialog):
+                // warn instead of claiming a clean success.
+                if (_vm.LastConvertHadStructureWarning)
+                {
+                    CoreState.Services.ShowInfo(R._("Transplant completed, but some instrument data was corrupt and only the recognized parts were imported."));
+                }
+                else
+                {
+                    CoreState.Services.ShowInfo(R._("Song import complete."));
+                }
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.Error("SongExchangeView.Convert_Click failed: {0}", ex.Message);
+                CoreState.Services.ShowError(R._("Convert failed: {0}", ex.Message));
+            }
         }
 
         public void NavigateTo(uint address)

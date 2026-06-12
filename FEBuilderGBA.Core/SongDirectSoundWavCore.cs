@@ -191,9 +191,12 @@ namespace FEBuilderGBA.Core
         /// Port of WinForms <c>SongUtil.GetDirectSoundWaveDataLength(byte[],uint)</c>:
         /// the byte count of the on-ROM sample body (uncompressed == the +12 sample
         /// length; DPCM == 33 * ceil(len / 64)). Bounds-guarded; <c>0</c> on guard
-        /// failure. Never throws. <c>internal</c> — only the DPCM decoder needs it.
+        /// failure. Never throws. <c>public</c> so the Song Exchange transplant
+        /// (<c>SongExchangeCore.InstrumentMap._prepare_DirectSound</c>, #1002 Slice 3)
+        /// can size a DirectSound sample directly from raw SOURCE-ROM bytes —
+        /// byte-identical to WF <c>SongUtil.GetDirectSoundWaveDataLength(byte[],uint)</c>.
         /// </summary>
-        internal static uint GetDirectSoundWaveDataLength(byte[] romData, uint waveOffset)
+        public static uint GetDirectSoundWaveDataLength(byte[] romData, uint waveOffset)
         {
             if (romData == null) return 0;
             if ((long)waveOffset + 16 > romData.Length) return 0;

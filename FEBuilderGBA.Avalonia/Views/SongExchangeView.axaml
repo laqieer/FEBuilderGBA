@@ -15,6 +15,35 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="SongExchange_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
         </Grid>
+
+        <TextBlock Text="Transplant a song from another ROM into the current ROM. Open a donor ROM, select a song from each side, then Convert."
+                   TextWrapping="Wrap" Opacity="0.8" />
+
+        <Button AutomationProperties.AutomationId="SongExchange_OpenOther_Button"
+                Name="OpenOtherButton" Content="Open Other ROM..." Click="OpenOtherRom_Click"
+                HorizontalAlignment="Left" />
+
+        <TextBlock AutomationProperties.AutomationId="SongExchange_OtherRom_Label"
+                   Name="OtherRomLabel" Text="Other ROM: (none loaded)" Opacity="0.8" />
+
+        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Margin="0,4,0,0">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Current ROM Songs (destination)" FontWeight="Bold" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="Other ROM Songs (source)" FontWeight="Bold" />
+
+          <ListBox AutomationProperties.AutomationId="SongExchange_My_List"
+                   Grid.Row="1" Grid.Column="0" Name="MyList"
+                   ItemsSource="{Binding MySongDisplay}"
+                   MinHeight="300" MaxHeight="420" Margin="0,2,4,0" />
+
+          <ListBox AutomationProperties.AutomationId="SongExchange_Other_List"
+                   Grid.Row="1" Grid.Column="1" Name="OtherList"
+                   ItemsSource="{Binding OtherSongDisplay}"
+                   MinHeight="300" MaxHeight="420" Margin="4,2,0,0" />
+        </Grid>
+
+        <Button AutomationProperties.AutomationId="SongExchange_Convert_Button"
+                Name="ConvertButton" Content="Convert (transplant -&gt;)" Click="Convert_Click"
+                HorizontalAlignment="Left" Margin="0,4,0,0" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
