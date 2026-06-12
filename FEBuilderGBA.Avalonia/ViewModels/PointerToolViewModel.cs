@@ -508,31 +508,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Build + cache the target ROM's ASM/MAP symbol table for the
                 // name-search heuristic — ONLY when ASM-map search is enabled
                 // (mirrors WF, which gates name search on UseASMMAPCheckBox). When
-                // UseAsmMap is off, skip the asmmap parse entirely.
-                //
-                // Reuse the bytes already read above instead of re-reading the
-                // file: ROM.Load(filename) would call File.ReadAllBytes a SECOND
-                // time. Detect the version from the in-memory bytes (the same
-                // header read ROM.Load does) and build via ROM.LoadLow. Tolerate
-                // version-detect failure: a ROM that does not version-detect
-                // simply disables name search (mirrors WF LoadTargetROM, which
-                // only builds OtherROMASMMap on a successful load). Never throws.
+                // UseAsmMap is off, skip the asmmap parse; RunAutoSearch will
+                // rebuild it lazily if the user later re-enables the checkbox.
                 _otherRomAsmMap = null;
                 if (UseAsmMap)
                 {
-                    try
-                    {
-                        var targetRom = new ROM();
-                        string version = U.getASCIIString(_otherRomData, U.toOffset(0x080000AC), 6);
-                        if (targetRom.LoadLow(filename, _otherRomData, version))
-                        {
-                            _otherRomAsmMap = new AsmMapSymbolFile(targetRom);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error($"PointerToolViewModel.LoadOtherRom asmmap build: {ex}");
-                    }
+                    EnsureTargetAsmMap();
                 }
 
                 // Auto-run AutoSearch when a usable address is already entered;
@@ -568,6 +549,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint DecodeAutoTrackLevel()
         {
             return AutoTrackingLevel == 0 ? 0u : 0x102u;
+        }
+
+        /// <summary>
+        /// Build <see cref="_otherRomAsmMap"/> from the cached target-ROM bytes
+        /// when it isn't already built. Reuses <see cref="_otherRomData"/> (no
+        /// double file read): detects the version from the in-memory header (the
+        /// same read <c>ROM.Load</c> does) and builds via <c>ROM.LoadLow</c>.
+        /// No-ops when the map already exists, no target bytes are cached, or the
+        /// buffer is too small. Tolerates version-detect failure (a ROM that does
+        /// not version-detect simply leaves the map null → name search disabled,
+        /// mirroring WF <c>LoadTargetROM</c>). Never throws.
+        /// </summary>
+        void EnsureTargetAsmMap()
+        {
+            if (_otherRomAsmMap != null) return;
+            if (_otherRomData == null || _otherRomData.Length < 0x100) return;
+
+            try
+            {
+                var targetRom = new ROM();
+                string version = U.getASCIIString(_otherRomData, U.toOffset(0x080000AC), 6);
+                if (targetRom.LoadLow(_otherRomFilename, _otherRomData, version))
+                {
+                    _otherRomAsmMap = new AsmMapSymbolFile(targetRom);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"PointerToolViewModel.EnsureTargetAsmMap: {ex}");
+            }
         }
 
         /// <summary>
@@ -607,6 +618,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Keep the baseline raw + LDR grep populated too (WF AutoSearch
                 // calls SearchCurrentROM/Search before the retry loop).
                 RunSearch();
+
+                // Lazily (re)build the target ASM/MAP symbol table when UseAsmMap
+                // is on but it wasn't built at load time (e.g. UseAsmMap was off
+                // during LoadOtherRom and the user re-enabled the checkbox). WF
+                // gates SearchASMMap at SEARCH time with the target map already
+                // available, so re-checking must re-enable name search on the
+                // CURRENT target. Reuses the cached bytes via EnsureTargetAsmMap
+                // (no double file read).
+                if (UseAsmMap)
+                {
+                    EnsureTargetAsmMap();
+                }
 
                 // Build the source ASM/MAP symbol table — ONLY when ASM-map search
                 // is enabled (WF gates name search on UseASMMAPCheckBox.Checked,

@@ -6,6 +6,7 @@
 //   c. The PointerToolView exposes the Auto Search button + the bound summary
 //      TextBlock.
 // Guarded with IsAvailable so the suite skips cleanly when no ROM is present.
+using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using FEBuilderGBA;
@@ -249,5 +250,74 @@ public class PointerToolAutoSearchTests : IClassFixture<RomFixture>
         // The summary is always populated (match or "Not found ...").
         Assert.False(string.IsNullOrEmpty(vm.AutoSearchSummary));
         _output.WriteLine($"UseAsmMap=false AutoSearchSummary: {vm.AutoSearchSummary}");
+    }
+
+    /// <summary>
+    /// Copilot CLI re-review edge case: UseAsmMap toggled OFF at load, then ON
+    /// before searching, must re-enable the NAME heuristic on the CURRENT target
+    /// (RunAutoSearch lazily rebuilds the target asmmap). Asserts no throw AND —
+    /// via reflection — that the private _otherRomAsmMap is non-null after the
+    /// lazy build ran. Guard-skips when no ROM is available.
+    /// </summary>
+    [AvaloniaFact]
+    public void RunAutoSearch_UseAsmMapToggledOnAfterLoad_LazilyBuildsTargetAsmMap()
+    {
+        if (!_fixture.IsAvailable || _fixture.RomPath == null)
+        {
+            _output.WriteLine("No ROM available; skipping UseAsmMap-toggle AutoSearch test.");
+            return;
+        }
+
+        var rom = CoreState.ROM;
+        Assert.NotNull(rom);
+
+        uint targetOffset = 0;
+        for (uint i = 0x200; i + 3 < (uint)rom!.Data.Length; i += 4)
+        {
+            uint v = rom.u32(i);
+            if (v >= 0x08000000 && v < 0x0A000000)
+            {
+                uint off = v - 0x08000000;
+                if (off >= 0x200 && off + 0x20 < (uint)rom.Data.Length)
+                {
+                    targetOffset = off;
+                    break;
+                }
+            }
+        }
+        if (targetOffset == 0)
+        {
+            _output.WriteLine("No referenced address found; skipping.");
+            return;
+        }
+
+        var vm = new PointerToolViewModel();
+        vm.Initialize();
+        vm.AddressInput = $"0x{targetOffset:X08}";
+        vm.WarningLevel = 2;
+
+        // Step 1: UseAsmMap OFF at load -> _otherRomAsmMap left null.
+        vm.UseAsmMap = false;
+        vm.LoadOtherRom(_fixture.RomPath);
+
+        FieldInfo? field = typeof(PointerToolViewModel)
+            .GetField("_otherRomAsmMap", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        Assert.Null(field!.GetValue(vm)); // not built while UseAsmMap was off
+
+        // Step 2: re-enable UseAsmMap, then RunAutoSearch -> lazy rebuild.
+        vm.UseAsmMap = true;
+        var ex = Record.Exception(() => vm.RunAutoSearch());
+        Assert.Null(ex);
+
+        // The lazy build must have produced a target asmmap on the current target.
+        Assert.NotNull(field.GetValue(vm));
+
+        // And RunAutoSearch still produced a result line (match or not-found).
+        Assert.False(string.IsNullOrEmpty(vm.AutoSearchSummary));
+        Assert.True(
+            vm.AutoSearchSummary.StartsWith("Matched via")
+            || vm.AutoSearchSummary.StartsWith("Not found after"),
+            $"Unexpected summary: '{vm.AutoSearchSummary}'");
     }
 }
