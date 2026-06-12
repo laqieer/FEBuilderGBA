@@ -823,6 +823,42 @@ namespace FEBuilderGBA
             }
             return resultAddr;
         }
+
+        // Faithful port of WinForms U.GrepPatternMatchEnd (no Program.ROM dependency).
+        // Finds pattern `need` with wildcard mask `isSkip`, returns the address
+        // AFTER the match (+ `plus` bytes). If `needPointer` is true, the value at
+        // resultAddr must be a pointer-or-null; otherwise keeps searching.
+        public static uint GrepPatternMatchEnd(byte[] data, byte[] need, bool[] isSkip, uint start = 0x100, uint end = 0, uint blocksize = 1, uint plus = 0, bool needPointer = false)
+        {
+            uint grepresult = U.GrepPatternMatch(data, need, isSkip, start, end, blocksize);
+            if (grepresult == U.NOT_FOUND) return U.NOT_FOUND;
+            uint resultAddr = grepresult + (uint)need.Length + plus;
+            if (resultAddr > data.Length) return U.NOT_FOUND;
+            if (needPointer)
+            {
+                if (U.isPointerOrNULL(U.u32(data, resultAddr))) return resultAddr;
+                return GrepPatternMatchEnd(data, need, isSkip, resultAddr, end, blocksize, plus, needPointer);
+            }
+            return resultAddr;
+        }
+
+        // Faithful port of WinForms U.GrepPatternMatchBegin (no Program.ROM dependency).
+        // Finds pattern `need` with wildcard mask `isSkip`, returns the address
+        // AT the match start (+ `plus` bytes). If `needPointer` is true, the value at
+        // resultAddr must be a pointer-or-null; otherwise keeps searching.
+        public static uint GrepPatternMatchBegin(byte[] data, byte[] need, bool[] isSkip, uint start = 0x100, uint end = 0, uint blocksize = 1, uint plus = 0, bool needPointer = false)
+        {
+            uint grepresult = U.GrepPatternMatch(data, need, isSkip, start, end, blocksize);
+            if (grepresult == U.NOT_FOUND) return U.NOT_FOUND;
+            uint resultAddr = grepresult + plus;
+            if (resultAddr > data.Length) return U.NOT_FOUND;
+            if (needPointer)
+            {
+                if (U.isPointerOrNULL(U.u32(data, resultAddr))) return resultAddr;
+                return GrepPatternMatchBegin(data, need, isSkip, resultAddr + blocksize, end, blocksize, plus, needPointer);
+            }
+            return resultAddr;
+        }
         public static uint FindROMPointer(ROM rom, uint[] pointers)
         {
             foreach (uint p in pointers)
