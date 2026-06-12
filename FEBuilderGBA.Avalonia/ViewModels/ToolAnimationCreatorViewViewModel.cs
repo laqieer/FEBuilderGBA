@@ -132,9 +132,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // #996 fail-closed: the .txt parser only understands the 12-byte
                 // MapAction frame format. Reject any other kind WITHOUT parsing so
                 // we never load garbage rows. The VM stays loaded-but-empty.
+                // SourceFilename is cleared (NOT set to filename) so Create_Click
+                // reports "No source loaded." and Save is a no-op for rejected
+                // kinds — otherwise a user could overwrite the source file with an
+                // empty/invalid MapAction script (Copilot review on #1116).
                 if (kind != AnimationTypeEnum.MapActionAnimation)
                 {
-                    SourceFilename = filename;
+                    SourceFilename = null;
                     AnimationName = filehint ?? string.Empty;
                     FrameCount = Frames.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     IsLoaded = true;
@@ -264,7 +268,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var rom = CoreState.ROM;
                 if (rom != null)
                 {
-                    var lines = MagicEffectExportCore.ExportMagicScriptLines(
+                    _ = MagicEffectExportCore.ExportMagicScriptLines(
                         rom, frameDataAddr, basename: "", enableComment: false,
                         out _, out _, out var frames, isCsa: isCsa);
                     foreach (MagicFrameMeta f in frames)
