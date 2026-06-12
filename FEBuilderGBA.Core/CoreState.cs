@@ -78,6 +78,20 @@ namespace FEBuilderGBA
         /// compiling).
         /// </summary>
         bool IsHardCodeItem(uint itemId) => false;
+
+        /// <summary>
+        /// Return the loaded ASM/MAP symbol table for the Pointer Tool
+        /// "What is this address?" lookup (#1026). Implementations that have
+        /// no symbol data available return <c>null</c>.
+        ///
+        /// <para>WinForms <c>AsmMapFileAsmCache</c> returns its full WF
+        /// <c>AsmMapFile</c>; the cross-platform <see cref="CoreAsmMapCache"/>
+        /// returns a lazily-built <see cref="AsmMapSymbolFile"/>. The default
+        /// body returns <c>null</c> so <see cref="HeadlessAsmMapCache"/> and any
+        /// external implementor keep compiling — callers null-check before use,
+        /// falling back to a region-class hint only.</para>
+        /// </summary>
+        IAsmMapFile GetAsmMapFile() => null;
     }
 
     /// <summary>

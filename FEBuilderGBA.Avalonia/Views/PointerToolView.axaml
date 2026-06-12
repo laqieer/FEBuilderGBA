@@ -13,6 +13,13 @@
       <Button AutomationProperties.AutomationId="PointerTool_Search2_Button" Content="What Is" Width="160" Click="WhatIs_Click" />
       <Button AutomationProperties.AutomationId="PointerTool_Close_Button" Content="Close" Width="80" Click="Close_Click" />
     </StackPanel>
+    <!-- "What Is" result line (#1026): region class + resolved ASM/MAP symbol
+         name. Bound to the VM's SearchResults so the LookupAddressType output is
+         visible in the window itself, not only the transient dialog. -->
+    <TextBlock DockPanel.Dock="Bottom" Margin="0,8,0,0"
+               AutomationProperties.AutomationId="PointerTool_Result_Label"
+               TextWrapping="Wrap" FontFamily="Consolas,monospace"
+               Text="{Binding SearchResults}" />
     <!-- Main content in two columns -->
     <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
       <!-- Left: Address fields -->

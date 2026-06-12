@@ -211,6 +211,11 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.SeedDemoCrossRom();
                 AddressTextBox.Text = _vm.AddressInput;
+                // #1026: also resolve a real ASM/MAP symbol so the captured PNG
+                // shows a "Symbol:" line in the bound result TextBlock. This may
+                // move AddressInput to the symbol's address, so re-sync the box.
+                _vm.SeedDemoWhatIs();
+                AddressTextBox.Text = _vm.AddressInput;
                 _vm.MarkClean();
             }
             catch (Exception ex)

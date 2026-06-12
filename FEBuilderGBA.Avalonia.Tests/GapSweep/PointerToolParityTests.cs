@@ -311,6 +311,118 @@ public class PointerToolParityTests
     }
 
     // -----------------------------------------------------------------
+    // #1026 — LookupAddressType resolves the nearest ASM/MAP symbol name.
+    // With no symbol cache (HeadlessAsmMapCache) the result is the region
+    // hint only; with a CoreAsmMapCache backed by a synthetic asmmap the
+    // result appends "Symbol: ...".
+    // -----------------------------------------------------------------
+
+    [Fact]
+    public void ViewModel_LookupAddressType_NoCache_RegionHintOnly_NoSymbol()
+    {
+        var vm = new PointerToolViewModel();
+        ROM rom = MakeSyntheticFe8uRom();
+        ROM? prevRom = CoreState.ROM;
+        IAsmMapCache? prevCache = CoreState.AsmMapFileAsmCache;
+        try
+        {
+            CoreState.ROM = rom;
+            // Headless cache returns null from GetAsmMapFile() -> region hint only.
+            CoreState.AsmMapFileAsmCache = new HeadlessAsmMapCache();
+            string result = vm.LookupAddressType(0x0800D07Cu);
+            Assert.NotNull(result);
+            Assert.DoesNotContain("Symbol:", result);
+            Assert.Contains("ROM (0x08xxxxxx)", result);
+        }
+        finally
+        {
+            CoreState.AsmMapFileAsmCache = prevCache;
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_LookupAddressType_NullCache_NoThrow_RegionHintOnly()
+    {
+        var vm = new PointerToolViewModel();
+        ROM rom = MakeSyntheticFe8uRom();
+        ROM? prevRom = CoreState.ROM;
+        IAsmMapCache? prevCache = CoreState.AsmMapFileAsmCache;
+        try
+        {
+            CoreState.ROM = rom;
+            CoreState.AsmMapFileAsmCache = null; // no cache wired
+            string result = vm.LookupAddressType(0x0800D07Cu); // must not throw
+            Assert.NotNull(result);
+            Assert.DoesNotContain("Symbol:", result);
+        }
+        finally
+        {
+            CoreState.AsmMapFileAsmCache = prevCache;
+            CoreState.ROM = prevRom;
+        }
+    }
+
+    [Fact]
+    public void ViewModel_LookupAddressType_RealRomFe8u_ResolvesKnownSymbol()
+    {
+        // GUARDED real-ROM test: requires roms/FE8U.gba next to the .sln.
+        // In a worktree (gitignored roms/ empty) this skips cleanly.
+        string? romPath = FindRomGuarded("FE8U.gba");
+        if (romPath == null) return; // skip — no ROM available
+
+        var vm = new PointerToolViewModel();
+        ROM? prevRom = CoreState.ROM;
+        IAsmMapCache? prevCache = CoreState.AsmMapFileAsmCache;
+        string prevBase = CoreState.BaseDirectory;
+        try
+        {
+            // Point BaseDirectory at the repo root so ConfigDataFilename finds
+            // config/data/asmmap_FE8*.txt.
+            CoreState.BaseDirectory = Path.GetDirectoryName(romPath) is string romDir
+                ? Path.GetDirectoryName(romDir) ?? prevBase
+                : prevBase;
+
+            var rom = new ROM();
+            if (!rom.Load(romPath, out string _)) return; // skip on load failure
+            CoreState.ROM = rom;
+            CoreState.AsmMapFileAsmCache = new CoreAsmMapCache(rom);
+
+            // 0x0800D07C is documented in asmmap_FE8.txt with a {U} tag (the
+            // event-command-engine function). FE8U is not multibyte, so the {U}
+            // line loads. An EXACT match must resolve and append "Symbol:".
+            string result = vm.LookupAddressType(0x0800D07Cu);
+            Assert.NotNull(result);
+            Assert.Contains("Symbol:", result);
+        }
+        finally
+        {
+            CoreState.AsmMapFileAsmCache = prevCache;
+            CoreState.ROM = prevRom;
+            CoreState.BaseDirectory = prevBase;
+        }
+    }
+
+    /// <summary>
+    /// Locate roms/{name} by walking up from the test base dir to the .sln.
+    /// Returns null when the ROM is absent (worktree / CI without ROM files).
+    /// </summary>
+    static string? FindRomGuarded(string romName)
+    {
+        string? dir = AppContext.BaseDirectory;
+        for (int i = 0; i < 12 && dir != null; i++)
+        {
+            if (File.Exists(Path.Combine(dir, "FEBuilderGBA.sln")))
+            {
+                string path = Path.Combine(dir, "roms", romName);
+                return File.Exists(path) ? path : null;
+            }
+            dir = Path.GetDirectoryName(dir);
+        }
+        return null;
+    }
+
+    // -----------------------------------------------------------------
     // VM: RunSearch with no other-ROM still populates the current-ROM
     // fields; the four per-result warning bools default to false.
     // -----------------------------------------------------------------
