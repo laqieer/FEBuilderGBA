@@ -271,8 +271,119 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) { }
         public void SelectFirstItem()
         {
+            // #996/#1116: in --screenshot-all mode, seed a real populated magic
+            // animation so the captured PNG shows the running Creator window with a
+            // frame list (no available ROM carries the FEditor/CSA patch, so the live
+            // magic editor can't populate the Creator end-to-end — mirrors the
+            // PointerToolView screenshot-seed precedent #1026/#966). The interactive
+            // runtime never enters this branch.
+            if (App.ScreenshotAllMode && (!_vm.IsLoaded || _vm.Frames.Count == 0))
+            {
+                try { SeedDemoMagicForScreenshot(); }
+                catch (Exception ex) { Log.Error($"ToolAnimationCreatorView.SelectFirstItem seed: {ex}"); }
+            }
+
             if (FramesList != null && FramesList.ItemCount > 0)
                 FramesList.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// #996/#1116 (screenshot mode only): plant a synthetic 2-frame magic 0x86
+        /// FEditor stream (radial-ring 64x64 LZ77 OBJ + rainbow palette) into scratch
+        /// regions near the tail of the LIVE ROM, then seed via
+        /// <see cref="ToolAnimationCreatorViewViewModel.InitFromMagicRom"/> so the
+        /// captured PNG shows the populated Creator window. Transient (no undo) — this
+        /// runs ONLY under <c>--screenshot-all</c>.
+        /// </summary>
+        void SeedDemoMagicForScreenshot()
+        {
+            var rom = CoreState.ROM;
+            if (rom == null || rom.Data == null || rom.Data.Length < 0x4000) return;
+
+            // Scratch regions near the tail, 4-aligned, non-overlapping:
+            //   frameBase < objOffset < palOffset, each with room.
+            uint palOffset = (uint)((rom.Data.Length - 0x40) & ~3);   // 0x20-byte palette
+            uint objOffset = (uint)((rom.Data.Length - 0x800) & ~3);  // LZ77 OBJ
+            uint frameBase = (uint)((rom.Data.Length - 0x900) & ~3);  // 2x28B frames + terminator
+            if (!(frameBase < objOffset && objOffset < palOffset)) return;
+            if (palOffset + 0x20 > (uint)rom.Data.Length) return;
+
+            // Rainbow palette (RGB555 LE), index 0 dark so ring edges read clearly.
+            for (int i = 0; i < 16; i++)
+            {
+                int r, g, b;
+                if (i == 0) { r = g = b = 2; }
+                else
+                {
+                    double h = (i - 1) / 15.0 * 6.0;
+                    int seg = (int)h; double f = h - seg;
+                    int v = 31, p = 4, q = (int)(31 * (1 - f)), t = (int)(31 * f);
+                    switch (seg % 6)
+                    {
+                        case 0: r = v; g = t; b = p; break;
+                        case 1: r = q; g = v; b = p; break;
+                        case 2: r = p; g = v; b = t; break;
+                        case 3: r = p; g = q; b = v; break;
+                        case 4: r = t; g = p; b = v; break;
+                        default: r = v; g = p; b = q; break;
+                    }
+                }
+                ushort c = (ushort)((b << 10) | (g << 5) | r);
+                rom.write_u8(palOffset + (uint)(i * 2 + 0), (uint)(c & 0xFF));
+                rom.write_u8(palOffset + (uint)(i * 2 + 1), (uint)((c >> 8) & 0xFF));
+            }
+
+            // Radial-ring 64x64 4bpp OBJ, LZ77-compressed; bail if it won't fit.
+            byte[] raw = BuildRadialTiles(64, 64);
+            byte[] compressed = LZ77.compress(raw);
+            if (compressed.Length > (int)(palOffset - objOffset)) return;
+            for (int i = 0; i < compressed.Length; i++)
+                rom.write_u8(objOffset + (uint)i, compressed[i]);
+
+            // Two 28-byte 0x86 FEditor frames + 0x80 terminator.
+            WriteMagicFrame(rom, frameBase, wait: 4, objOffset: objOffset, palOffset: palOffset);
+            WriteMagicFrame(rom, frameBase + 28, wait: 6, objOffset: objOffset, palOffset: palOffset);
+            rom.write_u8(frameBase + 56 + 3, 0x80); // terminator
+
+            _vm.InitFromMagicRom(AnimationTypeEnum.MagicAnime_FEEDitor, 1,
+                "Magic Animation (FEditor) #01 (demo)", U.toPointer(frameBase), isCsa: false);
+            UpdateTitle();
+        }
+
+        static void WriteMagicFrame(ROM rom, uint n, uint wait, uint objOffset, uint palOffset)
+        {
+            rom.write_u8(n + 0, wait & 0xFF);
+            rom.write_u8(n + 1, (wait >> 8) & 0xFF);
+            rom.write_u8(n + 3, 0x86);
+            rom.write_u32(n + 4,  U.toPointer(objOffset)); // OBJ img
+            rom.write_u32(n + 16, U.toPointer(objOffset)); // BG img
+            rom.write_u32(n + 20, U.toPointer(palOffset)); // OBJ pal
+            rom.write_u32(n + 24, U.toPointer(palOffset)); // BG pal
+        }
+
+        static byte[] BuildRadialTiles(int w, int h)
+        {
+            byte[] tiles = new byte[w * h / 2];
+            int tilesW = w / 8;
+            int cx = w / 2, cy = h / 2;
+            int p = 0;
+            for (int ty = 0; ty < h / 8; ty++)
+                for (int tx = 0; tx < tilesW; tx++)
+                    for (int py = 0; py < 8; py++)
+                        for (int px = 0; px < 8; px += 2)
+                        {
+                            int x0 = tx * 8 + px, y0 = ty * 8 + py;
+                            int lo = RingIndex(x0, y0, cx, cy);
+                            int hi = RingIndex(x0 + 1, y0, cx, cy);
+                            tiles[p++] = (byte)((lo & 0x0F) | ((hi & 0x0F) << 4));
+                        }
+            return tiles;
+        }
+
+        static int RingIndex(int x, int y, int cx, int cy)
+        {
+            double d = Math.Sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+            return ((int)(d / 3.0) % 15) + 1;
         }
     }
 }
