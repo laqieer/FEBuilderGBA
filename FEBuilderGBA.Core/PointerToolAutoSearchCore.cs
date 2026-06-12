@@ -110,6 +110,10 @@ namespace FEBuilderGBA
                 uint foundAddr = targetAsmMap.SearchName(name);
                 if (foundAddr == U.NOT_FOUND) return AutoSearchResult.NotFound;
 
+                // WF SearchASMMap finds the ref via plain U.Grep with DEFAULTS
+                // (start 0x100, blocksize 1, exact) — deliberately NOT the
+                // mode-aware DGrep that FindOtherROMData uses. Keep this path on
+                // GrepBigEndianPointerRef (U.Grep defaults) for WF parity.
                 uint refaddress = GrepBigEndianPointerRef(targetData, foundAddr);
 
                 return new AutoSearchResult
@@ -167,7 +171,12 @@ namespace FEBuilderGBA
                 if (unslid < 0) return false;
 
                 uint addr = U.toPointer((uint)unslid);
-                uint refaddress = GrepBigEndianPointerRef(targetData, addr);
+                // WF FindOtherROMData finds the ref via DGrep (mode-aware:
+                // exact/pattern, start 0, blocksize 2) — NOT the name path's
+                // defaults U.Grep. Route through DGrep with the SAME grepPattern +
+                // isCodeType flags so the warningLevel==1 "accept if referenced"
+                // gate matches WF and a ref below 0x100 is now findable.
+                uint refaddress = DGrep(targetData, BigEndianPointerBytes(addr), grepPattern, isCodeType);
 
                 outAddr = addr;
                 outRef = refaddress;
@@ -514,13 +523,12 @@ namespace FEBuilderGBA
             return U.GrepPatternMatch(data, need, isSkip, 0, 0, 2);
         }
 
-        // Build a big-endian-stored pointer (the on-ROM little-endian byte order
-        // of a GBA pointer) and grep the target for it. Returns the reference
-        // offset or U.NOT_FOUND. Mirrors WF's byte-swap-then-grep in
-        // FindOtherROMData / SearchASMMap.
-        static uint GrepBigEndianPointerRef(byte[] data, uint pointerAddr)
+        // Build the 4 on-ROM (little-endian) bytes of a GBA pointer. WF byte-swaps
+        // the pointer then writes the swapped value big-endian into a 4-byte
+        // buffer — the net effect is the pointer's natural little-endian on-ROM
+        // representation. Shared by both ref-search paths (name vs direct-data).
+        static byte[] BigEndianPointerBytes(uint pointerAddr)
         {
-            if (data == null) return U.NOT_FOUND;
             uint little = ((pointerAddr >> 24) & 0xFF)
                         + (((pointerAddr >> 16) & 0xFF) << 8)
                         + (((pointerAddr >> 8) & 0xFF) << 16)
@@ -530,7 +538,18 @@ namespace FEBuilderGBA
             b[1] = (byte)((little >> 16) & 0xFF);
             b[2] = (byte)((little >> 8) & 0xFF);
             b[3] = (byte)((little) & 0xFF);
-            return U.Grep(data, b);
+            return b;
+        }
+
+        // NAME-search ref grep ONLY. Mirrors WF SearchASMMap, which finds the ref
+        // via plain U.Grep with DEFAULTS (start 0x100, blocksize 1, exact). The
+        // direct-data path in FindOtherROMData deliberately differs (it uses the
+        // mode-aware DGrep — start 0, blocksize 2, exact/pattern) to match WF
+        // FindOtherROMData. Do NOT unify these two paths.
+        static uint GrepBigEndianPointerRef(byte[] data, uint pointerAddr)
+        {
+            if (data == null) return U.NOT_FOUND;
+            return U.Grep(data, BigEndianPointerBytes(pointerAddr));
         }
 
         // Port of WF makeSkipDataByPointer: mark each 4-byte word that looks like

@@ -203,7 +203,7 @@ namespace FEBuilderGBA.Core.Tests
         public void FindOtherROMData_FindsUniqueDataBlockInTarget()
         {
             // Unique 16-byte block at source offset 0x200; same block at target
-            // offset 0x555. sourcePointer points to 0x08000200.
+            // offset 0x554. sourcePointer points to 0x08000200.
             var block = new byte[16];
             for (int i = 0; i < block.Length; i++) block[i] = (byte)(0x40 + i);
 
@@ -212,12 +212,50 @@ namespace FEBuilderGBA.Core.Tests
             Array.Copy(block, 0, sourceData, 0x200, block.Length);
             Array.Copy(block, 0, targetData, 0x554, block.Length); // even offset (blocksize 2 grep)
 
+            // A reference to the found data address (0x08000554) at an even offset
+            // >= 0x100 so the ref-grep (now mode-aware DGrep) locates it.
+            WritePtr(targetData, 0x300, 0x08000554u);
+
             bool r = PointerToolAutoSearchCore.FindOtherROMData(
                 sourceData, targetData, 0x08000200u, slide: 0, testMatchSize: 16,
-                grepPattern: false, isCodeType: false, out uint outAddr, out uint _);
+                grepPattern: false, isCodeType: false, out uint outAddr, out uint outRef);
 
             Assert.True(r);
             Assert.Equal(U.toPointer(0x554u), outAddr);
+            // outRef comes from DGrep (exact, start 0, blocksize 2).
+            Assert.Equal(0x300u, outRef);
+        }
+
+        // ---- 6c: ref-grep is mode-aware DGrep, not defaults U.Grep -----------
+        //
+        // WF FindOtherROMData finds the cross-ROM reference via DGrep (start 0,
+        // blocksize 2), NOT the name path's defaults U.Grep (start 0x100). This
+        // test proves the change: a reference at an even offset BELOW 0x100 is
+        // now findable, where the old GrepBigEndianPointerRef (start 0x100) would
+        // have returned NOT_FOUND.
+
+        [Fact]
+        public void FindOtherROMData_RefGrep_FindsReferenceBelow0x100()
+        {
+            var block = new byte[16];
+            for (int i = 0; i < block.Length; i++) block[i] = (byte)(0x70 + i);
+
+            var sourceData = new byte[0x1000];
+            var targetData = new byte[0x1000];
+            Array.Copy(block, 0, sourceData, 0x200, block.Length);
+            Array.Copy(block, 0, targetData, 0x600, block.Length); // even offset
+
+            // ONLY reference to 0x08000600 sits at offset 0x40 — below the old
+            // U.Grep default start (0x100), but found by DGrep (start 0).
+            WritePtr(targetData, 0x40, 0x08000600u);
+
+            bool r = PointerToolAutoSearchCore.FindOtherROMData(
+                sourceData, targetData, 0x08000200u, slide: 0, testMatchSize: 16,
+                grepPattern: false, isCodeType: false, out uint outAddr, out uint outRef);
+
+            Assert.True(r);
+            Assert.Equal(U.toPointer(0x600u), outAddr);
+            Assert.Equal(0x40u, outRef);
         }
 
         // ---- 6b: large-window disambiguation (#1118 Copilot review) ----------
