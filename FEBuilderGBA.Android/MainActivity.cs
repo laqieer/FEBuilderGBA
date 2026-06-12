@@ -35,9 +35,15 @@ namespace FEBuilderGBA.Android
     // NOTE: no Theme/Icon resource is referenced — this skeleton ships no
     // Android resource (drawable/style) files, so referencing @drawable/icon or
     // a custom @style/ would fail aapt. A real port adds an app icon + theme.
+    //
+    // Exported = true is REQUIRED on Android 12+ (targetSdkVersion 35) for any
+    // activity with an intent-filter — the MainLauncher activity has an implicit
+    // LAUNCHER filter, so without an explicit android:exported aapt2 packaging
+    // fails. true is correct here because this is the user-facing launcher.
     [Activity(
         Label = "FEBuilderGBA",
         MainLauncher = true,
+        Exported = true,
         ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
     public class MainActivity : AvaloniaMainActivity<global::FEBuilderGBA.Avalonia.App>
     {
