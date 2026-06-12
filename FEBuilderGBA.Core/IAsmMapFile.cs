@@ -301,14 +301,19 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Forward name lookup (#1113): exact-pointer (pointer-normalized) symbol
-        /// name, or "" when no symbol is known at <paramref name="pointer"/>.
-        /// Mirrors WF's intent (the WF Pointer Tool resolves the source name from
-        /// the asm-map cache). Never throws.
+        /// Forward name lookup (#1113): exact-pointer symbol name, or "" when no
+        /// symbol is known at <paramref name="pointer"/>. The Thumb bit is cleared
+        /// first (real function pointers from ROM are odd — ...01 / ...03), so a
+        /// Thumb pointer resolves to its symbol, matching WF
+        /// <c>AsmMapFileAsmCache.GetName</c> (which calls <c>ProgramAddrToPlain</c>).
+        /// Never throws.
         /// </summary>
         public string GetName(uint pointer)
         {
-            return _map.TryGetValue(U.toPointer(pointer), out var p) && p != null ? p.Name : "";
+            // ProgramAddrToPlain == U.Padding2Before: clears only bit0, so ...01
+            // and ...03 both normalize to their even base.
+            uint plain = DisassemblerTrumb.ProgramAddrToPlain(pointer);
+            return _map.TryGetValue(U.toPointer(plain), out var p) && p != null ? p.Name : "";
         }
     }
 

@@ -478,4 +478,45 @@ public class PointerToolAutoSearchTests : IClassFixture<RomFixture>
             try { System.IO.File.Delete(tempRom); } catch { /* best-effort cleanup */ }
         }
     }
+
+    /// <summary>
+    /// #1118 Fix 3: a failed LoadOtherRom (a path that does not exist) must clear
+    /// any stale cross-ROM result from a prior successful match — the OtherROM*
+    /// address fields are emptied and AutoSearchSummary reports the failure,
+    /// rather than leaving the previous match visible. Deterministic; no ROM
+    /// fixture required (uses the early not-found path).
+    /// </summary>
+    [AvaloniaFact]
+    public void LoadOtherRom_FailedLoad_ClearsStaleMatchFields()
+    {
+        var vm = new PointerToolViewModel();
+        vm.Initialize();
+
+        // Simulate a prior successful match populating the fields.
+        vm.OtherRomAddress = "0x08001234";
+        vm.OtherRomRefPointer = "0x08005678";
+        vm.OtherRomLdrAddress = "0x08009ABC";
+        vm.OtherRomLdrRefPointer = "0x0800DEF0";
+        vm.OtherRomName = "PrevTarget";
+        vm.AutoSearchSummary = "Matched via direct: direct=0x08001234, ldr=0x08009ABC";
+
+        // Load a ROM path that does not exist -> failure path.
+        string missing = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), $"pointer-autosearch-missing-{System.Guid.NewGuid():N}.gba");
+        Assert.False(System.IO.File.Exists(missing));
+
+        var ex = Record.Exception(() => vm.LoadOtherRom(missing));
+        Assert.Null(ex);
+
+        // Stale cross-ROM fields cleared; failure surfaced in the summary.
+        Assert.Equal("", vm.OtherRomAddress);
+        Assert.Equal("", vm.OtherRomRefPointer);
+        Assert.Equal("", vm.OtherRomLdrAddress);
+        Assert.Equal("", vm.OtherRomLdrRefPointer);
+        Assert.False(vm.HasZeroAtDirect);
+        Assert.False(vm.HasVeryFarAtDirect);
+        Assert.False(vm.HasZeroAtLdr);
+        Assert.False(vm.HasVeryFarAtLdr);
+        Assert.Equal("Failed to load other ROM.", vm.AutoSearchSummary);
+    }
 }

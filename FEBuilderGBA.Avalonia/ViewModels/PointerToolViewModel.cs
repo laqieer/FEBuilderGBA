@@ -56,6 +56,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         IAsmMapFile? _otherRomAsmMap;
         string _autoSearchSummary = string.Empty;
 
+        // ----- Cached LDR literal-pool maps (#1118 perf) ---
+        // DisassemblerTrumb.MakeLDRMap is a full-ROM scan; rebuilding both maps on
+        // every Auto Search click stalls the UI thread. WF builds/caches these on
+        // target-ROM load (+ via AsmMapFileAsmCache). We cache:
+        //   _targetLdrMap  — built from _otherRomData; invalidated (nulled) on each
+        //                    LoadOtherRom (new target) and on its failure path.
+        //   _sourceLdrMap  — built from CoreState.ROM.Data; tagged with the ROM
+        //                    instance it was built for (_sourceLdrRom) so it is
+        //                    rebuilt only when CoreState.ROM changes (ROM reload).
+        List<DisassemblerTrumb.LDRPointer>? _targetLdrMap;
+        List<DisassemblerTrumb.LDRPointer>? _sourceLdrMap;
+        ROM? _sourceLdrRom;
+
         /// <summary>
         /// One-line summary of the last <see cref="RunAutoSearch"/> outcome
         /// (#1113), e.g. "Matched via name (SomeFunc): direct=0x..., ldr=0x...".
@@ -507,6 +520,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             if (string.IsNullOrEmpty(filename) || !File.Exists(filename))
             {
+                // Missing file: clear any stale cross-ROM result so a prior match
+                // is not left visible (consistent with the catch path — Fix 3).
+                _otherRomData = null;
+                _otherRomFilename = string.Empty;
+                _otherRomAsmMap = null;
+                _targetLdrMap = null;
+                OtherRomName = string.Empty;
+                ClearOtherRomFields();
+                AutoSearchSummary = "Failed to load other ROM.";
                 SearchResults = $"Other ROM not found: {filename}";
                 return;
             }
@@ -517,12 +539,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 _otherRomFilename = filename;
                 OtherRomName = Path.GetFileNameWithoutExtension(filename);
 
+                // New target ROM -> invalidate the cached target LDR map and
+                // asmmap so they are (re)built for THIS target (#1118 perf cache).
+                _targetLdrMap = null;
+                _otherRomAsmMap = null;
+
                 // Build + cache the target ROM's ASM/MAP symbol table for the
                 // name-search heuristic — ONLY when ASM-map search is enabled
                 // (mirrors WF, which gates name search on UseASMMAPCheckBox). When
                 // UseAsmMap is off, skip the asmmap parse; RunAutoSearch will
                 // rebuild it lazily if the user later re-enables the checkbox.
-                _otherRomAsmMap = null;
                 if (UseAsmMap)
                 {
                     EnsureTargetAsmMap();
@@ -541,10 +567,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
+                // Load failed: drop the target state AND clear any stale cross-ROM
+                // result so a prior successful match is not left visible (Copilot
+                // bot Fix 3). Also null the cached LDR map + asmmap.
                 _otherRomData = null;
                 _otherRomFilename = string.Empty;
                 _otherRomAsmMap = null;
+                _targetLdrMap = null;
                 OtherRomName = string.Empty;
+                ClearOtherRomFields();
+                AutoSearchSummary = "Failed to load other ROM.";
                 SearchResults = $"Failed to load other ROM: {ex.Message}";
             }
         }
@@ -590,6 +622,30 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             catch (Exception ex)
             {
                 Log.Error($"PointerToolViewModel.EnsureTargetAsmMap: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// (Re)build the cached source + target LDR literal-pool maps when missing
+        /// or stale (#1118 perf). DisassemblerTrumb.MakeLDRMap is a full-ROM scan;
+        /// caching avoids re-scanning both ROMs on every Auto Search click (the
+        /// hot path). The source map is tagged with the ROM instance it was built
+        /// for so a ROM reload (the editor can outlive a reload) rebuilds it.
+        /// Cheap when cached + ROM unchanged. Never throws (PointerToolAutoSearchCore.BuildLdrMap
+        /// falls back to an empty list on any fault).
+        /// </summary>
+        void EnsureLdrMaps(ROM sourceRom)
+        {
+            // Source map: rebuild only when missing or the source ROM changed.
+            if (_sourceLdrMap == null || !ReferenceEquals(_sourceLdrRom, sourceRom))
+            {
+                _sourceLdrMap = PointerToolAutoSearchCore.BuildLdrMap(sourceRom?.Data);
+                _sourceLdrRom = sourceRom;
+            }
+            // Target map: rebuild only when missing (invalidated on each LoadOtherRom).
+            if (_targetLdrMap == null)
+            {
+                _targetLdrMap = PointerToolAutoSearchCore.BuildLdrMap(_otherRomData);
             }
         }
 
@@ -659,6 +715,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // AutoSearch arg and the not-found message wording.
                 uint trackLevel = DecodeAutoTrackLevel();
 
+                // Build/reuse the cached LDR maps (no full-ROM rescan on repeat
+                // clicks — #1118 perf) and pass them to the precomputed overload.
+                EnsureLdrMaps(rom);
+
                 AutoSearchResult result = PointerToolAutoSearchCore.AutoSearch(
                     rom.Data,
                     _otherRomData,
@@ -666,7 +726,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     trackLevel,
                     sourceAsmMap,
                     UseAsmMap ? _otherRomAsmMap : null,
-                    WarningLevel);
+                    WarningLevel,
+                    _sourceLdrMap,
+                    _targetLdrMap);
 
                 if (!result.Found)
                 {

@@ -78,6 +78,24 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("", map.GetName(0x08009999u));
         }
 
+        [Fact]
+        public void GetName_OddThumbPointer_ResolvesToSymbol()
+        {
+            // #1118: a real Thumb function pointer is odd (...01 / ...03). GetName
+            // must clear the Thumb bit (ProgramAddrToPlain) before lookup so the
+            // symbol at the even base still resolves.
+            var rom = MakeFe8uRom();
+            var map = MapFromLines(rom, "08001000\tFoo", "08002002\tBar");
+
+            // Symbol at 0x08001000, queried with the Thumb bit set (...01).
+            Assert.Equal("Foo", map.GetName(0x08001001u));
+            // Symbol at a halfword-aligned base 0x08002002, queried as ...03.
+            Assert.Equal("Bar", map.GetName(0x08002003u));
+            // Sanity: the even-base queries still work.
+            Assert.Equal("Foo", map.GetName(0x08001000u));
+            Assert.Equal("Bar", map.GetName(0x08002002u));
+        }
+
         // ---- 3 + 4: SearchAsmMapName -----------------------------------------
 
         [Fact]

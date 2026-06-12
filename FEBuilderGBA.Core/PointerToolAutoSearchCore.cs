@@ -330,6 +330,23 @@ namespace FEBuilderGBA
         /// </summary>
         public static AutoSearchResult AutoSearch(byte[] sourceData, byte[] targetData, uint address, uint autoTrackLevel, IAsmMapFile sourceAsmMap, IAsmMapFile targetAsmMap, int warningLevel = 1)
         {
+            // Original signature: build the LDR maps internally (passing null ->
+            // the overload builds them). Existing Core tests + non-caching callers
+            // are unaffected.
+            return AutoSearch(sourceData, targetData, address, autoTrackLevel, sourceAsmMap, targetAsmMap, warningLevel, null, null);
+        }
+
+        /// <summary>
+        /// Precomputed-LDR-map overload of <see cref="AutoSearch(byte[],byte[],uint,uint,IAsmMapFile,IAsmMapFile,int)"/>
+        /// (#1118). Identical behavior, but the caller may pass cached
+        /// <paramref name="sourceLdr"/> / <paramref name="targetLdr"/> maps to
+        /// avoid a full-ROM <see cref="DisassemblerTrumb.MakeLDRMap"/> rescan on
+        /// every call (the Avalonia VM caches them per loaded ROM — repeated Auto
+        /// Search clicks otherwise stall the UI thread). A null map is built
+        /// internally (still safe). WF builds/caches these on target-ROM load.
+        /// </summary>
+        public static AutoSearchResult AutoSearch(byte[] sourceData, byte[] targetData, uint address, uint autoTrackLevel, IAsmMapFile sourceAsmMap, IAsmMapFile targetAsmMap, int warningLevel, List<DisassemblerTrumb.LDRPointer> sourceLdr, List<DisassemblerTrumb.LDRPointer> targetLdr)
+        {
             try
             {
                 if (sourceData == null || targetData == null) return AutoSearchResult.NotFound;
@@ -353,13 +370,19 @@ namespace FEBuilderGBA
                     if (nameHit.Found) return nameHit;
                 }
 
-                // Build the source + target LDR maps (WU2b-hardened, never throws).
-                List<DisassemblerTrumb.LDRPointer> sourceLdr;
-                List<DisassemblerTrumb.LDRPointer> targetLdr;
-                try { sourceLdr = DisassemblerTrumb.MakeLDRMap(sourceData, 0x100, 0); }
-                catch { sourceLdr = new List<DisassemblerTrumb.LDRPointer>(); }
-                try { targetLdr = DisassemblerTrumb.MakeLDRMap(targetData, 0x100, 0); }
-                catch { targetLdr = new List<DisassemblerTrumb.LDRPointer>(); }
+                // Use the caller-supplied LDR maps when provided (cached); else
+                // build them here (WU2b-hardened, never throws). A passed-in null
+                // map is treated as "not yet built" and built internally.
+                if (sourceLdr == null)
+                {
+                    try { sourceLdr = DisassemblerTrumb.MakeLDRMap(sourceData, 0x100, 0); }
+                    catch { sourceLdr = new List<DisassemblerTrumb.LDRPointer>(); }
+                }
+                if (targetLdr == null)
+                {
+                    try { targetLdr = DisassemblerTrumb.MakeLDRMap(targetData, 0x100, 0); }
+                    catch { targetLdr = new List<DisassemblerTrumb.LDRPointer>(); }
+                }
 
                 int maxDeepSearch = (int)((autoTrackLevel >> 8) & 0xF) + 2;
                 int maxSkipSearch = (int)(autoTrackLevel & 0xF) + 1;
@@ -409,6 +432,20 @@ namespace FEBuilderGBA
             {
                 return AutoSearchResult.NotFound;
             }
+        }
+
+        /// <summary>
+        /// Build the full-buffer LDR literal-pool map (#1118) for callers that
+        /// cache it (the Avalonia VM caches the source + target maps per loaded
+        /// ROM so repeated Auto Search clicks don't re-scan the whole ROM on the
+        /// UI thread). WU2b-hardened; never throws (returns an empty list on a
+        /// null buffer or any disassembly fault).
+        /// </summary>
+        public static List<DisassemblerTrumb.LDRPointer> BuildLdrMap(byte[] data)
+        {
+            if (data == null) return new List<DisassemblerTrumb.LDRPointer>();
+            try { return DisassemblerTrumb.MakeLDRMap(data, 0x100, 0); }
+            catch { return new List<DisassemblerTrumb.LDRPointer>(); }
         }
 
         // One direct + LDR comparison at a fixed (slide, size, grep mode); returns
