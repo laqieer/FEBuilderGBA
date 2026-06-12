@@ -52,9 +52,16 @@ public class PointerToolParityTests
         var doc = XDocument.Load(axamlPath);
         int avCount = ControlDensityScanner.CountAvControlsInDocument(doc);
 
-        // WF designer count from the 2026-05-24 density sweep — see issue #438.
-        const int WfControlCount = 31;
-        // 50% delta cap → AV must be in [16, 47] to stay MEDIUM-or-better.
+        // WF designer count. The 2026-05-24 density sweep recorded 31, but that
+        // used a System.Windows.Forms allow-list that MISSED the 9 custom
+        // FEBuilderGBA.TextBoxEx address fields in PointerToolForm.Designer.cs
+        // (21 Label + 9 TextBoxEx + 6 ComboBox + 3 Button + 1 CheckBox +
+        // 1 CustomColorGroupBox = 41 real controls). #1113 surfaces the WF
+        // AutoSearch behaviour as an explicit "Auto Search" button + summary
+        // label, so the AV count grows legitimately; the reference is corrected
+        // to the true WF control count to keep the parity math honest.
+        const int WfControlCount = 41;
+        // 50% delta cap → AV must be in [21, 61] to stay MEDIUM-or-better.
         int lowerBound = (int)Math.Ceiling(WfControlCount * 0.5);
         int upperBound = (int)Math.Floor(WfControlCount * 1.5);
         Assert.True(avCount >= lowerBound && avCount <= upperBound,

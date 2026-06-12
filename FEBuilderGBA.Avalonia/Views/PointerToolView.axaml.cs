@@ -156,6 +156,27 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
+        /// Auto Search button (#1113) — runs the full cross-ROM AutoSearch
+        /// (ASM-map name search + source/target LDR-literal-pool symmetry +
+        /// auto-tracking retry) against the loaded target ROM, populating the
+        /// OtherROM* fields and the AutoSearchSummary label. Wrapped in
+        /// try/catch + Log.Error like the other handlers so the UI thread never
+        /// crashes.
+        /// </summary>
+        void AutoSearch_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                _vm.AddressInput = AddressTextBox.Text ?? "";
+                _vm.RunAutoSearch();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("PointerToolView.AutoSearch_Click: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Address double-click handler — mirrors WF
         /// <c>PointerToolForm.OtherROMAddress_MouseDoubleClick</c>: opens
         /// PointerToolCopyToView seeded with the textbox's address value.

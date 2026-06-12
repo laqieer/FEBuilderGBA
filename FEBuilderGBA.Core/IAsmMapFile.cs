@@ -49,6 +49,35 @@ namespace FEBuilderGBA
         /// compiling without change.
         /// </summary>
         uint SearchNear(uint pointer) => U.NOT_FOUND;
+
+        /// <summary>
+        /// Reverse lookup: return the GBA pointer of the symbol whose name
+        /// exactly equals <paramref name="name"/>, or <see cref="U.NOT_FOUND"/>
+        /// when no symbol matches. Mirrors WF <c>AsmMapFile.SearchName</c>. Used
+        /// by the Pointer Tool cross-ROM AutoSearch name heuristic (#1113): the
+        /// source ROM's symbol name at the input address is resolved against the
+        /// TARGET ROM's symbol table to track the same function/data across ROM
+        /// versions.
+        ///
+        /// Default body returns <see cref="U.NOT_FOUND"/> so existing
+        /// implementors keep compiling. WF <c>AsmMapFile</c> already provides its
+        /// own <c>SearchName(string)</c>, satisfying this contract automatically.
+        /// </summary>
+        uint SearchName(string name) => U.NOT_FOUND;
+
+        /// <summary>
+        /// Forward lookup: return the symbol name at <paramref name="pointer"/>
+        /// (exact-pointer match, pointer-normalized), or "" when no symbol is
+        /// known at that address. Used by the Pointer Tool cross-ROM AutoSearch
+        /// name heuristic (#1113) to obtain the SOURCE ROM symbol name before
+        /// resolving it against the target ROM via <see cref="SearchName"/>.
+        ///
+        /// Default body returns "" so existing implementors keep compiling. WF
+        /// <c>AsmMapFile</c> has no <c>GetName(uint)</c>, so this default applies
+        /// to it (the WF Pointer Tool resolves names via the separate
+        /// <c>AsmMapFileAsmCache.GetName</c>).
+        /// </summary>
+        string GetName(uint pointer) => "";
     }
 
     /// <summary>
@@ -250,6 +279,37 @@ namespace FEBuilderGBA
         /// Used only by the Pointer Tool screenshot seed (#1026).</summary>
         public uint FirstKeyForScreenshot()
             => _sortedKeys.Count > 0 ? _sortedKeys[0] : U.NOT_FOUND;
+
+        /// <summary>
+        /// VERBATIM port of WF <c>AsmMapFile.SearchName</c> (#1113): linear scan
+        /// for the first symbol whose <c>Name</c> exactly equals
+        /// <paramref name="name"/>; returns its GBA-pointer key, or
+        /// <see cref="U.NOT_FOUND"/> when none matches. A null / empty name never
+        /// matches (no symbol carries an empty name in the map).
+        /// </summary>
+        public uint SearchName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return U.NOT_FOUND;
+            foreach (var pair in _map)
+            {
+                if (pair.Value.Name == name)
+                {
+                    return pair.Key;
+                }
+            }
+            return U.NOT_FOUND;
+        }
+
+        /// <summary>
+        /// Forward name lookup (#1113): exact-pointer (pointer-normalized) symbol
+        /// name, or "" when no symbol is known at <paramref name="pointer"/>.
+        /// Mirrors WF's intent (the WF Pointer Tool resolves the source name from
+        /// the asm-map cache). Never throws.
+        /// </summary>
+        public string GetName(uint pointer)
+        {
+            return _map.TryGetValue(U.toPointer(pointer), out var p) && p != null ? p.Name : "";
+        }
     }
 
     /// <summary>

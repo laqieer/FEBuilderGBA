@@ -48,6 +48,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         byte[]? _otherRomData;
         string _otherRomFilename = string.Empty;
 
+        // ----- Cross-ROM AutoSearch state (#1113) ---
+        // The target ROM's ASM/MAP symbol table, built ONCE in LoadOtherRom (or
+        // seeded in SeedDemoCrossRom). Cached so repeated RunAutoSearch calls do
+        // not reparse the asmmap config. Null when the target ROM could not be
+        // version-detected (name search disabled — mirrors WF LoadTargetROM).
+        IAsmMapFile? _otherRomAsmMap;
+        string _autoSearchSummary = string.Empty;
+
+        /// <summary>
+        /// One-line summary of the last <see cref="RunAutoSearch"/> outcome
+        /// (#1113), e.g. "Matched via name (SomeFunc): direct=0x..., ldr=0x...".
+        /// Bound to the Pointer Tool AutoSearch summary label.
+        /// </summary>
+        public string AutoSearchSummary { get => _autoSearchSummary; set => SetField(ref _autoSearchSummary, value); }
+
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         /// <summary>Input ROM address to analyze.</summary>
         public string AddressInput { get => _addressInput; set => SetField(ref _addressInput, value); }
@@ -465,13 +480,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>
         /// Load an "other ROM" file for cross-ROM pointer comparison. Mirrors
-        /// WF <c>PointerToolForm.LoadTargetROM</c> at the gap-sweep scope:
-        /// reads the file bytes, sets <see cref="OtherRomName"/> to the file
-        /// base name, and runs <see cref="RunSearch"/> against the current
-        /// ROM. Full WF AutoSearch behavioural parity (auto-tracking retry,
-        /// source/target LDR map symmetry, ASM-map name search) is intentionally
-        /// out of scope for #438 and deferred to a follow-up issue — the
-        /// gap-sweep acceptance criteria only require the visible UI surface.
+        /// WF <c>PointerToolForm.LoadTargetROM</c>: reads the file bytes, builds
+        /// and caches the target ROM's ASM/MAP symbol table (when the ROM
+        /// version-detects), sets <see cref="OtherRomName"/>, and then — if a
+        /// valid current address is present — runs the full cross-ROM
+        /// <see cref="RunAutoSearch"/> (#1113: auto-tracking retry +
+        /// source/target LDR-literal-pool symmetry + ASM-map name search). When
+        /// no address is entered yet it falls back to the baseline
+        /// <see cref="RunSearch"/> so the same-ROM fields populate.
         /// </summary>
         /// <param name="filename">Absolute path to a GBA ROM (.gba / .bin).</param>
         public void LoadOtherRom(string filename)
@@ -488,17 +504,138 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 _otherRomFilename = filename;
                 OtherRomName = Path.GetFileNameWithoutExtension(filename);
 
-                // Re-run search to populate the other-ROM fields from the
-                // newly loaded bytes. The same-ROM fields (PointerValue,
-                // LittleEndianValue) are unchanged but RunSearch is idempotent.
-                RunSearch();
+                // Build + cache the target ROM's ASM/MAP symbol table for the
+                // name-search heuristic. Tolerate version-detect failure: a ROM
+                // that does not version-detect simply disables name search
+                // (mirrors WF LoadTargetROM, which only builds OtherROMASMMap on
+                // a successful ROM.Load). Never throws on a bad file.
+                _otherRomAsmMap = null;
+                try
+                {
+                    var targetRom = new ROM();
+                    if (targetRom.Load(filename, out string _))
+                    {
+                        _otherRomAsmMap = new AsmMapSymbolFile(targetRom);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"PointerToolViewModel.LoadOtherRom asmmap build: {ex}");
+                }
+
+                // Auto-run AutoSearch when a usable address is already entered;
+                // otherwise populate the same-ROM fields via the baseline search.
+                if (TryParseAddress(out uint _))
+                {
+                    RunAutoSearch();
+                }
+                else
+                {
+                    RunSearch();
+                }
             }
             catch (Exception ex)
             {
                 _otherRomData = null;
                 _otherRomFilename = string.Empty;
+                _otherRomAsmMap = null;
                 OtherRomName = string.Empty;
                 SearchResults = $"Failed to load other ROM: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Decode the sparse Avalonia AutoTracking combo index into the WF-hex
+        /// auto-tracking level consumed by <see cref="PointerToolAutoSearchCore.AutoSearch"/>.
+        /// Index 0 = "do not auto-track" (level 0 → single exact pass); any other
+        /// index uses the WF default 0x102 (maxDeepSearch 3, maxSkipSearch 3).
+        /// The Avalonia combo is not populated with the WF hex strings, so this
+        /// keeps the two meaningful behaviours (off vs. on) without depending on
+        /// per-index strings. Documented approximation (#1113).
+        /// </summary>
+        uint DecodeAutoTrackLevel()
+        {
+            return AutoTrackingLevel == 0 ? 0u : 0x102u;
+        }
+
+        /// <summary>
+        /// Run the full cross-ROM AutoSearch (#1113). Resolves the current input
+        /// address against the loaded target ROM using three WF heuristics, in
+        /// order: ASM-map symbol NAME search, source↔target LDR-literal-pool
+        /// symmetry, and the auto-tracking retry (widen match window / slide).
+        /// Populates the OtherROM* fields from the accepted match and writes a
+        /// one-line <see cref="AutoSearchSummary"/>. Never throws.
+        /// </summary>
+        public void RunAutoSearch()
+        {
+            if (_otherRomData == null || _otherRomData.Length == 0)
+            {
+                AutoSearchSummary = "Load a target ROM first.";
+                return;
+            }
+            if (!TryParseAddress(out uint rawInput))
+            {
+                AutoSearchSummary = "Invalid address.";
+                return;
+            }
+            var rom = CoreState.ROM;
+            if (rom == null || rom.Data == null)
+            {
+                AutoSearchSummary = "No ROM loaded.";
+                return;
+            }
+
+            try
+            {
+                // Keep the baseline raw + LDR grep populated too (WF AutoSearch
+                // calls SearchCurrentROM/Search before the retry loop).
+                RunSearch();
+
+                // Build the source ASM/MAP symbol table from the live ROM. Name
+                // search needs both source + target maps (target was cached in
+                // LoadOtherRom / seeded in SeedDemoCrossRom).
+                IAsmMapFile? sourceAsmMap = null;
+                try { sourceAsmMap = new AsmMapSymbolFile(rom); }
+                catch (Exception ex) { Log.Error($"PointerToolViewModel.RunAutoSearch source asmmap: {ex}"); }
+
+                AutoSearchResult result = PointerToolAutoSearchCore.AutoSearch(
+                    rom.Data,
+                    _otherRomData,
+                    rawInput,
+                    DecodeAutoTrackLevel(),
+                    sourceAsmMap,
+                    _otherRomAsmMap,
+                    WarningLevel);
+
+                if (!result.Found)
+                {
+                    AutoSearchSummary = "Not found after auto-tracking retry.";
+                    return;
+                }
+
+                // Populate the visible fields from the accepted match. NAME and
+                // direct hits set the direct fields; ldr hits set the LDR fields.
+                if (result.DirectAddr != U.NOT_FOUND)
+                {
+                    OtherRomAddress = $"0x{result.DirectAddr:X08}";
+                    OtherRomRefPointer = result.DirectRef != U.NOT_FOUND ? $"0x{result.DirectRef:X08}" : "";
+                }
+                if (result.LdrAddr != U.NOT_FOUND)
+                {
+                    OtherRomLdrAddress = $"0x{result.LdrAddr:X08}";
+                    OtherRomLdrRefPointer = result.LdrRef != U.NOT_FOUND ? $"0x{result.LdrRef:X08}" : "";
+                }
+
+                string sym = (result.Hit == "name" && result.SymbolName.Length > 0)
+                    ? $" ({result.SymbolName})"
+                    : "";
+                AutoSearchSummary =
+                    $"Matched via {result.Hit}{sym}: direct=0x{result.DirectAddr:X08}, ldr=0x{result.LdrAddr:X08}";
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"PointerToolViewModel.RunAutoSearch: {ex}");
+                AutoSearchSummary = "AutoSearch failed (see log).";
             }
         }
 
@@ -553,8 +690,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _otherRomFilename = rom.Filename ?? "(current ROM)";
             OtherRomName = $"{Path.GetFileNameWithoutExtension(_otherRomFilename)} (demo)";
 
+            // Seed the target ASM/MAP symbol table from the same (current) ROM so
+            // the AutoSearch summary line renders in the captured PNG (#1113).
+            // Screenshot-only / never-throw.
+            try { _otherRomAsmMap = new AsmMapSymbolFile(rom); }
+            catch { _otherRomAsmMap = null; }
+
             AddressInput = $"0x{targetOffset:X08}";
             RunSearch();
+            // Run the full cross-ROM AutoSearch so AutoSearchSummary populates.
+            try { RunAutoSearch(); } catch { /* screenshot seed must never throw */ }
             return true;
         }
 
@@ -575,11 +720,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <c>WhatIsButton_Click</c> formatting.</para>
         ///
         /// <para>Null-safe: with no cache or no symbol map (headless / empty
-        /// ASM-map) it returns the region hint only and never throws. Full WF
-        /// <c>AutoSearch</c> behavioural parity (auto-tracking retry,
-        /// source/target LDR-map symmetry, ASM-map name search) remains a
-        /// documented follow-up; this method covers the "What is this address?"
-        /// symbol-name resolution only.</para>
+        /// ASM-map) it returns the region hint only and never throws. This method
+        /// covers the single-ROM "What is this address?" symbol-name resolution;
+        /// the cross-ROM AutoSearch heuristics (auto-tracking retry, source/target
+        /// LDR-map symmetry, ASM-map name search) live in
+        /// <see cref="RunAutoSearch"/> (#1113).</para>
         /// </summary>
         public string LookupAddressType(uint addr)
         {

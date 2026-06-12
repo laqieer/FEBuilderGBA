@@ -1784,7 +1784,18 @@ namespace FEBuilderGBA
                             uint pointer = ParseLDRPointer(addr, a);
                             pointer = U.toOffset(pointer);
                             pointer = U.Padding4(pointer);
-                            if (pointer < limit)
+                            // #1113 WU2b hardening: require the FULL 4-byte literal
+                            // word to fit inside the buffer before reading it. The
+                            // previous `pointer < limit` test let a literal slot in
+                            // the last 1-3 bytes drive U.u32 past the end (it throws
+                            // IndexOutOfRangeException). `limit` is already clamped
+                            // to prog.Length above, so `pointer + 4 <= limit`
+                            // guarantees the read is in-bounds. Behavior is
+                            // unchanged for valid ROMs (literal pools never sit in
+                            // the final 1-3 bytes); only truncated / misaligned
+                            // target buffers passed by the AutoSearch helper are
+                            // now skipped instead of throwing.
+                            if (pointer + 4 <= limit)
                             {
                                 uint data = U.u32(prog,pointer);
                                 if (isPointerOnly == false

@@ -85,6 +85,17 @@
                   Click="LoadOtherRom_Click" />
           <TextBlock Text="{Binding OtherRomName}" FontStyle="Italic" VerticalAlignment="Center" />
         </StackPanel>
+        <!-- Cross-ROM AutoSearch (#1113): name search + LDR-map symmetry +     -->
+        <!-- auto-tracking retry. The summary label shows which heuristic hit.  -->
+        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+          <Button AutomationProperties.AutomationId="PointerTool_AutoSearch_Button" Name="AutoSearchButton" Content="Auto Search" Width="160" Height="30"
+                  ToolTip.Tip="Cross-ROM auto-tracking: name search, LDR-map symmetry, and match-window retry against the loaded target ROM."
+                  Click="AutoSearch_Click" />
+          <TextBlock AutomationProperties.AutomationId="PointerTool_AutoSearchSummary_Label"
+                     Name="AutoSearchSummaryLabel" Text="{Binding AutoSearchSummary}"
+                     TextWrapping="Wrap" VerticalAlignment="Center"
+                     FontFamily="Consolas,monospace" MaxWidth="380" />
+        </StackPanel>
         <!-- Other ROM Address (direct match) -->
         <StackPanel Orientation="Horizontal" Spacing="8">
           <Border BorderBrush="Gray" BorderThickness="1" Width="180" Height="44">
