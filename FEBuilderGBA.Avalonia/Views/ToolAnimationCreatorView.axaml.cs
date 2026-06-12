@@ -34,6 +34,10 @@ namespace FEBuilderGBA.Avalonia.Views
         public string ViewTitle => "Animation Creator";
         public bool IsLoaded => _vm.IsLoaded;
 
+        /// <summary>True when the VM has at least one frame loaded (#996) — lets
+        /// magic callers detect an empty-seed result after Init.</summary>
+        public bool HasFrames => _vm.Frames.Count > 0;
+
         public ToolAnimationCreatorView()
         {
             InitializeComponent();
@@ -65,6 +69,18 @@ namespace FEBuilderGBA.Avalonia.Views
         public void InitFromFile(AnimationTypeEnum kind, uint id, string filehint, string filename)
         {
             _vm.InitFromFile(kind, id, filehint, filename);
+            UpdateTitle();
+        }
+
+        /// <summary>
+        /// Seed the view from a MAGIC animation frame-data stream (#996) — used by
+        /// the FEditor / CSA Creator magic editors' jump buttons. READ-ONLY: the
+        /// VM forces <c>RomAddress = 0</c> so Create can never overwrite the magic
+        /// stream (see <see cref="ToolAnimationCreatorViewViewModel.InitFromMagicRom"/>).
+        /// </summary>
+        public void InitFromMagicRom(AnimationTypeEnum kind, uint id, string filehint, uint frameDataAddr, bool isCsa)
+        {
+            _vm.InitFromMagicRom(kind, id, filehint, frameDataAddr, isCsa);
             UpdateTitle();
         }
 

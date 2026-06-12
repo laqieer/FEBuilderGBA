@@ -451,39 +451,40 @@ Specialized utilities for different graphic types:
   prerequisites unsatisfied, so an early/headless call can't pin a permanently-empty cache.
 - `BattleAnimeRendererCore.CountAnimationPaletteBanks`/`MaxOamPaletteBank` (Core, READ-ONLY) — 32-color
   banner detector (#1033) replacing WF `GetPalette16Count`: scans all sections/frames' OAM for the max
-  non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner). Animation-wide CONSERVATIVE
-  (over-warns, never under-warns); affine excluded (WF draws them at shift 0); safe default 1 on guard fail.
+  non-affine, non-bug (`bank<4`) 16-color bank → `max+1` (≥2 ⇒ banner). CONSERVATIVE (over-warns);
+  affine excluded (WF draws them at shift 0); safe default 1 on guard fail.
 - `ClassOPDemoFontRenderCore.cs` (Core, READ-ONLY) — Class OP Demo N1 JP-name font-glyph preview (#1032;
   ports WF `OPClassFontForm.DrawFontByID`/`DrawFont`). `RenderGlyphById(rom,id)` bounded-DataCount-scans the
-  4-byte-pointer table at `op_class_font_pointer` (reject id ≥ contiguous run; overflow-safe) → `RenderGlyphImage`
+  4-byte-pointer table at `op_class_font_pointer` (reject id ≥ run; overflow-safe) → `RenderGlyphImage`
   LZ77-decompresses the 4bpp glyph → 32×32 `ImageUtilCore.ByteToImage16Tile` with `op_class_font_palette`.
-  Drives the Avalonia `ClassOPDemoView` GbaImageControl preview (live on N1 spinner/selection); null on guard fail.
+  Drives the Avalonia `ClassOPDemoView` preview (live on N1 spinner/selection); null on guard fail.
 - `OPClassFontImportCore.cs` (Core, ROM-MUTATING) — OP Class Font glyph PNG import (#999; wait-icon pattern).
-  `Import` validates dims (parameterized %8), `EncodeDirectTiles4bpp` + LZ77-writes + repoints the D0 glyph
-  pointer (ambient undo, byte-identical fault restore #885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto shared `op_class_font_palette`.
+  `Import` validates dims (%8), `EncodeDirectTiles4bpp` + LZ77-writes + repoints the D0 glyph pointer (ambient
+  undo, byte-identical fault restore #885/#923). Avalonia `OPClassFontViewerView.ImportPng_Click` remaps onto shared `op_class_font_palette`.
 - `ImageWorldMapCore.ImportIconStrip`/`TryGetStripPalette` (Core, ROM-MUTATING / READ-ONLY) — World Map
   Mini/Point1/Point2/Road single-LZ77 strip imports (#1000; wait-icon pattern): validate dims (%8), encode +
-  LZ77-write + repoint the ONE image pointer; shared palette NOT written (View nearest-color-remaps first);
-  byte-identical fault restore. Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates. Event/Border/Export deferred.
+  LZ77-write + repoint the ONE image pointer; shared palette NOT written; byte-identical fault restore.
+  Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates. Event/Border/Export deferred.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA) for a resolved table, hex
-  stub for unresolved. Gaps: no headless signed-byte/hex-radix distinction, NMM dropdown aux-files emit `NULL`. #1012.
+  stub for unresolved. Gaps: no signed-byte/hex-radix distinction, NMM aux-files emit `NULL`. #1012.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core,
   READ-ONLY) — live-recolor the Unit Palette editor sample preview from in-memory R/G/B spinners (WF
   `OnChangeColor`): Avalonia `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) →
-  `RenderClassSamplePreview(...,editedBlock)` ONLY when `PaletteTypeIndex==EditableBlockIndex` (=0); null/non-32 falls back byte-identical. #1022.
+  `RenderClassSamplePreview(...,editedBlock)` ONLY when `PaletteTypeIndex==EditableBlockIndex`; null/non-32 falls back. #1022.
 - `SongTrackChangeCore.ApplyTrackChange` (Core, ROM-MUTATING) + `SongMidiCore.ParseSingleTrackFromDataOffset`
   (Core, READ-ONLY) — single-track Track Change writer (#1002 Slice 1; ports WF `SongUtil.ChangeTrackAndWrite`):
   voice(0xBD) remap + VOL/PAN clamp 0..127 + TEMPO clamp 0..255 + gated note-velocity; validate-all-before-mutate,
   ambient undo, byte-identical fault restore. Wires Avalonia `SongTrackChangeTrackView` + `SongTrackAllChangeTrackView`
   Vol/Pan/Tempo. Slice 3 = `SongExchangeCore.ConvertSong` cross-ROM transplant: faithful InstrumentMap/Rip/Burn port
   (per-track byte transform, voice/percussion/multisample translate, `U.Grep` sample recycle + pointer fixups),
-  `ConvertResult`, validate-all-before-mutate, NO ROM growth; Avalonia `SongExchangeView` + CLI `--songexchange`.
-- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor "Include AI Hints" export (#1028 Slice C): faithful WF `UnitForm.GetTranslateInfoByFaceID` (unit-table-by-face-at-+6, no class fallback, impossible `(f2&0x80)==0x20` WF quirk kept) + `AppendAIHintMessage` (both escape forms, dedup, mob fallback); Avalonia `ExportAllTexts(path,includeAIHints)` appends into the TSV Text column CR/LF-flattened.
-- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): single source for the 6 un-Huffman sigs (both FE8U @0x2BA4 incl. snake1); `PatchDetectionService.DetectAntiHuffman` delegates. `TextViewerViewModel.WriteText` = WF flow (encode-fail→missing→injectable `AntiHuffmanPromptCallback` shows `TextBadCharPopupView`→re-check→ABORT via `EncodeAbortedException` no-mutation, else UnHuffman); View owns the modal, ja/zh/ko gated.
-- `ExportFilterCore.BuildFilteredTextIds(rom,idx)` (Core, READ-ONLY) — Text Editor Export Filter (#1028 Slice B): faithful WF `InitExportFilter` 11 cats (0/invalid=All→null); per-cat ids match each `MakeVarsIDArray` (fixed tables via `TextReferenceFinder`; BattleTalk/Haiku event-ptr-when-0; Skill via new `SkillSystemTextScanner`; EventCond via extended `EventScriptReferenceScanner.CollectEventCondTextIds`: 4 text-args+POINTER_EVENT+MENUEXTENDS/UNITSSHORTTEXT/TALKGROUP+FE8 special). `U.GrepPatternMatch`/`MakeMask2` ported.
-- `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, READ-ONLY) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors MenuDefinition/StatusRMenu(recursive)/SoundBossBGM+WorldMapBGM(SONG)/WorldMapEvent/FE8N-Ver3-skill, reusing ExportFilterCore for Support/Battle/Haiku/ED/Skill; `AsmMapTextSymbolReader` (asmmap_* TEXTBATCH/SHORT/EVENT) + `PatchTextRefScannerCore` (installed ADDR/STRUCT TEXT/SONG/EVENT, literal/$0x only); `ITextIDCache.EnumerateUsedTextIds` (user/system+FE8 0xE00.. ranges). Free-area uses WF ConvertMaps raw-id mask (id 0 + SONG masked); PREREQ-GUARD: PrerequisitesMissing when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
+  validate-all-before-mutate, NO ROM growth; Avalonia `SongExchangeView` + CLI `--songexchange`.
+- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor "Include AI Hints" export (#1028 Slice C): faithful WF `UnitForm.GetTranslateInfoByFaceID` (unit-table-by-face-at-+6, no class fallback, `(f2&0x80)==0x20` WF quirk kept) + `AppendAIHintMessage` (both escape forms, dedup, mob fallback); Avalonia `ExportAllTexts(path,includeAIHints)` appends CR/LF-flattened into the TSV Text column.
+- `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): single source for the 6 un-Huffman sigs (both FE8U @0x2BA4 incl. snake1); `PatchDetectionService.DetectAntiHuffman` delegates. `TextViewerViewModel.WriteText` = WF flow (encode-fail→injectable `AntiHuffmanPromptCallback` shows `TextBadCharPopupView`→re-check→ABORT via `EncodeAbortedException`, else UnHuffman); View owns the modal, ja/zh/ko gated.
+- `ExportFilterCore.BuildFilteredTextIds(rom,idx)` (Core, READ-ONLY) — Text Editor Export Filter (#1028 Slice B): faithful WF `InitExportFilter` 11 cats (0/invalid=All→null); per-cat ids match each `MakeVarsIDArray` (fixed tables via `TextReferenceFinder`; BattleTalk/Haiku event-ptr-when-0; Skill via `SkillSystemTextScanner`; EventCond via `EventScriptReferenceScanner.CollectEventCondTextIds`: 4 text-args+POINTER_EVENT+MENUEXTENDS/UNITSSHORTTEXT/TALKGROUP+FE8 special). `U.GrepPatternMatch`/`MakeMask2` ported.
+- `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, READ-ONLY) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors MenuDefinition/StatusRMenu(recursive)/SoundBossBGM+WorldMapBGM(SONG)/WorldMapEvent/FE8N-Ver3-skill, reusing ExportFilterCore for Support/Battle/Haiku/ED/Skill; `AsmMapTextSymbolReader` (asmmap_*) + `PatchTextRefScannerCore` (installed ADDR/STRUCT TEXT/SONG/EVENT, literal/$0x only); `ITextIDCache.EnumerateUsedTextIds`. Free-area uses WF ConvertMaps raw-id mask (id 0 + SONG masked); PREREQ-GUARD when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
+- `ToolAnimationCreatorViewViewModel.InitFromMagicRom` (Avalonia, READ-ONLY) — Magic editor Animation-Creator jump seed (#996): FEditor(28B)/CSA(32B) 0x86 frames via `MagicEffectExportCore.ExportMagicScriptLines`; write-back MapAction-only (`RomAddress=0`, addr in `MagicFrameDataAddress`); skill kinds carved out behind an honest "not yet supported" message.
 
 ### Caching System
 
@@ -499,7 +500,7 @@ Multiple cache layers for performance:
    `Update`/`Save`/`GetName` ported verbatim from WF `EtcCacheTextID` (which now implements the
    same interface); `GetName` = direct user→system dict lookup (no WF `UseValsID`). `CoreState.UseTextIDCache`
    typed `ITextIDCache`; (re)created on every Avalonia ROM load (ROM/path/lang-sensitive), shared from WF Program.
-5. **PatchHardCodeScanner + CoreAsmMapCache** (Core, `IAsmMapCache`) — patch-scan hardcode detection (#1035): WF `MakeHardCodeWarning` + `CheckIFFast` tri-state gate; lazy (ClearCache invalidates only) replacing no-op `HeadlessAsmMapCache`, wired per-ROM-load, lighting up Unit/Class/Item `[HardCoding]`. `GetAsmMapFile()`→`AsmMapSymbolFile` (asmmap_* reader, `SearchNear`/`TryGetValue`) backs the Avalonia Pointer Tool "What is this address?" lookup (#1026; AutoSearch + geometric lengths deferred).
+5. **PatchHardCodeScanner + CoreAsmMapCache** (Core, `IAsmMapCache`) — patch-scan hardcode detection (#1035): WF `MakeHardCodeWarning` + `CheckIFFast` tri-state gate; lazy (ClearCache invalidates only), wired per-ROM-load, lighting up Unit/Class/Item `[HardCoding]`. `GetAsmMapFile()`→`AsmMapSymbolFile` (asmmap_* reader) backs the Avalonia Pointer Tool "What is this address?" lookup (#1026; AutoSearch + geometric lengths deferred).
 
 Cache invalidation occurs on ROM modifications.
 

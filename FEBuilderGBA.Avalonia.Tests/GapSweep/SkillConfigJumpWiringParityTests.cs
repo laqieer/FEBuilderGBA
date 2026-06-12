@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// #895 — navigate-only SkillConfig Jump-button wiring parity tests.
+// #895 — SkillConfig Jump-button wiring parity tests.
 //
-// Mirrors the merged ImageMagicFEditorView.JumpEditor_Click (#894)
-// navigate-only pattern across the 5 SkillConfig views:
-//   - JumpToEditor_Click  → WindowManager.Instance.Open<ToolAnimationCreatorView>()
-//   - JumpToCombatArt_Click (FE8NVer3 only) → WindowManager.Instance.Open<PatchManagerView>()
+// #996 UPDATE: the 5 SkillConfig views' JumpToEditor_Click no longer opens the
+// Animation Creator blank/with-garbage. Skill-animation Creator seeding is NOT
+// yet supported (no populated/verifiable skill-animation editor context with the
+// available ROMs), so the handler now shows an HONEST "not yet supported" message
+// (#996 follow-up) instead of an empty/garbage Creator. JumpToCombatArt_Click
+// (FE8NVer3 only) → PatchManagerView is unchanged.
 //
 // These are Roslyn-static source-text assertions (no Avalonia head, no ROM):
-// each view's `.axaml.cs` JumpToEditor_Click body must now contain the
-// `WindowManager.Instance.Open<ToolAnimationCreatorView>` open call and must NO
-// LONGER contain a `Log.Debug` no-op for that handler. FE8NVer3's
-// JumpToCombatArt_Click must open PatchManagerView.
+// each view's `.axaml.cs` JumpToEditor_Click body must show the honest message
+// and must NOT open ToolAnimationCreatorView, and must NO LONGER contain a
+// `Log.Debug` no-op for that handler.
 //
 // NOTE: the NavigationTargets manifest / IssueRef KnownGap / button-wired
 // AutomationId tests already exist in the per-view parity files — this file
@@ -26,7 +27,7 @@ namespace FEBuilderGBA.Avalonia.Tests.GapSweep;
 public class SkillConfigJumpWiringParityTests
 {
     // -----------------------------------------------------------------
-    // JumpToEditor_Click → ToolAnimationCreatorView (all 5 views).
+    // JumpToEditor_Click → honest "not yet supported" message (#996).
     // -----------------------------------------------------------------
 
     [Theory]
@@ -35,13 +36,17 @@ public class SkillConfigJumpWiringParityTests
     [InlineData("SkillConfigFE8NVer3SkillView.axaml.cs")]
     [InlineData("SkillConfigFE8UCSkillSys09xView.axaml.cs")]
     [InlineData("SkillConfigSkillSystemView.axaml.cs")]
-    public void JumpToEditor_OpensAnimationCreator_NotLogDebugNoop(string viewFile)
+    public void JumpToEditor_ShowsNotSupportedMessage_NotBlankCreatorOpen(string viewFile)
     {
         string body = ExtractHandlerBody(ReadViewSource(viewFile), "JumpToEditor_Click");
 
-        // The body must now perform the navigate-only open via WindowManager.
-        Assert.Matches(@"WindowManager\.Instance\.Open<", body);
-        Assert.Contains("WindowManager.Instance.Open<ToolAnimationCreatorView>", body);
+        // #996: skill-animation Creator seeding is not supported — the handler must
+        // surface an honest ShowInfo message instead of opening a blank Creator.
+        Assert.Contains("ShowInfo", body);
+        Assert.Contains("not yet supported for Skill animations", body);
+
+        // It must NOT open the Animation Creator (would be blank/garbage).
+        Assert.DoesNotContain("Open<ToolAnimationCreatorView>", body);
 
         // The stub Log.Debug no-op must be gone from THIS handler.
         Assert.DoesNotContain("Log.Debug", body);
