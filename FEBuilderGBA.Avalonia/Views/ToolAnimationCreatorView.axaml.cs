@@ -31,6 +31,13 @@ namespace FEBuilderGBA.Avalonia.Views
         // unsubscribe before re-subscribing (and on close) to avoid leaks.
         EditableMapActionFrame? _previewTrackedFrame;
 
+        // #1116: when the --screenshot-all self-seed writes synthetic bytes into the
+        // LIVE ROM (palette + LZ77 OBJ + frame stream), it snapshots the overwritten
+        // span here and restores it on window close, so seeding the Animation Creator
+        // can't leak mutations into LATER editors' captures / patch-scans / table-scans
+        // (the harness reuses one ROM across all editors). Null when no seed happened.
+        (uint Addr, byte[] Orig)? _screenshotSeedRestore;
+
         public string ViewTitle => "Animation Creator";
         public bool IsLoaded => _vm.IsLoaded;
 
@@ -157,6 +164,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 _previewTrackedFrame.PropertyChanged -= OnTrackedFramePropertyChanged;
                 _previewTrackedFrame = null;
             }
+
+            // #1116: restore the bytes the --screenshot-all self-seed overwrote so
+            // the synthetic magic stream can't leak into later editors' captures /
+            // patch-scans / table-scans (the harness reuses one ROM). No undo — the
+            // seed wrote without undo, and this exactly reverses it.
+            if (_screenshotSeedRestore.HasValue && CoreState.ROM != null)
+            {
+                var (addr, orig) = _screenshotSeedRestore.Value;
+                if (addr + (uint)orig.Length <= (uint)(CoreState.ROM.Data?.Length ?? 0))
+                {
+                    for (int i = 0; i < orig.Length; i++)
+                        CoreState.ROM.write_u8(addr + (uint)i, orig[i]);
+                }
+            }
+            _screenshotSeedRestore = null;
+
             base.OnClosed(e);
         }
 
@@ -308,6 +331,24 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!(frameBase < objOffset && objOffset < palOffset)) return;
             if (palOffset + 0x20 > (uint)rom.Data.Length) return;
 
+            // Compute the LZ77 OBJ up front so the restore span (below) covers its
+            // exact length, and bail before ANY write if it won't fit.
+            byte[] raw = BuildRadialTiles(64, 64);
+            byte[] compressed = LZ77.compress(raw);
+            if (compressed.Length > (int)(palOffset - objOffset)) return;
+
+            // #1116: snapshot the ONE contiguous span we are about to overwrite
+            // [frameBase .. end-of-palette) BEFORE writing, so OnClosed can restore
+            // it byte-identical and keep --screenshot-all order-independent. The
+            // three regions sit within ~0x900 bytes of each other near the ROM tail,
+            // so a single span is small (~2.3 KB) and avoids per-region bookkeeping.
+            uint spanStart = frameBase; // frameBase < objOffset < palOffset (guarded)
+            uint spanEnd = Math.Max(palOffset + 0x20,
+                Math.Max(objOffset + (uint)compressed.Length, frameBase + 60));
+            uint spanLen = spanEnd - spanStart;
+            if (spanEnd > (uint)rom.Data.Length) return;
+            _screenshotSeedRestore = (spanStart, rom.getBinaryData(spanStart, spanLen));
+
             // Rainbow palette (RGB555 LE), index 0 dark so ring edges read clearly.
             for (int i = 0; i < 16; i++)
             {
@@ -333,10 +374,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 rom.write_u8(palOffset + (uint)(i * 2 + 1), (uint)((c >> 8) & 0xFF));
             }
 
-            // Radial-ring 64x64 4bpp OBJ, LZ77-compressed; bail if it won't fit.
-            byte[] raw = BuildRadialTiles(64, 64);
-            byte[] compressed = LZ77.compress(raw);
-            if (compressed.Length > (int)(palOffset - objOffset)) return;
+            // Radial-ring 64x64 4bpp OBJ, LZ77-compressed (computed + fit-checked above).
             for (int i = 0; i < compressed.Length; i++)
                 rom.write_u8(objOffset + (uint)i, compressed[i]);
 

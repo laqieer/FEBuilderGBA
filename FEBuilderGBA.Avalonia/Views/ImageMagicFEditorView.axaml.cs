@@ -809,7 +809,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<ToolAnimationCreatorView>();
                 view.InitFromMagicRom(AnimationTypeEnum.MagicAnime_FEEDitor, id, hint, frameDataAddr, isCsa: false);
             }
-            catch (Exception ex) { Log.Error("ImageMagicFEditorView.JumpEditor: {0}", ex.Message); }
+            // Core Log.Error is params string[] (string.Join, NO composite
+            // formatting) — a literal "{0}" would be logged verbatim, so use a
+            // single interpolated string with the full exception (#969 precedent).
+            catch (Exception ex) { Log.Error($"ImageMagicFEditorView.JumpEditor: {ex}"); }
         }
 
         void LinkInternet_Click(object? sender, PointerPressedEventArgs e)

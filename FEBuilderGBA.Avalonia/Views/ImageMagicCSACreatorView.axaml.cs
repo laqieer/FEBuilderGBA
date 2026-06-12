@@ -813,7 +813,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 var view = WindowManager.Instance.Open<ToolAnimationCreatorView>();
                 view.InitFromMagicRom(AnimationTypeEnum.MagicAnime_CSACreator, id, hint, frameDataAddr, isCsa: true);
             }
-            catch (Exception ex) { Log.Error("ImageMagicCSACreatorView.Editor_Click: {0}", ex.Message); }
+            // Core Log.Error is params string[] (string.Join, NO composite
+            // formatting) — a literal "{0}" would be logged verbatim, so use a
+            // single interpolated string with the full exception (#969 precedent).
+            catch (Exception ex) { Log.Error($"ImageMagicCSACreatorView.Editor_Click: {ex}"); }
         }
 
         static uint ParseHexText(string? text)
