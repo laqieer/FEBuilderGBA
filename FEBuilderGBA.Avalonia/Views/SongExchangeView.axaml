@@ -23,7 +23,8 @@
                 Name="OpenOtherButton" Content="Open Other ROM..." Click="OpenOtherRom_Click"
                 HorizontalAlignment="Left" />
 
-        <TextBlock Name="OtherRomLabel" Text="Other ROM: (none loaded)" Opacity="0.8" />
+        <TextBlock AutomationProperties.AutomationId="SongExchange_OtherRom_Label"
+                   Name="OtherRomLabel" Text="Other ROM: (none loaded)" Opacity="0.8" />
 
         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*" Margin="0,4,0,0">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Current ROM Songs (destination)" FontWeight="Bold" />
