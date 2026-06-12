@@ -423,10 +423,22 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
-                if (!U.isSafetyOffset(baseAddr)) return;
+                if (!U.isSafetyOffset(baseAddr, rom)) return;
                 uint dataSize = rom.RomInfo.portrait_datasize;
                 if (dataSize == 0) dataSize = 28;
-                uint addr = baseAddr + faceId.Value * dataSize;
+
+                // Compute the per-face address in ulong so a malformed/patch-added
+                // escape with a huge faceId can't wrap the uint, then validate the
+                // FINAL address (incl. the whole entry) is a safe in-bounds offset
+                // before navigating. Mirrors the NavigateToTextId safe-offset guard.
+                ulong addr64 = (ulong)baseAddr + (ulong)faceId.Value * dataSize;
+                ulong romLen = (ulong)(rom.Data?.Length ?? 0);
+                if (addr64 + dataSize > romLen || !U.isSafetyOffset((uint)addr64, rom))
+                {
+                    WriteStatusLabel.Text = R._("(Invalid portrait id in this text)");
+                    return;
+                }
+                uint addr = (uint)addr64;
 
                 if (rom.RomInfo.version == 6)
                     WindowManager.Instance.Navigate<ImagePortraitFE6View>(addr);

@@ -105,6 +105,17 @@ namespace FEBuilderGBA.Core.Tests
                 TextRichControlDecode.FindFirstPortraitFaceId("@0008@0010@0139@000D@0010@0100"));
         }
 
+        [Fact]
+        public void FindFirstPortraitFaceId_LargeArgument_ReturnsLargeFaceId()
+        {
+            // A malformed/patch escape can yield a large face id (here 0xFFFE-0x100 =
+            // 0xFEFE, just under the 0xFFFF visitor sentinel). The decode returns it
+            // faithfully; it is the JUMP HANDLER's job to overflow-guard the computed
+            // address (Copilot BOT finding 1) — this documents the out-of-range input
+            // that guard defends against.
+            Assert.Equal(0xFEFEu, TextRichControlDecode.FindFirstPortraitFaceId("@0008@0010@FFFE"));
+        }
+
         // ================================================================
         // LoadEscapeEntries / LoadEscapeCategories — never-throws + filter.
         // ================================================================
@@ -140,6 +151,37 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally
             {
+                CoreState.BaseDirectory = savedBase;
+            }
+        }
+
+        [Fact]
+        public void LoadEscapeEntries_PatchEscape_InfoOrderIsInfoThenFeditorAdv()
+        {
+            // WF parity (TextScriptFormCategorySelectForm.cs:76):
+            //   te.Info = t.Value.info + t.Value.feditorAdv  (info FIRST).
+            // Inject a patch escape via a fresh TextEscape and assert the appended
+            // entry's Info is "INFO" + "FEDITORADV", not the reverse.
+            string savedBase = CoreState.BaseDirectory;
+            var savedEscape = CoreState.TextEscape;
+            try
+            {
+                // No shipped config -> the only entry will be the patch escape.
+                CoreState.BaseDirectory = Path.GetTempPath();
+
+                var te = new TextEscape();
+                te.Add("@9990", "FEDITORADV", "INFO");
+                CoreState.TextEscape = te;
+
+                var entries = TextRichControlDecode.LoadEscapeEntries(true);
+                var patch = entries.Single(en => en.Code == "@9990");
+                Assert.Equal("INFO" + "FEDITORADV", patch.Info);
+                Assert.NotEqual("FEDITORADV" + "INFO", patch.Info);
+                Assert.Equal("", patch.Category);
+            }
+            finally
+            {
+                CoreState.TextEscape = savedEscape;
                 CoreState.BaseDirectory = savedBase;
             }
         }

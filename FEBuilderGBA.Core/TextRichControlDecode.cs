@@ -224,12 +224,15 @@ namespace FEBuilderGBA
 
                 // Patch-added escape sequences (WF appends Program.TextEscape's
                 // snapshot). Guard the cache being unwired (headless / early call).
+                // Info order is info + feditorAdv — exact WF parity with
+                // TextScriptFormCategorySelectForm.cs:76 (te.Info = t.Value.info +
+                // t.Value.feditorAdv).
                 var snapshot = CoreState.TextEscape?.GetAddEscapeMappingSnapshot();
                 if (snapshot != null)
                 {
                     foreach (var kv in snapshot)
                     {
-                        result.Add(new TextEscapeEntry(kv.Key, kv.Value.feditorAdv + kv.Value.info, ""));
+                        result.Add(new TextEscapeEntry(kv.Key, kv.Value.info + kv.Value.feditorAdv, ""));
                     }
                 }
             }

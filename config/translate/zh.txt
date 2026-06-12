@@ -21878,6 +21878,9 @@ ED 关系
 :(Visiting character — no fixed portrait to jump to)
 (访问角色 — 没有可跳转的固定头像)
 
+:(Invalid portrait id in this text)
+(此文本中的头像ID无效)
+
 :Select an escape code to insert
 选择要插入的转义代码
 

@@ -624,6 +624,31 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        // ---- #1108 (Copilot BOT finding 1): OnJumpToPortraitClick must compute the
+        // per-face address in ulong (no uint wrap) and validate the FINAL in-bounds
+        // address before navigating, so a malformed/patch escape with a huge faceId
+        // can't wrap the address or point outside the ROM. Driving the handler needs
+        // a Window + WindowManager + ROM (flaky headless), so this asserts the
+        // overflow-safe guard pattern is present in the handler source. ----
+        [Fact]
+        public void OnJumpToPortrait_Source_HasOverflowSafeAddressGuard()
+        {
+            string? repoRoot = FindRepoRoot();
+            if (repoRoot == null) return;
+            string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views", "TextViewerView.axaml.cs");
+            Assert.True(File.Exists(viewPath), $"TextViewerView.axaml.cs missing at {viewPath}");
+            string src = File.ReadAllText(viewPath);
+
+            // ulong arithmetic for the per-face address (no uint wrap).
+            Assert.Contains("ulong addr64", src);
+            // Final-address in-bounds guard (entry tail must stay inside the ROM)
+            // AND rom-aware safe-offset check before navigating.
+            Assert.Contains("addr64 + dataSize >", src);
+            Assert.Contains("U.isSafetyOffset((uint)addr64, rom)", src);
+            // Distinct honest status for the out-of-range case.
+            Assert.Contains("(Invalid portrait id in this text)", src);
+        }
+
         // ============================================================
         // #1028 Slice D — bad-char AntiHuffman routing (Copilot PR #1107 findings 1 & 2)
         //
