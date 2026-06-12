@@ -412,4 +412,70 @@ public class PointerToolAutoSearchTests : IClassFixture<RomFixture>
             || vm.AutoSearchSummary.StartsWith("Not found after"),
             $"Unexpected summary: '{vm.AutoSearchSummary}'");
     }
+
+    /// <summary>
+    /// #1118 bot review: when auto-tracking is DISABLED (AutoTrackingLevel == 0,
+    /// a single pass with no retry loop), the not-found summary must say
+    /// "Not found." — NOT "Not found after auto-tracking retry.". Loads an
+    /// all-zero synthetic target ROM (distinct from the source) so a real source
+    /// address deterministically does NOT resolve. Guard-skips without a ROM.
+    /// </summary>
+    [AvaloniaFact]
+    public void RunAutoSearch_NotFound_AutoTrackingDisabled_OmitsRetryWording()
+    {
+        if (!_fixture.IsAvailable || CoreState.ROM == null)
+        {
+            _output.WriteLine("No ROM available; skipping not-found-wording test.");
+            return;
+        }
+
+        // Write an all-zero synthetic target ROM (>= 0x400) to a temp file. It is
+        // a DIFFERENT ROM than the source (CoreState.ROM), so a source region
+        // containing ANY non-zero byte cannot appear in the all-zero target ->
+        // deterministic single-pass no-match.
+        var rom = CoreState.ROM;
+        const int Window = 0x100; // SizeTable[0] used by the single (level 0) pass.
+
+        // Find a source offset whose Window-byte block contains a non-zero byte
+        // (so it can never match the all-zero target). Almost any real-ROM offset
+        // qualifies; scan to be deterministic.
+        uint srcOffset = 0;
+        for (uint i = 0x400; i + (uint)Window < (uint)rom!.Data.Length; i += (uint)Window)
+        {
+            bool hasNonZero = false;
+            for (uint j = 0; j < (uint)Window; j++)
+            {
+                if (rom.Data[i + j] != 0) { hasNonZero = true; break; }
+            }
+            if (hasNonZero) { srcOffset = i; break; }
+        }
+        if (srcOffset == 0)
+        {
+            _output.WriteLine("Source ROM has no non-zero window; skipping.");
+            return;
+        }
+
+        string tempRom = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(), $"pointer-autosearch-nomatch-{System.Guid.NewGuid():N}.gba");
+        try
+        {
+            System.IO.File.WriteAllBytes(tempRom, new byte[0x1000]); // all-zero target
+
+            var vm = new PointerToolViewModel();
+            vm.Initialize();
+            vm.AutoTrackingLevel = 0;   // disable the retry loop -> single pass
+            vm.WarningLevel = 1;
+            vm.AddressInput = $"0x{(srcOffset + 0x08000000u):X08}";
+
+            var ex = Record.Exception(() => vm.LoadOtherRom(tempRom));
+            Assert.Null(ex);
+
+            // Single-pass no-match: the message must omit the retry wording.
+            Assert.Equal("Not found.", vm.AutoSearchSummary);
+        }
+        finally
+        {
+            try { System.IO.File.Delete(tempRom); } catch { /* best-effort cleanup */ }
+        }
+    }
 }

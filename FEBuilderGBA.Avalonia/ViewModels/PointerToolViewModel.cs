@@ -655,11 +655,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     catch (Exception ex) { Log.Error($"PointerToolViewModel.RunAutoSearch source asmmap: {ex}"); }
                 }
 
+                // Capture the decoded level once and reuse it for both the
+                // AutoSearch arg and the not-found message wording.
+                uint trackLevel = DecodeAutoTrackLevel();
+
                 AutoSearchResult result = PointerToolAutoSearchCore.AutoSearch(
                     rom.Data,
                     _otherRomData,
                     rawInput,
-                    DecodeAutoTrackLevel(),
+                    trackLevel,
                     sourceAsmMap,
                     UseAsmMap ? _otherRomAsmMap : null,
                     WarningLevel);
@@ -668,9 +672,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     // No accepted match: clear the cross-ROM fields so a prior
                     // RunSearch's baseline grep doesn't linger as a "result"
-                    // (Copilot bot Fix 4).
+                    // (Copilot bot Fix 4). The message reflects whether the retry
+                    // loop actually ran — trackLevel==0 is a single pass (no
+                    // auto-tracking), so don't claim "after auto-tracking retry".
                     ClearOtherRomFields();
-                    AutoSearchSummary = "Not found after auto-tracking retry.";
+                    AutoSearchSummary = trackLevel == 0
+                        ? "Not found."
+                        : "Not found after auto-tracking retry.";
                     return;
                 }
 
