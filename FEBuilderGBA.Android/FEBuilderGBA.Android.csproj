@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Avalonia.Android head skeleton for FEBuilderGBA (exploration epic #1070).
+
+    STATUS: authored exploration skeleton. This project is INTENTIONALLY NOT
+    part of FEBuilderGBA.sln. The `check.yml` CI builds the whole solution on
+    a windows-latest runner that does NOT have the `android` .NET workload
+    installed, so including this project in the .sln would break the required
+    `build` check. To work on it locally, install the workload and build the
+    csproj directly:
+
+        dotnet workload install android
+        dotnet build FEBuilderGBA.Android/FEBuilderGBA.Android.csproj
+
+    See docs/ANDROID.md for the full feasibility assessment, blockers, and the
+    phased path to a runnable Android app.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net9.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FEBuilderGBA.Android</RootNamespace>
+    <AssemblyName>FEBuilderGBA.Android</AssemblyName>
+    <ApplicationId>com.laqieer.febuildergba</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Avalonia Android head. Must match the Avalonia version used by
+         FEBuilderGBA.Avalonia (11.2.3) — mixing Avalonia major/minor versions
+         across heads is unsupported. -->
+    <PackageReference Include="Avalonia.Android" Version="11.2.3" />
+    <!-- CRITICAL native-version pin (#796/#798): the managed SkiaSharp MUST
+         match the native libSkiaSharp Avalonia bundles (2.88.x). A 3.x managed
+         package rejects the 2.88 native and crashes inside the Avalonia
+         process. The Android native assets package therefore ALSO pins 2.88.9
+         to stay byte-compatible with FEBuilderGBA.SkiaSharp.csproj. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Android" Version="2.88.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The shared Avalonia UI lives in FEBuilderGBA.Avalonia, which in turn
+         references FEBuilderGBA.Core + FEBuilderGBA.SkiaSharp. The WinForms
+         project (net9.0-windows) is NOT referenced and MUST never be — it is
+         not Android-capable. -->
+    <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" />
+  </ItemGroup>
+
+  <!--
+    config/ asset bundling is DEFERRED to a follow-up sub-issue. On desktop the
+    Avalonia project copies config/** loose beside the exe and Core reads it via
+    CoreState.BaseDirectory = AppDomain.CurrentDomain.BaseDirectory. That layout
+    does not exist inside an APK. The Android port must instead ship config/**
+    as <AndroidAsset> and extract it to Context.FilesDir on first run, then point
+    CoreState.BaseDirectory there. The line below is shown (commented) as the
+    intended shape but is NOT enabled, because without the first-run extraction
+    code the app would have no config to read.
+
+    <ItemGroup>
+      <AndroidAsset Include="..\config\**\*.*" Exclude="..\config\patch2\**" />
+    </ItemGroup>
+  -->
+</Project>

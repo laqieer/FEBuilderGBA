@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    FEBuilderGBA Android head manifest (exploration skeleton — epic #1070).
+
+    Single source of truth for identity/versioning is the csproj:
+      package      <- <ApplicationId> (com.laqieer.febuildergba)
+      versionCode  <- <ApplicationVersion>
+      versionName  <- <ApplicationDisplayVersion>
+    The .NET-for-Android build injects these into the merged manifest, so they
+    are intentionally NOT duplicated here (a hardcoded package / versionCode /
+    versionName would drift from the csproj).
+
+    minSdkVersion 21 (Android 5.0) is the floor for modern .NET for Android.
+    INTERNET is declared because the desktop app fetches FE-Repo / patch /
+    update resources over HTTP. INTERNET is a normal (install-time) permission —
+    it is granted at install and needs NO runtime prompt; a real port would
+    still apply a network-security-config / cleartext policy and surface its own
+    "download from the internet?" UX, but not Android runtime-permission prompts.
+
+    NOT declared (deferred to follow-up sub-issues): broad storage permissions.
+    ROM open/save on modern Android should go through the Storage Access
+    Framework (system file picker -> content URI -> stream) rather than
+    READ/WRITE_EXTERNAL_STORAGE, which is restricted under scoped storage.
+  -->
+  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="35" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <application android:label="FEBuilderGBA"></application>
+</manifest>

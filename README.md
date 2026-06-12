@@ -210,7 +210,7 @@ dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 Two distinct paths exist, both covered in detail in [docs/CROSS_PLATFORM.md → Running on Android](docs/CROSS_PLATFORM.md#running-on-android):
 
 - **Emulation (Gamenative/Winlator)** — run the Windows *desktop* build under Wine + Box86/Box64. User-side, **experimental / unsupported / community-tested**; try the Avalonia `win-x64` build first.
-- **Native Android app** — a separate port of the Avalonia GUI, tracked as exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). Not shipped.
+- **Native Android app** — a separate port of the Avalonia GUI, tracked as exploration epic [#1070](https://github.com/laqieer/FEBuilderGBA/issues/1070). Not shipped. See the evidence-backed feasibility assessment in [docs/ANDROID.md](docs/ANDROID.md) (Avalonia.Android lifetime, SkiaSharp native pin, SAF ROM access, `config/` bundling, the multi-window→single-activity gap) and the authored head skeleton in [`FEBuilderGBA.Android/`](FEBuilderGBA.Android/README.md).
 
 ### Architecture Diagram
 

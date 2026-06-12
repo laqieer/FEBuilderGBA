@@ -12,6 +12,10 @@ FEBuilderGBA.Core/obj/
 FEBuilderGBA.Avalonia/bin/
 FEBuilderGBA.Avalonia/obj/
 
+# Android head (Avalonia.Android skeleton, #1070) build outputs
+FEBuilderGBA.Android/bin/
+FEBuilderGBA.Android/obj/
+
 # Test build outputs
 FEBuilderGBA.Tests/bin/
 FEBuilderGBA.Tests/obj/
