@@ -8031,6 +8031,9 @@ AI用に登場人物のヒントを追加
 :(No portrait code in this text)
 (このテキストには顔画像コードがありません)
 
+:(Visiting character — no fixed portrait to jump to)
+(訪問キャラ — ジャンプ先の固定顔画像はありません)
+
 :Select an escape code to insert
 挿入するエスケープコードを選択
 

@@ -21875,6 +21875,9 @@ ED 关系
 :(No portrait code in this text)
 (此文本中没有头像代码)
 
+:(Visiting character — no fixed portrait to jump to)
+(访问角色 — 没有可跳转的固定头像)
+
 :Select an escape code to insert
 选择要插入的转义代码
 

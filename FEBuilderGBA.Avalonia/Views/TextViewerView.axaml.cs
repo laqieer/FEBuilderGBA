@@ -346,9 +346,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Edit tab → "Insert Escape Code" (#1108). Open the
         /// <see cref="TextScriptCategorySelectView"/> modally; on a non-null result
-        /// insert the chosen <c>@XXXX</c> escape Code at the EditTextBox caret. The
-        /// existing edit pipeline (<see cref="OnEditTextChanged"/>) handles display
-        /// conversion + re-validation. Mirrors WinForms <c>TextForm.SelectEscapeText</c>.
+        /// REPLACE any active selection with the chosen <c>@XXXX</c> escape Code (or
+        /// insert at the caret when nothing is selected) — matching WinForms
+        /// <c>TextForm.SelectEscapeText</c> (<c>editor.SelectedText = insertString</c>).
+        /// The existing edit pipeline (<see cref="OnEditTextChanged"/>) handles
+        /// display conversion + re-validation.
         /// </summary>
         async void OnInsertEscapeCodeClick(object? sender, RoutedEventArgs e)
         {
@@ -359,27 +361,30 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? code = await dlg.ShowDialog<string?>(this);
                 if (string.IsNullOrEmpty(code)) return;
 
-                // Insert the raw @XXXX Code at the caret. SelectedText replaces the
-                // current selection (or inserts at the caret when nothing is
-                // selected) — the same behavior as the WF rich-text insert.
-                int caret = EditTextBox.CaretIndex;
+                // Replace the selected range with the Code (WF SelectedText parity);
+                // when there's no selection, SelectionStart == SelectionEnd so this
+                // degenerates to a caret-position insert. All indices bounds-guarded.
                 string current = EditTextBox.Text ?? "";
-                if (caret < 0 || caret > current.Length) caret = current.Length;
-                EditTextBox.Text = current.Substring(0, caret) + code + current.Substring(caret);
-                EditTextBox.CaretIndex = caret + code.Length;
+                int selStart = Math.Min(EditTextBox.SelectionStart, EditTextBox.SelectionEnd);
+                int selEnd = Math.Max(EditTextBox.SelectionStart, EditTextBox.SelectionEnd);
+                if (selStart < 0 || selStart > current.Length) selStart = current.Length;
+                if (selEnd < selStart || selEnd > current.Length) selEnd = selStart;
+                EditTextBox.Text = current.Substring(0, selStart) + code + current.Substring(selEnd);
+                EditTextBox.CaretIndex = selStart + code.Length;
                 // OnEditTextChanged fires from the Text assignment and re-validates.
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.OnInsertEscapeCodeClick failed: {0}", ex.Message);
+                Log.Error("TextViewerView.OnInsertEscapeCodeClick failed: " + ex.Message);
             }
         }
 
         /// <summary>
         /// Edit tab → "Jump to Portrait" (#1108). Decode the current edit text and
-        /// jump to the portrait editor positioned at the first displayed face. The
-        /// <c>0xFFFF</c> visitor sentinel (and "no portrait code") shows a status
-        /// note instead of navigating. Mirrors WinForms
+        /// jump to the portrait editor positioned at the first displayed face. Two
+        /// non-navigating cases are reported distinctly: no portrait code at all
+        /// (null) vs. the <c>0xFFFF</c> visitor sentinel (a runtime-resolved
+        /// "visited character" with no fixed portrait). Mirrors WinForms
         /// <c>TextForm.TextListSpShowCharLabel_Click</c> + the
         /// <c>UnitEditorView.JumpToPortrait_Click</c> address pattern.
         /// </summary>
@@ -392,9 +397,16 @@ namespace FEBuilderGBA.Avalonia.Views
 
                 string escaped = TextViewerViewModel.ConvertFEditorToEscape(EditTextBox.Text ?? "");
                 uint? faceId = TextRichControlDecode.FindFirstPortraitFaceId(escaped);
-                if (faceId == null || faceId == TextRichControlDecode.VisitorSentinel)
+                if (faceId == null)
                 {
                     WriteStatusLabel.Text = R._("(No portrait code in this text)");
+                    return;
+                }
+                if (faceId == TextRichControlDecode.VisitorSentinel)
+                {
+                    // Visited character: resolved by the game at runtime, so there
+                    // is no fixed portrait to open.
+                    WriteStatusLabel.Text = R._("(Visiting character — no fixed portrait to jump to)");
                     return;
                 }
 
@@ -411,7 +423,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("TextViewerView.OnJumpToPortraitClick failed: {0}", ex.Message);
+                Log.Error("TextViewerView.OnJumpToPortraitClick failed: " + ex.Message);
             }
         }
 

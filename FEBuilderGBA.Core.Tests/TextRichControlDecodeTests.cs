@@ -75,6 +75,36 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x5Au, TextRichControlDecode.FindFirstPortraitFaceId(text));
         }
 
+        // ---- Face-id-0 boundary (Copilot PR #1128 finding): the strict WF-faithful
+        // parser splits a Display step only when code2 > 0x100, so @0010@0100 (face
+        // id 0) is dropped by the parser and recovered by the post-loop fallback. ----
+
+        [Fact]
+        public void FindFirstPortraitFaceId_FaceIdZeroBoundary_ReturnsZero()
+        {
+            // @0010@0100 = face id 0. The parser drops it (code2 > 0x100 is strict);
+            // the fallback recovers exactly this boundary -> 0u.
+            Assert.Equal(0u, TextRichControlDecode.FindFirstPortraitFaceId("@0008@0010@0100"));
+        }
+
+        [Fact]
+        public void FindFirstPortraitFaceId_FaceIdOne_StillParsesViaParser()
+        {
+            // @0010@0101 = face id 1. code2 (0x101) > 0x100, so the PARSER produces a
+            // Display step -> 1u (regression guard: fallback must not be needed here).
+            Assert.Equal(1u, TextRichControlDecode.FindFirstPortraitFaceId("@0008@0010@0101"));
+        }
+
+        [Fact]
+        public void FindFirstPortraitFaceId_WellFormedFirst_ThenZeroBoundary_ParserWins()
+        {
+            // A well-formed @0010@0139 (-> 0x39) precedes a @0010@0100 boundary. The
+            // parser finds the first display (0x39); the fallback ONLY fires when the
+            // parser found nothing, so it must NOT override the parser's first-display.
+            Assert.Equal(0x39u,
+                TextRichControlDecode.FindFirstPortraitFaceId("@0008@0010@0139@000D@0010@0100"));
+        }
+
         // ================================================================
         // LoadEscapeEntries / LoadEscapeCategories — never-throws + filter.
         // ================================================================

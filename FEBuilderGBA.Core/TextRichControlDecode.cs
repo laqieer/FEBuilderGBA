@@ -56,6 +56,14 @@ namespace FEBuilderGBA
         /// as <c>false</c>: the portrait display code is position-independent so
         /// the variable-length opcode table is not needed for this lookup, and
         /// keeping it off keeps the decode simple and total. Never throws.
+        ///
+        /// <para>The face-id-0 boundary <c>@0010@0100</c> is handled by a minimal
+        /// post-loop fallback, NOT the parser: <see cref="ConversationScriptParser"/>
+        /// is a verbatim port of WF <c>TextForm.ParseTextList</c> which splits a
+        /// Display step only when <c>code2 &gt; 0x100</c> (STRICT), so the exact
+        /// boundary <c>@0010@0100</c> (face id 0) never produces a Display step and
+        /// would otherwise be dropped. The fallback fires ONLY when the parser found
+        /// no portrait at all, and matches ONLY this single boundary sequence.</para>
         /// </summary>
         /// <param name="decodedText">Decoded dialogue text with escape codes in
         /// the <c>@XXXX</c> hex-literal form.</param>
@@ -101,11 +109,62 @@ namespace FEBuilderGBA
                     // skip it and keep scanning for a well-formed one.
                 }
 
+                // Parser found no portrait. The strict WF-faithful split
+                // (`code2 > 0x100`) drops the single face-id-0 boundary
+                // `@0010@0100`. Recover ONLY that exact sequence here (bounded,
+                // case-insensitive on the hex digits, optional \r\n between the
+                // two codes to mirror the parser's skip_linebreak). Match -> 0u.
+                if (HasFaceIdZeroDisplaySequence(decodedText))
+                {
+                    return 0u;
+                }
+
                 return null;
             }
             catch (Exception)
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Bounded, never-throws scan for the literal face-id-0 Display sequence
+        /// <c>@0010</c> immediately followed by <c>@0100</c> (an optional
+        /// <c>\r\n</c> allowed between them, matching the parser's
+        /// <c>skip_linebreak</c>). Hex digits are matched case-insensitively. This
+        /// is the ONLY boundary the strict <c>code2 &gt; 0x100</c> parser split
+        /// drops; it does NOT match the visitor (<c>@FFFF</c>) or any other code.
+        /// </summary>
+        static bool HasFaceIdZeroDisplaySequence(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return false;
+            }
+
+            int from = 0;
+            while (true)
+            {
+                int idx = text.IndexOf("@0010", from, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0)
+                {
+                    return false;
+                }
+
+                int next = idx + 5; // length of "@0010"
+                // Optional CR/LF between the display code and its argument.
+                if (next + 1 < text.Length && text[next] == '\r' && text[next + 1] == '\n')
+                {
+                    next += 2;
+                }
+
+                if (next + 5 <= text.Length &&
+                    string.Compare(text, next, "@0100", 0, 5, StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                    return true;
+                }
+
+                from = idx + 5;
             }
         }
 
