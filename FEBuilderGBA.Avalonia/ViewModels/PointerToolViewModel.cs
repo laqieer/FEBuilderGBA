@@ -649,5 +649,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             SearchResults = result;
             return result;
         }
+
+        /// <summary>
+        /// Screenshot-mode seed (#1026): run LookupAddressType on a known
+        /// ASM/MAP-symbol address so the captured PNG shows a resolved symbol
+        /// name. Picks the FIRST symbol the loaded asmmap exposes (via the
+        /// symbol map's smallest key) so it works on any version; falls back to
+        /// the seeded cross-ROM address when no symbol map / no symbol.
+        /// ONLY call from the --screenshot-all path.
+        /// </summary>
+        public void SeedDemoWhatIs()
+        {
+            try
+            {
+                var asmMap = CoreState.AsmMapFileAsmCache?.GetAsmMapFile();
+                if (asmMap is AsmMapSymbolFile sym)
+                {
+                    uint firstKey = sym.FirstKeyForScreenshot();   // smallest key
+                    if (firstKey != U.NOT_FOUND)
+                    {
+                        AddressInput = $"0x{firstKey:X08}";
+                        LookupAddressType(firstKey);
+                        return;
+                    }
+                }
+                // Fallback: describe whatever address SeedDemoCrossRom seeded.
+                if (uint.TryParse((AddressInput ?? "").Replace("0x", "").Trim(),
+                        System.Globalization.NumberStyles.HexNumber, null, out uint a))
+                    LookupAddressType(a);
+            }
+            catch { /* screenshot seed must never throw */ }
+        }
     }
 }

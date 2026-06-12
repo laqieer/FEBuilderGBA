@@ -245,6 +245,11 @@ namespace FEBuilderGBA
             }
             return _sortedKeys[i - 1];
         }
+
+        /// <summary>Smallest symbol pointer in the map, or U.NOT_FOUND when empty.
+        /// Used only by the Pointer Tool screenshot seed (#1026).</summary>
+        public uint FirstKeyForScreenshot()
+            => _sortedKeys.Count > 0 ? _sortedKeys[0] : U.NOT_FOUND;
     }
 
     /// <summary>

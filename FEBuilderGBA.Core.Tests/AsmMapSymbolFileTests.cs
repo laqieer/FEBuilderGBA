@@ -207,6 +207,22 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void FirstKeyForScreenshot_ReturnsSmallestKey_AndNotFoundOnEmpty()
+        {
+            // Empty map -> NOT_FOUND (screenshot seed falls back).
+            var empty = new AsmMapSymbolFile(null);
+            Assert.Equal(U.NOT_FOUND, empty.FirstKeyForScreenshot());
+
+            // Two-key map (deliberately out of ascending input order) -> the
+            // smallest key, since FirstKeyForScreenshot reads the sorted list.
+            var rom = MakeFe8uRom();
+            var map = FromLines(rom,
+                "08002000\tSymHigh",
+                "08001000\tSymLow");
+            Assert.Equal(0x08001000u, map.FirstKeyForScreenshot());
+        }
+
+        [Fact]
         public void RealRom_FE8U_ResolvesKnownEventEngineFunction()
         {
             // GUARDED: requires roms/FE8U.gba next to the .sln. Skips cleanly
