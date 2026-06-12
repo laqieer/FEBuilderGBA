@@ -836,6 +836,7 @@ namespace FEBuilderGBA
             if (resultAddr > data.Length) return U.NOT_FOUND;
             if (needPointer)
             {
+                if (resultAddr + 4 > (uint)data.Length) return U.NOT_FOUND;   // u32 reads 4 bytes — never throw
                 if (U.isPointerOrNULL(U.u32(data, resultAddr))) return resultAddr;
                 return GrepPatternMatchEnd(data, need, isSkip, resultAddr, end, blocksize, plus, needPointer);
             }
@@ -854,6 +855,7 @@ namespace FEBuilderGBA
             if (resultAddr > data.Length) return U.NOT_FOUND;
             if (needPointer)
             {
+                if (resultAddr + 4 > (uint)data.Length) return U.NOT_FOUND;   // u32 reads 4 bytes — never throw
                 if (U.isPointerOrNULL(U.u32(data, resultAddr))) return resultAddr;
                 return GrepPatternMatchBegin(data, need, isSkip, resultAddr + blocksize, end, blocksize, plus, needPointer);
             }

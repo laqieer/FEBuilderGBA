@@ -477,6 +477,57 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, result);
         }
 
+        // ---- 14b. needPointer +4 bounds guard (PR #1117 Copilot review) -----
+        // The "never throws" contract requires that when needPointer==true and the
+        // computed resultAddr lands within the last 3 bytes of the buffer, the u32
+        // read (which consumes 4 bytes) does NOT run off the end. The old
+        // `if (resultAddr > data.Length)` guard is insufficient because u32 reads
+        // 4 bytes; the added `resultAddr + 4 > data.Length` guard fixes it.
+
+        [Fact]
+        public void GrepPatternMatchEnd_NeedPointer_NearEndOfBuffer_ReturnsNotFound_NoThrow()
+        {
+            // N = 0x200. Plant a unique 2-byte pattern at N-4 = 0x1FC.
+            // resultAddr = grepresult + need.Length + plus = 0x1FC + 2 + 0 = 0x1FE = N-2.
+            // resultAddr <= data.Length (0x1FE <= 0x200) so the old guard passes,
+            // but resultAddr + 4 = 0x202 > 0x200 -> u32 would read bytes 0x1FE..0x201
+            // (IndexOutOfRange) without the new +4 guard. Must return NOT_FOUND, no throw.
+            const int N = 0x200;
+            byte[] data = new byte[N];
+            data[N - 4] = 0xA3;
+            data[N - 3] = 0x5C;
+            bool[] mask = new bool[2]; // exact match
+            // GrepPatternMatch can match at i = N-4 since N-4 <= data.Length - need.Length.
+            var ex = Record.Exception(() =>
+            {
+                uint result = U.GrepPatternMatchEnd(data, new byte[] { 0xA3, 0x5C }, mask, 0x100, 0, 1, 0, true);
+                Assert.Equal(U.NOT_FOUND, result);
+            });
+            Assert.Null(ex);
+        }
+
+        [Fact]
+        public void GrepPatternMatchBegin_NeedPointer_NearEndOfBuffer_ReturnsNotFound_NoThrow()
+        {
+            // N = 0x200. Plant a unique 2-byte pattern at the very end, N-2 = 0x1FE.
+            // resultAddr = grepresult + plus = 0x1FE + 0 = 0x1FE = N-2.
+            // resultAddr <= data.Length (0x1FE <= 0x200) so the old guard passes,
+            // but resultAddr + 4 = 0x202 > 0x200 -> u32 would read bytes 0x1FE..0x201
+            // (IndexOutOfRange) without the new +4 guard. Must return NOT_FOUND, no throw.
+            const int N = 0x200;
+            byte[] data = new byte[N];
+            data[N - 2] = 0xB7;
+            data[N - 1] = 0x9E;
+            bool[] mask = new bool[2]; // exact match
+            // GrepPatternMatch matches at i = N-2 (N-2 <= data.Length - need.Length = 0x1FE).
+            var ex = Record.Exception(() =>
+            {
+                uint result = U.GrepPatternMatchBegin(data, new byte[] { 0xB7, 0x9E }, mask, 0x100, 0, 1, 0, true);
+                Assert.Equal(U.NOT_FOUND, result);
+            });
+            Assert.Null(ex);
+        }
+
         // ---- 15. $FGREP file-content search (no real file -> NOT_FOUND) ----
 
         [Fact]
