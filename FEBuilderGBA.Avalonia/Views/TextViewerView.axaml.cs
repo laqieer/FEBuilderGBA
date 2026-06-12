@@ -29,6 +29,10 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
+            // Rich-text outgoing jumps (#1108): insert an escape code via the
+            // category-select dialog, and jump to the portrait the text displays.
+            InsertEscapeCodeButton.Click += OnInsertEscapeCodeClick;
+            JumpToPortraitButton.Click += OnJumpToPortraitClick;
             EditTextBox.TextChanged += OnEditTextChanged;
             // Translate tab (#947 bug #12): populate the from/to language combos
             // from the shared ToolTranslateROM arrays + wire the Translate button.
@@ -336,6 +340,114 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("TextViewerView.OnAddReferenceClick failed: {0}", ex.Message);
                 ReferencesTabStatusLabel.Text = R._("Error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Edit tab → "Insert Escape Code" (#1108). Open the
+        /// <see cref="TextScriptCategorySelectView"/> modally; on a non-null result
+        /// convert the chosen <c>@XXXX</c> escape Code to the editor's FEditor-DISPLAY
+        /// form (WF <c>TextForm.SelectEscapeText</c> → <c>ConvertEscapeText</c> →
+        /// <c>ConvertEscapeToFEditor</c>, TextForm.cs:2585) BEFORE inserting, then
+        /// REPLACE any active selection with it (or insert at the caret when nothing
+        /// is selected). The EditTextBox is loaded/written in FEditor-display form
+        /// (<see cref="TextViewerViewModel.LoadText"/> sets DecodedText via
+        /// ConvertEscapeToFEditor; the write path reverse-converts via
+        /// ConvertFEditorToEscape), so inserting the display token keeps the editor in
+        /// a single consistent format. Re-using <see cref="TextDisplayFormatter"/> is
+        /// the same source of truth the VM renders DecodedText with. A code with no
+        /// FEditor mapping (e.g. a patch escape) round-trips to itself and inserts
+        /// as-is — still consistent with how the editor renders unmapped codes. The
+        /// existing edit pipeline (<see cref="OnEditTextChanged"/>) re-validates.
+        /// </summary>
+        async void OnInsertEscapeCodeClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dlg = new TextScriptCategorySelectView();
+                dlg.Init(isDetail: true);
+                string? code = await dlg.ShowDialog<string?>(this);
+                if (string.IsNullOrEmpty(code)) return;
+
+                // Convert the raw @XXXX code to the editor's FEditor-display form
+                // (WF ConvertEscapeText parity) so the editor stays single-format.
+                string display = TextDisplayFormatter.ConvertEscapeToFEditor(code);
+
+                // Replace the selected range with the display token (WF SelectedText
+                // parity); when there's no selection, SelectionStart == SelectionEnd
+                // so this degenerates to a caret-position insert. Indices bounds-guarded.
+                string current = EditTextBox.Text ?? "";
+                int selStart = Math.Min(EditTextBox.SelectionStart, EditTextBox.SelectionEnd);
+                int selEnd = Math.Max(EditTextBox.SelectionStart, EditTextBox.SelectionEnd);
+                if (selStart < 0 || selStart > current.Length) selStart = current.Length;
+                if (selEnd < selStart || selEnd > current.Length) selEnd = selStart;
+                EditTextBox.Text = current.Substring(0, selStart) + display + current.Substring(selEnd);
+                EditTextBox.CaretIndex = selStart + display.Length;
+                // OnEditTextChanged fires from the Text assignment and re-validates.
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.OnInsertEscapeCodeClick failed: " + ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Edit tab → "Jump to Portrait" (#1108). Decode the current edit text and
+        /// jump to the portrait editor positioned at the first displayed face. Two
+        /// non-navigating cases are reported distinctly: no portrait code at all
+        /// (null) vs. the <c>0xFFFF</c> visitor sentinel (a runtime-resolved
+        /// "visited character" with no fixed portrait). Mirrors WinForms
+        /// <c>TextForm.TextListSpShowCharLabel_Click</c> + the
+        /// <c>UnitEditorView.JumpToPortrait_Click</c> address pattern.
+        /// </summary>
+        void OnJumpToPortraitClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+
+                string escaped = TextViewerViewModel.ConvertFEditorToEscape(EditTextBox.Text ?? "");
+                uint? faceId = TextRichControlDecode.FindFirstPortraitFaceId(escaped);
+                if (faceId == null)
+                {
+                    WriteStatusLabel.Text = R._("(No portrait code in this text)");
+                    return;
+                }
+                if (faceId == TextRichControlDecode.VisitorSentinel)
+                {
+                    // Visited character: resolved by the game at runtime, so there
+                    // is no fixed portrait to open.
+                    WriteStatusLabel.Text = R._("(Visiting character — no fixed portrait to jump to)");
+                    return;
+                }
+
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                if (!U.isSafetyOffset(baseAddr, rom)) return;
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) dataSize = 28;
+
+                // Compute the per-face address in ulong so a malformed/patch-added
+                // escape with a huge faceId can't wrap the uint, then validate the
+                // FINAL address (incl. the whole entry) is a safe in-bounds offset
+                // before navigating. Mirrors the NavigateToTextId safe-offset guard.
+                ulong addr64 = (ulong)baseAddr + (ulong)faceId.Value * dataSize;
+                ulong romLen = (ulong)(rom.Data?.Length ?? 0);
+                if (addr64 + dataSize > romLen || !U.isSafetyOffset((uint)addr64, rom))
+                {
+                    WriteStatusLabel.Text = R._("(Invalid portrait id in this text)");
+                    return;
+                }
+                uint addr = (uint)addr64;
+
+                if (rom.RomInfo.version == 6)
+                    WindowManager.Instance.Navigate<ImagePortraitFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ImagePortraitView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.OnJumpToPortraitClick failed: " + ex.Message);
             }
         }
 

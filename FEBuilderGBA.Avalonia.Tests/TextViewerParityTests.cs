@@ -451,14 +451,15 @@ namespace FEBuilderGBA.Avalonia.Tests
         {
             // #1028 Slice A wired the References-tab "Add Reference" modal-dialog
             // jump (OnAddReference -> TextRefAddDialogView). #1028 Slice D wires the
-            // bad-character popup jump (OnWriteText -> TextBadCharPopupView) since
-            // PatchDetection.SearchAntiHuffmanPatch now exists. The remaining 3 WF
-            // jumps stay blocked on Core extractions (see the manifest file).
+            // bad-character popup jump (OnWriteText -> TextBadCharPopupView).
+            // #1108 wires the final 2 rich-text jumps: Insert Escape Code
+            // (OnInsertEscapeCode -> TextScriptCategorySelectView) and Jump to
+            // Portrait (OnJumpToPortrait -> ImagePortraitView / ImagePortraitFE6View).
             var vm = new TextViewerViewModel();
             Assert.IsAssignableFrom<INavigationTargetSource>(vm);
             var targets = ((INavigationTargetSource)vm).GetNavigationTargets();
             Assert.NotNull(targets);
-            Assert.Equal(2, targets.Count);
+            Assert.Equal(5, targets.Count);
 
             var addRef = targets.Single(t => t.CommandName == "OnAddReference");
             Assert.Equal(typeof(TextRefAddDialogView), addRef.TargetViewType);
@@ -467,6 +468,185 @@ namespace FEBuilderGBA.Avalonia.Tests
             var badChar = targets.Single(t => t.CommandName == "OnWriteText");
             Assert.Equal(typeof(TextBadCharPopupView), badChar.TargetViewType);
             Assert.Null(badChar.TargetAddress);
+
+            // #1108 — Insert Escape Code (modal dialog, null target address).
+            var insertEscape = targets.Single(t => t.CommandName == "OnInsertEscapeCode");
+            Assert.Equal(typeof(TextScriptCategorySelectView), insertEscape.TargetViewType);
+            Assert.Null(insertEscape.TargetAddress);
+
+            // #1108 — Jump to Portrait: two rows (non-FE6 + FE6), both with the
+            // dynamic-address sentinel 0u (computed at click time).
+            var portraitTargets = targets.Where(t => t.CommandName == "OnJumpToPortrait").ToList();
+            Assert.Equal(2, portraitTargets.Count);
+            Assert.Contains(portraitTargets, t => t.TargetViewType == typeof(ImagePortraitView));
+            Assert.Contains(portraitTargets, t => t.TargetViewType == typeof(ImagePortraitFE6View));
+            Assert.All(portraitTargets, t => Assert.Equal(0u, t.TargetAddress));
+        }
+
+        // #1108 — the new Edit-tab rich-text jump buttons exist and are wired.
+        [AvaloniaFact]
+        public void View_Hosts_InsertEscapeCode_Button_AndWired()
+        {
+            var view = new TextViewerView();
+            var btn = FindByAutomationId<Button>(view, "TextViewer_InsertEscapeCode_Button");
+            Assert.NotNull(btn);
+            var handler = typeof(TextViewerView).GetMethod(
+                "OnInsertEscapeCodeClick",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.NotNull(handler);
+        }
+
+        [AvaloniaFact]
+        public void View_Hosts_JumpToPortrait_Button_AndWired()
+        {
+            var view = new TextViewerView();
+            var btn = FindByAutomationId<Button>(view, "TextViewer_JumpToPortrait_Button");
+            Assert.NotNull(btn);
+            var handler = typeof(TextViewerView).GetMethod(
+                "OnJumpToPortraitClick",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            Assert.NotNull(handler);
+        }
+
+        // #1108 — TextScriptCategorySelectViewModel loads REAL categories (not the
+        // old 8 hardcoded stubs) and the end-to-end reverse-convert + decode yields
+        // the correct face id.
+        // Point CoreState.BaseDirectory at the test assembly output dir, where the
+        // csproj copies config/ (incl. config/data/text_*.txt). Independent of ROM
+        // presence so these VM tests are deterministic on CI runners without a ROM.
+        static string WithConfigBaseDirectory(out string saved)
+        {
+            saved = CoreState.BaseDirectory;
+            string assemblyDir = System.IO.Path.GetDirectoryName(
+                System.Reflection.Assembly.GetExecutingAssembly().Location) ?? ".";
+            CoreState.BaseDirectory = assemblyDir;
+            return assemblyDir;
+        }
+
+        [Fact]
+        public void TextScriptCategorySelectVm_Init_LoadsRealCategories_NotStub()
+        {
+            WithConfigBaseDirectory(out string saved);
+            try
+            {
+                var vm = new TextScriptCategorySelectViewModel();
+                vm.Init(true);
+                Assert.True(vm.IsLoaded);
+                // Real config has the "show all" {} category + {DISPLAY},
+                // {POSITION}, etc. — never the old stub "Dialogue Text"/... labels.
+                Assert.NotEmpty(vm.Categories);
+                Assert.DoesNotContain("Dialogue Text", vm.Categories);
+                Assert.DoesNotContain("System Text", vm.Categories);
+                // Escape entries loaded; the LoadFace display code (@0010) is present.
+                Assert.NotEmpty(vm.EscapeEntries);
+                Assert.Contains(vm.EscapeEntries, en => en.Code == "@0010");
+            }
+            finally
+            {
+                CoreState.BaseDirectory = saved;
+            }
+        }
+
+        [Fact]
+        public void TextScriptCategorySelectVm_NonDetail_FiltersMoveLoadAndPosition()
+        {
+            WithConfigBaseDirectory(out string saved);
+            try
+            {
+                var vm = new TextScriptCategorySelectViewModel();
+                vm.Init(false);
+                // {MOVE_LOAD} entries (e.g. @0010 LoadFace, @0011 ClearFace) and
+                // {POSITION} entries are filtered out of the escape list in non-detail.
+                Assert.DoesNotContain(vm.EscapeEntries, en => en.Category == "{MOVE_LOAD}");
+                Assert.DoesNotContain(vm.EscapeEntries, en => en.Category == "{POSITION}");
+            }
+            finally
+            {
+                CoreState.BaseDirectory = saved;
+            }
+        }
+
+        [Fact]
+        public void EndToEnd_ConvertFEditorToEscape_Then_FindFirstPortraitFaceId()
+        {
+            // FEditor-display form -> @XXXX escape -> decode -> face id 0x39.
+            string escaped = TextViewerViewModel.ConvertFEditorToEscape("[OpenFarLeft][LoadFace][0x139]");
+            uint? faceId = TextRichControlDecode.FindFirstPortraitFaceId(escaped);
+            Assert.Equal(0x39u, faceId);
+        }
+
+        // ---- #1108 (Copilot PR #1128 re-review): the Insert Escape Code handler
+        // inserts the FEditor-DISPLAY form of the chosen code, NOT the raw @XXXX,
+        // so the EditTextBox stays in a single consistent format (WF SelectEscapeText
+        // -> ConvertEscapeText -> ConvertEscapeToFEditor). These document/guard the
+        // formatter contract the handler now relies on. ----
+
+        [Fact]
+        public void ConvertEscapeToFEditor_MapsKnownCode_ToBracketToken()
+        {
+            // The picker yields a raw @XXXX code; the handler converts it via the
+            // SAME formatter the VM renders DecodedText with before inserting.
+            // @0080@0004 maps to the [LoadOverworldFaces] display token.
+            var prev = CoreState.TextEscape;
+            try
+            {
+                CoreState.TextEscape ??= new TextEscape();
+                string display = TextDisplayFormatter.ConvertEscapeToFEditor("@0080@0004");
+                Assert.NotEqual("@0080@0004", display);
+                Assert.Equal("[LoadOverworldFaces]", display);
+                // The bracket token is what the handler actually inserts.
+                Assert.StartsWith("[", display);
+                Assert.EndsWith("]", display);
+            }
+            finally
+            {
+                CoreState.TextEscape = prev;
+            }
+        }
+
+        [Fact]
+        public void InsertEscape_RoundTrip_DisplayThenReverse_PreservesCode()
+        {
+            // Insert (-> display) then the write path (ConvertFEditorToEscape) must
+            // recover the original @XXXX code: insert+write is lossless.
+            var prev = CoreState.TextEscape;
+            try
+            {
+                CoreState.TextEscape ??= new TextEscape();
+                string code = "@0080@0004";
+                string display = TextDisplayFormatter.ConvertEscapeToFEditor(code);
+                string back = TextViewerViewModel.ConvertFEditorToEscape(display);
+                Assert.Equal(code, back);
+            }
+            finally
+            {
+                CoreState.TextEscape = prev;
+            }
+        }
+
+        // ---- #1108 (Copilot BOT finding 1): OnJumpToPortraitClick must compute the
+        // per-face address in ulong (no uint wrap) and validate the FINAL in-bounds
+        // address before navigating, so a malformed/patch escape with a huge faceId
+        // can't wrap the address or point outside the ROM. Driving the handler needs
+        // a Window + WindowManager + ROM (flaky headless), so this asserts the
+        // overflow-safe guard pattern is present in the handler source. ----
+        [Fact]
+        public void OnJumpToPortrait_Source_HasOverflowSafeAddressGuard()
+        {
+            string? repoRoot = FindRepoRoot();
+            if (repoRoot == null) return;
+            string viewPath = Path.Combine(repoRoot, "FEBuilderGBA.Avalonia", "Views", "TextViewerView.axaml.cs");
+            Assert.True(File.Exists(viewPath), $"TextViewerView.axaml.cs missing at {viewPath}");
+            string src = File.ReadAllText(viewPath);
+
+            // ulong arithmetic for the per-face address (no uint wrap).
+            Assert.Contains("ulong addr64", src);
+            // Final-address in-bounds guard (entry tail must stay inside the ROM)
+            // AND rom-aware safe-offset check before navigating.
+            Assert.Contains("addr64 + dataSize >", src);
+            Assert.Contains("U.isSafetyOffset((uint)addr64, rom)", src);
+            // Distinct honest status for the out-of-range case.
+            Assert.Contains("(Invalid portrait id in this text)", src);
         }
 
         // ============================================================

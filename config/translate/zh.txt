@@ -21866,6 +21866,30 @@ ED 关系
 :Add Reference
 添加引用信息
 
+:Insert Escape Code
+插入转义代码
+
+:Jump to Portrait
+跳转到头像
+
+:(No portrait code in this text)
+(此文本中没有头像代码)
+
+:(Visiting character — no fixed portrait to jump to)
+(访问角色 — 没有可跳转的固定头像)
+
+:(Invalid portrait id in this text)
+(此文本中的头像ID无效)
+
+:Select an escape code to insert
+选择要插入的转义代码
+
+:Category
+类别
+
+:Escape Code
+转义代码
+
 :(out-of-scope)
 (超出范围)
 
