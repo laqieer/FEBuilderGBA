@@ -1,17 +1,28 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="FEBuilderGBA.Avalonia.Views.TextScriptCategorySelectView"
-        Title="Text Script Category Select" Width="1185" Height="847"
+        Title="Text Script Category Select" Width="700" Height="500"
         WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="Manual">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-  <DockPanel Margin="16">
-    <TextBlock DockPanel.Dock="Top" Text="Select Text Script Category" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
-    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
-      <Button AutomationProperties.AutomationId="TextScriptCategorySelect_OK_Button" Content="OK" Width="80" Click="OK_Click" />
-      <Button AutomationProperties.AutomationId="TextScriptCategorySelect_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
-    </StackPanel>
-    <ListBox AutomationProperties.AutomationId="TextScriptCategorySelect_Category_List" Name="CategoryList" />
-  </DockPanel>
+    <DockPanel Margin="16">
+      <TextBlock DockPanel.Dock="Top" Text="Select an escape code to insert" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+      <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0" HorizontalAlignment="Right">
+        <Button AutomationProperties.AutomationId="TextScriptCategorySelect_OK_Button" Content="OK" Width="80" Click="OK_Click" />
+        <Button AutomationProperties.AutomationId="TextScriptCategorySelect_Cancel_Button" Content="Cancel" Width="80" Click="Cancel_Click" />
+      </StackPanel>
+      <Grid ColumnDefinitions="*,2*" MinHeight="360">
+        <DockPanel Grid.Column="0" Margin="0,0,8,0">
+          <TextBlock DockPanel.Dock="Top" Text="Category" FontWeight="SemiBold" Margin="0,0,0,4" />
+          <ListBox AutomationProperties.AutomationId="TextScriptCategorySelect_Category_List"
+                   Name="CategoryList" SelectionChanged="CategoryList_SelectionChanged" />
+        </DockPanel>
+        <DockPanel Grid.Column="1" Margin="8,0,0,0">
+          <TextBlock DockPanel.Dock="Top" Text="Escape Code" FontWeight="SemiBold" Margin="0,0,0,4" />
+          <ListBox AutomationProperties.AutomationId="TextScriptCategorySelect_Escape_List"
+                   Name="EscapeList" DoubleTapped="EscapeList_DoubleTapped" />
+        </DockPanel>
+      </Grid>
+    </DockPanel>
   </ScrollViewer>
 </Window>

@@ -301,10 +301,10 @@ SongTrack is no longer a pure blocker because MIDI import/export exists in curre
 | EDStaffRoll | 30% | No image rendering/import/export |
 | EDSensekiComment | 40% | No unit names, no text preview |
 | TextBadCharPopup | 25% | Minimal shell |
-| TextScriptCategorySelect | 25% | Hardcoded stub |
+| TextScriptCategorySelect | **60%** | ~~Hardcoded stub~~ **FIXED (#1108)** — loads real text-escape + text-category tables (`TextRichControlDecode.LoadEscapeEntries`/`LoadEscapeCategories`); two-pane category→escape picker; OK returns the chosen `@XXXX` Code. Wired from the Text Editor's "Insert Escape Code" button |
 
 ### TextForm (55%)
-The text editor has read/write, TSV export/import, dialogue preview with control code highlighting, content search across all texts, individual Huffman write-back, and (per issue #349) cross-reference display backed by `TextRefTableRegistry` covering units/classes/items, map settings, support talks, event haiku, battle talks, sound room, world map (FE8), ED screens, OP class demo, status menus, dictionary entries (FE8), final-chapter lines + senseki comments (FE7), and map-terrain names (US/EU). Missing: validation warnings; recursive event-script scanning and patch-defined text-ID parameters remain deferred (tracked separately).
+The text editor has read/write, TSV export/import, dialogue preview with control code highlighting, content search across all texts, individual Huffman write-back, and (per issue #349) cross-reference display backed by `TextRefTableRegistry` covering units/classes/items, map settings, support talks, event haiku, battle talks, sound room, world map (FE8), ED screens, OP class demo, status menus, dictionary entries (FE8), final-chapter lines + senseki comments (FE7), and map-terrain names (US/EU). Per #1108 the two remaining rich-text outgoing jumps are wired via a minimal Core decode (no `EventScript.DisAssemble` port): an Edit-tab "Insert Escape Code" button opens `TextScriptCategorySelectView` (real escape/category tables), and a "Jump to Portrait" button decodes the first displayed face (`TextRichControlDecode.FindFirstPortraitFaceId`, built on `ConversationScriptParser`) and jumps to `ImagePortraitView` / `ImagePortraitFE6View`. Missing: validation warnings; recursive event-script scanning and patch-defined text-ID parameters remain deferred (tracked separately).
 
 ---
 

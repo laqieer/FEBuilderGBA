@@ -8022,6 +8022,24 @@ AI用に登場人物のヒントを追加
 :Add Reference
 参照情報の追加
 
+:Insert Escape Code
+エスケープコードの挿入
+
+:Jump to Portrait
+顔画像へジャンプ
+
+:(No portrait code in this text)
+(このテキストには顔画像コードがありません)
+
+:Select an escape code to insert
+挿入するエスケープコードを選択
+
+:Category
+カテゴリ
+
+:Escape Code
+エスケープコード
+
 :(out-of-scope)
 (範囲外)
 

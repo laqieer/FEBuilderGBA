@@ -29,6 +29,10 @@ namespace FEBuilderGBA.Avalonia.Views
             InitializeComponent();
             TextList.SelectedAddressChanged += OnTextSelected;
             WriteTextButton.Click += OnWriteTextClick;
+            // Rich-text outgoing jumps (#1108): insert an escape code via the
+            // category-select dialog, and jump to the portrait the text displays.
+            InsertEscapeCodeButton.Click += OnInsertEscapeCodeClick;
+            JumpToPortraitButton.Click += OnJumpToPortraitClick;
             EditTextBox.TextChanged += OnEditTextChanged;
             // Translate tab (#947 bug #12): populate the from/to language combos
             // from the shared ToolTranslateROM arrays + wire the Translate button.
@@ -336,6 +340,78 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 Log.Error("TextViewerView.OnAddReferenceClick failed: {0}", ex.Message);
                 ReferencesTabStatusLabel.Text = R._("Error: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Edit tab → "Insert Escape Code" (#1108). Open the
+        /// <see cref="TextScriptCategorySelectView"/> modally; on a non-null result
+        /// insert the chosen <c>@XXXX</c> escape Code at the EditTextBox caret. The
+        /// existing edit pipeline (<see cref="OnEditTextChanged"/>) handles display
+        /// conversion + re-validation. Mirrors WinForms <c>TextForm.SelectEscapeText</c>.
+        /// </summary>
+        async void OnInsertEscapeCodeClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dlg = new TextScriptCategorySelectView();
+                dlg.Init(isDetail: true);
+                string? code = await dlg.ShowDialog<string?>(this);
+                if (string.IsNullOrEmpty(code)) return;
+
+                // Insert the raw @XXXX Code at the caret. SelectedText replaces the
+                // current selection (or inserts at the caret when nothing is
+                // selected) — the same behavior as the WF rich-text insert.
+                int caret = EditTextBox.CaretIndex;
+                string current = EditTextBox.Text ?? "";
+                if (caret < 0 || caret > current.Length) caret = current.Length;
+                EditTextBox.Text = current.Substring(0, caret) + code + current.Substring(caret);
+                EditTextBox.CaretIndex = caret + code.Length;
+                // OnEditTextChanged fires from the Text assignment and re-validates.
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.OnInsertEscapeCodeClick failed: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Edit tab → "Jump to Portrait" (#1108). Decode the current edit text and
+        /// jump to the portrait editor positioned at the first displayed face. The
+        /// <c>0xFFFF</c> visitor sentinel (and "no portrait code") shows a status
+        /// note instead of navigating. Mirrors WinForms
+        /// <c>TextForm.TextListSpShowCharLabel_Click</c> + the
+        /// <c>UnitEditorView.JumpToPortrait_Click</c> address pattern.
+        /// </summary>
+        void OnJumpToPortraitClick(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ROM rom = CoreState.ROM;
+                if (rom?.RomInfo == null) return;
+
+                string escaped = TextViewerViewModel.ConvertFEditorToEscape(EditTextBox.Text ?? "");
+                uint? faceId = TextRichControlDecode.FindFirstPortraitFaceId(escaped);
+                if (faceId == null || faceId == TextRichControlDecode.VisitorSentinel)
+                {
+                    WriteStatusLabel.Text = R._("(No portrait code in this text)");
+                    return;
+                }
+
+                uint baseAddr = rom.p32(rom.RomInfo.portrait_pointer);
+                if (!U.isSafetyOffset(baseAddr)) return;
+                uint dataSize = rom.RomInfo.portrait_datasize;
+                if (dataSize == 0) dataSize = 28;
+                uint addr = baseAddr + faceId.Value * dataSize;
+
+                if (rom.RomInfo.version == 6)
+                    WindowManager.Instance.Navigate<ImagePortraitFE6View>(addr);
+                else
+                    WindowManager.Instance.Navigate<ImagePortraitView>(addr);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TextViewerView.OnJumpToPortraitClick failed: {0}", ex.Message);
             }
         }
 
