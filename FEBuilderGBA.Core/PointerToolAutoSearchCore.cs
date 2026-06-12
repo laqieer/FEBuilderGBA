@@ -58,20 +58,26 @@ namespace FEBuilderGBA
     /// </summary>
     public static class PointerToolAutoSearchCore
     {
-        // WF auto-tracking widening tables.
+        // WF auto-tracking widening tables — both VERBATIM from
+        // FEBuilderGBA/PointerToolForm.Designer.cs.
         //
-        // SlideTable is VERBATIM WF (PointerToolForm SlideComboBox values):
-        //   { 0, 2, 4, 6, 8, 0xC, 0x10, 0x14 }.
-        //
-        // SizeTable is APPROXIMATE: the WF designer populates the
-        // TestMatchDataSizeComboBox text values and AutoSearch widens by setting
-        // SelectedIndex = deepSearch (0,1,2,...). The exact designer strings could
-        // not be confirmed from source, so this uses a monotonically-decreasing
-        // set matching the documented WF shape (index 0 = 0x20 = "default 32 bytes"
-        // per the WF AutoSearch comment, then narrower windows). The ALGORITHM
-        // SHAPE — widen the search by shrinking the match window across deepSearch
-        // iterations — is what matters; the precise byte counts are a tuning knob.
-        static readonly int[] SizeTable = { 0x20, 0x18, 0x10, 0x0C, 0x08 };
+        // SizeTable is the TestMatchDataSizeComboBox.Items (lines 472-493),
+        // parsed by WF minusAtoH (hex value, dropping the "=NNNbyte" suffix):
+        //   "100=512byte","FF=256byte","80=128byte","60=96byte","40=64byte",
+        //   "30=48byte","20=32byte","1E=30byte","1C=28byte","1A=26byte",
+        //   "18=24byte","16=22byte","14=20byte","12=18byte","10=16byte",
+        //   "0E=14byte","0C=12byte","0A=10byte","08=8byte","06=6byte","04=4byte".
+        // WF AutoSearch resets TestMatchDataSizeComboBox.SelectedIndex = 0
+        // (= 0x100 = 512 bytes — the "default 32 bytes" code comment in WF is
+        // misleading) and then widens the search by setting SelectedIndex =
+        // deepSearch (1,2,3…), so the match WINDOW SHRINKS across iterations.
+        // This helper indexes the table by deepSearch identically.
+        static readonly int[] SizeTable =
+        {
+            0x100, 0xFF, 0x80, 0x60, 0x40, 0x30, 0x20, 0x1E, 0x1C, 0x1A,
+            0x18, 0x16, 0x14, 0x12, 0x10, 0x0E, 0x0C, 0x0A, 0x08, 0x06, 0x04,
+        };
+        // SlideTable is the SlideComboBox.Items (lines 380-388), verbatim.
         static readonly int[] SlideTable = { 0, 2, 4, 6, 8, 0xC, 0x10, 0x14 };
 
         const int SEARCH_PUSH_MAX = 0x10 * 2;

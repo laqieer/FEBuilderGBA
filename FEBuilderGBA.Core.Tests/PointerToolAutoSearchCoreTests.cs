@@ -220,6 +220,54 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.toPointer(0x554u), outAddr);
         }
 
+        // ---- 6b: large-window disambiguation (#1118 Copilot review) ----------
+        //
+        // Proves the match WINDOW SIZE is load-bearing: a SHORT prefix exists at
+        // an earlier WRONG target offset (a decoy), but the full WF-sized window
+        // uniquely resolves the CORRECT target. This is exactly what the verbatim
+        // WF SizeTable (index 0 = 0x100 = 512 bytes, widening by SHRINKING) buys
+        // — a wide window rejects the short-prefix decoy.
+
+        [Fact]
+        public void FindOtherROMData_LargeWindowDisambiguatesShortPrefixDecoy()
+        {
+            // Source: a distinctive 0x40-byte block at offset 0x400. The first 6
+            // bytes are a common prefix; the full 0x40 bytes are unique.
+            var block = new byte[0x40];
+            for (int i = 0; i < block.Length; i++) block[i] = (byte)(0xC0 + i);
+            byte[] prefix6 = { block[0], block[1], block[2], block[3], block[4], block[5] };
+
+            var sourceData = new byte[0x1000];
+            var targetData = new byte[0x1000];
+            Array.Copy(block, 0, sourceData, 0x400, block.Length);
+
+            // Decoy: the 6-byte prefix at an EARLIER even offset (0x200), followed
+            // by DIFFERENT bytes so the FULL 0x40 window does NOT match here.
+            Array.Copy(prefix6, 0, targetData, 0x200, prefix6.Length);
+            for (int i = prefix6.Length; i < 0x40; i++) targetData[0x200 + i] = (byte)(0x10 + i);
+
+            // Correct target: the FULL unique 0x40-byte block at a LATER even
+            // offset (0x900).
+            Array.Copy(block, 0, targetData, 0x900, block.Length);
+
+            // Large window (0x40) rejects the short-prefix decoy and resolves to
+            // the full-block target at 0x900.
+            bool rBig = PointerToolAutoSearchCore.FindOtherROMData(
+                sourceData, targetData, 0x08000400u, slide: 0, testMatchSize: 0x40,
+                grepPattern: false, isCodeType: false, out uint bigAddr, out uint _);
+            Assert.True(rBig);
+            Assert.Equal(U.toPointer(0x900u), bigAddr);
+
+            // Tiny window (6) matches the decoy at 0x200 first — proving the
+            // window size is load-bearing. Deterministic: U.Grep (blocksize 2)
+            // scans even offsets ascending and 0x200 < 0x900 both hold the prefix.
+            bool rTiny = PointerToolAutoSearchCore.FindOtherROMData(
+                sourceData, targetData, 0x08000400u, slide: 0, testMatchSize: 6,
+                grepPattern: false, isCodeType: false, out uint tinyAddr, out uint _);
+            Assert.True(rTiny);
+            Assert.Equal(U.toPointer(0x200u), tinyAddr);
+        }
+
         // ---- 7: AutoSearch no-match ------------------------------------------
 
         [Fact]
