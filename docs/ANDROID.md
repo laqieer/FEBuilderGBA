@@ -261,8 +261,8 @@ not promise Android from "Avalonia supports Android" alone.
    (#2), config extraction (#3), and SAF ROM I/O (#4) — enough to open a ROM and
    show one editor on a device.
 3. **Phase C — make it usable.** Touch UX adaptation (larger hit targets,
-   phone/tablet layouts, touch-friendly numeric entry replacing the ~1,939
-   `NumericUpDown` spinners and the desktop menu bar), then the Skia parity smoke
+   phone/tablet layouts, touch-friendly numeric entry replacing the ~2,300
+   `NumericUpDown` spinner usages and the desktop menu bar), then the Skia parity smoke
    test (#5) and a CI/APK job (#6).
 
 Until Phase A lands, the `FEBuilderGBA.Android/` skeleton stands as an authored,

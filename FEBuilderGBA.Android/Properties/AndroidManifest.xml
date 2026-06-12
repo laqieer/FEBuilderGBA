@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="1.0">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <!--
     FEBuilderGBA Android head manifest (exploration skeleton — epic #1070).
+
+    Single source of truth for identity/versioning is the csproj:
+      package      <- <ApplicationId> (com.laqieer.febuildergba)
+      versionCode  <- <ApplicationVersion>
+      versionName  <- <ApplicationDisplayVersion>
+    The .NET-for-Android build injects these into the merged manifest, so they
+    are intentionally NOT duplicated here (a hardcoded package / versionCode /
+    versionName would drift from the csproj).
 
     minSdkVersion 21 (Android 5.0) is the floor for modern .NET for Android.
     INTERNET is declared because the desktop app fetches FE-Repo / patch /
