@@ -559,28 +559,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
-        /// Mirror of WF <c>PointerToolForm.WhatIsButton_Click</c> at the
-        /// gap-sweep scope (#438). Returns a human-readable hint describing
-        /// the address. The full WF lookup path queries
-        /// <c>Program.AsmMapFileAsmCache.GetAsmMapFile()</c> +
-        /// <c>asmMap.SearchNear</c>; the Core <see cref="IAsmMapCache"/>
-        /// abstraction does not yet expose <c>GetAsmMapFile</c> /
-        /// <c>SearchNear</c>, so AV returns a structured "address+pointer"
-        /// summary derived from the WF logic. Extending IAsmMapCache to
-        /// expose the asm-map surface is tracked as a follow-up for the
-        /// PointerTool full-behaviour port.
+        /// Mirror of WF <c>PointerToolForm.WhatIsButton_Click</c> (#1026).
+        /// Returns a human-readable hint describing the address: the region
+        /// class (ROM / EWRAM / IWRAM / unknown) PLUS, when the loaded ASM/MAP
+        /// symbol table resolves the address, the nearest symbol name.
+        ///
+        /// <para>The symbol lookup queries
+        /// <c>CoreState.AsmMapFileAsmCache.GetAsmMapFile()</c> (the
+        /// cross-platform <see cref="AsmMapSymbolFile"/> built by
+        /// <see cref="CoreAsmMapCache"/>, or the full WF <c>AsmMapFile</c> when
+        /// run under WinForms). On an EXACT pointer match it appends
+        /// <c>p.ToStringInfo()</c>; otherwise it walks <c>SearchNear</c> and, if
+        /// the address falls inside the nearest symbol's span, appends
+        /// "<c>base+offset(0xHEX) name</c>" — verbatim WF
+        /// <c>WhatIsButton_Click</c> formatting.</para>
+        ///
+        /// <para>Null-safe: with no cache or no symbol map (headless / empty
+        /// ASM-map) it returns the region hint only and never throws. Full WF
+        /// <c>AutoSearch</c> behavioural parity (auto-tracking retry,
+        /// source/target LDR-map symmetry, ASM-map name search) remains a
+        /// documented follow-up; this method covers the "What is this address?"
+        /// symbol-name resolution only.</para>
         /// </summary>
         public string LookupAddressType(uint addr)
         {
-            // Classify the address according to WF's runtime semantics:
-            // - GBA pointer (0x08xxxxxx): is_ROMPointer.
-            // - Small numeric (< 0xA00): is_RAMPointer or constant.
-            // - 0x02000000 / 0x03000000 RAM regions.
-            //
-            // The output mirrors what WF shows in the "address type" message
-            // box. When the asm-map surface lands in Core (follow-up), this
-            // method gains the SearchNear path.
+            // WF: pointer = U.toPointer(addr); addr = U.toOffset(addr).
             uint pointer = U.toPointer(addr);
+            uint offsetAddr = U.toOffset(addr);
+
             string regionHint;
             if (U.isPointer(pointer))
             {
@@ -600,7 +606,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 regionHint = "unknown region";
             }
 
-            string result = $"Address 0x{addr:X08} (pointer 0x{pointer:X08}): {regionHint}.";
+            // Resolve the nearest ASM/MAP symbol name (mirrors WF
+            // PointerToolForm.WhatIsButton_Click). Null-safe at every step.
+            string symbol = "";
+            try
+            {
+                var cache = CoreState.AsmMapFileAsmCache;
+                var asmMap = cache?.GetAsmMapFile();
+                if (asmMap != null)
+                {
+                    if (asmMap.TryGetValue(pointer, out var p) && p != null)
+                    {
+                        symbol = p.ToStringInfo();
+                    }
+                    else
+                    {
+                        uint near = asmMap.SearchNear(pointer);
+                        if (near != U.NOT_FOUND
+                            && asmMap.TryGetValue(near, out p)
+                            && p != null
+                            && pointer < (ulong)near + p.Length)
+                        {
+                            uint off = pointer - near;
+                            symbol = $"{U.To0xHexString(U.toOffset(near))}+{off}(0x{off:X}) {p.ToStringInfo()}";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // A symbol lookup must never crash the UI thread. Log and fall
+                // back to the region hint only.
+                Log.Error($"PointerToolViewModel.LookupAddressType: {ex}");
+                symbol = "";
+            }
+
+            string result = $"Address 0x{offsetAddr:X08} (pointer 0x{pointer:X08}): {regionHint}.";
+            if (symbol.Length > 0)
+            {
+                result += $" Symbol: {symbol}";
+            }
             SearchResults = result;
             return result;
         }

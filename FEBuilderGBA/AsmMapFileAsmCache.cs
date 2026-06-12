@@ -274,6 +274,12 @@ namespace FEBuilderGBA
 
         }
 
+        // Explicit IAsmMapCache.GetAsmMapFile() (#1026) — routes the Core
+        // interface call to the real WF AsmMapFile (the full symbol pipeline),
+        // not the interface default null. WF AsmMapFile already implements
+        // IAsmMapFile (TryGetValue + SearchNear), so the cast is implicit.
+        IAsmMapFile IAsmMapCache.GetAsmMapFile() => this.GetAsmMapFile();
+
         public AsmMapFile GetAsmMapFile(bool rebuild = false)
         {
             if (Program.ROM.RomInfo.version == 0)

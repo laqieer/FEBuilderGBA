@@ -27,6 +27,14 @@ namespace FEBuilderGBA
         readonly bool[] _item = new bool[256];
         bool _dirty = true;
 
+        // ---- ASM/MAP symbol table (#1026) ----
+        // Built lazily + SEPARATELY from the hardcode arrays under its own dirty
+        // flag, so a hardcode rescan never pays the symbol-parse cost and vice
+        // versa. Backs IAsmMapCache.GetAsmMapFile() for the Pointer Tool
+        // "What is this address?" lookup.
+        AsmMapSymbolFile _symbolMap;
+        bool _symbolDirty = true;
+
         /// <summary>
         /// The ROM this cache scans. Captured at construction so a cache wired for
         /// a previous ROM never scans a later one (each ROM load creates a new
@@ -51,6 +59,38 @@ namespace FEBuilderGBA
             lock (_lock)
             {
                 _dirty = true;
+                _symbolDirty = true;
+            }
+        }
+
+        /// <summary>
+        /// Return the lazily-built ASM/MAP symbol table (#1026). The symbol map
+        /// is parsed once on the first call after a dirty mark, under the lock,
+        /// SEPARATELY from the hardcode arrays (it never touches
+        /// <see cref="EnsureScannedNoLock"/>). On a parse fault a non-null EMPTY
+        /// map is cached so callers (the Pointer Tool) never re-throw and simply
+        /// resolve no symbol.
+        /// </summary>
+        public IAsmMapFile GetAsmMapFile()
+        {
+            lock (_lock)
+            {
+                if (_symbolDirty || _symbolMap == null)
+                {
+                    try
+                    {
+                        _symbolMap = new AsmMapSymbolFile(_rom);
+                    }
+                    catch
+                    {
+                        // AsmMapSymbolFile's ctor is documented never-throw, but
+                        // be defensive: leave a non-null empty map so the next
+                        // call doesn't keep re-parsing / re-throwing.
+                        _symbolMap = new AsmMapSymbolFile(null);
+                    }
+                    _symbolDirty = false;
+                }
+                return _symbolMap;
             }
         }
 
