@@ -346,11 +346,19 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Edit tab → "Insert Escape Code" (#1108). Open the
         /// <see cref="TextScriptCategorySelectView"/> modally; on a non-null result
-        /// REPLACE any active selection with the chosen <c>@XXXX</c> escape Code (or
-        /// insert at the caret when nothing is selected) — matching WinForms
-        /// <c>TextForm.SelectEscapeText</c> (<c>editor.SelectedText = insertString</c>).
-        /// The existing edit pipeline (<see cref="OnEditTextChanged"/>) handles
-        /// display conversion + re-validation.
+        /// convert the chosen <c>@XXXX</c> escape Code to the editor's FEditor-DISPLAY
+        /// form (WF <c>TextForm.SelectEscapeText</c> → <c>ConvertEscapeText</c> →
+        /// <c>ConvertEscapeToFEditor</c>, TextForm.cs:2585) BEFORE inserting, then
+        /// REPLACE any active selection with it (or insert at the caret when nothing
+        /// is selected). The EditTextBox is loaded/written in FEditor-display form
+        /// (<see cref="TextViewerViewModel.LoadText"/> sets DecodedText via
+        /// ConvertEscapeToFEditor; the write path reverse-converts via
+        /// ConvertFEditorToEscape), so inserting the display token keeps the editor in
+        /// a single consistent format. Re-using <see cref="TextDisplayFormatter"/> is
+        /// the same source of truth the VM renders DecodedText with. A code with no
+        /// FEditor mapping (e.g. a patch escape) round-trips to itself and inserts
+        /// as-is — still consistent with how the editor renders unmapped codes. The
+        /// existing edit pipeline (<see cref="OnEditTextChanged"/>) re-validates.
         /// </summary>
         async void OnInsertEscapeCodeClick(object? sender, RoutedEventArgs e)
         {
@@ -361,16 +369,20 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? code = await dlg.ShowDialog<string?>(this);
                 if (string.IsNullOrEmpty(code)) return;
 
-                // Replace the selected range with the Code (WF SelectedText parity);
-                // when there's no selection, SelectionStart == SelectionEnd so this
-                // degenerates to a caret-position insert. All indices bounds-guarded.
+                // Convert the raw @XXXX code to the editor's FEditor-display form
+                // (WF ConvertEscapeText parity) so the editor stays single-format.
+                string display = TextDisplayFormatter.ConvertEscapeToFEditor(code);
+
+                // Replace the selected range with the display token (WF SelectedText
+                // parity); when there's no selection, SelectionStart == SelectionEnd
+                // so this degenerates to a caret-position insert. Indices bounds-guarded.
                 string current = EditTextBox.Text ?? "";
                 int selStart = Math.Min(EditTextBox.SelectionStart, EditTextBox.SelectionEnd);
                 int selEnd = Math.Max(EditTextBox.SelectionStart, EditTextBox.SelectionEnd);
                 if (selStart < 0 || selStart > current.Length) selStart = current.Length;
                 if (selEnd < selStart || selEnd > current.Length) selEnd = selStart;
-                EditTextBox.Text = current.Substring(0, selStart) + code + current.Substring(selEnd);
-                EditTextBox.CaretIndex = selStart + code.Length;
+                EditTextBox.Text = current.Substring(0, selStart) + display + current.Substring(selEnd);
+                EditTextBox.CaretIndex = selStart + display.Length;
                 // OnEditTextChanged fires from the Text assignment and re-validates.
             }
             catch (Exception ex)

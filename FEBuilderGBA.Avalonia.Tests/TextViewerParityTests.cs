@@ -575,6 +575,55 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Equal(0x39u, faceId);
         }
 
+        // ---- #1108 (Copilot PR #1128 re-review): the Insert Escape Code handler
+        // inserts the FEditor-DISPLAY form of the chosen code, NOT the raw @XXXX,
+        // so the EditTextBox stays in a single consistent format (WF SelectEscapeText
+        // -> ConvertEscapeText -> ConvertEscapeToFEditor). These document/guard the
+        // formatter contract the handler now relies on. ----
+
+        [Fact]
+        public void ConvertEscapeToFEditor_MapsKnownCode_ToBracketToken()
+        {
+            // The picker yields a raw @XXXX code; the handler converts it via the
+            // SAME formatter the VM renders DecodedText with before inserting.
+            // @0080@0004 maps to the [LoadOverworldFaces] display token.
+            var prev = CoreState.TextEscape;
+            try
+            {
+                CoreState.TextEscape ??= new TextEscape();
+                string display = TextDisplayFormatter.ConvertEscapeToFEditor("@0080@0004");
+                Assert.NotEqual("@0080@0004", display);
+                Assert.Equal("[LoadOverworldFaces]", display);
+                // The bracket token is what the handler actually inserts.
+                Assert.StartsWith("[", display);
+                Assert.EndsWith("]", display);
+            }
+            finally
+            {
+                CoreState.TextEscape = prev;
+            }
+        }
+
+        [Fact]
+        public void InsertEscape_RoundTrip_DisplayThenReverse_PreservesCode()
+        {
+            // Insert (-> display) then the write path (ConvertFEditorToEscape) must
+            // recover the original @XXXX code: insert+write is lossless.
+            var prev = CoreState.TextEscape;
+            try
+            {
+                CoreState.TextEscape ??= new TextEscape();
+                string code = "@0080@0004";
+                string display = TextDisplayFormatter.ConvertEscapeToFEditor(code);
+                string back = TextViewerViewModel.ConvertFEditorToEscape(display);
+                Assert.Equal(code, back);
+            }
+            finally
+            {
+                CoreState.TextEscape = prev;
+            }
+        }
+
         // ============================================================
         // #1028 Slice D — bad-char AntiHuffman routing (Copilot PR #1107 findings 1 & 2)
         //
