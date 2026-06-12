@@ -427,6 +427,80 @@ public class ToolAnimationCreatorViewModelInitTests
     }
 
     // ----------------------------------------------------------------
+    // CountMagicFrames — probe without opening a window (#1116)
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void CountMagicFrames_EmptyStream_ReturnsZero()
+    {
+        // First record is a 0x80 terminator → zero 0x86 frames.
+        byte[] data = new byte[0x1000];
+        uint baseAddr = 0x210;
+        data[baseAddr + 3] = 0x80; // terminator at the very first record
+
+        var rom = new ROM();
+        rom.SwapNewROMDataDirect(data);
+
+        ROM? prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            int count = ToolAnimationCreatorViewViewModel.CountMagicFrames(
+                U.toPointer(baseAddr), isCsa: false);
+            Assert.Equal(0, count);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void CountMagicFrames_TwoFrames_ReturnsTwo()
+    {
+        // Two FEditor 0x86 frames (28-byte stride) + 0x80 terminator.
+        byte[] data = new byte[0x1000];
+        uint baseAddr = 0x210;
+
+        WriteU16(data, baseAddr + 0, 3);
+        data[baseAddr + 3] = 0x86;
+        WriteU32(data, baseAddr + 4,  0x08001234u);
+        WriteU32(data, baseAddr + 20, 0x080056ABu);
+
+        uint off1 = baseAddr + 28;
+        WriteU16(data, off1 + 0, 7);
+        data[off1 + 3] = 0x86;
+        WriteU32(data, off1 + 4,  0x08009ABCu);
+        WriteU32(data, off1 + 20, 0x0800DEF0u);
+
+        data[off1 + 28 + 3] = 0x80; // terminator
+
+        var rom = new ROM();
+        rom.SwapNewROMDataDirect(data);
+
+        ROM? prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = rom;
+            int count = ToolAnimationCreatorViewViewModel.CountMagicFrames(
+                U.toPointer(baseAddr), isCsa: false);
+            Assert.Equal(2, count);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void CountMagicFrames_NullRom_ReturnsZero()
+    {
+        ROM? prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            int count = ToolAnimationCreatorViewViewModel.CountMagicFrames(
+                U.toPointer(0x210), isCsa: false);
+            Assert.Equal(0, count);
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // ----------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------
 

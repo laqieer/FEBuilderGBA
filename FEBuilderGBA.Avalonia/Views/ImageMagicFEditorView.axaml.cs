@@ -797,11 +797,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     CoreState.Services?.ShowInfo(R._("Frame-data pointer 0x{0:X} is outside the ROM.", frameDataAddr));
                     return;
                 }
+                // Probe FIRST — do NOT open a blank Creator on an empty/terminator
+                // stream (#1116). Only open once frames are confirmed present.
+                int frameCount = ToolAnimationCreatorViewViewModel.CountMagicFrames(frameDataAddr, isCsa: false);
+                if (frameCount <= 0)
+                {
+                    CoreState.Services?.ShowInfo(R._("No magic frames found at 0x{0:X}.", frameDataAddr));
+                    return;
+                }
                 string hint = R._("Magic Animation (FEditor) #{0:X2}", id);
                 var view = WindowManager.Instance.Open<ToolAnimationCreatorView>();
                 view.InitFromMagicRom(AnimationTypeEnum.MagicAnime_FEEDitor, id, hint, frameDataAddr, isCsa: false);
-                if (view.IsLoaded && !view.HasFrames)
-                    CoreState.Services?.ShowInfo(R._("No magic frames found at 0x{0:X}.", frameDataAddr));
             }
             catch (Exception ex) { Log.Error("ImageMagicFEditorView.JumpEditor: {0}", ex.Message); }
         }

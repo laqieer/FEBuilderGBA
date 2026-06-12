@@ -291,6 +291,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// #996/#1116: count the magic 0x86 frames at <paramref name="frameDataAddr"/>
+        /// WITHOUT opening/seeding a window, so the jump handlers can refuse to open a
+        /// blank Creator on an empty/terminator stream. Returns 0 when ROM is null.
+        /// </summary>
+        public static int CountMagicFrames(uint frameDataAddr, bool isCsa)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return 0;
+            MagicEffectExportCore.ExportMagicScriptLines(
+                rom, frameDataAddr, basename: "", enableComment: false,
+                out _, out _, out var frames, isCsa: isCsa);
+            return frames.Count;
+        }
+
+        /// <summary>
         /// Project the current editable frame list back into a
         /// <see cref="MapActionFrame"/> list for write-back. Used by both the
         /// ROM-write and file-write branches of <c>Create_Click</c>.
