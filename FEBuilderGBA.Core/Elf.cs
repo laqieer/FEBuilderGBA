@@ -8,11 +8,12 @@ namespace FEBuilderGBA
 {
     public class Elf
     {
-        public Elf(string filename,bool useHookMode)
+        public Elf(string filename, bool useHookMode, bool decompMode = false)
         {
             this.SymList = new List<Sym>();
             this.ProgramBIN = new byte[0];
             this.UseHookMode = useHookMode;
+            this.DecompMode = decompMode;
 
             this.ElfBIN = File.ReadAllBytes(filename);
             if (!CheckELF(this.ElfBIN))
@@ -35,12 +36,17 @@ namespace FEBuilderGBA
         {
             public string name;
             public uint addr;
-//            public uint length;
+            public uint length;   // st_size; set only in decomp mode (#1130), 0 otherwise
         }
         public List<Sym> SymList { get; private set; }
         public byte[] ProgramBIN { get; private set; }
         public byte[] ElfBIN { get; private set; }
         bool UseHookMode;
+        // #1130: decomp-ELF mode. When true, ParseSYM uses a wider, ELF-symbol-type
+        // aware filter (EWRAM/IWRAM/ROM ranges; real-section st_shndx; skip
+        // STT_SECTION/STT_FILE) and records st_size into Sym.length. When false the
+        // original hook-mode + default filter is byte-for-byte unchanged.
+        bool DecompMode;
 
 /*
 typedef struct elfhdr{
@@ -116,6 +122,8 @@ typedef struct {
 
                 uint st_name = U.u32(bin, addr + 0x00);
                 uint st_value = U.u32(bin, addr + 0x04);
+                uint st_size = U.u32(bin, addr + 0x08);
+                uint st_info = U.u8(bin, addr + 0x0C);
                 uint st_shndx = U.u16(bin, addr + 0x0E);
 
                 if (st_name == 0)
@@ -126,22 +134,54 @@ typedef struct {
                 {
                     continue;
                 }
-                if (st_value >= 0x02000000)
+
+                if (this.DecompMode)
                 {
-                    if (this.UseHookMode && 
-                        st_value >= 0x08000000 && st_value < 0x08200000)
-                    {//LynによるHook
+                    // #1130 decomp-ELF mode: accept symbols in EWRAM
+                    // (0x02000000..0x0203FFFF), IWRAM (0x03000000..0x03007FFF) and
+                    // ROM (0x08000000..0x09FFFFFF, i.e. < 0x0A000000); reject the rest.
+                    bool inEwram = (st_value >= 0x02000000 && st_value <= 0x0203FFFF);
+                    bool inIwram = (st_value >= 0x03000000 && st_value <= 0x03007FFF);
+                    bool inRom   = (st_value >= 0x08000000 && st_value <  0x0A000000);
+                    if (!(inEwram || inIwram || inRom))
+                    {
+                        continue;
                     }
-                    else
+
+                    // Real sections only: reject SHN_UNDEF(0) and reserved (>= 0xFF00).
+                    if (st_shndx < 1 || st_shndx >= 0xFF00)
+                    {
+                        continue;
+                    }
+
+                    // Skip section / file symbols; keep NOTYPE/OBJECT/FUNC.
+                    uint type = st_info & 0x0F;
+                    const uint STT_SECTION = 3;
+                    const uint STT_FILE = 4;
+                    if (type == STT_SECTION || type == STT_FILE)
                     {
                         continue;
                     }
                 }
-                if (st_shndx > 0x1)
-                {//fff1 externか何か?
-                    if (! this.UseHookMode)
+                else
+                {
+                    if (st_value >= 0x02000000)
                     {
-                        continue;
+                        if (this.UseHookMode &&
+                            st_value >= 0x08000000 && st_value < 0x08200000)
+                        {//LynによるHook
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    if (st_shndx > 0x1)
+                    {//fff1 externか何か?
+                        if (!this.UseHookMode)
+                        {
+                            continue;
+                        }
                     }
                 }
 
@@ -161,6 +201,10 @@ typedef struct {
                 Sym sym = new Sym();
                 sym.name = name;
                 sym.addr = st_value;
+                if (this.DecompMode)
+                {
+                    sym.length = st_size;   // record size only in decomp mode
+                }
 
                 this.SymList.Add(sym);
             }

@@ -500,6 +500,27 @@ namespace FEBuilderGBA
         // -------------------------------------------------------------- helpers
 
         /// <summary>
+        /// Resolve a project-relative artifact path (.map/.elf/.sym/.json) under
+        /// <paramref name="root"/>, reusing the same containment rule as the
+        /// manifest builtRom path (rejects absolute / <c>..</c>-escaping values).
+        /// Returns the absolute path, or null on reject / fault. NEVER throws.
+        /// Used by <see cref="DecompSymbolResolver"/> (#1130).
+        /// </summary>
+        internal static string ResolveArtifact(string root, string relative)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(root) || string.IsNullOrEmpty(relative))
+                    return null;
+                return ResolveProjectRelative(Path.GetFullPath(root), relative);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Resolve a project-relative manifest path. Returns the absolute path when
         /// it stays under <paramref name="root"/>; null when the value is absolute
         /// or escapes the root via "..". (Amendment 3.)

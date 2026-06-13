@@ -35,6 +35,13 @@ namespace FEBuilderGBA
         AsmMapSymbolFile _symbolMap;
         bool _symbolDirty = true;
 
+        // ---- Decomp project symbol overlay (#1130) ----
+        // Lazily built once per (dirty) cycle when IsDecompMode. Layered OVER the
+        // shipped _symbolMap via MergedAsmMapFile so project .map/ELF/.sym/JSON
+        // symbols win at the same address. Null + dirty in classic mode (no overlay).
+        DecompSymbolResolver _projectResolver;
+        bool _projectDirty = true;
+
         /// <summary>
         /// The ROM this cache scans. Captured at construction so a cache wired for
         /// a previous ROM never scans a later one (each ROM load creates a new
@@ -60,6 +67,7 @@ namespace FEBuilderGBA
             {
                 _dirty = true;
                 _symbolDirty = true;
+                _projectDirty = true;
             }
         }
 
@@ -90,6 +98,28 @@ namespace FEBuilderGBA
                     }
                     _symbolDirty = false;
                 }
+
+                // #1130: in decomp mode, layer the project's symbol artifacts OVER
+                // the shipped map (project wins). Any fault returns the shipped map
+                // unchanged so classic behaviour is never disturbed.
+                if (CoreState.IsDecompMode && CoreState.DecompProject != null)
+                {
+                    try
+                    {
+                        if (_projectDirty || _projectResolver == null)
+                        {
+                            _projectResolver = DecompSymbolResolver.Load(CoreState.DecompProject);
+                            _projectResolver.RegisterToCommentCache(_rom);
+                            _projectDirty = false;
+                        }
+                        return new MergedAsmMapFile(_symbolMap, _projectResolver);
+                    }
+                    catch
+                    {
+                        return _symbolMap;
+                    }
+                }
+
                 return _symbolMap;
             }
         }

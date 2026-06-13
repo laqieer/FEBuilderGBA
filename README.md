@@ -98,6 +98,8 @@ dotnet run --project FEBuilderGBA.CLI -- --testonly --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --rom-info --rom=rom.gba
 # Open a decomp project directory and report its mode + resolved preview ROM
 dotnet run --project FEBuilderGBA.CLI -- --project=path/to/decomp --rom-info
+# Resolve an address to a decomp project symbol (.map/ELF/.sym/JSON over shipped)
+dotnet run --project FEBuilderGBA.CLI -- --project=path/to/decomp --resolve-addr=0x08000100
 dotnet run --project FEBuilderGBA.CLI -- --list-tables
 dotnet run --project FEBuilderGBA.CLI -- --export-palette --rom=rom.gba --addr=0x5524 --out=palette.pal --colors=16
 dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0x5524 --in=palette.pal
@@ -226,10 +228,17 @@ sibling.
   at launch). When a project is open, a *"Source-backed project · ROM is a build
   preview"* badge appears in the toolbar.
 - **CLI:** `--project=<dir> --rom-info` reports the resolved preview ROM plus a
-  `Mode: Decomp (preview ROM <path>)` line.
+  `Mode: Decomp (preview ROM <path>)` line and a `Symbols:` artifact breakdown.
+- **CLI:** `--project=<dir> --resolve-addr=<hex>` resolves an address to a decomp
+  project symbol, discovered from the project's `.map` / ELF / `.sym` / JSON
+  artifacts (precedence `.map` → ELF → `.sym` → JSON; the project symbol wins at
+  the same address) layered over the shipped asmmap. It prints the symbol name,
+  its source artifact, and the in-span offset. The same merged symbol table backs
+  the Pointer Tool "What is this address?" lookup when a project is open.
 
-This is slice 1 (open + preview). Symbol resolution, diff-to-source, source
-writers, asset exporters and in-app build/reload are tracked under #1130–#1134.
+Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
+symbol resolution. Diff-to-source, source writers, asset exporters and in-app
+build/reload are tracked under #1131–#1134.
 
 ### Running on Android (experimental)
 
