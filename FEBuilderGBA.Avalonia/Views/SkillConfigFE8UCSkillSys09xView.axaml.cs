@@ -290,18 +290,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void JumpToEditor_Click(object? sender, RoutedEventArgs e)
         {
-            try
-            {
-                // #996: skill-animation Creator seeding is not yet supported (no populated/
-                // verifiable skill-animation editor context with available ROMs). Show an
-                // honest message instead of opening a blank/garbage Creator. Tracked as a
-                // #996 follow-up.
-                CoreState.Services?.ShowInfo(R._("Animation Creator seeding is not yet supported for Skill animations."));
-            }
-            catch (Exception ex)
-            {
-                Log.Error("SkillConfigFE8UCSkillSys09xView.JumpToEditor_Click failed: {0}", ex.Message);
-            }
+            // #1115: seed the Animation Creator from the selected skill's animation
+            // (read-only). Probe-before-open so a 0/empty pointer shows an honest
+            // message instead of a blank Creator. Replaces the #996 carve-out.
+            if (!_vm.IsLoaded) return;
+            SkillConfigAnimeJumpHelper.JumpToCreator(
+                _vm.SelectedId, _vm.AnimationPointer, "SkillConfigFE8UCSkillSys09xView");
         }
 
         void ShowFrameUpDown_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)

@@ -31,6 +31,13 @@ namespace FEBuilderGBA.Avalonia.Views
         // unsubscribe before re-subscribing (and on close) to avoid leaks.
         EditableMapActionFrame? _previewTrackedFrame;
 
+        // #1115: skill-seed preview decode (TSA-correct), cached by ROM+pointer.
+        // Used only when AnimationKind == Skill — it re-decodes the per-frame skill
+        // image via the cross-platform SkillSystemsAnimeExportCore seam (skill frames
+        // need OBJ+TSA, which the MapAction single-OBJ RenderFrameImage path cannot
+        // represent). Disposed in OnClosed.
+        readonly Services.SkillConfigAnimePreview _skillPreview = new();
+
         // #1116: when the --screenshot-all self-seed writes synthetic bytes into the
         // LIVE ROM (palette + LZ77 OBJ + frame stream), it snapshots the overwritten
         // span here and restores it on window close, so seeding the Animation Creator
@@ -91,6 +98,22 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateTitle();
         }
 
+        /// <summary>
+        /// Seed the view from a SKILL animation (#1115) — used by the 4 anime-capable
+        /// SkillConfig editors' jump buttons. READ-ONLY: the VM forces
+        /// <c>RomAddress = 0</c> so Create can never overwrite the skill-anime config
+        /// (see <see cref="ToolAnimationCreatorViewViewModel.InitFromSkillRom"/>). The
+        /// per-frame preview decodes the TSA-correct skill image from
+        /// <see cref="ToolAnimationCreatorViewViewModel.SkillAnimePointer"/>.
+        /// </summary>
+        public void InitFromSkillRom(AnimationTypeEnum kind, uint id, string filehint, uint animePointer)
+        {
+            // Drop any prior skill decode before seeding a different pointer.
+            _skillPreview.Clear();
+            _vm.InitFromSkillRom(kind, id, filehint, animePointer);
+            UpdateTitle();
+        }
+
         void UpdateTitle()
         {
             string hint = string.IsNullOrEmpty(_vm.FileHint) ? "" : ": " + _vm.FileHint;
@@ -147,6 +170,27 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            // #1115: skill seeds decode through OBJ+TSA+palette (the MapAction
+            // single-OBJ RenderFrameImage cannot represent TSA), so for the Skill
+            // kind render the TSA-correct per-frame image via the cached
+            // SkillConfigAnimePreview keyed on SkillAnimePointer + the SELECTED LIST
+            // INDEX (EditableMapActionFrame carries no frame ordinal). The cache owns
+            // the IImage; SetImage copies pixels and does NOT take ownership, so we
+            // do NOT dispose it here (Clear() in OnClosed / re-Load disposes it).
+            if (_vm.AnimationKind == AnimationTypeEnum.Skill)
+            {
+                int index = FramesList?.SelectedIndex ?? -1;
+                if (index < 0 || _vm.SkillAnimePointer == 0)
+                {
+                    MapActionPreview.SetImage(null);
+                    return;
+                }
+                _skillPreview.Load(CoreState.ROM, _vm.SkillAnimePointer);
+                IImage? skillImg = _skillPreview.TryGetFrameImage(index);
+                MapActionPreview.SetImage(skillImg);
+                return;
+            }
+
             // GbaImageControl.SetImage synchronously copies the pixels into a
             // WriteableBitmap and does NOT take ownership of the source IImage, so
             // dispose the freshly-decoded image here — otherwise frequent
@@ -164,6 +208,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _previewTrackedFrame.PropertyChanged -= OnTrackedFramePropertyChanged;
                 _previewTrackedFrame = null;
             }
+
+            // #1115: dispose the cached skill-anime frame IImages (Clear() disposes
+            // each unique decoded frame exactly once).
+            _skillPreview.Clear();
 
             // #1116: restore the bytes the --screenshot-all self-seed overwrote so
             // the synthetic magic stream can't leak into later editors' captures /
@@ -294,20 +342,150 @@ namespace FEBuilderGBA.Avalonia.Views
         public void NavigateTo(uint address) { }
         public void SelectFirstItem()
         {
-            // #996/#1116: in --screenshot-all mode, seed a real populated magic
+            // #996/#1116/#1115: in --screenshot-all mode, seed a real populated
             // animation so the captured PNG shows the running Creator window with a
-            // frame list (no available ROM carries the FEditor/CSA patch, so the live
-            // magic editor can't populate the Creator end-to-end — mirrors the
-            // PointerToolView screenshot-seed precedent #1026/#966). The interactive
+            // frame list (no available ROM carries a FEditor/CSA/SkillSystem-detectable
+            // anime, so the live editor can't populate the Creator end-to-end — mirrors
+            // the PointerToolView screenshot-seed precedent #1026/#966). The interactive
             // runtime never enters this branch.
+            //
+            // #1115: prefer the SKILL seed on a multi-byte (FE8J) ROM — that proves the
+            // skill seed path (the whole point of #1115). On a non-multi-byte ROM the
+            // skill SkipCode needs a per-skill .dmp template, so fall back to the magic
+            // seed there.
             if (App.ScreenshotAllMode && (!_vm.IsLoaded || _vm.Frames.Count == 0))
             {
-                try { SeedDemoMagicForScreenshot(); }
-                catch (Exception ex) { Log.Error($"ToolAnimationCreatorView.SelectFirstItem seed: {ex}"); }
+                var rom = CoreState.ROM;
+                bool seeded = false;
+                if (rom?.RomInfo != null && rom.RomInfo.is_multibyte)
+                {
+                    try { seeded = SeedDemoSkillForScreenshot(); }
+                    catch (Exception ex) { Log.Error($"ToolAnimationCreatorView.SelectFirstItem skill seed: {ex}"); }
+                }
+                if (!seeded)
+                {
+                    try { SeedDemoMagicForScreenshot(); }
+                    catch (Exception ex) { Log.Error($"ToolAnimationCreatorView.SelectFirstItem magic seed: {ex}"); }
+                }
             }
 
             if (FramesList != null && FramesList.ItemCount > 0)
                 FramesList.SelectedIndex = 0;
+        }
+
+        /// <summary>
+        /// #1115 (screenshot mode only): plant a synthetic SkillSystems skill-anime
+        /// config (5-u32 cfg + 2-frame stream + per-id LZ77 OBJ / LZ77 TSA / raw 0x20
+        /// palette lists) near the tail of the LIVE (multi-byte / FE8J) ROM, then seed
+        /// via <see cref="ToolAnimationCreatorViewViewModel.InitFromSkillRom"/> so the
+        /// captured PNG shows the populated Creator window with a TSA-decoded skill
+        /// frame. Transient (no undo) — runs ONLY under <c>--screenshot-all</c>; the
+        /// overwritten span is byte-restored in <see cref="OnClosed"/>. Returns true
+        /// when the seed was planted (caller skips the magic fallback).
+        /// </summary>
+        bool SeedDemoSkillForScreenshot()
+        {
+            var rom = CoreState.ROM;
+            if (rom?.RomInfo == null || rom.Data == null || rom.Data.Length < 0x8000) return false;
+            if (!rom.RomInfo.is_multibyte) return false; // FE8J direct SkipCode only
+
+            // 240x160 frame -> 30x20 = 600 TSA cells (u16 each = 1200 bytes raw).
+            // OBJ sheet = 64x64 radial (8x8 = 64 tiles); each TSA cell references
+            // (cellIndex % 64) so the whole screen tiles the radial sheet.
+            const int OBJ_W = 64, OBJ_H = 64;
+            const int COLS = 30, ROWS = 20;
+            byte[] objRaw = BuildRadialTiles(OBJ_W, OBJ_H);
+            byte[] objLz = LZ77.compress(objRaw);
+
+            byte[] tsaRaw = new byte[COLS * ROWS * 2];
+            for (int i = 0; i < COLS * ROWS; i++)
+            {
+                ushort tile = (ushort)(i % ((OBJ_W / 8) * (OBJ_H / 8))); // 0..63
+                tsaRaw[i * 2 + 0] = (byte)(tile & 0xFF);
+                tsaRaw[i * 2 + 1] = (byte)((tile >> 8) & 0xFF);
+            }
+            byte[] tsaLz = LZ77.compress(tsaRaw);
+
+            byte[] pal = new byte[0x20];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort c = RainbowColor(i);
+                pal[i * 2 + 0] = (byte)(c & 0xFF);
+                pal[i * 2 + 1] = (byte)((c >> 8) & 0xFF);
+            }
+
+            // Tail layout (ascending, 4-aligned), all within the snapshot span:
+            //   cfg(20) framesStream(12) framesPtr(4) tsaPtr(4) objPtr(4) palPtr(4)
+            //   objLz tsaLz pal
+            // We place the lists as single-entry tables (id 0 and id 1 both point to
+            // the same image so frame 1 re-uses the cache — exactly like real anime).
+            uint baseOff = (uint)((rom.Data.Length - 0x2000) & ~3);
+            uint cfg          = baseOff;            // 5 u32
+            uint framesStream = cfg + 20;           // (id,wait) pairs + 0xFFFF
+            uint framesPtrTab = framesStream + 12;  // unused list base anchor
+            uint tsaListTab   = framesPtrTab + 8;   // p32[id] -> tsaLz
+            uint objListTab   = tsaListTab + 8;     // p32[id] -> objLz
+            uint palListTab   = objListTab + 8;     // p32[id] -> pal
+            uint objOff       = palListTab + 8;
+            uint tsaOff       = objOff + (uint)objLz.Length; tsaOff = (tsaOff + 3) & ~3u;
+            uint palOff       = tsaOff + (uint)tsaLz.Length; palOff = (palOff + 3) & ~3u;
+            uint spanEnd      = palOff + (uint)pal.Length;
+            if (spanEnd > (uint)rom.Data.Length) return false;
+
+            // Snapshot the whole span for byte-identical restore on close.
+            _screenshotSeedRestore = (cfg, rom.getBinaryData(cfg, spanEnd - cfg));
+
+            // cfg: frames, tsalist, graphiclist(obj), palettelist, soundId.
+            rom.write_u32(cfg + 0,  U.toPointer(framesStream));
+            rom.write_u32(cfg + 4,  U.toPointer(tsaListTab));
+            rom.write_u32(cfg + 8,  U.toPointer(objListTab));
+            rom.write_u32(cfg + 12, U.toPointer(palListTab));
+            rom.write_u32(cfg + 16, 0x0000003C); // soundId (cosmetic)
+
+            // frames stream: (id=0,wait=4) (id=1,wait=8) + full 4-byte terminator
+            // (u16 id=0xFFFF, u16 wait=0xFFFF) — matches the documented frame layout.
+            rom.write_u16(framesStream + 0, 0); rom.write_u16(framesStream + 2, 4);
+            rom.write_u16(framesStream + 4, 1); rom.write_u16(framesStream + 6, 8);
+            rom.write_u16(framesStream + 8, 0xFFFF); rom.write_u16(framesStream + 10, 0xFFFF);
+
+            // per-id list tables (ids 0 and 1 -> same image/tsa/pal).
+            rom.write_u32(tsaListTab + 0, U.toPointer(tsaOff));
+            rom.write_u32(tsaListTab + 4, U.toPointer(tsaOff));
+            rom.write_u32(objListTab + 0, U.toPointer(objOff));
+            rom.write_u32(objListTab + 4, U.toPointer(objOff));
+            rom.write_u32(palListTab + 0, U.toPointer(palOff));
+            rom.write_u32(palListTab + 4, U.toPointer(palOff));
+
+            for (int i = 0; i < objLz.Length; i++) rom.write_u8(objOff + (uint)i, objLz[i]);
+            for (int i = 0; i < tsaLz.Length; i++) rom.write_u8(tsaOff + (uint)i, tsaLz[i]);
+            for (int i = 0; i < pal.Length; i++)   rom.write_u8(palOff + (uint)i, pal[i]);
+
+            _vm.InitFromSkillRom(AnimationTypeEnum.Skill, 1,
+                "Skill Animation #01 (demo)", U.toPointer(cfg));
+            UpdateTitle();
+            return _vm.Frames.Count > 0;
+        }
+
+        static ushort RainbowColor(int i)
+        {
+            int r, g, b;
+            if (i == 0) { r = g = b = 2; }
+            else
+            {
+                double h = (i - 1) / 15.0 * 6.0;
+                int seg = (int)h; double f = h - seg;
+                int v = 31, p = 4, q = (int)(31 * (1 - f)), t = (int)(31 * f);
+                switch (seg % 6)
+                {
+                    case 0: r = v; g = t; b = p; break;
+                    case 1: r = q; g = v; b = p; break;
+                    case 2: r = p; g = v; b = t; break;
+                    case 3: r = p; g = q; b = v; break;
+                    case 4: r = t; g = p; b = v; break;
+                    default: r = v; g = p; b = q; break;
+                }
+            }
+            return (ushort)((b << 10) | (g << 5) | r);
         }
 
         /// <summary>
@@ -352,24 +530,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Rainbow palette (RGB555 LE), index 0 dark so ring edges read clearly.
             for (int i = 0; i < 16; i++)
             {
-                int r, g, b;
-                if (i == 0) { r = g = b = 2; }
-                else
-                {
-                    double h = (i - 1) / 15.0 * 6.0;
-                    int seg = (int)h; double f = h - seg;
-                    int v = 31, p = 4, q = (int)(31 * (1 - f)), t = (int)(31 * f);
-                    switch (seg % 6)
-                    {
-                        case 0: r = v; g = t; b = p; break;
-                        case 1: r = q; g = v; b = p; break;
-                        case 2: r = p; g = v; b = t; break;
-                        case 3: r = p; g = q; b = v; break;
-                        case 4: r = t; g = p; b = v; break;
-                        default: r = v; g = p; b = q; break;
-                    }
-                }
-                ushort c = (ushort)((b << 10) | (g << 5) | r);
+                ushort c = RainbowColor(i);
                 rom.write_u8(palOffset + (uint)(i * 2 + 0), (uint)(c & 0xFF));
                 rom.write_u8(palOffset + (uint)(i * 2 + 1), (uint)((c >> 8) & 0xFF));
             }
