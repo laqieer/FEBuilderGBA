@@ -14002,6 +14002,36 @@ Version-Specific
 :Easy Mode
 Easy Mode
 
+:Decomp Build
+Decomp Build
+
+:Build
+Build
+
+:Build & Reload
+Build & Reload
+
+:Building...
+Building...
+
+:Run build command?
+Run build command?
+
+:Working directory:
+Working directory:
+
+:Failed to reload built ROM after build.
+Failed to reload built ROM after build.
+
+:Preview may be stale — rebuild
+Preview may be stale — rebuild
+
+: · needs rebuild
+ · needs rebuild
+
+:Project has not opted into FEBuilder-managed builds. Add a build section to febuilder.project.json.
+Project has not opted into FEBuilder-managed builds. Add a build section to febuilder.project.json.
+
 :No ROM loaded
 No ROM loaded
 

@@ -24558,6 +24558,36 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :Decomp Project
 反编译工程
 
+:Decomp Build
+反编译构建
+
+:Build
+构建
+
+:Build & Reload
+构建并重新加载
+
+:Building...
+正在构建...
+
+:Run build command?
+运行构建命令？
+
+:Working directory:
+工作目录:
+
+:Failed to reload built ROM after build.
+构建后重新加载构建的ROM失败。
+
+:Preview may be stale — rebuild
+预览可能已过时 — 请重新构建
+
+: · needs rebuild
+ ·需要重新构建
+
+:Project has not opted into FEBuilder-managed builds. Add a build section to febuilder.project.json.
+此工程未启用FEBuilder托管构建。请在febuilder.project.json中添加build节。
+
 :Source-backed project · ROM is a build preview
 基于源码的工程·ROM 为构建预览
 
