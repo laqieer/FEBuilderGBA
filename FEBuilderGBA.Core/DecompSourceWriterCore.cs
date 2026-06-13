@@ -213,8 +213,24 @@ namespace FEBuilderGBA
                 // Detect a UTF-8 BOM and preserve it.
                 bool hasBom = rawBytes.Length >= 3
                     && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF;
-                string sourceText = new UTF8Encoding(false).GetString(
-                    rawBytes, hasBom ? 3 : 0, rawBytes.Length - (hasBom ? 3 : 0));
+
+                // Strict UTF-8 decode: a decomp source that is not valid UTF-8 must NOT be
+                // silently lossily decoded (U+FFFD) — that would corrupt unrelated bytes on
+                // re-encode and break the churn-free / byte-preserving guarantee. Fail fast,
+                // file left untouched (Copilot PR #1145 inline finding).
+                string sourceText;
+                try
+                {
+                    var strictUtf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
+                    sourceText = strictUtf8.GetString(
+                        rawBytes, hasBom ? 3 : 0, rawBytes.Length - (hasBom ? 3 : 0));
+                }
+                catch (Exception ex) // DecoderFallbackException (or ArgumentException)
+                {
+                    result.Status = DecompSourceWriteStatus.Error;
+                    result.Message = $"Source file is not valid UTF-8 — refusing to rewrite (left untouched): {ex.Message}";
+                    return result;
+                }
 
                 // Pure rewrite (validates all gates 7-9 before producing new text).
                 // Route to the JSON or the C-struct rewriter by declared format (#1141).

@@ -385,6 +385,42 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(dir); }
         }
 
+        // (Finding #1145) A source file that is NOT valid UTF-8 must be refused with NO write
+        // — a lossy U+FFFD decode would corrupt the invalid bytes on re-encode and break the
+        // byte-preserving guarantee. Expect a non-Ok (Error) result, the file byte-identical,
+        // and NeedsRebuild still false.
+        [Fact]
+        public void WriteTableEntry_InvalidUtf8SourceFile_RefusesWrite_FileUntouched()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "src/item.c";
+                string srcAbs = Path.Combine(dir, "src", "item.c");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+
+                // Valid C text + a lone 0xFF byte (an invalid UTF-8 sequence).
+                byte[] validCBytes = new UTF8Encoding(false)
+                    .GetBytes("Item gItemData[] = { [0] = { .might = 5 } };\n");
+                byte[] rawBytes = validCBytes.Concat(new byte[] { 0xFF }).ToArray();
+                File.WriteAllBytes(srcAbs, rawBytes);
+
+                var proj = ProjectWith(dir, ItemsOwner(srcRel));
+                CoreState.DecompProject = proj;
+                Assert.False(proj.NeedsRebuild);
+
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
+                    new Dictionary<string, uint> { { "might", 10 } });
+
+                Assert.False(res.Ok);
+                Assert.Equal(DecompSourceWriteStatus.Error, res.Status);
+                Assert.False(proj.NeedsRebuild);
+                // File bytes unchanged (byte-identical to what we wrote).
+                Assert.Equal(rawBytes, File.ReadAllBytes(srcAbs));
+            }
+            finally { TryDelete(dir); }
+        }
+
         [Fact]
         public void Write_RomOnly_NoWrite()
         {
