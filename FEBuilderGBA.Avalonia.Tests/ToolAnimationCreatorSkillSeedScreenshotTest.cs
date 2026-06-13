@@ -37,7 +37,9 @@ namespace FEBuilderGBA.Avalonia.Tests
         readonly ITestOutputHelper _output;
         public ToolAnimationCreatorSkillSeedScreenshotTest(ITestOutputHelper output) => _output = output;
 
-        // Tail-of-ROM layout for the synthetic skill anime.
+        // Fixed low-offset layout for the synthetic skill anime (the whole config
+        // + frame stream + LZ77 OBJ/TSA + palette live in the first ~0x6000 bytes
+        // of a freshly-zeroed FE8J ROM image).
         const uint CONFIG       = 0x300;
         const uint FRAMES       = 0x400;
         const uint GRAPHIC_LIST = 0x500;

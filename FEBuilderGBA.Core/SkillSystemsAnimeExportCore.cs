@@ -284,8 +284,12 @@ namespace FEBuilderGBA
         /// does the single (cached) render pass.
         ///
         /// <para>NOTE: a non-empty result still does not guarantee every frame
-        /// RENDERS — the preview path re-checks via <see cref="ExportSkillAnimation"/>
-        /// and degrades to its <c>Error</c> on a per-frame render fault.</para>
+        /// RENDERS — only the SkillConfig "Jump to Animation Creator" open-gate
+        /// re-checks via <see cref="ExportSkillAnimation"/> (no error AND &gt;= 1
+        /// frame) before opening. Once seeded, the Creator's preview path
+        /// (<c>SkillConfigAnimePreview.Load</c> → <c>TryGetFrameImage</c>) silently
+        /// yields a NULL (blank) image for an errored export rather than surfacing
+        /// the error.</para>
         /// </summary>
         public static List<SkillFrameMeta> ReadFrameMetas(ROM rom, uint animePointer)
         {
