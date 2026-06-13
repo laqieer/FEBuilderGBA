@@ -372,32 +372,27 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var rom = CoreState.ROM;
                 if (rom != null)
                 {
-                    var result = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animePointer);
-                    if (string.IsNullOrEmpty(result.Error))
+                    // Populate the frame LIST from lightweight metadata (id+wait) only
+                    // — NO render here. The view's SkillConfigAnimePreview cache does
+                    // the single (cached) TSA decode on first selection, so opening
+                    // the Creator decodes the animation ONCE, not twice (Copilot PR
+                    // #1137 review). ReadFrameMetas shares ExportSkillAnimation's
+                    // pre-loop structural validation, so a populated list reliably
+                    // means a seedable animation.
+                    foreach (var f in SkillSystemsAnimeExportCore.ReadFrameMetas(rom, animePointer))
                     {
-                        foreach (var f in result.Frames)
-                        {
-                            // Map the skill frame onto the Creator's frame model.
-                            // Pointers stay 0 (skill frames decode via OBJ+TSA, not a
-                            // single OBJ pointer); ImageName is a display label that
-                            // mirrors the WF skill export's per-frame PNG naming so the
-                            // frame list reads identically to the file-seeded path.
-                            Frames.Add(new EditableMapActionFrame(new MapActionFrame(
-                                Wait: f.Wait,
-                                ImagePointer: 0,
-                                PalettePointer: 0,
-                                Sound: 0,
-                                ImageName: "g" + f.Id.ToString("000",
-                                    System.Globalization.CultureInfo.InvariantCulture) + ".png")));
-                        }
+                        // Pointers stay 0 (skill frames decode via OBJ+TSA, not a
+                        // single OBJ pointer); ImageName is a display label that
+                        // mirrors the WF skill export's per-frame PNG naming so the
+                        // frame list reads identically to the file-seeded path.
+                        Frames.Add(new EditableMapActionFrame(new MapActionFrame(
+                            Wait: f.Wait,
+                            ImagePointer: 0,
+                            PalettePointer: 0,
+                            Sound: 0,
+                            ImageName: "g" + f.Id.ToString("000",
+                                System.Globalization.CultureInfo.InvariantCulture) + ".png")));
                     }
-                    // Dispose the decoded IImages — the Creator's preview re-decodes
-                    // through its own SkillConfigAnimePreview cache, so these export
-                    // bitmaps are not retained here (avoids a native-bitmap leak).
-                    var seen = new System.Collections.Generic.HashSet<IImage>(ReferenceEqualityComparer.Instance);
-                    foreach (var f in result.Frames)
-                        if (f.Image != null && seen.Add(f.Image))
-                            try { f.Image.Dispose(); } catch { /* best-effort */ }
                 }
 
                 AnimationName = filehint ?? string.Empty;

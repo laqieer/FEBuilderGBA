@@ -61,6 +61,18 @@ namespace FEBuilderGBA
     }
 
     /// <summary>
+    /// Lightweight per-frame metadata (OBJ id + wait) read WITHOUT rendering
+    /// (#1115). Used to populate the Animation Creator frame list cheaply (the
+    /// per-frame TSA preview does the single cached render pass), and by the
+    /// probe-before-open frame count.
+    /// </summary>
+    public struct SkillFrameMeta
+    {
+        public uint Id;
+        public uint Wait;
+    }
+
+    /// <summary>
     /// Result of <see cref="SkillSystemsAnimeExportCore.ExportSkillAnimation"/>.
     /// </summary>
     public sealed class SkillAnimeExportResult
@@ -258,48 +270,73 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Count the skill-animation frames at <paramref name="animePointer"/>
-        /// WITHOUT rendering any IImage (#1115 probe-before-open) — mirrors the
-        /// <see cref="ExportSkillAnimation"/> frame-stream walk exactly but stops
-        /// at the same <c>0xFFFF</c> terminator without decoding OBJ/TSA/palette.
-        /// Lets the SkillConfig jump handlers refuse to open a blank Animation
-        /// Creator on an empty / terminator-first / unresolvable stream. Returns
-        /// 0 on any structural fault (never throws); unlike
+        /// Read every skill-animation frame's lightweight metadata (OBJ id + wait)
+        /// at <paramref name="animePointer"/> WITHOUT rendering any IImage (#1115).
+        /// Mirrors the <see cref="ExportSkillAnimation"/> frame-stream walk and its
+        /// SAME pre-loop structural validation (config in range + all four list
+        /// pointers — frames/tsa/graphic/palette — safe) so a non-empty result
+        /// reliably indicates a SEEDABLE animation (not one ExportSkillAnimation
+        /// would reject before the loop). Stops at the <c>0xFFFF</c> terminator.
+        /// Returns an EMPTY list on any structural fault (never throws); unlike
         /// <see cref="ExportSkillAnimation"/> it does NOT require
-        /// <c>CoreState.ImageService</c> (it renders nothing).
+        /// <c>CoreState.ImageService</c> (it renders nothing). Used to populate the
+        /// Animation Creator's frame list cheaply, while the per-frame TSA preview
+        /// does the single (cached) render pass.
         ///
-        /// <para>NOTE: this counts every non-terminator frame ENTRY in the stream,
-        /// which is the right "would the seed populate?" signal. The heavier
-        /// <see cref="ExportSkillAnimation"/> additionally bails on a per-frame
-        /// RENDER fault, so a non-zero count here does not guarantee every frame
-        /// renders — the seed path re-checks via <see cref="ExportSkillAnimation"/>
-        /// and degrades to its <c>Error</c> on a render fault.</para>
+        /// <para>NOTE: a non-empty result still does not guarantee every frame
+        /// RENDERS — the preview path re-checks via <see cref="ExportSkillAnimation"/>
+        /// and degrades to its <c>Error</c> on a per-frame render fault.</para>
         /// </summary>
-        public static int CountSkillFrames(ROM rom, uint animePointer)
+        public static List<SkillFrameMeta> ReadFrameMetas(ROM rom, uint animePointer)
         {
-            if (rom == null || rom.Data == null) return 0;
+            var metas = new List<SkillFrameMeta>();
+            if (rom == null || rom.Data == null) return metas;
+
             uint addr = U.toOffset(animePointer);
-            if (!U.isSafetyOffset(addr, rom)) return 0;
+            if (!U.isSafetyOffset(addr, rom)) return metas;
 
-            uint cfg = SkipCode(rom, addr, out _);
-            if (cfg == U.NOT_FOUND) return 0;
-            if (cfg + (4 * 5) > (uint)rom.Data.Length) return 0;
+            // SkipCode reads template files (FE8U) — guard against IO faults so the
+            // probe honours its never-throw contract even on a flaky FS.
+            uint cfg;
+            try { cfg = SkipCode(rom, addr, out _); }
+            catch { return metas; }
+            if (cfg == U.NOT_FOUND) return metas;
+            if (cfg + (4 * 5) > (uint)rom.Data.Length) return metas;
 
-            uint frames = rom.p32(cfg + (4 * 0));
-            if (!U.isSafetyOffset(frames, rom)) return 0;
+            uint frames      = rom.p32(cfg + (4 * 0));
+            uint tsalist     = rom.p32(cfg + (4 * 1));
+            uint graphiclist = rom.p32(cfg + (4 * 2));
+            uint palettelist = rom.p32(cfg + (4 * 3));
 
-            int count = 0;
+            // Same pre-loop pointer validation as ExportSkillAnimation — if any of
+            // the four lists is invalid the export would reject the config before
+            // the frame loop, so the probe must report 0 too.
+            if (!U.isSafetyOffset(frames, rom))      return metas;
+            if (!U.isSafetyOffset(tsalist, rom))     return metas;
+            if (!U.isSafetyOffset(graphiclist, rom)) return metas;
+            if (!U.isSafetyOffset(palettelist, rom)) return metas;
+
             uint limitter = frames + 1024 * 1024;
             if (limitter > (uint)rom.Data.Length) limitter = (uint)rom.Data.Length;
             for (uint n = frames; n + 4 <= limitter; n += 4)
             {
                 if (!U.isSafetyOffset(n + 4, rom)) break;
                 uint id = rom.u16(n + 0);
+                uint wait = rom.u16(n + 2);
                 if (id == 0xFFFF) break; // terminator
-                count++;
+                metas.Add(new SkillFrameMeta { Id = id, Wait = wait });
             }
-            return count;
+            return metas;
         }
+
+        /// <summary>
+        /// Count the skill-animation frames at <paramref name="animePointer"/>
+        /// WITHOUT rendering (#1115 probe-before-open). Thin wrapper over
+        /// <see cref="ReadFrameMetas"/> so the probe and the seed share the SAME
+        /// structural validation. Returns 0 on any structural fault (never throws).
+        /// </summary>
+        public static int CountSkillFrames(ROM rom, uint animePointer)
+            => ReadFrameMetas(rom, animePointer).Count;
 
         /// <summary>Bounds-checked frame image accessor. Returns the EXACT stored
         /// IImage reference for the given frame, or null if the result is null/errored

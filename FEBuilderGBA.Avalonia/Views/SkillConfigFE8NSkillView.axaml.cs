@@ -547,7 +547,10 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                Log.Error("SkillConfigFE8NSkillView.JumpToEditor_Click failed: {0}", ex.Message);
+                // Core Log.Error is params string[] (string.Join, NO composite
+                // formatting) — a literal "{0}" would be logged verbatim, so use a
+                // single interpolated string with the full exception (#969 precedent).
+                Log.Error($"SkillConfigFE8NSkillView.JumpToEditor_Click failed: {ex}");
             }
         }
 

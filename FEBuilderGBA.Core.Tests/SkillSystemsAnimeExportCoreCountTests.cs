@@ -117,6 +117,67 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CountSkillFrames_InvalidTsaListPointer_ReturnsZero()
+        {
+            // Mirrors ExportSkillAnimation's pre-loop validation: an invalid
+            // tsa/graphic/palette list pointer must make the probe report 0 so a
+            // non-zero count reliably means a SEEDABLE animation (Copilot PR #1137).
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeFE8JRom();
+                CoreState.ROM = rom;
+                uint animeOffset = BuildSyntheticAnime(rom.Data,
+                    waits: new uint[] { 1, 1 }, soundId: 0);
+                // Corrupt the tsalist pointer (config + 4) to an unsafe value.
+                WriteU32(rom.Data, animeOffset + 4, 0xFFFFFFFF);
+
+                Assert.Equal(0, SkillSystemsAnimeExportCore.CountSkillFrames(rom, animeOffset));
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void ReadFrameMetas_ReturnsIdAndWaitPerFrame()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeFE8JRom();
+                CoreState.ROM = rom;
+                uint animeOffset = BuildSyntheticAnime(rom.Data,
+                    waits: new uint[] { 3, 5, 7 }, soundId: 0);
+
+                var metas = SkillSystemsAnimeExportCore.ReadFrameMetas(rom, animeOffset);
+                Assert.Equal(3, metas.Count);
+                Assert.Equal(3u, metas[0].Wait);
+                Assert.Equal(5u, metas[1].Wait);
+                Assert.Equal(7u, metas[2].Wait);
+                // The synthetic builder uses id 0 for every frame.
+                Assert.All(metas, m => Assert.Equal(0u, m.Id));
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
+        public void ReadFrameMetas_InvalidPaletteList_ReturnsEmpty()
+        {
+            var prevRom = CoreState.ROM;
+            try
+            {
+                ROM rom = MakeFE8JRom();
+                CoreState.ROM = rom;
+                uint animeOffset = BuildSyntheticAnime(rom.Data,
+                    waits: new uint[] { 1 }, soundId: 0);
+                // Corrupt the palettelist pointer (config + 12).
+                WriteU32(rom.Data, animeOffset + 12, 0xFFFFFFFF);
+
+                Assert.Empty(SkillSystemsAnimeExportCore.ReadFrameMetas(rom, animeOffset));
+            }
+            finally { CoreState.ROM = prevRom; }
+        }
+
+        [Fact]
         public void CountSkillFrames_DoesNotRequireImageService()
         {
             // CountSkillFrames must work even with NO image service — it renders
