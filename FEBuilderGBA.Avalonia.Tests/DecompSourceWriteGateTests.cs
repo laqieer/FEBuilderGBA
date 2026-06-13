@@ -43,6 +43,41 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(dict.ContainsKey("minRange"));
         }
 
+        // #1132 (PR #1142 review): BuildSourceFieldDict must emit ONLY the fields the
+        // user actually changed since the load-time snapshot — never a full snapshot of
+        // (possibly stale) preview-ROM values that could clobber unrelated source fields.
+        [Fact]
+        public void ItemViewModel_BuildSourceFieldDict_EmitsOnlyChangedFieldsSinceSnapshot()
+        {
+            var vm = new ItemEditorViewModel
+            {
+                Might = 5,
+                Hit = 90,
+                Uses = 40,
+                Price = 1500,
+                WeaponRank = 1,
+            };
+            // Establish the baseline (simulates the snapshot captured in LoadItem).
+            vm.RefreshSourceFieldSnapshot();
+
+            // No edits yet → nothing is "changed".
+            Assert.Empty(vm.BuildSourceFieldDict());
+
+            // The user edits ONLY Hit. might/uses/price/weaponLevel must NOT be emitted,
+            // so a diverged (stale-ROM) value can never be written back.
+            vm.Hit = 95;
+            var changed = vm.BuildSourceFieldDict();
+            Assert.Equal(95u, changed["hitRate"]);
+            Assert.False(changed.ContainsKey("might"));
+            Assert.False(changed.ContainsKey("maxUses"));
+            Assert.False(changed.ContainsKey("cost"));
+            Assert.False(changed.ContainsKey("weaponLevel"));
+
+            // After a re-baseline (post-write), the same value is no longer "changed".
+            vm.RefreshSourceFieldSnapshot();
+            Assert.Empty(vm.BuildSourceFieldDict());
+        }
+
         [Fact]
         public void MainWindowViewModel_BadgeText_AppendsNeedsRebuild_WhenFlagged()
         {

@@ -145,6 +145,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // --- Computed: Null pointer warnings ---
         bool _showAllocStatBonuses, _showAllocEffectiveness;
         uint _currentItemIndex;
+
+        // #1132 review (PR #1142): the field→value snapshot captured at LoadItem.
+        // BuildSourceFieldDict compares against this so ONLY fields the user
+        // actually changed are sent to the source writer — never a full snapshot of
+        // (possibly stale) preview-ROM values, which could clobber unrelated source
+        // fields that diverged from the unrebuilt preview.
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
         public bool ShowAllocStatBonuses { get => _showAllocStatBonuses; private set => SetField(ref _showAllocStatBonuses, value); }
         public bool ShowAllocEffectiveness { get => _showAllocEffectiveness; private set => SetField(ref _showAllocEffectiveness, value); }
 
@@ -169,7 +176,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// components — wrong. Until the encoded byte can be split safely, range edits
         /// stay ROM-only (omitted here, like pointers and text-id fields).
         /// </summary>
-        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        /// <summary>
+        /// The current candidate C-field → value map (all source-writable integer item
+        /// fields), keyed by conventional decomp C field names. Pointers, text-id, and
+        /// the encoded min-max range byte are intentionally omitted (not safe to rewrite
+        /// as plain integer literals here).
+        /// </summary>
+        Dictionary<string, uint> CurrentSourceFieldMap()
         {
             return new Dictionary<string, uint>(StringComparer.Ordinal)
             {
@@ -184,6 +197,42 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 { "iconId",        Icon },
                 { "weaponType",    WeaponType },
             };
+        }
+
+        /// <summary>
+        /// Build the C-field → value map of ONLY the fields the user actually changed
+        /// since <see cref="LoadItem"/> (#1132, PR #1142 review). Comparing against the
+        /// load-time snapshot guarantees an unrelated field whose source has diverged
+        /// from the (stale, pre-rebuild) preview ROM is NOT rewritten back to the stale
+        /// value. The View further intersects this with the manifest owner's declared
+        /// <c>fields</c>, so an undeclared field is silently dropped.
+        /// </summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in current)
+            {
+                // Send a field only when it has no baseline (defensive) or its value
+                // differs from the load-time snapshot — i.e. the user edited it.
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                {
+                    changed[kv.Key] = kv.Value;
+                }
+            }
+            return changed;
+        }
+
+        /// <summary>
+        /// Re-baseline the source-field snapshot to the CURRENT values after a
+        /// successful source-backed write (#1132, PR #1142 review), so an immediate
+        /// re-Save of the same edit is correctly a no-op rather than re-emitting the
+        /// just-written fields.
+        /// </summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
         }
 
         /// <summary>Recalculate all computed fields. Call after loading or UI changes.</summary>
@@ -398,6 +447,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 _currentItemIndex = 0;
 
             RecalcComputed();
+
+            // Snapshot the source-writable field values so BuildSourceFieldDict can
+            // later emit ONLY the fields the user changed (#1132, PR #1142 review).
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
         }
 
         public int GetListCount() => LoadItemList().Count;
