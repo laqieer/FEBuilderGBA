@@ -290,6 +290,14 @@ namespace FEBuilderGBA.CLI
                 return RunMigrateDiff(argsDic);
             }
 
+            // --export-asset must precede the bare --project rom-info fallthrough (#1133)
+            // — otherwise `--export-asset --project=<dir>` is swallowed by RunRomInfo
+            //   and the asset is never exported.
+            if (argsDic.ContainsKey("--export-asset"))
+            {
+                return RunExportAsset(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -455,6 +463,16 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --out=<report.tsv>     Optional: write the classified report (range/symbol/category/source/confidence) as TSV");
             Console.WriteLine("    --max-gap=<int>        Optional: small-gap merge distance for range coalescing (default 16)");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
+            Console.WriteLine("  --export-asset           Export a ROM asset to a decomp source-tree path (requires --kind, --out, and --rom or --project)");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text (map data is always LZ77-decompressed)");
+            Console.WriteLine("    --out=<path>           Output path (project-relative when --project; absolute or relative when --rom)");
+            Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map)");
+            Console.WriteLine("    --colors=<int>         Number of palette colors (default 16; for --kind=palette and --kind=graphics)");
+            Console.WriteLine("    --bpp=<int>            Bits per pixel (default 4; 4 or 8; for --kind=graphics)");
+            Console.WriteLine("    --width=<int>          Image width in pixels (required for --kind=graphics)");
+            Console.WriteLine("    --height=<int>         Image height in pixels (required for --kind=graphics)");
+            Console.WriteLine("    --palette-addr=<hex>   ROM address of the palette data (required for --kind=graphics)");
+            Console.WriteLine("    --compressed           (graphics only) the source tile data at --addr is LZ77-compressed (flag)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");
@@ -481,6 +499,10 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --translate --rom=rom.gba --in=texts.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba");
             Console.WriteLine("  FEBuilderGBA.CLI --translate-roundtrip --rom=rom.gba --out=diff");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=palette --rom=rom.gba --addr=0x5524 --out=gfx/palette.pal");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=graphics --project=decomp/ --addr=0x123000 --width=64 --height=64 --palette-addr=0x124000 --out=gfx/tiles.png");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
+            Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
             Console.WriteLine("  FEBuilderGBA.CLI --import-data --rom=rom.gba --table=units --in=units.tsv");
@@ -4337,6 +4359,164 @@ namespace FEBuilderGBA.CLI
                 Console.WriteLine(name);
             }
             return 0;
+        }
+
+        /// <summary>
+        /// --export-asset: export a ROM asset (palette/graphics/map/text) to a decomp source-tree path.
+        /// Supports both --project=&lt;dir&gt; (with path containment) and --rom=&lt;path&gt; (classic, no containment).
+        /// READ-ONLY: never modifies the ROM.
+        /// </summary>
+        static int RunExportAsset(Dictionary<string, string> argsDic)
+        {
+            // ---- Required: --kind ----
+            if (!argsDic.ContainsKey("--kind") || string.IsNullOrEmpty(argsDic["--kind"]))
+            { Console.Error.WriteLine("Error: --export-asset requires --kind=<graphics|palette|map|text>"); return 1; }
+            string kind = argsDic["--kind"].ToLowerInvariant();
+
+            // ---- Required: --out ----
+            if (!argsDic.ContainsKey("--out") || string.IsNullOrEmpty(argsDic["--out"]))
+            { Console.Error.WriteLine("Error: --export-asset requires --out=<path>"); return 1; }
+            string outRel = argsDic["--out"];
+
+            // ---- ROM source: --project or --rom ----
+            bool isProject = argsDic.ContainsKey("--project") && !string.IsNullOrEmpty(argsDic["--project"]);
+            bool isRom = argsDic.ContainsKey("--rom") && !string.IsNullOrEmpty(argsDic["--rom"]);
+            if (!isProject && !isRom)
+            { Console.Error.WriteLine("Error: --export-asset requires --rom=<path> or --project=<dir>"); return 1; }
+
+            RomLoader.InitEnvironment();
+
+            DecompProject project = null;
+            if (isProject)
+            {
+                string projectDir = argsDic["--project"];
+                if (!RomLoader.LoadProject(projectDir))
+                    return 1;
+                project = CoreState.DecompProject;
+            }
+            else
+            {
+                string romPath = argsDic["--rom"];
+                if (!File.Exists(romPath))
+                { Console.Error.WriteLine($"Error: ROM not found: {romPath}"); return 1; }
+                string forceVersion = argsDic.ContainsKey("--force-version") ? argsDic["--force-version"] : null;
+                if (!RomLoader.LoadRom(romPath, forceVersion))
+                    return 1;
+                RomLoader.InitFull();
+            }
+
+            // ---- Resolve output path ----
+            string absOut = DecompAssetExportCore.ResolveSourcePath(project, outRel);
+            if (absOut == null)
+            {
+                Console.Error.WriteLine("Error: output path rejected (outside project root or invalid)");
+                return 2;
+            }
+
+            ROM rom = CoreState.ROM;
+
+            // ---- Helper: parse hex address ----
+            static bool TryParseAddr(string s, out uint result)
+            {
+                result = 0;
+                if (string.IsNullOrEmpty(s)) return false;
+                string clean = s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? s.Substring(2) : s;
+                if (!uint.TryParse(clean, System.Globalization.NumberStyles.HexNumber, null, out result))
+                    return false;
+                result = U.toOffset(result);
+                return true;
+            }
+
+            // ---- Dispatch by kind ----
+            DecompAssetResult result;
+
+            switch (kind)
+            {
+                case "palette":
+                {
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=palette requires --addr=<hex>"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+                    int colors = 16;
+                    if (argsDic.ContainsKey("--colors") && !string.IsNullOrEmpty(argsDic["--colors"]))
+                    {
+                        if (!int.TryParse(argsDic["--colors"], out colors) || colors < 1 || colors > 256)
+                        { Console.Error.WriteLine($"Error: --colors must be 1-256"); return 1; }
+                    }
+                    result = DecompAssetExportCore.ExportPalette(rom, addr, colors, absOut);
+                    break;
+                }
+
+                case "graphics":
+                {
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=graphics requires --addr=<hex>"); return 1; }
+                    if (!argsDic.ContainsKey("--width") || string.IsNullOrEmpty(argsDic["--width"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=graphics requires --width=<int>"); return 1; }
+                    if (!argsDic.ContainsKey("--height") || string.IsNullOrEmpty(argsDic["--height"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=graphics requires --height=<int>"); return 1; }
+                    if (!argsDic.ContainsKey("--palette-addr") || string.IsNullOrEmpty(argsDic["--palette-addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=graphics requires --palette-addr=<hex>"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid --addr: {argsDic["--addr"]}"); return 1; }
+                    if (!TryParseAddr(argsDic["--palette-addr"], out uint palAddr))
+                    { Console.Error.WriteLine($"Error: Invalid --palette-addr: {argsDic["--palette-addr"]}"); return 1; }
+                    if (!int.TryParse(argsDic["--width"], out int width) || width <= 0)
+                    { Console.Error.WriteLine($"Error: Invalid --width: {argsDic["--width"]}"); return 1; }
+                    if (!int.TryParse(argsDic["--height"], out int height) || height <= 0)
+                    { Console.Error.WriteLine($"Error: Invalid --height: {argsDic["--height"]}"); return 1; }
+                    int bpp = 4;
+                    if (argsDic.ContainsKey("--bpp") && !string.IsNullOrEmpty(argsDic["--bpp"]))
+                    {
+                        if (!int.TryParse(argsDic["--bpp"], out bpp) || (bpp != 4 && bpp != 8))
+                        { Console.Error.WriteLine("Error: --bpp must be 4 or 8"); return 1; }
+                    }
+                    int colors = 16;
+                    if (argsDic.ContainsKey("--colors") && !string.IsNullOrEmpty(argsDic["--colors"]))
+                    {
+                        if (!int.TryParse(argsDic["--colors"], out colors) || colors < 1 || colors > 256)
+                        { Console.Error.WriteLine("Error: --colors must be 1-256"); return 1; }
+                    }
+                    bool compressed = argsDic.ContainsKey("--compressed");
+                    result = DecompAssetExportCore.ExportGraphics(rom, addr, width, height, bpp, compressed, palAddr, colors, absOut);
+                    break;
+                }
+
+                case "map":
+                {
+                    if (!argsDic.ContainsKey("--addr") || string.IsNullOrEmpty(argsDic["--addr"]))
+                    { Console.Error.WriteLine("Error: --export-asset --kind=map requires --addr=<hex>"); return 1; }
+                    if (!TryParseAddr(argsDic["--addr"], out uint addr))
+                    { Console.Error.WriteLine($"Error: Invalid address: {argsDic["--addr"]}"); return 1; }
+                    result = DecompAssetExportCore.ExportMap(rom, addr, absOut);
+                    break;
+                }
+
+                case "text":
+                {
+                    // --out is treated as a directory for text export
+                    result = DecompAssetExportCore.ExportText(rom, absOut);
+                    break;
+                }
+
+                default:
+                    Console.Error.WriteLine($"Error: Unknown --kind '{kind}'. Use: graphics, palette, map, text");
+                    return 1;
+            }
+
+            // ---- Report result ----
+            if (result.Ok)
+            {
+                foreach (string path in result.WrittenPaths)
+                    Console.WriteLine($"Wrote: {path}");
+                return 0;
+            }
+            else
+            {
+                Console.Error.WriteLine($"Error: {result.Message}");
+                return result.Status == DecompAssetStatus.PathRejected ? 2 : 1;
+            }
         }
 
         static int RunExportPalette(Dictionary<string, string> argsDic)
