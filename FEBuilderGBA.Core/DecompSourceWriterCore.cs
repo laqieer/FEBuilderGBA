@@ -557,6 +557,17 @@ namespace FEBuilderGBA
                 // Work in UTF-8 BYTES so the Utf8JsonReader offsets splice directly.
                 byte[] bytes = new UTF8Encoding(false).GetBytes(sourceText);
 
+                // 0) Validate the WHOLE document FIRST (#1145). TryFindJsonElementSpan stops
+                // reading as soon as it captures the target element, so a truncated/malformed
+                // tail (e.g. a missing closing ']') would otherwise be spliced as if valid.
+                // A full pass with the same options rejects the splice with NO mutation.
+                if (!IsWholeJsonDocumentValid(bytes))
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = "JSON source is malformed (failed full-document validation) — no change.";
+                    return result;
+                }
+
                 // 1) Locate the target element object's byte span.
                 if (!TryFindJsonElementSpan(bytes, elementIndex, out long elemStart, out long elemEnd))
                 {
@@ -692,6 +703,38 @@ namespace FEBuilderGBA
             CommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true,
         };
+
+        /// <summary>
+        /// Validate the WHOLE JSON document with the same <see cref="JsonReadOpts"/> the
+        /// splice path uses (#1145). <see cref="Utf8JsonReader"/> throws a
+        /// <c>JsonException</c> the moment it reaches invalid/truncated content (e.g. an
+        /// array that is never closed), so reading every token until <c>Read()</c> returns
+        /// false confirms the document is well-formed AND fully consumed. Returns false on
+        /// any <c>JsonException</c> (malformed/truncated) — the caller then refuses the
+        /// splice and leaves the source byte-identical. NEVER throws.
+        /// </summary>
+        static bool IsWholeJsonDocumentValid(byte[] bytes)
+        {
+            try
+            {
+                var reader = new Utf8JsonReader(bytes, JsonReadOpts);
+                while (reader.Read())
+                {
+                    // Walk every token. A truncated/invalid doc makes Read() throw before
+                    // it can return false, so reaching the natural end means valid + EOF.
+                }
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+            catch
+            {
+                // Any other unexpected fault → treat as invalid (never throw at the boundary).
+                return false;
+            }
+        }
 
         /// <summary>
         /// Locate the byte span [start,end) of the target element OBJECT in a JSON
@@ -872,11 +915,14 @@ namespace FEBuilderGBA
             if (desc.Signed)
             {
                 // Existing token must parse as a signed integer (decimal; JSON has no hex).
-                if (!TryParseSignedIntLiteral(trimmed, out _, out _, out long oldSigned))
+                if (!TryParseSignedIntLiteral(trimmed, out _, out _, out long oldSigned, out bool oldWasNegative))
                     return oldToken;   // tokenOk stays false
                 tokenOk = true;
                 long newSigned = SignExtend(newVal, desc.Width);
-                if (oldSigned == newSigned) { isNoOp = true; return oldToken; }
+                // Width-normalize the EXISTING literal so a bit-pattern form like 255 at
+                // width 1 reinterprets to -1 and matches a request of -1 / 0xFF (#1145).
+                long oldNormalized = NormalizeExistingSigned(oldSigned, oldWasNegative, desc.Width);
+                if (oldNormalized == newSigned) { isNoOp = true; return oldToken; }
                 return newSigned.ToString(CultureInfo.InvariantCulture);
             }
             else
@@ -1141,7 +1187,7 @@ namespace FEBuilderGBA
             // sign-extend the low Width*8 bits to a signed long.
             if (desc.Signed)
             {
-                if (!TryParseSignedIntLiteral(trimmed, out bool sIsHex, out string sSuffix, out long oldSigned))
+                if (!TryParseSignedIntLiteral(trimmed, out bool sIsHex, out string sSuffix, out long oldSigned, out bool sWasNegative))
                 {
                     if (singleFieldIntent)
                     {
@@ -1158,8 +1204,12 @@ namespace FEBuilderGBA
 
                 long newSigned = SignExtend(newVal, desc.Width);
 
-                // No-op: compare SIGNED values so 0xFF (byte) == -1 is recognized.
-                if (oldSigned == newSigned)
+                // No-op: compare SIGNED values, width-normalizing the EXISTING literal so a
+                // bit-pattern form like 0xFF / 255 (no leading '-') at width 1 reinterprets
+                // to -1 and matches a request that SignExtends to -1 (#1145). An explicit
+                // '-N' literal is already the signed value and is kept verbatim.
+                long oldNormalized = NormalizeExistingSigned(oldSigned, sWasNegative, desc.Width);
+                if (oldNormalized == newSigned)
                 {
                     outcome = FieldApplyOutcome.NoOp;
                     return text;
@@ -1303,10 +1353,14 @@ namespace FEBuilderGBA
         /// <paramref name="value"/> (a leading '-' negates the magnitude). A leading '+'
         /// is rejected (an expression, like the unsigned path). Returns false for
         /// anything else (identifier, macro, expression, float, overflow). NEVER throws.
+        /// <paramref name="wasNegative"/> is true only when the literal was written WITH an
+        /// explicit leading <c>-</c> — callers use it to distinguish an already-signed
+        /// value (e.g. <c>-1</c>) from a stored bit pattern (e.g. <c>0xFF</c>) when
+        /// width-normalizing the existing literal for the no-op comparison (#1145).
         /// </summary>
-        static bool TryParseSignedIntLiteral(string s, out bool isHex, out string suffix, out long value)
+        static bool TryParseSignedIntLiteral(string s, out bool isHex, out string suffix, out long value, out bool wasNegative)
         {
-            isHex = false; suffix = ""; value = 0;
+            isHex = false; suffix = ""; value = 0; wasNegative = false;
             if (string.IsNullOrEmpty(s))
                 return false;
 
@@ -1326,8 +1380,26 @@ namespace FEBuilderGBA
             if (!TryParseIntLiteral(mag, out isHex, out suffix, out uint magVal))
                 return false;
 
+            wasNegative = negative;
             value = negative ? -(long)magVal : magVal;
             return true;
+        }
+
+        /// <summary>
+        /// Width-normalize an EXISTING signed integer literal to the signed value its bits
+        /// represent at <paramref name="width"/> bytes, for the no-op comparison (#1145).
+        /// A literal written WITHOUT an explicit <c>-</c> (e.g. <c>0xFF</c>, <c>255</c>) is
+        /// a STORED bit pattern → reinterpret via <see cref="SignExtend"/> (<c>0xFF</c> at
+        /// width 1 → <c>-1</c>). A literal written WITH an explicit <c>-</c> (e.g. <c>-1</c>)
+        /// is ALREADY the signed value → keep it verbatim (never re-extend). The magnitude
+        /// case is safe to cast back to <see cref="uint"/> because
+        /// <see cref="TryParseIntLiteral"/> only succeeds for values inside the uint range.
+        /// </summary>
+        static long NormalizeExistingSigned(long parsedSigned, bool wasNegative, int? width)
+        {
+            if (wasNegative)
+                return parsedSigned;                          // explicit signed decimal/hex — already the value
+            return SignExtend((uint)parsedSigned, width);     // bit-pattern form (0xFF / 255 / ...)
         }
 
         // -------------------------------------------------- token / span scanners

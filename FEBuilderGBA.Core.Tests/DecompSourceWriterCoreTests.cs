@@ -1152,6 +1152,148 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(dir); }
         }
 
+        // =====================================================================
+        //  #1145 — Copilot review: JSON full-doc validation + signed width-aware no-op
+        // =====================================================================
+
+        static DecompTableEntry SignedPromoHpJsonOwner(string sourceFile = "data/classes.json")
+        {
+            return new DecompTableEntry
+            {
+                Table = "classes", Format = "json", WritePolicy = "source",
+                SourceFile = sourceFile,
+                Fields = new List<DecompTableField>
+                { new DecompTableField { Name = "promoHp", Signed = true, Width = 1 } },
+            };
+        }
+
+        // (1) Finding 1: a JSON file that is well-formed UP TO the target element but
+        // truncated afterwards (missing closing ']') must be NO-TOUCH / ParseFailed.
+        [Fact]
+        public void Json_MalformedAfterTarget_TruncatedArray_NoTouch_ParseFailed()
+        {
+            // Valid first two objects, but the root array is never closed.
+            string src = "[ { \"might\": 5 }, { \"might\": 9 } ";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 7 } }, out string outText);
+            Assert.False(res.Ok);
+            Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+            Assert.Equal(src, outText);   // byte-identical — no splice
+        }
+
+        // (1b) Same malformed-tail rejection through the full WriteTableEntry path — the
+        // on-disk file must be byte-identical and NeedsRebuild must NOT be set.
+        [Fact]
+        public void Json_MalformedAfterTarget_WriteTableEntry_FileUnchanged()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "data/items.json";
+                string srcAbs = Path.Combine(dir, "data", "items.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                string content = "[ { \"might\": 5 }, { \"might\": 9 } ";   // no closing ']'
+                File.WriteAllText(srcAbs, content);
+
+                var proj = ProjectWith(dir, JsonItemsOwner(srcRel));
+                CoreState.DecompProject = proj;
+
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
+                    new Dictionary<string, uint> { { "might", 7 } });
+                Assert.False(res.Ok);
+                Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs));   // untouched on disk
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // (1c) Sanity: the full-doc validation must NOT reject a VALID document (no false
+        // positive) — the happy path still rewrites only the target token.
+        [Fact]
+        public void Json_ValidDocument_StillWrites_NoFalsePositive()
+        {
+            string src = "[ { \"might\": 5 }, { \"might\": 9 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 7 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Equal("[ { \"might\": 7 }, { \"might\": 9 } ]\n", outText);
+        }
+
+        // (2) Finding 2 (JSON): existing decimal 255, signed width-1, request 255. The
+        // stored bits 255 reinterpret to -1 at width 1, and SignExtend(255,1) == -1, so it
+        // is a NO-OP — the token must NOT be rewritten to -1.
+        [Fact]
+        public void Json_Signed_NoOp_BitPatternToken_255_RequestsSame_NoChange()
+        {
+            string src = "[ { \"promoHp\": 255 } ]\n";
+            var owner = SignedPromoHpJsonOwner();
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);   // byte-identical — 255 preserved, NOT rewritten to -1
+        }
+
+        // (2b) Same field via the 0xFF-equivalent uint path: request 0xFF (== 255). Still a
+        // no-op against the existing 255 bit-pattern token.
+        [Fact]
+        public void Json_Signed_NoOp_BitPatternToken_255_Requests0xFF_NoChange()
+        {
+            string src = "[ { \"promoHp\": 255 } ]\n";
+            var owner = SignedPromoHpJsonOwner();
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 0xFF } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);
+        }
+
+        // (3) Finding 2 (C): existing 0xFF, signed width-1, request 255 (SignExtends to -1).
+        // 0xFF int8 == -1, so it is a NO-OP — the 0xFF token must be preserved, NOT rewritten.
+        [Fact]
+        public void Cstruct_Signed_NoOp_BitPatternToken_0xFF_Requests255_NoChange()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0xFF } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);   // 0xFF preserved, NOT rewritten to -1
+        }
+
+        // (4) C signed REAL change still works: existing 0, signed width-1, request 255
+        // (== -1) → rewrites to -1 and reports the change. Confirms the no-op fix did not
+        // suppress a genuine difference.
+        [Fact]
+        public void Cstruct_Signed_RealChange_0_Requests255_RewritesToMinus1()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0 } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = -1", outText);
+            Assert.Contains("promoHp", res.ChangedFields);
+        }
+
+        // (5) C signed explicit-negative no-op: existing -1, signed width-1, request 255
+        // (== -1). The explicit '-1' is ALREADY the signed value → no-op, byte-identical.
+        [Fact]
+        public void Cstruct_Signed_NoOp_ExplicitNegativeToken_Minus1_Requests255_NoChange()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = -1 } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);
+        }
+
         // ---- small helpers ----
 
         /// <summary>Pack a signed int8 into the two's-complement byte the writer reinterprets.</summary>

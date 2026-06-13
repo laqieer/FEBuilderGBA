@@ -308,9 +308,14 @@ sibling.
   `classes`.** **Signed fields** (unit base stats, class promotion gains) are driven off
   `fields[].signed` (+ optional `width` 1/2/4) — pass the two's-complement magnitude
   (e.g. `--value=255` for an int8 -1); a value that reinterprets negative is re-emitted as a
-  `-N` decimal. `--field`/`--value` are **REPEATABLE** (each `--field=X` paired with the
-  immediately-following `--value=Y` in argument order) so multiple fields of one entry update
-  in a single atomic source write. **`map_settings` (chapter settings), shops, and support
+  `-N` decimal. The no-op check is **width-aware**: an existing bit-pattern literal (e.g.
+  `0xFF` / `255` for an int8) is reinterpreted at the field width before comparing, so
+  requesting its equivalent (`255` ⇔ `0xFF` ⇔ -1) is recognized as a no-op and the token is
+  left untouched (no churn); an existing explicit `-N` literal is treated as already-signed.
+  A **malformed/truncated JSON source** (e.g. a missing closing `]`) is validated against the
+  whole document first and rejected with no write (the file stays byte-identical). `--field`/`--value`
+  are **REPEATABLE** (each `--field=X` paired with the immediately-following `--value=Y` in
+  argument order) so multiple fields of one entry update in a single atomic source write. **`map_settings` (chapter settings), shops, and support
   data are ROM-only/manual this release** (no clean source-of-truth C array; faithful writers
   are a follow-up). On success the project is flagged **needs rebuild**. `--out-diff=<path>`
   optionally writes a before/after diff of the changed element. Exit codes: `0` = source
@@ -331,7 +336,8 @@ sibling.
 Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
 symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant;
 the source-backed table writer is #1132, extended to JSON + units/classes + signed
-fields + multi-field in #1141. Asset exporters (#1133) and in-app build/reload (#1134)
+fields + multi-field in #1141 (full-document JSON validation + width-aware signed no-op
+hardening in #1145). Asset exporters (#1133) and in-app build/reload (#1134)
 round out the suite.
 
 ### Running on Android (experimental)
