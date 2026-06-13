@@ -81,6 +81,33 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void BuildEnabled_ExplicitEnabledFalse_OptsOutEvenWithCommand()
+        {
+            // Security: an explicit "enabled": false is a deliberate opt-OUT even
+            // when other build keys (command/args) are present.
+            var m = JsonSerializer.Deserialize<DecompManifest>(
+                "{\"build\":{\"enabled\":false,\"command\":\"make\"}}");
+            Assert.False(m!.BuildEnabled);
+        }
+
+        [Fact]
+        public void Build_ExplicitEnabledFalse_ReturnsNotOptedIn()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                WriteManifest(dir,
+                    "{\"schemaVersion\":1,\"builtRom\":\"out.gba\",\"build\":{\"enabled\":false,\"command\":\"make\"}}");
+                var project = DecompProjectDetector.Detect(dir);
+                Assert.NotNull(project);
+
+                var result = DecompBuildCore.Build(project!, 30_000);
+                Assert.Equal(DecompBuildStatus.NotOptedIn, result.Status);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
         public void BuildArgs_ObjectWithArgs_ReturnsArray()
         {
             var m = JsonSerializer.Deserialize<DecompManifest>("{\"build\":{\"command\":\"make\",\"args\":[\"all\",\"-j4\"]}}");

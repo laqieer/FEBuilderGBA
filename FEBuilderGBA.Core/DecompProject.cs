@@ -384,8 +384,13 @@ namespace FEBuilderGBA
                         return !string.IsNullOrEmpty(b.GetString());
                     if (b.ValueKind == JsonValueKind.Object)
                     {
-                        // Empty object {} counts as opt-in
-                        // Also accepts enabled:true, command, or args present
+                        // An explicit "enabled": false is a deliberate opt-OUT even
+                        // when other build keys are present (security: honor the
+                        // user's explicit disable). Otherwise any object — even an
+                        // empty {} — counts as opt-in.
+                        if (b.TryGetProperty("enabled", out var en)
+                            && en.ValueKind == JsonValueKind.False)
+                            return false;
                         return true;
                     }
                 }
