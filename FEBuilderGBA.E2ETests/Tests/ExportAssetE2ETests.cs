@@ -148,6 +148,51 @@ namespace FEBuilderGBA.E2ETests.Tests
             }
         }
 
+        // ---- Regression: --export-asset --project must NOT be swallowed by the
+        //      bare --project rom-info fallthrough (dispatch-order bug, #1133) ----
+
+        [SkippableFact]
+        public void ExportAsset_Palette_Project_ExitsZero_WritesUnderProjectRoot()
+        {
+            // Use FE8U specifically (the task-specified ROM); the synthetic project
+            // manifest forces version FE8U so detection + load is deterministic.
+            Skip.If(RomLocator.FE8U == null, "FE8U ROM not available for --export-asset --project test");
+
+            string projectDir = NewTempDir("proj_pal");
+            try
+            {
+                // febuilder.project.json: schemaVersion 1, builtRom → copied real ROM, forceVersion FE8U
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\", \"forceVersion\": \"FE8U\" }");
+                File.Copy(RomLocator.FE8U!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                // Project-relative out path: gfx/sample.pal under the project root.
+                string outRel = "gfx/sample.pal";
+                string args = $"--export-asset --project=\"{projectDir}\" --kind=palette --addr=0x5524 --colors=16 --out={outRel}";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0,
+                    $"--export-asset --project exited with {code}\nStdout: {stdout}\nStderr: {stderr}");
+
+                // REGRESSION GUARD: the command must route to RunExportAsset (prints "Wrote:"),
+                // NOT the rom-info reporter (which prints "Mode: Decomp"/"Symbols:" and exports nothing).
+                Assert.Contains("Wrote:", stdout);
+                Assert.DoesNotContain("Symbols:", stdout);
+
+                // The asset file must exist under the project root.
+                string expectedPal = Path.Combine(projectDir, "gfx", "sample.pal");
+                Assert.True(File.Exists(expectedPal),
+                    $"Expected exported .pal at {expectedPal}\nStdout: {stdout}");
+
+                string content = File.ReadAllText(expectedPal);
+                Assert.StartsWith("JASC-PAL", content);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
         // ---- Regression: classic --export-palette still works ----
 
         [SkippableFact]

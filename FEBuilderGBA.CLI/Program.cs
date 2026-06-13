@@ -290,6 +290,14 @@ namespace FEBuilderGBA.CLI
                 return RunMigrateDiff(argsDic);
             }
 
+            // --export-asset must precede the bare --project rom-info fallthrough (#1133)
+            // — otherwise `--export-asset --project=<dir>` is swallowed by RunRomInfo
+            //   and the asset is never exported.
+            if (argsDic.ContainsKey("--export-asset"))
+            {
+                return RunExportAsset(argsDic);
+            }
+
             // --project=<dir> [--rom-info]: open a decomp project and report its
             // mode + resolved preview ROM. Both `--project=<dir> --rom-info` and
             // bare `--project=<dir>` route to the rom-info reporter (#1129 slice 1).
@@ -301,11 +309,6 @@ namespace FEBuilderGBA.CLI
             if (argsDic.ContainsKey("--list-tables"))
             {
                 return RunListTables(argsDic);
-            }
-
-            if (argsDic.ContainsKey("--export-asset"))
-            {
-                return RunExportAsset(argsDic);
             }
 
             if (argsDic.ContainsKey("--export-palette"))
