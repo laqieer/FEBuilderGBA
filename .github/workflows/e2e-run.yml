@@ -54,6 +54,21 @@ jobs:
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
 
+      # ---------------------------------------------------------------- x86 .NET 9 runtimes
+      - name: Install x86 .NET 9 runtimes (windows-latest image dropped x86 9.0)
+        # The GitHub-hosted windows-latest image now ships x86 Microsoft.NETCore.App
+        # 8.0.x + 10.0.x but NOT 9.0.x, so the x86 testhost (testhost.x86.exe) for the
+        # net9.0-windows WinForms test DLLs (FEBuilderGBA.Tests, FEBuilderGBA.E2ETests)
+        # fails to launch with "You must install or update .NET". Install both the base
+        # runtime (Microsoft.NETCore.App) and the WindowsDesktop runtime
+        # (Microsoft.WindowsDesktop.App) for x86 into the canonical x86 dotnet root the
+        # host already probes, so all versions coexist. See issue #1119.
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile "$env:RUNNER_TEMP/dotnet-install.ps1"
+          & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime dotnet         -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
+          & "$env:RUNNER_TEMP/dotnet-install.ps1" -Architecture x86 -Runtime windowsdesktop -Channel 9.0 -InstallDir "C:\Program Files (x86)\dotnet"
+
       # ---------------------------------------------------------------- Build main app + E2E tests
       - name: Restore & Build (Release x86)
         run: |
