@@ -438,7 +438,7 @@ Specialized utilities for different graphic types:
   `Import` validates dims → animType (16x48→0 / 16x96→1 / 32x96→2, else NO mutation), encodes, LZ77-
   writes + repoints `+4`, writes b2 @ `+2`, ambient undo, byte-identical fault restore (#885/#923). Class
   back-refs in `ClassFormCore` (`GetClassIdWhereWaitIconId`, `GetClassMoveIcon` move-icon id 1-BASED #993).
-  Gaps: GIF import (export-only), palette dialog (→nearest-color remap), old-region recycle (always-append).
+  Gaps: GIF import, palette dialog, old-region recycle (always-append).
 - `EventScriptReferenceScanner.cs` (Core, READ-ONLY) — generic event-script cross-reference scanner
   (#990; ports `EventCondForm.MakeEventScriptPointer` + FE7 tutorial table). `EnumerateEventEntries`
   yields every event entry point with verified per-cond geometry (TURN/TALK/OBJECT/ALWAYS/TUTORIAL/
@@ -463,11 +463,11 @@ Specialized utilities for different graphic types:
 - `ImageWorldMapCore.ImportIconStrip`/`TryGetStripPalette` (Core, ROM-MUTATING / READ-ONLY) — World Map
   Mini/Point1/Point2/Road single-LZ77 strip imports (#1000; wait-icon pattern): validate dims (%8), encode +
   LZ77-write + repoint the ONE image pointer; shared palette NOT written; byte-identical fault restore.
-  Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates. Event/Border/Export deferred.
+  Avalonia `WorldMapImageView` 4 handlers + FE8-only `CanImport{strip}` gates. Event/Border deferred.
 - `StructExportCore.FormatSTRUCT`/`FormatNMM` (Core, READ-ONLY, PURE) — Struct Dump Selector STRUCT (.h
   C-header) + NMM (No$gba memory map) export over `StructMetadata.StructDef`; Avalonia
   `DumpStructSelectDialogViewModel.MakeExportText` routes STRUCT/NMM (+CSV/TSV/EA) for a resolved table, hex
-  stub for unresolved. Gaps: no signed-byte/hex-radix, NMM aux-files emit `NULL`. #1012.
+  stub for unresolved. Gaps: no signed-byte/hex-radix; NMM aux→`NULL`. #1012.
 - `BattleAnimeRendererCore.RenderSampleBattleAnime` optional EXACT-32-byte `overridePaletteBlock` (Core,
   READ-ONLY) — live-recolor the Unit Palette editor sample preview from in-memory R/G/B spinners (WF
   `OnChangeColor`): Avalonia `ImageUnitPaletteView` packs 16 spinners (`UnitPaletteWriteCore.PackRgb555`) →
@@ -477,14 +477,14 @@ Specialized utilities for different graphic types:
   voice(0xBD) remap + VOL/PAN clamp 0..127 + TEMPO clamp 0..255 + gated note-velocity; validate-all-before-mutate,
   ambient undo, byte-identical fault restore. Wires Avalonia `SongTrackChangeTrackView` + `SongTrackAllChangeTrackView`
   Vol/Pan/Tempo. Slice 3 = `SongExchangeCore.ConvertSong` cross-ROM transplant (InstrumentMap/Rip/Burn port, sample
-  recycle + pointer fixups, validate-all-before-mutate, NO ROM growth); Avalonia `SongExchangeView` + CLI `--songexchange`.
-- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor AI Hints export (#1028 Slice C): `GetTranslateInfoByFaceID` (unit-table-by-face-at-+6, `(f2&0x80)==0x20` quirk) + `AppendAIHintMessage` (escape forms, dedup, mob fallback); Avalonia `ExportAllTexts(path,includeAIHints)` appends CR/LF-flattened TSV.
+  recycle + pointer fixups, validate-before-mutate, NO ROM growth); Avalonia `SongExchangeView` + CLI `--songexchange`.
+- `NameResolver.GetFaceTranslateInfo` + `ToolTranslateROMCore.AppendAIHintMessage` (Core, READ-ONLY) — Text Editor AI Hints export (#1028 Slice C): `GetTranslateInfoByFaceID` (unit-table-by-face-at-+6, `(f2&0x80)==0x20` quirk) + `AppendAIHintMessage` (escape forms, dedup, mob fallback); Avalonia `ExportAllTexts(path,includeAIHints)`.
 - `PatchDetection.SearchAntiHuffmanPatch(rom)` (Core, READ-ONLY) — Text Editor bad-char popup (#1028 Slice D): 6 un-Huffman sigs (both FE8U @0x2BA4); `PatchDetectionService.DetectAntiHuffman` delegates. `TextViewerViewModel.WriteText` = WF encode-fail→callback shows `TextBadCharPopupView`→ABORT via `EncodeAbortedException`; ja/zh/ko gated.
 - `ExportFilterCore.BuildFilteredTextIds(rom,idx)` (Core, READ-ONLY) — Text Editor Export Filter (#1028 Slice B): WF `InitExportFilter` 11 cats (0=All→null); BattleTalk/Haiku event-ptr-when-0; Skill via `SkillSystemTextScanner`; EventCond via `EventScriptReferenceScanner.CollectEventCondTextIds` (4 text-args+POINTER_EVENT+MENUEXTENDS/etc+FE8). `U.GrepPatternMatch`/`MakeMask2` ported.
 - `MakeVarsIDArrayCore.BuildAllUsedRefs/BuildFreeAreaUsedSet` + `TextFreeAreaCore.FindUnreferencedTextIds` (Core, READ-ONLY) — DEFINITIVE Text Editor free-area + cross-ref (#1027; faithful `U.MakeVarsIDArray`): typed TEXTID∪SONG union over Unit/Class/Item/EventCond + collectors (MenuDefinition/StatusRMenu(recursive)/SoundBossBGM+WorldMapBGM/WorldMapEvent/FE8N-Ver3-skill), reusing ExportFilterCore; `AsmMapTextSymbolReader` + `PatchTextRefScannerCore` (installed ADDR/STRUCT TEXT/SONG/EVENT) + `ITextIDCache.EnumerateUsedTextIds`. PREREQ-GUARD when EventScript/CommentCache unwired or ROM≠active. Avalonia `FindUnreferencedTexts`/`FindCrossReferences`.
-- `ToolAnimationCreatorViewViewModel.InitFromMagicRom`/`InitFromSkillRom` (Avalonia, R/O) — Animation-Creator jump seeds: magic #996 (FEditor/CSA 0x86 via `MagicEffectExportCore`) + skill #1115 (`ExportSkillAnimation`→wait+TSA-preview; `CountSkillFrames` probe; `SkillConfigAnimeJumpHelper` 4 variants, Ver1 render-only). MapAction write-back only.
-- `PatchMacroAddressResolverCore.cs` (Core, READ-ONLY) — `$GREP`/`$XGREP`/`$FGREP`/`$P32`/`$TEXTID` resolver; adds `GrepPatternMatchEnd`/`GrepPatternMatchBegin` to Core `U.cs`; wires `PatchTextRefScannerCore` so grep-resolved TEXT/SONG/EVENT refs reach the free-area union. #1027.
-- `DecompProject.cs` (Core, READ-ONLY, never-throws) — decomp-project open mode (#1129 s1): `DecompProjectDetector.Detect` (score >=2 / manifest short-circuit) + `ResolveBuiltRom` (builtRom / `ROM:=` stem / same-stem-.elf glob); `CoreState.IsDecompMode`; CLI `--project`. #1130: `DecompSymbolResolver`/`MergedAsmMapFile` layer `.map`/ELF/`.sym`/JSON over shipped at `GetAsmMapFile()` (project wins; CLI `--resolve-addr`).
+- `ToolAnimationCreatorViewViewModel.InitFromMagicRom`/`InitFromSkillRom` (Avalonia, R/O) — Animation-Creator jump seeds: magic #996 (FEditor/CSA 0x86 via `MagicEffectExportCore`) + skill #1115 (`ExportSkillAnimation`; `CountSkillFrames`; `SkillConfigAnimeJumpHelper` 4 variants, Ver1 render-only). MapAction write-back only.
+- `PatchMacroAddressResolverCore.cs` (Core, READ-ONLY) — `$GREP`/`$XGREP`/`$FGREP`/`$P32`/`$TEXTID` resolver; adds `GrepPatternMatchEnd/Begin` to Core `U.cs`; wires `PatchTextRefScannerCore` so grep-resolved TEXT/SONG/EVENT refs reach the free-area union. #1027.
+- `DecompProject.cs` (Core, READ-ONLY, never-throws) — decomp-project open mode (#1129 s1): `Detect` (score >=2 / manifest) + `ResolveBuiltRom` (builtRom / `ROM:=` stem / same-stem-.elf glob); `IsDecompMode`; CLI `--project`. #1130: `DecompSymbolResolver`/`MergedAsmMapFile` layer `.map`/ELF/`.sym`/JSON over shipped at `GetAsmMapFile()` (project wins; CLI `--resolve-addr`). #1131: `DecompDiffMigrationCore` (advisory R/O) diffs built-vs-edited + classifies ranges by symbol/category/source/confidence (compressed/unknown→manual); CLI `--migrate-diff`.
 
 ### Caching System
 

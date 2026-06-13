@@ -100,6 +100,10 @@ dotnet run --project FEBuilderGBA.CLI -- --rom-info --rom=rom.gba
 dotnet run --project FEBuilderGBA.CLI -- --project=path/to/decomp --rom-info
 # Resolve an address to a decomp project symbol (.map/ELF/.sym/JSON over shipped)
 dotnet run --project FEBuilderGBA.CLI -- --project=path/to/decomp --resolve-addr=0x08000100
+# Decomp diff-to-source migration assistant: classify built-vs-edited ROM changes
+# (range/symbol/category/source-file/confidence) for migrating edits back to source.
+# Advisory + READ-ONLY — never writes the ROM or source.
+dotnet run --project FEBuilderGBA.CLI -- --migrate-diff --project=path/to/decomp --rom2=edited.gba --out=migrate.tsv
 dotnet run --project FEBuilderGBA.CLI -- --list-tables
 dotnet run --project FEBuilderGBA.CLI -- --export-palette --rom=rom.gba --addr=0x5524 --out=palette.pal --colors=16
 dotnet run --project FEBuilderGBA.CLI -- --import-palette --rom=rom.gba --addr=0x5524 --in=palette.pal
@@ -235,10 +239,22 @@ sibling.
   the same address) layered over the shipped asmmap. It prints the symbol name,
   its source artifact, and the in-span offset. The same merged symbol table backs
   the Pointer Tool "What is this address?" lookup when a project is open.
+- **CLI:** `--migrate-diff --project=<dir> --rom2=<editedRom> [--out=report.tsv]`
+  is the **diff-to-source migration assistant** (advisory + READ-ONLY). It diffs the
+  project's built/baseline ROM against a FEBuilder-edited ROM, coalesces the changed
+  byte ranges (small-gap merge), and classifies each range for a contributor
+  migrating the edit back to source: nearest symbol (via the slice-2 resolver),
+  category (struct-table / graphics-palette / compressed / map / text / music /
+  unknown), a source-file suggestion (the `.map` object path / section when known),
+  and an **honest confidence** — High only when a covering project symbol names the
+  whole range, Medium for an inferred known-range, Low + *"manual migration required"*
+  for compressed / unknown / ambiguous spans. It tracks `ChangedBytes` separately
+  from the coalesced span and NEVER writes the ROM or source — the edited ROM is read
+  but never treated as canonical final output.
 
 Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
-symbol resolution. Diff-to-source, source writers, asset exporters and in-app
-build/reload are tracked under #1131–#1134.
+symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant.
+Source writers, asset exporters and in-app build/reload are tracked under #1132–#1134.
 
 ### Running on Android (experimental)
 

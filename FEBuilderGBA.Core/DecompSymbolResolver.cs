@@ -35,6 +35,13 @@ namespace FEBuilderGBA
     {
         readonly Dictionary<uint, AsmMapSt> _symbols = new Dictionary<uint, AsmMapSt>();
         readonly Dictionary<uint, DecompArtifactSource> _sources = new Dictionary<uint, DecompArtifactSource>();
+        // Owning section name + best-effort object/source path per resolved pointer
+        // (kept in parallel like _sources). READ-ONLY hints for the #1131
+        // diff-to-source migration assistant's SourceFile suggestion. Only entries
+        // whose source artifact carried a non-empty value are stored — never
+        // fabricated. Consumed via TryGetSection / TryGetObjectPath.
+        readonly Dictionary<uint, string> _sections = new Dictionary<uint, string>();
+        readonly Dictionary<uint, string> _objectPaths = new Dictionary<uint, string>();
         // Per-source loaded counts (for the CLI rom-info breakdown).
         public int CountMap { get; private set; }
         public int CountElf { get; private set; }
@@ -63,6 +70,27 @@ namespace FEBuilderGBA
         public bool TryGetSource(uint pointer, out DecompArtifactSource src)
         {
             return _sources.TryGetValue(pointer, out src);
+        }
+
+        /// <summary>
+        /// Owning section name of a resolved pointer (e.g. <c>.rodata</c>), when the
+        /// source artifact recorded one. Returns false (empty) otherwise. READ-ONLY
+        /// hint for the #1131 migration assistant; never fabricated.
+        /// </summary>
+        public bool TryGetSection(uint pointer, out string section)
+        {
+            return _sections.TryGetValue(pointer, out section);
+        }
+
+        /// <summary>
+        /// Best-effort object/source path of a resolved pointer (e.g.
+        /// <c>build/src/unit.o</c>), when the linker map recorded one. Returns false
+        /// (empty) otherwise. READ-ONLY hint for the #1131 migration assistant;
+        /// never fabricated.
+        /// </summary>
+        public bool TryGetObjectPath(uint pointer, out string objectPath)
+        {
+            return _objectPaths.TryGetValue(pointer, out objectPath);
         }
 
         DecompSymbolResolver() { }
@@ -139,6 +167,13 @@ namespace FEBuilderGBA
                 if (_symbols.ContainsKey(key)) continue;     // earlier source wins
                 _symbols[key] = new AsmMapSt { Name = s.Name, Length = s.Size };
                 _sources[key] = source;
+                // Keep section / object-path hints only when non-empty (never
+                // fabricate). Parallel to _sources; first-source-wins is already
+                // guaranteed by the _symbols.ContainsKey guard above.
+                if (!string.IsNullOrEmpty(s.Section))
+                    _sections[key] = s.Section;
+                if (!string.IsNullOrEmpty(s.ObjectPath))
+                    _objectPaths[key] = s.ObjectPath;
                 added++;
             }
             return added;
@@ -420,6 +455,22 @@ namespace FEBuilderGBA
         {
             if (_project != null) return _project.TryGetSource(pointer, out src);
             src = DecompArtifactSource.None;
+            return false;
+        }
+
+        /// <summary>Owning section of a resolved pointer (project symbols only). #1131.</summary>
+        public bool TryGetSection(uint pointer, out string section)
+        {
+            if (_project != null) return _project.TryGetSection(pointer, out section);
+            section = "";
+            return false;
+        }
+
+        /// <summary>Object/source path of a resolved pointer (project symbols only). #1131.</summary>
+        public bool TryGetObjectPath(uint pointer, out string objectPath)
+        {
+            if (_project != null) return _project.TryGetObjectPath(pointer, out objectPath);
+            objectPath = "";
             return false;
         }
     }
