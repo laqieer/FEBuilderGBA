@@ -28,6 +28,14 @@ namespace FEBuilderGBA.Core.Tests
             return rom;
         }
 
+        // 32 MB FE8U ROM so a symbol span can reach the EWRAM upper boundary.
+        static ROM MakeFe8uRom32mb(byte[] data)
+        {
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("decomp-migrate-fe8u-32m.gba", data, "BE8E01"));
+            return rom;
+        }
+
         // Build a resolver + merged map from .map text (throwaway project dir).
         static (MergedAsmMapFile Map, DecompSymbolResolver Resolver) BuildMap(string mapText)
         {
@@ -261,6 +269,36 @@ namespace FEBuilderGBA.Core.Tests
             var report = DecompDiffMigrationCore.Analyze(rom, edited, null, null);
             Assert.Single(report.Ranges);
             Assert.NotEqual(MigrationCategory.StructTable, report.Ranges[0].Category);
+        }
+
+        [Fact]
+        public void Analyze_SpanEndingAtEwramBoundary_CoverageComputedCorrectly()
+        {
+            // A symbol whose span ends exactly at file offset 0x02000000 (32MB ROM
+            // upper boundary). The exclusive end pointer must be computed by pointer
+            // arithmetic (startPtr + span), NOT U.toPointer(endOffset) which would
+            // leave 0x02000000 unconverted and mis-judge coverage (Copilot PR #1139).
+            int size = 0x2000000;                 // 32 MB
+            uint off = 0x1FFFFF0;                 // last 16 bytes before the boundary
+            var built = new byte[size];
+            var edited = new byte[size];
+            for (int i = 0; i < 8; i++) edited[off + i] = 0xAA;
+            var rom = MakeFe8uRom32mb(built);
+
+            // Symbol gTail @ 0x09FFFFF0 covering [0x09FFFFF0 .. 0x0A000000) = the
+            // final 16 bytes; the 8-byte diff at 0x1FFFFF0 is fully inside it.
+            var (map, resolver) = BuildMap(string.Join("\n", new[]
+            {
+                " .rodata        0x09FFFFF0       0x10 build/src/tail.o",
+                "                0x09FFFFF0                gTailTable",
+            }));
+
+            var report = DecompDiffMigrationCore.Analyze(rom, edited, map, resolver);
+            Assert.Single(report.Ranges);
+            var r = report.Ranges[0];
+            Assert.Equal("gTailTable", r.Symbol);
+            Assert.True(r.SymbolCovers);          // coverage correct at the boundary
+            Assert.Equal(MigrationConfidence.High, r.Confidence);
         }
 
         // ---------------------------------------------------------------- robustness

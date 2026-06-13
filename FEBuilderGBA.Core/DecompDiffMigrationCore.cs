@@ -234,7 +234,7 @@ namespace FEBuilderGBA
 
             // --- nearest symbol (span-covering resolver from #1130) ---
             uint symBaseOffset; // file offset of the covering symbol base (NOT_FOUND when none)
-            ResolveSymbol(r, map, resolver, startPtr, c.Offset, endOffsetExclusive, out symBaseOffset);
+            ResolveSymbol(r, map, resolver, startPtr, c.SpanLength, out symBaseOffset);
 
             // A fully-covering project (map/elf/sym/json) symbol is the strongest
             // attribution we have: it names the whole changed span and points at a
@@ -338,7 +338,7 @@ namespace FEBuilderGBA
         // offset (NOT_FOUND when none). Bounds-guarded; never throws.
         static void ResolveSymbol(
             MigrationRange r, MergedAsmMapFile map, DecompSymbolResolver resolver,
-            uint startPtr, uint startOffset, uint endOffsetExclusive, out uint symBaseOffset)
+            uint startPtr, uint spanLength, out uint symBaseOffset)
         {
             symBaseOffset = U.NOT_FOUND;
             if (map == null) return;
@@ -354,7 +354,12 @@ namespace FEBuilderGBA
                 symBaseOffset = U.toOffset(near);
 
                 // Whole-range coverage: [startPtr, endPtr) inside [near, near+Length).
-                uint endPtr = U.toPointer(endOffsetExclusive);
+                // Compute the EXCLUSIVE end pointer by pointer arithmetic from
+                // startPtr — NOT U.toPointer(endOffsetExclusive), which mis-handles a
+                // span ending exactly at the EWRAM boundary (file off 0x02000000 on a
+                // 32MB ROM: toPointer leaves it as 0x02000000, breaking coverage at
+                // the ROM upper boundary). ulong avoids the 0x0A000000 wrap. (Copilot PR #1139.)
+                ulong endPtr = (ulong)startPtr + spanLength;
                 ulong symEnd = (ulong)near + st.Length;
                 r.SymbolCovers = st.Length > 0
                     && startPtr >= near
