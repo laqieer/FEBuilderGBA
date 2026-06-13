@@ -51,6 +51,13 @@ namespace FEBuilderGBA
                 if (paletteColorCount < 1 || paletteColorCount > 256) return null;
                 if (gbaPalette.Length < paletteColorCount * 2) return null;
 
+                // Every pixel index must be representable by the PLTE
+                // (color type 3 requires index < palette size). An out-of-range
+                // index would produce an INVALID PNG, so reject (never throw).
+                for (int i = 0; i < indices.Length; i++)
+                    if (indices[i] >= paletteColorCount)
+                        return null;
+
                 using var ms = new MemoryStream();
 
                 // ---- PNG signature ----

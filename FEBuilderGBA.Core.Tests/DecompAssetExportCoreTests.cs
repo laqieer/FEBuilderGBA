@@ -376,6 +376,84 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
         }
 
+        // ---- FINDING 1: non-multiple-of-8 dimensions rejected ----
+
+        [Fact]
+        public void ExportGraphics_NonMultipleOf8Width_ReturnsBadArgs_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                string outPng = Path.Combine(dir, "bad_w.png");
+
+                // width=20 is not a multiple of 8 → must be rejected with BadArgs
+                var result = DecompAssetExportCore.ExportGraphics(rom, 0, 20, 8, 4, false, 0x100, 16, outPng);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+                Assert.False(File.Exists(outPng), "No file should be written when dims are rejected");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void ExportGraphics_NonMultipleOf8Height_ReturnsBadArgs_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x400]);
+                string outPng = Path.Combine(dir, "bad_h.png");
+
+                // height=12 is not a multiple of 8 → must be rejected with BadArgs
+                var result = DecompAssetExportCore.ExportGraphics(rom, 0, 8, 12, 4, false, 0x100, 16, outPng);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.BadArgs, result.Status);
+                Assert.False(File.Exists(outPng), "No file should be written when dims are rejected");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        // ---- FINDING 2: compressed tile data shorter than required rejected ----
+
+        [Fact]
+        public void ExportGraphics_CompressedTooShort_ReturnsNotData_NoFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // Build a tiny LZ77 blob that decompresses to FEWER bytes than
+                // a 16x16 4bpp image requires (16*16*4/8 = 128 bytes).
+                // Decompressing a 16-byte payload yields 16 bytes << 128.
+                byte[] tooShort = new byte[16];
+                for (int i = 0; i < tooShort.Length; i++) tooShort[i] = (byte)i;
+                byte[] compressed = LZ77.compress(tooShort);
+                Assert.NotNull(compressed);
+
+                byte[] romData = new byte[0x100 + compressed.Length + 64];
+                Array.Copy(compressed, 0, romData, 0x100, compressed.Length);
+                // Put a palette at 0x80 (16 colors = 32 bytes)
+                byte[] pal = MakeSyntheticPalette16();
+                Array.Copy(pal, 0, romData, 0x80, 32);
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(romData);
+
+                string outPng = Path.Combine(dir, "short.png");
+                // Request 16x16 4bpp (needs 128 tile bytes) but only 16 decompress
+                var result = DecompAssetExportCore.ExportGraphics(rom, 0x100, 16, 16, 4, true, 0x80, 16, outPng);
+
+                Assert.False(result.Ok);
+                Assert.Equal(DecompAssetStatus.NotData, result.Status);
+                Assert.False(File.Exists(outPng), "No file should be written when tile data is too short");
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
         // ---- Never-throws guard ----
 
         [Fact]

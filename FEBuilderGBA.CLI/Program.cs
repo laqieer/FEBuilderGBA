@@ -464,7 +464,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --max-gap=<int>        Optional: small-gap merge distance for range coalescing (default 16)");
             Console.WriteLine("  --list-tables            List all exportable struct table names (no ROM required)");
             Console.WriteLine("  --export-asset           Export a ROM asset to a decomp source-tree path (requires --kind, --out, and --rom or --project)");
-            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text");
+            Console.WriteLine("    --kind=<kind>          Asset kind: graphics|palette|map|text (map data is always LZ77-decompressed)");
             Console.WriteLine("    --out=<path>           Output path (project-relative when --project; absolute or relative when --rom)");
             Console.WriteLine("    --addr=<hex>           ROM address of the asset (required for graphics, palette, map)");
             Console.WriteLine("    --colors=<int>         Number of palette colors (default 16; for --kind=palette and --kind=graphics)");
@@ -472,7 +472,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --width=<int>          Image width in pixels (required for --kind=graphics)");
             Console.WriteLine("    --height=<int>         Image height in pixels (required for --kind=graphics)");
             Console.WriteLine("    --palette-addr=<hex>   ROM address of the palette data (required for --kind=graphics)");
-            Console.WriteLine("    --compressed           Data is LZ77-compressed at --addr (flag; for --kind=graphics and --kind=map)");
+            Console.WriteLine("    --compressed           (graphics only) the source tile data at --addr is LZ77-compressed (flag)");
             Console.WriteLine("  --export-palette         Export GBA palette to file (requires --rom, --addr, --out)");
             Console.WriteLine("    --addr=<hex>           Palette data address in ROM (e.g., 0x5524)");
             Console.WriteLine("    --colors=<int>         Number of colors to export (default: 16)");

@@ -296,6 +296,29 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(result);
         }
 
+        // ---- FINDING 4: pixel index out of palette range → invalid PNG → null ----
+
+        [Fact]
+        public void Write_PixelIndexExceedsPaletteCount_ReturnsNull()
+        {
+            byte[] pal = MakeSyntheticPalette16(); // 16 colors
+            // 8x8 image, but one pixel index = 20 which is >= paletteColorCount (16)
+            byte[] idx = new byte[8 * 8];
+            idx[10] = 20; // out-of-range index for a 16-entry palette
+            byte[] result = IndexedPngWriter.Write(idx, 8, 8, pal, 16);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void Write_PixelIndexEqualsPaletteCount_ReturnsNull()
+        {
+            byte[] pal = MakeSyntheticPalette16(); // 16 colors → valid indices 0..15
+            byte[] idx = new byte[8 * 8];
+            idx[0] = 16; // index == paletteColorCount is out of range (valid is 0..15)
+            byte[] result = IndexedPngWriter.Write(idx, 8, 8, pal, 16);
+            Assert.Null(result);
+        }
+
         [Fact]
         public void Write_NeverThrows_OnAnyInput()
         {

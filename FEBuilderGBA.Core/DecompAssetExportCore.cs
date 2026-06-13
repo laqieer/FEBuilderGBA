@@ -180,6 +180,8 @@ namespace FEBuilderGBA
                     return Fail(DecompAssetStatus.BadArgs, "ROM is null");
                 if (width <= 0 || height <= 0)
                     return Fail(DecompAssetStatus.BadArgs, $"Invalid dimensions {width}x{height}");
+                if (width % 8 != 0 || height % 8 != 0)
+                    return Fail(DecompAssetStatus.BadArgs, $"Graphics dimensions must be multiples of 8 (tile-aligned), got {width}x{height}");
                 if (bpp != 4 && bpp != 8)
                     return Fail(DecompAssetStatus.BadArgs, $"bpp must be 4 or 8, got {bpp}");
                 if (paletteColors <= 0 || paletteColors > 256)
@@ -211,6 +213,14 @@ namespace FEBuilderGBA
                     tileBytes = new byte[tileByteCount];
                     Array.Copy(rom.Data, addrOffset, tileBytes, 0, tileByteCount);
                 }
+
+                // ---- Validate tile data is large enough for the requested dimensions ----
+                // The uncompressed branch already sizes tileBytes exactly; this guard
+                // catches the compressed case where LZ77 decompresses to too few bytes,
+                // which would otherwise leave the trailing tiles as index 0 (silent corruption).
+                int expectedTileBytes = width * height * bpp / 8;
+                if (tileBytes == null || tileBytes.Length < expectedTileBytes)
+                    return Fail(DecompAssetStatus.NotData, $"Decoded tile data ({tileBytes?.Length ?? 0} bytes) is smaller than required {expectedTileBytes} bytes for {width}x{height} {bpp}bpp");
 
                 // ---- Read palette ----
                 int palByteCount = paletteColors * 2;
