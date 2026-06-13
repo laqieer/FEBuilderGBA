@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 
 namespace FEBuilderGBA
 {
@@ -77,11 +78,13 @@ namespace FEBuilderGBA
     /// <see cref="DecompSourceWriteResult"/> on any fault. On a write fault the source
     /// file is left untouched (no half-write).
     ///
-    /// Supported source format: C struct array (<c>format=="cstruct"</c> or unset).
-    /// JSON-backed sources return <see cref="DecompSourceWriteStatus.Manual"/> for the
-    /// MVP (tracked follow-up). Only plain integer-literal value tokens are rewritten;
-    /// macros / identifiers / expressions are reported as
-    /// <see cref="DecompSourceWriteStatus.UnsupportedField"/> with no write.
+    /// Supported source formats: C struct array (<c>format=="cstruct"</c> or unset)
+    /// AND JSON (<c>format=="json"</c>, #1141). Only plain integer-literal value tokens
+    /// (C) / JSON Number tokens are rewritten; macros / identifiers / expressions
+    /// (C) and string/bool/object/array values (JSON) are reported as
+    /// <see cref="DecompSourceWriteStatus.UnsupportedField"/> with no write (single-field
+    /// intent) or SKIPPED (bulk write). Signed fields (#1141) emit a <c>-N</c> decimal
+    /// when the reinterpreted value is negative.
     /// </summary>
     public static class DecompSourceWriterCore
     {
@@ -161,19 +164,15 @@ namespace FEBuilderGBA
                     return result;
                 }
 
-                // Gate 4: format. Only "cstruct" (or unset) is implemented.
+                // Gate 4: format. "cstruct" (or unset) AND "json" are implemented (#1141).
                 string format = (owner.Format ?? "").Trim();
-                if (string.Equals(format, "json", StringComparison.OrdinalIgnoreCase))
-                {
-                    result.Status = DecompSourceWriteStatus.Manual;
-                    result.Message = "JSON-backed source write is a tracked follow-up — edit the JSON by hand and rebuild.";
-                    return result;
-                }
-                if (!string.IsNullOrEmpty(format)
+                bool isJson = string.Equals(format, "json", StringComparison.OrdinalIgnoreCase);
+                if (!isJson
+                    && !string.IsNullOrEmpty(format)
                     && !string.Equals(format, "cstruct", StringComparison.OrdinalIgnoreCase))
                 {
                     result.Status = DecompSourceWriteStatus.Manual;
-                    result.Message = $"Unsupported source format '{owner.Format}' — only cstruct is implemented.";
+                    result.Message = $"Unsupported source format '{owner.Format}' — only cstruct and json are implemented.";
                     return result;
                 }
 
@@ -214,12 +213,30 @@ namespace FEBuilderGBA
                 // Detect a UTF-8 BOM and preserve it.
                 bool hasBom = rawBytes.Length >= 3
                     && rawBytes[0] == 0xEF && rawBytes[1] == 0xBB && rawBytes[2] == 0xBF;
-                string sourceText = new UTF8Encoding(false).GetString(
-                    rawBytes, hasBom ? 3 : 0, rawBytes.Length - (hasBom ? 3 : 0));
+
+                // Strict UTF-8 decode: a decomp source that is not valid UTF-8 must NOT be
+                // silently lossily decoded (U+FFFD) — that would corrupt unrelated bytes on
+                // re-encode and break the churn-free / byte-preserving guarantee. Fail fast,
+                // file left untouched (Copilot PR #1145 inline finding).
+                string sourceText;
+                try
+                {
+                    var strictUtf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
+                    sourceText = strictUtf8.GetString(
+                        rawBytes, hasBom ? 3 : 0, rawBytes.Length - (hasBom ? 3 : 0));
+                }
+                catch (Exception ex) // DecoderFallbackException (or ArgumentException)
+                {
+                    result.Status = DecompSourceWriteStatus.Error;
+                    result.Message = $"Source file is not valid UTF-8 — refusing to rewrite (left untouched): {ex.Message}";
+                    return result;
+                }
 
                 // Pure rewrite (validates all gates 7-9 before producing new text).
-                DecompSourceWriteResult rewrite = RewriteEntryText(
-                    sourceText, owner, entryId, changedFields, out string newSourceText);
+                // Route to the JSON or the C-struct rewriter by declared format (#1141).
+                DecompSourceWriteResult rewrite = isJson
+                    ? RewriteJsonEntryText(sourceText, owner, entryId, changedFields, out string newSourceText)
+                    : RewriteEntryText(sourceText, owner, entryId, changedFields, out newSourceText);
                 // Carry over diagnostics.
                 rewrite.SourceFile = absPath;
                 rewrite.EntryId = entryId;
@@ -316,9 +333,10 @@ namespace FEBuilderGBA
                     return result;
                 }
 
-                // Build the declared-field name set + ordered list.
+                // Build the declared-field name set + ordered list + signed/width map.
                 var fieldOrder = new List<string>();
                 var fieldSet = new HashSet<string>(StringComparer.Ordinal);
+                var fieldDesc = new Dictionary<string, FieldDesc>(StringComparer.Ordinal);
                 if (owner.Fields != null)
                 {
                     foreach (DecompTableField f in owner.Fields)
@@ -327,6 +345,7 @@ namespace FEBuilderGBA
                         {
                             fieldOrder.Add(f.Name);
                             fieldSet.Add(f.Name);
+                            fieldDesc[f.Name] = new FieldDesc(f.Signed == true, f.Width);
                         }
                     }
                 }
@@ -405,8 +424,9 @@ namespace FEBuilderGBA
                     string field = kv.Key;
                     uint newVal = kv.Value;
 
+                    fieldDesc.TryGetValue(field, out FieldDesc desc);
                     string next = ApplyFieldToElement(
-                        editedElement, field, newVal, hasDesignators, fieldOrder, singleFieldIntent,
+                        editedElement, field, newVal, hasDesignators, fieldOrder, singleFieldIntent, desc,
                         out FieldApplyOutcome outcome, out DecompSourceWriteStatus failStatus, out string failMsg);
 
                     switch (outcome)
@@ -464,6 +484,482 @@ namespace FEBuilderGBA
                 result.Message = $"Unexpected fault: {ex.Message}";
                 return result;
             }
+        }
+
+        // =============================================================== JSON (#1141)
+
+        /// <summary>
+        /// PURE preview: rewrite the targeted JSON element's Number field token(s) in
+        /// <paramref name="sourceText"/> and return the new text via
+        /// <paramref name="newSourceText"/> WITHOUT touching disk. CHURN-FREE — only the
+        /// exact byte span of each changed Number token is spliced; comments, trailing
+        /// commas, whitespace, BOM-less encoding and every other byte are preserved.
+        /// NEVER throws.
+        ///
+        /// Navigation: the top-level value is either a JSON ARRAY (index by
+        /// <c>entryId - indexBase</c>) OR an OBJECT-map (look up the property whose name
+        /// equals <c>(entryId - indexBase)</c>). A negative index ⇒ ParseFailed; a missing
+        /// index/key ⇒ ParseFailed. Within the element object, each changed field must be
+        /// declared on the owner (else UnsupportedField, no write) and its value must be a
+        /// JSON Number (non-number ⇒ single-field Failed/UnsupportedField, bulk ⇒ skip).
+        /// Signed fields emit a <c>-N</c> decimal when the value reinterprets negative.
+        /// </summary>
+        public static DecompSourceWriteResult RewriteJsonEntryText(
+            string sourceText,
+            DecompTableEntry owner,
+            int entryId,
+            IReadOnlyDictionary<string, uint> changedFields,
+            out string newSourceText)
+        {
+            newSourceText = sourceText;
+            var result = new DecompSourceWriteResult { EntryId = entryId };
+            try
+            {
+                if (owner == null)
+                {
+                    result.Status = DecompSourceWriteStatus.NotOwned;
+                    result.Message = "Owner is null.";
+                    return result;
+                }
+                if (sourceText == null)
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = "Source text is null.";
+                    return result;
+                }
+                if (changedFields == null || changedFields.Count == 0)
+                {
+                    result.Status = DecompSourceWriteStatus.Ok;
+                    result.Message = "No change needed.";
+                    result.ChangedFields = new List<string>();
+                    newSourceText = sourceText;
+                    return result;
+                }
+
+                // Validate-all: every changed field must be declared on the owner, and
+                // build the signed/width descriptor map.
+                var fieldSet = new HashSet<string>(StringComparer.Ordinal);
+                var fieldDesc = new Dictionary<string, FieldDesc>(StringComparer.Ordinal);
+                if (owner.Fields != null)
+                {
+                    foreach (DecompTableField f in owner.Fields)
+                    {
+                        if (f != null && !string.IsNullOrEmpty(f.Name))
+                        {
+                            fieldSet.Add(f.Name);
+                            fieldDesc[f.Name] = new FieldDesc(f.Signed == true, f.Width);
+                        }
+                    }
+                }
+                foreach (var kv in changedFields)
+                {
+                    if (!fieldSet.Contains(kv.Key))
+                    {
+                        result.Status = DecompSourceWriteStatus.UnsupportedField;
+                        result.Message = $"Field '{kv.Key}' is not declared in the manifest owner — no change.";
+                        return result;
+                    }
+                }
+
+                int indexBase = owner.IndexBase ?? 0;
+                int elementIndex = entryId - indexBase;
+                if (elementIndex < 0)
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = $"Entry id {entryId} is below the declared indexBase {indexBase}.";
+                    return result;
+                }
+
+                // Work in UTF-8 BYTES so the Utf8JsonReader offsets splice directly.
+                byte[] bytes = new UTF8Encoding(false).GetBytes(sourceText);
+
+                // 0) Validate the WHOLE document FIRST (#1145). TryFindJsonElementSpan stops
+                // reading as soon as it captures the target element, so a truncated/malformed
+                // tail (e.g. a missing closing ']') would otherwise be spliced as if valid.
+                // A full pass with the same options rejects the splice with NO mutation.
+                if (!IsWholeJsonDocumentValid(bytes))
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = "JSON source is malformed (failed full-document validation) — no change.";
+                    return result;
+                }
+
+                // 1) Locate the target element object's byte span.
+                if (!TryFindJsonElementSpan(bytes, elementIndex, out long elemStart, out long elemEnd))
+                {
+                    result.Status = DecompSourceWriteStatus.ParseFailed;
+                    result.Message = $"Entry id {entryId} (index {elementIndex}) not found / not an object in the JSON.";
+                    return result;
+                }
+
+                bool singleFieldIntent = changedFields.Count == 1;
+                var changed = new List<string>();
+
+                // Accumulate edits as (byteStart, byteLen, replacementBytes) on the
+                // ORIGINAL byte offsets; apply right-to-left so earlier offsets stay valid.
+                var edits = new List<(int start, int len, byte[] repl)>();
+
+                foreach (var kv in changedFields)
+                {
+                    string field = kv.Key;
+                    uint newVal = kv.Value;
+                    fieldDesc.TryGetValue(field, out FieldDesc desc);
+
+                    // Find the field's Number value token span within the element object.
+                    JsonFieldLocate loc = LocateJsonNumberField(bytes, elemStart, elemEnd, field);
+
+                    if (loc.Kind == JsonLocateKind.NotFound)
+                    {
+                        // Field absent from this element. Single-field intent → honest
+                        // fail; bulk → skip (the user never edited it).
+                        if (singleFieldIntent)
+                        {
+                            result.Status = DecompSourceWriteStatus.UnsupportedField;
+                            result.Message = $"Field '{field}' not present in JSON entry {entryId} — edit manually.";
+                            return result;
+                        }
+                        continue;
+                    }
+                    if (loc.Kind == JsonLocateKind.NonNumber)
+                    {
+                        // String/bool/object/array value. Single-field → fail; bulk → skip.
+                        if (singleFieldIntent)
+                        {
+                            result.Status = DecompSourceWriteStatus.UnsupportedField;
+                            result.Message = $"Field '{field}' in JSON entry {entryId} is not a number — edit manually.";
+                            return result;
+                        }
+                        continue;
+                    }
+
+                    // loc.Kind == Number: compute the new token + no-op check.
+                    string oldToken = new UTF8Encoding(false).GetString(bytes, (int)loc.Start, (int)(loc.End - loc.Start));
+                    string newToken = BuildJsonNumberToken(oldToken, newVal, desc, out bool isNoOp, out bool tokenOk);
+                    if (!tokenOk)
+                    {
+                        // The existing token is not a plain integer literal we can rewrite
+                        // (e.g. a float / exponent). Single-field → fail; bulk → skip.
+                        if (singleFieldIntent)
+                        {
+                            result.Status = DecompSourceWriteStatus.UnsupportedField;
+                            result.Message = $"Field '{field}' in JSON entry {entryId} is not an integer number — edit manually.";
+                            return result;
+                        }
+                        continue;
+                    }
+                    if (isNoOp)
+                        continue;   // value already equal — no churn
+
+                    edits.Add(((int)loc.Start, (int)(loc.End - loc.Start),
+                        new UTF8Encoding(false).GetBytes(newToken)));
+                    changed.Add(field);
+                }
+
+                // Before/after element text (for diagnostics + line span).
+                string elementText = new UTF8Encoding(false).GetString(
+                    bytes, (int)elemStart, (int)(elemEnd - elemStart));
+                result.ChangedLineStart = LineOfByte(bytes, (int)elemStart);
+                result.ChangedLineEnd = LineOfByte(bytes, (int)elemEnd - 1);
+
+                if (changed.Count == 0)
+                {
+                    result.Status = DecompSourceWriteStatus.Ok;
+                    result.Message = "No change needed.";
+                    result.ChangedFields = new List<string>();
+                    result.BeforeText = elementText;
+                    result.AfterText = elementText;
+                    newSourceText = sourceText;
+                    return result;
+                }
+
+                // Apply edits right-to-left so earlier byte offsets stay valid.
+                edits.Sort((a, b) => b.start.CompareTo(a.start));
+                var outBytes = new List<byte>(bytes);
+                foreach (var (start, len, repl) in edits)
+                {
+                    outBytes.RemoveRange(start, len);
+                    outBytes.InsertRange(start, repl);
+                }
+                byte[] newRaw = outBytes.ToArray();
+                newSourceText = new UTF8Encoding(false).GetString(newRaw);
+
+                // Recompute the after-element text span by re-locating it (the element
+                // start byte is stable; the end shifted by the net edit delta).
+                int delta = 0;
+                foreach (var (start, len, repl) in edits)
+                    delta += repl.Length - len;
+                int newElemEnd = (int)elemEnd + delta;
+                if (newElemEnd >= elemStart && newElemEnd <= newRaw.Length)
+                {
+                    result.AfterText = new UTF8Encoding(false).GetString(
+                        newRaw, (int)elemStart, newElemEnd - (int)elemStart);
+                }
+                else
+                {
+                    result.AfterText = elementText;
+                }
+
+                result.Status = DecompSourceWriteStatus.Ok;
+                result.Message = $"Rewrote {changed.Count} field(s) in entry {entryId}.";
+                result.ChangedFields = changed;
+                result.BeforeText = elementText;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                newSourceText = sourceText;
+                result.Status = DecompSourceWriteStatus.Error;
+                result.Message = $"Unexpected fault: {ex.Message}";
+                return result;
+            }
+        }
+
+        static readonly JsonReaderOptions JsonReadOpts = new JsonReaderOptions
+        {
+            CommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+
+        /// <summary>
+        /// Validate the WHOLE JSON document with the same <see cref="JsonReadOpts"/> the
+        /// splice path uses (#1145). <see cref="Utf8JsonReader"/> throws a
+        /// <c>JsonException</c> the moment it reaches invalid/truncated content (e.g. an
+        /// array that is never closed), so reading every token until <c>Read()</c> returns
+        /// false confirms the document is well-formed AND fully consumed. Returns false on
+        /// any <c>JsonException</c> (malformed/truncated) — the caller then refuses the
+        /// splice and leaves the source byte-identical. NEVER throws.
+        /// </summary>
+        static bool IsWholeJsonDocumentValid(byte[] bytes)
+        {
+            try
+            {
+                var reader = new Utf8JsonReader(bytes, JsonReadOpts);
+                while (reader.Read())
+                {
+                    // Walk every token. A truncated/invalid doc makes Read() throw before
+                    // it can return false, so reaching the natural end means valid + EOF.
+                }
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+            catch
+            {
+                // Any other unexpected fault → treat as invalid (never throw at the boundary).
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Locate the byte span [start,end) of the target element OBJECT in a JSON
+        /// document: array index <paramref name="elementIndex"/>, or object-map property
+        /// whose name equals <c>elementIndex.ToString()</c>. The span covers the element's
+        /// <c>{...}</c>. Returns false on any fault / missing index/key / non-object
+        /// element. NEVER throws.
+        /// </summary>
+        static bool TryFindJsonElementSpan(byte[] bytes, int elementIndex, out long start, out long end)
+        {
+            start = -1; end = -1;
+            try
+            {
+                var reader = new Utf8JsonReader(bytes, JsonReadOpts);
+                if (!reader.Read())
+                    return false;
+
+                if (reader.TokenType == JsonTokenType.StartArray)
+                {
+                    int idx = 0;
+                    while (reader.Read())
+                    {
+                        if (reader.TokenType == JsonTokenType.EndArray)
+                            return false;   // ran off the end before reaching elementIndex
+                        // Each top-level array value begins here.
+                        if (idx == elementIndex)
+                        {
+                            if (reader.TokenType != JsonTokenType.StartObject)
+                                return false;   // element exists but is not an object
+                            return CaptureObjectSpan(ref reader, out start, out end);
+                        }
+                        SkipValue(ref reader);
+                        idx++;
+                    }
+                    return false;
+                }
+                else if (reader.TokenType == JsonTokenType.StartObject)
+                {
+                    string key = elementIndex.ToString(CultureInfo.InvariantCulture);
+                    while (reader.Read())
+                    {
+                        if (reader.TokenType == JsonTokenType.EndObject)
+                            return false;
+                        if (reader.TokenType != JsonTokenType.PropertyName)
+                            return false;   // malformed
+                        bool match = reader.GetString() == key;
+                        if (!reader.Read())
+                            return false;
+                        if (match)
+                        {
+                            if (reader.TokenType != JsonTokenType.StartObject)
+                                return false;
+                            return CaptureObjectSpan(ref reader, out start, out end);
+                        }
+                        SkipValue(ref reader);
+                    }
+                    return false;
+                }
+                return false;
+            }
+            catch
+            {
+                start = -1; end = -1;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Given a reader positioned ON a StartObject token, capture the byte span of the
+        /// whole object (from its '{' to the matching '}', inclusive-exclusive end). NEVER throws.
+        /// </summary>
+        static bool CaptureObjectSpan(ref Utf8JsonReader reader, out long start, out long end)
+        {
+            start = reader.TokenStartIndex;   // byte index of '{'
+            end = -1;
+            int depth = 0;
+            // We're on StartObject. Walk until the matching EndObject.
+            do
+            {
+                if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+                    depth++;
+                else if (reader.TokenType == JsonTokenType.EndObject || reader.TokenType == JsonTokenType.EndArray)
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        end = reader.BytesConsumed;   // just past the '}'
+                        return true;
+                    }
+                }
+                if (!reader.Read())
+                    return false;
+            } while (true);
+        }
+
+        /// <summary>Skip the value the reader is currently positioned on (scalar or container).</summary>
+        static void SkipValue(ref Utf8JsonReader reader)
+        {
+            if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+                reader.Skip();
+            // scalars are already fully consumed by the Read() that landed on them.
+        }
+
+        enum JsonLocateKind { NotFound, NonNumber, Number }
+
+        readonly struct JsonFieldLocate
+        {
+            public readonly JsonLocateKind Kind;
+            public readonly long Start;   // byte index of the value token start
+            public readonly long End;     // byte index just past the value token
+            public JsonFieldLocate(JsonLocateKind kind, long start, long end)
+            { Kind = kind; Start = start; End = end; }
+            public static readonly JsonFieldLocate NotFound = new JsonFieldLocate(JsonLocateKind.NotFound, -1, -1);
+            public static JsonFieldLocate NonNumber(long s, long e) => new JsonFieldLocate(JsonLocateKind.NonNumber, s, e);
+            public static JsonFieldLocate Number(long s, long e) => new JsonFieldLocate(JsonLocateKind.Number, s, e);
+        }
+
+        /// <summary>
+        /// Within the element-object byte span [elemStart,elemEnd), find the TOP-LEVEL
+        /// property whose name equals <paramref name="field"/> and return the byte span of
+        /// its VALUE token + whether it is a Number. Comment/trailing-comma tolerant.
+        /// NEVER throws.
+        /// </summary>
+        static JsonFieldLocate LocateJsonNumberField(byte[] bytes, long elemStart, long elemEnd, string field)
+        {
+            try
+            {
+                var slice = new ReadOnlySpan<byte>(bytes, (int)elemStart, (int)(elemEnd - elemStart));
+                var reader = new Utf8JsonReader(slice, JsonReadOpts);
+                if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
+                    return JsonFieldLocate.NotFound;
+
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.EndObject)
+                        break;
+                    if (reader.TokenType != JsonTokenType.PropertyName)
+                        return JsonFieldLocate.NotFound;   // malformed
+                    bool match = reader.GetString() == field;
+                    long valStart = reader.BytesConsumed; // not yet the value; read it next
+                    if (!reader.Read())
+                        return JsonFieldLocate.NotFound;
+
+                    if (match)
+                    {
+                        long vStartRel = reader.TokenStartIndex;
+                        long vEndRel = reader.BytesConsumed;
+                        long vStartAbs = elemStart + vStartRel;
+                        long vEndAbs = elemStart + vEndRel;
+                        if (reader.TokenType == JsonTokenType.Number)
+                            return JsonFieldLocate.Number(vStartAbs, vEndAbs);
+                        return JsonFieldLocate.NonNumber(vStartAbs, vEndAbs);
+                    }
+                    // Not our field: skip the value (containers fully).
+                    SkipValue(ref reader);
+                }
+                return JsonFieldLocate.NotFound;
+            }
+            catch
+            {
+                return JsonFieldLocate.NotFound;
+            }
+        }
+
+        /// <summary>
+        /// Build the replacement JSON Number token from the existing token + the requested
+        /// value. JSON numbers have no hex/suffix, so the output is a plain decimal (or
+        /// <c>-N</c> for a signed field whose value reinterprets negative). Sets
+        /// <paramref name="isNoOp"/> when the existing integer already equals the request,
+        /// and <paramref name="tokenOk"/> false when the existing token is not a plain
+        /// integer (e.g. a float / exponent) we can safely rewrite. NEVER throws.
+        /// </summary>
+        static string BuildJsonNumberToken(string oldToken, uint newVal, FieldDesc desc, out bool isNoOp, out bool tokenOk)
+        {
+            isNoOp = false; tokenOk = false;
+            string trimmed = (oldToken ?? "").Trim();
+
+            if (desc.Signed)
+            {
+                // Existing token must parse as a signed integer (decimal; JSON has no hex).
+                if (!TryParseSignedIntLiteral(trimmed, out _, out _, out long oldSigned, out bool oldWasNegative))
+                    return oldToken;   // tokenOk stays false
+                tokenOk = true;
+                long newSigned = SignExtend(newVal, desc.Width);
+                // Width-normalize the EXISTING literal so a bit-pattern form like 255 at
+                // width 1 reinterprets to -1 and matches a request of -1 / 0xFF (#1145).
+                long oldNormalized = NormalizeExistingSigned(oldSigned, oldWasNegative, desc.Width);
+                if (oldNormalized == newSigned) { isNoOp = true; return oldToken; }
+                return newSigned.ToString(CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                if (!TryParseIntLiteral(trimmed, out _, out _, out uint oldVal))
+                    return oldToken;   // tokenOk stays false (float/exponent/etc.)
+                tokenOk = true;
+                if (oldVal == newVal) { isNoOp = true; return oldToken; }
+                return newVal.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
+        /// <summary>1-based line number of <paramref name="byteIndex"/> in a UTF-8 byte array.</summary>
+        static int LineOfByte(byte[] bytes, int byteIndex)
+        {
+            if (byteIndex < 0) byteIndex = 0;
+            if (byteIndex > bytes.Length) byteIndex = bytes.Length;
+            int line = 1;
+            for (int i = 0; i < byteIndex; i++)
+                if (bytes[i] == (byte)'\n') line++;
+            return line;
         }
 
         // ----------------------------------------------------------------- parsing
@@ -607,7 +1103,7 @@ namespace FEBuilderGBA
         /// </summary>
         static string ApplyFieldToElement(
             string elementText, string field, uint newVal,
-            bool hasDesignators, List<string> fieldOrder, bool singleFieldIntent,
+            bool hasDesignators, List<string> fieldOrder, bool singleFieldIntent, FieldDesc desc,
             out FieldApplyOutcome outcome, out DecompSourceWriteStatus failStatus, out string failMsg)
         {
             outcome = FieldApplyOutcome.Failed;
@@ -640,7 +1136,7 @@ namespace FEBuilderGBA
                 p = SkipTrivia(elementText, p + 1);
                 // value token runs until next top-level ',' or the closing '}'.
                 int valEnd = FindTopLevelValueEnd(elementText, p, innerEnd);
-                return ReplaceValueToken(elementText, p, valEnd, newVal, singleFieldIntent,
+                return ReplaceValueToken(elementText, p, valEnd, newVal, singleFieldIntent, desc,
                     out outcome, out failStatus, out failMsg);
             }
             else
@@ -665,7 +1161,7 @@ namespace FEBuilderGBA
                 int s = ts, e = te;
                 while (s < e && char.IsWhiteSpace(elementText[s])) s++;
                 while (e > s && char.IsWhiteSpace(elementText[e - 1])) e--;
-                return ReplaceValueToken(elementText, s, e, newVal, singleFieldIntent,
+                return ReplaceValueToken(elementText, s, e, newVal, singleFieldIntent, desc,
                     out outcome, out failStatus, out failMsg);
             }
         }
@@ -674,7 +1170,9 @@ namespace FEBuilderGBA
         /// Replace the [start,end) span (a value token) with <paramref name="newVal"/>
         /// IF the existing token is a plain integer literal that DIFFERS from it. Hex
         /// literals are re-emitted in hex, decimal in decimal; an integer suffix
-        /// (u/U/l/L) is preserved.
+        /// (u/U/l/L) is preserved — EXCEPT that a NEGATIVE signed re-emit drops the
+        /// unsigned (u/U) marker, since "-1u" is a unary-negated UNSIGNED literal in C
+        /// (wrong semantics); any l/L markers are kept (#1145).
         /// <list type="bullet">
         ///   <item><description>integer literal whose value differs → <see cref="FieldApplyOutcome.Changed"/></description></item>
         ///   <item><description>integer literal already equal to <paramref name="newVal"/> → <see cref="FieldApplyOutcome.NoOp"/> (no churn)</description></item>
@@ -684,7 +1182,7 @@ namespace FEBuilderGBA
         /// NEVER throws.
         /// </summary>
         static string ReplaceValueToken(
-            string text, int start, int end, uint newVal, bool singleFieldIntent,
+            string text, int start, int end, uint newVal, bool singleFieldIntent, FieldDesc desc,
             out FieldApplyOutcome outcome, out DecompSourceWriteStatus failStatus, out string failMsg)
         {
             outcome = FieldApplyOutcome.Failed;
@@ -700,6 +1198,58 @@ namespace FEBuilderGBA
             string token = text.Substring(start, end - start);
             string trimmed = token.Trim();
 
+            // ---------------- SIGNED field path (#1141) ----------------
+            // A signed field accepts a leading '-' on the existing token and re-emits the
+            // requested value as a signed decimal when it reinterprets to a negative
+            // number. The change-set value (uint) carries the two's-complement bits; we
+            // sign-extend the low Width*8 bits to a signed long.
+            if (desc.Signed)
+            {
+                if (!TryParseSignedIntLiteral(trimmed, out bool sIsHex, out string sSuffix, out long oldSigned, out bool sWasNegative))
+                {
+                    if (singleFieldIntent)
+                    {
+                        failStatus = DecompSourceWriteStatus.UnsupportedField;
+                        failMsg = $"Value '{trimmed}' is a macro/identifier/expression, not an integer literal — edit manually.";
+                        outcome = FieldApplyOutcome.Failed;
+                    }
+                    else
+                    {
+                        outcome = FieldApplyOutcome.SkippedMacro;
+                    }
+                    return text;
+                }
+
+                long newSigned = SignExtend(newVal, desc.Width);
+
+                // No-op: compare SIGNED values, width-normalizing the EXISTING literal so a
+                // bit-pattern form like 0xFF / 255 (no leading '-') at width 1 reinterprets
+                // to -1 and matches a request that SignExtends to -1 (#1145). An explicit
+                // '-N' literal is already the signed value and is kept verbatim.
+                long oldNormalized = NormalizeExistingSigned(oldSigned, sWasNegative, desc.Width);
+                if (oldNormalized == newSigned)
+                {
+                    outcome = FieldApplyOutcome.NoOp;
+                    return text;
+                }
+
+                // Re-emit. For a signed field whose existing token is hex AND the new
+                // value is non-negative, keep hex; otherwise (negative, or decimal token)
+                // emit a signed decimal. This keeps the sign unambiguous (documented rule).
+                // When the result is NEGATIVE, drop any unsigned (u/U) suffix marker first:
+                // "-1u" is a unary-negated UNSIGNED literal in C (wrong semantics) (#1145).
+                string emitSuffix = newSigned < 0 ? StripUnsignedSuffix(sSuffix) : sSuffix;
+                string sToken;
+                if (sIsHex && newSigned >= 0)
+                    sToken = "0x" + ((ulong)newSigned).ToString("X", CultureInfo.InvariantCulture) + emitSuffix;
+                else
+                    sToken = newSigned.ToString(CultureInfo.InvariantCulture) + emitSuffix;
+
+                outcome = FieldApplyOutcome.Changed;
+                return text.Substring(0, start) + sToken + text.Substring(end);
+            }
+
+            // ---------------- UNSIGNED field path (unchanged from #1132) ----------------
             if (!TryParseIntLiteral(trimmed, out bool isHex, out string suffix, out uint oldVal))
             {
                 // Not an integer literal. A bulk write skips it; a single-field intent
@@ -731,6 +1281,49 @@ namespace FEBuilderGBA
 
             outcome = FieldApplyOutcome.Changed;
             return text.Substring(0, start) + newToken + text.Substring(end);
+        }
+
+        /// <summary>
+        /// Sign-extend the low <c>width*8</c> bits of <paramref name="raw"/> to a signed
+        /// long. A null/&lt;=0/&gt;4 width defaults to 4 bytes (32-bit). Width 1/2/4 are
+        /// the only meaningful field widths; any other value falls back to 4.
+        /// </summary>
+        static long SignExtend(uint raw, int? width)
+        {
+            int w = width ?? 4;
+            switch (w)
+            {
+                case 1: return (sbyte)(byte)raw;
+                case 2: return (short)(ushort)raw;
+                default: return (int)raw;   // 4-byte (and any other width) → 32-bit signed
+            }
+        }
+
+        /// <summary>
+        /// Strip the unsigned (u/U) marker(s) from an integer-literal suffix, keeping
+        /// any long (l/L) markers in order. Used when emitting a NEGATIVE signed
+        /// literal for a signed field: "-1u" is a unary-negated UNSIGNED literal in C
+        /// (wrong semantics), so the 'u' must go (Copilot PR #1145 inline finding).
+        /// </summary>
+        static string StripUnsignedSuffix(string suffix)
+        {
+            if (string.IsNullOrEmpty(suffix)) return suffix ?? "";
+            var sb = new StringBuilder(suffix.Length);
+            foreach (char c in suffix)
+                if (c != 'u' && c != 'U') sb.Append(c);
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Per-field descriptor threaded into the apply path: whether the field is signed
+        /// and its byte width. Default (<c>default(FieldDesc)</c>) = unsigned, width null
+        /// (so an unmapped field behaves exactly like #1132).
+        /// </summary>
+        readonly struct FieldDesc
+        {
+            public readonly bool Signed;
+            public readonly int? Width;
+            public FieldDesc(bool signed, int? width) { Signed = signed; Width = width; }
         }
 
         /// <summary>
@@ -787,6 +1380,62 @@ namespace FEBuilderGBA
                 ? uint.TryParse(digits, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value)
                 : uint.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out value);
             return parsed;
+        }
+
+        /// <summary>
+        /// Parse a SIGNED plain integer literal (#1141): an optional single leading
+        /// <c>-</c>, then decimal (<c>123</c>) or hex (<c>0x1F</c>), optionally with a
+        /// trailing run of u/U/l/L suffix chars. Outputs the SIGNED value in
+        /// <paramref name="value"/> (a leading '-' negates the magnitude). A leading '+'
+        /// is rejected (an expression, like the unsigned path). Returns false for
+        /// anything else (identifier, macro, expression, float, overflow). NEVER throws.
+        /// <paramref name="wasNegative"/> is true only when the literal was written WITH an
+        /// explicit leading <c>-</c> — callers use it to distinguish an already-signed
+        /// value (e.g. <c>-1</c>) from a stored bit pattern (e.g. <c>0xFF</c>) when
+        /// width-normalizing the existing literal for the no-op comparison (#1145).
+        /// </summary>
+        static bool TryParseSignedIntLiteral(string s, out bool isHex, out string suffix, out long value, out bool wasNegative)
+        {
+            isHex = false; suffix = ""; value = 0; wasNegative = false;
+            if (string.IsNullOrEmpty(s))
+                return false;
+
+            bool negative = false;
+            string mag = s;
+            if (mag[0] == '-')
+            {
+                negative = true;
+                mag = mag.Substring(1);
+            }
+            else if (mag[0] == '+')
+            {
+                return false;   // a leading '+' is an expression — reject (parity with unsigned).
+            }
+
+            // Reuse the unsigned magnitude parser; a leading '-' is not present now.
+            if (!TryParseIntLiteral(mag, out isHex, out suffix, out uint magVal))
+                return false;
+
+            wasNegative = negative;
+            value = negative ? -(long)magVal : magVal;
+            return true;
+        }
+
+        /// <summary>
+        /// Width-normalize an EXISTING signed integer literal to the signed value its bits
+        /// represent at <paramref name="width"/> bytes, for the no-op comparison (#1145).
+        /// A literal written WITHOUT an explicit <c>-</c> (e.g. <c>0xFF</c>, <c>255</c>) is
+        /// a STORED bit pattern → reinterpret via <see cref="SignExtend"/> (<c>0xFF</c> at
+        /// width 1 → <c>-1</c>). A literal written WITH an explicit <c>-</c> (e.g. <c>-1</c>)
+        /// is ALREADY the signed value → keep it verbatim (never re-extend). The magnitude
+        /// case is safe to cast back to <see cref="uint"/> because
+        /// <see cref="TryParseIntLiteral"/> only succeeds for values inside the uint range.
+        /// </summary>
+        static long NormalizeExistingSigned(long parsedSigned, bool wasNegative, int? width)
+        {
+            if (wasNegative)
+                return parsedSigned;                          // explicit signed decimal/hex — already the value
+            return SignExtend((uint)parsedSigned, width);     // bit-pattern form (0xFF / 255 / ...)
         }
 
         // -------------------------------------------------- token / span scanners

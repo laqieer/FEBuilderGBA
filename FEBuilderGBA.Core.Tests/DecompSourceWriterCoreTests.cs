@@ -385,6 +385,42 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(dir); }
         }
 
+        // (Finding #1145) A source file that is NOT valid UTF-8 must be refused with NO write
+        // — a lossy U+FFFD decode would corrupt the invalid bytes on re-encode and break the
+        // byte-preserving guarantee. Expect a non-Ok (Error) result, the file byte-identical,
+        // and NeedsRebuild still false.
+        [Fact]
+        public void WriteTableEntry_InvalidUtf8SourceFile_RefusesWrite_FileUntouched()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "src/item.c";
+                string srcAbs = Path.Combine(dir, "src", "item.c");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+
+                // Valid C text + a lone 0xFF byte (an invalid UTF-8 sequence).
+                byte[] validCBytes = new UTF8Encoding(false)
+                    .GetBytes("Item gItemData[] = { [0] = { .might = 5 } };\n");
+                byte[] rawBytes = validCBytes.Concat(new byte[] { 0xFF }).ToArray();
+                File.WriteAllBytes(srcAbs, rawBytes);
+
+                var proj = ProjectWith(dir, ItemsOwner(srcRel));
+                CoreState.DecompProject = proj;
+                Assert.False(proj.NeedsRebuild);
+
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
+                    new Dictionary<string, uint> { { "might", 10 } });
+
+                Assert.False(res.Ok);
+                Assert.Equal(DecompSourceWriteStatus.Error, res.Status);
+                Assert.False(proj.NeedsRebuild);
+                // File bytes unchanged (byte-identical to what we wrote).
+                Assert.Equal(rawBytes, File.ReadAllBytes(srcAbs));
+            }
+            finally { TryDelete(dir); }
+        }
+
         [Fact]
         public void Write_RomOnly_NoWrite()
         {
@@ -466,19 +502,26 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(dir); }
         }
 
+        // #1141: JSON format is now implemented (was Manual in #1132). The full path
+        // through WriteTableEntry rewrites a JSON-backed owner's Number token.
         [Fact]
-        public void Write_JsonFormat_Manual()
+        public void Write_JsonFormat_RewritesNumberToken()
         {
             string dir = NewTempDir();
             try
             {
+                string srcAbs = Path.Combine(dir, "item.json");
+                string content = "[ { \"might\": 5 } ]\n";
+                File.WriteAllText(srcAbs, content);
+
                 var proj = ProjectWith(dir, ItemsOwner("item.json", format: "json"));
                 CoreState.DecompProject = proj;
 
                 var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
                     new Dictionary<string, uint> { { "might", 10 } });
-                Assert.Equal(DecompSourceWriteStatus.Manual, res.Status);
-                Assert.False(proj.NeedsRebuild);
+                Assert.True(res.Ok, res.Message);
+                Assert.True(proj.NeedsRebuild);
+                Assert.Equal(content.Replace("\"might\": 5", "\"might\": 10"), File.ReadAllText(srcAbs));
             }
             finally { TryDelete(dir); }
         }
@@ -731,7 +774,597 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(src, outText);   // untouched
         }
 
+        // =====================================================================
+        //  #1141 — JSON-backed writer
+        // =====================================================================
+
+        static DecompTableEntry JsonItemsOwner(string sourceFile, int? indexBase = null)
+        {
+            return new DecompTableEntry
+            {
+                Table = "items",
+                Format = "json",
+                WritePolicy = "source",
+                SourceFile = sourceFile,
+                IndexBase = indexBase,
+                Fields = new List<DecompTableField>
+                {
+                    new DecompTableField { Name = "nameId" },
+                    new DecompTableField { Name = "might" },
+                    new DecompTableField { Name = "hitRate" },
+                    new DecompTableField { Name = "name" },
+                },
+            };
+        }
+
+        [Fact]
+        public void Json_Array_HappyPath_OnlyTokenChanges()
+        {
+            string src =
+                "[\n" +
+                "  { \"nameId\": 1, \"might\": 5, \"hitRate\": 90 },\n" +
+                "  { \"nameId\": 2, \"might\": 8, \"hitRate\": 75 }\n" +
+                "]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 1,
+                new Dictionary<string, uint> { { "might", 10 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            // Only entry 1's might 8 → 10. Entry 0 + every other byte identical.
+            Assert.Equal(src.Replace("\"might\": 8", "\"might\": 10"), outText);
+            Assert.Contains("might", res.ChangedFields);
+        }
+
+        [Fact]
+        public void Json_ObjectMap_KeyLookup()
+        {
+            string src =
+                "{\n" +
+                "  \"0\": { \"might\": 5 },\n" +
+                "  \"1\": { \"might\": 8 }\n" +
+                "}\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 1,
+                new Dictionary<string, uint> { { "might", 99 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Equal(src.Replace("\"might\": 8", "\"might\": 99"), outText);
+        }
+
+        [Fact]
+        public void Json_NoOp_ValueAlreadyEqual_NoChange()
+        {
+            string src = "[ { \"might\": 5 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 5 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);   // byte-identical
+        }
+
+        [Fact]
+        public void Json_NonNumber_SingleField_UnsupportedField()
+        {
+            string src = "[ { \"name\": \"Iron Sword\", \"might\": 5 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "name", 7 } }, out string outText);
+            Assert.False(res.Ok);
+            Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+            Assert.Equal(src, outText);
+        }
+
+        [Fact]
+        public void Json_NonNumber_Bulk_Skipped_OtherFieldWritten()
+        {
+            string src = "[ { \"name\": \"Iron Sword\", \"might\": 5 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            // bulk: name (non-number → skip) + might (number → change)
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "name", 7 }, { "might", 9 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains("\"name\": \"Iron Sword\"", outText);  // string untouched
+            Assert.Contains("\"might\": 9", outText);
+            Assert.Contains("might", res.ChangedFields);
+            Assert.DoesNotContain("name", res.ChangedFields);
+        }
+
+        [Fact]
+        public void Json_Malformed_ParseFailed_NoThrow()
+        {
+            string src = "{ this is not valid json ";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 9 } }, out string outText);
+            Assert.False(res.Ok);
+            Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+            Assert.Equal(src, outText);   // untouched
+        }
+
+        [Fact]
+        public void Json_CrlfAndNonAsciiBeforeToken_Preserved()
+        {
+            // Non-ASCII (multi-byte UTF-8) text before the token must not corrupt offsets.
+            string src =
+                "[\r\n" +
+                "  { \"name\": \"アイテム\", \"might\": 8 }\r\n" +
+                "]\r\n";
+            var owner = JsonItemsOwner("data/items.json");
+            int crlfBefore = CountSubstr(src, "\r\n");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 12 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Equal(crlfBefore, CountSubstr(outText, "\r\n"));
+            Assert.Contains("\"might\": 12", outText);
+            Assert.Contains("アイテム", outText);   // JP text intact
+        }
+
+        [Fact]
+        public void Json_CommentsAndTrailingComma_Tolerated()
+        {
+            string src =
+                "[\n" +
+                "  // first item\n" +
+                "  { \"might\": 5, },\n" +
+                "  { \"might\": 8, },\n" +
+                "]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 1,
+                new Dictionary<string, uint> { { "might", 10 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Equal(src.Replace("{ \"might\": 8, }", "{ \"might\": 10, }"), outText);
+            Assert.Contains("// first item", outText);
+        }
+
+        [Fact]
+        public void Json_IndexBase1_EditId1_RewritesFirstElement()
+        {
+            string src = "[ { \"might\": 5 }, { \"might\": 8 } ]\n";
+            var owner = JsonItemsOwner("data/items.json", indexBase: 1);
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 1,
+                new Dictionary<string, uint> { { "might", 10 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains("{ \"might\": 10 }, { \"might\": 8 }", outText);
+        }
+
+        [Fact]
+        public void Json_MissingIndex_ParseFailed()
+        {
+            string src = "[ { \"might\": 5 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 7,
+                new Dictionary<string, uint> { { "might", 9 } }, out string outText);
+            Assert.False(res.Ok);
+            Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+        }
+
+        [Fact]
+        public void Json_UndeclaredField_UnsupportedField()
+        {
+            string src = "[ { \"might\": 5 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "bogus", 9 } }, out string outText);
+            Assert.False(res.Ok);
+            Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+            Assert.Equal(src, outText);
+        }
+
+        [Fact]
+        public void Json_Signed_NegativeValue_EmitsMinusN()
+        {
+            // promoHp is a signed int8 field; the caller packs -1 as 0xFF (255).
+            string src = "[ { \"promoHp\": 2 } ]\n";
+            var owner = new DecompTableEntry
+            {
+                Table = "classes", Format = "json", WritePolicy = "source",
+                SourceFile = "data/classes.json",
+                Fields = new List<DecompTableField>
+                { new DecompTableField { Name = "promoHp", Signed = true, Width = 1 } },
+            };
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", Pack(-1) } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains("\"promoHp\": -1", outText);
+        }
+
+        [Fact]
+        public void Json_Signed_NoOp_NegativeToken_RecognizedEqual()
+        {
+            string src = "[ { \"promoHp\": -1 } ]\n";
+            var owner = new DecompTableEntry
+            {
+                Table = "classes", Format = "json", WritePolicy = "source",
+                SourceFile = "data/classes.json",
+                Fields = new List<DecompTableField>
+                { new DecompTableField { Name = "promoHp", Signed = true, Width = 1 } },
+            };
+            // 0xFF byte == -1 (int8) → no-op.
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 0xFF } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);
+        }
+
+        [Fact]
+        public void Json_Write_FullPath_SetsNeedsRebuild_NoOpUntouchesFile()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "data/items.json";
+                string srcAbs = Path.Combine(dir, "data", "items.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                string content = "[ { \"might\": 5 }, { \"might\": 8 } ]\n";
+                File.WriteAllText(srcAbs, content);
+
+                var proj = ProjectWith(dir, JsonItemsOwner(srcRel));
+                CoreState.DecompProject = proj;
+
+                // Change → file rewritten, NeedsRebuild set.
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 1,
+                    new Dictionary<string, uint> { { "might", 10 } });
+                Assert.True(res.Ok, res.Message);
+                Assert.True(proj.NeedsRebuild);
+                Assert.Equal(content.Replace("\"might\": 8", "\"might\": 10"),
+                    File.ReadAllText(srcAbs));
+
+                // No-op on the SAME file → no churn, mtime untouched.
+                proj.NeedsRebuild = false;
+                File.WriteAllText(srcAbs, content);   // reset to known state
+                var before = File.GetLastWriteTimeUtc(srcAbs);
+                var res2 = DecompSourceWriterCore.WriteTableEntry(proj, "items", 1,
+                    new Dictionary<string, uint> { { "might", 8 } });
+                Assert.True(res2.Ok, res2.Message);
+                Assert.Empty(res2.ChangedFields);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs));
+                Assert.Equal(before, File.GetLastWriteTimeUtc(srcAbs));
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // =====================================================================
+        //  #1141 — signed C-array fields + multi-field bulk
+        // =====================================================================
+
+        static DecompTableEntry SignedClassOwner(string sourceFile)
+        {
+            return new DecompTableEntry
+            {
+                Table = "classes", Format = "cstruct", WritePolicy = "source",
+                ArrayName = "gClassData", SourceFile = sourceFile,
+                Fields = new List<DecompTableField>
+                {
+                    new DecompTableField { Name = "baseHp" },
+                    new DecompTableField { Name = "promoHp", Signed = true, Width = 1 },
+                    new DecompTableField { Name = "promoStr", Signed = true, Width = 1 },
+                },
+            };
+        }
+
+        [Fact]
+        public void Cstruct_SignedField_NegativeValue_EmitsMinusN()
+        {
+            string src =
+                "struct ClassData gClassData[] = {\n" +
+                "    [0] = { .baseHp = 18, .promoHp = 2, .promoStr = 0 },\n" +
+                "};\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", Pack(-3) } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = -3", outText);
+            Assert.Contains(".baseHp = 18", outText);   // unsigned untouched
+        }
+
+        [Fact]
+        public void Cstruct_SignedField_NegativeToken_RewriteToPositive()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = -2 } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 4 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = 4", outText);
+        }
+
+        [Fact]
+        public void Cstruct_SignedField_NoOp_NegativeToken_RecognizedEqual()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = -1 } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            // 0xFF byte (255) == -1 int8 → no-op
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 0xFF } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);
+        }
+
+        [Fact]
+        public void Cstruct_UnsignedField_LeadingMinusRejected_NoChange()
+        {
+            // baseHp is UNSIGNED; an existing token like a macro still fails single-field.
+            string src = "struct ClassData gClassData[] = { [0] = { .baseHp = SOME_MACRO } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "baseHp", 20 } }, out string outText);
+            Assert.Equal(DecompSourceWriteStatus.UnsupportedField, res.Status);
+            Assert.Equal(src, outText);
+        }
+
+        [Fact]
+        public void Cstruct_MultiField_Bulk_BothChanged()
+        {
+            string src =
+                "struct ClassData gClassData[] = {\n" +
+                "    [0] = { .baseHp = 18, .promoHp = 2, .promoStr = 0 },\n" +
+                "};\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint>
+                {
+                    { "baseHp", 20 },
+                    { "promoHp", Pack(-1) },
+                }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".baseHp = 20", outText);
+            Assert.Contains(".promoHp = -1", outText);
+            Assert.Equal(2, res.ChangedFields.Count);
+        }
+
+        // =====================================================================
+        //  #1141 — units / classes C-array fixtures + units<->characters alias
+        // =====================================================================
+
+        [Fact]
+        public void Cstruct_UnitsTable_EditOneField()
+        {
+            string src =
+                "struct CharacterData gCharacterData[] = {\n" +
+                "    [0] = { .hp = 16, .pow = 5 },\n" +
+                "    [1] = { .hp = 18, .pow = 7 },\n" +
+                "};\n";
+            var owner = new DecompTableEntry
+            {
+                Table = "units", Format = "cstruct", WritePolicy = "source",
+                ArrayName = "gCharacterData", SourceFile = "src/chardata.c",
+                Fields = new List<DecompTableField>
+                {
+                    new DecompTableField { Name = "hp", Signed = true, Width = 1 },
+                    new DecompTableField { Name = "pow", Signed = true, Width = 1 },
+                },
+            };
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 1,
+                new Dictionary<string, uint> { { "pow", 9 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains("[1] = { .hp = 18, .pow = 9 }", outText);
+            Assert.Contains("[0] = { .hp = 16, .pow = 5 }", outText);
+        }
+
+        [Fact]
+        public void TryGetTableOwner_UnitsCharactersAlias_BothDirections()
+        {
+            // Owner declared as "characters" → "units" lookup resolves it (and reverse).
+            var manChars = ManifestFromJson(@"{ ""tables"": [ { ""table"": ""characters"" } ] }");
+            var projChars = new DecompProject { Manifest = manChars };
+            Assert.NotNull(projChars.TryGetTableOwner("units"));
+            Assert.NotNull(projChars.TryGetTableOwner("characters"));
+
+            var manUnits = ManifestFromJson(@"{ ""tables"": [ { ""table"": ""units"" } ] }");
+            var projUnits = new DecompProject { Manifest = manUnits };
+            Assert.NotNull(projUnits.TryGetTableOwner("characters"));
+            Assert.NotNull(projUnits.TryGetTableOwner("units"));
+
+            // Unrelated lookup still misses.
+            Assert.Null(projUnits.TryGetTableOwner("classes"));
+        }
+
+        [Fact]
+        public void Cstruct_OtherOwnerFile_Untouched_WhenWritingDifferentTable()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                // Two owners: items + classes, in two different files.
+                string itemsAbs = Path.Combine(dir, "item.c");
+                string classAbs = Path.Combine(dir, "class.c");
+                string itemsContent = "Item gItemData[] = { [0] = { .might = 5 } };\n";
+                string classContent = "struct ClassData gClassData[] = { [0] = { .baseHp = 18, .promoHp = 2, .promoStr = 0 } };\n";
+                File.WriteAllText(itemsAbs, itemsContent);
+                File.WriteAllText(classAbs, classContent);
+
+                var proj = ProjectWith(dir, ItemsOwner("item.c"), SignedClassOwner("class.c"));
+                CoreState.DecompProject = proj;
+
+                // Write to classes — the items file must be byte-identical afterward.
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "classes", 0,
+                    new Dictionary<string, uint> { { "baseHp", 20 } });
+                Assert.True(res.Ok, res.Message);
+                Assert.Equal(itemsContent, File.ReadAllText(itemsAbs));   // untouched
+                Assert.Contains(".baseHp = 20", File.ReadAllText(classAbs));
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // =====================================================================
+        //  #1145 — Copilot review: JSON full-doc validation + signed width-aware no-op
+        // =====================================================================
+
+        static DecompTableEntry SignedPromoHpJsonOwner(string sourceFile = "data/classes.json")
+        {
+            return new DecompTableEntry
+            {
+                Table = "classes", Format = "json", WritePolicy = "source",
+                SourceFile = sourceFile,
+                Fields = new List<DecompTableField>
+                { new DecompTableField { Name = "promoHp", Signed = true, Width = 1 } },
+            };
+        }
+
+        // (1) Finding 1: a JSON file that is well-formed UP TO the target element but
+        // truncated afterwards (missing closing ']') must be NO-TOUCH / ParseFailed.
+        [Fact]
+        public void Json_MalformedAfterTarget_TruncatedArray_NoTouch_ParseFailed()
+        {
+            // Valid first two objects, but the root array is never closed.
+            string src = "[ { \"might\": 5 }, { \"might\": 9 } ";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 7 } }, out string outText);
+            Assert.False(res.Ok);
+            Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+            Assert.Equal(src, outText);   // byte-identical — no splice
+        }
+
+        // (1b) Same malformed-tail rejection through the full WriteTableEntry path — the
+        // on-disk file must be byte-identical and NeedsRebuild must NOT be set.
+        [Fact]
+        public void Json_MalformedAfterTarget_WriteTableEntry_FileUnchanged()
+        {
+            string dir = NewTempDir();
+            try
+            {
+                string srcRel = "data/items.json";
+                string srcAbs = Path.Combine(dir, "data", "items.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(srcAbs));
+                string content = "[ { \"might\": 5 }, { \"might\": 9 } ";   // no closing ']'
+                File.WriteAllText(srcAbs, content);
+
+                var proj = ProjectWith(dir, JsonItemsOwner(srcRel));
+                CoreState.DecompProject = proj;
+
+                var res = DecompSourceWriterCore.WriteTableEntry(proj, "items", 0,
+                    new Dictionary<string, uint> { { "might", 7 } });
+                Assert.False(res.Ok);
+                Assert.Equal(DecompSourceWriteStatus.ParseFailed, res.Status);
+                Assert.False(proj.NeedsRebuild);
+                Assert.Equal(content, File.ReadAllText(srcAbs));   // untouched on disk
+            }
+            finally { TryDelete(dir); }
+        }
+
+        // (1c) Sanity: the full-doc validation must NOT reject a VALID document (no false
+        // positive) — the happy path still rewrites only the target token.
+        [Fact]
+        public void Json_ValidDocument_StillWrites_NoFalsePositive()
+        {
+            string src = "[ { \"might\": 5 }, { \"might\": 9 } ]\n";
+            var owner = JsonItemsOwner("data/items.json");
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "might", 7 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Equal("[ { \"might\": 7 }, { \"might\": 9 } ]\n", outText);
+        }
+
+        // (2) Finding 2 (JSON): existing decimal 255, signed width-1, request 255. The
+        // stored bits 255 reinterpret to -1 at width 1, and SignExtend(255,1) == -1, so it
+        // is a NO-OP — the token must NOT be rewritten to -1.
+        [Fact]
+        public void Json_Signed_NoOp_BitPatternToken_255_RequestsSame_NoChange()
+        {
+            string src = "[ { \"promoHp\": 255 } ]\n";
+            var owner = SignedPromoHpJsonOwner();
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);   // byte-identical — 255 preserved, NOT rewritten to -1
+        }
+
+        // (2b) Same field via the 0xFF-equivalent uint path: request 0xFF (== 255). Still a
+        // no-op against the existing 255 bit-pattern token.
+        [Fact]
+        public void Json_Signed_NoOp_BitPatternToken_255_Requests0xFF_NoChange()
+        {
+            string src = "[ { \"promoHp\": 255 } ]\n";
+            var owner = SignedPromoHpJsonOwner();
+            var res = DecompSourceWriterCore.RewriteJsonEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 0xFF } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);
+        }
+
+        // (3) Finding 2 (C): existing 0xFF, signed width-1, request 255 (SignExtends to -1).
+        // 0xFF int8 == -1, so it is a NO-OP — the 0xFF token must be preserved, NOT rewritten.
+        [Fact]
+        public void Cstruct_Signed_NoOp_BitPatternToken_0xFF_Requests255_NoChange()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0xFF } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);   // 0xFF preserved, NOT rewritten to -1
+        }
+
+        // (4) C signed REAL change still works: existing 0, signed width-1, request 255
+        // (== -1) → rewrites to -1 and reports the change. Confirms the no-op fix did not
+        // suppress a genuine difference.
+        [Fact]
+        public void Cstruct_Signed_RealChange_0_Requests255_RewritesToMinus1()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0 } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = -1", outText);
+            Assert.Contains("promoHp", res.ChangedFields);
+        }
+
+        // (5) C signed explicit-negative no-op: existing -1, signed width-1, request 255
+        // (== -1). The explicit '-1' is ALREADY the signed value → no-op, byte-identical.
+        [Fact]
+        public void Cstruct_Signed_NoOp_ExplicitNegativeToken_Minus1_Requests255_NoChange()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = -1 } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Empty(res.ChangedFields);
+            Assert.Equal(src, outText);
+        }
+
+        // (Finding 1 #1145) A NEGATIVE signed re-emit must DROP the existing unsigned (u/U)
+        // suffix: "-1u" is a unary-negated UNSIGNED literal in C (wrong semantics). Existing
+        // 0u (signed int8), request 255 (→ -1) → emit ".promoHp = -1", never "-1u".
+        [Fact]
+        public void Cstruct_Signed_NegativeEmit_StripsUnsignedSuffix()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0u } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 255 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = -1", outText);
+            Assert.DoesNotContain("-1u", outText);
+            Assert.DoesNotContain("-1U", outText);
+            Assert.Contains("promoHp", res.ChangedFields);
+        }
+
+        // (Finding 1 #1145) A NON-NEGATIVE signed re-emit keeps the suffix verbatim: existing
+        // 0u (signed int8), request 5 → emit ".promoHp = 5u" (suffix preserved).
+        [Fact]
+        public void Cstruct_Signed_NonNegativeEmit_KeepsSuffix()
+        {
+            string src = "struct ClassData gClassData[] = { [0] = { .promoHp = 0u } };\n";
+            var owner = SignedClassOwner("src/class.c");
+            var res = DecompSourceWriterCore.RewriteEntryText(src, owner, 0,
+                new Dictionary<string, uint> { { "promoHp", 5 } }, out string outText);
+            Assert.True(res.Ok, res.Message);
+            Assert.Contains(".promoHp = 5u", outText);
+            Assert.Contains("promoHp", res.ChangedFields);
+        }
+
         // ---- small helpers ----
+
+        /// <summary>Pack a signed int8 into the two's-complement byte the writer reinterprets.</summary>
+        static uint Pack(int signed) => (uint)(byte)(sbyte)signed;
 
         static int CountSubstr(string s, string sub)
         {

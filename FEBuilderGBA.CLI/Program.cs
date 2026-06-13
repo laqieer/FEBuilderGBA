@@ -10,8 +10,14 @@ namespace FEBuilderGBA.CLI
 {
     static class Program
     {
+        // Raw, ORDERED argv — preserved so commands that accept REPEATABLE flags
+        // (e.g. --write-source --field=X --value=Y --field=A --value=B) can recover
+        // pair order, which the collapsing argsDic dictionary loses (#1141).
+        internal static string[] RawArgs = Array.Empty<string>();
+
         static int Main(string[] args)
         {
+            RawArgs = args ?? Array.Empty<string>();
             var argsDic = ParseArgs(args);
 
             // Set up base directory (where the exe lives)
@@ -491,12 +497,12 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("    --height=<int>         Image height in pixels (required for --kind=graphics)");
             Console.WriteLine("    --palette-addr=<hex>   ROM address of the palette data (required for --kind=graphics)");
             Console.WriteLine("    --compressed           (graphics only) the source tile data at --addr is LZ77-compressed (flag)");
-            Console.WriteLine("  --write-source           Rewrite an owning C source array element for a structured table entry (requires --project, --table, --id, --field, --value)");
+            Console.WriteLine("  --write-source           Rewrite an owning C/JSON source element for a structured table entry (requires --project, --table, --id, --field, --value)");
             Console.WriteLine("    --project=<dir>        Decomp project directory (the table must declare a source owner in tables[])");
-            Console.WriteLine("    --table=<name>         Structured table name (e.g. items)");
+            Console.WriteLine("    --table=<name>         Structured table name (items, units (alias characters), classes, ...)");
             Console.WriteLine("    --id=<n>               Entry index (respecting the array order)");
-            Console.WriteLine("    --field=<name>         C field name to change (must be declared on the owner)");
-            Console.WriteLine("    --value=<int>          New value (0x hex or decimal; integer-literal tokens only)");
+            Console.WriteLine("    --field=<name>         C/JSON field name to change (must be declared on the owner; REPEATABLE — pair each --field with a following --value; other flags may appear between them; a 2nd --field before its --value, or an unpaired --field/--value, is a usage error)");
+            Console.WriteLine("    --value=<int>          New value for the preceding --field (0x hex or decimal; signed fields take the two's-complement magnitude; REPEATABLE)");
             Console.WriteLine("    --out-diff=<path>      Optional: write a unified-diff-ish before/after of the changed element");
             Console.WriteLine("  --build-project          Run the decomp project's declared build command (requires --project; gated behind --yes)");
             Console.WriteLine("    --project=<dir>        Decomp project directory containing febuilder.project.json with a build section");
@@ -534,6 +540,7 @@ namespace FEBuilderGBA.CLI
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar");
             Console.WriteLine("  FEBuilderGBA.CLI --export-asset --kind=text --rom=rom.gba --out=text/");
             Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=items --id=1 --field=might --value=0x0A");
+            Console.WriteLine("  FEBuilderGBA.CLI --write-source --project=decomp/ --table=units --id=1 --field=hp --value=18 --field=pow --value=7");
             Console.WriteLine("  FEBuilderGBA.CLI --build-project --project=decomp/ --reload --yes");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=units --out=units.tsv");
             Console.WriteLine("  FEBuilderGBA.CLI --export-data --rom=rom.gba --table=all --out=data");
@@ -4682,6 +4689,15 @@ namespace FEBuilderGBA.CLI
         /// Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned /
         /// unsupported field / rejected / malformed manifest (advisory, no write);
         /// 1 = usage fault / parse failure / source-not-found / unexpected error.
+        ///
+        /// #1141: <c>--field</c>/<c>--value</c> are REPEATABLE — pair each
+        /// <c>--field=X</c> with a FOLLOWING <c>--value=Y</c> in argv order (other flags may
+        /// appear between them; a second <c>--field</c> before its <c>--value</c>, or an
+        /// unpaired <c>--field</c>/<c>--value</c>, is a usage error). The dictionary
+        /// collapses duplicates, so the raw argv is parsed for pairs. Last value wins on a
+        /// duplicate field (a warning is printed). Signed fields are driven off the manifest
+        /// <c>fields[].signed</c>; pass the two's-complement magnitude (decimal or 0x hex) —
+        /// e.g. <c>--value=255</c> for an int8 -1.
         /// </summary>
         static int RunWriteSource(Dictionary<string, string> argsDic)
         {
@@ -4699,14 +4715,11 @@ namespace FEBuilderGBA.CLI
             if (!TryParseIntArg(argsDic["--id"], out int entryId) || entryId < 0)
             { Console.Error.WriteLine($"Error: Invalid --id: {argsDic["--id"]}"); return 1; }
 
-            string field = argsDic.ContainsKey("--field") ? argsDic["--field"] : "";
-            if (string.IsNullOrEmpty(field))
-            { Console.Error.WriteLine("Error: --write-source requires --field=<name>"); return 1; }
-
-            if (!argsDic.ContainsKey("--value") || string.IsNullOrEmpty(argsDic["--value"]))
-            { Console.Error.WriteLine("Error: --write-source requires --value=<int>"); return 1; }
-            if (!TryParseUIntArg(argsDic["--value"], out uint value))
-            { Console.Error.WriteLine($"Error: Invalid --value: {argsDic["--value"]}"); return 1; }
+            // ---- Field/value pairs (REPEATABLE; ordered from raw argv) ----
+            if (!TryExtractFieldValuePairs(RawArgs, out var changedFields, out string pairErr))
+            { Console.Error.WriteLine($"Error: {pairErr}"); return 1; }
+            if (changedFields.Count == 0)
+            { Console.Error.WriteLine("Error: --write-source requires at least one --field=<name> --value=<int> pair"); return 1; }
 
             // ---- Open the project (sets CoreState.DecompProject + loads built ROM) ----
             RomLoader.InitEnvironment();
@@ -4714,7 +4727,6 @@ namespace FEBuilderGBA.CLI
                 return 1;
 
             DecompProject project = CoreState.DecompProject;
-            var changedFields = new Dictionary<string, uint>(StringComparer.Ordinal) { { field, value } };
 
             DecompSourceWriteResult res = DecompSourceWriterCore.WriteTableEntry(
                 project, table, entryId, changedFields);
@@ -4797,6 +4809,77 @@ namespace FEBuilderGBA.CLI
             if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
                 return uint.TryParse(s.Substring(2), System.Globalization.NumberStyles.HexNumber, null, out result);
             return uint.TryParse(s, out result);
+        }
+
+        /// <summary>
+        /// Extract ordered <c>--field=X --value=Y</c> pairs from the raw argv (#1141).
+        /// Each <c>--field</c> must be paired with a FOLLOWING <c>--value</c> (in argv
+        /// order); other flags may appear between them — only a SECOND <c>--field</c>
+        /// arriving before its <c>--value</c>, an unpaired trailing <c>--field</c>, or a
+        /// <c>--value</c> with no preceding <c>--field</c>, is a usage error. Last value
+        /// wins on a duplicate field (a warning is printed to stderr). Supports both
+        /// <c>--field=X</c> and <c>--field X</c> spellings.
+        /// </summary>
+        static bool TryExtractFieldValuePairs(
+            string[] args, out Dictionary<string, uint> result, out string error)
+        {
+            result = new Dictionary<string, uint>(StringComparer.Ordinal);
+            error = "";
+            string pendingField = null;
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                string a = args[i];
+                if (!a.StartsWith("--field", StringComparison.Ordinal)
+                    && !a.StartsWith("--value", StringComparison.Ordinal))
+                    continue;
+
+                bool isField = a.StartsWith("--field", StringComparison.Ordinal);
+                bool isValue = a.StartsWith("--value", StringComparison.Ordinal);
+                // Only accept exact "--field"/"--value" or "--field=..."/"--value=..."
+                string key = isField ? "--field" : "--value";
+                if (a.Length != key.Length && (a.Length <= key.Length || a[key.Length] != '='))
+                    continue;   // e.g. --fieldfoo — not our flag
+
+                // Resolve the value for this flag (inline =VALUE, or next argv token).
+                string val;
+                int eq = a.IndexOf('=');
+                if (eq >= 0)
+                {
+                    val = a.Substring(eq + 1);
+                }
+                else
+                {
+                    if (i + 1 >= args.Length || args[i + 1].StartsWith("-", StringComparison.Ordinal))
+                    { error = $"{key} requires a value"; return false; }
+                    val = args[i + 1];
+                    i++;
+                }
+
+                if (isField)
+                {
+                    if (pendingField != null)
+                    { error = $"--field={pendingField} has no matching --value"; return false; }
+                    if (string.IsNullOrEmpty(val))
+                    { error = "--field requires a non-empty name"; return false; }
+                    pendingField = val;
+                }
+                else // isValue
+                {
+                    if (pendingField == null)
+                    { error = "--value has no preceding --field"; return false; }
+                    if (!TryParseUIntArg(val, out uint num))
+                    { error = $"Invalid --value: {val}"; return false; }
+                    if (result.ContainsKey(pendingField))
+                        Console.Error.WriteLine($"Warning: --field={pendingField} given twice; last value ({num}) wins.");
+                    result[pendingField] = num;
+                    pendingField = null;
+                }
+            }
+
+            if (pendingField != null)
+            { error = $"--field={pendingField} has no matching --value"; return false; }
+            return true;
         }
 
         static string BuildElementDiff(DecompSourceWriteResult res)

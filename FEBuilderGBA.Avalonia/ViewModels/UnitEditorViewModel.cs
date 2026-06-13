@@ -154,6 +154,89 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public static bool IsGrowthTrigger(string propertyName) => _growthTriggerProps.Contains(propertyName);
 
+        // ----------------------------------------------- decomp source-write gate (#1141)
+
+        /// <summary>
+        /// Current 0-based unit table index. Exposed for the source-backed writer
+        /// save-gate (#1141), which keys the edit by entry id. Computed at LoadUnit.
+        /// </summary>
+        public int CurrentUnitIndex => (int)_currentUnitIndex;
+
+        /// <summary>
+        /// The field→value snapshot captured at LoadUnit. BuildSourceFieldDict compares
+        /// against this so ONLY fields the user actually changed are sent to the source
+        /// writer — never a full snapshot of (possibly stale) preview-ROM values that
+        /// could clobber unrelated source fields diverged from the unrebuilt preview.
+        /// </summary>
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Candidate C-field → value map (source-writable integer unit fields), keyed by
+        /// conventional decomp <c>struct CharacterData</c> field names (#1141). The base
+        /// stats HP/Str/Skl/Spd/Def/Res/Lck/Con are SIGNED in the VM, so they are packed
+        /// as <c>(uint)(byte)(sbyte)value</c> for the writer's signed (Width=1) reinterpret
+        /// to round-trip a negative base. Pointers / text ids / encoded composite bytes are
+        /// omitted (not safe to rewrite as plain integer literals). The View intersects
+        /// this with the manifest owner's declared <c>fields</c>, so an undeclared name is
+        /// silently dropped. The chosen names are documented in README.
+        /// </summary>
+        Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            uint S(int v) => (uint)(byte)(sbyte)v;   // pack a signed base stat into a byte
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                // Base stats (SIGNED, width 1).
+                { "hp",        S(HP) },
+                { "pow",       S(Str) },
+                { "skl",       S(Skl) },
+                { "spd",       S(Spd) },
+                { "def",       S(Def) },
+                { "res",       S(Res) },
+                { "lck",       S(Lck) },
+                { "con",       S(Con) },
+                // Unsigned scalar fields.
+                { "level",     Level },
+                { "affinity",  Affinity },
+                // Growths (unsigned).
+                { "growthHp",  GrowHP },
+                { "growthPow", GrowStr },
+                { "growthSkl", GrowSkl },
+                { "growthSpd", GrowSpd },
+                { "growthDef", GrowDef },
+                { "growthRes", GrowRes },
+                { "growthLck", GrowLck },
+            };
+        }
+
+        /// <summary>
+        /// Build the C-field → value map of ONLY the fields the user changed since
+        /// LoadUnit (#1141). The View further intersects this with the manifest owner's
+        /// declared <c>fields</c>, so an undeclared field is silently dropped.
+        /// </summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in current)
+            {
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                {
+                    changed[kv.Key] = kv.Value;
+                }
+            }
+            return changed;
+        }
+
+        /// <summary>
+        /// Re-baseline the source-field snapshot to CURRENT values after a successful
+        /// source-backed write (#1141), so an immediate re-Save of the same edit is a no-op.
+        /// </summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+        }
+
         public List<AddrResult> LoadUnitList()
         {
             ROM rom = CoreState.ROM;
@@ -312,6 +395,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             CanWrite = true;
+
+            // Snapshot the source-writable field values so BuildSourceFieldDict emits
+            // ONLY the fields the user later changes (#1141).
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
         }
 
         public int GetListCount() => LoadUnitList().Count;

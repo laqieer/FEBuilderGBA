@@ -579,6 +579,17 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             _vm.UnknownD80 = ParseHexText(D80Box.Text);
 
+            // #1141: in decomp mode, structured-table edits are source-backed. Route the
+            // "classes" table to the C/JSON-source writer instead of the preview ROM. The
+            // classic (!IsDecompMode) ROM-write path below is byte-for-byte unchanged.
+            if (CoreState.IsDecompMode)
+            {
+                if (TryWriteClassSource())
+                    return;
+                CoreState.Services.ShowInfo(R._("This class is ROM-only in decomp mode. Edit the source manually and rebuild."));
+                return;
+            }
+
             _undoService.Begin(R._("Edit Class"));
             try
             {
@@ -593,6 +604,57 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.Error("ClassEditorView.Write_Click failed: {0}", ex.Message);
             }
+        }
+
+        /// <summary>
+        /// #1141: attempt a source-backed write of the current class. Returns true when the
+        /// classes table HAS a source owner (write attempted, accurate status shown). Returns
+        /// false ONLY when there is no owner at all, so the caller shows the generic ROM-only
+        /// notice (never a silent preview-ROM write). Mirrors TryWriteItemSource.
+        /// </summary>
+        bool TryWriteClassSource()
+        {
+            var project = CoreState.DecompProject;
+            var owner = project?.TryGetTableOwner("classes");
+            if (owner == null)
+                return false;
+
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            if (owner.Fields != null)
+                foreach (var f in owner.Fields)
+                    if (f != null && !string.IsNullOrEmpty(f.Name))
+                        declared.Add(f.Name);
+
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in _vm.BuildSourceFieldDict())
+                if (declared.Contains(kv.Key))
+                    changed[kv.Key] = kv.Value;
+
+            var res = DecompSourceWriterCore.WriteTableEntry(
+                project, "classes", _vm.CurrentClassIndex, changed);
+
+            switch (res.Status)
+            {
+                case DecompSourceWriteStatus.Ok:
+                    _vm.MarkClean();
+                    _vm.RefreshSourceFieldSnapshot();
+                    UpdateWarnings();
+                    if (res.ChangedFields != null && res.ChangedFields.Count > 0)
+                        CoreState.Services.ShowInfo(R._("Class source updated. Project needs rebuild."));
+                    else
+                        CoreState.Services.ShowInfo(R._("No change needed — the source already matches."));
+                    break;
+                case DecompSourceWriteStatus.RomOnly:
+                    CoreState.Services.ShowInfo(R._("This class table is ROM-only in decomp mode."));
+                    break;
+                case DecompSourceWriteStatus.Manual:
+                    CoreState.Services.ShowInfo(res.Message);
+                    break;
+                default:
+                    CoreState.Services.ShowError(res.Message);
+                    break;
+            }
+            return true;
         }
 
         void JumpToMoveCost_Click(object? sender, RoutedEventArgs e)
