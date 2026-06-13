@@ -536,11 +536,14 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             try
             {
-                // #996: skill-animation Creator seeding is not yet supported (no populated/
-                // verifiable skill-animation editor context with available ROMs). Show an
-                // honest message instead of opening a blank/garbage Creator. Tracked as a
-                // #996 follow-up.
-                CoreState.Services?.ShowInfo(R._("Animation Creator seeding is not yet supported for Skill animations."));
+                // #1115: FE8N Ver1 (yugudora) skills are render-only — there is NO
+                // per-skill animation pointer in EITHER WinForms (SkillConfigFE8NSkillForm
+                // has zero animation code) OR Avalonia (AnimationPointerBox is hard-coded
+                // to 0; Animation Import/Export are disabled by design, #1008). So there
+                // is no skill animation to seed the Creator from. This is WF parity, NOT
+                // a regression — the 4 anime-capable variants (Ver2/Ver3/CSkillSys09x/
+                // SkillSystem) DO seed via SkillConfigAnimeJumpHelper.
+                CoreState.Services?.ShowInfo(R._("FE8N Ver1 skills are render-only and have no animation to edit in the Animation Creator."));
             }
             catch (Exception ex)
             {

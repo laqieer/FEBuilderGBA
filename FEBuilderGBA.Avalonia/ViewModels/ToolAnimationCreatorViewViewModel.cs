@@ -63,6 +63,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string? _sourceFilename;
         uint _romAddress;
         uint _magicFrameDataAddress;
+        uint _skillAnimePointer;
         AnimationTypeEnum _animationKind = AnimationTypeEnum.MapActionAnimation;
         uint _animationId;
         EditableMapActionFrame? _selectedFrame;
@@ -82,6 +83,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// the 0x86 magic stream with 12-byte MapAction rows.
         /// </summary>
         public uint MagicFrameDataAddress { get => _magicFrameDataAddress; set => SetField(ref _magicFrameDataAddress, value); }
+        /// <summary>
+        /// Skill-animation pointer (#1115). DISPLAY/PREVIEW ONLY — skill seeds are
+        /// read-only (same contract as <see cref="MagicFrameDataAddress"/>), so this
+        /// is kept separate from <see cref="RomAddress"/> (which gates write-back).
+        /// For skill seeds <see cref="RomAddress"/> stays 0 so pressing Create can
+        /// NEVER overwrite the skill-anime config with 12-byte MapAction rows. The
+        /// view's <c>RenderPreview</c> decodes the per-frame image (TSA-correct) from
+        /// this pointer via <c>SkillSystemsAnimeExportCore</c>.
+        /// </summary>
+        public uint SkillAnimePointer { get => _skillAnimePointer; set => SetField(ref _skillAnimePointer, value); }
         public AnimationTypeEnum AnimationKind { get => _animationKind; set => SetField(ref _animationKind, value); }
         public uint AnimationId { get => _animationId; set => SetField(ref _animationId, value); }
 
@@ -126,8 +137,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 AnimationId = id;
                 FileHint = filehint ?? string.Empty;
                 // #1116: clear the magic stream address so a prior magic seed can't
-                // leak into this file-seeded context.
+                // leak into this file-seeded context. #1115: same for the skill ptr.
                 MagicFrameDataAddress = 0;
+                SkillAnimePointer = 0;
                 RomAddress = 0; // file path — no ROM writeback
                 Frames.Clear();
                 SelectedFrame = null;
@@ -195,7 +207,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 FileHint = filehint ?? string.Empty;
                 // #1116: clear the magic stream address so a prior magic seed can't
                 // leak into this ROM-seeded context (incl. the fail-closed path).
+                // #1115: same for the skill anime pointer.
                 MagicFrameDataAddress = 0;
+                SkillAnimePointer = 0;
                 SourceFilename = null;
                 Frames.Clear();
                 SelectedFrame = null;
@@ -267,6 +281,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // kept separately for display/preview only.
                 RomAddress = 0;
                 MagicFrameDataAddress = frameDataAddr;
+                SkillAnimePointer = 0; // #1115: clear any prior skill seed.
                 SourceFilename = null;
                 Frames.Clear();
                 SelectedFrame = null;
@@ -309,6 +324,102 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 rom, frameDataAddr, basename: "", enableComment: false,
                 out _, out _, out var frames, isCsa: isCsa);
             return frames.Count;
+        }
+
+        /// <summary>
+        /// Seed the Creator from a SKILL animation (#1115) — the SkillSystems
+        /// skill-anime config (frames / TSA / OBJ / palette lists, walked by
+        /// <see cref="SkillSystemsAnimeExportCore.ExportSkillAnimation"/>). Used by
+        /// the 4 anime-capable SkillConfig editors' "Editor"/"Jump to Animation
+        /// Creator" buttons so the Creator opens POPULATED rather than blank.
+        ///
+        /// <para><b>READ-ONLY display/preview (solves #996 reason 2 faithfully).</b>
+        /// Skill frames are rendered through a per-frame OBJ+TSA+palette decode
+        /// (NOT a single OBJ pointer like MapAction), so they are NOT writable via
+        /// this view's 12-byte MapAction writer. Each frame is mapped onto the
+        /// existing <see cref="EditableMapActionFrame"/> as <c>{ Wait, ImageName =
+        /// display label }</c> with the pointer fields left 0; the view's
+        /// <c>RenderPreview</c> decodes the actual TSA-correct frame image from
+        /// <see cref="SkillAnimePointer"/> via <c>SkillSystemsAnimeExportCore</c>.
+        /// <see cref="RomAddress"/> stays 0 so pressing Create is a no-op for
+        /// write-back (same guard as the #996 magic seed).</para>
+        /// </summary>
+        /// <param name="kind">Always <see cref="AnimationTypeEnum.Skill"/>.</param>
+        /// <param name="id">Skill id (for the title hint + image-label naming).</param>
+        /// <param name="filehint">Human-readable hint shown in the window title.</param>
+        /// <param name="animePointer">GBA pointer (or raw offset) to the skill-anime
+        /// config block (the value held in the SkillConfig editor's AnimationPointer).</param>
+        public void InitFromSkillRom(AnimationTypeEnum kind, uint id, string filehint, uint animePointer)
+        {
+            IsLoading = true;
+            try
+            {
+                AnimationKind = kind;
+                AnimationId = id;
+                FileHint = filehint ?? string.Empty;
+
+                // CRITICAL write-back guard (#1115/#996): skill seeds are READ-ONLY.
+                // RomAddress stays 0 so Create can NEVER overwrite the skill-anime
+                // config with 12-byte MapAction rows. The anime pointer is kept
+                // separately for the TSA-correct per-frame preview decode.
+                RomAddress = 0;
+                MagicFrameDataAddress = 0;
+                SkillAnimePointer = animePointer;
+                SourceFilename = null;
+                Frames.Clear();
+                SelectedFrame = null;
+
+                var rom = CoreState.ROM;
+                if (rom != null)
+                {
+                    var result = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animePointer);
+                    if (string.IsNullOrEmpty(result.Error))
+                    {
+                        foreach (var f in result.Frames)
+                        {
+                            // Map the skill frame onto the Creator's frame model.
+                            // Pointers stay 0 (skill frames decode via OBJ+TSA, not a
+                            // single OBJ pointer); ImageName is a display label that
+                            // mirrors the WF skill export's per-frame PNG naming so the
+                            // frame list reads identically to the file-seeded path.
+                            Frames.Add(new EditableMapActionFrame(new MapActionFrame(
+                                Wait: f.Wait,
+                                ImagePointer: 0,
+                                PalettePointer: 0,
+                                Sound: 0,
+                                ImageName: "g" + f.Id.ToString("000",
+                                    System.Globalization.CultureInfo.InvariantCulture) + ".png")));
+                        }
+                    }
+                    // Dispose the decoded IImages — the Creator's preview re-decodes
+                    // through its own SkillConfigAnimePreview cache, so these export
+                    // bitmaps are not retained here (avoids a native-bitmap leak).
+                    var seen = new System.Collections.Generic.HashSet<IImage>(ReferenceEqualityComparer.Instance);
+                    foreach (var f in result.Frames)
+                        if (f.Image != null && seen.Add(f.Image))
+                            try { f.Image.Dispose(); } catch { /* best-effort */ }
+                }
+
+                AnimationName = filehint ?? string.Empty;
+                FrameCount = Frames.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                IsLoaded = true;
+                OnPropertyChanged(nameof(CanWriteBackToRom));
+            }
+            finally { IsLoading = false; MarkClean(); }
+        }
+
+        /// <summary>
+        /// #1115: count the skill-anime frames at <paramref name="animePointer"/>
+        /// WITHOUT rendering / opening a window, so the SkillConfig jump handlers can
+        /// refuse to open a blank Creator on an empty / unresolvable pointer. Returns
+        /// 0 when ROM is null. Delegates to the Core probe (which never throws and does
+        /// not need the image service).
+        /// </summary>
+        public static int CountSkillFrames(uint animePointer)
+        {
+            var rom = CoreState.ROM;
+            if (rom == null) return 0;
+            return SkillSystemsAnimeExportCore.CountSkillFrames(rom, animePointer);
         }
 
         /// <summary>

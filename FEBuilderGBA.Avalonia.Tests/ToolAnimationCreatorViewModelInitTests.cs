@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.SkiaSharp;
 using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests;
@@ -503,8 +504,254 @@ public class ToolAnimationCreatorViewModelInitTests
     }
 
     // ----------------------------------------------------------------
+    // InitFromSkillRom — skill seed (#1115). Maps ExportSkillAnimation frames
+    // onto the Creator model (wait + display label), READ-ONLY (RomAddress 0).
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void InitFromSkillRom_PopulatesFramesAndIsReadOnly()
+    {
+        var prevRom = CoreState.ROM;
+        var prevSvc = CoreState.ImageService;
+        try
+        {
+            if (CoreState.ImageService == null)
+                CoreState.ImageService = new SkiaImageService();
+
+            ROM rom = MakeFE8JRom();
+            CoreState.ROM = rom; // ExportSkillAnimation requires the ACTIVE rom.
+            uint animeOffset = BuildSyntheticSkillAnime(rom.Data,
+                waits: new uint[] { 3, 5, 7 }, soundId: 0x1A);
+
+            var vm = new ToolAnimationCreatorViewViewModel();
+            vm.InitFromSkillRom(AnimationTypeEnum.Skill, 0x12,
+                "Skill Animation #12", U.toPointer(animeOffset));
+
+            Assert.True(vm.IsLoaded);
+            Assert.Equal(AnimationTypeEnum.Skill, vm.AnimationKind);
+            Assert.Equal(0x12u, vm.AnimationId);
+
+            // Frame mapping (the #996 reason-2 fix): one frame per stream entry,
+            // Wait carried 1:1, ImageName a display label, pointers left 0.
+            Assert.Equal(3, vm.Frames.Count);
+            Assert.Equal("3", vm.FrameCount);
+            Assert.Equal(3u, vm.Frames[0].Wait);
+            Assert.Equal(5u, vm.Frames[1].Wait);
+            Assert.Equal(7u, vm.Frames[2].Wait);
+            Assert.Equal(0u, vm.Frames[0].ImagePointer);
+            Assert.Equal(0u, vm.Frames[0].PalettePointer);
+            Assert.EndsWith(".png", vm.Frames[0].ImageName);
+
+            // CRITICAL write-back guard (#1115/#996): skill seed is READ-ONLY.
+            Assert.False(vm.CanWriteBackToRom);
+            Assert.Equal(0u, vm.RomAddress);
+            // The anime pointer is kept separately for the preview decode.
+            Assert.Equal(U.toPointer(animeOffset), vm.SkillAnimePointer);
+            // A skill seed must NOT carry a magic stream address.
+            Assert.Equal(0u, vm.MagicFrameDataAddress);
+            Assert.Null(vm.SourceFilename);
+        }
+        finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+    }
+
+    [Fact]
+    public void InitFromSkillRom_FrameWaitsMatchExportSkillAnimation()
+    {
+        // Parity: every ExportSkillAnimation frame's Wait must map 1:1 onto the
+        // seeded EditableMapActionFrame.Wait, and the counts must agree.
+        var prevRom = CoreState.ROM;
+        var prevSvc = CoreState.ImageService;
+        try
+        {
+            if (CoreState.ImageService == null)
+                CoreState.ImageService = new SkiaImageService();
+
+            ROM rom = MakeFE8JRom();
+            CoreState.ROM = rom;
+            uint animeOffset = BuildSyntheticSkillAnime(rom.Data,
+                waits: new uint[] { 2, 4, 6, 8 }, soundId: 0);
+
+            var export = SkillSystemsAnimeExportCore.ExportSkillAnimation(rom, animeOffset);
+            Assert.Equal("", export.Error);
+
+            var vm = new ToolAnimationCreatorViewViewModel();
+            vm.InitFromSkillRom(AnimationTypeEnum.Skill, 1, "h", U.toPointer(animeOffset));
+
+            Assert.Equal(export.Frames.Count, vm.Frames.Count);
+            for (int i = 0; i < export.Frames.Count; i++)
+                Assert.Equal(export.Frames[i].Wait, vm.Frames[i].Wait);
+        }
+        finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+    }
+
+    [Fact]
+    public void InitFromSkillRom_BadPointer_LeavesEmptyButLoaded()
+    {
+        // An unresolvable skill pointer must NOT crash; VM stays loaded-but-empty
+        // and read-only (no write-back).
+        var prevRom = CoreState.ROM;
+        var prevSvc = CoreState.ImageService;
+        try
+        {
+            if (CoreState.ImageService == null)
+                CoreState.ImageService = new SkiaImageService();
+
+            ROM rom = MakeFE8JRom();
+            CoreState.ROM = rom;
+
+            var vm = new ToolAnimationCreatorViewViewModel();
+            // 0x300 has no valid config planted -> ExportSkillAnimation errors.
+            vm.InitFromSkillRom(AnimationTypeEnum.Skill, 1, "h", U.toPointer(0x300u));
+
+            Assert.True(vm.IsLoaded);
+            Assert.Empty(vm.Frames);
+            Assert.False(vm.CanWriteBackToRom);
+            Assert.Equal(0u, vm.RomAddress);
+            Assert.Equal(U.toPointer(0x300u), vm.SkillAnimePointer);
+        }
+        finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+    }
+
+    [Fact]
+    public void InitFromMagicRom_AfterSkillSeed_ClearsSkillPointer()
+    {
+        // A prior skill seed must not leak into a subsequent magic seed.
+        var prevRom = CoreState.ROM;
+        var prevSvc = CoreState.ImageService;
+        try
+        {
+            if (CoreState.ImageService == null)
+                CoreState.ImageService = new SkiaImageService();
+
+            ROM rom = MakeFE8JRom();
+            CoreState.ROM = rom;
+            uint animeOffset = BuildSyntheticSkillAnime(rom.Data,
+                waits: new uint[] { 1 }, soundId: 0);
+
+            var vm = new ToolAnimationCreatorViewViewModel();
+            vm.InitFromSkillRom(AnimationTypeEnum.Skill, 1, "h", U.toPointer(animeOffset));
+            Assert.NotEqual(0u, vm.SkillAnimePointer);
+
+            // Now magic-seed: SkillAnimePointer must be cleared.
+            vm.InitFromMagicRom(AnimationTypeEnum.MagicAnime_FEEDitor, 1, "h", 0x210u, isCsa: false);
+            Assert.Equal(0u, vm.SkillAnimePointer);
+        }
+        finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+    }
+
+    // ----------------------------------------------------------------
+    // CountSkillFrames (VM static) — probe without opening a window (#1115)
+    // ----------------------------------------------------------------
+
+    [Fact]
+    public void CountSkillFrames_TwoFrames_ReturnsCount()
+    {
+        var prevRom = CoreState.ROM;
+        try
+        {
+            ROM rom = MakeFE8JRom();
+            CoreState.ROM = rom;
+            uint animeOffset = BuildSyntheticSkillAnime(rom.Data,
+                waits: new uint[] { 1, 1 }, soundId: 0);
+
+            Assert.Equal(2, ToolAnimationCreatorViewViewModel.CountSkillFrames(
+                U.toPointer(animeOffset)));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    [Fact]
+    public void CountSkillFrames_NullRom_ReturnsZero()
+    {
+        ROM? prevRom = CoreState.ROM;
+        try
+        {
+            CoreState.ROM = null;
+            Assert.Equal(0, ToolAnimationCreatorViewViewModel.CountSkillFrames(
+                U.toPointer(0x300u)));
+        }
+        finally { CoreState.ROM = prevRom; }
+    }
+
+    // ----------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------
+
+    static ROM MakeFE8JRom()
+    {
+        // FE8J (multi-byte) so SkipCode takes the direct path (config == anime).
+        var rom = new ROM();
+        rom.LoadLow("synthetic_fe8j.gba", new byte[0x1000000], "BE8J01");
+        return rom;
+    }
+
+    // Build a synthetic FE8J skill-anime config and return the anime OFFSET
+    // (== config for FE8J). Mirrors SkillSystemsAnimeExportCoreTests.
+    static uint BuildSyntheticSkillAnime(byte[] data, uint[] waits, uint soundId)
+    {
+        const uint config = 0x300;
+        const uint frames = 0x400;
+        const uint graphiclist = 0x500;
+        const uint tsalist = 0x600;
+        const uint palettelist = 0x700;
+        const uint objLz = 0x1000;
+        const uint tsaLz = 0x2000;
+        const uint palOff = 0x3000;
+
+        WriteU32(data, config + 0,  objLz0Ptr(frames));
+        WriteU32(data, config + 4,  objLz0Ptr(tsalist));
+        WriteU32(data, config + 8,  objLz0Ptr(graphiclist));
+        WriteU32(data, config + 12, objLz0Ptr(palettelist));
+        WriteU32(data, config + 16, soundId);
+
+        WriteU32(data, graphiclist + 0, objLz0Ptr(objLz));
+        WriteU32(data, tsalist + 0,     objLz0Ptr(tsaLz));
+        WriteU32(data, palettelist + 0, objLz0Ptr(palOff));
+
+        uint fp = frames;
+        for (int i = 0; i < waits.Length; i++)
+        {
+            WriteU16(data, fp + 0, 0);
+            WriteU16(data, fp + 2, (ushort)waits[i]);
+            fp += 4;
+        }
+        WriteU16(data, fp + 0, 0xFFFF);
+        WriteU16(data, fp + 2, 0xFFFF);
+
+        PlantZeroLZ77(data, objLz, 0x800);
+        PlantZeroLZ77(data, tsaLz, 120);
+        PlantPalette(data, palOff);
+        return config;
+    }
+
+    static uint objLz0Ptr(uint off) => off + 0x08000000u;
+
+    static void PlantZeroLZ77(byte[] data, uint offset, int uncompressedSize)
+    {
+        data[offset + 0] = 0x10;
+        data[offset + 1] = (byte)(uncompressedSize & 0xFF);
+        data[offset + 2] = (byte)((uncompressedSize >> 8) & 0xFF);
+        data[offset + 3] = (byte)((uncompressedSize >> 16) & 0xFF);
+        int remaining = uncompressedSize;
+        int pos = (int)offset + 4;
+        while (remaining > 0 && pos + 1 < data.Length)
+        {
+            int count = remaining < 8 ? remaining : 8;
+            data[pos++] = 0x00;
+            for (int k = 0; k < count && pos < data.Length; k++, remaining--)
+                data[pos++] = 0x00;
+        }
+    }
+
+    static void PlantPalette(byte[] data, uint offset)
+    {
+        for (int i = 0; i < 16; i++)
+        {
+            ushort color = (i == 0) ? (ushort)0 : (ushort)0x7FFF;
+            data[offset + i * 2 + 0] = (byte)(color & 0xFF);
+            data[offset + i * 2 + 1] = (byte)((color >> 8) & 0xFF);
+        }
+    }
 
     static string WriteTempScript(string content)
     {

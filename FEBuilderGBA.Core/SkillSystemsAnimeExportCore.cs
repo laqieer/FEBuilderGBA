@@ -257,6 +257,50 @@ namespace FEBuilderGBA
             return result;
         }
 
+        /// <summary>
+        /// Count the skill-animation frames at <paramref name="animePointer"/>
+        /// WITHOUT rendering any IImage (#1115 probe-before-open) — mirrors the
+        /// <see cref="ExportSkillAnimation"/> frame-stream walk exactly but stops
+        /// at the same <c>0xFFFF</c> terminator without decoding OBJ/TSA/palette.
+        /// Lets the SkillConfig jump handlers refuse to open a blank Animation
+        /// Creator on an empty / terminator-first / unresolvable stream. Returns
+        /// 0 on any structural fault (never throws); unlike
+        /// <see cref="ExportSkillAnimation"/> it does NOT require
+        /// <c>CoreState.ImageService</c> (it renders nothing).
+        ///
+        /// <para>NOTE: this counts every non-terminator frame ENTRY in the stream,
+        /// which is the right "would the seed populate?" signal. The heavier
+        /// <see cref="ExportSkillAnimation"/> additionally bails on a per-frame
+        /// RENDER fault, so a non-zero count here does not guarantee every frame
+        /// renders — the seed path re-checks via <see cref="ExportSkillAnimation"/>
+        /// and degrades to its <c>Error</c> on a render fault.</para>
+        /// </summary>
+        public static int CountSkillFrames(ROM rom, uint animePointer)
+        {
+            if (rom == null || rom.Data == null) return 0;
+            uint addr = U.toOffset(animePointer);
+            if (!U.isSafetyOffset(addr, rom)) return 0;
+
+            uint cfg = SkipCode(rom, addr, out _);
+            if (cfg == U.NOT_FOUND) return 0;
+            if (cfg + (4 * 5) > (uint)rom.Data.Length) return 0;
+
+            uint frames = rom.p32(cfg + (4 * 0));
+            if (!U.isSafetyOffset(frames, rom)) return 0;
+
+            int count = 0;
+            uint limitter = frames + 1024 * 1024;
+            if (limitter > (uint)rom.Data.Length) limitter = (uint)rom.Data.Length;
+            for (uint n = frames; n + 4 <= limitter; n += 4)
+            {
+                if (!U.isSafetyOffset(n + 4, rom)) break;
+                uint id = rom.u16(n + 0);
+                if (id == 0xFFFF) break; // terminator
+                count++;
+            }
+            return count;
+        }
+
         /// <summary>Bounds-checked frame image accessor. Returns the EXACT stored
         /// IImage reference for the given frame, or null if the result is null/errored
         /// or the index is out of range. Does NOT clone or dispose.</summary>

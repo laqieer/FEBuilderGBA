@@ -66,6 +66,16 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
+        /// Bounds-checked frame -> the CACHED <see cref="IImage"/> (NOT a clone; the
+        /// cache still owns it and disposes it in <see cref="Clear"/>). For callers
+        /// that build their own Avalonia bitmap from an IImage and do NOT take
+        /// ownership — e.g. <c>GbaImageControl.SetImage(IImage)</c>, which copies the
+        /// pixels synchronously. Returns null when OOB / no image. #1115.
+        /// </summary>
+        public IImage? TryGetFrameImage(int frameIndex)
+            => SkillSystemsAnimeExportCore.GetFrameImage(_cached, frameIndex);
+
+        /// <summary>
         /// Dispose each UNIQUE cached frame IImage (IImage : IDisposable) and
         /// reset. Safe: <see cref="TryGetFrameBitmap"/> copies pixels into a NEW
         /// WriteableBitmap, so a displayed bitmap survives disposal of its source
