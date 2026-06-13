@@ -104,6 +104,85 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        // ====================================================================
+        //  #1141 — Unit + Class source-field gate seams
+        // ====================================================================
+
+        [Fact]
+        public void UnitViewModel_BuildSourceFieldDict_EmitsOnlyChangedFieldsSinceSnapshot()
+        {
+            var vm = new UnitEditorViewModel
+            {
+                HP = 16, Str = 5, Skl = 4, Spd = 6, Def = 3, Res = 1, Lck = 2, Con = 8,
+                Level = 1, Affinity = 0,
+                GrowHP = 70, GrowStr = 40, GrowSkl = 40, GrowSpd = 40,
+                GrowDef = 20, GrowRes = 20, GrowLck = 30,
+            };
+            vm.RefreshSourceFieldSnapshot();
+
+            // No edits → nothing changed.
+            Assert.Empty(vm.BuildSourceFieldDict());
+
+            // Edit ONLY Str. The other fields must NOT be emitted (stale-preview guard).
+            vm.Str = 9;
+            var changed = vm.BuildSourceFieldDict();
+            // Str is signed → packed as (byte)(sbyte)9 == 9 under key "pow".
+            Assert.Equal(9u, changed["pow"]);
+            Assert.False(changed.ContainsKey("hp"));
+            Assert.False(changed.ContainsKey("growthHp"));
+            Assert.False(changed.ContainsKey("level"));
+
+            // Re-baseline → no longer changed.
+            vm.RefreshSourceFieldSnapshot();
+            Assert.Empty(vm.BuildSourceFieldDict());
+        }
+
+        [Fact]
+        public void UnitViewModel_BuildSourceFieldDict_PacksNegativeBaseStatAsByte()
+        {
+            var vm = new UnitEditorViewModel { HP = 0 };
+            vm.RefreshSourceFieldSnapshot();
+            // A negative base (e.g. a recruit penalty) packs to its two's-complement byte.
+            vm.HP = -1;
+            var changed = vm.BuildSourceFieldDict();
+            Assert.Equal(0xFFu, changed["hp"]);   // (byte)(sbyte)(-1) == 0xFF
+        }
+
+        [Fact]
+        public void ClassViewModel_BuildSourceFieldDict_EmitsOnlyChangedFieldsSinceSnapshot()
+        {
+            var vm = new ClassEditorViewModel
+            {
+                BaseHp = 18, BaseStr = 5, MaxHp = 60, ClassPower = 0,
+                GrowHp = 70, GrowStr = 40,
+                PromoHp = 2, PromoStr = 1,
+            };
+            vm.RefreshSourceFieldSnapshot();
+
+            Assert.Empty(vm.BuildSourceFieldDict());
+
+            // Edit ONLY BaseHp → only baseHp emitted (others unchanged).
+            vm.BaseHp = 20;
+            var changed = vm.BuildSourceFieldDict();
+            Assert.Equal(20u, changed["baseHp"]);
+            Assert.False(changed.ContainsKey("maxHp"));
+            Assert.False(changed.ContainsKey("growthHp"));
+            Assert.False(changed.ContainsKey("promoHp"));
+
+            vm.RefreshSourceFieldSnapshot();
+            Assert.Empty(vm.BuildSourceFieldDict());
+        }
+
+        [Fact]
+        public void ClassViewModel_BuildSourceFieldDict_PacksNegativePromoGainAsByte()
+        {
+            var vm = new ClassEditorViewModel { PromoHp = 0 };
+            vm.RefreshSourceFieldSnapshot();
+            vm.PromoHp = -1;
+            var changed = vm.BuildSourceFieldDict();
+            Assert.Equal(0xFFu, changed["promoHp"]);   // signed promo gain packed to 0xFF
+        }
+
         [Fact]
         public void ItemsOwner_SourceCstruct_RoutesToSourceWriter_NotRom()
         {

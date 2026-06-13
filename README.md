@@ -120,14 +120,27 @@ dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=graphics --projec
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=map --rom=rom.gba --addr=0x200000 --out=map/chapter1.mar
 dotnet run --project FEBuilderGBA.CLI -- --export-asset --kind=text --rom=rom.gba --out=text/
 
-# Decomp source-backed table writer: rewrite the owning C array element of a
-# structured table entry instead of mutating the preview ROM (the source is the
-# source of truth). The table must declare a source owner in the manifest tables[].
-# Only plain integer-literal value tokens are rewritten (macros/expressions are
-# reported, not normalized); every other byte of the file (comments, whitespace,
-# line endings) is preserved. On success the project is flagged "needs rebuild".
+# Decomp source-backed table writer: rewrite the owning C array element (or JSON
+# element) of a structured table entry instead of mutating the preview ROM (the
+# source is the source of truth). The table must declare a source owner in the
+# manifest tables[]. Supported formats: C struct array (format="cstruct" or unset)
+# AND JSON (format="json"). Only plain integer-literal value tokens (C) / JSON
+# Number tokens are rewritten (macros/expressions/strings are reported, not
+# normalized); every other byte of the file (comments, trailing commas, whitespace,
+# line endings, BOM) is preserved. On success the project is flagged "needs rebuild".
+#
+# Coverage (#1132 + #1141): items, units (alias: characters), classes. Signed
+# fields (unit base stats, class promotion gains) are driven off the manifest
+# fields[].signed flag — pass the two's-complement magnitude (e.g. --value=255 for
+# an int8 -1); a negative value is re-emitted as a "-N" decimal. --field/--value
+# are REPEATABLE: each --field=X must be immediately followed by its --value=Y in
+# argument order (multiple fields update one entry atomically). Chapter settings
+# (map_settings), shops, and support data are ROM-only/manual this release (no
+# clean source-of-truth C array; faithful writers are a follow-up).
+#
 # Exit codes: 0 = source rewritten; 2 = ROM-only / manual / not owned; 1 = usage/parse error.
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=0x0A
+dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=units --id=1 --field=hp --value=18 --field=pow --value=7
 dotnet run --project FEBuilderGBA.CLI -- --write-source --project=path/to/decomp --table=items --id=1 --field=might --value=10 --out-diff=change.diff
 
 # Build decomp project ROM (run the manifest-declared build command).
@@ -282,28 +295,44 @@ sibling.
   from the coalesced span and NEVER writes the ROM or source — the edited ROM is read
   but never treated as canonical final output.
 - **CLI:** `--write-source --project=<dir> --table=<name> --id=<n> --field=<f> --value=<v>`
-  is the **source-backed table writer** (#1132). When a structured table (e.g. `items`)
-  declares a source owner in the manifest `tables[]` section (with `writePolicy: source`
-  + `format: cstruct`), this rewrites the owning C array element IN-PLACE — changing only
-  the integer-literal token(s) for the requested field and leaving every other byte of the
-  file identical (comments, whitespace, line endings preserved). Hex tokens stay hex,
-  decimal stays decimal; macro/identifier/expression values are reported (never normalized).
-  Both designated-initializer (`.field = N`) and positional (manifest field order) elements
-  are supported. On success the project is flagged **needs rebuild**. `--out-diff=<path>`
+  is the **source-backed table writer** (#1132, extended in #1141). When a structured
+  table declares a source owner in the manifest `tables[]` section (with
+  `writePolicy: source`), this rewrites the owning **C array element** (`format: cstruct`)
+  **or JSON element** (`format: json`) IN-PLACE — changing only the value token(s) for the
+  requested field and leaving every other byte of the file identical (comments, trailing
+  commas, whitespace, line endings, BOM preserved). C hex tokens stay hex, decimal stays
+  decimal; macro/identifier/expression (C) and string/bool/object/array (JSON) values are
+  reported, not normalized (single-field intent → hard fail; bulk → skipped). Both
+  designated-initializer (`.field = N`) and positional C elements are supported, and both
+  JSON array and object-map forms. **Coverage: `items`, `units` (alias `characters`),
+  `classes`.** **Signed fields** (unit base stats, class promotion gains) are driven off
+  `fields[].signed` (+ optional `width` 1/2/4) — pass the two's-complement magnitude
+  (e.g. `--value=255` for an int8 -1); a value that reinterprets negative is re-emitted as a
+  `-N` decimal. `--field`/`--value` are **REPEATABLE** (each `--field=X` paired with the
+  immediately-following `--value=Y` in argument order) so multiple fields of one entry update
+  in a single atomic source write. **`map_settings` (chapter settings), shops, and support
+  data are ROM-only/manual this release** (no clean source-of-truth C array; faithful writers
+  are a follow-up). On success the project is flagged **needs rebuild**. `--out-diff=<path>`
   optionally writes a before/after diff of the changed element. Exit codes: `0` = source
   rewritten; `2` = ROM-only / manual / not owned / unsupported field / path rejected;
   `1` = usage / parse error / source not found.
-- **Avalonia GUI:** in decomp mode the **Items editor** Write button routes to the
-  source writer when the `items` table is source-owned (and shows *"Item source updated.
-  Project needs rebuild."*) instead of mutating the preview ROM; an owned-but-unsupported
-  / ROM-only item shows a ROM-only notice instead of a silent ROM write. The toolbar badge
-  gains a *" · needs rebuild"* suffix after a source write. The classic (non-decomp) ROM
-  write path is byte-for-byte unchanged.
+- **Avalonia GUI:** in decomp mode the **Items**, **Units**, and **Classes** editor Write
+  buttons route to the source writer when the matching table is source-owned (showing e.g.
+  *"Unit source updated. Project needs rebuild."*) instead of mutating the preview ROM; an
+  owned-but-unsupported / ROM-only entry shows a ROM-only notice instead of a silent ROM
+  write. The toolbar badge gains a *" · needs rebuild"* suffix after a source write. The
+  classic (non-decomp) ROM write path is byte-for-byte unchanged. The Avalonia editors map
+  their UI fields to conventional decomp C names — units: `hp`/`pow`/`skl`/`spd`/`def`/`res`/
+  `lck`/`con` (signed base stats), `level`, `affinity`, `growthHp`/`growthPow`/… ; classes:
+  `baseHp`/`baseStr`(+`basePow`)/…, `maxHp`/…, `classPower`, `growthHp`/…, and signed
+  `promoHp`/`promoStr`/… The View intersects these with the manifest owner's declared
+  `fields`, so a manifest that omits a field simply skips it.
 
 Slice 1 (#1129) delivered open + preview; slice 2 (#1130) adds address-to-source
 symbol resolution; slice 3 (#1131) adds the diff-to-source migration assistant;
-the source-backed table writer is #1132. Asset exporters (#1133) and in-app
-build/reload (#1134) round out the suite.
+the source-backed table writer is #1132, extended to JSON + units/classes + signed
+fields + multi-field in #1141. Asset exporters (#1133) and in-app build/reload (#1134)
+round out the suite.
 
 ### Running on Android (experimental)
 

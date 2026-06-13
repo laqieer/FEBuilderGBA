@@ -369,6 +369,100 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             CanWrite = true;
             IsLoading = false;
             MarkClean();
+
+            // Snapshot the source-writable field values so BuildSourceFieldDict emits
+            // ONLY the fields the user later changes (#1141).
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
+        }
+
+        // ----------------------------------------------- decomp source-write gate (#1141)
+
+        /// <summary>
+        /// Current 0-based class table index. Exposed for the source-backed writer
+        /// save-gate (#1141), keyed by entry id. Computed at LoadClass.
+        /// </summary>
+        public int CurrentClassIndex => (int)_currentClassIndex;
+
+        /// <summary>
+        /// The field→value snapshot captured at LoadClass; BuildSourceFieldDict compares
+        /// against this so ONLY user-changed fields reach the writer (never stale-preview
+        /// values that could clobber unrelated source fields). (#1141)
+        /// </summary>
+        Dictionary<string, uint> _loadedSourceFieldSnapshot = new Dictionary<string, uint>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// Candidate C-field → value map (source-writable integer class fields), keyed by
+        /// conventional decomp <c>struct ClassData</c> field names (#1141). Promo gains are
+        /// SIGNED (Width=1), packed as <c>(uint)(byte)(sbyte)value</c> so the writer's
+        /// signed reinterpret round-trips a negative gain. Base/max/growth/classPower are
+        /// unsigned. Pointers / encoded composite bytes are omitted. The View intersects
+        /// this with the manifest owner's declared <c>fields</c>; chosen names are in README.
+        /// </summary>
+        Dictionary<string, uint> CurrentSourceFieldMap()
+        {
+            uint S(int v) => (uint)(byte)(sbyte)v;   // pack a signed promo gain into a byte
+            return new Dictionary<string, uint>(StringComparer.Ordinal)
+            {
+                // Base stats (unsigned).
+                { "baseHp",   BaseHp },
+                { "baseStr",  BaseStr },
+                { "basePow",  BaseStr },   // alias (decomp trees vary on str/pow)
+                { "baseSkl",  BaseSkl },
+                { "baseSpd",  BaseSpd },
+                { "baseDef",  BaseDef },
+                { "baseRes",  BaseRes },
+                { "baseCon",  BaseCon },
+                { "baseMov",  BaseMov },
+                // Stat caps (unsigned).
+                { "maxHp",    MaxHp },
+                { "maxStr",   MaxStr },
+                { "maxSkl",   MaxSkl },
+                { "maxSpd",   MaxSpd },
+                { "maxDef",   MaxDef },
+                { "maxRes",   MaxRes },
+                { "maxCon",   MaxCon },
+                { "classPower", ClassPower },
+                // Growths (unsigned).
+                { "growthHp",  GrowHp },
+                { "growthStr", GrowStr },
+                { "growthSkl", GrowSkl },
+                { "growthSpd", GrowSpd },
+                { "growthDef", GrowDef },
+                { "growthRes", GrowRes },
+                { "growthLck", GrowLck },
+                // Promotion gains (SIGNED, width 1).
+                { "promoHp",  S(PromoHp) },
+                { "promoStr", S(PromoStr) },
+                { "promoSkl", S(PromoSkl) },
+                { "promoSpd", S(PromoSpd) },
+                { "promoDef", S(PromoDef) },
+                { "promoRes", S(PromoRes) },
+            };
+        }
+
+        /// <summary>
+        /// Build the C-field → value map of ONLY the fields the user changed since
+        /// LoadClass (#1141). The View intersects this with the owner's declared fields.
+        /// </summary>
+        public IReadOnlyDictionary<string, uint> BuildSourceFieldDict()
+        {
+            var current = CurrentSourceFieldMap();
+            var changed = new Dictionary<string, uint>(StringComparer.Ordinal);
+            foreach (var kv in current)
+            {
+                if (!_loadedSourceFieldSnapshot.TryGetValue(kv.Key, out uint baseline)
+                    || baseline != kv.Value)
+                {
+                    changed[kv.Key] = kv.Value;
+                }
+            }
+            return changed;
+        }
+
+        /// <summary>Re-baseline the snapshot after a successful source write (#1141).</summary>
+        public void RefreshSourceFieldSnapshot()
+        {
+            _loadedSourceFieldSnapshot = CurrentSourceFieldMap();
         }
 
         public int GetListCount() => LoadClassList().Count;

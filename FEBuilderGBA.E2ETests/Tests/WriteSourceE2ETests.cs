@@ -230,5 +230,178 @@ namespace FEBuilderGBA.E2ETests.Tests
                 try { Directory.Delete(projectDir, true); } catch { }
             }
         }
+
+        // ---- #1141: JSON-backed table ----
+
+        [SkippableFact]
+        public void WriteSource_JsonTable_RewritesNumber_ExitsZero()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source json test");
+
+            string projectDir = NewTempDir("json");
+            try
+            {
+                string dataDir = Path.Combine(projectDir, "data");
+                Directory.CreateDirectory(dataDir);
+                string srcAbs = Path.Combine(dataDir, "items.json");
+                string content =
+                    "[\n" +
+                    "  { \"nameId\": 1, \"might\": 5, \"hitRate\": 90 },\n" +
+                    "  { \"nameId\": 2, \"might\": 8, \"hitRate\": 75 }\n" +
+                    "]\n";
+                File.WriteAllText(srcAbs, content);
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"items\", \"format\": \"json\", \"writePolicy\": \"source\"," +
+                    "    \"sourceFile\": \"data/items.json\"," +
+                    "    \"fields\": [ { \"name\": \"might\" }, { \"name\": \"hitRate\" } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=items --id=1 --field=might --value=10";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=true", stdout);
+                string after = File.ReadAllText(srcAbs);
+                Assert.Equal(content.Replace("\"might\": 8", "\"might\": 10"), after);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- #1141: units (characters) C-array ----
+
+        [SkippableFact]
+        public void WriteSource_UnitsCArray_RewritesField_ExitsZero()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source units test");
+
+            string projectDir = NewTempDir("units");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "chardata.c");
+                string content =
+                    "struct CharacterData gCharacterData[] = {\n" +
+                    "    [0] = { .hp = 16, .pow = 5 },\n" +
+                    "    [1] = { .hp = 18, .pow = 7 },\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                // Declare the owner under "characters" — the --table=units alias resolves it.
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"characters\", \"format\": \"cstruct\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"gCharacterData\", \"sourceFile\": \"src/chardata.c\"," +
+                    "    \"fields\": [ { \"name\": \"hp\", \"signed\": true, \"width\": 1 }," +
+                    "                  { \"name\": \"pow\", \"signed\": true, \"width\": 1 } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=units --id=1 --field=pow --value=9";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=true", stdout);
+                string after = File.ReadAllText(srcAbs);
+                Assert.Contains(".pow = 9", after);
+                Assert.Contains("[0] = { .hp = 16, .pow = 5 }", after);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- #1141: multi-field (two field/value pairs) ----
+
+        [SkippableFact]
+        public void WriteSource_MultiField_BothApplied_ExitsZero()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source multi-field test");
+
+            string projectDir = NewTempDir("multi");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                string srcAbs = Path.Combine(srcDir, "chardata.c");
+                string content =
+                    "struct CharacterData gCharacterData[] = {\n" +
+                    "    [0] = { .hp = 16, .pow = 5 },\n" +
+                    "    [1] = { .hp = 18, .pow = 7 },\n" +
+                    "};\n";
+                File.WriteAllText(srcAbs, content);
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"characters\", \"format\": \"cstruct\", \"writePolicy\": \"source\"," +
+                    "    \"arrayName\": \"gCharacterData\", \"sourceFile\": \"src/chardata.c\"," +
+                    "    \"fields\": [ { \"name\": \"hp\", \"signed\": true, \"width\": 1 }," +
+                    "                  { \"name\": \"pow\", \"signed\": true, \"width\": 1 } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=units --id=1 " +
+                              "--field=hp --value=20 --field=pow --value=9";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.True(code == 0, $"exit {code}\nStdout:{stdout}\nStderr:{stderr}");
+                Assert.Contains("NeedsRebuild=true", stdout);
+                string after = File.ReadAllText(srcAbs);
+                Assert.Contains("[1] = { .hp = 20, .pow = 9 }", after);
+                Assert.Contains("[0] = { .hp = 16, .pow = 5 }", after);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- #1141: manual/romOnly table → advisory exit 2 ----
+
+        [SkippableFact]
+        public void WriteSource_RomOnlyTable_ExitsTwo()
+        {
+            Skip.If(FirstRom == null, "No ROM available for --write-source romOnly test");
+
+            string projectDir = NewTempDir("romonly");
+            try
+            {
+                string srcDir = Path.Combine(projectDir, "src");
+                Directory.CreateDirectory(srcDir);
+                File.WriteAllText(Path.Combine(srcDir, "item.c"),
+                    "Item gItemData[] = { [0] = { .might = 5 } };\n");
+
+                File.WriteAllText(Path.Combine(projectDir, "febuilder.project.json"),
+                    "{ \"schemaVersion\": 1, \"builtRom\": \"synth.gba\"," +
+                    "  \"tables\": [ { \"table\": \"items\", \"writePolicy\": \"romOnly\"," +
+                    "    \"arrayName\": \"gItemData\", \"sourceFile\": \"src/item.c\"," +
+                    "    \"fields\": [ { \"name\": \"might\" } ] } ] }");
+                File.Copy(FirstRom!, Path.Combine(projectDir, "synth.gba"), overwrite: true);
+
+                string args = $"--write-source --project=\"{projectDir}\" --table=items --id=0 --field=might --value=10";
+                var (code, stdout, stderr) = RunWithRetry(args);
+
+                Assert.Equal(2, code);
+                Assert.Contains("ROM-only", stdout + stderr, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                try { Directory.Delete(projectDir, true); } catch { }
+            }
+        }
+
+        // ---- #1141: unpaired --field is a usage error ----
+
+        [Fact]
+        public void WriteSource_UnpairedField_ExitsNonZero()
+        {
+            // --field with no following --value → usage error (exit 1), no project load.
+            var (code, _, _) = RunWithRetry("--write-source --project=fake_dir --table=items --id=1 --field=might");
+            Assert.NotEqual(0, code);
+        }
     }
 }

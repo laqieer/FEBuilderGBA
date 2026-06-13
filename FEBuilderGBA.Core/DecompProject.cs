@@ -92,6 +92,10 @@ namespace FEBuilderGBA
         /// section (#1132). Returns the matching <see cref="DecompTableEntry"/> whose
         /// <c>table</c> equals <paramref name="tableName"/>, or null when there is no
         /// owner declaration, no manifest, or the section is malformed. NEVER throws.
+        ///
+        /// #1141: <c>units</c> and <c>characters</c> are aliases — a lookup for one
+        /// also matches an owner declared under the other (decomp trees commonly name
+        /// the character/unit table either way). The direct name is tried first.
         /// </summary>
         public DecompTableEntry TryGetTableOwner(string tableName)
         {
@@ -99,19 +103,36 @@ namespace FEBuilderGBA
             {
                 if (string.IsNullOrEmpty(tableName) || Manifest == null)
                     return null;
-                foreach (DecompTableEntry e in Manifest.TablesList)
-                {
-                    if (e != null
-                        && !string.IsNullOrEmpty(e.Table)
-                        && string.Equals(e.Table, tableName, StringComparison.OrdinalIgnoreCase))
-                        return e;
-                }
+
+                DecompTableEntry direct = FindOwnerByExactName(tableName);
+                if (direct != null)
+                    return direct;
+
+                // #1141: units <-> characters alias.
+                if (string.Equals(tableName, "units", StringComparison.OrdinalIgnoreCase))
+                    return FindOwnerByExactName("characters");
+                if (string.Equals(tableName, "characters", StringComparison.OrdinalIgnoreCase))
+                    return FindOwnerByExactName("units");
+
                 return null;
             }
             catch
             {
                 return null;
             }
+        }
+
+        /// <summary>Exact (case-insensitive) table-name match over the parsed owners. NEVER throws.</summary>
+        DecompTableEntry FindOwnerByExactName(string tableName)
+        {
+            foreach (DecompTableEntry e in Manifest.TablesList)
+            {
+                if (e != null
+                    && !string.IsNullOrEmpty(e.Table)
+                    && string.Equals(e.Table, tableName, StringComparison.OrdinalIgnoreCase))
+                    return e;
+            }
+            return null;
         }
     }
 

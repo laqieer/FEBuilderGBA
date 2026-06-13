@@ -24600,5 +24600,26 @@ A: 不使用 TSA 的背景 224 色(对话用)
 :This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead.
 这是一个基于源码的反编译工程。已构建的 ROM 仅为预览，无法直接覆盖保存。请改为编辑源码并重新构建。
 
+:This unit is ROM-only in decomp mode. Edit the source manually and rebuild.
+此单位在反编译模式下仅限 ROM。请手动编辑源码并重新构建。
+
+:This class is ROM-only in decomp mode. Edit the source manually and rebuild.
+此职业在反编译模式下仅限 ROM。请手动编辑源码并重新构建。
+
+:Unit source updated. Project needs rebuild.
+单位源码已更新。工程需要重新构建。
+
+:Class source updated. Project needs rebuild.
+职业源码已更新。工程需要重新构建。
+
+:This unit table is ROM-only in decomp mode.
+此单位表在反编译模式下仅限 ROM。
+
+:This class table is ROM-only in decomp mode.
+此职业表在反编译模式下仅限 ROM。
+
+:No change needed — the source already matches.
+无需更改——源码已经匹配。
+
 :Failed to open decomp project:
 打开反编译工程失败:
